@@ -1,0 +1,19 @@
+{
+  "name": "attunement",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Attunement — vertical slice of a browser-based third-person 3D MMORPG",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js",
+    "e2e": "node test/e2e/play.mjs"
+  },
+  "dependencies": {
+    "three": "^0.187.0",
+    "ws": "^8.23.0"
+  }
+}
