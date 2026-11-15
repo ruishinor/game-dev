@@ -116,10 +116,10 @@ function buildProps() {
   add({ type: 'dish', x: rl.x + 6, z: rl.z - 9, r: 2.2, h: 2.5 });
   add({ type: 'crate', x: rl.x - 5, z: rl.z + 3, hw: 0.9, hd: 0.9, h: 1.3 });
 
-  // --- Resonance Vault: a ring of monoliths with an opening to the north ---
+  // --- Resonance Vault: a ring of monoliths open on its south side, facing the Sanctum ---
   const vt = ZONES.vault;
   for (let i = 0; i < 12; i++) {
-    if (i === 0 || i === 11) continue; // northern gateway
+    if (i === 0 || i === 11) continue; // the gateway
     const a = (i / 12) * Math.PI * 2 + Math.PI / 12;
     add({ type: 'monolith', x: vt.x + Math.sin(a) * 15.5, z: vt.z + Math.cos(a) * 15.5, r: 1.35, h: 7 + ((i * 37) % 5), rot: a });
   }
@@ -128,7 +128,7 @@ function buildProps() {
   const ob = ZONES.obelisk;
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2;
-    // Leave a gap facing east-north-east so the hollow can be entered.
+    // Leave a gap on the east side so the hollow can be entered.
     if (i === 2) continue;
     add({ type: 'rock', x: ob.x + Math.sin(a) * 7.2, z: ob.z + Math.cos(a) * 7.2, r: 2.6, h: 4.5 + (i % 3) * 1.4, s: 2.6, seed: 500 + i });
   }

@@ -1,0 +1,944 @@
+// Client entry point: rendering loop, local prediction, remote interpolation
+// and translation of server events into presentation. The server decides
+// every outcome; this file only shows them and sends intents.
+
+import * as THREE from '/vendor/three/three.module.js';
+import { CLASSES, ABILITIES } from '../../shared/content.js';
+import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
+import { buildWorld } from './scene.js';
+import { MODEL_FACTORIES } from './models.js';
+import { Fx } from './fx.js';
+import { Input } from './input.js';
+import { ThirdPersonCamera } from './camera.js';
+import { Net, saveToken } from './net.js';
+import { UI } from './ui.js';
+
+const INTERP_MS = 110;
+const TURN_RATE = 2.9;
+const INTERACT_RANGE = 5;
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('view');
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+} catch (err) {
+  $('login-error').textContent = 'This browser could not start WebGL, which the game needs.';
+  throw err;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
+const world = buildWorld(scene);
+const fx = new Fx(scene);
+const cam = new ThirdPersonCamera(camera);
+// ?nolock=1 keeps the cursor free while steering (fallback for setups where
+// pointer lock misbehaves, and for automated input).
+const input = new Input(canvas, { lock: new URLSearchParams(location.search).get('nolock') !== '1' });
+
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.02, 40), new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+ring.rotation.x = -Math.PI / 2;
+ring.visible = false;
+scene.add(ring);
+
+function resize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- state -------------------------------------------------------------------
+
+const S = {
+  myId: 0,
+  compId: 0,
+  ents: new Map(),
+  you: null,
+  sheet: null,
+  target: 0,
+  targetSentAt: 0,
+  timeOffset: null,
+  zone: '',
+  cdReady: {},
+  gcdReady: 0,
+  fps: 60,
+  snaps: 0,
+};
+
+const local = {
+  pred: { x: 0, z: 0, jy: 0, vy: 0 },
+  prev: { x: 0, z: 0, jy: 0 },
+  yaw: Math.PI,
+  sentYaw: Math.PI,
+  yawSentAt: 0,
+  speedMul: 1,
+  pending: [],
+  outbox: [],
+  seq: 0,
+  acc: 0,
+  lastSend: 0,
+  err: { x: 0, z: 0 },
+};
+
+const net = new Net({
+  onWelcome,
+  onSnapshot,
+  onAuthFail: (reason) => showLogin(reason ? `${reason} Create a new character below.` : ''),
+  onCreateFail: (reason) => {
+    $('login-error').textContent = reason;
+    $('enter').disabled = false;
+  },
+  onStatus: (text) => {
+    $('status').hidden = !text;
+    $('status').textContent = text || '';
+    if (text) input.reset();
+  },
+  onReplaced: () => {
+    $('status').hidden = false;
+    $('status').textContent = 'This character was opened in another window. Reload this page to take it back.';
+    input.enabled = false;
+  },
+});
+
+const ui = new UI({
+  useAbility: (id) => net.send({ t: 'use', a: id }),
+  pet: (c) => net.send({ t: 'pet', c }),
+  target: (id) => setTarget(id),
+  equip: (item) => net.send({ t: 'equip', item }),
+  unequip: (slot) => net.send({ t: 'unequip', slot }),
+  respawn: () => net.send({ t: 'respawn' }),
+  chat: (m) => net.send({ t: 'chat', m }),
+  forget: () => {
+    saveToken(null);
+    location.reload();
+  },
+});
+
+// --- login -------------------------------------------------------------------
+
+let chosenClass = 'symbiotech';
+function buildLogin() {
+  const wrap = $('classes');
+  for (const id of Object.keys(CLASSES)) {
+    const def = CLASSES[id];
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'classcard';
+    card.dataset.cls = id;
+    card.setAttribute('aria-pressed', String(id === chosenClass));
+    const title = document.createElement('strong');
+    title.textContent = def.name;
+    const role = document.createElement('span');
+    role.className = 'role';
+    role.textContent = def.role;
+    const blurb = document.createElement('p');
+    blurb.textContent = def.blurb;
+    card.append(title, role, blurb);
+    card.addEventListener('click', () => {
+      chosenClass = id;
+      for (const c of wrap.children) c.setAttribute('aria-pressed', String(c.dataset.cls === id));
+    });
+    wrap.append(card);
+  }
+  $('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('name').value.trim();
+    if (!/^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/.test(name)) {
+      $('login-error').textContent = 'Names are 3–16 letters (spaces, apostrophes and hyphens allowed inside).';
+      return;
+    }
+    $('login-error').textContent = '';
+    $('enter').disabled = true;
+    net.create(name, chosenClass);
+  });
+}
+
+function showLogin(message) {
+  $('login').hidden = false;
+  $('login-form').hidden = false;
+  $('resuming').hidden = true;
+  $('login-error').textContent = message || '';
+  $('enter').disabled = false;
+}
+
+buildLogin();
+if (net.token) {
+  $('login-form').hidden = true;
+  $('resuming').hidden = false;
+  net.connect();
+} else {
+  showLogin('');
+}
+
+// --- entities ----------------------------------------------------------------
+
+function addEntity(meta) {
+  let ent = S.ents.get(meta.i);
+  if (ent) {
+    ent.meta = meta; // e.g. level changed
+    return ent;
+  }
+  const factory = MODEL_FACTORIES[meta.c] || MODEL_FACTORIES.skitter;
+  const model = factory();
+  const holder = new THREE.Group();
+  holder.add(model.group);
+  scene.add(holder);
+  ent = {
+    id: meta.i,
+    meta,
+    model,
+    holder,
+    row: null,
+    buf: [],
+    pos: { x: 0, y: 0, z: 0 },
+    yaw: 0,
+    jy: 0,
+    speed: 0,
+    attack: 0,
+    castAnim: 0,
+    hit: 0,
+    dead: false,
+    cast: null,
+    placed: false,
+    chest: new THREE.Vector3(),
+    head: new THREE.Vector3(),
+  };
+  S.ents.set(ent.id, ent);
+  return ent;
+}
+
+function removeEntity(ent) {
+  scene.remove(ent.holder);
+  ent.holder.traverse((o) => {
+    if (o.isMesh && o.material && !o.material.isShared) o.material.dispose();
+  });
+  ui.removePlate(ent.id);
+  S.ents.delete(ent.id);
+  if (S.target === ent.id) S.target = 0;
+}
+
+function clearWorld() {
+  for (const ent of [...S.ents.values()]) removeEntity(ent);
+  ui.clearPlates();
+}
+
+const chestOf = (ent) => () => ent.chest;
+
+// --- network handlers ----------------------------------------------------------
+
+function onWelcome(m) {
+  clearWorld();
+  S.myId = m.id;
+  S.compId = m.comp;
+  S.timeOffset = null;
+  S.target = 0;
+  S.you = null;
+  S.snaps = 0;
+  local.pred = { x: m.x, z: m.z, jy: 0, vy: 0 };
+  local.prev = { x: m.x, z: m.z, jy: 0 };
+  local.pending = [];
+  local.outbox = [];
+  local.seq = 0;
+  local.err = { x: 0, z: 0 };
+  $('login').hidden = true;
+  $('hud').hidden = false;
+  input.enabled = true;
+  canvas.focus();
+  if (!onWelcome.greeted) {
+    onWelcome.greeted = true;
+    ui.log('Welcome to the Verdigris Reach. Press H for controls.', 'gain');
+  } else ui.log('Reconnected.', 'info');
+}
+
+function onSnapshot(m) {
+  const now = performance.now();
+  const off = m.time - now;
+  if (S.timeOffset === null || Math.abs(off - S.timeOffset) > 400) S.timeOffset = off;
+  else S.timeOffset += (off - S.timeOffset) * 0.08;
+  S.snaps++;
+
+  if (m.meta) for (const meta of m.meta) addEntity(meta);
+
+  const seen = new Set();
+  for (const row of m.ents) {
+    const ent = S.ents.get(row.i);
+    if (!ent) continue;
+    seen.add(row.i);
+    ent.row = row;
+    ent.dead = !!(row.f & 1);
+    ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
+    if (ent.buf.length > 12) ent.buf.shift();
+  }
+  for (const ent of [...S.ents.values()]) if (!seen.has(ent.id)) removeEntity(ent);
+
+  // Reconcile local prediction with the authoritative position.
+  const y = m.y;
+  S.you = y;
+  while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
+  const s = { x: y.x, z: y.z, jy: y.jy, vy: y.vy };
+  for (const c of local.pending) stepMove(s, c, y.sp);
+  const ex = local.pred.x - s.x;
+  const ez = local.pred.z - s.z;
+  const e2 = ex * ex + ez * ez;
+  if (e2 > 1e-9) {
+    if (e2 < 16) {
+      // Absorb small corrections into a decaying visual offset.
+      local.err.x += ex;
+      local.err.z += ez;
+    } else {
+      local.err.x = 0;
+      local.err.z = 0;
+    }
+    local.pred.x = s.x;
+    local.pred.z = s.z;
+    local.prev.x = s.x;
+    local.prev.z = s.z;
+  }
+  local.pred.jy = s.jy;
+  local.pred.vy = s.vy;
+  local.speedMul = y.sp;
+
+  for (const id of Object.keys(y.cds)) S.cdReady[id] = now + y.cds[id];
+  for (const id of Object.keys(S.cdReady)) if (!(id in y.cds)) delete S.cdReady[id];
+  S.gcdReady = now + y.gcd;
+
+  // Adopt the server's view of our target unless we just changed it.
+  const mine = S.ents.get(S.myId);
+  if (mine && mine.row && now - S.targetSentAt > 500 && mine.row.t !== S.target) S.target = mine.row.t;
+
+  if (m.sheet) {
+    S.sheet = m.sheet;
+    ui.setSheet(m.sheet);
+  }
+  for (const e of m.ev) onEvent(e);
+  if (m.pv) for (const e of m.pv) onEvent(e);
+}
+
+const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
+const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
+
+function nameOf(ent) {
+  if (!ent) return 'Something';
+  if (ent.id === S.myId) return 'You';
+  if (ent.id === S.compId) return 'Your symbiote';
+  if (ent.meta.k === 'c') {
+    const owner = S.ents.get(ent.meta.o);
+    return owner ? `${owner.meta.n}'s symbiote` : 'A symbiote';
+  }
+  return ent.meta.n;
+}
+
+function onEvent(e) {
+  const now = performance.now();
+  switch (e.e) {
+    case 'dmg': {
+      const d = S.ents.get(e.d);
+      const s = S.ents.get(e.s);
+      const mine = e.s === S.myId || e.s === S.compId;
+      if (d) {
+        d.hit = 1;
+        const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
+        ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
+        if (e.k !== 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+      }
+      if (s) {
+        s.attack = 1;
+        if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+      }
+      if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
+      else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
+      break;
+    }
+    case 'heal': {
+      const d = S.ents.get(e.d);
+      const s = S.ents.get(e.s);
+      if (d) ui.floatText(toScreen(d.head), `+${e.a}`, 'heal');
+      const mine = e.s === S.myId || e.s === S.compId;
+      if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} heals ${e.d === S.myId ? 'you' : d.meta.n} for ${e.a}.`, 'heal');
+      else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} heals you for ${e.a}.`, 'heal');
+      break;
+    }
+    case 'beam': {
+      const s = S.ents.get(e.s);
+      const d = S.ents.get(e.d);
+      if (s && d) {
+        if (s.meta.k === 'c') s.castAnim = 1;
+        fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
+        fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+      }
+      break;
+    }
+    case 'cast': {
+      const s = S.ents.get(e.s);
+      const d = S.ents.get(e.d);
+      if (!s) break;
+      if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
+      else if (e.ab === 'mending_graft') {
+        s.castAnim = 1;
+        if (d && d !== s) fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 480, 0.07);
+        if (d) fx.burst(d.chest, 0x7dffc4, 10, 1.1);
+      } else if (e.ab === 'kinetic_ward') {
+        s.castAnim = 1;
+        fx.ring(s.pos.x, s.pos.z, 2.2, 0xffb45c, 500, s.pos.y);
+      } else if (e.ab === 'spore_snare' && d) fx.ring(d.pos.x, d.pos.z, 2, 0x9dffb0, 700, d.pos.y);
+      break;
+    }
+    case 'fx': {
+      const s = S.ents.get(e.s);
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
+        fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
+        fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
+        break;
+      }
+      if (!s) break;
+      if (e.k === 'discharge') {
+        s.castAnim = 1;
+        fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
+        fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
+        fx.burst(s.chest, 0xffb45c, 14, 2.4);
+      } else if (e.k === 'aegis') {
+        s.castAnim = 1;
+        fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
+        fx.pillar(s.pos.x, s.pos.z, 0x7fd0ff, 600);
+      } else if (e.k === 'surge') {
+        s.castAnim = 1;
+        fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
+        fx.ring(s.pos.x, s.pos.z, e.r * 0.5, 0xd8ffe9, 500, s.pos.y - s.model.hover);
+        fx.burst(s.chest, 0x7dffc4, 16, 2.6);
+      } else if (e.k === 'resonance_burst') {
+        fx.ring(s.pos.x, s.pos.z, 20, 0xb48cff, 800, s.pos.y);
+        fx.burst(s.chest, 0xb48cff, 14, 3);
+      } else if (e.k === 'respawn') fx.pillar(s.pos.x, s.pos.z, 0x6fe6ff, 1000);
+      else if (e.k === 'spawn') fx.ring(s.pos.x, s.pos.z, 1.6, 0xffa6f2, 600);
+      else if (e.k === 'equip') {
+        fx.ring(s.pos.x, s.pos.z, 1.8, 0xffd27a, 700, s.pos.y);
+        fx.burst(s.chest, 0xffd27a, 10, 1.4);
+      } else if (e.k === 'attune') {
+        const o = S.ents.get(e.o);
+        if (o) {
+          o.castAnim = 1;
+          fx.beam(() => o.head, chestOf(s), 0x7fd0ff, 1400, 0.14);
+        }
+        fx.pillar(s.pos.x, s.pos.z, 0x7fd0ff, 1500);
+        fx.ring(s.pos.x, s.pos.z, 5, 0x7fd0ff, 1200, s.pos.y);
+      }
+      break;
+    }
+    case 'tele': {
+      const ent = S.ents.get(e.id);
+      if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if (e.g) {
+        fx.telegraph(e.x, e.z, e.r, e.ms);
+        const me = S.ents.get(S.myId);
+        if (me && !me.dead && Math.hypot(me.pos.x - e.x, me.pos.z - e.z) < e.r + 1) ui.toast(`${e.n} — move out of the marked ground!`, 'warn');
+      }
+      break;
+    }
+    case 'die': {
+      const ent = S.ents.get(e.id);
+      if (!ent) break;
+      ent.dead = true;
+      ent.cast = null;
+      if (ent.meta.k === 'e') ui.log(`${ent.meta.n} is destroyed.`, 'info');
+      else if (e.id !== S.myId) ui.log(`${ent.meta.n} has been defeated.`, 'in');
+      break;
+    }
+    case 'shield': {
+      const d = S.ents.get(e.d);
+      if (d) ui.floatText(toScreen(d.head), `Aegis ${e.a}`, 'shield');
+      break;
+    }
+    case 'lvl': {
+      const ent = S.ents.get(e.id);
+      if (ent) {
+        fx.pillar(ent.pos.x, ent.pos.z, 0xffd27a, 1400);
+        fx.ring(ent.pos.x, ent.pos.z, 4, 0xffd27a, 900, ent.pos.y);
+        if (e.id !== S.myId) ui.log(`${ent.meta.n} reached level ${e.l}.`, 'info');
+      }
+      break;
+    }
+    case 'chat':
+      ui.chatLine(e.n, e.m);
+      break;
+    case 'msg':
+      if (e.k === 'err') ui.error(e.m);
+      else {
+        ui.log(e.m, e.k);
+        if (e.k === 'gain') ui.toast(e.m, 'gain');
+      }
+      break;
+    case 'xp': {
+      const me = S.ents.get(S.myId);
+      if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');
+      break;
+    }
+    case 'say':
+      ui.chatLine(e.n, e.m, 'npc');
+      ui.toast(`${e.n}: “${e.m}”`, 'npc');
+      break;
+    default:
+      break;
+  }
+}
+
+// --- targeting and interaction -------------------------------------------------
+
+function setTarget(id) {
+  S.target = id;
+  S.targetSentAt = performance.now();
+  net.send({ t: 'tgt', id });
+}
+
+const proj = new THREE.Vector3();
+function toScreen(v) {
+  proj.copy(v).project(camera);
+  if (proj.z < -1 || proj.z > 1) return null;
+  return { x: (proj.x * 0.5 + 0.5) * window.innerWidth, y: (-proj.y * 0.5 + 0.5) * window.innerHeight };
+}
+
+/** Entity under a screen point, nearest to the camera first. */
+function pick(x, y, kinds) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const ent of S.ents.values()) {
+    if (!kinds.includes(ent.meta.k) || ent.id === S.myId || !ent.placed) continue;
+    if (ent.meta.k === 'e' && ent.dead) continue;
+    const top = toScreen(ent.head);
+    if (!top) continue;
+    proj.set(ent.pos.x, ent.pos.y - ent.model.hover * 0.2, ent.pos.z);
+    const foot = toScreen(proj);
+    if (!foot) continue;
+    const hgt = Math.max(26, foot.y - top.y);
+    const wid = Math.max(26, hgt * ((ent.model.radius * 2.4) / ent.model.height));
+    if (Math.abs(x - top.x) <= wid / 2 + 6 && y >= top.y - 8 && y <= top.y + hgt + 8) {
+      const d = camera.position.distanceToSquared(ent.holder.position);
+      if (d < bestDist) {
+        bestDist = d;
+        best = ent;
+      }
+    }
+  }
+  return best;
+}
+
+function nearestObject() {
+  const me = S.ents.get(S.myId);
+  if (!me) return null;
+  let best = null;
+  let bestD = INTERACT_RANGE;
+  for (const ent of S.ents.values()) {
+    if (ent.meta.k !== 'o') continue;
+    const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
+    if (d < bestD) {
+      bestD = d;
+      best = ent;
+    }
+  }
+  return best;
+}
+
+function nextEnemy() {
+  const me = S.ents.get(S.myId);
+  if (!me) return;
+  const fx_ = Math.sin(cam.yaw);
+  const fz_ = Math.cos(cam.yaw);
+  const list = [];
+  for (const ent of S.ents.values()) {
+    if (ent.meta.k !== 'e' || ent.dead) continue;
+    const dx = ent.pos.x - me.pos.x;
+    const dz = ent.pos.z - me.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > 50) continue;
+    const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
+    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
+  }
+  if (!list.length) {
+    ui.error('No enemies nearby.');
+    return;
+  }
+  list.sort((a, b) => a.score - b.score);
+  const i = list.findIndex((e) => e.id === S.target);
+  setTarget(list[(i + 1) % list.length].id);
+}
+
+input.onClick = (button, x, y) => {
+  if (button === 0) {
+    const ent = pick(x, y, ['e', 'p']);
+    if (ent) setTarget(ent.id);
+  } else {
+    const ent = pick(x, y, ['e', 'o']);
+    if (!ent) return;
+    if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
+    else {
+      setTarget(ent.id);
+      net.send({ t: 'atk' });
+    }
+  }
+};
+
+input.onAction = (code, e) => {
+  const digit = /^Digit([1-4])$/.exec(code);
+  if (digit && S.sheet) {
+    const i = Number(digit[1]) - 1;
+    const def = CLASSES[S.sheet.cls];
+    if (e.shiftKey) {
+      const mode = ['triage', 'guard', 'assist'][i];
+      if (mode && def.companion) net.send({ t: 'pet', c: mode });
+    } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
+    return;
+  }
+  switch (code) {
+    case 'Tab':
+      e.preventDefault();
+      nextEnemy();
+      break;
+    case 'Escape':
+      if (!ui.closePanels() && S.target) setTarget(0);
+      break;
+    case 'F1':
+      e.preventDefault();
+      setTarget(S.myId);
+      break;
+    case 'KeyC':
+    case 'KeyB':
+      ui.toggleBuild();
+      break;
+    case 'KeyH':
+      ui.toggleHelp();
+      break;
+    case 'KeyV':
+      cam.reset(local.yaw);
+      break;
+    case 'KeyF': {
+      const o = nearestObject();
+      if (o) net.send({ t: 'act', id: o.id });
+      else ui.error('Nothing to interact with here.');
+      break;
+    }
+    case 'Enter':
+      e.preventDefault();
+      ui.focusChat();
+      break;
+    default:
+      break;
+  }
+};
+
+// --- frame loop ----------------------------------------------------------------
+
+const lerpAngle = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
+const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+function sampleRemote(ent, rt) {
+  const buf = ent.buf;
+  if (!buf.length) return null;
+  if (rt <= buf[0].t) return buf[0];
+  for (let i = buf.length - 1; i >= 0; i--) {
+    if (buf[i].t <= rt) {
+      const a = buf[i];
+      const b = buf[i + 1];
+      if (!b) return a;
+      const k = (rt - a.t) / (b.t - a.t || 1);
+      return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k, j: a.j + (b.j - a.j) * k, r: lerpAngle(a.r, b.r, k) };
+    }
+  }
+  return buf[buf.length - 1];
+}
+
+function stepLocal(inp, now, dt) {
+  const me = S.ents.get(S.myId);
+  const dead = !!(me && me.dead);
+  if (inp.lookX || inp.lookY) cam.look(inp.lookX, inp.lookY);
+  if (inp.wheel) cam.zoom(inp.wheel);
+  if (!dead) {
+    if (inp.steering) local.yaw = cam.yaw;
+    else if (inp.turn) {
+      const d = inp.turn * TURN_RATE * dt;
+      local.yaw += d;
+      cam.yaw += d;
+    }
+    if (inp.f > 0 && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
+  }
+  local.yaw = wrap(local.yaw);
+  cam.yaw = wrap(cam.yaw);
+
+  const f = dead ? 0 : inp.f;
+  const st = dead ? 0 : inp.s;
+  const jump = !dead && inp.jump;
+  local.acc += dt;
+  let steps = 0;
+  while (local.acc >= MOVE_DT && steps < 8) {
+    local.acc -= MOVE_DT;
+    steps++;
+    local.prev.x = local.pred.x;
+    local.prev.z = local.pred.z;
+    local.prev.jy = local.pred.jy;
+    const yaw = Math.round(local.yaw * 10000) / 10000;
+    const airborne = local.pred.jy > 0 || local.pred.vy > 0;
+    const turned = Math.abs(wrap(yaw - local.sentYaw)) > 0.01 && now - local.yawSentAt > 90;
+    if (f || st || jump || airborne || turned) {
+      const cmd = { seq: ++local.seq, f, s: st, yaw, j: jump ? 1 : 0 };
+      stepMove(local.pred, cmd, local.speedMul);
+      local.pending.push(cmd);
+      local.outbox.push([cmd.seq, f, st, yaw, cmd.j]);
+      local.sentYaw = yaw;
+      local.yawSentAt = now;
+    }
+  }
+  if (steps === 8) local.acc = 0;
+  if (local.pending.length > 240) local.pending.splice(0, local.pending.length - 240);
+  if (local.outbox.length && (local.outbox.length >= 2 || now - local.lastSend > 40)) {
+    while (local.outbox.length) net.send({ t: 'in', s: local.outbox.splice(0, 16) });
+    local.lastSend = now;
+  }
+  const decay = Math.exp(-dt * 14);
+  local.err.x *= decay;
+  local.err.z *= decay;
+}
+
+function updateEntities(dt, t, now) {
+  const rt = now + (S.timeOffset || 0) - INTERP_MS;
+  const me = S.ents.get(S.myId);
+  for (const ent of S.ents.values()) {
+    let x;
+    let z;
+    let j = 0;
+    let yaw;
+    if (ent.id === S.myId) {
+      const a = local.acc / MOVE_DT;
+      x = local.prev.x + (local.pred.x - local.prev.x) * a + local.err.x;
+      z = local.prev.z + (local.pred.z - local.prev.z) * a + local.err.z;
+      j = local.prev.jy + (local.pred.jy - local.prev.jy) * a;
+      yaw = local.yaw;
+    } else {
+      const sm = sampleRemote(ent, rt);
+      if (!sm) continue;
+      x = sm.x;
+      z = sm.z;
+      j = sm.j;
+      yaw = sm.r;
+      if (ent.meta.k === 'o') {
+        // Characters in the world turn to face a nearby traveller.
+        yaw = me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
+        yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
+      }
+    }
+    let y = groundHeight(x, z) + j + ent.model.hover;
+    const row = ent.row;
+    // A bonded symbiote rides its host's shoulder.
+    if (ent.meta.k === 'c' && row && row.a === 'bonded') {
+      const host = S.ents.get(row.hs);
+      if (host && host.placed) {
+        x = host.pos.x - Math.cos(host.yaw) * 0.42;
+        z = host.pos.z + Math.sin(host.yaw) * 0.42;
+        y = host.pos.y + 1.72;
+        yaw = host.yaw;
+      }
+    }
+    if (ent.placed) {
+      const moved = Math.hypot(x - ent.pos.x, z - ent.pos.z);
+      const inst = dt > 0 ? moved / dt : 0;
+      ent.speed += (Math.min(inst, 14) - ent.speed) * Math.min(1, dt * 12);
+    }
+    ent.pos.x = x;
+    ent.pos.y = y;
+    ent.pos.z = z;
+    ent.yaw = yaw;
+    ent.jy = j;
+    ent.placed = true;
+    ent.holder.position.set(x, y, z);
+    ent.holder.rotation.y = yaw;
+    ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);
+    ent.head.set(x, y + ent.model.height * (ent.model.hover ? 0.6 : 1) + 0.3, z);
+    ent.attack = Math.max(0, ent.attack - dt * 3.2);
+    ent.castAnim = Math.max(0, ent.castAnim - dt * 1.8);
+    ent.hit = Math.max(0, ent.hit - dt * 5);
+    const casting = !!(ent.cast && now < ent.cast.end);
+    ent.model.update(dt, {
+      t,
+      speed: ent.speed,
+      dead: ent.dead,
+      attack: ent.attack,
+      cast: ent.castAnim,
+      hit: ent.hit,
+      air: j > 0.05,
+      mode: row ? row.md : undefined,
+      act: row ? row.a : undefined,
+      casting,
+      combat: !!(row && row.f & 8),
+      charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
+    });
+  }
+}
+
+function updatePlates(now) {
+  const me = S.ents.get(S.myId);
+  for (const ent of S.ents.values()) {
+    if (ent.id === S.myId) continue;
+    const k = ent.meta.k;
+    const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
+    const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
+    const hide = !ent.placed || d > max || (k === 'e' && ent.dead);
+    const screen = hide ? null : toScreen(ent.head);
+    const row = ent.row || {};
+    let label = ent.meta.n;
+    let cls = 'player';
+    if (k === 'e') {
+      cls = ent.meta.el ? 'enemy elite' : 'enemy';
+      label = `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
+      if (row.f & 2) label += ' (retreating)';
+    } else if (k === 'c') cls = 'comp';
+    else if (k === 'o') cls = 'object';
+    ui.placePlate(ent, screen, {
+      cls,
+      label,
+      selected: ent.id === S.target,
+      hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
+    });
+  }
+}
+
+let last = performance.now();
+let time = 0;
+let frames = 0;
+let fpsAt = last;
+let slowSince = 0;
+let quality = 2;
+let slowTimer = 0;
+
+/** 2 = shadows, 1 = no shadows, 0 = no shadows at reduced resolution. */
+function setQuality(q) {
+  quality = q;
+  renderer.shadowMap.enabled = q >= 2;
+  world.sun.castShadow = q >= 2;
+  renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
+  resize();
+}
+// ?q=0|1|2 pins the starting quality (useful on weak or software GPUs).
+const wantQ = new URLSearchParams(location.search).get('q');
+if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
+  last = now;
+  time += dt;
+
+  frames++;
+  if (now - fpsAt >= 1000) {
+    S.fps = Math.round((frames * 1000) / (now - fpsAt));
+    frames = 0;
+    fpsAt = now;
+    // Step quality down if the machine cannot keep up (never back up).
+    if (S.myId && S.fps < 26 && !document.hidden) {
+      if (++slowSince >= 3 && quality > 0) {
+        slowSince = 0;
+        setQuality(quality - 1);
+      }
+    } else slowSince = 0;
+  }
+
+  if (!S.myId) {
+    // Title backdrop: a slow orbit of the Sanctum.
+    const a = time * 0.06;
+    camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
+    camera.lookAt(0, 5, 0);
+    world.update(dt, time, { x: 0, y: 0, z: 0 });
+    renderer.render(scene, camera);
+    return;
+  }
+
+  stepLocal(input.sample(), now, dt);
+  updateEntities(dt, time, now);
+  const me = S.ents.get(S.myId);
+  if (me && me.placed) {
+    cam.update(me.pos, dt);
+    // Pressed against a wall the camera sits in the character's head.
+    me.holder.visible = cam.dist > 1.3;
+    world.update(dt, time, me.pos);
+  }
+  fx.update(dt);
+
+  const target = S.ents.get(S.target) || null;
+  if (target && target.placed && !(target.meta.k === 'e' && target.dead)) {
+    ring.visible = true;
+    const r = target.model.radius * 1.5;
+    ring.scale.setScalar(r);
+    ring.position.set(target.pos.x, groundHeight(target.pos.x, target.pos.z) + 0.14, target.pos.z);
+    ring.rotation.z = time * 0.8;
+    ring.material.color.setHex(target.meta.k === 'e' ? 0xff5a4a : 0x7dffc4);
+  } else ring.visible = false;
+
+  camera.updateMatrixWorld();
+  updatePlates(now);
+
+  if (me && me.row && S.you) {
+    slowTimer += dt;
+    ui.update({
+      me,
+      you: S.you,
+      target,
+      ents: S.ents,
+      comp: S.compId ? S.ents.get(S.compId) : null,
+      now,
+      cd: (id) => Math.max(0, (S.cdReady[id] || 0) - now),
+      gcd: () => Math.max(0, S.gcdReady - now),
+      dist: (ent) => Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) - (ent.model.radius || 0),
+      fps: S.fps,
+      latency: net.latency,
+      nearObject: me.dead ? null : nearestObject(),
+    });
+    if (slowTimer > 0.12) {
+      slowTimer = 0;
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw });
+      const zone = zoneAt(me.pos.x, me.pos.z);
+      if (zone !== S.zone) {
+        S.zone = zone;
+        ui.zone(zone);
+      }
+    }
+  }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+// Read-only inspection hook for automated browser checks.
+window.__attune = {
+  state() {
+    const me = S.ents.get(S.myId);
+    return {
+      myId: S.myId,
+      compId: S.compId,
+      snaps: S.snaps,
+      fps: S.fps,
+      quality,
+      target: S.target,
+      pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
+      yaw: local.yaw,
+      camYaw: cam.yaw,
+      camDist: cam.dist,
+      camWant: cam.want,
+      camPitch: cam.pitch,
+      pending: local.pending.length,
+      you: S.you,
+      sheet: S.sheet,
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead })),
+      draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles },
+    };
+  },
+  screenOf(id) {
+    const ent = S.ents.get(id);
+    return ent ? toScreen(ent.chest) : null;
+  },
+};

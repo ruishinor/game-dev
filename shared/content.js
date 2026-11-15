@@ -324,7 +324,7 @@ export const DIRECTIVES = [
   {
     id: 'listening_stone',
     title: 'An Inert Glyph',
-    text: 'The glyph will not answer you. Something hums in a rock hollow far to the south-west — find it.',
+    text: 'The glyph will not answer you. Something hums in a rock hollow far to the north-west — find it.',
     goal: { attune: 'resonance' },
     reward: { xp: 60 },
   },
@@ -338,7 +338,7 @@ export const DIRECTIVES = [
   {
     id: 'warden',
     title: 'The Vault Warden',
-    text: 'Defeat the Vault Warden in the monolith ring to the south. Bring an ally, or come prepared.',
+    text: 'Defeat the Vault Warden in the monolith ring to the north. Bring an ally, or come prepared.',
     goal: { kill: 'warden', count: 1 },
     reward: { xp: 120, classItem: { symbiotech: 'glyph_carapace', vanguard: 'glyph_rending_echo' } },
   },
@@ -349,7 +349,7 @@ export const ARCHIVIST_LINES = [
   'Devices lend you skill you have not earned yet. That is not cheating. That is engineering.',
   'An implant asks more of you than you have. Borrow the difference from your Device.',
   'The relay sentinels still guard a signal nobody is sending. Mind the ground when it glows.',
-  'A glyph is a question. The Listening Stone, south-west past the ridge, teaches you to answer.',
+  'A glyph is a question. The Listening Stone, north-west past the ridge, teaches you to answer.',
   'One glyph slot. Choose what your power means today — you can choose again tomorrow.',
   'The Warden wakes for anyone who crosses the ring. It hits like a falling moon.',
   'You have walked the whole Reach. Keep experimenting — the combinations are yours to find.',
