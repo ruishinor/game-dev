@@ -32,6 +32,8 @@ class Client {
     this.ws.on('error', () => {});
   }
   open() {
+    // The socket may already be open if another client was awaited first.
+    if (this.ws.readyState === WebSocket.OPEN) return Promise.resolve();
     return new Promise((res, rej) => {
       this.ws.once('open', res);
       this.ws.once('error', rej);
