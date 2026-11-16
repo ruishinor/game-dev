@@ -3,10 +3,12 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { CLASSES, ABILITIES } from '../../shared/content.js';
+import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
-import { buildWorld } from './scene.js';
-import { MODEL_FACTORIES } from './models.js';
+import { buildWorld, makeEnvironment } from './scene.js';
+import { Assets } from './assets.js';
+import { createModel, CHARACTER_BUNDLES } from './characters.js';
+import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
@@ -35,12 +37,30 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
-const world = buildWorld(scene);
+
+// Models come from GLB bundles, loaded once before anything is drawn. If a
+// bundle is missing, the affected entities use their procedural stand-ins.
+// ?glb=none|vanguard,skitter,… limits which entity types use GLB models.
+const params = new URLSearchParams(location.search);
+const glbOnly = params.get('glb');
+const assets = new Assets();
+await assets.init();
+await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
+  $('enter').textContent = `Loading the Reach… ${done}/${total}`;
+});
+const useGlb = (meta) => glbOnly === null || (glbOnly !== 'none' && glbOnly.split(',').includes(meta.c));
+// ?glb=none reproduces the original procedural presentation exactly (used for
+// before/after comparisons), so it also skips image-based lighting.
+const environment = glbOnly === 'none' ? null : makeEnvironment(renderer);
+scene.environment = environment;
+scene.environmentIntensity = 0.85;
+// ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
+const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1 });
 const fx = new Fx(scene);
 const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
 // pointer lock misbehaves, and for automated input).
-const input = new Input(canvas, { lock: new URLSearchParams(location.search).get('nolock') !== '1' });
+const input = new Input(canvas, { lock: params.get('nolock') !== '1' });
 
 const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.02, 40), new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
 ring.rotation.x = -Math.PI / 2;
@@ -72,6 +92,8 @@ const S = {
   cdReady: {},
   gcdReady: 0,
   fps: 60,
+  frameMs: 0,
+  frames: 0,
   snaps: 0,
 };
 
@@ -127,6 +149,32 @@ const ui = new UI({
 // --- login -------------------------------------------------------------------
 
 let chosenClass = 'symbiotech';
+let chosenLook = defaultLook(chosenClass);
+/** Offer the appearances of the chosen class (hidden when there is only one). */
+function buildLooks() {
+  const list = LOOKS[chosenClass];
+  chosenLook = defaultLook(chosenClass);
+  $('look-row').hidden = list.length < 2;
+  const wrap = $('looks');
+  wrap.replaceChildren();
+  for (const look of list) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'lookcard';
+    card.dataset.look = look.id;
+    card.setAttribute('aria-pressed', String(look.id === chosenLook));
+    const title = document.createElement('strong');
+    title.textContent = look.name;
+    const blurb = document.createElement('p');
+    blurb.textContent = look.blurb;
+    card.append(title, blurb);
+    card.addEventListener('click', () => {
+      chosenLook = look.id;
+      for (const c of wrap.children) c.setAttribute('aria-pressed', String(c.dataset.look === look.id));
+    });
+    wrap.append(card);
+  }
+}
 function buildLogin() {
   const wrap = $('classes');
   for (const id of Object.keys(CLASSES)) {
@@ -147,9 +195,11 @@ function buildLogin() {
     card.addEventListener('click', () => {
       chosenClass = id;
       for (const c of wrap.children) c.setAttribute('aria-pressed', String(c.dataset.cls === id));
+      buildLooks();
     });
     wrap.append(card);
   }
+  buildLooks();
   $('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = $('name').value.trim();
@@ -159,7 +209,7 @@ function buildLogin() {
     }
     $('login-error').textContent = '';
     $('enter').disabled = true;
-    net.create(name, chosenClass);
+    net.create(name, chosenClass, chosenLook);
   });
 }
 
@@ -172,6 +222,8 @@ function showLogin(message) {
 }
 
 buildLogin();
+$('enter').textContent = 'Enter the Reach';
+$('enter').disabled = false;
 if (net.token) {
   $('login-form').hidden = true;
   $('resuming').hidden = false;
@@ -188,10 +240,10 @@ function addEntity(meta) {
     ent.meta = meta; // e.g. level changed
     return ent;
   }
-  const factory = MODEL_FACTORIES[meta.c] || MODEL_FACTORIES.skitter;
-  const model = factory();
+  const model = createModel(assets, meta, useGlb(meta));
   const holder = new THREE.Group();
   holder.add(model.group);
+  if (quality === 0) lowSpec(holder, true);
   scene.add(holder);
   ent = {
     id: meta.i,
@@ -210,6 +262,8 @@ function addEntity(meta) {
     dead: false,
     cast: null,
     placed: false,
+    fwd: 1,
+    inView: true,
     chest: new THREE.Vector3(),
     head: new THREE.Vector3(),
   };
@@ -219,9 +273,12 @@ function addEntity(meta) {
 
 function removeEntity(ent) {
   scene.remove(ent.holder);
-  ent.holder.traverse((o) => {
-    if (o.isMesh && o.material && !o.material.isShared) o.material.dispose();
-  });
+  if (ent.model.dispose) ent.model.dispose();
+  else {
+    ent.holder.traverse((o) => {
+      if (o.isMesh && o.material && !o.material.isShared) o.material.dispose();
+    });
+  }
   ui.removePlate(ent.id);
   S.ents.delete(ent.id);
   if (S.target === ent.id) S.target = 0;
@@ -348,12 +405,14 @@ function onEvent(e) {
       const mine = e.s === S.myId || e.s === S.compId;
       if (d) {
         d.hit = 1;
+        if (d.model.trigger) d.model.trigger('hit');
         const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (e.k !== 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
+        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
       }
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
@@ -383,6 +442,7 @@ function onEvent(e) {
       const s = S.ents.get(e.s);
       const d = S.ents.get(e.d);
       if (!s) break;
+      if (s.model.trigger) s.model.trigger('ability', e.ab);
       if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
       else if (e.ab === 'mending_graft') {
         s.castAnim = 1;
@@ -402,6 +462,7 @@ function onEvent(e) {
         break;
       }
       if (!s) break;
+      if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
       if (e.k === 'discharge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
@@ -707,9 +768,17 @@ function stepLocal(inp, now, dt) {
   local.err.z *= decay;
 }
 
+const viewPoints = [null, null];
+const frustum = new THREE.Frustum();
+const viewProj = new THREE.Matrix4();
+const cullSphere = new THREE.Sphere();
+
 function updateEntities(dt, t, now) {
   const rt = now + (S.timeOffset || 0) - INTERP_MS;
   const me = S.ents.get(S.myId);
+  // The camera moves after entities do, so this is last frame's view; the
+  // sphere below is generous enough to absorb one frame of camera motion.
+  frustum.setFromProjectionMatrix(viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   for (const ent of S.ents.values()) {
     let x;
     let z;
@@ -747,9 +816,13 @@ function updateEntities(dt, t, now) {
       }
     }
     if (ent.placed) {
-      const moved = Math.hypot(x - ent.pos.x, z - ent.pos.z);
+      const mx = x - ent.pos.x;
+      const mz = z - ent.pos.z;
+      const moved = Math.hypot(mx, mz);
       const inst = dt > 0 ? moved / dt : 0;
       ent.speed += (Math.min(inst, 14) - ent.speed) * Math.min(1, dt * 12);
+      // Which way it is travelling relative to where it faces (-1 = backing up).
+      if (moved > 1e-4) ent.fwd += ((mx * Math.sin(yaw) + mz * Math.cos(yaw)) / moved - ent.fwd) * Math.min(1, dt * 10);
     }
     ent.pos.x = x;
     ent.pos.y = y;
@@ -765,6 +838,12 @@ function updateEntities(dt, t, now) {
     ent.castAnim = Math.max(0, ent.castAnim - dt * 1.8);
     ent.hit = Math.max(0, ent.hit - dt * 5);
     const casting = !!(ent.cast && now < ent.cast.end);
+    // Skinned models are not frustum-culled by the renderer (their bounds are
+    // for the bind pose), so visibility and animation cost are decided here.
+    cullSphere.center.set(x, y + ent.model.height * 0.5, z);
+    cullSphere.radius = ent.model.height * 0.75 + ent.model.radius + 2.5;
+    ent.inView = frustum.intersectsSphere(cullSphere);
+    ent.holder.visible = ent.inView;
     ent.model.update(dt, {
       t,
       speed: ent.speed,
@@ -778,6 +857,8 @@ function updateEntities(dt, t, now) {
       casting,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
+      fwd: ent.fwd,
+      interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
   }
 }
@@ -817,16 +898,50 @@ let slowSince = 0;
 let quality = 2;
 let slowTimer = 0;
 
-/** 2 = shadows, 1 = no shadows, 0 = no shadows at reduced resolution. */
+/**
+ * Level 0 shading for one object tree: no normal maps and much less metal.
+ * Without image-based lighting a metal has nothing to reflect and renders
+ * black, so the low preset turns the kit's metals into dull painted surfaces.
+ * Reversible; safe to call repeatedly (materials are shared between objects).
+ */
+function lowSpec(root, on) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m || !m.isMeshStandardMaterial || !!m.userData.low === on) continue;
+      if (on) {
+        m.userData.low = { normalMap: m.normalMap, metalness: m.metalness, metalnessMap: m.metalnessMap };
+        m.normalMap = null;
+        m.metalnessMap = null;
+        m.metalness = Math.min(m.metalness, 0.25);
+      } else {
+        Object.assign(m, m.userData.low);
+        m.userData.low = null;
+      }
+      m.needsUpdate = true;
+    }
+  });
+}
+
+/**
+ * 2 = everything; 1 = no shadows; 0 = low-spec: also no image-based lighting,
+ * no normal maps and reduced resolution. Measured in software rendering,
+ * image-based lighting alone is about 40% of the frame and normal maps 17%.
+ */
 function setQuality(q) {
   quality = q;
   renderer.shadowMap.enabled = q >= 2;
   world.sun.castShadow = q >= 2;
+  scene.environment = q >= 1 ? environment : null;
+  world.ambient.intensity = world.ambientBase * (q >= 1 ? 1 : 1.5);
+  lowSpec(scene, q === 0);
   renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
   resize();
 }
-// ?q=0|1|2 pins the starting quality (useful on weak or software GPUs).
-const wantQ = new URLSearchParams(location.search).get('q');
+// ?q=0|1|2 pins the starting quality (useful on weak or software GPUs);
+// add &qlock=1 to also stop it adapting to the frame rate (for captures).
+const wantQ = params.get('q');
+const qualityLocked = params.get('qlock') === '1';
 if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
 
 function frame(now) {
@@ -841,7 +956,7 @@ function frame(now) {
     frames = 0;
     fpsAt = now;
     // Step quality down if the machine cannot keep up (never back up).
-    if (S.myId && S.fps < 26 && !document.hidden) {
+    if (S.myId && S.fps < 26 && !document.hidden && !qualityLocked) {
       if (++slowSince >= 3 && quality > 0) {
         slowSince = 0;
         setQuality(quality - 1);
@@ -865,12 +980,17 @@ function frame(now) {
   if (me && me.placed) {
     cam.update(me.pos, dt);
     // Pressed against a wall the camera sits in the character's head.
-    me.holder.visible = cam.dist > 1.3;
-    world.update(dt, time, me.pos);
+    me.holder.visible = me.inView && cam.dist > 1.3;
   }
   fx.update(dt);
 
   const target = S.ents.get(S.target) || null;
+  if (me && me.placed) {
+    // Whatever stands between the camera and the player or their target fades.
+    viewPoints[0] = me.chest;
+    viewPoints[1] = target && target.placed && !target.dead ? target.chest : null;
+    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints });
+  }
   if (target && target.placed && !(target.meta.k === 'e' && target.dead)) {
     ring.visible = true;
     const r = target.model.radius * 1.5;
@@ -910,6 +1030,8 @@ function frame(now) {
     }
   }
   renderer.render(scene, camera);
+  S.frames++;
+  S.frameMs += (performance.now() - now - S.frameMs) * 0.2;
 }
 requestAnimationFrame(frame);
 
@@ -922,6 +1044,8 @@ window.__attune = {
       compId: S.compId,
       snaps: S.snaps,
       fps: S.fps,
+      frameMs: Math.round(S.frameMs),
+      frames: S.frames,
       quality,
       target: S.target,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
@@ -933,12 +1057,23 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead })),
-      draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles },
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
+      assets: assets.report(),
+      world: { ...world.stats, faded: world.occluders.faded },
     };
   },
   screenOf(id) {
     const ent = S.ents.get(id);
     return ent ? toScreen(ent.chest) : null;
+  },
+  /** Renderer internals, for profiling from automated checks. */
+  gfx: { scene, renderer, camera },
+  /** Pose the camera (and the character's facing) for repeatable screenshots. Presentation only. */
+  view({ yaw, pitch, dist, face } = {}) {
+    if (yaw !== undefined) cam.yaw = yaw;
+    if (pitch !== undefined) cam.pitch = pitch;
+    if (dist !== undefined) cam.want = cam.dist = dist;
+    if (face !== undefined) local.yaw = face;
   },
 };

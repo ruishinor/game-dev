@@ -40,8 +40,17 @@ export class Animator {
     this.clips = clips;
     this.isUpper = opts.isUpper || null;
     this.base = null; // {name, action}
-    this.act = null; // {action, priority, until, hold, fadeOut}
+    this.act = null; // {name, action, priority, until, hold, fadeOut, started}
     this.time = 0;
+    this.flinch = null;
+    this.played = 0;
+    this.reacted = 0;
+    this.last = '';
+  }
+
+  /** Current state, for automated checks. */
+  describe() {
+    return { base: this.base ? this.base.name : null, action: this.act ? this.act.name : null, last: this.last, played: this.played, reacted: this.reacted };
   }
 
   has(name) {
@@ -85,6 +94,9 @@ export class Animator {
     const clip = this.clips.get(name);
     if (!clip) return false;
     const priority = PRIORITY[kind] || 1;
+    // One ability often arrives as two events (a cast and its damage); the
+    // second must not restart the clip the first just began.
+    if (this.act && this.act.name === name && this.time - this.act.started < 0.3) return true;
     if (this.act) {
       if (this.act.priority > priority && (this.act.hold || this.time < this.act.until)) return false;
       this.act.action.fadeOut(0.1);
@@ -100,7 +112,30 @@ export class Animator {
     action.fadeIn(fadeIn);
     action.play();
     const length = (clip.duration * (1 - start)) / Math.abs(timeScale || 1);
-    this.act = { action, priority, hold, fadeOut, until: this.time + Math.max(0.05, length - fadeOut) };
+    this.act = { name, action, priority, hold, fadeOut, started: this.time, until: this.time + Math.max(0.05, length - fadeOut) };
+    this.played++;
+    this.last = name;
+    return true;
+  }
+
+  /**
+   * A short reaction (a flinch) layered over whatever else is playing. It has
+   * its own slot so taking a hit mid-swing still reads, at a lower weight than
+   * the action it overlaps.
+   */
+  react(name, { upper = true, fadeIn = 0.04, fadeOut = 0.16, timeScale = 1 } = {}) {
+    const clip = this.clips.get(name);
+    if (!clip || (this.act && this.act.priority >= PRIORITY.death)) return false;
+    const action = this.mixer.clipAction(upper && this.isUpper ? upperBodyClip(clip, this.isUpper) : clip);
+    action.reset();
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.timeScale = timeScale;
+    action.setEffectiveWeight(ACTION_WEIGHT * 0.7);
+    action.fadeIn(fadeIn);
+    action.play();
+    this.flinch = { action, fadeOut, until: this.time + Math.max(0.05, clip.duration / timeScale - fadeOut) };
+    this.reacted++;
     return true;
   }
 
@@ -120,6 +155,10 @@ export class Animator {
     if (this.act && !this.act.hold && this.time >= this.act.until) {
       this.act.action.fadeOut(this.act.fadeOut);
       this.act = null;
+    }
+    if (this.flinch && this.time >= this.flinch.until) {
+      this.flinch.action.fadeOut(this.flinch.fadeOut);
+      this.flinch = null;
     }
     this.mixer.update(dt);
   }

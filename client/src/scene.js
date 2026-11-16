@@ -2,7 +2,9 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, groundHeight, mulberry32 } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32 } from '../../shared/world.js';
+import { cloneMaterials } from './assets.js';
+import { Animator } from './animator.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -58,7 +60,8 @@ const hash = (x, z) => {
 const tmpA = new THREE.Color();
 const tmpB = new THREE.Color();
 function groundColor(x, z, out) {
-  const n = hash(Math.round(x * 3), Math.round(z * 3));
+  // Broad, soft variation: the texture supplies the fine detail.
+  const n = 0.5 + 0.25 * Math.sin(x * 0.19 + 1.7) * Math.cos(z * 0.23) + 0.25 * Math.sin(x * 0.07 - z * 0.11) + (hash(Math.round(x * 3), Math.round(z * 3)) - 0.5) * 0.12;
   out.setHex(0x24443a).lerp(tmpA.setHex(0x3d6e55), n * 0.8);
   const blend = (zone, radius, c1, c2) => {
     const w = smooth(1 - (Math.hypot(x - zone.x, z - zone.z) - radius * 0.55) / (radius * 0.6));
@@ -74,7 +77,7 @@ function groundColor(x, z, out) {
   return out;
 }
 
-function buildGround() {
+function buildGround(assets) {
   const size = (WORLD.radius + 34) * 2;
   const seg = 170;
   const g = new THREE.PlaneGeometry(size, size, seg, seg);
@@ -93,7 +96,16 @@ function buildGround() {
   }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 }));
+  const albedo = assets && assets.texture('ground_albedo', { repeat: 26 });
+  const normal = assets && assets.texture('ground_normal', { repeat: 26, srgb: false });
+  let material;
+  if (albedo && normal) {
+    // Photographic ground detail, tinted per zone by the vertex colours. The
+    // albedo is mid-grey and the tints are dark, so lift the product.
+    for (let i = 0; i < colors.length; i++) colors[i] = Math.min(1, colors[i] * 3.6 + 0.03);
+    material = new THREE.MeshStandardMaterial({ vertexColors: true, map: albedo, normalMap: normal, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.96, metalness: 0, envMapIntensity: 0.35 });
+  } else material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 });
+  const m = new THREE.Mesh(g, material);
   m.receiveShadow = true;
   return m;
 }
@@ -221,7 +233,7 @@ function jitteredRock(seed) {
 }
 const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
-const builders = {
+const procedural = {
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -443,9 +455,470 @@ const builders = {
   },
 };
 
-function buildDecor(scene) {
+
+// --- instancing and fading ---------------------------------------------------
+
+/**
+ * Collects placements of bundle pieces and emits one InstancedMesh per
+ * geometry + material pair, so a prop repeated fifty times is one draw call.
+ */
+class Batcher {
+  /**
+   * @param cell side of the square world cells batches are split into, or 0
+   *   for one batch per piece. A batch is culled as a whole, so without cells
+   *   every instance in the world is submitted every frame (measured: 600k
+   *   triangles for a view showing a quarter of them).
+   */
+  constructor(cell = 0) {
+    this.cell = cell;
+    this.entries = new Map();
+    this.inv = new THREE.Matrix4();
+    this.tmp = new THREE.Matrix4();
+    this.meshes = [];
+  }
+
+  add(piece, matrix, color) {
+    piece.updateWorldMatrix(true, true);
+    this.inv.copy(piece.matrixWorld).invert();
+    const cx = this.cell ? Math.floor(matrix.elements[12] / this.cell) : 0;
+    const cz = this.cell ? Math.floor(matrix.elements[14] / this.cell) : 0;
+    piece.traverse((o) => {
+      if (!o.isMesh) return;
+      const key = `${o.geometry.uuid}|${o.material.uuid}|${cx}|${cz}`;
+      let e = this.entries.get(key);
+      if (!e) {
+        e = { geometry: o.geometry, material: o.material, matrices: [], colors: [], tinted: false };
+        this.entries.set(key, e);
+      }
+      e.matrices.push(new THREE.Matrix4().multiplyMatrices(matrix, this.tmp.multiplyMatrices(this.inv, o.matrixWorld)));
+      e.colors.push(color || null);
+      if (color) e.tinted = true;
+    });
+  }
+
+  build(scene, { castShadow = true, receiveShadow = true } = {}) {
+    const white = new THREE.Color(1, 1, 1);
+    let count = 0;
+    for (const e of this.entries.values()) {
+      const mesh = new THREE.InstancedMesh(e.geometry, e.material, e.matrices.length);
+      e.matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
+      if (e.tinted) e.colors.forEach((c, i) => mesh.setColorAt(i, c || white));
+      mesh.castShadow = castShadow;
+      mesh.receiveShadow = receiveShadow;
+      mesh.computeBoundingSphere();
+      scene.add(mesh);
+      this.meshes.push(mesh);
+      count++;
+    }
+    return count;
+  }
+
+  /** Hide batches whose whole cell is farther than `range` from the viewer. */
+  cullByDistance(x, z, range) {
+    for (const m of this.meshes) {
+      const s = m.boundingSphere;
+      m.visible = Math.hypot(s.center.x - x, s.center.z - z) - s.radius < range;
+    }
+  }
+}
+
+const P = new THREE.Vector3();
+const Q = new THREE.Quaternion();
+const E = new THREE.Euler();
+const SC = new THREE.Vector3();
+/** Matrix for a prop standing on the terrain at (x, z). */
+function at(x, z, { y = 0, ry = 0, rx = 0, rz = 0, s = 1, ground = true } = {}) {
+  P.set(x, (ground ? groundHeight(x, z) : 0) + y, z);
+  Q.setFromEuler(E.set(rx, ry, rz, 'YXZ'));
+  if (Array.isArray(s)) SC.set(s[0], s[1], s[2]);
+  else SC.set(s, s, s);
+  return new THREE.Matrix4().compose(P, Q, SC);
+}
+
+/**
+ * Things that may stand between the camera and what the player needs to see
+ * (the character, the current target). Each is a vertical cylinder; when the
+ * view line passes through it the object turns mostly transparent. The camera
+ * itself only collides with terrain and architecture (see camera.js), so
+ * vegetation and thin pillars never shove the view around — they fade.
+ */
+class Occluders {
+  constructor() {
+    this.list = [];
+  }
+
+  add(object, x, z, radius, y0, y1) {
+    this.list.push({ object, x, z, r2: radius * radius, y0, y1, alpha: 1, mats: null });
+  }
+
+  update(dt, eye, points) {
+    for (const o of this.list) {
+      let hit = false;
+      for (const p of points) {
+        // Sample the sight line; skip the ends so standing beside something
+        // does not fade it.
+        for (let i = 1; i <= 9 && !hit; i++) {
+          const k = 0.04 + (i / 10) * 0.9;
+          const x = eye.x + (p.x - eye.x) * k - o.x;
+          const z = eye.z + (p.z - eye.z) * k - o.z;
+          if (x * x + z * z > o.r2) continue;
+          const y = eye.y + (p.y - eye.y) * k;
+          if (y > o.y0 && y < o.y1) hit = true;
+        }
+        if (hit) break;
+      }
+      const target = hit ? 0.16 : 1;
+      if (Math.abs(target - o.alpha) < 0.004) {
+        if (o.alpha === target) continue;
+        o.alpha = target;
+      } else o.alpha += (target - o.alpha) * Math.min(1, dt * 9);
+      if (!o.mats) {
+        // Only now does this object need materials of its own.
+        o.mats = cloneMaterials(o.object);
+        for (const m of o.mats) m.userData.alphaTest = m.alphaTest;
+      }
+      for (const m of o.mats) {
+        const solid = o.alpha > 0.995;
+        m.transparent = !solid;
+        m.opacity = o.alpha;
+        m.depthWrite = solid;
+        m.alphaTest = m.userData.alphaTest * o.alpha;
+      }
+    }
+  }
+
+  get faded() {
+    return this.list.filter((o) => o.alpha < 0.9).length;
+  }
+}
+
+// --- kit-built props ---------------------------------------------------------
+
+const TINT = {
+  spore: new THREE.Color(0.86, 0.5, 1.0),
+  sporeLeaf: new THREE.Color(0.62, 0.6, 0.78),
+  meadow: new THREE.Color(0.75, 1.0, 0.8),
+  dusk: new THREE.Color(0.8, 0.72, 0.95),
+};
+
+/**
+ * Builders that use the GLB kits. `c` is the build context: batchers, the
+ * occluder list, the animation list and a piece lookup. Colliders are untouched:
+ * every builder sizes its model to the collider shared/world.js already has.
+ */
+const kit = {
+  beacon(p, c) {
+    c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.07 }));
+    c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { y: 0.1, s: [1.25, 1, 1.05] }));
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      c.solid.add(c.piece('sanctum', 'Prop_Light_Floor'), at(p.x + Math.sin(a) * 3.6, p.z + Math.cos(a) * 3.6, { y: 0.1, ry: a + Math.PI / 2 }));
+    }
+    // The beacon's light: a turning core, rings and a beam (pure effect).
+    const g = new THREE.Group();
+    const core = scaled(G.oct, glow(0x8ff2ff), 0.75, 1.2, 0.75, 0, 11.4, 0, false);
+    g.add(core);
+    const rings = [];
+    for (let i = 0; i < 3; i++) {
+      const r = scaled(G.torus, glow(0x6fe6ff), 1.7 + i * 0.35, 1.7 + i * 0.35, 1.5, 0, 4 + i * 2, 0, false);
+      r.rotation.x = Math.PI / 2;
+      rings.push(r);
+      g.add(r);
+    }
+    g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 70, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }), 0, 46, 0, false));
+    const light = new THREE.PointLight(0x7fe8ff, 110, 40, 1.8);
+    light.position.set(0, 6.5, 0);
+    g.add(light);
+    c.anim.push((dt, t) => {
+      core.rotation.y = t * 0.8;
+      core.position.y = 11.4 + Math.sin(t * 1.3) * 0.2;
+      rings.forEach((r, i) => {
+        r.rotation.z = t * (0.5 + i * 0.2) * (i % 2 ? -1 : 1);
+        r.position.y = 4 + i * 2 + Math.sin(t * 0.9 + i * 2) * 0.25;
+      });
+    });
+    return g;
+  },
+  pylon(p, c) {
+    const obj = c.single('sanctum', 'Column_Hollow', at(p.x, p.z, { y: 0.05, ry: p.rot, s: [1.15, 1.04, 1.15] }));
+    const y = groundHeight(p.x, p.z);
+    c.occluders.add(obj, p.x, p.z, 1.0, y, y + 5.4);
+    const cap = scaled(G.box, glow(0x6fe6ff), 0.9, 0.08, 0.9, p.x, y + 5.32, p.z, false);
+    c.scene.add(cap);
+  },
+  gatepost() {},
+  console(p, c) {
+    for (const dx of [-0.55, 0.55]) c.solid.add(c.piece('sanctum', 'Prop_Computer'), at(p.x + dx, p.z, { y: 0.07, ry: dx * 0.25, s: 1.05 }));
+    c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(p.x - 1.6, p.z + 0.9, { y: 0.09, ry: 0.6 }));
+  },
+  crate(p, c) {
+    const big = p.hw > 0.7;
+    const name = big ? 'Prop_Crate4' : 'Prop_Crate3';
+    const half = big ? 0.56 : 0.5;
+    const s = p.hw / half;
+    c.solid.add(c.piece('sanctum', name), at(p.x, p.z, { y: half * s + 0.05, ry: ((p.x * 7) % 4) * 0.05, s }));
+  },
+  sporetree(p, c) {
+    const rnd = mulberry32(p.seed);
+    // One mushroom, grown to tree size: a thin stem inside the collider and a
+    // cap well above head height.
+    const s = p.s * 10.2;
+    const ry = rnd() * 6;
+    const obj = c.single('nature', 'Mushroom_Single', at(p.x, p.z, { y: -0.25, ry, rx: (rnd() - 0.5) * 0.12, s: [s, s * 1.05, s] }), { tint: 0xc98be8, emissive: 0x2c0f38 });
+    const y = groundHeight(p.x, p.z);
+    c.occluders.add(obj, p.x, p.z, 1.75 * p.s, y + 2.9 * p.s, y + 5.4 * p.s); // cap
+    c.occluders.add(obj, p.x, p.z, 0.55 * p.s, y, y + 3 * p.s); // stem
+    // Glowing spore beads under the cap.
+    for (let i = 0; i < 5; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = (0.4 + rnd() * 0.9) * p.s;
+      c.beads.push([p.x + Math.sin(a) * r, y + (3.55 - rnd() * 0.35) * p.s, p.z + Math.cos(a) * r, 0.055 * p.s, 0xffa6f2]);
+    }
+  },
+  pod(p, c) {
+    const obj = c.animated('nature', 'pod', at(p.x, p.z, { y: 1.0 * p.s, ry: p.x * 1.7, s: 1.25 * p.s }), 'Alien_Idle', { tint: 0x8fd49a, emissive: 0x12301a, phase: p.x });
+    if (!obj) return;
+    c.beads.push([p.x, groundHeight(p.x, p.z) + 1.95 * p.s, p.z, 0.16 * p.s, 0x9dffb0]);
+  },
+  rock(p, c) {
+    const n = (p.seed % 3) + 1;
+    const big = p.s > 2;
+    c.solid.add(c.piece('nature', `Rock_Medium_${n}`), at(p.x, p.z, { y: -0.1, ry: p.seed % 6, s: [(p.r * 2.3) / 3.2, (p.h * (big ? 0.92 : 0.8)) / 2.1, (p.r * 2.3) / 3.2] }), big ? TINT.dusk : null);
+  },
+  conduit(p, c) {
+    // A "conduit tree": dead wood threaded with old cabling and light. The
+    // tree models are thousands of twigs that do not simplify, so the low
+    // preset keeps the light procedural version.
+    if (c.detail < 1) return procedural.conduit(p, c.anim);
+    const rnd = mulberry32(p.seed);
+    const name = rnd() < 0.5 ? 'DeadTree_1' : 'DeadTree_3';
+    const s = (3.6 + 2.1 * p.s) / 10;
+    c.solid.add(c.piece('nature', name), at(p.x, p.z, { y: -0.1, ry: rnd() * 6, s }));
+    const hue = rnd() < 0.5 ? 0x9dffb0 : 0xffd27a;
+    const y = groundHeight(p.x, p.z);
+    for (let i = 0; i < 3; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = (0.5 + rnd() * 1.2) * s * 2;
+      c.beads.push([p.x + Math.sin(a) * r, y + (4 + rnd() * 3.5) * s, p.z + Math.cos(a) * r, 0.2, hue]);
+    }
+  },
+  wall(p, c) {
+    const long = p.hw > p.hd;
+    const len = (long ? p.hw : p.hd) * 2;
+    const n = Math.max(1, Math.round(len / 4));
+    const seg = len / n;
+    for (let i = 0; i < n; i++) {
+      const o = -len / 2 + seg * (i + 0.5);
+      const m = at(long ? p.x + o : p.x, long ? p.z : p.z + o, { ry: long ? Math.PI / 2 : 0, s: [3.4, p.h / 3, seg / 4] });
+      // The kit's wall slab sits 2.1 m off its origin; bring it onto the collider.
+      m.multiply(new THREE.Matrix4().makeTranslation(2.096, 0, 0));
+      c.solid.add(c.piece('sanctum', i === n - 1 && n > 1 ? 'WallBand_Straight_Broken' : 'WallBand_Straight'), m);
+    }
+  },
+  dish(p, c) {
+    c.solid.add(c.piece('sanctum', 'Prop_SatelliteDish'), at(p.x, p.z, { ry: 2.2, s: 0.78 }));
+  },
+  relaytower(p, c) {
+    c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.05, s: 0.95 }));
+    c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { ry: 0.6, rz: 0.06, s: [1.9, 1.38, 1.6] }));
+    for (let i = 0; i < 3; i++) c.solid.add(c.piece('sanctum', 'Column_MetalSupport'), at(p.x, p.z, { y: 5 + i * 3, ry: i * 1.1, s: [1, 1, 1.5 - i * 0.25] }));
+    const lamp = scaled(G.sph, glow(0xff5a4a), 0.3, 0.3, 0.3, p.x, groundHeight(p.x, p.z) + 14.2, p.z, false);
+    c.scene.add(lamp);
+    c.anim.push((dt, t) => {
+      lamp.visible = Math.sin(t * 3) > -0.2;
+    });
+  },
+};
+
+/** Lattice Sanctum: tiled deck, overhead lattice between the pylons, and gates. */
+function buildSanctum(c) {
+  const { scene } = c;
+  const top = 0.45;
+  // Foundation: a dark machined disc under the deck tiles.
+  const base = mesh(new THREE.CylinderGeometry(13.6, 14.3, 0.7, 48), mat(0x23292f, { rough: 0.55, metal: 0.7 }), 0, top - 0.35, 0);
+  base.material = base.material.clone();
+  base.material.flatShading = false;
+  base.castShadow = false;
+  scene.add(base);
+  for (let i = -2; i <= 2; i++) {
+    for (let j = -2; j <= 2; j++) {
+      if (Math.abs(i) === 2 && Math.abs(j) === 2) continue;
+      if (i === 0 && j === 0) continue;
+      const ring = Math.max(Math.abs(i), Math.abs(j));
+      const name = ring === 1 ? 'Platform_X' : (i + j) % 2 ? 'Platform_DarkPlates' : 'Platform_Metal';
+      c.cover.add(c.piece('sanctum', name), at(i * 4, j * 4, { y: top + 0.02, ground: false, ry: ((i * 3 + j) % 4) * (Math.PI / 2) }));
+    }
+  }
+  c.cover.add(c.piece('sanctum', 'Platform_X'), at(0, 0, { y: top + 0.02, ground: false }));
+  const inlay = mesh(new THREE.RingGeometry(12.72, 12.95, 72), glow(0x6fe6ff, 0.75), 0, top + 0.03, 0, false);
+  inlay.rotation.x = -Math.PI / 2;
+  scene.add(inlay);
+  const rim = mesh(new THREE.RingGeometry(13.35, 13.5, 72), glow(0x2f8fa8, 0.6), 0, top + 0.03, 0, false);
+  rim.rotation.x = -Math.PI / 2;
+  scene.add(rim);
+
+  // Overhead lattice: a hexagon of trusses between the pylon heads, and
+  // stays running up to the beacon. This is what gives the place its name.
+  const pylons = PROPS.filter((p) => p.type === 'pylon');
+  const span = (ax, ay, az, bx, by, bz, n) => {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dy, dz);
+    const ry = Math.atan2(dx, dz);
+    const rx = -Math.asin(dy / len);
+    for (let k = 0; k < n; k++) {
+      const f = (k + 0.5) / n;
+      P.set(ax + dx * f, ay + dy * f, az + dz * f);
+      Q.setFromEuler(E.set(rx, ry, 0, 'YXZ'));
+      SC.set(0.8, 1, len / n / 4);
+      c.cover.add(c.piece('sanctum', 'Column_MetalSupport'), new THREE.Matrix4().compose(P, Q, SC));
+    }
+  };
+  pylons.forEach((a, i) => {
+    const b = pylons[(i + 1) % pylons.length];
+    const ya = groundHeight(a.x, a.z) + 5.2;
+    span(a.x, ya, a.z, b.x, groundHeight(b.x, b.z) + 5.2, b.z, 3);
+    span(a.x, ya, a.z, a.x * 0.09, 8.6, a.z * 0.09, 3);
+  });
+
+  // Gateways on the three roads out. Their posts are real colliders
+  // ('gatepost' in shared/world.js).
+  for (const key of ['sporefield', 'relay', 'vault']) {
+    const zn = ZONES[key];
+    const d = Math.hypot(zn.x, zn.z);
+    const x = (zn.x / d) * 14.6;
+    const z = (zn.z / d) * 14.6;
+    // Single objects, not instanced: a gate fades when the camera is behind it.
+    const gate = c.single('sanctum', 'Door_Frame_Square', at(x, z, { y: -0.05, ry: Math.atan2(zn.x, zn.z) }));
+    const colour = key === 'sporefield' ? 0xffa6f2 : key === 'relay' ? 0xffb45c : 0xb48cff;
+    // The lintel lamp is part of the gate so that it fades with it.
+    const lamp = new THREE.Mesh(G.box, new THREE.MeshBasicMaterial({ color: colour }));
+    lamp.scale.set(1.6, 0.1, 0.1);
+    lamp.position.set(0, 4.6, 0);
+    gate.add(lamp);
+    c.occluders.add(gate, x, z, 2.7, groundHeight(x, z), groundHeight(x, z) + 5.2);
+  }
+  // Loose kit around the working area (inside existing colliders' footprints
+  // or flat on the deck, so nothing solid can be walked through).
+  c.cover.add(c.piece('sanctum', 'Prop_Vent_Big'), at(-6.2, 3.4, { y: top + 0.1, ground: false, ry: 0.4 }));
+  c.cover.add(c.piece('sanctum', 'Prop_Vent_Big'), at(6.8, 5.2, { y: top + 0.1, ground: false, ry: -0.7 }));
+  c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(-4.2, -5.6, { y: top + 0.04, ground: false, ry: 2.1 }));
+}
+
+const inRange = (x, z, zone, r) => Math.hypot(x - zone.x, z - zone.z) < r;
+function clearOfColliders(x, z, pad) {
+  for (const col of COLLIDERS) {
+    if (col.r !== undefined) {
+      if (Math.hypot(x - col.x, z - col.z) < col.r + pad) return false;
+    } else if (Math.abs(x - col.x) < col.hw + pad && Math.abs(z - col.z) < col.hd + pad) return false;
+  }
+  return true;
+}
+
+/** Ground cover and the unreachable backdrop ring. Decorative only. */
+function buildVegetation(c, detail) {
+  const rnd = mulberry32(7331);
+  const sf = ZONES.sporefield;
+  const scatter = (count, pick, place) => {
+    let n = 0;
+    let guard = 0;
+    while (n < count && guard++ < count * 12) {
+      const pos = pick();
+      if (!pos || !clearOfColliders(pos[0], pos[1], 0.35)) continue;
+      place(pos[0], pos[1]);
+      n++;
+    }
+  };
+  const inSpore = () => {
+    const a = rnd() * Math.PI * 2;
+    const r = Math.sqrt(rnd()) * 23;
+    return [sf.x + Math.sin(a) * r, sf.z + Math.cos(a) * r];
+  };
+  const inMeadow = () => {
+    const a = rnd() * Math.PI * 2;
+    const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
+    const x = Math.sin(a) * r;
+    const z = Math.cos(a) * r;
+    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7)) return null;
+    return [x, z];
+  };
+  const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
+  const N = (n) => Math.round(n * detail);
+
+  // The Sporefield: low purple growth, small fungi, a few pale flowers.
+  scatter(N(52), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Plant_7_Big'), at(x, z, { y: -0.03, ry: rnd() * 6, s: 1 + rnd() * 0.9 }), vary(TINT.sporeLeaf)));
+  scatter(N(30), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Mushroom_Common'), at(x, z, { ry: rnd() * 6, s: 0.8 + rnd() * 1.0 }), vary(TINT.spore)));
+  scatter(N(12), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Mushroom_Laetiporus'), at(x, z, { y: 0.1, ry: rnd() * 6, s: 0.9 + rnd() * 0.8 }), vary(TINT.spore)));
+  scatter(N(36), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Grass_Wispy_Tall'), at(x, z, { ry: rnd() * 6, s: 0.35 + rnd() * 0.22 }), vary(TINT.spore)));
+  scatter(N(14), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Fern_1'), at(x, z, { ry: rnd() * 6, s: 0.4 + rnd() * 0.3 }), vary(TINT.sporeLeaf)));
+  scatter(N(16), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Flower_3_Group'), at(x, z, { ry: rnd() * 6, s: 0.45 + rnd() * 0.25 }), vary(TINT.spore, 0.1)));
+
+  // The rest of the Reach: short grass, ferns, pebbles, the odd shrub.
+  scatter(N(420), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Grass_Common_Short'), at(x, z, { ry: rnd() * 6, s: 0.55 + rnd() * 0.6 }), vary(TINT.meadow, 0.4)));
+  scatter(N(60), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Grass_Wispy_Tall'), at(x, z, { ry: rnd() * 6, s: 0.4 + rnd() * 0.3 }), vary(TINT.meadow, 0.3)));
+  scatter(N(40), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Fern_1'), at(x, z, { ry: rnd() * 6, s: 0.45 + rnd() * 0.4 }), vary(TINT.meadow)));
+  scatter(N(70), inMeadow, (x, z) => c.cover.add(c.piece('nature', rnd() < 0.5 ? 'Pebble_Round_1' : 'Pebble_Round_3'), at(x, z, { ry: rnd() * 6, s: 1 + rnd() * 2.5 })));
+  scatter(N(22), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Clover_1'), at(x, z, { ry: rnd() * 6, s: 0.5 + rnd() * 0.4 }), vary(TINT.meadow)));
+  scatter(N(16), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Flower_3_Group'), at(x, z, { ry: rnd() * 6, s: 0.4 + rnd() * 0.25 })));
+
+  // Backdrop on the basin wall, beyond where anyone can walk (the world limit
+  // is radius 86): big twisted trees and boulders that close the horizon
+  // without ever standing in a sight line.
+  const ring = detail < 1 ? 0 : 18;
+  for (let i = 0; i < ring; i++) {
+    const a = (i / ring) * Math.PI * 2 + rnd() * 0.2;
+    const r = 88.5 + rnd() * 5;
+    const x = Math.sin(a) * r;
+    const z = Math.cos(a) * r;
+    if (i % 3 === 2) c.solid.add(c.piece('nature', `Rock_Medium_${(i % 3) + 1}`), at(x, z, { y: -0.6, ry: rnd() * 6, s: 2.6 + rnd() * 2.4 }), TINT.dusk);
+    else c.far.add(c.piece('nature', i % 2 ? 'TwistedTree_1' : 'TwistedTree_3'), at(x, z, { y: -0.5, ry: rnd() * 6, s: 0.75 + rnd() * 0.45 }), vary(TINT.spore, 0.3));
+  }
+}
+
+function buildParticlesAndLights(scene) {
   const rnd = mulberry32(1337);
-  // Ground cover: thousands of tiny blades in one draw call.
+  // Way-lights from the Sanctum toward each landmark.
+  const post = new THREE.CylinderGeometry(0.06, 0.09, 1.3, 5);
+  for (const key of ['sporefield', 'relay', 'vault']) {
+    const zn = ZONES[key];
+    const d = Math.hypot(zn.x, zn.z);
+    const colour = key === 'sporefield' ? 0xffa6f2 : key === 'relay' ? 0xffb45c : 0xb48cff;
+    for (let t = 17; t < d - zn.r + 2; t += 8) {
+      const side = Math.round(t / 8) % 2 ? 1 : -1;
+      const x = (zn.x / d) * t + (-zn.z / d) * side * 1.6;
+      const z = (zn.z / d) * t + (zn.x / d) * side * 1.6;
+      const y = groundHeight(x, z);
+      scene.add(mesh(post, mat(0x394750, { metal: 0.5 }), x, y + 0.65, z, false));
+      scene.add(scaled(G.sph, glow(colour), 0.14, 0.14, 0.14, x, y + 1.4, z, false));
+    }
+  }
+  // Drifting spores over the bog.
+  const pts = [];
+  for (let i = 0; i < 260; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = Math.sqrt(rnd()) * 23;
+    const x = ZONES.sporefield.x + Math.sin(a) * r;
+    const z = ZONES.sporefield.z + Math.cos(a) * r;
+    pts.push(x, groundHeight(x, z) + 0.5 + rnd() * 5.5, z);
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const spores = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffb8f5, size: 0.14, transparent: true, opacity: 0.8, depthWrite: false }));
+  scene.add(spores);
+  // A soft violet glow pooled in the bog, so the Sporefield is not just dark.
+  const bog = new THREE.PointLight(0xc070ff, 60, 46, 1.6);
+  bog.position.set(ZONES.sporefield.x, 5, ZONES.sporefield.z);
+  scene.add(bog);
+  return (dt, t) => {
+    spores.position.y = Math.sin(t * 0.4) * 0.4;
+    spores.position.x = Math.sin(t * 0.17) * 0.6;
+  };
+}
+
+/** The original procedural ground cover, used only when the kits are missing. */
+function buildProceduralDecor(scene) {
+  const rnd = mulberry32(1337);
   const count = 2600;
   const blades = new THREE.InstancedMesh(new THREE.ConeGeometry(0.07, 0.55, 3), new THREE.MeshStandardMaterial({ flatShading: true, roughness: 1 }), count);
   const dummy = new THREE.Object3D();
@@ -473,50 +946,23 @@ function buildDecor(scene) {
   blades.instanceMatrix.needsUpdate = true;
   if (blades.instanceColor) blades.instanceColor.needsUpdate = true;
   scene.add(blades);
-
-  // Way-lights from the Sanctum toward each landmark.
-  const post = new THREE.CylinderGeometry(0.06, 0.09, 1.3, 5);
-  for (const key of ['sporefield', 'relay', 'vault']) {
-    const zn = ZONES[key];
-    const d = Math.hypot(zn.x, zn.z);
-    const colour = key === 'sporefield' ? 0xffa6f2 : key === 'relay' ? 0xffb45c : 0xb48cff;
-    for (let t = 17; t < d - zn.r + 2; t += 8) {
-      const side = Math.round(t / 8) % 2 ? 1 : -1;
-      const x = (zn.x / d) * t + (-zn.z / d) * side * 1.6;
-      const z = (zn.z / d) * t + (zn.x / d) * side * 1.6;
-      const y = groundHeight(x, z);
-      scene.add(mesh(post, mat(0x394750, { metal: 0.5 }), x, y + 0.65, z, false));
-      scene.add(scaled(G.sph, glow(colour), 0.14, 0.14, 0.14, x, y + 1.4, z, false));
-    }
-  }
-
-  // Drifting spores over the bog.
-  const pts = [];
-  for (let i = 0; i < 220; i++) {
-    const a = rnd() * Math.PI * 2;
-    const r = Math.sqrt(rnd()) * 22;
-    const x = ZONES.sporefield.x + Math.sin(a) * r;
-    const z = ZONES.sporefield.z + Math.cos(a) * r;
-    pts.push(x, groundHeight(x, z) + 0.5 + rnd() * 5, z);
-  }
-  const sg = new THREE.BufferGeometry();
-  sg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  const spores = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffb8f5, size: 0.14, transparent: true, opacity: 0.8, depthWrite: false }));
-  scene.add(spores);
-  return (dt, t) => {
-    spores.position.y = Math.sin(t * 0.4) * 0.4;
-    spores.position.x = Math.sin(t * 0.17) * 0.6;
-  };
 }
 
-/** Build the whole static world. Returns {update, sun}. */
-export function buildWorld(scene) {
-  scene.fog = new THREE.Fog(0x4c4868, 55, 250);
+/**
+ * Build the whole static world. Returns {update, sun, stats}.
+ * @param assets loaded Assets, or null to build the procedural world
+ * @param opts {detail: 0..1} scales decorative density (not gameplay props)
+ */
+export function buildWorld(scene, assets = null, opts = {}) {
+  const detail = opts.detail ?? 1;
+  const kits = !!(assets && assets.get('sanctum') && assets.get('nature'));
+  scene.fog = new THREE.Fog(0x4c4868, 60, 260);
   scene.add(buildSky());
-  scene.add(buildGround());
+  scene.add(buildGround(kits ? assets : null));
 
-  scene.add(new THREE.HemisphereLight(0x9db4ff, 0x3a2c44, 1.35));
-  const sun = new THREE.DirectionalLight(0xffd9b4, 2.4);
+  const ambient = kits ? new THREE.HemisphereLight(0xb0bcff, 0x5c4c6a, 1.55) : new THREE.HemisphereLight(0x9db4ff, 0x3a2c44, 1.35);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xffd9b4, kits ? 2.9 : 2.4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
@@ -530,16 +976,62 @@ export function buildWorld(scene) {
   sun.shadow.normalBias = 0.4;
   scene.add(sun, sun.target);
 
-  // Sanctum floor: a level dais with an inlaid ring of light.
-  const dais = mesh(new THREE.CylinderGeometry(13, 13.6, 0.5, 40), mat(0x56666e, { rough: 0.7, metal: 0.2 }), 0, 0.2, 0);
-  dais.castShadow = false;
-  scene.add(dais);
-  const inlay = mesh(new THREE.RingGeometry(8.6, 8.9, 48), glow(0x6fe6ff, 0.7), 0, 0.47, 0, false);
-  inlay.rotation.x = -Math.PI / 2;
-  scene.add(inlay);
-  const safe = mesh(new THREE.RingGeometry(12.7, 12.95, 64), glow(0x6fe6ff, 0.45), 0, 0.47, 0, false);
-  safe.rotation.x = -Math.PI / 2;
-  scene.add(safe);
+  const anim = [];
+  const occluders = new Occluders();
+  const animators = [];
+  const c = {
+    scene,
+    detail,
+    anim,
+    occluders,
+    solid: new Batcher(46), // casts and receives shadows
+    cover: new Batcher(30), // ground cover and flat pieces: receives only
+    far: new Batcher(60), // backdrop: no shadows at all
+    beads: [], // [x, y, z, radius, colour] small glowing spheres
+    piece: (bundle, name) => {
+      const p = assets.get(bundle).pieces.get(name);
+      if (!p) throw new Error(`piece ${bundle}:${name} is not in the bundle`);
+      return p;
+    },
+    /** A piece as its own object (fadeable, tintable). */
+    single(bundle, name, matrix, { tint, emissive } = {}) {
+      const obj = assets.instance(bundle, name);
+      obj.applyMatrix4(matrix);
+      if (tint !== undefined) {
+        for (const m of cloneMaterials(obj)) {
+          m.color.multiply(tmpA.setHex(tint));
+          if (emissive !== undefined) m.emissive.setHex(emissive);
+        }
+      }
+      scene.add(obj);
+      return obj;
+    },
+    /** A skinned piece playing one looping clip. */
+    animated(bundle, name, matrix, clip, { tint, emissive, phase = 0 } = {}) {
+      const obj = c.single(bundle, name, matrix, { tint, emissive });
+      obj.traverse((o) => {
+        if (o.isSkinnedMesh) o.frustumCulled = false;
+      });
+      const a = new Animator(obj, assets.clips(bundle, name));
+      a.setBase(clip, { fade: 0, timeScale: 0.7 });
+      a.update(Math.abs(phase) % 3);
+      animators.push({ a, obj });
+      return obj;
+    },
+  };
+
+  if (kits) buildSanctum(c);
+  else {
+    // Sanctum floor: a level dais with an inlaid ring of light.
+    const dais = mesh(new THREE.CylinderGeometry(13, 13.6, 0.5, 40), mat(0x56666e, { rough: 0.7, metal: 0.2 }), 0, 0.2, 0);
+    dais.castShadow = false;
+    scene.add(dais);
+    for (const [r0, r1, o] of [[8.6, 8.9, 0.7], [12.7, 12.95, 0.45]]) {
+      const ring = mesh(new THREE.RingGeometry(r0, r1, 64), glow(0x6fe6ff, o), 0, 0.47, 0, false);
+      ring.rotation.x = -Math.PI / 2;
+      scene.add(ring);
+    }
+  }
 
   // Vault floor: concentric rune rings.
   for (const [r0, r1] of [[5, 5.2], [10, 10.25], [13.4, 13.6]]) {
@@ -551,23 +1043,70 @@ export function buildWorld(scene) {
   vaultLight.position.set(ZONES.vault.x, 6, ZONES.vault.z);
   scene.add(vaultLight);
 
-  const anim = [];
+  let fallbacks = 0;
   for (const p of PROPS) {
-    const build = builders[p.type];
-    if (!build) continue;
-    const obj = build(p, anim);
+    let obj;
+    if (kits && kit[p.type]) {
+      try {
+        obj = kit[p.type](p, c);
+      } catch (err) {
+        // A missing piece must not remove the prop (its collider still exists).
+        console.warn(`[scene] ${p.type}: using the procedural prop:`, err.message || err);
+        fallbacks++;
+        obj = procedural[p.type] ? procedural[p.type](p, anim) : null;
+      }
+    } else if (procedural[p.type]) obj = procedural[p.type](p, anim);
+    if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
     obj.position.y += groundHeight(p.x, p.z) - 0.15;
     scene.add(obj);
   }
-  anim.push(buildDecor(scene));
+
+  if (kits) buildVegetation(c, detail);
+  else buildProceduralDecor(scene);
+  anim.push(buildParticlesAndLights(scene));
+
+  let batches = c.solid.build(scene) + c.cover.build(scene, { castShadow: false }) + c.far.build(scene, { castShadow: false, receiveShadow: false });
+  if (c.beads.length) {
+    const beads = new THREE.InstancedMesh(G.sph, new THREE.MeshBasicMaterial(), c.beads.length);
+    const col = new THREE.Color();
+    c.beads.forEach(([x, y, z, r, hex], i) => {
+      P.set(x, y, z);
+      Q.identity();
+      SC.set(r, r, r);
+      beads.setMatrixAt(i, new THREE.Matrix4().compose(P, Q, SC));
+      beads.setColorAt(i, col.setHex(hex));
+    });
+    beads.computeBoundingSphere();
+    scene.add(beads);
+    batches++;
+  }
 
   const dir = new THREE.Vector3(-0.55, 0.72, 0.42).normalize();
+  const points = [];
+  const coverRange = 30 + 55 * detail;
   return {
     sun,
-    update(dt, t, focus) {
+    ambient,
+    ambientBase: ambient.intensity,
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks },
+    occluders,
+    /**
+     * @param focus the player's feet
+     * @param view optional {eye, points}: camera position and the points that
+     *   must stay visible (player, target), for occluder fading
+     */
+    update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
+      for (const e of animators) e.a.update(dt);
+      // Small ground cover is not worth drawing across the valley.
+      c.cover.cullByDistance(focus.x, focus.z, coverRange);
+      if (view) {
+        points.length = 0;
+        for (const p of view.points) if (p) points.push(p);
+        occluders.update(dt, view.eye, points);
+      }
       // Keep the shadow frustum centred on the player.
       sun.target.position.set(focus.x, focus.y, focus.z);
       sun.position.set(focus.x + dir.x * 90, focus.y + dir.y * 90, focus.z + dir.z * 90);

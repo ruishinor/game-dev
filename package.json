@@ -13,7 +13,8 @@
     "e2e": "node test/e2e/play.mjs",
     "assets:fetch": "node tools/assets/fetch.mjs",
     "assets:build": "node tools/assets/build.mjs",
-    "assets:preview": "node tools/assets/preview.mjs"
+    "assets:preview": "node tools/assets/preview.mjs",
+    "capture": "node tools/capture.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",
@@ -24,7 +25,9 @@
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
     "fflate": "^0.8.3",
+    "gltf-validator": "2.0.0-dev.3.10",
     "meshoptimizer": "^1.3.0",
+    "playwright": "1.63.0",
     "sharp": "^0.35.5"
   }
 }

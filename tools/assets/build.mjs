@@ -44,10 +44,12 @@ async function buildHumanoid(spec) {
   const tris = scene.listChildren().reduce((n, c) => n + triangleCount(c), 0);
   const clips = clipDurations(doc);
   const before = await rawSize(doc);
-  await optimise(doc);
+  // The mannequin spends most of its triangles on fingers; halve the count.
+  await optimise(doc, { simplifyRatio: spec.simplify ?? 0.5 });
   const file = path.join(OUT, spec.out);
   const bytes = await writeGlb(doc, file);
-  return { kind: 'humanoid', url: spec.out, bytes, rawBytes: before, hash: hashOf(file), tris, clips, shells: body.shells, joints: pick(body.joints, ['pelvis', 'spine_03', 'Head', 'hand_l', 'foot_l']), sources: spec.sources };
+  const after = (doc.getRoot().getDefaultScene() || doc.getRoot().listScenes()[0]).listChildren().reduce((n, c) => n + triangleCount(c), 0);
+  return { kind: 'humanoid', url: spec.out, bytes, rawBytes: before, hash: hashOf(file), tris: after, sourceTris: tris, clips, shells: body.shells, joints: pick(body.joints, ['pelvis', 'spine_03', 'Head', 'hand_l', 'foot_l']), sources: spec.sources };
 }
 
 const pick = (obj, keys) => Object.fromEntries(keys.map((k) => [k, obj[k]]));
@@ -57,10 +59,13 @@ async function buildKit(spec) {
   if (spec.hueShift) await doc.transform(hueShift(spec.hueShift.match, spec.hueShift.degrees));
   for (const e of spec.emissive || []) await doc.transform(attachEmissive(e.material, resolve(e.file), e.factor));
   const before = await rawSize(doc);
-  await optimise(doc, { maxTexture: spec.maxTexture });
+  await optimise(doc, { maxTexture: spec.maxTexture, simplifyRatio: spec.simplify || 0 });
   const file = path.join(OUT, spec.out);
   const bytes = await writeGlb(doc, file);
   const textures = doc.getRoot().listTextures().length;
+  // Report triangle counts as shipped (after any simplification).
+  const scene = doc.getRoot().getDefaultScene() || doc.getRoot().listScenes()[0];
+  for (const node of scene.listChildren()) if (pieces[node.getName()]) pieces[node.getName()].tris = triangleCount(node);
   return { kind: 'kit', url: spec.out, bytes, rawBytes: before, hash: hashOf(file), tris: Object.values(pieces).reduce((n, p) => n + p.tris, 0), textures, pieces, sources: spec.sources };
 }
 

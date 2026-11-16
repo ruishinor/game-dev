@@ -8,9 +8,10 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
-import { cloneMaterials, disposeInstance } from './assets.js';
+import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
 const UPPER_BODY = /^(spine_|neck_|Head|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_)/;
@@ -44,26 +45,6 @@ function throttle(state, dt, interval) {
 }
 
 // --- humanoids ---------------------------------------------------------------
-
-// Ability / event id -> clip. `start` skips the wind-up so the visible impact
-// lands close to the moment the server resolved the hit.
-const HUMANOID_ACTIONS = {
-  auto: { clip: 'Punch_Jab', start: 0.2, timeScale: 1.3 },
-  rending_arc: { clip: 'Punch_Cross', start: 0.18, timeScale: 1.15 },
-  rending_echo: { clip: 'Punch_Cross', start: 0.18, timeScale: 1.15 },
-  graviton_tether: { clip: 'Shield_OneShot', start: 0.1, timeScale: 1.1 },
-  kinetic_ward: { clip: 'Sword_Block', start: 0.08, fadeOut: 0.3 },
-  discharge: { clip: 'Idle_Shield_Break', start: 0.1, timeScale: 1.1 },
-  aegis: { clip: 'Idle_Shield_Break', start: 0.1, timeScale: 1.1 },
-  neural_lash: { clip: 'Spell_Simple_Shoot', timeScale: 1.1 },
-  bolt: { clip: 'Spell_Simple_Shoot', timeScale: 1.2 },
-  mending_graft: { clip: 'Spell_Simple_Enter', fadeOut: 0.45 },
-  spore_snare: { clip: 'OverhandThrow', start: 0.35, timeScale: 1.3 },
-  overgrowth_surge: { clip: 'Idle_Shield_Break', start: 0.1 },
-  surge: { clip: 'Idle_Shield_Break', start: 0.1 },
-  interact: { clip: 'Interact', fadeOut: 0.3 },
-  attune: { clip: 'Interact', fadeOut: 0.3 },
-};
 
 export function makeHumanoid(assets, lookId, opts = {}) {
   const def = LOOK_DEFS[lookId];
@@ -103,6 +84,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     if (shell) shellMats[shell] = m;
   });
   for (const o of hidden) o.parent.remove(o);
+  // A look that names a shell the body does not have would silently lose that
+  // piece of clothing; make it loud (automated checks fail on console errors).
+  for (const name of Object.keys(def.shells)) if (!shellMats[name]) console.error(`[models] look ${lookId}: shell "${name}" is not in ${def.body}`);
 
   // Gear is positioned in bind pose, then handed to a bone.
   group.updateMatrixWorld(true);
@@ -122,7 +106,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   for (const build of def.gear || []) build(ctx);
 
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
-  const idle = opts.idle && anim.has(opts.idle) ? opts.idle : 'Idle_Loop';
+  const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
   const flash = flasher(mats);
   const lod = { acc: 0 };
@@ -141,19 +125,19 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     update(dt, st) {
       if (st.dead !== dead) {
         dead = st.dead;
-        if (dead) anim.play('Death01', { kind: 'death', hold: true, fadeIn: 0.12 });
+        if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
         else anim.release(0.3);
       }
       moving = st.speed > 0.5;
       if (st.air) {
-        anim.setBase('Jump_Loop', { fade: 0.12 });
+        anim.setBase(HB.air, { fade: 0.12 });
         landed = false;
       } else if (moving) {
         const s = st.speed;
-        if (st.fwd < -0.35) anim.setBase('Jog_Fwd_Loop', { timeScale: -Math.min(1.6, s / 3.4), sync: true });
-        else if (s > 5.2) anim.setBase('Sprint_Loop', { timeScale: Math.max(0.75, Math.min(1.5, s / 6.6)), sync: true });
-        else if (s > 2.2) anim.setBase('Jog_Fwd_Loop', { timeScale: Math.max(0.7, Math.min(1.5, s / 3.4)), sync: true });
-        else anim.setBase('Walk_Loop', { timeScale: Math.max(0.6, Math.min(1.6, s / 1.45)), sync: true });
+        if (st.fwd < -0.35) anim.setBase(HB.jog, { timeScale: -Math.min(1.6, s / 3.4), sync: true });
+        else if (s > 5.2) anim.setBase(HB.run, { timeScale: Math.max(0.75, Math.min(1.5, s / 6.6)), sync: true });
+        else if (s > 2.2) anim.setBase(HB.jog, { timeScale: Math.max(0.7, Math.min(1.5, s / 3.4)), sync: true });
+        else anim.setBase(HB.walk, { timeScale: Math.max(0.6, Math.min(1.6, s / 1.45)), sync: true });
         landed = true;
       } else {
         anim.setBase(idle, { fade: landed ? 0.22 : 0.12 });
@@ -172,10 +156,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     trigger(kind, id) {
       if (dead) return;
       if (kind === 'hit') {
-        anim.play('Hit_Chest', { kind: 'hit', upper: true, fadeIn: 0.04, fadeOut: 0.16 });
+        anim.react(HB.hit);
         return;
       }
-      const a = HUMANOID_ACTIONS[id] || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
+      // A ranged class's basic attack is a bolt, not a punch.
+      const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
@@ -187,54 +172,14 @@ export function makeHumanoid(assets, lookId, opts = {}) {
 
 // --- creatures ---------------------------------------------------------------
 
-const CREATURES = {
-  // Mire Skitter: a four-legged bog scavenger, half grown and half salvaged.
-  skitter: {
-    piece: 'skitter',
-    scale: 0.74,
-    height: 1.15,
-    radius: 0.7,
-    tint: 0xc9a2e6,
-    emissive: 0x24082c,
-    clips: { idle: 'Idle', walk: 'Walk', run: 'Run', attack: 'Attack', hit: 'Hit', death: 'TurnOff', cast: 'Charge' },
-    runAbove: 3,
-    walkRate: 1.6,
-    runRate: 4.2,
-    sacs: 0xff7ae6,
-  },
-  // Rogue Sentinel: a derelict tripod walker still running its patrol.
-  sentinel: {
-    piece: 'walker',
-    scale: 0.82,
-    height: 2.1,
-    radius: 0.8,
-    tint: 0xd8d2cc,
-    emissive: 0x1a0705,
-    clips: { idle: 'Idle', walk: 'Walk', run: 'Run', attack: 'AttackAuto', hit: 'Hit', death: 'TurnOff', cast: 'Attack' },
-    runAbove: 3.2,
-    walkRate: 1.8,
-    runRate: 4.4,
-    eye: 0xff5a4a,
-  },
-  // Vault Warden: the same machine lineage, far larger and rune-charged.
-  warden: {
-    piece: 'walker',
-    scale: 1.62,
-    height: 4.0,
-    radius: 1.6,
-    tint: 0xa79ad6,
-    emissive: 0x160a2e,
-    clips: { idle: 'Idle', walk: 'Walk', run: 'Run', attack: 'AttackAuto', hit: 'Hit', death: 'TurnOff', cast: 'Attack' },
-    runAbove: 2.6,
-    walkRate: 2.6,
-    runRate: 5,
-    eye: 0xb48cff,
-    shards: true,
-  },
-};
-
-const SPH = new THREE.SphereGeometry(1, 10, 8);
-const OCT = new THREE.OctahedronGeometry(1, 0);
+const SPH = shared(new THREE.SphereGeometry(1, 10, 8));
+const OCT = shared(new THREE.OctahedronGeometry(1, 0));
+const TENDRIL = (() => {
+  const cone = new THREE.ConeGeometry(0.03, 0.46, 6);
+  cone.rotateX(Math.PI);
+  cone.translate(0, -0.23, 0);
+  return shared(cone);
+})();
 
 export function makeCreature(assets, type) {
   const spec = CREATURES[type];
@@ -264,7 +209,7 @@ export function makeCreature(assets, type) {
       const sac = new THREE.Mesh(SPH, mat);
       const a = (i / 5) * Math.PI * 2;
       sac.position.set(Math.sin(a) * 0.3, 1.28, Math.cos(a) * 0.3 - 0.05);
-      sac.scale.setScalar(0.085);
+      sac.scale.setScalar(0.1);
       inst.add(sac);
       sac.updateMatrixWorld(true);
       body.attach(sac);
@@ -341,7 +286,7 @@ export function makeCreature(assets, type) {
     },
     trigger(kind) {
       if (dead) return;
-      if (kind === 'hit') anim.play(c.hit, { kind: 'hit', fadeIn: 0.04, fadeOut: 0.15 });
+      if (kind === 'hit') anim.react(c.hit, { upper: false });
       else anim.play(c.attack, { kind: 'ability', start: 0.1, timeScale: 1.2 });
     },
     dispose() {
@@ -382,17 +327,13 @@ export function makeMender(assets) {
   core.position.set(0, 0.01, 0.2);
   core.scale.setScalar(0.1);
   const halo = new THREE.Mesh(SPH, new THREE.MeshBasicMaterial({ color: MODE_COLOURS.triage, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending }));
-  halo.scale.setScalar(0.46);
+  halo.scale.setScalar(0.4);
   scaled.add(core, halo);
   const tendrilMat = new THREE.MeshStandardMaterial({ color: 0x4fa58c, emissive: 0x1d5c48, roughness: 0.6 });
   const tendrils = [];
-  const cone = new THREE.ConeGeometry(0.03, 0.46, 6);
-  cone.translate(0, -0.23, 0);
-  cone.rotateX(Math.PI);
-  cone.translate(0, -0.46, 0);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    const t = new THREE.Mesh(cone, tendrilMat);
+    const t = new THREE.Mesh(TENDRIL, tendrilMat);
     t.position.set(Math.sin(a) * 0.14, -0.2, Math.cos(a) * 0.14 - 0.03);
     t.castShadow = true;
     tendrils.push(t);
@@ -400,7 +341,7 @@ export function makeMender(assets) {
   }
 
   const anim = new Animator(inst, clips);
-  anim.setBase('Idle', { fade: 0 });
+  anim.setBase(MC.idle, { fade: 0 });
   const colour = new THREE.Color();
   const lod = { acc: 0 };
   let lastAct = '';
@@ -416,15 +357,15 @@ export function makeMender(assets) {
     update(dt, st) {
       const mending = st.act === 'mending' || st.act === 'bonding';
       if (st.act !== lastAct) {
-        if (st.act === 'harrying') anim.play('Attack', { kind: 'ability', timeScale: 1.2 });
+        if (st.act === 'harrying') anim.play(MC.attack, { kind: 'ability', timeScale: 1.2 });
         lastAct = st.act;
       }
       if (st.mode !== lastMode) {
         // A flourish acknowledges a new order from its conductor.
-        if (lastMode) anim.play('BackFlip', { kind: 'ability', timeScale: 1.4 });
+        if (lastMode) anim.play(MC.order, { kind: 'ability', timeScale: 1.4 });
         lastMode = st.mode;
       }
-      anim.setBase(mending ? 'Charging' : st.act === 'dormant' ? 'Look' : 'Idle', { fade: 0.2, timeScale: st.act === 'dormant' ? 0.3 : 1 });
+      anim.setBase(mending ? MC.mend : st.act === 'dormant' ? MC.dormant : MC.idle, { fade: 0.2, timeScale: st.act === 'dormant' ? 0.3 : 1 });
       const step = throttle(lod, dt, st.interval);
       if (step) anim.update(step);
       colour.setHex(MODE_COLOURS[st.act === 'dormant' ? 'dormant' : st.mode] || MODE_COLOURS.triage);
@@ -433,7 +374,7 @@ export function makeMender(assets) {
       const active = mending || st.act === 'harrying';
       const pulse = 1 + Math.sin(st.t * (active ? 9 : 2.5)) * (active ? 0.25 : 0.08) + st.cast * 0.9;
       core.scale.setScalar(0.1 * pulse);
-      halo.scale.setScalar(0.46 * (0.9 + pulse * 0.12));
+      halo.scale.setScalar(0.4 * (0.9 + pulse * 0.12));
       halo.material.opacity = active ? 0.22 : 0.1;
       tendrils.forEach((t, i) => {
         t.rotation.x = Math.sin(st.t * 2.4 + i) * 0.3 + Math.min(1, st.speed / 6) * 0.9;
@@ -445,7 +386,7 @@ export function makeMender(assets) {
       scaled.position.y = Math.sin(st.t * 2.1) * 0.07;
     },
     trigger(kind) {
-      if (kind === 'cast') anim.play('Attack', { kind: 'ability', timeScale: 1.3 });
+      if (kind === 'cast') anim.play(MC.attack, { kind: 'ability', timeScale: 1.3 });
     },
     dispose() {
       anim.dispose();
@@ -464,11 +405,11 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures'];
  * falls back to the procedural stand-in for that type otherwise, so a missing
  * or broken asset never removes an entity from the world.
  */
-export function createModel(assets, meta) {
+export function createModel(assets, meta, glb = true) {
   let model = null;
-  try {
+  if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: 'Idle_FoldArms_Loop' } : {});
+    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: HB.npcIdle } : {});
     else if (meta.c === 'mender') model = makeMender(assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {

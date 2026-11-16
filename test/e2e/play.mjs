@@ -7,16 +7,14 @@
 // fast-forwarding the two sentinel kills. Every such step is logged as
 // [harness] so it is never mistaken for something a player did.
 
-import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
+import { launchBrowser } from '../../tools/browser.mjs';
 
-const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');
 fs.mkdirSync(OUT, { recursive: true });
@@ -33,10 +31,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const srv = await startServer({ port: 0, dataFile });
 const game = srv.game;
 const base = `http://127.0.0.1:${srv.port}`;
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser();
 
 const pageErrors = [];
-async function openPlayer(slot, name, cls) {
+async function openPlayer(slot, name, cls, look) {
   const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => pageErrors.push(`${name}: ${e.message}`));
@@ -46,6 +44,7 @@ async function openPlayer(slot, name, cls) {
   await page.goto(`${base}/?q=0&nolock=1&slot=${slot}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
+  if (look) await page.click(`.lookcard[data-look="${look}"]`);
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
   return { ctx, page, name };
@@ -70,7 +69,13 @@ const hold = async (p, key, ms) => {
   await sleep(ms);
   await p.page.keyboard.up(key);
 };
-const shot = (p, file) => p.page.screenshot({ path: path.join(OUT, file) });
+const shot = (p, file) => p.page.screenshot({ path: path.join(OUT, file), timeout: 120000 });
+/** How one session is currently drawing an entity: model kind and animation state. */
+const drawn = (p, id) => p.page.evaluate((i) => {
+  const e = window.__attune.state().ents.find((x) => x.id === i);
+  return e ? { model: e.model, look: e.a, ...(e.anim || {}) } : null;
+}, id);
+const LOCOMOTION = ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop'];
 const logText = (p) => p.page.evaluate(() => document.querySelector('.log').innerText);
 const serverPlayer = (name) => [...game.players.values()].find((x) => x.name === name);
 function teleport(name, x, z) {
@@ -102,9 +107,26 @@ try {
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);
   await shot(A, '01-entered-vanguard.png');
 
+  // ------------------------------------------------ 14. presentation assets
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && e.c !== 'obelisk').map((e) => e.c);
+  check('14. every character, companion and enemy is drawn from the GLB assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
+  check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
+  const aByB = await drawn(B, sa.myId);
+  const bByA = await drawn(A, sb.myId);
+  check('14. each session draws the other with its own look, standing idle', aByB.look === 'vanguard_plate' && bByA.look === 'conductor' && aByB.base === 'Idle_Loop' && bByA.base === 'Idle_Loop', `A as seen by B: ${JSON.stringify(aByB)}`);
+
   // ---------------------------------------------------- 2/3. movement etc.
   const z0 = sa.pos.z;
-  await hold(A, 'KeyW', 1400);
+  await A.page.keyboard.down('KeyW');
+  await sleep(900);
+  const runSelf = await drawn(A, sa.myId);
+  const runSeen = await until(B, ([id, clips]) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.anim && clips.includes(e.anim.base);
+  }, [sa.myId, LOCOMOTION], 3000, 'B to see A running');
+  await sleep(500);
+  await A.page.keyboard.up('KeyW');
+  check('14. moving plays a locomotion clip, in the mover\'s session and in the observer\'s', LOCOMOTION.includes(runSelf.base) && runSeen, `own session: ${runSelf.base}`);
   await sleep(300);
   sa = await state(A);
   check('2. W moves the character forward', sa.pos.z < z0 - 1.5, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
@@ -207,17 +229,36 @@ try {
   check('4/5. ability 1 damages the enemy (server-side health)', hit && sk.hp < hpBefore, `server hp ${hpBefore} → ${Math.ceil(sk.hp)}`);
   sa = await state(A);
   check('5. the ability goes on cooldown', sa.you.cds.rending_arc > 0, `${sa.you.cds.rending_arc} ms remaining`);
+  const swingSelf = await drawn(A, sa.myId);
+  const swingSeen = await until(B, (id) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.anim && e.anim.played > 0 && /Punch/.test(e.anim.last);
+  }, sa.myId, 3000, 'B to see the attack animation');
+  const flinch = await until(A, (id) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.anim && e.anim.reacted > 0;
+  }, sk.id, 3000, 'enemy hit reaction');
+  check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker played ${swingSelf.last}`);
   await A.page.keyboard.press('Digit1');
   const refused = await until(A, () => /not ready/i.test(document.querySelector('.errors').textContent), null, 2000, 'cooldown refusal');
   check('5. using it again is refused with visible feedback', refused);
   const floats = await A.page.evaluate(() => document.querySelectorAll('.float').length + document.querySelectorAll('.log .line.out').length);
   check('5. combat feedback: floating numbers and combat log', floats > 0);
-  const sameHp = await until(B, ([id, hp]) => {
-    const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.row.h <= hp;
-  }, [sk.id, Math.ceil(sk.hp) + 1], 4000, 'B to see the damage');
-  sb = await state(B);
-  check('11. the other session sees the same enemy health', sameHp, `B sees ${sb.ents.find((e) => e.id === sk.id)?.row.h}, server ${Math.ceil(sk.hp)}`);
+  // Exact agreement, not a threshold: at a moment when the server's value is
+  // not changing, both sessions must hold precisely that value. (The fight
+  // goes on, so sample until a read is bracketed by an unchanged server value.)
+  const serverHp = () => Math.max(0, Math.ceil(sk.hp));
+  const clientHp = (p) => p.page.evaluate((id) => window.__attune.state().ents.find((x) => x.id === id)?.row.h, sk.id);
+  let agreed = false;
+  let seen = null;
+  for (let i = 0; i < 80 && !agreed; i++) {
+    const before = serverHp();
+    const [ha, hb] = await Promise.all([clientHp(A), clientHp(B)]);
+    seen = { server: serverHp(), a: ha, b: hb };
+    agreed = seen.server === before && ha === before && hb === before;
+    if (!agreed) await sleep(100);
+  }
+  check('11. both sessions hold exactly the server\'s enemy health', agreed && seen.server < sk.maxHp && seen.server > 0, `server ${seen.server}, A ${seen.a}, B ${seen.b} of ${sk.maxHp}`);
 
   // Range check: ability from far away is refused.
   const far = skitters[5];
@@ -436,6 +477,12 @@ try {
   note('set Brakka to 1 health next to an enemy');
   const died = await until(A, () => !document.querySelector('.death').hidden, null, 8000, 'death overlay');
   check('6. the player can be defeated (death screen shown)', died);
+  const fallen = await until(A, () => {
+    const s = window.__attune.state();
+    const e = s.ents.find((x) => x.id === s.myId);
+    return e && e.anim && e.anim.action === 'Death01';
+  }, null, 3000, 'death animation');
+  check('14. defeat plays the death animation and holds it', fallen);
   await shot(A, '06-defeated.png');
   await until(A, () => !document.querySelector('.death button').disabled, null, 6000, 'respawn button');
   await A.page.click('.death button');
@@ -445,6 +492,24 @@ try {
   }, null, 5000, 'respawn at sanctum');
   const ra = await me(A);
   check('6. recovery: respawn at the Sanctum at full health', ra.row.h === ra.row.m && Math.hypot(ra.s.pos.x, ra.s.pos.z) < 12);
+  const risen = await until(A, () => {
+    const s = window.__attune.state();
+    const e = s.ents.find((x) => x.id === s.myId);
+    return e && e.anim && e.anim.action === null;
+  }, null, 3000, 'death pose released');
+  check('14. respawning releases the death pose', risen);
+
+  // --------------------------------------------- 15. appearance independent of class
+  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker');
+  const sc = await state(C);
+  const cByB = await until(B, (id) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.a === 'red_rucker' && e.model === 'glb';
+  }, sc.myId, 6000, 'B to see the Red Rucker look');
+  check('15. a second Vanguard can wear the Red Rucker look and other sessions see it', cByB && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'red_rucker' && serverPlayer('Rucker').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}`);
+  await shot(C, '08-red-rucker.png');
+  await C.ctx.close();
+  await sleep(300);
 
   // -------------------------------------------------------- 13. solo play
   await A.ctx.close();

@@ -92,6 +92,7 @@ export class Assets {
       }
       gltf.scene.traverse((o) => {
         if (!o.isMesh) return;
+        o.geometry.userData.shared = true; // owned by the bundle, never by an entity
         o.castShadow = true;
         o.receiveShadow = !o.isSkinnedMesh;
         for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
@@ -127,6 +128,7 @@ export class Assets {
     const meta = bundle.entry.pieces ? bundle.entry.pieces[piece] : null;
     const skinned = bundle.entry.kind === 'humanoid' || (meta && meta.skinned);
     const obj = skinned ? cloneSkinned(src) : src.clone(true);
+    if (skinned) shareSkeletons(src, obj);
     obj.position.set(0, 0, 0);
     return obj;
   }
@@ -190,17 +192,55 @@ export class Assets {
 }
 
 /**
- * Dispose what an entity instance owns. Shared bundle resources are left
- * alone; per-instance materials (marked by cloneMaterials) and skeleton bone
- * textures are released.
+ * SkeletonUtils.clone gives every skinned mesh its own Skeleton, even where
+ * the source meshes shared one. A dressed humanoid is about ten meshes on one
+ * rig, so that would compute and upload the same bone matrices ten times a
+ * frame. Re-point the clones at one skeleton per source skeleton.
+ */
+function shareSkeletons(source, clone) {
+  const src = [];
+  const dst = [];
+  source.traverse((o) => o.isSkinnedMesh && src.push(o));
+  clone.traverse((o) => o.isSkinnedMesh && dst.push(o));
+  const shared = new Map();
+  for (let i = 0; i < dst.length; i++) {
+    const key = src[i].skeleton;
+    const first = shared.get(key);
+    if (!first) {
+      shared.set(key, dst[i].skeleton);
+      continue;
+    }
+    dst[i].skeleton.dispose();
+    dst[i].bind(first, dst[i].bindMatrix);
+  }
+}
+
+/** Mark a geometry or material as shared between entities (never disposed with one). */
+export function shared(resource) {
+  if (resource.isBufferGeometry) resource.userData.shared = true;
+  else resource.isShared = true;
+  return resource;
+}
+
+/**
+ * Dispose what an entity owns and nothing else. Ownership rule: a geometry or
+ * material belongs to the entity unless it is flagged shared — bundle
+ * resources are flagged on load, module-level ones with shared(). Textures are
+ * always shared (cached by Assets) and are never disposed here.
  */
 export function disposeInstance(root) {
+  const skeletons = new Set();
+  const geometries = new Set();
+  const materials = new Set();
   root.traverse((o) => {
-    if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose();
-    if (!o.isMesh) return;
-    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && !m.isShared) m.dispose();
-    if (o.geometry && o.geometry.userData.owned) o.geometry.dispose();
+    if (o.isSkinnedMesh && o.skeleton) skeletons.add(o.skeleton);
+    if (!o.isMesh && !o.isPoints && !o.isLine) return;
+    if (o.geometry && !o.geometry.userData.shared) geometries.add(o.geometry);
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && !m.isShared) materials.add(m);
   });
+  for (const s of skeletons) s.dispose();
+  for (const g of geometries) g.dispose();
+  for (const m of materials) m.dispose();
 }
 
 /**

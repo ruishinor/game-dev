@@ -87,6 +87,15 @@ function buildProps() {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
     add({ type: 'pylon', x: Math.sin(a) * 11.5, z: Math.cos(a) * 11.5, r: 0.8, h: 5, rot: a });
   }
+  // Gateways on the three roads out of the Sanctum: two posts each. The road
+  // itself (the line to each zone) passes cleanly between them.
+  for (const key of ['sporefield', 'relay', 'vault']) {
+    const zn = ZONES[key];
+    const d = Math.hypot(zn.x, zn.z);
+    for (const side of [-1, 1]) {
+      add({ type: 'gatepost', x: (zn.x / d) * 14.6 + (-zn.z / d) * side * 2.05, z: (zn.z / d) * 14.6 + (zn.x / d) * side * 2.05, r: 0.45, h: 5 });
+    }
+  }
   add({ type: 'console', x: 5.2, z: -4.6, hw: 1.3, hd: 0.6, h: 1.3 });
   add({ type: 'crate', x: -5.5, z: -5.0, hw: 0.8, hd: 0.8, h: 1.2 });
   add({ type: 'crate', x: -7.0, z: -4.2, hw: 0.6, hd: 0.6, h: 0.9 });

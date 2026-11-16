@@ -68,12 +68,15 @@ items.forEach((item, i) => {
     model = build(spec);
   } catch (err) {
     label.textContent = `ERR ${spec}: ${err.message}`;
+    info.push({ item, problem: `threw ${err.message}` });
     return;
   }
   if (!model) {
     label.textContent = `missing ${spec}`;
+    info.push({ item, problem: 'model or piece not found' });
     return;
   }
+  let problem = model.kind === 'procedural' ? 'fell back to the procedural model' : null;
   const scene = new THREE.Scene();
   scene.environment = environment;
   scene.add(new THREE.HemisphereLight(0x9db4ff, 0x3a2c44, 1.2));
@@ -88,7 +91,10 @@ items.forEach((item, i) => {
     model.animator.mixer.clipAction(c).play();
     model.animator.mixer.setTime(c.duration * (Number(fraction) || 0.5));
     shown = `${spec} · ${clip} ${Number(fraction) || 0.5}`;
-  } else if (clip) shown = `${spec} · (no clip ${clip})`;
+  } else if (clip) {
+    shown = `${spec} · (no clip ${clip})`;
+    problem = problem || `clip "${clip}" does not exist`;
+  }
   model.group.updateMatrixWorld(true);
   const box = new THREE.Box3();
   let tris = 0;
@@ -114,7 +120,8 @@ items.forEach((item, i) => {
   renderer.setScissor(cx, H - cy - cell, cell, cell);
   renderer.render(scene, cam);
   label.textContent = `${shown} · ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)} m · ${Math.round(tris)} tris${model.kind === 'procedural' ? ' · PROCEDURAL FALLBACK' : ''}`;
-  info.push({ item, kind: model.kind, tris: Math.round(tris), size: size.toArray().map((v) => Math.round(v * 100) / 100) });
+  if (!tris) problem = problem || 'rendered no geometry';
+  info.push({ item, kind: model.kind, tris: Math.round(tris), size: size.toArray().map((v) => Math.round(v * 100) / 100), ...(problem ? { problem } : {}) });
 });
 }
 

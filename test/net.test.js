@@ -14,6 +14,7 @@ class Client {
   constructor(port) {
     this.ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     this.msgs = [];
+    this.meta = new Map();
     this.snap = null;
     this.sheet = null;
     this.events = [];
@@ -22,6 +23,7 @@ class Client {
       const m = JSON.parse(d.toString());
       if (m.t === 's') {
         this.snap = m;
+        for (const meta of m.meta || []) this.meta.set(meta.i, meta);
         if (m.sheet) this.sheet = m.sheet;
         this.events.push(...m.ev, ...(m.pv || []));
       } else this.msgs.push(m);
@@ -51,9 +53,9 @@ class Client {
     }
     throw new Error(`timed out waiting for ${what}`);
   }
-  async create(name, cls) {
+  async create(name, cls, look) {
     await this.open();
-    this.send({ t: 'create', name, cls });
+    this.send({ t: 'create', name, cls, look });
     const w = await this.until(() => this.msgs.find((m) => m.t === 'welcome' || m.t === 'create_fail'), 3000, 'welcome');
     this.welcome = w;
     return w;
@@ -91,6 +93,84 @@ test('http: serves the client, blocks traversal and unknown paths', async () => 
       assert.equal((await fetch(base + bad)).status, 404, bad);
     }
     assert.equal((await fetch(base + '/', { method: 'POST' })).status, 405);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('http: built assets and the loader modules are served narrowly, with the right types and caching', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  try {
+    const base = `http://127.0.0.1:${srv.port}`;
+    const manifest = await (await fetch(base + '/client/assets/manifest.json')).json();
+    const entry = manifest.assets.creatures;
+    const glb = await fetch(`${base}/client/assets/${entry.url}?v=${entry.hash}`);
+    assert.equal(glb.status, 200);
+    assert.equal(glb.headers.get('content-type'), 'model/gltf-binary');
+    assert.match(glb.headers.get('cache-control'), /immutable/, 'hashed asset URLs are cacheable forever');
+    assert.equal(Number(glb.headers.get('content-length')), entry.bytes);
+    assert.equal((await fetch(`${base}/client/assets/${entry.url}`)).headers.get('cache-control'), 'no-cache', 'unversioned requests are revalidated');
+    assert.equal((await fetch(`${base}/shared/world.js?v=${entry.hash}`)).headers.get('cache-control'), 'no-cache', 'only /client/assets/ is ever immutable');
+    assert.equal((await fetch(`${base}/client/assets/tex/ground_albedo.webp`)).headers.get('content-type'), 'image/webp');
+    // Exactly the three.js modules the client imports, nothing else from the package.
+    for (const ok of ['loaders/GLTFLoader.js', 'utils/SkeletonUtils.js', 'utils/BufferGeometryUtils.js', 'libs/meshopt_decoder.module.js']) {
+      assert.equal((await fetch(`${base}/vendor/three-addons/${ok}`)).status, 200, ok);
+    }
+    for (const bad of ['/vendor/three-addons/loaders/DRACOLoader.js', '/vendor/three-addons/controls/OrbitControls.js', '/vendor/three-addons/../../package.json', '/assets/sources.json', '/assets/recipe.mjs', '/tools/assets/build.mjs', '/tools/browser.mjs', '/.asset-cache/ual1/universal_animation_librarystandard.zip', '/node_modules/sharp/package.json', '/docs/HANDOFF.md']) {
+      assert.equal((await fetch(base + bad)).status, 404, bad);
+    }
+    // The page's inline import map is allowed by hash; no blanket inline or eval.
+    const csp = (await fetch(base + '/')).headers.get('content-security-policy');
+    assert.match(csp, /script-src 'self' 'wasm-unsafe-eval' 'sha256-[A-Za-z0-9+/=]+'/);
+    assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+    assert.doesNotMatch(csp, /'unsafe-eval'/);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('looks: a cosmetic appearance is stored, relayed to other players, validated, and never changes rules', async () => {
+  const file = tmpFile();
+  let srv = await startServer({ port: 0, dataFile: file });
+  let token;
+  try {
+    const a = new Client(srv.port);
+    const b = new Client(srv.port);
+    const c = new Client(srv.port);
+    const d = new Client(srv.port);
+    const wa = await a.create('Rucker', 'vanguard', 'red_rucker');
+    const wb = await b.create('Plain', 'vanguard');
+    const wc = await c.create('Wrong', 'symbiotech', 'red_rucker'); // not a look of that class
+    const wd = await d.create('Junk', 'vanguard', { toString: 1 }); // not even a string
+    token = wa.token;
+    await b.until(() => b.meta.has(wa.id) && b.meta.has(wc.id) && b.meta.has(wd.id), 3000, 'meta for the others');
+    assert.equal(b.meta.get(wa.id).a, 'red_rucker', 'another player is told the chosen look');
+    assert.equal(b.meta.get(wa.id).c, 'vanguard', 'the look does not replace the class');
+    await a.until(() => a.meta.has(wb.id), 3000, 'meta for b');
+    assert.equal(a.meta.get(wb.id).a, 'vanguard_plate', 'no choice means the class default');
+    assert.equal(b.meta.get(wc.id).a, 'conductor', "another class's look falls back to the default");
+    assert.equal(b.meta.get(wd.id).a, 'vanguard_plate', 'junk falls back to the default');
+    await a.until(() => a.sheet && b.sheet, 3000, 'sheets');
+    assert.equal(a.sheet.look, 'red_rucker');
+    assert.deepEqual(a.sheet.stats, b.sheet.stats, 'two vanguards with different looks have identical stats');
+    for (const x of [a, b, c, d]) x.close();
+  } finally {
+    await srv.close();
+  }
+  // The look survives a restart; a tampered value on disk is corrected on load.
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.characters.find((ch) => ch.name === 'Rucker').look, 'red_rucker');
+  saved.characters.find((ch) => ch.name === 'Plain').look = '<script>';
+  fs.writeFileSync(file, JSON.stringify(saved));
+  srv = await startServer({ port: 0, dataFile: file });
+  try {
+    const a = new Client(srv.port);
+    const w = await a.resume(token);
+    assert.equal(w.t, 'welcome');
+    await a.until(() => a.sheet, 3000, 'sheet');
+    assert.equal(a.sheet.look, 'red_rucker');
+    assert.equal([...srv.store.chars.values()].find((ch) => ch.name === 'Plain').look, 'vanguard_plate');
+    a.close();
   } finally {
     await srv.close();
   }

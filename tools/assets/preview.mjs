@@ -5,14 +5,12 @@
 //
 // Items use the syntax documented in client/src/preview.js.
 
-import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
+import { launchBrowser } from '../browser.mjs';
 
-const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'client', 'assets', 'manifest.json'), 'utf8')).assets;
@@ -37,7 +35,7 @@ const outDir = args.length ? process.cwd() : path.join(ROOT, 'docs', 'evidence',
 fs.mkdirSync(outDir, { recursive: true });
 
 const srv = await startServer({ port: 0, dataFile: null });
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser();
 let failed = false;
 try {
   for (const [file, sheet] of Object.entries(sheets)) {
@@ -53,10 +51,18 @@ try {
     const out = path.resolve(outDir, file);
     await page.screenshot({ path: out });
     const result = await page.evaluate(() => window.__preview || null);
-    const fallbacks = result ? result.info.filter((i) => i.kind === 'procedural').map((i) => i.item) : [];
-    const loadFailures = result ? Object.keys(result.assets.failed) : [];
-    if (errors.length || fallbacks.length || loadFailures.length) failed = true;
-    console.log(`${errors.length || fallbacks.length || loadFailures.length ? 'FAIL' : 'ok  '} ${path.relative(ROOT, out)} (${sheet.items.length} items)${errors.length ? `\n     errors: ${errors.slice(0, 3).join(' | ')}` : ''}${fallbacks.length ? `\n     procedural fallbacks: ${fallbacks.join(', ')}` : ''}${loadFailures.length ? `\n     failed to load: ${loadFailures.join(', ')}` : ''}`);
+    // A sheet only passes if every requested item rendered as asked: a model
+    // that is missing, a clip that does not exist, or a silent fall back to
+    // the procedural stand-in are all failures, not cosmetic differences.
+    const problems = [...errors.map((e) => `script error: ${e}`)];
+    if (!result) problems.push('preview produced no result');
+    else {
+      for (const i of result.info) if (i.problem) problems.push(`${i.item}: ${i.problem}`);
+      if (result.info.length !== sheet.items.length) problems.push(`rendered ${result.info.length} of ${sheet.items.length} items`);
+      for (const [id, why] of Object.entries(result.assets.failed)) problems.push(`asset ${id}: ${why}`);
+    }
+    if (problems.length) failed = true;
+    console.log(`${problems.length ? 'FAIL' : 'ok  '} ${path.relative(ROOT, out)} (${sheet.items.length} items)${problems.map((p) => `\n     ${p}`).join('')}`);
     await page.close();
   }
 } finally {

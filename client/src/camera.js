@@ -8,8 +8,12 @@ const MIN_PITCH = -0.2;
 const MAX_PITCH = 1.45;
 const HEAD = 1.75;
 
-// Thin poles are ignored so the camera does not pop when passing a tree.
-const BLOCKERS = COLLIDERS.filter((c) => c.hw !== undefined || c.r >= 1).map((c) => ({ ...c, top: groundHeight(c.x, c.z) + c.h }));
+// The camera is stopped only by terrain and by solid architecture or
+// boulders. Vegetation, pods and thin pillars never push it around: they fade
+// out instead when they cross the view line (see Occluders in scene.js), which
+// avoids both the popping and the foreground blocking that collision causes.
+const SEE_THROUGH = new Set(['sporetree', 'pod', 'conduit', 'crystal', 'pylon', 'gatepost']);
+const BLOCKERS = COLLIDERS.filter((c) => !SEE_THROUGH.has(c.type) && (c.hw !== undefined || c.r >= 0.9)).map((c) => ({ ...c, top: groundHeight(c.x, c.z) + c.h }));
 
 function blocked(x, y, z) {
   if (y < groundHeight(x, z) + 0.3) return true;

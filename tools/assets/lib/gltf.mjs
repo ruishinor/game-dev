@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NodeIO, Document } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { mergeDocuments, unpartition, dedup, prune, getBounds, textureCompress, meshopt, resample, simplify, weld } from '@gltf-transform/functions';
+import { mergeDocuments, unpartition, dedup, prune, getBounds, textureCompress, meshopt, resample, simplify, weld, compactPrimitive } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
@@ -62,6 +62,8 @@ export async function mergePieces(pieces, resolve) {
   for (const piece of pieces) {
     const src = await readGltf(resolve(piece.src), (piece.textureDirs || []).map((d) => resolve([piece.src[0], d])));
     const srcRoot = src.getRoot();
+    if (piece.isolate) isolateTallest(src);
+    if (piece.simplify) await src.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: piece.simplify, error: piece.simplifyError ?? 0.01 }));
     const clips = [];
     for (const anim of srcRoot.listAnimations()) {
       if (piece.clips && !piece.clips.includes(anim.getName())) {
@@ -93,6 +95,90 @@ export async function mergePieces(pieces, resolve) {
   for (const s of doc.getRoot().listScenes()) if (s !== scene) s.dispose();
   await doc.transform(unpartition());
   return { doc, pieces: meta };
+}
+
+/**
+ * Keep only the tallest connected part of a single-mesh model and stand it on
+ * the origin — e.g. one mushroom out of a cluster, so it can be used alone.
+ */
+function isolateTallest(doc) {
+  const node = doc.getRoot().listNodes().find((n) => n.getMesh());
+  const prims = node.getMesh().listPrimitives();
+  // Union vertices that share a position (UV seams split them in the buffers).
+  const parent = [];
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const ids = new Map();
+  const info = [];
+  let base = 0;
+  for (const prim of prims) {
+    const P = prim.getAttribute('POSITION');
+    const local = [];
+    for (let i = 0; i < P.getCount(); i++) {
+      const p = P.getElement(i, []);
+      const key = p.map((v) => v.toFixed(4)).join(',');
+      let id = ids.get(key);
+      if (id === undefined) {
+        id = parent.length;
+        parent.push(id);
+        ids.set(key, id);
+        info.push(p);
+      }
+      local.push(id);
+    }
+    const idx = prim.getIndices();
+    for (let i = 0; i < idx.getCount(); i += 3) {
+      const a = find(local[idx.getScalar(i)]);
+      parent[find(local[idx.getScalar(i + 1)])] = a;
+      parent[find(local[idx.getScalar(i + 2)])] = a;
+    }
+    prim.setExtras({ local, base });
+    base += P.getCount();
+  }
+  const box = new Map();
+  info.forEach((p, id) => {
+    const r = find(id);
+    const b = box.get(r) || { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+    for (let k = 0; k < 3; k++) {
+      b.min[k] = Math.min(b.min[k], p[k]);
+      b.max[k] = Math.max(b.max[k], p[k]);
+    }
+    box.set(r, b);
+  });
+  const [stem, b] = [...box].sort((x, y) => y[1].max[1] - y[1].min[1] - (x[1].max[1] - x[1].min[1]))[0];
+  // A cap is modelled separately from its stem: also keep whatever sits on the
+  // stem's top.
+  const top = [0, 0, 0, 0];
+  info.forEach((p, id) => {
+    if (find(id) === stem && p[1] > b.max[1] - 0.02) {
+      top[0] += p[0];
+      top[2] += p[2];
+      top[3]++;
+    }
+  });
+  const tx = top[0] / top[3];
+  const tz = top[2] / top[3];
+  const keep = new Set([stem]);
+  for (const [r, c] of box) {
+    if (tx > c.min[0] - 0.01 && tx < c.max[0] + 0.01 && tz > c.min[2] - 0.01 && tz < c.max[2] + 0.01 && c.min[1] < b.max[1] + 0.03 && c.max[1] > b.max[1] - 0.06) keep.add(r);
+  }
+  for (const r of keep) {
+    for (let k = 0; k < 3; k += 2) {
+      b.min[k] = Math.min(b.min[k], box.get(r).min[k]);
+      b.max[k] = Math.max(b.max[k], box.get(r).max[k]);
+    }
+  }
+  for (const prim of prims) {
+    const { local } = prim.getExtras();
+    const idx = prim.getIndices();
+    const out = [];
+    for (let i = 0; i < idx.getCount(); i += 3) if (keep.has(find(local[idx.getScalar(i)]))) out.push(idx.getScalar(i), idx.getScalar(i + 1), idx.getScalar(i + 2));
+    idx.setArray(new Uint32Array(out));
+    prim.setExtras({});
+    compactPrimitive(prim);
+  }
+  // Stand it on the origin, centred under the stem's top.
+  const t = node.getTranslation();
+  node.setTranslation([t[0] - tx, t[1] - b.min[1], t[2] - tz]);
 }
 
 function hasSkin(node) {

@@ -5,10 +5,10 @@
   "creatures": {
    "kind": "kit",
    "url": "creatures.glb",
-   "bytes": 1122156,
+   "bytes": 1067308,
    "rawBytes": 18910120,
-   "hash": "5926c57f68b2",
-   "tris": 19362,
+   "hash": "5d5cda8dd3e0",
+   "tris": 13614,
    "textures": 6,
    "pieces": {
     "skitter": {
@@ -22,7 +22,7 @@
       1.497,
       0.985
      ],
-     "tris": 7494,
+     "tris": 4928,
      "clips": [
       "Attack",
       "Charge",
@@ -46,7 +46,7 @@
       0.497,
       0.393
      ],
-     "tris": 3530,
+     "tris": 3282,
      "clips": [
       "Attack",
       "BackFlip",
@@ -68,7 +68,7 @@
       2.486,
       1.035
      ],
-     "tris": 8338,
+     "tris": 5404,
      "clips": [
       "Attack",
       "AttackAuto",
@@ -108,10 +108,11 @@
   "humanoid_f": {
    "kind": "humanoid",
    "url": "humanoid_f.glb",
-   "bytes": 313972,
+   "bytes": 210728,
    "rawBytes": 2410608,
-   "hash": "3552b20b1ae9",
-   "tris": 22042,
+   "hash": "d6c5fa397e22",
+   "tris": 13484,
+   "sourceTris": 22042,
    "clips": {},
    "shells": {
     "shorts": 856,
@@ -160,10 +161,11 @@
   "humanoid_m": {
    "kind": "humanoid",
    "url": "humanoid_m.glb",
-   "bytes": 918896,
+   "bytes": 824224,
    "rawBytes": 8891516,
-   "hash": "44dcee5e4dd6",
-   "tris": 19896,
+   "hash": "6076978b2792",
+   "tris": 12154,
+   "sourceTris": 19896,
    "clips": {
     "Consume": 1.333,
     "Hit_Knockback": 0.833,
@@ -300,10 +302,10 @@
   "nature": {
    "kind": "kit",
    "url": "nature.glb",
-   "bytes": 1361576,
-   "rawBytes": 68860776,
-   "hash": "9c52add2385e",
-   "tris": 47103,
+   "bytes": 1152360,
+   "rawBytes": 69367504,
+   "hash": "a119d4651ded",
+   "tris": 33738,
    "textures": 10,
    "pieces": {
     "Mushroom_Common": {
@@ -317,46 +319,46 @@
       0.446,
       0.334
      ],
-     "tris": 880
+     "tris": 528
     },
     "Mushroom_Laetiporus": {
      "min": [
-      -0.65,
+      -0.642,
       -0.16,
-      -0.328
+      -0.323
      ],
      "max": [
-      0.716,
+      0.712,
       0.607,
       0.775
      ],
-     "tris": 3216
+     "tris": 804
     },
     "TwistedTree_1": {
      "min": [
       -2.174,
       -0.201,
-      -6.727
+      -6.345
      ],
      "max": [
-      11.342,
-      16.524,
-      4.823
+      10.952,
+      15.282,
+      3.764
      ],
-     "tris": 9564
+     "tris": 7314
     },
     "TwistedTree_3": {
      "min": [
-      -4.49,
+      -4.458,
       -0.201,
-      -6.52
+      -6.463
      ],
      "max": [
-      6.867,
-      15.871,
-      4.986
+      6.115,
+      15.677,
+      4.332
      ],
-     "tris": 10089
+     "tris": 7489
     },
     "DeadTree_1": {
      "min": [
@@ -369,7 +371,7 @@
       9.16,
       2.845
      ],
-     "tris": 6169
+     "tris": 5565
     },
     "DeadTree_3": {
      "min": [
@@ -382,7 +384,7 @@
       12.945,
       3.043
      ],
-     "tris": 5802
+     "tris": 5349
     },
     "Rock_Medium_1": {
      "min": [
@@ -465,7 +467,7 @@
     "Grass_Wispy_Tall": {
      "min": [
       -0.739,
-      -0.036,
+      -0.029,
       -0.819
      ],
      "max": [
@@ -473,7 +475,7 @@
       1.636,
       0.775
      ],
-     "tris": 622
+     "tris": 248
     },
     "Grass_Common_Short": {
      "min": [
@@ -499,7 +501,7 @@
       1.132,
       0.364
      ],
-     "tris": 379
+     "tris": 189
     },
     "Flower_3_Group": {
      "min": [
@@ -512,7 +514,7 @@
       2.02,
       0.789
      ],
-     "tris": 755
+     "tris": 315
     },
     "Pebble_Round_1": {
      "min": [
@@ -553,18 +555,31 @@
      ],
      "tris": 900
     },
+    "Mushroom_Single": {
+     "min": [
+      -0.172,
+      0,
+      -0.136
+     ],
+     "max": [
+      0.139,
+      0.458,
+      0.176
+     ],
+     "tris": 176
+    },
     "pod": {
      "min": [
       -0.405,
-      -0.872,
+      -0.869,
       -0.419
      ],
      "max": [
       0.405,
       0.656,
-      0.402
+      0.401
      ],
-     "tris": 6440,
+     "tris": 2574,
      "clips": [
       "Alien_Idle"
      ],
@@ -579,10 +594,10 @@
   "sanctum": {
    "kind": "kit",
    "url": "sanctum.glb",
-   "bytes": 1874452,
-   "rawBytes": 312904884,
-   "hash": "17fedcbe4da7",
-   "tris": 34065,
+   "bytes": 1766528,
+   "rawBytes": 293585692,
+   "hash": "757b1be2207c",
+   "tris": 26551,
    "textures": 21,
    "pieces": {
     "Column_Hollow": {
@@ -596,7 +611,7 @@
       5,
       0.605
      ],
-     "tris": 2848
+     "tris": 1814
     },
     "Column_Large_Straight": {
      "min": [
@@ -623,19 +638,6 @@
       0.5
      ],
      "tris": 572
-    },
-    "Column_Pipes": {
-     "min": [
-      -0.437,
-      0,
-      -0.437
-     ],
-     "max": [
-      0.437,
-      5,
-      0.437
-     ],
-     "tris": 6480
     },
     "Column_MetalSupport": {
      "min": [

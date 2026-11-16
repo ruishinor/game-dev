@@ -68,7 +68,23 @@ export const HUMANOIDS = [
 
 const mega = (dir, names) => names.map((n) => ({ name: n, src: ['scifi_megakit', `${MEGA}/glTF/${dir}/${n}.gltf`], textureDirs: [`${MEGA}/Textures`] }));
 const ess = (names) => names.map((n) => ({ name: n, src: ['scifi_essentials', `glTF/${n}.gltf`] }));
-const nat = (names) => names.map((n) => ({ name: n, src: ['nature_megakit', `glTF/${n}.gltf`] }));
+// Foliage in this pack is modelled far more densely than a small prop needs
+// at game distances; ratios are per piece, checked on the contact sheet.
+const NATURE_SIMPLIFY = {
+  // [ratio, error]: trees are thousands of thin twigs and leaf cards, which
+  // only collapse with a generous error bound.
+  TwistedTree_1: [0.3, 0.5],
+  TwistedTree_3: [0.3, 0.5],
+  DeadTree_1: [0.22, 0.5],
+  DeadTree_3: [0.22, 0.5],
+  Mushroom_Laetiporus: [0.25, 0.03],
+  Grass_Wispy_Tall: [0.4, 0.03],
+  Flower_3_Group: [0.4, 0.03],
+  Clover_1: [0.5, 0.03],
+  Bush_Common: [0.5, 0.03],
+  Mushroom_Common: [0.6, 0.03],
+};
+const nat = (names) => names.map((n) => ({ name: n, src: ['nature_megakit', `glTF/${n}.gltf`], ...(NATURE_SIMPLIFY[n] ? { simplify: NATURE_SIMPLIFY[n][0], simplifyError: NATURE_SIMPLIFY[n][1] } : {}) }));
 
 export const KITS = [
   {
@@ -76,6 +92,7 @@ export const KITS = [
     out: 'creatures.glb',
     sources: ['scifi_essentials'],
     maxTexture: 1024,
+    simplify: 0.5,
     pieces: [
       { name: 'skitter', src: ['scifi_essentials', 'glTF/Enemy_QuadShell.gltf'] },
       { name: 'drone', src: ['scifi_essentials', 'glTF/Enemy_EyeDrone.gltf'] },
@@ -91,7 +108,7 @@ export const KITS = [
     hueShift: { match: /BaseColor_Red/i, degrees: 172 },
     emissive: [{ material: 'MI_Trim_01', file: ['scifi_megakit', `${MEGA}/Textures/T_Trim_01_Emissive.png`], factor: [0.35, 0.95, 1.0] }],
     pieces: [
-      ...mega('Columns', ['Column_Hollow', 'Column_Large_Straight', 'Column_Round', 'Column_Pipes', 'Column_MetalSupport']),
+      ...mega('Columns', ['Column_Hollow', 'Column_Large_Straight', 'Column_Round', 'Column_MetalSupport']).map((p) => (p.name === 'Column_Hollow' ? { ...p, simplify: 0.5 } : p)),
       ...mega('Platforms', ['Platform_Round1', 'Platform_Metal', 'Platform_DarkPlates', 'Platform_X', 'Platform_Simple', 'Door_Frame_Square', 'Platform_Stairs_4Wide']),
       ...mega('Props', ['Prop_Computer', 'Prop_Crate3', 'Prop_Crate4', 'Prop_Chest', 'Prop_Barrel_Large', 'Prop_Light_Floor', 'Prop_Light_Small', 'Prop_ItemHolder', 'Prop_AccessPoint', 'Prop_Cable_1', 'Prop_Vent_Big', 'Prop_Rail_4']),
       ...mega('Walls', ['WallBand_Straight', 'WallBand_Straight_Broken', 'ShortWall_Metal2_Straight']),
@@ -105,7 +122,9 @@ export const KITS = [
     maxTexture: 512,
     pieces: [
       ...nat(['Mushroom_Common', 'Mushroom_Laetiporus', 'TwistedTree_1', 'TwistedTree_3', 'DeadTree_1', 'DeadTree_3', 'Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3', 'Plant_7_Big', 'Plant_1_Big', 'Fern_1', 'Grass_Wispy_Tall', 'Grass_Common_Short', 'Clover_1', 'Flower_3_Group', 'Pebble_Round_1', 'Pebble_Round_3', 'Bush_Common']),
-      { name: 'pod', src: ['scifi_megakit', `${MEGA}/glTF/Aliens/Alien_Oculichrysalis.gltf`], textureDirs: [`${MEGA}/Textures`] },
+      // One mushroom from the cluster, to be scaled up into a Sporefield spore tree.
+      { name: 'Mushroom_Single', src: ['nature_megakit', 'glTF/Mushroom_Common.gltf'], isolate: true },
+      { name: 'pod', src: ['scifi_megakit', `${MEGA}/glTF/Aliens/Alien_Oculichrysalis.gltf`], textureDirs: [`${MEGA}/Textures`], simplify: 0.4 },
     ],
   },
 ];
