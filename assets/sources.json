@@ -1,0 +1,122 @@
+{
+  "note": "Provenance ledger for every third-party source file the asset build reads. `npm run assets:fetch` downloads each file into .asset-cache/ (not committed) and refuses any file whose SHA-256 differs from the one recorded here. Built, optimised derivatives are committed under client/assets/; client/assets/manifest.json records which sources each one came from.",
+  "sources": [
+    {
+      "id": "ual1",
+      "title": "Universal Animation Library (Standard)",
+      "creator": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://opengameart.org/content/universal-animation-library",
+      "url": "https://opengameart.org/sites/default/files/universal_animation_librarystandard.zip",
+      "file": "universal_animation_librarystandard.zip",
+      "unpack": "zip",
+      "bytes": 14541205,
+      "sha256": "18ff1a7215f4852b320203e8aaf02a1578b5c8eef9027fbaedfcedc7b85a3ac2",
+      "acquired": "2026-11-15",
+      "use": "Humanoid animation clips (idle, locomotion, punches, spell casts, hit, death)."
+    },
+    {
+      "id": "ual2",
+      "title": "Universal Animation Library 2 (Standard)",
+      "creator": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://opengameart.org/content/universal-animation-library-2",
+      "url": "https://opengameart.org/sites/default/files/universal_animation_library_2standard.zip",
+      "file": "universal_animation_library_2standard.zip",
+      "unpack": "zip",
+      "bytes": 10257419,
+      "sha256": "ec0e40d6d78fe9aaad59e322f40865a8675c22f0745e291622e54520391a9217",
+      "acquired": "2026-11-15",
+      "use": "Male and female mannequin meshes and rig; block, guard-break and throw clips."
+    },
+    {
+      "id": "scifi_megakit",
+      "title": "Modular Sci-Fi MegaKit (Standard)",
+      "creator": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://opengameart.org/content/modular-sci-fi-megakit",
+      "url": "https://opengameart.org/sites/default/files/modular_scifi_megakitstandard.zip",
+      "file": "modular_scifi_megakitstandard.zip",
+      "unpack": "zip",
+      "bytes": 48563245,
+      "sha256": "4ca9acbc7a13e7baa48e24c4853b779889b7ab21587004c36668826e705c8a10",
+      "acquired": "2026-11-15",
+      "use": "Lattice Sanctum architecture and props; spore pods (Alien_Oculichrysalis)."
+    },
+    {
+      "id": "scifi_essentials",
+      "title": "Sci-Fi Essentials Kit (models)",
+      "creator": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://opengameart.org/content/sci-fi-essentials-kit",
+      "url": "https://opengameart.org/sites/default/files/sci-fi_essentials_kit_models.zip",
+      "file": "sci-fi_essentials_kit_models.zip",
+      "unpack": "zip",
+      "bytes": 87836656,
+      "sha256": "f5cb9382a029730f9fa8f93e7fdb103c1aaaec094a22b1397833ce0e48bd1016",
+      "acquired": "2026-11-15",
+      "use": "Mire Skitter (Enemy_QuadShell), Mender Symbiote (Enemy_EyeDrone), Rogue Sentinel and Vault Warden (Enemy_Trilobite), props."
+    },
+    {
+      "id": "nature_megakit",
+      "title": "Stylized Nature MegaKit (Standard)",
+      "creator": "Quaternius",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://opengameart.org/content/stylized-nature-megakit",
+      "url": "https://opengameart.org/sites/default/files/stylized_nature_megakitstandard.zip",
+      "file": "stylized_nature_megakitstandard.zip",
+      "unpack": "zip",
+      "bytes": 104088529,
+      "sha256": "298f6732b872e4cf7b30e6e7abf9641c7f6dc6b326df37ac089533ed7e3d58c9",
+      "acquired": "2026-11-15",
+      "use": "Sporefield fungi, twisted and dead trees, rocks and ground cover."
+    },
+    {
+      "id": "ph_aerial_grass_rock",
+      "title": "Aerial Grass Rock (1k texture set)",
+      "creator": "Rob Tuytel (Poly Haven)",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://polyhaven.com/license",
+      "attribution": "Not required. Credited in docs/ASSETS.md.",
+      "redistribution": "Unrestricted (public domain dedication).",
+      "page": "https://polyhaven.com/a/aerial_grass_rock",
+      "acquired": "2026-11-16",
+      "use": "Terrain detail (albedo, normal, AO/roughness).",
+      "files": [
+        {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_diff_1k.jpg",
+          "file": "aerial_grass_rock_diff_1k.jpg",
+          "bytes": 666655,
+          "sha256": "57b8041bfe0d0f01430e4dbaad45e7ddddf0a9fc97317f90dbc51f7b0d9e1b5d"
+        },
+        {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_nor_gl_1k.jpg",
+          "file": "aerial_grass_rock_nor_gl_1k.jpg",
+          "bytes": 904956,
+          "sha256": "1aa3e23bff453f152e089b9f83aa36b4901651e019f7e2ca01d5331a9bbbda78"
+        },
+        {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_arm_1k.jpg",
+          "file": "aerial_grass_rock_arm_1k.jpg",
+          "bytes": 216829,
+          "sha256": "95d8f5180bafaab3f76c394cee3dca9b4f8ca6531281c00c4a06e4485d0ab956"
+        }
+      ]
+    }
+  ]
+}

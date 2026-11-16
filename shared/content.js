@@ -48,6 +48,22 @@ export const CLASSES = {
   },
 };
 
+/**
+ * Appearances ("looks") a class may wear. Purely cosmetic: a look never changes
+ * stats or rules. The server stores the choice and tells other players; the
+ * client decides how to draw it (client/src/looks.js). The first entry is the
+ * class default.
+ */
+export const LOOKS = {
+  vanguard: [
+    { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
+    { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
+  ],
+  symbiotech: [{ id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' }],
+};
+export const defaultLook = (cls) => LOOKS[cls][0].id;
+export const validLook = (cls, look) => typeof look === 'string' && Object.hasOwn(LOOKS, cls) && LOOKS[cls].some((l) => l.id === look);
+
 // type: 'hostile' needs a living enemy target; 'friendly' uses a friendly
 // player target or falls back to self; 'self' needs no target.
 export const ABILITIES = {

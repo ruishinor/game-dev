@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS } from '../shared/content.js';
+import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook } from '../shared/content.js';
 import { validateLoadout } from '../shared/build.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
@@ -28,6 +28,8 @@ function sanitize(raw) {
     tokenHash: raw.tokenHash,
     name: raw.name,
     cls: raw.cls,
+    // Cosmetic only; anything unrecognised falls back to the class default.
+    look: validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls),
     level: int(raw.level, 1, MAX_LEVEL, 1),
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
@@ -94,7 +96,7 @@ export class CharacterStore {
   }
 
   /** Create a character. Returns {char, token} or {error}. */
-  create(name, cls) {
+  create(name, cls, look) {
     if (!validName(name)) return { error: 'Names are 3–16 letters (spaces, apostrophes and hyphens allowed inside).' };
     if (!Object.hasOwn(CLASSES, cls)) return { error: 'Unknown class.' };
     if (this.byName.has(name.toLowerCase())) return { error: 'That name is already taken.' };
@@ -105,6 +107,7 @@ export class CharacterStore {
       tokenHash: hashToken(token),
       name,
       cls,
+      look: validLook(cls, look) ? look : defaultLook(cls),
       level: 1,
       xp: 0,
       inventory: [],

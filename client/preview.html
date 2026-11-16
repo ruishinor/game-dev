@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Attunement — asset preview</title>
+    <style>
+      body { margin: 0; background: #23262c; overflow: hidden; font: 11px system-ui, sans-serif; }
+      canvas { display: block; }
+      .label { position: absolute; color: #fff; background: rgba(0, 0, 0, 0.55); padding: 1px 4px; pointer-events: none; white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three-addons/"}}</script>
+    <script type="module" src="/client/src/preview.js"></script>
+  </body>
+</html>

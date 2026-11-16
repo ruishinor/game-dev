@@ -10,7 +10,10 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test test/*.test.js",
-    "e2e": "node test/e2e/play.mjs"
+    "e2e": "node test/e2e/play.mjs",
+    "assets:fetch": "node tools/assets/fetch.mjs",
+    "assets:build": "node tools/assets/build.mjs",
+    "assets:preview": "node tools/assets/preview.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",

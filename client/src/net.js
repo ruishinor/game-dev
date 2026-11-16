@@ -111,9 +111,9 @@ export class Net {
     ws.onerror = () => {};
   }
 
-  create(name, cls) {
-    this.pendingCreate = { name, cls };
-    if (this.ws && this.ws.readyState === 1) this.send({ t: 'create', name, cls });
+  create(name, cls, look) {
+    this.pendingCreate = { name, cls, look };
+    if (this.ws && this.ws.readyState === 1) this.send({ t: 'create', name, cls, look });
     else if (!this.ws) this.connect();
   }
 

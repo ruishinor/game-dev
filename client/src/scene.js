@@ -144,6 +144,44 @@ function buildSky() {
   return group;
 }
 
+/**
+ * Image-based lighting generated from a simple sky: metals and glossy surfaces
+ * need something to reflect, and a real HDRI is not worth a download here.
+ * Brighter and less saturated than the visible sky on purpose.
+ */
+export function makeEnvironment(renderer) {
+  const env = new THREE.Scene();
+  const geo = new THREE.SphereGeometry(40, 32, 16);
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const c = new THREE.Color();
+  const stops = [
+    [-1, 0x1f1c26],
+    [-0.08, 0x3a3340],
+    [0.02, 0xe2b0a8],
+    [0.3, 0x8f9ad0],
+    [1, 0x39508f],
+  ];
+  for (let i = 0; i < pos.count; i++) {
+    const h = pos.getY(i) / 40;
+    let k = 0;
+    while (k < stops.length - 2 && h > stops[k + 1][0]) k++;
+    const f = Math.min(1, Math.max(0, (h - stops[k][0]) / (stops[k + 1][0] - stops[k][0])));
+    c.setHex(stops[k][1]).lerp(tmpA.setHex(stops[k + 1][1]), f);
+    colors.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  env.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe2c0).multiplyScalar(6) }));
+  sun.position.set(-0.55, 0.72, 0.42).multiplyScalar(36);
+  env.add(sun);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const texture = pmrem.fromScene(env, 0.03).texture;
+  pmrem.dispose();
+  geo.dispose();
+  return texture;
+}
+
 // --- prop builders -----------------------------------------------------------
 
 const G = {

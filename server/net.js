@@ -149,7 +149,7 @@ export class NetServer {
       }
       this.enter(conn, char, null);
     } else if (msg.t === 'create') {
-      const res = this.store.create(msg.name, msg.cls);
+      const res = this.store.create(msg.name, msg.cls, msg.look);
       if (res.error) {
         send(conn.ws, { t: 'create_fail', reason: res.error });
         if (++conn.authFails >= 8) conn.ws.close(4000, 'too many attempts');

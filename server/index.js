@@ -1,6 +1,7 @@
 // Attunement server: static file host + WebSocket game server in one process.
 
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,8 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.glb': 'model/gltf-binary',
   '.json': 'application/json; charset=utf-8',
 };
 
@@ -27,22 +30,45 @@ const MOUNTS = [
   ['/client/', path.join(ROOT, 'client')],
   ['/shared/', path.join(ROOT, 'shared')],
   ['/vendor/three/', path.join(ROOT, 'node_modules', 'three', 'build')],
+  ['/vendor/three-addons/', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm')],
 ];
-const VENDOR_ALLOW = new Set(['three.module.js', 'three.core.js']);
+// Vendor mounts serve only the exact files the client imports.
+const VENDOR_ALLOW = {
+  '/vendor/three/': new Set(['three.module.js', 'three.core.js']),
+  '/vendor/three-addons/': new Set(['loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'utils/SkeletonUtils.js', 'libs/meshopt_decoder.module.js']),
+};
+
+// The page maps the bare "three" specifier used by the three.js loader modules
+// with an inline import map. Inline scripts are otherwise forbidden, so exactly
+// that map is allowed by its hash.
+function importMapHashes() {
+  const hashes = new Set();
+  const dir = path.join(ROOT, 'client');
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith('.html')) continue;
+    const html = fs.readFileSync(path.join(dir, name), 'utf8');
+    for (const m of html.matchAll(/<script type="importmap">([\s\S]*?)<\/script>/g)) hashes.add(`'sha256-${crypto.createHash('sha256').update(m[1]).digest('base64')}'`);
+  }
+  return [...hashes].join(' ');
+}
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy':
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'none'",
+  // 'wasm-unsafe-eval' lets the Meshopt geometry decoder compile its WebAssembly
+  // (it does not permit eval of script text). blob: covers textures embedded in
+  // GLB files, which the loader decodes through object URLs.
+  'Content-Security-Policy': `default-src 'self'; script-src 'self' 'wasm-unsafe-eval' ${importMapHashes()}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob: ws: wss:; object-src 'none'; base-uri 'none'`,
 };
+
+const ASSET_PREFIX = '/client/assets/';
 
 function resolveStatic(urlPath) {
   if (urlPath === '/' || urlPath === '/index.html') return path.join(ROOT, 'client', 'index.html');
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);
-    if (prefix === '/vendor/three/' && !VENDOR_ALLOW.has(rel)) return null;
+    if (VENDOR_ALLOW[prefix] && !VENDOR_ALLOW[prefix].has(rel)) return null;
     const file = path.resolve(dir, rel);
     if (file !== dir && !file.startsWith(dir + path.sep)) return null;
     return file;
@@ -56,8 +82,13 @@ function handleHttp(req, res) {
     return;
   }
   let urlPath;
+  let versioned = false;
   try {
-    urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    const url = new URL(req.url, 'http://localhost');
+    urlPath = decodeURIComponent(url.pathname);
+    // Built assets are requested as file?v=<content hash> (see the manifest), so
+    // a given URL never changes and the browser may keep it indefinitely.
+    versioned = urlPath.startsWith(ASSET_PREFIX) && /^[0-9a-f]{8,64}$/.test(url.searchParams.get('v') || '');
   } catch {
     res.writeHead(400).end();
     return;
@@ -73,7 +104,7 @@ function handleHttp(req, res) {
       res.writeHead(404, SECURITY_HEADERS).end('Not found');
       return;
     }
-    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': 'no-cache' });
+    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': versioned ? 'public, max-age=31536000, immutable' : 'no-cache' });
     res.end(req.method === 'HEAD' ? undefined : buf);
   });
 }

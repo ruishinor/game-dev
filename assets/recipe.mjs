@@ -1,0 +1,117 @@
+// What the asset build produces. Data only: tools/assets/build.mjs does the work.
+// Source ids refer to assets/sources.json; paths are inside the unpacked source.
+
+const UAL1 = 'Animation Library[Standard]/Godot/AnimationLibrary_Godot_Standard.glb';
+const UAL2 = 'Universal Animation Library 2 [Standard]/Unreal-Godot/UAL2_Standard.glb';
+const UAL2_F = 'Universal Animation Library 2 [Standard]/Female Mannequin/Unreal-Godot/Mannequin_F.glb';
+const MEGA = 'Modular SciFi MegaKit[Standard]';
+
+/**
+ * Clothing and armour shells cut from the body mesh. `joints` selects the
+ * region by skin weight, `clip` trims it with planes (functions returning a
+ * signed distance; the part where it is >= 0 is kept) and `offset` is how far
+ * the shell sits off the skin, in metres. `J` holds bind-pose joint positions,
+ * so one definition fits both body shapes.
+ */
+export const SHELLS = [
+  {
+    name: 'shorts',
+    joints: ['pelvis', 'thigh_l', 'thigh_r', 'spine_01'],
+    offset: 0.013,
+    clip: (J) => [(p) => p[1] - (J.calf_l[1] + 0.05), (p) => J.spine_01[1] - 0.03 - p[1]],
+  },
+  { name: 'shoes', joints: ['foot_l', 'foot_r', 'ball_l', 'ball_r'], offset: 0.011, clip: (J) => [(p) => J.foot_l[1] + 0.045 - p[1]] },
+  {
+    name: 'chest',
+    joints: ['spine_02', 'spine_03', 'clavicle_l', 'clavicle_r', 'neck_01'],
+    offset: 0.022,
+    clip: (J) => [(p) => p[1] - (J.spine_02[1] - 0.01), (p) => J.neck_01[1] + 0.01 - p[1], (p) => J.upperarm_l[0] + 0.035 - Math.abs(p[0])],
+  },
+  {
+    name: 'belt',
+    joints: ['pelvis', 'spine_01', 'spine_02', 'thigh_l', 'thigh_r'],
+    offset: 0.02,
+    clip: (J) => [(p) => p[1] - (J.pelvis[1] - 0.02), (p) => J.spine_02[1] - 0.01 - p[1]],
+  },
+  { name: 'forearms', joints: ['lowerarm_l', 'lowerarm_r'], offset: 0.016, clip: (J) => [(p) => Math.abs(p[0]) - (J.lowerarm_l[0] + 0.03), (p) => J.hand_l[0] - 0.005 - Math.abs(p[0])] },
+  { name: 'upperarms', joints: ['upperarm_l', 'upperarm_r'], offset: 0.013, clip: (J) => [(p) => Math.abs(p[0]) - (J.upperarm_l[0] + 0.03), (p) => J.lowerarm_l[0] - 0.02 - Math.abs(p[0])] },
+  { name: 'shins', joints: ['calf_l', 'calf_r'], offset: 0.016, clip: (J) => [(p) => p[1] - (J.foot_l[1] + 0.04), (p) => J.calf_l[1] - 0.03 - p[1]] },
+  { name: 'thighs', joints: ['thigh_l', 'thigh_r'], offset: 0.012, clip: (J) => [(p) => p[1] - (J.calf_l[1] + 0.04), (p) => J.thigh_l[1] - 0.1 - p[1]] },
+  { name: 'helmet', joints: ['Head'], threshold: 0.6, offset: 0.014 },
+  {
+    name: 'coat',
+    joints: ['pelvis', 'spine_01', 'spine_02', 'spine_03', 'thigh_l', 'thigh_r', 'clavicle_l', 'clavicle_r', 'neck_01'],
+    offset: 0.021,
+    clip: (J) => [(p) => p[1] - (J.calf_l[1] + 0.2), (p) => J.neck_01[1] + 0.015 - p[1], (p) => J.upperarm_l[0] + 0.03 - Math.abs(p[0])],
+  },
+  // Open-faced hood: the back, sides and crown of the head (a tilted plane keeps the face clear).
+  { name: 'hood', joints: ['Head', 'neck_01'], threshold: 0.6, offset: 0.016, clip: (J) => [(p) => J.Head[2] + 0.075 - p[2] + (p[1] - (J.Head[1] + 0.13)) * 0.9, (p) => p[1] - (J.neck_01[1] + 0.02)] },
+];
+
+export const HUMANOIDS = [
+  {
+    id: 'humanoid_m',
+    out: 'humanoid_m.glb',
+    sources: ['ual2', 'ual1'],
+    mesh: ['ual2', UAL2],
+    // Clips already on this rig.
+    keep: ['Sword_Block', 'Idle_Shield_Break', 'Shield_OneShot', 'Melee_Hook', 'OverhandThrow', 'Hit_Knockback', 'Idle_FoldArms_Loop', 'Consume'],
+    // Clips retargeted from library 1 (bone rename only).
+    retarget: {
+      from: ['ual1', UAL1],
+      clips: ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Punch_Jab', 'Punch_Cross', 'Spell_Simple_Enter', 'Spell_Simple_Idle_Loop', 'Spell_Simple_Shoot', 'Spell_Simple_Exit', 'Hit_Chest', 'Hit_Head', 'Death01', 'Interact', 'Idle_Talking_Loop'],
+    },
+  },
+  // Same rig and bone names; plays humanoid_m's clips at runtime.
+  { id: 'humanoid_f', out: 'humanoid_f.glb', sources: ['ual2'], mesh: ['ual2', UAL2_F], keep: [] },
+];
+
+const mega = (dir, names) => names.map((n) => ({ name: n, src: ['scifi_megakit', `${MEGA}/glTF/${dir}/${n}.gltf`], textureDirs: [`${MEGA}/Textures`] }));
+const ess = (names) => names.map((n) => ({ name: n, src: ['scifi_essentials', `glTF/${n}.gltf`] }));
+const nat = (names) => names.map((n) => ({ name: n, src: ['nature_megakit', `glTF/${n}.gltf`] }));
+
+export const KITS = [
+  {
+    id: 'creatures',
+    out: 'creatures.glb',
+    sources: ['scifi_essentials'],
+    maxTexture: 1024,
+    pieces: [
+      { name: 'skitter', src: ['scifi_essentials', 'glTF/Enemy_QuadShell.gltf'] },
+      { name: 'drone', src: ['scifi_essentials', 'glTF/Enemy_EyeDrone.gltf'] },
+      { name: 'walker', src: ['scifi_essentials', 'glTF/Enemy_Trilobite.gltf'] },
+    ],
+  },
+  {
+    id: 'sanctum',
+    out: 'sanctum.glb',
+    sources: ['scifi_megakit', 'scifi_essentials'],
+    maxTexture: 1024,
+    // The kit's accent colour is red; the Sanctum's is the cyan of its beacon.
+    hueShift: { match: /BaseColor_Red/i, degrees: 172 },
+    emissive: [{ material: 'MI_Trim_01', file: ['scifi_megakit', `${MEGA}/Textures/T_Trim_01_Emissive.png`], factor: [0.35, 0.95, 1.0] }],
+    pieces: [
+      ...mega('Columns', ['Column_Hollow', 'Column_Large_Straight', 'Column_Round', 'Column_Pipes', 'Column_MetalSupport']),
+      ...mega('Platforms', ['Platform_Round1', 'Platform_Metal', 'Platform_DarkPlates', 'Platform_X', 'Platform_Simple', 'Door_Frame_Square', 'Platform_Stairs_4Wide']),
+      ...mega('Props', ['Prop_Computer', 'Prop_Crate3', 'Prop_Crate4', 'Prop_Chest', 'Prop_Barrel_Large', 'Prop_Light_Floor', 'Prop_Light_Small', 'Prop_ItemHolder', 'Prop_AccessPoint', 'Prop_Cable_1', 'Prop_Vent_Big', 'Prop_Rail_4']),
+      ...mega('Walls', ['WallBand_Straight', 'WallBand_Straight_Broken', 'ShortWall_Metal2_Straight']),
+      ...ess(['Prop_SatelliteDish', 'Prop_Crate_Large', 'Prop_Crate_Tarp', 'Prop_Desk_Medium', 'Prop_Barrel1']),
+    ],
+  },
+  {
+    id: 'nature',
+    out: 'nature.glb',
+    sources: ['nature_megakit', 'scifi_megakit'],
+    maxTexture: 512,
+    pieces: [
+      ...nat(['Mushroom_Common', 'Mushroom_Laetiporus', 'TwistedTree_1', 'TwistedTree_3', 'DeadTree_1', 'DeadTree_3', 'Rock_Medium_1', 'Rock_Medium_2', 'Rock_Medium_3', 'Plant_7_Big', 'Plant_1_Big', 'Fern_1', 'Grass_Wispy_Tall', 'Grass_Common_Short', 'Clover_1', 'Flower_3_Group', 'Pebble_Round_1', 'Pebble_Round_3', 'Bush_Common']),
+      { name: 'pod', src: ['scifi_megakit', `${MEGA}/glTF/Aliens/Alien_Oculichrysalis.gltf`], textureDirs: [`${MEGA}/Textures`] },
+    ],
+  },
+];
+
+/** Standalone textures (terrain). Resized and converted to WebP. */
+export const TEXTURES = [
+  { id: 'ground_albedo', out: 'tex/ground_albedo.webp', src: ['ph_aerial_grass_rock', 'aerial_grass_rock_diff_1k.jpg'], size: 1024, quality: 80, grey: 0.75 },
+  { id: 'ground_normal', out: 'tex/ground_normal.webp', src: ['ph_aerial_grass_rock', 'aerial_grass_rock_nor_gl_1k.jpg'], size: 1024, quality: 88 },
+];
