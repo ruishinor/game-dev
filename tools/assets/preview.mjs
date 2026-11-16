@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
+import sharp from 'sharp';
 import { launchBrowser } from '../browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -28,6 +29,27 @@ const DEFAULT_SHEETS = {
   'kit-sanctum.png': { cols: 8, cell: 220, items: pieces('sanctum') },
   'kit-nature.png': { cols: 7, cell: 240, items: pieces('nature') },
 };
+
+// Motion: one clip sampled across its length, as a filmstrip and as a looping
+// animation. Stills cannot show timing, but they do show whether a clip reads.
+const strip = (model, clip, frames = 8, from = 0.04, to = 0.96) => ({
+  cols: frames,
+  cell: 240,
+  animate: true,
+  items: Array.from({ length: frames }, (_, i) => `${model}@${clip}@${(from + ((to - from) * i) / (frames - 1)).toFixed(3)}`),
+});
+Object.assign(DEFAULT_SHEETS, {
+  'motion-vanguard-run.png': strip('look:vanguard_plate', 'Sprint_Loop', 8, 0, 0.875),
+  'motion-vanguard-punch.png': strip('look:vanguard_plate', 'Punch_Cross'),
+  'motion-vanguard-ward.png': strip('look:vanguard_plate', 'Sword_Block'),
+  'motion-vanguard-death.png': strip('look:vanguard_plate', 'Death01'),
+  'motion-conductor-cast.png': strip('look:conductor', 'Spell_Simple_Shoot'),
+  'motion-conductor-graft.png': strip('look:conductor', 'Spell_Simple_Enter'),
+  'motion-red-rucker-jog.png': strip('look:red_rucker', 'Jog_Fwd_Loop', 8, 0, 0.875),
+  'motion-skitter-attack.png': strip('skitter', 'Attack'),
+  'motion-skitter-run.png': strip('skitter', 'Run', 8, 0, 0.875),
+  'motion-mender-charging.png': strip('mender', 'Charging'),
+});
 
 const args = process.argv.slice(2);
 const sheets = args.length ? { [args[0]]: { cols: Math.min(6, args.length - 1), cell: 320, items: args.slice(1) } } : DEFAULT_SHEETS;
@@ -50,6 +72,12 @@ try {
     await page.waitForFunction(() => window.__preview && window.__preview.done, null, { timeout: 120000 }).catch(() => errors.push('preview did not finish'));
     const out = path.resolve(outDir, file);
     await page.screenshot({ path: out });
+    if (sheet.animate) {
+      // Cut the strip into frames and join them into a looping animated WebP.
+      const frames = [];
+      for (let i = 0; i < sheet.items.length; i++) frames.push(await sharp(out).extract({ left: i * sheet.cell, top: 0, width: sheet.cell, height: sheet.cell }).png().toBuffer());
+      await sharp(frames, { join: { animated: true } }).webp({ delay: 110, loop: 0, quality: 80 }).toFile(out.replace(/\.png$/, '.webp'));
+    }
     const result = await page.evaluate(() => window.__preview || null);
     // A sheet only passes if every requested item rendered as asked: a model
     // that is missing, a clip that does not exist, or a silent fall back to

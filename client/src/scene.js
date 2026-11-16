@@ -676,6 +676,7 @@ const kit = {
     }
   },
   pod(p, c) {
+    if (c.detail < 1) return procedural.pod(p, c.anim); // low preset: no extra skinned meshes
     const obj = c.animated('nature', 'pod', at(p.x, p.z, { y: 1.0 * p.s, ry: p.x * 1.7, s: 1.25 * p.s }), 'Alien_Idle', { tint: 0x8fd49a, emissive: 0x12301a, phase: p.x });
     if (!obj) return;
     c.beads.push([p.x, groundHeight(p.x, p.z) + 1.95 * p.s, p.z, 0.16 * p.s, 0x9dffb0]);

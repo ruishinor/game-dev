@@ -94,6 +94,8 @@ const S = {
   fps: 60,
   frameMs: 0,
   frames: 0,
+  drawn: 0,
+  paused: false,
   snaps: 0,
 };
 
@@ -842,7 +844,8 @@ function updateEntities(dt, t, now) {
     // for the bind pose), so visibility and animation cost are decided here.
     cullSphere.center.set(x, y + ent.model.height * 0.5, z);
     cullSphere.radius = ent.model.height * 0.75 + ent.model.radius + 2.5;
-    ent.inView = frustum.intersectsSphere(cullSphere);
+    // The low preset also stops drawing characters far across the valley.
+    ent.inView = frustum.intersectsSphere(cullSphere) && (quality > 0 || ent.id === S.myId || camera.position.distanceToSquared(cullSphere.center) < 80 * 80);
     ent.holder.visible = ent.inView;
     ent.model.update(dt, {
       t,
@@ -944,6 +947,9 @@ const wantQ = params.get('q');
 const qualityLocked = params.get('qlock') === '1';
 if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
 
+const drawGap = Number(params.get('rfps')) > 0 ? 1000 / Number(params.get('rfps')) - 2 : 0;
+let lastDraw = -1e9;
+
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
@@ -1029,7 +1035,14 @@ function frame(now) {
       }
     }
   }
-  renderer.render(scene, camera);
+  // Game logic above runs every animation frame; drawing may be capped
+  // (?rfps=N) or paused. Where drawing is very slow (software WebGL) that
+  // keeps input, prediction and networking in real time.
+  if (!S.paused && now - lastDraw >= drawGap) {
+    renderer.render(scene, camera);
+    lastDraw = now;
+    S.drawn++;
+  }
   S.frames++;
   S.frameMs += (performance.now() - now - S.frameMs) * 0.2;
 }
@@ -1046,6 +1059,7 @@ window.__attune = {
       fps: S.fps,
       frameMs: Math.round(S.frameMs),
       frames: S.frames,
+      drawn: S.drawn,
       quality,
       target: S.target,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
@@ -1066,6 +1080,10 @@ window.__attune = {
   screenOf(id) {
     const ent = S.ents.get(id);
     return ent ? toScreen(ent.chest) : null;
+  },
+  /** Stop or resume drawing (the game keeps running). Lets a capture script render one client at a time. */
+  pause(on) {
+    S.paused = !!on;
   },
   /** Renderer internals, for profiling from automated checks. */
   gfx: { scene, renderer, camera },

@@ -14,7 +14,8 @@
     "assets:fetch": "node tools/assets/fetch.mjs",
     "assets:build": "node tools/assets/build.mjs",
     "assets:preview": "node tools/assets/preview.mjs",
-    "capture": "node tools/capture.mjs"
+    "capture": "node tools/capture.mjs",
+    "profile": "node tools/profile.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",

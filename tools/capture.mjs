@@ -30,6 +30,7 @@ const errors = [];
 const query = `q=2&qlock=1&nolock=1${mode === 'before' ? '&glb=none' : ''}`;
 
 async function join(slot, name, cls, look) {
+  for (const o of clients) await pause(o, true);
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.setDefaultTimeout(240000);
@@ -41,7 +42,9 @@ async function join(slot, name, cls, look) {
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos);
-  return { page, ctx, name, player: () => [...game.players.values()].find((p) => p.name === name) };
+  const client = { page, ctx, name, player: () => [...game.players.values()].find((p) => p.name === name) };
+  clients.push(client);
+  return client;
 }
 const frames = async (c, n = 3) => {
   const start = await c.page.evaluate(() => window.__attune.state().frames);
@@ -70,8 +73,13 @@ async function put(c, x, z, face) {
   if (face !== undefined) await c.page.evaluate((f) => window.__attune.view({ face: f, yaw: f }), face);
 }
 const view = (c, v) => c.page.evaluate((v) => window.__attune.view(v), v);
+// Software rendering cannot draw two clients at once in reasonable time, so
+// only the client being photographed renders; the others keep simulating.
+const clients = [];
+const pause = (c, on) => c.page.evaluate((v) => window.__attune.pause(v), on).catch(() => {});
 async function shot(c, name) {
   if (only && !name.includes(only)) return;
+  for (const o of clients) await pause(o, o !== c);
   await frames(c, 4);
   await c.page.screenshot({ path: path.join(OUT, `${name}.png`), timeout: 240000 });
   console.log(`  ${name}.png`);
@@ -133,6 +141,7 @@ try {
   await A.page.keyboard.press('Digit4');
   await sleep(1500);
   await shot(A, '10-enemy-destroyed');
+  clients.splice(clients.indexOf(B), 1);
   await B.ctx.close();
 
   // Red Rucker, close and in the world.

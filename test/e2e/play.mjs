@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
-import { launchBrowser } from '../../tools/browser.mjs';
+import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');
@@ -33,15 +33,24 @@ const game = srv.game;
 const base = `http://127.0.0.1:${srv.port}`;
 const browser = await launchBrowser();
 
+// Under software WebGL one frame of this scene takes hundreds of milliseconds,
+// and two clients drawing flat out starve each other (and their own game
+// logic) of CPU. So in that case each client draws at most once a second
+// while its logic keeps running every animation frame; with a real GPU
+// (ATTUNEMENT_GPU=1) nothing is capped. Everything still goes through the
+// real renderer, and script errors from drawing still fail the run.
+const QUERY = `q=0&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`;
+note(SOFTWARE_GL ? 'software WebGL: each client draws at most 1 frame per second (logic uncapped)' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
 async function openPlayer(slot, name, cls, look) {
   const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(90000);
   page.on('pageerror', (e) => pageErrors.push(`${name}: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() === 'error') pageErrors.push(`${name}: ${m.text()}`);
   });
-  await page.goto(`${base}/?q=0&nolock=1&slot=${slot}`);
+  await page.goto(`${base}/?${QUERY}&slot=${slot}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
@@ -102,6 +111,9 @@ try {
   B = await openPlayer('b', 'Lumen', 'symbiotech');
   let sa = await state(A);
   let sb = await state(B);
+  note(`graphics: ${(await describeGraphics(A.page)).renderer}`);
+  await until(A, () => window.__attune.state().drawn >= 2 && window.__attune.state().draw.triangles > 10000, null, 60000, 'first frames drawn');
+  sa = await state(A);
   check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000, `A id ${sa.myId}, B id ${sb.myId}, ${sa.draw.triangles} triangles drawn`);
   check('10. second session sees the first (and its class)', sb.ents.some((e) => e.id === sa.myId && e.c === 'vanguard') && sa.ents.some((e) => e.id === sb.myId && e.c === 'symbiotech'));
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);
