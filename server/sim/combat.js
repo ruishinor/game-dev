@@ -2,7 +2,7 @@
 // Every outcome a client sees originates here.
 
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 
@@ -67,6 +67,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   // Last line of defence for the safe zone, including late telegraphed AoE.
   // Threat cleanup alone is not a damage-authorisation boundary.
   if (dst.kind === 'player' && inSanctum(dst)) return 0;
+  if (src && !deepLineClear(opts.origin || src,dst)) return 0;
 
   let amt = base;
   const actor = actorPlayer(game, src);
@@ -387,7 +388,7 @@ export function useAbility(game, p, abilityId) {
       const radius = p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius;
       game.events.push({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
       for (const enemy of game.enemies) {
-        if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius && hasLineOfSight(rig,enemy)) dealDamage(game, p, enemy, ab.dmg, abilityId);
+        if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius && hasLineOfSight(rig,enemy)) dealDamage(game, p, enemy, ab.dmg, abilityId,{origin:rig});
       }
       break;
     }
@@ -404,7 +405,7 @@ export function useAbility(game, p, abilityId) {
         game.events.push({ e: 'fx', k: 'carapace_echo', s: p.id, d: target.id, x: target.x, z: target.z, r: GLYPH.echo.radius });
       }
       dealDamage(game, p, target, ab.dmg, abilityId, { kind: 'melee' });
-      for (const e of others) dealDamage(game, p, e, ab.dmg * GLYPH.echo.pct, 'rending_echo', { kind: 'melee' });
+      for (const e of others) dealDamage(game, p, e, ab.dmg * GLYPH.echo.pct, 'rending_echo', { kind: 'melee',origin:center });
       gainCharge(p, ab.gain);
       p.autoOn = true;
       break;

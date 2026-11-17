@@ -4,7 +4,7 @@
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist, inSanctum } from '../../shared/world.js';
+import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -230,6 +230,23 @@ export function interact(game, p, objectId) {
     return { ok: true };
   }
   if (obj.type.startsWith('brine_') || (obj.type.startsWith('survey_') && surveyState(p.char.survey)?.endsWith('_done'))) return operateBrine(game,p,obj);
+  if (obj.type === 'deep_console') {
+    if (!hasLineOfSight(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
+    if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
+    if (p.char.inventory.includes('phase_damper')) {
+      game.message(p,'info','The recovered stress-buffering implant is already in your inventory.');
+      return { ok: true };
+    }
+    if (!p.char.attunements.includes('resonance') || !p.char.inventory.includes('sinter_laminate')) {
+      game.message(p,'info','Kestrel log 17: the living strata absorbed mechanical stress without retaining the original waveform. Bring a Sinter Laminate and learn Resonance to read the recovered calibration.');
+      return { ok: true };
+    }
+    if (grantItem(game,p,'phase_damper')) {
+      game.message(p,'gain','The recorder recognizes your laminate trace and unlocks a stored Kestrel Phase Damper. Your reference sample is not consumed.');
+      game.events.push({e:'fx',k:'deep_record',s:p.id,o:obj.id});
+    }
+    return { ok: true };
+  }
   if (obj.type === 'sinter_sampler') {
     // Alternative source of the existing unique item; no repeatable XP or new save state.
     if (p.char.inventory.includes('sinter_laminate')) {

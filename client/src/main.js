@@ -635,7 +635,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -746,7 +746,7 @@ function onEvent(e) {
         authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1},now);
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear') {
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -761,6 +761,14 @@ function onEvent(e) {
         break;
       }
       if (!s) break;
+      if (e.k === 'deep_record') {
+        const o = S.ents.get(e.o);
+        if (o) {
+          fx.ring(o.pos.x,o.pos.z,1.5,0xbacb9a,700,o.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.beam(() => o.head,chestOf(s),0xbacb9a,850,0.09);
+        }
+        break;
+      }
       if (e.k === 'sinter_sample') {
         const o = S.ents.get(e.o);
         if (o) {

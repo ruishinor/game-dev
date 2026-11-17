@@ -105,7 +105,7 @@ function resolveSpecial(game, e) {
     if (sp.at === 'all') {
       if (e.threat.has(p.id) && dist(e, p) <= sp.radius && hasLineOfSight(e,p)) dealDamage(game, e, p, sp.dmg, sp.id);
     } else if (Math.hypot(p.x - x, p.z - z) <= sp.radius + p.radius * 0.5 && hasLineOfSight({x,z},p)) {
-      dealDamage(game, e, p, sp.dmg, sp.id);
+      dealDamage(game, e, p, sp.dmg, sp.id,{origin:{x,z}});
     }
   }
 }
@@ -161,7 +161,7 @@ export function tickEnemy(game, e, dt) {
   // Forget players who died, left, or reached safety.
   for (const id of [...e.threat.keys()]) {
     const p = game.players.get(id);
-    if (!p || p.dead || inSanctum(p)) e.threat.delete(id);
+    if (!p || p.dead || inSanctum(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
   }
 
   if (e.threat.size === 0) {
