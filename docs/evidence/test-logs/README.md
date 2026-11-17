@@ -10,5 +10,6 @@ These logs are kept so that the claims in the handoff documents can be checked.
 | `e2e-merge.log` | `play.mjs` right after merging preview `232aa02` | Beacon flake (CPU contention from parallel jobs) + radio click timeout |
 | `base-e2e.log`, `base-pex.log` | Preview `232aa02` untouched | Same radio timeout; pex uppercase lesson failure (both pre-existing) |
 | `e2e-gate.log`, `pex-gate.log` | After the radio/tutorial fixes | 72/72; pex exit 0 |
-| `e2e-cov.log`, `pex-cov.log` | After the full effect coverage (`fac3854`) | See the files |
+| `e2e-cov.log` | `play.mjs` after the full effect coverage | 72/72 |
+| `pex-cov.log` | `preview-expansion.mjs` after coverage | Not captured: still running at handoff |
 | `art.log`, `pex.log` | art-originals and the first merged pex run | art pass; pex uppercase failure |
