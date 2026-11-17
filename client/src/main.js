@@ -422,9 +422,19 @@ function onEvent(e) {
       }
       if (s) {
         s.attack = 1;
+        // A strike needs to face its victim even if the server's movement
+        // yaw has not yet changed. This is presentation-only, for a brief
+        // stationary attack pose; it never changes server aiming or damage.
+        if (d && (s.meta.k === 'p' || s.meta.k === 'e')) {
+          s.faceTo = d.id;
+          s.faceUntil = now + 500;
+        }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
       }
+      // A clear contact cue for both projectile and melee hits (not a new
+      // hit event or extra damage).
+      if (d) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
       break;
@@ -856,7 +866,14 @@ function updateEntities(dt, t, now) {
     ent.jy = j;
     ent.placed = true;
     ent.holder.position.set(x, y, z);
-    ent.holder.rotation.y = yaw;
+    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5
+      ? S.ents.get(ent.faceTo) : null;
+    const faceYaw = facingTarget && facingTarget.placed
+      ? Math.atan2(facingTarget.pos.x - x, facingTarget.pos.z - z) : yaw;
+    // Smooth presentation yaw separately from the authoritative movement yaw.
+    ent.displayYaw = ent.displayYaw === undefined ? faceYaw
+      : lerpAngle(ent.displayYaw, faceYaw, Math.min(1, dt * 13));
+    ent.holder.rotation.y = ent.displayYaw;
     ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);
     ent.head.set(x, y + ent.model.height * (ent.model.hover ? 0.6 : 1) + 0.3, z);
     ent.attack = Math.max(0, ent.attack - dt * 3.2);
