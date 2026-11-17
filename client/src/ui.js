@@ -12,6 +12,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
+import { enemyTargetStatus } from './target-status.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -1265,23 +1266,24 @@ export class UI {
     set(this.target.el, 'hidden', !target);
     if (target) {
       const enemy = target.meta.k === 'e';
-      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
-      const hostile = enemy && !neutral;
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
+      const status = enemy ? enemyTargetStatus(target.meta,target.row,target.dead) : null;
+      set(this.target.el, 'cls', `frame target ${status?.tone ?? 'friendly'}`);
       this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
-      set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
+      const kind = status ? status.label : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const form=target.meta.form&&!target.dead&&!(target.row.f&1)?
+        [target.meta.form,target.row.mineral?'calcified':null,target.row.scar?'scarred':null].filter(Boolean).join(' / '):'';
+      set(this.target.sub, 'text', [lvl, kind, form].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
       set(this.target.hp.wrap, 'hidden', !hasHp);
       if (hasHp) this.frameBars(this.target, target.row.h, target.row.m);
       set(this.target.res.wrap, 'hidden', true);
       this.buffChips(this.target.buffs, target.row.b || []);
-      const cast = target.cast && st.now < target.cast.end ? target.cast : null;
+      const cast = !target.dead && !(target.row.f & 1) && target.cast && st.now < target.cast.end ? target.cast : null;
       set(this.target.cast.wrap, 'hidden', !cast);
       if (cast) {
         set(this.target.cast.fill, 'width', `${Math.min(100, ((st.now - cast.start) / (cast.end - cast.start)) * 100)}%`);

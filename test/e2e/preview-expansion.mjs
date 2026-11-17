@@ -168,6 +168,57 @@ try {
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
   assert.equal(p.char.xp,beforeSampleXp);
   await capture('preview-evidence/04c-strata-interferometer.png');
+  // Controlled placement for an art evidence capture; ecology movement,
+  // convergence, alarm and maturation are independently tested in Node.
+  const herd=server.game.enemies.filter(e=>e.form);
+  const spots=[[3,51],[5.5,51.5],[8,51]];
+  for(const [i,g] of herd.entries()){
+    g.x=spots[i][0];g.z=spots[i][1];g.grown=true;
+    g.wanderAt=server.game.time+30000;g.alarmUntil=0;g.wildAlarmAt=server.game.time+30000;
+  }
+  await moveTo(5.5,45);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:0.17,dist:7,face:0}));
+  // Different forms and real material binding on all three rendered creatures.
+  await page.waitForFunction(()=>{
+    const forms=window.__attune.state().ents.filter(e=>e.c==='sinter_grazer').map(e=>e.form).sort();
+    return forms.join(',')==='adult,juvenile,shieldback';
+  });
+  assert.ok(await page.evaluate(()=>{
+    const scene=window.__attune.gfx.scene;
+    return ['juvenile','adult','shieldback'].every(form=>{
+      const rig=scene.getObjectByName('fauna:grazer-'+form);
+      let textured=0;
+      rig?.traverse(n=>{if(n.isMesh&&n.material?.map?.name==='sinter:mineral-strata')textured++;});
+      return textured>=5;
+    });
+  }));
+  await page.waitForFunction(()=>window.__attune.state().ents.filter(e=>e.c==='sinter_grazer').every(e=>e.row?.grown===1));
+  await capture('preview-evidence/05-grazer-life-stages.png');
+  assert.ok(await page.evaluate(()=>{
+    const scene=window.__attune.gfx.scene;
+    return !!scene.getObjectByName('sinter:nursery')&&!!scene.getObjectByName('sinter:mineral-bed');
+  }));
+  // Controlled snapshot fixture: anatomy, visible mineral phenotype and a
+  // real defeat using the authoritative damage call, not a DOM mock.
+  const adult=herd.find(g=>g.form==='adult');
+  adult.calcified=true;adult.scarred=true;
+  await page.waitForFunction(()=>{
+    const scene=window.__attune.gfx.scene,rig=scene.getObjectByName('fauna:grazer-adult');
+    return rig?.getObjectByName('fauna:calcified')?.visible&&rig?.getObjectByName('fauna:scar')?.visible;
+  });
+  await capture('preview-evidence/05a-adaptive-grazer.png');
+  // Fixture disables predator interference only during this controlled check.
+  const predator=server.game.enemies.find(e=>e.type==='faultstalker');
+  predator.x=19;predator.z=60;predator.wanderAt=server.game.time+30000;
+  predator.huntReadyAt=Infinity;predator.wildPrey=0;predator.wildPhase=null;
+  await moveTo(5.5,48);
+  adult.x=5.5;adult.z=51.5;adult.wanderAt=server.game.time+30000;
+  server.game.setTarget(p,adult.id);
+  await page.waitForFunction(id=>window.__attune.state().target===id,adult.id);
+  assert.ok(/Neutral/.test(await page.locator('.frame.target .sub').innerText()));
+  dealDamage(server.game,p,adult,9999,'fixture');
+  await page.waitForFunction(()=>document.querySelector('.frame.target .sub')?.textContent.includes('Defeated'));
+  await capture('preview-evidence/05b-defeated-grazer.png');
   await moveTo(-39,-8);
   await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.16,dist:10,face:-Math.PI/2}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Kestrel Deep'));

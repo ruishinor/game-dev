@@ -631,6 +631,7 @@ function clearWorld() {
   liveCasts.clear();
   vfx?.clear();
   svfx?.clear();
+  fx.clearFauna();
   ui.clearPlates();
 }
 
@@ -763,7 +764,13 @@ function onEvent(e) {
         ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (rich() && d.placed) cvfx.hit(d, s, e);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
-        else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        else if (!rich() && e.a>0 && !e.sh && d.placed && (d.meta.c==='sinter_grazer'||d.meta.c==='faultstalker')){
+          const dx=(s?.placed?s.pos.x:d.pos.x)-d.pos.x,dz=(s?.placed?s.pos.z:d.pos.z+1)-d.pos.z;
+          const len=Math.hypot(dx,dz),nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          const reach=d.model.radius*.68;
+          fx.faunaImpact([d.chest.x+nx*reach,d.chest.y,d.chest.z+nz*reach],[nx,0,nz],
+            {radius:d.model.radius*.62,reducedMotion:motionPreference.matches||quality===0});
+        }else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -856,13 +863,48 @@ function onEvent(e) {
       // A kind without an engine recipe (or one that could not be placed)
       // keeps its original effect, so new server effects never go invisible.
       if (!handled) fx = legacyFx;
+      // Rich recipes supersede the ecology fallback only when handled.
+      if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
       if (e.k === 'survey_blast') {
         fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
         fx.pillar(e.x, e.z, 0xf0b56b, 450);
         authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1});
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
+      if (e.k === 'fault_shear') {
+        fx.ring(e.x,e.z,e.r,0xd18b4b,680);
+        fx.ring(e.x,e.z,e.r*0.72,0xf2d6a0,450);
+        fx.faunaImpact([e.x,groundHeight(e.x,e.z)+.24,e.z],[0,1,0],
+          {variant:'shear',radius:e.r*.9,duration:.7,reducedMotion:motionPreference.matches||quality===0});
+        if(!motionPreference.matches&&quality>0){
+          for(let i=0;i<5;i++){
+            const a=i*Math.PI*2/5;
+            const x=e.x+Math.cos(a)*e.r*0.58,z=e.z+Math.sin(a)*e.r*0.58;
+            fx.burst(new THREE.Vector3(x,groundHeight(x,z)+0.25,z),0xc8a481,3,0.8);
+          }
+        }
+        break;
+      }
+      if(e.k==='sinter_pounce'||e.k==='sinter_repel'){
+        const d=S.ents.get(e.d);
+        if(s&&d&&s.placed&&d.placed){
+          s.attack=1;
+          const dx=d.pos.x-s.pos.x,dz=d.pos.z-s.pos.z,len=Math.hypot(dx,dz);
+          const nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          fx.faunaImpact([s.chest.x+nx*.35,s.chest.y,s.chest.z+nz*.35],[nx,0,nz],
+            {variant:'wild',radius:.5,duration:.45,reducedMotion:motionPreference.matches||quality===0});
+        }
+        break;
+      }
+      if(e.k==='sinter_alarm'||e.k==='sinter_guard'||e.k==='sinter_molt'){
+        if(s&&s.placed){
+          const colour=e.k==='sinter_alarm'?0xcbb67a:e.k==='sinter_guard'?0xd98f52:0x9eae83;
+          fx.ring(s.pos.x,s.pos.z,e.k==='sinter_alarm'?2.3:1.3,colour,680,s.pos.y);
+          if(!motionPreference.matches&&quality>0)fx.burst(s.chest,colour,5,0.65);
+        }
+        break;
+      }
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1410,6 +1452,9 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
+      ecology: row?.ec,
+      grown: !!row?.grown,
+      mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
       self: ent.id === S.myId,
@@ -1423,13 +1468,20 @@ function updateEntities(dt, t, now) {
 
 function updatePlates(now) {
   const me = S.ents.get(S.myId);
-  for (const ent of S.ents.values()) {
+  // Only suppress overlapping calm wildlife labels, never active enemies,
+  // allies, objects or the currently selected target. Stable priority.
+  const occupied=[];
+  const entries=[...S.ents.values()].sort((a,b)=>{
+    const priority=e=>e.id===S.target?0:e.meta.neu&&!(e.row?.f&8)&&!e.dead?2:1;
+    return priority(a)-priority(b)||a.id-b.id;
+  });
+  for (const ent of entries) {
     if (ent.id === S.myId) continue;
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
-    const screen = hide ? null : toScreen(ent.head);
+    let screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
     let label = ent.meta.n;
@@ -1439,16 +1491,23 @@ function updatePlates(now) {
       cls = ent.dead ? (lootable?'corpse lootable':'corpse') : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
       label = ent.dead ? `${ent.meta.n} · ${lootable?"Loot":"remains"}` : `${ent.meta.n}${ent.meta.el ? " ◆" : ""}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
-      else if (!ent.dead && calm) label += ' · neutral';
+      else if (!ent.dead && calm) label += ent.meta.form ? ' · '+(row.grown?'matured ': '')+ent.meta.form+(ent.id===S.target?' · neutral':'') : ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
+    if(screen){
+      const half=Math.max(36,label.length*3.9);
+      const rect={l:screen.x-half,r:screen.x+half,t:screen.y-30,b:screen.y};
+      const calm=ent.meta.neu&&!(row.f&8)&&!ent.dead;
+      if(calm&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
+      if(screen)occupied.push(rect);
+    }
     ui.placePlate(ent, screen, {
       cls,
       label,
       lootable,
       selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
       owned: k === 'c' && ent.meta.o === S.myId,
-      hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
+      hp: (k === 'e' || k === 'p') && row.m && (!ent.meta.neu || row.f&8 || ent.id===S.target) ? Math.max(0, row.h / row.m) : 0,
     });
   }
 }
@@ -1641,7 +1700,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

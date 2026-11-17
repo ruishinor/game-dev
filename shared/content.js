@@ -282,8 +282,14 @@ export const ENEMIES = {
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });
 // Routes are independent of combat RNG. Herd members share a circuit
 // with offsets; there is no ambient loot farm.
-const grazerCircuit = [[3,47],[5,52],[4,62],[2,65],[1,58],[2,50]];
-const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+// Different life stages have independent forage circuits. Their western and
+// southern stations bring them within calling distance, then separate them.
+const grazerCircuits = {
+  juvenile: [[3,47],[4,53],[1,58],[2,65],[5,66],[6,58],[2,51]],
+  adult: [[-1,47],[1,50],[3,56],[5,63],[7,67],[8,60],[7,51],[3,45]],
+  shieldback: [[7,46],[9,51],[10,58],[7,64],[5,69],[3,61],[0,56],[0,50]],
+};
+const stalkerCircuit = [[17,58],[19,56],[18,51],[15,47],[11,46],[9,49],[10,57],[12,59],[18,60]];
 const patrol = (type, circuit, dx = 0, dz = 0) => ({
   type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
   route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),
@@ -299,9 +305,9 @@ export const SPAWNS = [
   sp('sentinel', 'relay', 6, 5),
   sp('sentinel', 'relay', 4, -13),
   sp('warden', 'vault', 0, 0),
-  patrol('sinter_grazer', grazerCircuit, -0.85, 0.8),
-  patrol('sinter_grazer', grazerCircuit),
-  patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
+  { ...patrol('sinter_grazer', grazerCircuits.juvenile), form: 'juvenile' },
+  { ...patrol('sinter_grazer', grazerCircuits.adult), form: 'adult' },
+  { ...patrol('sinter_grazer', grazerCircuits.shieldback), form: 'shieldback' },
   patrol('faultstalker', stalkerCircuit),
   patrol('quarantine_custodian', [[-52,-8],[-54,-5.2],[-57,-5.2],[-57,-10.8],[-54,-10.8]]),
 ];
