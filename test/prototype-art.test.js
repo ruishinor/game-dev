@@ -26,7 +26,7 @@ test('invalid envelopes and degenerate or nonfinite bounds fail closed', () => {
 });
 
 test('aggregate status cannot hide a failed or unfinished independent model', () => {
-  assert.deepEqual(Object.keys(STATIC_ART),['survey_tower','survey_workstation']);
+  assert.deepEqual(Object.keys(STATIC_ART),['survey_tower','survey_workstation','survey_engineering']);
   assert.equal(staticArtStatus({}), 'disabled');
   assert.equal(staticArtStatus({a:'ready',b:'loading'}), 'loading');
   assert.equal(staticArtStatus({a:'fallback',b:'loading'}), 'loading');

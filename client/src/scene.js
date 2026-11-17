@@ -263,6 +263,23 @@ const procedural = {
   },
   survey_tower(p) { return procedural.survey_pump(p); },
   survey_workstation(p) { return procedural.console(p); },
+  survey_engineering(p) {
+    const g = new THREE.Group();
+    const steel = mat(0x747872, { rough: 0.66, metal: 0.45 });
+    const dark = mat(0x353c3d, { rough: 0.8, metal: 0.25 });
+    const ochre = mat(0x897049, { rough: 0.82, metal: 0.22 });
+    const add = (...a) => g.add(scaled(G.box, ...a));
+    for (const side of [-1, 1]) {
+      add(dark, 0.22, 0.82, 1.15, side * 0.87, 0.41, 0);
+      add(steel, 0.44, 0.12, 1.22, side * 0.82, 0.06, 0);
+    }
+    add(steel, 2.12, 0.16, 1.32, 0, 0.9, 0);
+    add(dark, 0.95, 0.55, 0.95, -0.50, 0.35, -0.05);
+    add(ochre, 0.55, 0.26, 0.56, -0.55, 1.1, -0.08);
+    add(steel, 0.19, 0.68, 0.2, 0.72, 1.32, -0.46);
+    add(dark, 0.58, 0.21, 0.31, 0.47, 1.57, -0.35);
+    return g;
+  },
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -1105,7 +1122,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
@@ -1132,6 +1149,30 @@ export function buildWorld(scene, assets = null, opts = {}) {
       });
     }
   }
+
+  // Flush, noninteractive surface details on the excavated flat floor.
+  // Explicit positions, no added colliders, no tall geometry in the travel lane.
+  const serviceDeck = new THREE.Group();
+  serviceDeck.name = 'brineworks-service-deck';
+  const deckY = groundHeight(43, -35);
+  const deck = mat(0x545753, { rough: 0.93, metal: 0.13 });
+  const joint = mat(0x303635, { rough: 0.94 });
+  const faded = mat(0x92774d, { rough: 0.93 });
+  const flat = (x, z, w, d, material, height = 0.035) => {
+    const tile = scaled(G.box, material, w, 0.012, d, x, deckY + height, z, false);
+    tile.receiveShadow = true;
+    serviceDeck.add(tile);
+  };
+  // Work areas only; the approach to both evidence terminals stays soil.
+  for (const x of [38, 49]) {
+    flat(x, -38.4, 2.8, 2.4, deck);
+    for (const side of [-1, 1]) flat(x + side * 1.34, -38.4, 0.07, 2.38, faded, 0.048);
+    flat(x, -37.22, 2.7, 0.07, joint, 0.048);
+  }
+  // Recessed-looking service channel on the pump approach, no raised obstruction.
+  flat(43, -35.8, 0.53, 4.0, joint);
+  for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
+  scene.add(serviceDeck);
 
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);

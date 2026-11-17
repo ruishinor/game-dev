@@ -180,7 +180,7 @@ function buildProps() {
     { type: 'wall', x: 43, z: -43, hw: 5, hd: 0.6, h: 2.8 },
     { type: 'wall', x: 53, z: -37, hw: 0.6, hd: 3.5, h: 2.4 },
     { type: 'survey_workstation', x: 38, z: -39, hw: 1.15, hd: 0.64, h: 1.8 },
-    { type: 'crate', x: 49, z: -39, hw: 0.8, hd: 0.7, h: 1.1 },
+    { type: 'survey_engineering', x: 49, z: -39, hw: 1.1, hd: 0.7, h: 1.8 },
   );
   return retained;
 }

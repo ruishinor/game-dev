@@ -25,8 +25,8 @@ try {
     return s?.myId && s.sheet?.cls === 'surveyor' && s.sheet.look === 'brine_surveyor' && s.drawn >= 2 && s.ents.some(e => e.id === s.myId && e.model === 'glb');
   });
   await page.waitForFunction(() => window.__attune.state().world.prototypeArt === 'ready');
-  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready'});
-  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation'].every(type => {
+  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready',survey_engineering:'ready'});
+  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation','survey_engineering'].every(type => {
     const group = window.__attune.gfx.scene.getObjectByName('prototype-art:'+type);
     let meshes = 0; group?.traverse(node => { if (node.isMesh) meshes++; });
     return meshes > 0;
@@ -66,6 +66,9 @@ try {
   await moveTo(38, -36.5);
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
+  await moveTo(49, -36.5);
+  await capture('preview-evidence/02c-engineering-station.png');
+  assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
   await page.keyboard.press('f');
@@ -86,7 +89,7 @@ try {
   await fallbackPage.route('**/research_workstation.glb', route => route.abort());
   await fallbackPage.goto(url);
   await fallbackPage.waitForFunction(() => window.__attune?.state().world.prototypeArt === 'fallback');
-  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback'});
+  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback',survey_engineering:'ready'});
   assert.ok(await fallbackPage.evaluate(() => {
     const scene = window.__attune.gfx.scene;
     const holder = scene.getObjectByName('prototype-fallback:survey_workstation');
