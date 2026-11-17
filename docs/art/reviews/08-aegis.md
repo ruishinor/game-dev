@@ -14,3 +14,6 @@ Executed in authoring runtime: 210 sample frame validations across five variants
 
 ## Visual revision v2
 Replaced flat Aegis body surfaces (base, Hinge, Span, Lattice) with an additive depth-tested field shader, hex-like structural cells, restrained edge and Fresnel response, and a caller-time pulse disabled in reduced motion. Span has explicit source and destination posts/nodes and an optional traveling signal. Relay unchanged. No collision or authoritative effects changed. Review: show boundary topology, avoid opaque panels; shader resource ownership stays within existing effect pool; reduced motion disables traveling accents; preview uses stronger fill and equipment-facing default. Adversarial sample checks: 210 frames, max 10 objects; shader compilation and GLB PBR rendering still require hosted run. Sloped Span panel remains approximate. No final art approval.
+
+## Visual revision v3
+Span now has a shallow bowed field, an upward crown, and a continuous segmented perimeter derived from the same surface function, including sloped anchors. Vertical fallback retained. Shader wave avoids undefined negative-base GLSL pow. Reduced motion omits the traveling signal. Added exact geometry/edge alignment tests and a bounded sampler sweep (840 frames, maximum 40 objects). Browser verification pending at commit. No changes to combat semantics.

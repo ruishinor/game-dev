@@ -16,3 +16,11 @@ Gate before broad rollout: inspect textured multi-angle model renders and VFX ph
 - Inspection now defaults to the backpack's equipment-facing side and has closer framing, fill lighting, and explicit screenshot evidence for both sides.
 
 These are still stylized procedural models, not high-fidelity reproductions. Current methods are insufficient to reproduce the full concept-art surface complexity and soft organic detail. No external ready-made models were acquired. No body fit, gameplay integration or target GPU performance claim. Do not apply the same detail-only approach to the remaining packages until the benchmark has passed visual review. Existing prototype IDs and production manifest remain intact.
+
+## Second benchmark increment
+
+- Mender: curved closed carapace shells, smooth organic core and jointed tendrils; 4,404 triangles. Initial over-budget recipe rejected. Shared organic map change caused a biotech backpack reproducibility failure; opt-in material profile restored exact previous bytes. 76/76 Node tests, 31 GLBs, and 45 browser previews passed at 75108a5.
+- Equipment: true three-axis chamfers, reduced uniform wear and distinct workstation tooling. Eight regenerated GLBs remain below 9,000 triangles. Both hosted checks passed at 952c87e.
+- Span: curved surface and aligned perimeter, including elevation changes, with shader robustness correction and motion accessibility. Browser verification pending at commit.
+
+Remaining visual maturity is intermediate; no final art acceptance inferred from hosted tests.

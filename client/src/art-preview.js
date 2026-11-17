@@ -62,7 +62,7 @@ const glyphs=await fetch(BASE+'glyphs/manifest.json').then(r=>r.json());
 for(const g of glyphs){const f=document.createElement('figure'),im=document.createElement('img'),c=document.createElement('figcaption');im.src=BASE+'glyphs/'+g.file;im.alt=g.id;c.textContent=g.id;f.append(im,c);$('glyphs').append(f);}
 // Keep stable item IDs; content changes invalidate old artwork decisions.
 // Bump this revision when procedural effect/Mender visual source changes.
-const effectRevision='artfx-v1',aegisRevision='aegis-field-v2';
+const effectRevision='artfx-v1',aegisRevision='aegis-field-v3';
 const hashes=new Map(manifest.files.map(f=>[f.path,f.gitBlob]));
 const flat=new Map([['material:atlas',{label:'Industrial material atlas',images:Object.entries(atlas.files)}],...glyphs.map(g=>['glyph:'+g.id,{label:g.label||g.id,images:[[g.label||g.id,'glyphs/'+g.file]]}])]);
 const reviewIds=[...ids,...flat.keys()];

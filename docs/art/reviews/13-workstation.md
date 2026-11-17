@@ -20,3 +20,6 @@ Rebuilt complete stations and tabletop modules with structural pedestal frames, 
 - research_tabletop_module: 2516 triangles, 12 embedded maps, 399216 bytes.
 - engineering_workstation: 3672 triangles, 15 embedded maps, 547916 bytes.
 - engineering_tabletop_module: 2356 triangles, 15 embedded maps, 421500 bytes.
+
+## Visual revision v3
+Added distinct articulated engineering-tool assembly and research scanner gantry, machined three-axis corners, and less uniform wear. Tooling is static geometry, not functional machinery simulation. Hosted regression and browser inspection succeeded at 952c87e.

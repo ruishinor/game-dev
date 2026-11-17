@@ -1,4 +1,4 @@
-import { add,sub,scale,magnitude,vec3,positive,timing,validateFrame } from './common.js';
+import { add,sub,scale,magnitude,vec3,positive,timing,validateFrame,spanPoint } from './common.js';
 const BLUE=0x78d6ec, AMBER=0xefb86f, VIOLET=0xb99be8;
 export function aegisSampler({variant='base',center=[0,0,0],anchor=null,yaw=0,radius=1.6,duration=3,reducedMotion=false}={}){
  if(!['base','hinge','span','lattice','relay'].includes(variant)||!Number.isFinite(yaw))throw Error('invalid Aegis variant');
@@ -22,15 +22,18 @@ export function aegisSampler({variant='base',center=[0,0,0],anchor=null,yaw=0,ra
    const corners=[at(-w/2,radius*.75-h/2,radius*.55),at(w/2,radius*.75-h/2,radius*.55),at(w/2,radius*.75+h/2,radius*.55),at(-w/2,radius*.75+h/2,radius*.55)];
    for(let i=0;i<4;i++)beam('edge'+i,corners[i],corners[(i+1)%4],AMBER);
   }else if(variant==='span'){
-   const mid=scale(add(c,b),.5),horizontal=[delta[0],0,delta[2]],hd=magnitude(horizontal);
-   if(hd<.25){beam('verticalLink',add(c,[0,.3,0]),add(b,[0,.3,0]),VIOLET);ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);}
+   const horizontal=[delta[0],0,delta[2]],hd=magnitude(horizontal);
+   // Keep the vertical fallback; a nearly vertical pair cannot define a useful field width.
+   if(hd<.25||radius*1.4<=.12){beam('verticalLink',add(c,[0,.3,0]),add(b,[0,.3,0]),VIOLET);ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);}
    else{
-    const norm=[-horizontal[2]/hd,0,horizontal[0]/hd];
-    emit('spanPanel','panel',{at:add(mid,[0,radius*.7,0]),width:hd,height:radius*1.4,normal:norm,surface:'field',motion:!reducedMotion},VIOLET,.70);
-    beam('lower',add(c,[0,.12,0]),add(b,[0,.12,0]),VIOLET,.65);beam('upper',add(c,[0,radius*1.4,0]),add(b,[0,radius*1.4,0]),VIOLET,.65);
+    const norm=[-horizontal[2]/hd,0,horizontal[0]/hd],height=radius*1.4,bow=Math.min(.48,hd*.16,radius*.3);
+    const p=(u,v)=>spanPoint(c,b,height,bow,u,v);
+    emit('spanPanel','span',{a:c,b,height,bow,surface:'field',motion:!reducedMotion},VIOLET,.70);
+    // The shader mesh and perimeter use the same curve, including sloped anchor heights.
+    for(let i=0;i<16;i++){const u=i/16,v=(i+1)/16;beam('lower'+i,p(u,0),p(v,0),VIOLET,.48);beam('upper'+i,p(u,1),p(v,1),VIOLET,.64);}
     ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);
-    for(const [id,p] of [['source',c],['target',b]]){beam(id+'Post',add(p,[0,.12,0]),add(p,[0,radius*1.4,0]),VIOLET,.54);ring(id+'Node',add(p,[0,radius*1.4,0]),.13,norm,VIOLET,.67);}
-    if(!reducedMotion){const p=add(c,scale(delta,time.p));emit('spanSignal','point',{at:add(p,[0,radius*1.4,0]),radius:.046},BLUE,.75);}
+    for(const [id,u] of [['source',0],['target',1]]){beam(id+'Post',p(u,0),p(u,1),VIOLET,.54);ring(id+'Node',p(u,1),.13,norm,VIOLET,.67);}
+    if(!reducedMotion)emit('spanSignal','point',{at:p(time.p,1),radius:.046},BLUE,.75);
    }
   }else if(variant==='lattice'){
    for(let i=0;i<3;i++){const x=(i-1)*radius*.78,q=at(x,radius*.65,radius*.45),w=radius*.74,h=radius*1.3;

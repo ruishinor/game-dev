@@ -13,8 +13,8 @@ export function fieldMaterial(THREE,o){
  'vec2 h=dot(a,a)<dot(b,b)?a:b; h=h.yx;',
  'float d=abs(hexDistance(h)-.5); float lines=1.0-smoothstep(.017,.054,d);',
  'float edge=1.0-smoothstep(.0,.045,min(min(vUv.x,1.0-vUv.x),min(vUv.y,1.0-vUv.y)));',
- 'float rim=pow(1.0-abs(dot(normalize(vNormal),normalize(vView))),3.0);',
- 'float wave=exp(-pow((vUv.y-fract(phase*.42))*13.0,2.0))*motion;',
+ 'float rim=pow(clamp(1.0-abs(dot(normalize(vNormal),normalize(vView))),0.0,1.0),3.0);',
+ 'float q=(vUv.y-fract(phase*.42))*13.0; float wave=exp(-q*q)*motion;',
  'float opacity=clamp(.055+lines*.40+edge*.50+rim*.23+wave*.17,0.0,.90)*alpha;',
  'gl_FragColor=vec4(tint*(.70+lines*.35+edge*.25),opacity);',
  '}'].join(String.fromCharCode(10))

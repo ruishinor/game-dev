@@ -24,3 +24,6 @@ Owner accepted the concept/technical direction, not visual fidelity. Rebuilt all
 - backpack_utility: 3292 triangles, 18 embedded maps, 548272 bytes.
 
 Retrospective correction: narrowed lumbar pad to remove overlap with lower contact pads; regenerated all four variants and repeated structural checks.
+
+## Visual revision v3
+True three-axis machined chamfers on major housings and padded surfaces; restrained wear/normal map profile. All four revised GLBs regenerated; hosted regression and browser inspection succeeded at 952c87e. Still not a manually authored high-fidelity hero asset.
