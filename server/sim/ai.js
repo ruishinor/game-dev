@@ -4,6 +4,7 @@
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, resolveCollisions, deepLineClear } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
+import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
 export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
@@ -39,6 +40,7 @@ export function resetEnemy(game, e) {
   e.progressAt = 0;
   e.progressDist = Infinity;
   e.evadeSince = 0;
+  if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
 }
 
 function moveToward(e, tx, tz, step, radius, steer) {
@@ -74,6 +76,7 @@ function startEvade(game, e) {
   e.cast = null;
   e.buffs = [];
   e.evadeSince = game.time;
+  if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
 }
 
 function pickTarget(game, e) {
@@ -177,6 +180,7 @@ export function tickEnemy(game, e, dt) {
       startEvade(game, e);
       return;
     }
+    if(tickWildPredator(game,e,dt)||tickWildHerd(game,e,dt))return;
     // Wildlife reacts to a nearby living, unengaged predator without
     // granting combat threat, damage or XP. A cooldown preserves migration.
     if(e.form&&e.alarmUntil<=game.time&&game.time>=e.wildAlarmAt){
@@ -257,6 +261,9 @@ export function tickEnemy(game, e, dt) {
     return;
   }
 
+  // Player combat supersedes autonomous wildlife activity immediately.
+  if(e.type==='faultstalker')cancelWildHunt(game,e);
+  if(e.form)e.wildWound=0;
   if (dist(e, e.home) > def.leash) {
     startEvade(game, e);
     return;

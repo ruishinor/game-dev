@@ -10,6 +10,8 @@ test('Sinter circuits move continuously, stay in the biome and avoid colliders',
   const game = makeGame();
   const fauna = game.enemies.filter(e => e.type === 'sinter_grazer' || e.type === 'faultstalker');
   assert.equal(fauna.length, 4);
+  // Preserve the prior migration-only regression, independently of hunts.
+  fauna[3].huntReadyAt=Infinity;
   const initial = fauna.map(e => ({ x:e.x, z:e.z }));
   const visited = fauna.map(() => new Set());
   const modes=fauna.map(()=>new Set());
@@ -97,6 +99,7 @@ test('nearby shieldback defends attacked juvenile while an unengaged adult scatt
 
 test('long-lived grazers develop additional mineral growth without changing stats or loot',()=>{
   const g=makeGame(),herd=g.enemies.filter(e=>e.form);
+  g.enemies.find(e=>e.type==='faultstalker').huntReadyAt=Infinity;
   run(g,360000);
   assert.ok(herd.every(e=>e.grown&&e.routeLaps>=2));
   assert.ok(herd.every(e=>e.hp===ENEMIES.sinter_grazer.hp&&e.radius===ENEMIES.sinter_grazer.radius));

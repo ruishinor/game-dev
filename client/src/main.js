@@ -626,6 +626,17 @@ function onEvent(e) {
         }
         break;
       }
+      if(e.k==='sinter_pounce'||e.k==='sinter_repel'){
+        const d=S.ents.get(e.d);
+        if(s&&d&&s.placed&&d.placed){
+          s.attack=1;
+          const dx=d.pos.x-s.pos.x,dz=d.pos.z-s.pos.z,len=Math.hypot(dx,dz);
+          const nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          fx.faunaImpact([s.chest.x+nx*.35,s.chest.y,s.chest.z+nz*.35],[nx,0,nz],
+            {variant:'wild',radius:.5,duration:.45,reducedMotion:motionPreference.matches||quality===0});
+        }
+        break;
+      }
       if(e.k==='sinter_alarm'||e.k==='sinter_guard'||e.k==='sinter_molt'){
         if(s&&s.placed){
           const colour=e.k==='sinter_alarm'?0xcbb67a:e.k==='sinter_guard'?0xd98f52:0x9eae83;

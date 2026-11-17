@@ -711,13 +711,15 @@ function makeSinterFauna(predator, form = 'adult') {
         knee.rotation.x=Math.max(0,swing)*stride*.46;
         ankle.rotation.x=-leg.rotation.x-knee.rotation.x;
       }
-      const brace=st.ecology==='brace',watch=st.ecology==='watch';
+      const brace=st.ecology==='brace',watch=st.ecology==='watch'||st.ecology==='crouch'||st.ecology==='circle';
+      const lunge=st.ecology==='lunge';
       torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055-(brace?0.09:watch?0.07:0);
       head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
       head.rotation.y=watch?Math.sin(st.t*1.5)*0.28:0;
       const bite=st.dead?0:Math.max(0,st.attack||0);
       jawRig.rotation.x=.08+(st.casting?.35:bite*.50);
-      torso.rotation.x=-bite*(predator?.19:.10);
+      torso.rotation.x=-bite*(predator?.19:.10)+(lunge?.14:0);
+      torso.position.z=lunge?.13:0;
       // Small physical recoil; material colours remain stable on damage.
       torso.rotation.z=(st.hit||0)*.08;
       fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
