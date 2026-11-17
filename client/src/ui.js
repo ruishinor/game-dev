@@ -512,6 +512,11 @@ export class UI {
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
+    // First-use guidance is browser-local; completing it suppresses automatic reopening.
+    this.workshopTutorialSeen=false;
+    try{this.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}
+    this.workshopLesson=0;
+    this.workshopTutorialOpen=!this.workshopTutorialSeen;
     this.atSanctum=false;
 
     this.partyPanel = h('div', 'panel party-panel');

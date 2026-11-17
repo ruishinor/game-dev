@@ -512,7 +512,9 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .radio-volume::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(to right,var(--radio-accent) 0 var(--radio-volume-pct),#31424a var(--radio-volume-pct) 100%)}.radio-volume::-webkit-slider-thumb{appearance:none;width:10px;height:10px;border-radius:50%;background:var(--radio-accent);margin-top:-3px}.radio-volume::-moz-range-track{height:4px;border-radius:4px;background:#31424a}.radio-volume::-moz-range-progress{height:4px;background:var(--radio-accent)}.radio-volume::-moz-range-thumb{width:10px;height:10px;border:0;border-radius:50%;background:var(--radio-accent)}
 .radio-controls{margin-top:5px;padding-top:5px;border-top:1px solid #49616d}.radio-caption{font-size:9px;color:#a8c0c8}.radio-pref-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:3px}.radio-pref-actions button{font-size:10px;padding:4px 2px;white-space:nowrap}
 .radio-settings{display:grid;gap:8px;border-top:1px solid var(--edge);margin-top:12px;padding-top:10px}.radio-settings label{display:grid;gap:5px}
-#hud:has(.panel:not([hidden])) .radio-panel,#hud:has(.field-record:not([hidden])) .radio-panel{visibility:hidden}
+#hud:has(.panel:not([hidden])) .radio-panel{visibility:hidden}
+/* Left-side records and quest-adjacent transmissions can coexist on desktop. */
+@media(max-width:900px){#hud:has(.field-record:not([hidden])) .radio-panel{visibility:hidden}}
 @media(prefers-reduced-motion:reduce){.radio-panel[data-playing="true"] .radio-wave i{transform:scaleY(1)}}
 @media(max-width:720px){.radio-panel{width:min(200px,calc(100vw - 16px))}}
 

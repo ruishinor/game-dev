@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
 import { useAbility, dealDamage } from '../../server/sim/combat.js';
+import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null });
@@ -43,6 +44,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Fault Scan', exact: true }).count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);
   async function moveTo(x, z) {
+    assert.ok(!p.dead,`Fixture cannot move a defeated player to ${x},${z}`);
     p.x = x; p.z = z;
     if (p.companion) { p.companion.x = x+1.5; p.companion.z = z-1.5; }
     await page.waitForFunction(([x,z]) => {
@@ -53,6 +55,7 @@ try {
   async function capture(path) {
     const drawn = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction(n => window.__attune.state().drawn > n, drawn);
+    assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
   await moveTo(43, -27);
@@ -80,6 +83,8 @@ try {
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
   await page.locator('.field-record').waitFor({state:'visible'});
   await page.locator('.radio-panel[data-source="field"]').waitFor({state:'visible'});
+  const recordBox=await page.locator('.field-record').boundingBox(),radioBox=await page.locator('.radio-panel').boundingBox();
+  assert.ok(recordBox&&radioBox&&(recordBox.x+recordBox.width<=radioBox.x||radioBox.x+radioBox.width<=recordBox.x||recordBox.y+recordBox.height<=radioBox.y||radioBox.y+radioBox.height<=recordBox.y),'Default desktop radio and field record must not overlap');
   assert.match(await page.locator('.radio-transcript').innerText(),/Return to Archivist Venn/);
   assert.equal(await page.locator('.radio-portrait svg').count(),1);
   assert.equal(await page.locator('.radio-wave i').count(),18);
@@ -142,8 +147,12 @@ try {
   assert.equal(JSON.stringify({equipped:p.char.equipped,inventory:p.char.inventory,materials:p.char.materials}),baseline);
   await workshop.getByRole('button',{name:'Close Build'}).click();
   await page.locator('#view').focus();
-  // Observe from the west, outside the predator's patrol. The earlier
-  // camera setup placed a stationary player inside its aggro radius.
+  // Art capture fixture: isolate the independently tested autonomous hunt
+  // before entering the biome, not after it has already defeated the player.
+  const predator=server.game.enemies.find(e=>e.type==='faultstalker');
+  assert.ok(predator);
+  resetEnemy(server.game,predator);
+  predator.x=19;predator.z=60;predator.wanderAt=Infinity;predator.huntReadyAt=Infinity;
   await moveTo(-3, 58.4);
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
@@ -173,8 +182,9 @@ try {
   const herd=server.game.enemies.filter(e=>e.form);
   const spots=[[3,51],[5.5,51.5],[8,51]];
   for(const [i,g] of herd.entries()){
+    resetEnemy(server.game,g);
     g.x=spots[i][0];g.z=spots[i][1];g.grown=true;
-    g.wanderAt=server.game.time+30000;g.alarmUntil=0;g.wildAlarmAt=server.game.time+30000;
+    g.wanderAt=Infinity;g.alarmUntil=0;g.wildAlarmAt=Infinity;
   }
   await moveTo(5.5,45);
   await page.evaluate(()=>window.__attune.view({yaw:0,pitch:0.17,dist:7,face:0}));
@@ -207,12 +217,12 @@ try {
     return rig?.getObjectByName('fauna:calcified')?.visible&&rig?.getObjectByName('fauna:scar')?.visible;
   });
   await capture('preview-evidence/05a-adaptive-grazer.png');
-  // Fixture disables predator interference only during this controlled check.
-  const predator=server.game.enemies.find(e=>e.type==='faultstalker');
-  predator.x=19;predator.z=60;predator.wanderAt=server.game.time+30000;
-  predator.huntReadyAt=Infinity;predator.wildPrey=0;predator.wildPhase=null;
+  // The defeated-target capture isolates a single adult. Shieldback's real
+  // intervention and predator combat are covered by the ecology simulation suite.
+  const shieldback=herd.find(g=>g.form==='shieldback');assert.ok(shieldback);
+  shieldback.x=3;shieldback.z=65;
   await moveTo(5.5,48);
-  adult.x=5.5;adult.z=51.5;adult.wanderAt=server.game.time+30000;
+  adult.x=5.5;adult.z=51.5;adult.wanderAt=Infinity;
   server.game.setTarget(p,adult.id);
   await page.waitForFunction(id=>window.__attune.state().target===id,adult.id);
   assert.ok(/Neutral/.test(await page.locator('.frame.target .sub').innerText()));
@@ -225,6 +235,9 @@ try {
   await capture('preview-evidence/06-kestrel-approach.png');
   const custodian=server.game.enemies.find(e=>e.type==='quarantine_custodian');
   assert.ok(custodian);
+  // Stage an idle living custodian outside proximity aggro for the interior
+  // art capture. Its actual encounter combat is independently tested.
+  resetEnemy(server.game,custodian);custodian.x=-60;custodian.z=-10.4;custodian.wanderAt=Infinity;
   p.hp=p.maxHp;
   await moveTo(-53,-8);
   await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.18,dist:6,face:-Math.PI/2}));
@@ -258,11 +271,13 @@ try {
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.
   // The actual damage API is used from the same room, never a wall bypass.
+  assert.ok(!p.dead,'The recorder scenario requires a living player');
   custodian.x=-55;custodian.z=-8;
   if(custodian.state!=='dead') {
     custodian.state='combat';
     dealDamage(server.game,p,custodian,9999,'fixture');
   }
+  assert.equal(custodian.state,'dead','The setup kill must actually succeed');
   p.combatUntil=0;
   await moveTo(-59,-8);
   await page.keyboard.press('f');
