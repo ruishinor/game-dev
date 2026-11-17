@@ -59,3 +59,29 @@ test('Brineworks: valid state, accessible southern approach and both evidence te
   for (const o of OBJECTS.filter(o => o.type.startsWith('survey_'))) free(o.x, o.z+2);
   for (let x = 39; x <= 47; x += 0.5) free(x, -30);
 });
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { CharacterStore } from '../server/store.js';
+
+test('Brineworks: survey and new appearance survive a save/reload; old and invalid state migrate', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attune-survey-'));
+  try {
+    const file = path.join(dir, 'characters.json');
+    const store = new CharacterStore(file);
+    const { char, token } = store.create('Brine Tester', 'symbiotech', 'brine_surveyor');
+    char.survey = 'ledger_done';
+    store.flush();
+    const restored = new CharacterStore(file).authenticate(token);
+    assert.equal(restored.survey, 'ledger_done');
+    assert.equal(restored.look, 'brine_surveyor');
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    delete raw.characters[0].survey;
+    fs.writeFileSync(file, JSON.stringify(raw));
+    assert.equal(new CharacterStore(file).authenticate(token).survey, null);
+    raw.characters[0].survey = 'invalid';
+    fs.writeFileSync(file, JSON.stringify(raw));
+    assert.equal(new CharacterStore(file).authenticate(token).survey, null);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

@@ -1,0 +1,64 @@
+// Real browser, single client, isolated temporary server. Teleport is setup only.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { startServer } from '../../server/index.js';
+import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
+
+const server = await startServer({ port: 0, dataFile: null });
+let browser;
+try {
+  fs.mkdirSync('preview-evidence', { recursive: true });
+  browser = await launchBrowser();
+  const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  page.setDefaultTimeout(90000);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('response', r => { if (r.status() >= 400) errors.push(r.status() + ' ' + r.url()); });
+  const url = 'http://127.0.0.1:' + server.port + '/?q=1&qlock=1&nolock=1' + (SOFTWARE_GL ? '&rfps=1' : '');
+  await page.goto(url);
+  await page.fill('#name', 'Brine Tester');
+  await page.click('.classcard[data-cls="symbiotech"]');
+  await page.click('.lookcard[data-look="brine_surveyor"]');
+  await page.click('#enter');
+  await page.waitForFunction(() => {
+    const s = window.__attune?.state();
+    return s?.myId && s.sheet?.look === 'brine_surveyor' && s.drawn >= 2 && s.ents.some(e => e.id === s.myId && e.model === 'glb');
+  });
+  await page.waitForFunction(() => window.__attune.state().world.prototypeArt === 'ready');
+  await page.screenshot({ path: 'preview-evidence/01-surveyor.png' });
+  const p = [...server.game.players.values()].find(x => x.name === 'Brine Tester');
+  assert.ok(p);
+  async function moveTo(x, z) {
+    p.x = x; p.z = z;
+    if (p.companion) { p.companion.x = x+1.5; p.companion.z = z-1.5; }
+    await page.waitForFunction(([x,z]) => {
+      const pos = window.__attune.state().pos;
+      return pos && Math.hypot(pos.x-x,pos.z-z) < 1.5;
+    }, [x,z]);
+  }
+  async function capture(path) {
+    const drawn = await page.evaluate(() => window.__attune.state().drawn);
+    await page.waitForFunction(n => window.__attune.state().drawn > n, drawn);
+    await page.screenshot({ path });
+  }
+  await moveTo(43, -27);
+  await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
+  await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
+  await capture('preview-evidence/02-brineworks.png');
+  await moveTo(39, -30);
+  await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
+  await page.keyboard.press('f');
+  await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
+  assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
+  await capture('preview-evidence/03-field-evidence.png');
+  await moveTo(6.2, -2.6);
+  await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'archivist'));
+  await page.keyboard.press('f');
+  await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal_done');
+  assert.equal(p.char.quest.step, 0);
+  assert.equal(p.char.xp, 35);
+  await capture('preview-evidence/04-report.png');
+  assert.deepEqual(errors, []);
+  console.log('PASS Brine Surveyor GLB, live prototype tower, Brineworks zone, F evidence/report, unchanged directives');
+} finally { await browser?.close(); await server.close(); }

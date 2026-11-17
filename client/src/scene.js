@@ -260,6 +260,7 @@ const procedural = {
     add(G.box, glow(0xe1bc6b), 0.12, 0.055, 0.025, 0.36, 2.55, 0.87, false);
     return g;
   },
+  survey_tower(p) { return procedural.survey_pump(p); },
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -1070,6 +1071,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   vaultLight.position.set(ZONES.vault.x, 6, ZONES.vault.z);
   scene.add(vaultLight);
 
+  let prototypeArt = opts.prototypeArt && assets ? 'loading' : 'disabled';
   let fallbacks = 0;
   for (const p of PROPS) {
     let obj;
@@ -1088,6 +1090,31 @@ export function buildWorld(scene, assets = null, opts = {}) {
     obj.position.z += p.z;
     obj.position.y += groundHeight(p.x, p.z) - 0.15;
     scene.add(obj);
+    if (p.type === 'survey_tower' && prototypeArt === 'loading') {
+      // Draft-preview experiment only. Keep the procedural structure visible until
+      // the complete asset has loaded and its bounds fit the authoritative collider.
+      const fallback = obj;
+      assets.loader.loadAsync('/client/art-assets/resonance_tower_deployed.glb').then(gltf => {
+        const root = gltf.scene;
+        root.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(root);
+        const size = bounds.getSize(new THREE.Vector3());
+        if (bounds.isEmpty() || ![size.x, size.y, size.z].every(n => Number.isFinite(n) && n > 0)) throw new Error('invalid tower bounds');
+        const factor = Math.min((p.hw * 2 - 0.2) / size.x, (p.hd * 2 - 0.2) / size.z, (p.h - 0.2) / size.y);
+        const centre = bounds.getCenter(new THREE.Vector3());
+        const fitted = new THREE.Group();
+        fitted.add(root);
+        fitted.scale.setScalar(factor);
+        fitted.position.set(-centre.x * factor, -bounds.min.y * factor, -centre.z * factor);
+        root.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+        fallback.clear();
+        fallback.add(fitted);
+        prototypeArt = 'ready';
+      }).catch(err => {
+        prototypeArt = 'fallback';
+        console.warn('[scene] prototype tower unavailable; retaining procedural structure:', err.message || err);
+      });
+    }
   }
 
   if (kits) buildVegetation(c, detail);
@@ -1117,7 +1144,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return prototypeArt; } },
     occluders,
     /**
      * @param focus the player's feet

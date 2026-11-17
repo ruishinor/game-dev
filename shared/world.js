@@ -176,7 +176,7 @@ function buildProps() {
   const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => Math.hypot(p.x - survey.x, p.z - survey.z) >= survey.r + 2));
   retained.push(
     { type: 'survey_pump', x: 43, z: -39, hw: 2.15, hd: 1.45, h: 4.8 },
-    { type: 'survey_pump', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
+    { type: 'survey_tower', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
     { type: 'wall', x: 43, z: -43, hw: 5, hd: 0.6, h: 2.8 },
     { type: 'wall', x: 53, z: -37, hw: 0.6, hd: 3.5, h: 2.4 },
     { type: 'crate', x: 38, z: -39, hw: 0.9, hd: 0.8, h: 1.2 },
