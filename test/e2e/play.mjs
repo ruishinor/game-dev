@@ -511,6 +511,32 @@ try {
   }, null, 3000, 'death pose released');
   check('14. respawning releases the death pose', risen);
 
+  // The second browser must independently recover, including its companion.
+  // Force damage through the authoritative combat function, then use the
+  // normal on-screen death/reconstitution UI (not a direct respawn call).
+  teleport('Lumen', 0, 45);
+  await settle(B, 0, 45);
+  const levelBeforeRecovery = (await state(B)).sheet.level;
+  const support = serverPlayer('Lumen');
+  dealDamage(game, null, support, support.hp + 100, 'test_defeat');
+  note('defeated Lumen server-side to exercise the second browser recovery UI');
+  const secondDied = await until(B, () => !document.querySelector('.death').hidden, null, 5000, 'B death overlay');
+  check('6. the second player receives an independent death overlay', secondDied);
+  const secondCanRespawn = await until(B, () => !document.querySelector('.death button').disabled, null, 6000, 'B respawn button');
+  if (secondCanRespawn) await B.page.click('.death button');
+  const secondRecovered = await until(B, () => {
+    const s = window.__attune.state();
+    const self = s.ents.find((e) => e.id === s.myId);
+    return document.querySelector('.death').hidden && self && !(self.row.f & 1) && self.row.h === self.row.m && Math.hypot(s.pos.x, s.pos.z) < 12;
+  }, null, 5000, 'B recovered at Sanctum');
+  const secondSeenByAlly = await until(A, (id) => {
+    const other = window.__attune.state().ents.find((e) => e.id === id);
+    return other && !(other.row.f & 1) && other.row.h === other.row.m;
+  }, (await state(B)).myId, 5000, 'A sees recovered B');
+  const secondState = await state(B);
+  check('6/11. second player respawns using own UI, keeps level and remains visible', secondCanRespawn && secondRecovered && secondSeenByAlly && secondState.sheet.level === levelBeforeRecovery);
+  check('8. companion remains attached to the second player after recovery', secondState.compId > 0 && secondState.ents.some((e) => e.id === secondState.compId));
+
   // --------------------------------------------- 15. appearance independent of class
   const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker');
   const sc = await state(C);
