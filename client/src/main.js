@@ -10,6 +10,7 @@ import { Assets } from './assets.js';
 import { createModel, CHARACTER_BUNDLES } from './characters.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
+import { LiveAegis } from './live-aegis.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
@@ -57,6 +58,8 @@ scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
 const fx = new Fx(scene);
+const liveAegis = new LiveAegis(THREE);
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
 // pointer lock misbehaves, and for automated input).
@@ -406,6 +409,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  liveAegis.remove(ent.id);
   scene.remove(ent.holder);
   if (ent.model.dispose) ent.model.dispose();
   else {
@@ -421,6 +425,7 @@ function removeEntity(ent) {
 
 function clearWorld() {
   for (const ent of [...S.ents.values()]) removeEntity(ent);
+  liveAegis.clear();
   ui.clearPlates();
 }
 
@@ -545,7 +550,8 @@ function onEvent(e) {
         if (d.model.trigger) d.model.trigger('hit');
         const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
-        if (e.k !== 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
+        else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -608,7 +614,7 @@ function onEvent(e) {
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
-        fx.pillar(s.pos.x, s.pos.z, 0x7fd0ff, 600);
+        if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
       } else if (e.k === 'surge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
@@ -997,6 +1003,7 @@ function updateEntities(dt, t, now) {
     // The low preset also stops drawing characters far across the valley.
     ent.inView = frustum.intersectsSphere(cullSphere) && (quality > 0 || ent.id === S.myId || camera.position.distanceToSquared(cullSphere.center) < 80 * 80);
     ent.holder.visible = ent.inView;
+    liveAegis.sync(ent, motionPreference.matches || quality === 0, t);
     ent.model.update(dt, {
       t,
       speed: ent.speed,

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
+import { useAbility } from '../../server/sim/combat.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null });
@@ -82,5 +83,46 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
-  console.log('PASS Brine Surveyor GLB, two independent static art models, missing-model fallback, Brineworks zone, F evidence/report, unchanged directives');
+  const keeper = await browser.newPage({viewport:{width:1000,height:700}});
+  keeper.setDefaultTimeout(90000);
+  const keeperErrors=[];
+  keeper.on('pageerror', e => keeperErrors.push(e.message));
+  keeper.on('console', m => { if(m.type()==='error')keeperErrors.push(m.text()); });
+  await keeper.goto(url);
+  await keeper.fill('#name','Aegis Keeper');
+  await keeper.click('.classcard[data-cls="vanguard"]');
+  await keeper.click('.lookcard[data-look="aegis_keeper"]');
+  await keeper.click('#enter');
+  await keeper.waitForFunction(() => {
+    const s=window.__attune?.state();
+    return s?.myId && s.sheet?.look==='aegis_keeper' && s.ents.some(e=>e.id===s.myId && e.model==='glb') && s.drawn>=2;
+  });
+  const tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper');
+  assert.ok(tank);
+  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  tank.char.inventory.push('glyph_resonant_aegis');
+  tank.char.attunements.push('resonance');
+  tank.char.equipped.glyph='glyph_resonant_aegis';
+  server.game.refreshStats(tank);
+  server.game.markDirty(tank);
+  tank.res=100;
+  // Fixture invokes the actual authoritative ability; extend only for slow screenshot capture.
+  assert.ok(useAbility(server.game,tank,'discharge').ok);
+  const shield=tank.buffs.find(b=>b.k==='shield');
+  assert.ok(shield && shield.v>0);
+  shield.until=server.game.time+60000;
+  await keeper.waitForFunction(()=>{
+    const s=window.__attune.state();
+    const g=window.__attune.gfx.scene.getObjectByName('live-aegis:'+s.myId);
+    return g?.children.some(m=>m.visible&&m.material.isShaderMaterial);
+  });
+  await keeper.evaluate(()=>window.__attune.view({yaw:0,pitch:.2,dist:6,face:Math.PI}));
+  const drawn=await keeper.evaluate(()=>window.__attune.state().drawn);
+  await keeper.waitForFunction(n=>window.__attune.state().drawn>n,drawn);
+  await keeper.screenshot({path:'preview-evidence/05-aegis-keeper.png'});
+  tank.buffs=tank.buffs.filter(b=>b.k!=='shield');
+  await keeper.waitForFunction(()=>!window.__attune.gfx.scene.getObjectByName('live-aegis:'+window.__attune.state().myId));
+  assert.deepEqual(keeperErrors,[]);
+  await keeper.close();
+  console.log('PASS Brineworks preview and Aegis Keeper GLB, server-glyph field and removal');
 } finally { await browser?.close(); await server.close(); }

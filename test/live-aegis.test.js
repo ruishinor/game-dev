@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { LiveAegis, shieldVisible } from '../client/src/live-aegis.js';
+import { validLook, defaultLook } from '../shared/content.js';
+import { useAbility } from '../server/sim/combat.js';
+import { makeGame, makeChar, place } from './helpers.js';
+
+test('Aegis Keeper is cosmetic and the existing glyph determines shield state', () => {
+  assert.ok(validLook('vanguard','aegis_keeper'));
+  assert.equal(validLook('symbiotech','aegis_keeper'),false);
+  assert.equal(defaultLook('vanguard'),'vanguard_plate');
+  const game=makeGame();
+  const p=game.addPlayer(makeChar('vanguard',{look:'aegis_keeper',inventory:['glyph_resonant_aegis'],attunements:['resonance'],equipped:{device:null,implant:null,glyph:'glyph_resonant_aegis'}}));
+  place(p,0,25);
+  p.res=100;
+  assert.ok(useAbility(game,p,'discharge').ok);
+  assert.equal(p.res,0);
+  const row=()=>game.buildRows().find(r=>r.i===p.id);
+  assert.ok(shieldVisible(row()));
+  const buff=p.buffs.find(b=>b.k==='shield');
+  const capacity=buff.v;
+  buff.v=0;
+  assert.ok(!shieldVisible(row()));
+  buff.v=capacity;
+  buff.until=game.time;
+  assert.ok(!shieldVisible(row()));
+});
+
+test('Aegis visual follows snapshot, reuses resources, and clears on death, absence or quality transitions', () => {
+  const live=new LiveAegis(THREE);
+  const ent={id:7,meta:{k:'p'},holder:new THREE.Group(),model:{height:1.9},inView:true,dead:false,row:{f:0,b:['shield']}};
+  live.sync(ent,false,0);
+  const g=ent.holder.getObjectByName('live-aegis:7');
+  assert.ok(g && g.children.some(m=>m.material.isShaderMaterial));
+  const old=g.children.slice();
+  let disposed=0;
+  for(const m of old){m.material.addEventListener('dispose',()=>disposed++);m.geometry.addEventListener('dispose',()=>disposed++);}
+  live.sync(ent,false,22);
+  assert.deepEqual(g.children,old);
+  ent.holder.position.set(9,2,-7);
+  ent.holder.updateMatrixWorld(true);
+  assert.equal(g.getWorldPosition(new THREE.Vector3()).x,9);
+  live.sync(ent,true,23);
+  assert.equal(disposed,old.length*2);
+  const reduced=ent.holder.getObjectByName('live-aegis:7');
+  assert.equal(reduced.children.find(m=>m.material.isShaderMaterial).material.uniforms.motion.value,0);
+  ent.row={f:0,b:[]};
+  live.sync(ent,true,24);
+  assert.equal(live.fields.size,0);
+  ent.row={f:0,b:['shield']};
+  live.sync(ent,true,25);
+  ent.dead=true;
+  live.sync(ent,true,26);
+  assert.equal(ent.holder.children.length,0);
+  ent.dead=false;
+  live.sync(ent,false,27);
+  ent.inView=false;
+  live.sync(ent,false,28);
+  assert.equal(live.fields.size,0);
+  ent.inView=true;
+  live.sync(ent,false,29);
+  live.clear();
+  assert.equal(ent.holder.children.length,0);
+  assert.equal(live.fields.size,0);
+  assert.equal(shieldVisible({f:1,b:['shield']}),false);
+  assert.equal(shieldVisible(null),false);
+});

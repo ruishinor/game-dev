@@ -176,6 +176,30 @@ function surveyRig(ctx) {
   ctx.attach('pelvis', place(new THREE.Mesh(box(0.10, 0.15, 0.06), ochre), 0.185, 0.94, -0.02));
 }
 
+/** A forearm projector and offset reserve cell, not a physical shield. */
+function aegisArray(ctx) {
+  const alloy = std({ color: 0x697f83, metalness: 0.65, roughness: 0.5 });
+  const ceramic = std({ color: 0x31383b, metalness: 0.25, roughness: 0.82 });
+  const insulator = std({ color: 0xa28b61, roughness: 0.8 });
+  const status = glow(0x89cfe1);
+  const attach = (bone, geo, mat, ...at) => ctx.attach(bone, place(new THREE.Mesh(geo, mat), ...at));
+  attach('spine_03', new THREE.CylinderGeometry(0.058, 0.072, 0.31, 12), ceramic, -0.075, 1.31, -0.21, 0, 0, -0.12);
+  for (const y of [1.19, 1.43]) attach('spine_03', new THREE.CylinderGeometry(0.073, 0.073, 0.032, 12), alloy, -0.075, y, -0.21);
+  attach('spine_03', box(0.12, 0.15, 0.055), alloy, 0.075, 1.36, -0.20);
+  for (let i = 0; i < 3; i++) attach('spine_03', box(0.08, 0.009, 0.006), insulator, 0.075, 1.32 + i * 0.035, -0.23);
+  ctx.attach('spine_03', strap([[-0.075,1.43,-0.21],[-0.025,1.50,-0.16],[0.08,1.44,-0.21]], ceramic, 0.013));
+  const emitter = new THREE.Group();
+  emitter.name = 'aegis-projector';
+  emitter.add(place(new THREE.Mesh(box(0.16, 0.065, 0.115), ceramic), 0.60, 1.45, -0.065));
+  for (const z of [-0.132, 0.002]) emitter.add(place(new THREE.Mesh(box(0.13, 0.034, 0.024), alloy), 0.60, 1.47, z, 0, 0, 0.16));
+  emitter.add(place(new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.008, 6, 16), alloy), 0.60, 1.491, -0.065, -Math.PI / 2));
+  emitter.add(place(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.014, 10), status), 0.60, 1.488, -0.065));
+  ctx.attach('lowerarm_l', emitter);
+  attach('Head', box(0.054, 0.028, 0.021), alloy, -0.043, 1.7, 0.125);
+  attach('Head', box(0.032, 0.009, 0.008), status, -0.043, 1.7, 0.139);
+  attach('pelvis', box(0.09, 0.12, 0.055), insulator, -0.18, 0.94, -0.02);
+}
+
 // --- looks -------------------------------------------------------------------
 
 export const LOOK_DEFS = {
@@ -208,6 +232,22 @@ export const LOOK_DEFS = {
     },
     gear: [rucksack, shortsStar],
     accent: 0xff6a4a,
+  },
+  aegis_keeper: {
+    body: 'humanoid_f',
+    scale: 0.95,
+    parts: { body: { color: 0x919b91, roughness: 0.78 }, joints: { color: 0x282d30, roughness: 0.88 } },
+    shells: {
+      coat: { color: 0x777c76, roughness: 0.86, map: 'look_coat_panels' },
+      upperarms: { color: 0x414b50, roughness: 0.72 },
+      forearms: { color: 0x506063, metalness: 0.48, roughness: 0.59 },
+      thighs: { color: 0x373d41, roughness: 0.86 },
+      shins: { color: 0x515b5e, metalness: 0.38, roughness: 0.67 },
+      shoes: { color: 0x343b3d, roughness: 0.88 },
+      hood: { color: 0x414b50, roughness: 0.83 },
+    },
+    gear: [aegisArray],
+    accent: 0x89cfe1,
   },
   conductor: {
     body: 'humanoid_f',

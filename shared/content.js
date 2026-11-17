@@ -58,6 +58,7 @@ export const LOOKS = {
   vanguard: [
     { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
     { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
+    { id: 'aegis_keeper', name: 'Aegis Keeper', blurb: 'Compact field-protection specialist with an asymmetric projection array. Earn and inscribe Resonant Aegis to shield allies. Appearance only; Vanguard rules apply.' },
   ],
   symbiotech: [
     { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
