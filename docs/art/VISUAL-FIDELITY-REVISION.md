@@ -1,0 +1,32 @@
+# Visual fidelity revision: owner decision and quality gate
+
+Owner decision (2026-11-17): assume all fifteen packages and 65 review entries accepted for concept, intended function and prior technical validation; visual fidelity and artistic quality require modification. No individual artwork is approved for production by this decision. Preserve game mechanics, asset identity and existing shipped asset contract.
+
+The attached references emphasize mature industrial science-fantasy: repairable machinery, asymmetric utility equipment, worn materials, grounded proportions, biologically altered forms, and intelligible field effects. The previous screenshots show an oversized plain wearer-facing backpack surface, furniture-like workstation and flat featureless Span panel. Camera, lighting and materials matter, but do not substitute for modeling and design.
+
+Benchmark: revise the backpack family, engineering/research workstations and Aegis presentation first. Review both sides and inspect actual textured rendering; compare against prior screenshots and concept references. Preserve stable IDs, mounts and variant semantics. Use real PBR inputs, not just a larger triangle count. Avoid gore, excessive emissive surfaces and medieval ornament. Original prototypes remain isolated from shipped gameplay.
+
+Gate before broad rollout: inspect textured multi-angle model renders and VFX phases; distinguish structural validity from reference fidelity. Record limitations and do not mark visual status accepted without evidence. Prefer existing/free donor assets if accessible and appropriate; otherwise document original procedural fallback. No mandatory paid tools.
+
+## Benchmark increment
+
+- Backpack: all four variants rebuilt with PBR maps; body-facing lumbar overlap corrected.
+- Workstation: all four variants rebuilt with PBR maps and a distinct tooling silhouette. The first invalid bevel recipe was rejected by structural generation before publication.
+- Aegis: four field surfaces gain a procedural structured shader, with Span endpoint posts and signal. Relay remains unchanged. Actual browser shader verification is required.
+- Inspection now defaults to the backpack's equipment-facing side and has closer framing, fill lighting, and explicit screenshot evidence for both sides.
+
+These are still stylized procedural models, not high-fidelity reproductions. Current methods are insufficient to reproduce the full concept-art surface complexity and soft organic detail. No external ready-made models were acquired. No body fit, gameplay integration or target GPU performance claim. Do not apply the same detail-only approach to the remaining packages until the benchmark has passed visual review. Existing prototype IDs and production manifest remain intact.
+
+## Second benchmark increment
+
+- Mender: curved closed carapace shells, smooth organic core and jointed tendrils; 4,404 triangles. Initial over-budget recipe rejected. Shared organic map change caused a biotech backpack reproducibility failure; opt-in material profile restored exact previous bytes. 76/76 Node tests, 31 GLBs, and 45 browser previews passed at 75108a5.
+- Equipment: true three-axis chamfers, reduced uniform wear and distinct workstation tooling. Eight regenerated GLBs remain below 9,000 triangles. Both hosted checks passed at 952c87e.
+- Span: curved surface and aligned perimeter, including elevation changes, with shader robustness correction and motion accessibility. Browser verification pending at commit.
+
+Remaining visual maturity is intermediate; no final art acceptance inferred from hosted tests.
+
+Span perimeter refinement: use two continuous tubes rather than 32 individual beam draws; shader and perimeter remain aligned. This reduces object and draw-call overhead without changing gameplay. Requires hosted validation at updated head.
+
+## Full first fidelity-pass checkpoint
+
+All fifteen packages now have a revision record. The last comprehensive revision commit e1a8c9d passed 80 Node tests (including all 31 GLB validator and regeneration checks) and rendered all 45 Three.js previews in hosted Chromium. Atlas and glyph generation checks passed too. This is technical evidence, not artistic acceptance. Earlier rendered samples still read as stylized low-poly industrial sci-fi: remaining gaps include nonuniform local wear, complex mechanical silhouettes, material variation at realistic scale, soft organic forms and richer field shading. The inspection camera now frames each effect across its sampled lifetime, and the browser evidence job captures every model/effect/glyph/atlas plus two additional effect phases. These new inspection changes require their own hosted check. No live gameplay integration or target-device frame-time validation; no production approval. Existing prototype IDs and review decision storage preserved. Further quality improvement should use authored/sculpted or carefully selected donor meshes with rig-aware fit, UVs and material baking rather than simply adding geometric detail.

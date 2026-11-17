@@ -2,14 +2,27 @@
 // button just asks main.js to send an intent. Dynamic text (names, chat) is
 // only ever written with textContent.
 
-import { ABILITIES, CLASSES, COMPANIONS, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
+import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
+import { RECIPES } from '../../shared/crafting.js';
+import { renderWorkshop } from './workshop-ui.js';
+import { RadioPanel } from './radio.js';
+import { LootPanel } from './loot-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
+  hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
+  resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
+  lattice_relay:svg('<path d="m12 3 9 9-9 9-9-9zM3 12h18M12 3v18"/><circle cx="12" cy="12" r="3"/>'),
+  fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
+  core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
+  field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
+  controlled_blast: svg('<circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5M4 4l4 4m8 8 4 4M4 20l4-4m8-8 4-4"/>'),
   rending_arc: svg('<path d="M4 19C7 8 14 4 21 5"/><path d="M7 21 19 9"/>'),
   graviton_tether: svg('<circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M8.5 15.5 15.5 8.5"/><path d="M11 7h-4M17 13v4"/>'),
   kinetic_ward: svg('<path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/><path d="M12 8v8"/>'),
@@ -32,19 +45,25 @@ const BUFFS = {
   shield: ['Aegis', 'good'],
   sap: ['Sapped', 'bad'],
   corrode: ['Corroded', 'bad'],
+  carapace_imprint: ['Carapace Imprint', 'bad'],
   root: ['Rooted', 'bad'],
 };
 
 const GLYPH_NOTES = {
-  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
-  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent.' },
-  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%.' },
-  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung.' },
+  glyph_hinge:{ability:'hinge_field',text:'Hinge + Lattice Resonator: Shared Pulse can restore active barrier capacity.'},
+  glyph_reversal:{ability:'resonant_reversal',text:'Divide: retains 25% of remaining barrier and releases the other 75%.'},
+  glyph_faultline: { ability: 'controlled_blast', text: 'Glyph of the Faultline: 7m demolition radius.' },
+  glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
+  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%. An imprinted target moves the echo to its position, consuming the imprint.' },
+  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent. Shared Pulse repairs an active damaged Aegis instead of splash healing.' },
+  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
+  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SKILL_INFO = {
+  instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
   biotech: 'Conductor primary skill: increases Power by 2 percentage points per point above 10 and meets Biotech equipment requirements.',
 };
@@ -105,6 +124,8 @@ export class UI {
   constructor(actions) {
     this.a = actions;
     this.sheet = null;
+    this.unseenItems = new Set();
+    this.workshopSite=null;
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
@@ -199,6 +220,13 @@ export class UI {
     this.playerContext.hidden = true;
     root.append(this.playerContext);
     this.bindPlayerContext(this.target.el, () => this.currentTarget?.id);
+    this.npcPanel=h('div','panel npc-panel');
+    this.npcPanel.hidden=true;
+    this.npcPanel.setAttribute('role','dialog');
+    this.npcPanel.setAttribute('aria-label','NPC interaction');
+    root.append(this.npcPanel);
+    this.fieldRecordPanel=h('aside','field-record');this.fieldRecordPanel.hidden=true;
+    this.fieldRecordPanel.setAttribute('aria-label','Field record');root.append(this.fieldRecordPanel);
     document.addEventListener('pointerdown', (e) => {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
@@ -212,7 +240,7 @@ export class UI {
         this.closePlayerContext(true);
       }else if(['Tab','ArrowUp','ArrowDown','Home','End'].includes(e.key)){
         e.preventDefault();
-        const buttons=[...this.playerContext.querySelectorAll('button')];
+        const buttons=[...this.playerContext.querySelectorAll('button:not(:disabled)')];
         if(!buttons.length)return;
         const i=buttons.indexOf(document.activeElement);
         const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:
@@ -232,7 +260,13 @@ export class UI {
     this.trackerText = h('div', 'text');
     this.trackerProgress = h('div', 'progress');
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
-    side.append(this.minimap, this.zoneLabel, this.tracker);
+    this.surveyTracker = h('div', 'tracker');
+    this.surveyText = h('div', 'text');
+    this.brineWorkshop=h('button','brine-workshop','Open field Workshop [B]');
+    this.brineWorkshop.hidden=true;
+    this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
+    side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
     this.errors = h('div', 'errors');
@@ -240,6 +274,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
+    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -303,6 +338,9 @@ export class UI {
         e.preventDefault();
         const text = this.chat.value.trim();
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
+        const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
+        if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
           const message=(command[2]||'').trim();
@@ -335,14 +373,17 @@ export class UI {
     this.xp = bar('xp');
     this.moveStatus = h('div', 'move-status');
     this.moveStatus.hidden = true;
-    bars.append(this.petBar, this.moveStatus, this.autoControl, this.actionBar, this.xp.wrap);
+    this.surveyStatus = h('div', 'auto-status');
+    this.surveyStatus.hidden = true;
+    this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Build [C]');
+    this.buildBtn = h('button', 'menubtn', 'Character [C]');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -363,7 +404,9 @@ export class UI {
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
     this.codexBtn = h('button', 'menubtn', 'Codex [J]');
     this.codexBtn.addEventListener('click', () => this.toggleCodex());
-    this.menuItems.append(this.inventoryBtn, this.codexBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
+    this.workshopBtn=h('button','menubtn','Build [B]');
+    this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -371,13 +414,14 @@ export class UI {
     this.tooltip = h('div', 'tooltip');
     this.tooltip.hidden = true;
     root.append(this.tooltip);
+    this.loot=new LootPanel(this);
 
 
     // Build panel
     this.panel = h('div', 'panel build');
     this.panel.hidden = true;
     this.panel.setAttribute('role', 'dialog');
-    this.panel.setAttribute('aria-label', 'Character build');
+    this.panel.setAttribute('aria-label', 'Character and loadout');
     const close = h('button', 'close', '×');
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.toggleBuild(false));
@@ -420,6 +464,7 @@ export class UI {
     });
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
+    this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
 
@@ -452,6 +497,21 @@ export class UI {
     root.append(this.codexPanel);
     this.codexGroup = 'Creatures';
     this.codexSelection = 'skitter';
+
+    this.workshopPanel=h('div','panel workshop-window');
+    this.workshopPanel.hidden=true;
+    this.workshopPanel.setAttribute('role','dialog');
+    this.workshopPanel.setAttribute('aria-label','Build Planner and Workshop');
+    const workshopClose=h('button','close','×');
+    workshopClose.setAttribute('aria-label','Close Build');
+    workshopClose.addEventListener('click',()=>this.toggleWorkshop(false));
+    this.workshopBody=h('div','workshop-body');
+    this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
+    root.append(this.workshopPanel);
+    this.workshopTab='planner';
+    this.recipeId=null;
+    this.plannedLoadout=null;
+    this.atSanctum=false;
 
     this.partyPanel = h('div', 'panel party-panel');
     this.partyPanel.hidden = true;
@@ -499,7 +559,7 @@ export class UI {
     this.settingsPanel.append(sc, h('h2', null, 'Settings'),
       qualityLabel, this.qualitySelect, applyQuality,
       h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
-      plateLabel);
+      plateLabel,this.loot.settings(),this.radio.settings());
     root.append(this.settingsPanel);
 
     // Help panel
@@ -519,16 +579,18 @@ export class UI {
       ['Both buttons', 'Run forward'],
       ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
+      ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
-      ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
+      ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
-      ['F', 'Interact with what is in front of you'],
+      ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
+      ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
       ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['P', 'Party: invite, accept, leave'],
@@ -541,19 +603,6 @@ export class UI {
     const table = h('div', 'keys');
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
     this.help.append(table);
-    const forget = h('button', 'danger', 'Abandon this character and create a new one');
-    forget.addEventListener('click', () => {
-      if (forget.dataset.armed) this.a.forget();
-      else {
-        forget.dataset.armed = '1';
-        forget.textContent = 'Click again to confirm — this cannot be undone from this browser';
-      }
-    });
-    this.forgetBtn = forget;
-    this.help.append(forget);
-    this.recoveryBtn = h('button', 'menubtn', 'Copy guest recovery key');
-    this.recoveryBtn.addEventListener('click', () => this.a.copyRecoveryKey());
-    this.help.append(this.recoveryBtn);
     root.append(this.help);
 
     // Death overlay
@@ -572,8 +621,6 @@ export class UI {
   setAccountLinked(linked) {
     this.signoutBtn.hidden = !linked;
     this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
-    this.forgetBtn.hidden = !!linked;
-    this.recoveryBtn.hidden = !!linked;
   }
 
   /** Build the class-specific action bars once the class is known. */
@@ -715,7 +762,10 @@ export class UI {
 
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.codexPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
+    this.fieldRecordPanel.hidden=true;
+    this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = true;
@@ -731,6 +781,15 @@ export class UI {
       this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
+  }
+
+  toggleWorkshop(force,recipeId=null) {
+    const open=force??this.workshopPanel.hidden;
+    this.hideJournalPanels();
+    this.workshopPanel.hidden=!open;
+    if(!open)return;
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    renderWorkshop(this);
   }
 
   setInventoryOpacity(value) {
@@ -932,6 +991,82 @@ export class UI {
     this.playerContext.querySelector('button')?.focus({preventScroll:true});
   }
 
+  itemAction(id,action) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return this.error('Item is unavailable.');
+    if(this.buildLock)return this.error('Equipment changes are locked in combat or defeat.');
+    const slot=ITEMS[id].slot, installed=s.equipped[slot]===id;
+    if((action==='remove'&&!installed)||(action==='equip'&&installed))return;
+    const res=action==='remove'?tryUnequip(s,slot):tryEquip(s,id);
+    if(!res.ok)return this.error(res.reason);
+    if(action==='remove')this.a.unequip(slot);
+    else this.a.equip(id);
+  }
+
+  openItemContext(id,x,y,anchor) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return;
+    const item=ITEMS[id],installed=s.equipped[item.slot]===id,action=installed?'remove':'equip';
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',item.name));
+    const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+    const equip=h('button',null,installed?'Unequip':s.equipped[item.slot]?'Swap in':'Equip');
+    equip.disabled=!!this.buildLock||!res.ok;
+    equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
+    this.playerContext.append(equip);
+    if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
+    this.playerContext.append(info);
+    const recipe=Object.entries(RECIPES).find(([,r])=>r.target===id&&r.kind==='upgrade');
+    if(recipe){const upgrade=h('button',null,'Upgrade · Workshop');upgrade.addEventListener('click',()=>{this.closePlayerContext();this.toggleWorkshop(true,recipe[0]);});this.playerContext.append(upgrade);}
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=Math.max(8,Math.min(window.innerWidth-w-8,x))+'px';
+    this.playerContext.style.top=Math.max(8,Math.min(window.innerHeight-hgt-8,y))+'px';
+    this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  }
+
+  showFieldRecord(key) {
+    const record=FIELD_RECORDS[key];if(!record)return;
+    const panel=this.fieldRecordPanel;panel.replaceChildren();
+    const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
+    close.addEventListener('click',()=>{panel.hidden=true;});
+    panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    const lines=h('div','field-record-lines');
+    for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
+    panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
+  }
+
+  openNpc(ent) {
+    if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
+    this.hideJournalPanels();
+    this.npcId=ent.id;
+    const panel=this.npcPanel;
+    panel.replaceChildren();
+    const close=h('button','close','×');
+    close.setAttribute('aria-label','Close NPC interaction');
+    close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
+    const content=h('div','npc-content');
+    const art=this.a.portrait(ent.meta);
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
+    const details=h('div','npc-options');
+    this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
+    const talk=h('button','primary','Talk');
+    talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
+    const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
+    content.append(details);panel.append(close,content);panel.hidden=false;
+  }
+
+  showNpcDialogue(id,message) {
+    if(id===this.npcId&&!this.npcPanel.hidden)this.npcDialogue.textContent=message;
+  }
+
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
@@ -956,8 +1091,11 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.codexPanel.hidden = true;
+    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
+    this.fieldRecordPanel.hidden=true;
+    this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
     this.menuItems.hidden = true;
@@ -972,19 +1110,26 @@ export class UI {
   }
 
   setSheet(sheet) {
-    const grew = this.sheet && sheet.inventory.length > this.sheet.inventory.length;
+    const previous=this.sheet;
+    if(previous&&previous.name===sheet.name&&previous.cls===sheet.cls){
+      for(const id of sheet.inventory)if(!previous.inventory.includes(id))this.unseenItems.add(id);
+      for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
+    }else this.unseenItems.clear();
     this.sheet = sheet;
     this.setClass(sheet.cls);
-    if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
+    if(!this.workshopPanel.hidden)renderWorkshop(this);
 
+    set(this.surveyText, 'text', brineHint(sheet.survey,sheet.brineStage,null));
     const q = sheet.quest;
-    const d = DIRECTIVES[q.step];
+    const d = directiveFor(sheet.cls, q.step);
     if (d) {
       set(this.trackerTitle, 'text', d.title);
       set(this.trackerText, 'text', d.text);
-      set(this.trackerProgress, 'text', d.goal.kill ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} defeated` : '');
+      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful strikes' : 'defeated'}` : '');
     } else {
       set(this.trackerTitle, 'text', 'The Reach is yours');
       set(this.trackerText, 'text', 'Every directive is complete. Experiment with your glyphs and implants, or help another traveller.');
@@ -1060,11 +1205,15 @@ export class UI {
     set(f.hp.label, 'text', `${hp} / ${max}`);
   }
 
-  buffChips(el, keys) {
-    const sig = keys.join(',');
+  buffChips(el, keys, barrier=null) {
+    const sig = keys.join(',')+'|'+(barrier?`${barrier.remaining}/${barrier.capacity}/${Math.ceil(barrier.ms/1000)}`:'');
     if (el._sig === sig) return;
     el._sig = sig;
-    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => h('span', `chip ${BUFFS[k][1]}`, BUFFS[k][0])));
+    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
+      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
+      if(k==='shield')chip.title='Damage absorption; finite capacity, not a solid collision wall.';
+      return chip;
+    }));
   }
 
   /**
@@ -1079,32 +1228,52 @@ export class UI {
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
+    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
+    set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
+    const site=you.workshop??(you.safe?'sanctum':null);
+    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock;
+    this.workshopSite=site;this.atSanctum=!!you.safe;
+    set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
+    set(this.rescueStatus,'hidden',you.rescueReady===undefined);
+    if(you.rescueReady!==undefined)set(this.rescueStatus,'text',you.rescueReady?'Rescue Lattice · emergency barrier ready':'Rescue Lattice · re-arms after combat');
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
       if (!this.inventoryPanel.hidden) renderInventory(this);
     }
+    if(workshopChanged&&!this.workshopPanel.hidden)renderWorkshop(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
-    this.buffChips(this.player.buffs, me.row.b || []);
+    this.buffChips(this.player.buffs, me.row.b || [], you.barrier);
+    const kit = you.surveyKit;
+    set(this.surveyStatus, 'hidden', !kit && you.keeperShield===undefined);
+    if (you.keeperShield!==undefined) set(this.surveyStatus,'text','Own barrier: '+you.keeperShield+' · Reversal consumes available protection');
+    if (kit) {
+      const marked = kit.mark && st.ents.get(kit.mark);
+      const markText = marked && kit.markMs > 0 ? 'Analyzed: ' + marked.meta.n + ' · ' + Math.ceil(kit.markMs / 1000) + 's' : 'Scan a target [1]';
+      const rigText = kit.rigMs > 0 ? 'Rig: ' + Math.ceil(kit.rigMs / 1000) + 's · ' + kit.rigDistance.toFixed(1) + 'm · ' + (kit.rigDistance <= SURVEYOR.rechargeRadius ? 'charging' : kit.rigDistance <= SURVEYOR.remoteRange ? 'remote ready' : 'out of remote range') : 'Deploy rig [3]';
+      set(this.surveyStatus, 'text', markText + ' | ' + rigText);
+    }
 
     // Target frame
     set(this.target.el, 'hidden', !target);
     if (target) {
-      const hostile = target.meta.k === 'e';
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
+      const enemy = target.meta.k === 'e';
+      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
+      const hostile = enemy && !neutral;
+      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
       this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
@@ -1145,12 +1314,13 @@ export class UI {
     // ignore range. Hostile abilities and right-click can also engage it.
     const autoTarget = target?.meta.k === 'e' && !target.dead;
     const engaging = !!you.auto;
+    const obstructed = !!target && you.losTarget === target.id && you.los === 0;
     const reach = def.auto.range;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
     set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     set(this.autoStatus, 'text', autoText);
 
     // Action bar
@@ -1163,10 +1333,17 @@ export class UI {
       let usable = !me.dead;
       if (ab.cost && you.res < ab.cost) usable = false;
       if (ab.minRes && you.res < ab.minRes) usable = false;
+      if (kit) {
+        if (you.safe) usable = false;
+        if (b.id === 'core_bore' && (kit.mark !== target?.id || kit.markMs <= 0)) usable = false;
+        if (b.id === 'field_rig' && kit.rigMs > 0) usable = false;
+        if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
+      }
+      if(b.id==='resonant_reversal' && !(you.keeperShield>0))usable=false;
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;
-        else if (st.dist(target) > ab.range) ranged = false;
+        else if (st.dist(target) > ab.range || obstructed) ranged = false;
       } else if (ab.type === 'friendly' && target && target.meta.k === 'p' && target.id !== me.id && st.dist(target) > ab.range) ranged = false;
       b.el.classList.toggle('unusable', !usable);
       b.el.classList.toggle('far', usable && !ranged);
@@ -1212,7 +1389,8 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1237,6 +1415,17 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
+      if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
+        el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
+        el.addEventListener('contextmenu',e=>{e.preventDefault();this.openNpc(this.liveEntities?.get(ent.id));});
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
+        el.dataset.npc='archivist';
+      }
+      if(ent.meta.k==='e'){
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
+      }
       if(ent.meta.k==='p'){
         el.dataset.playerId=String(ent.id);
         el.tabIndex=0;
@@ -1260,6 +1449,7 @@ export class UI {
   }
 
   clearPlates() {
+    this.radio.clear();this.loot.reset();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.
@@ -1267,12 +1457,14 @@ export class UI {
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
+    this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
     this.closePlayerContext();
     this.liveEntities=null;
+    this.dragItem=null;
     this.chatChannel='vicinity';
     this.resetChatTarget();
   }
@@ -1289,6 +1481,11 @@ export class UI {
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
     if(ent.meta.k==='p') p.el.setAttribute('aria-label',opts.label+' player');
+    if(ent.meta.k==='e'&&p.el.dataset.lootable!==String(!!opts.lootable)){
+      p.el.dataset.lootable=String(!!opts.lootable);
+      if(opts.lootable){p.el.tabIndex=0;p.el.setAttribute('role','button');p.el.setAttribute('aria-label','Loot '+ent.meta.n);}
+      else{p.el.removeAttribute('tabindex');p.el.removeAttribute('role');p.el.removeAttribute('aria-label');}
+    }
     if (p.actions) {
       set(p.actions, 'hidden', !opts.selected);
       set(p.rename, 'hidden', !opts.owned);
@@ -1325,7 +1522,7 @@ export class UI {
     // Top-down with north (-Z) up and east (+X) to the right.
     const X = (x) => x * k;
     const Z = (z) => z * k;
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff' };
+    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
@@ -1344,7 +1541,7 @@ export class UI {
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
       g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? '#ff6a5a' : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
+      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
       g.fill();
     }
     // Player arrow

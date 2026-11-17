@@ -23,7 +23,20 @@ export const ZONES = {
   relay: { x: 44, z: 20, r: 19, name: 'Derelict Relay' },
   vault: { x: 6, z: -58, r: 17, name: 'Resonance Vault' },
   obelisk: { x: -57, z: -38, r: 8, name: 'The Listening Stone' },
+  survey: { x: 43, z: -33, r: 17, name: 'Brineworks Cut' },
+  sinter: { x: 6, z: 58, r: 16, name: 'Sinter Flats' },
+  deep: { x: -54, z: -8, r: 18, name: 'Kestrel Deep' },
 };
+
+// One walkable heightfield: the covered research deck is below grade,
+// not an independent stacked map. The roof is not a walkable surface.
+export const DEEP = {
+  floor: -6.2, x: -57, z: -8, hw: 7, hd: 6.5,
+  roofBottom: -0.45, roofTop: 0.55,
+};
+export function deepRoofAt(x, z, pad = 0) {
+  return Math.abs(x - DEEP.x) <= DEEP.hw + pad && Math.abs(z - DEEP.z) <= DEEP.hd + pad;
+}
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -47,6 +60,7 @@ const FLAT_AREAS = [
   { x: ZONES.vault.x, z: ZONES.vault.z, r: 17, f: 9, h: -0.6 },
   { x: ZONES.relay.x, z: ZONES.relay.z, r: 15, f: 9, h: 0.8 },
   { x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 6, f: 6, h: 0.2 },
+  { x: ZONES.survey.x, z: ZONES.survey.z, r: 10, f: 8, h: -1.8 },
 ];
 
 /** Terrain height at a world position. Purely presentational for the server. */
@@ -59,11 +73,25 @@ export function groundHeight(x, z) {
   const sx = x - ZONES.sporefield.x;
   const sz = z - ZONES.sporefield.z;
   h -= 1.6 * smooth(1 - Math.hypot(sx, sz) / 26);
+  // A shallow excavated basin with an eroded rim, localized to the new site.
+  const brineR = Math.hypot(x - ZONES.survey.x, z - ZONES.survey.z);
+  h += 1.15 * smooth(1 - Math.abs(brineR - 17) / 5);
+  // The wind-scoured sinter bed is shallow, gently ribbed and walkable.
+  const sinterR = Math.hypot(x - ZONES.sinter.x, z - ZONES.sinter.z);
+  const sinterBlend = smooth(1 - (sinterR - 8) / 12);
+  const sinterBed = -0.55 + 0.19 * Math.sin(x * 0.46 + z * 0.12) + 0.10 * Math.cos(z * 0.38);
+  h = h * (1 - sinterBlend) + sinterBed * sinterBlend;
   for (const a of FLAT_AREAS) {
     const d = Math.hypot(x - a.x, z - a.z);
     const k = smooth(1 - (d - a.r) / a.f);
     h = h * (1 - k) + a.h * k;
   }
+  // Buried chamber and continuous east approach. Smooth compact blend
+  // preserves the rest of the terrain; floor is flat under the entire roof.
+  const deepX = smooth(1 - (Math.abs(x - ZONES.deep.x) - 10) / 9);
+  const deepZ = smooth(1 - (Math.abs(z - ZONES.deep.z) - 8) / 5);
+  const deepBlend = deepX * deepZ;
+  h = h * (1 - deepBlend) + DEEP.floor * deepBlend;
   // Basin walls rise steeply toward the world edge.
   const r = Math.hypot(x, z);
   const edge = r - (WORLD.radius - 9);
@@ -146,11 +174,13 @@ function buildProps() {
   const blocked = (x, z, pad) => {
     if (Math.hypot(x, z) > WORLD.radius - 12) return true;
     for (const k of Object.keys(ZONES)) {
+      if (k === 'survey' || k === 'sinter' || k === 'deep') continue; // preserve the legacy scatter sequence
       const zn = ZONES[k];
       if (Math.hypot(x - zn.x, z - zn.z) < zn.r + pad) return true;
     }
     return false;
   };
+  const scatterStart = props.length;
   let placed = 0;
   let guard = 0;
   while (placed < 46 && guard++ < 2000) {
@@ -164,19 +194,111 @@ function buildProps() {
     else add({ type: 'conduit', x, z, r: 0.5 * s, h: 6 * s, s, seed: Math.floor(rnd() * 1e6) });
     placed++;
   }
-  return props;
+  // Replace only old scatter within the cut; keep the original world layout elsewhere.
+  const survey = ZONES.survey;
+  const sinter = ZONES.sinter;
+  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => [survey, sinter].every(zn => Math.hypot(p.x - zn.x, p.z - zn.z) >= zn.r + 2) && !(Math.abs(p.x - ZONES.deep.x) < 21 && Math.abs(p.z - ZONES.deep.z) < 15)));
+  retained.push(
+    { type: 'survey_pump', x: 43, z: -39, hw: 2.15, hd: 1.45, h: 4.8 },
+    { type: 'survey_tower', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
+    { type: 'wall', x: 43, z: -43, hw: 5, hd: 0.6, h: 2.8 },
+    { type: 'wall', x: 53, z: -37, hw: 0.6, hd: 3.5, h: 2.4 },
+    { type: 'survey_workstation', x: 38, z: -39, hw: 1.15, hd: 0.64, h: 1.8 },
+    { type: 'survey_engineering', x: 49, z: -39, hw: 1.1, hd: 0.7, h: 1.8 },
+  );
+  // Leave the central north-south approach open; no random obstacles in the new bed.
+  retained.push(
+    { type: 'sinter_ridge', x: -2, z: 54, hw: 2.5, hd: 1.1, h: 2.8, seed: 741 },
+    { type: 'sinter_ridge', x: 14, z: 54, hw: 2.0, hd: 1.3, h: 1.9, seed: 742 },
+    { type: 'sinter_ridge', x: -4, z: 64, hw: 2.3, hd: 1.5, h: 3.2, seed: 743 },
+    { type: 'sinter_ridge', x: 16, z: 62, hw: 1.8, hd: 1.1, h: 2.4, seed: 744 },
+    { type: 'sinter_ridge', x: 1, z: 69, hw: 2.1, hd: 1.2, h: 1.6, seed: 745 },
+    { type: 'sinter_ridge', x: 12, z: 69, hw: 2.0, hd: 1.0, h: 2.1, seed: 746 },
+    { type: 'sinter_colony', x: 9, z: 64, hw: 1.5, hd: 1.25, h: 1.8, seed: 747 },
+  );
+  // Roof footprint and structural wall colliders share the same dimensions.
+  // Only the eastern portal is open; interior vessels do not block the aisle.
+  retained.push(
+    { type: 'deep_wall', x: DEEP.x, z: DEEP.z - DEEP.hd, hw: DEEP.hw, hd: 0.42, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_wall', x: DEEP.x, z: DEEP.z + DEEP.hd, hw: DEEP.hw, hd: 0.42, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_wall', x: DEEP.x - DEEP.hw, z: DEEP.z, hw: 0.42, hd: DEEP.hd, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_vessel', x: -61.1, z: -12, r: 1.05, h: 2.9, seed: 1701 },
+    { type: 'deep_vessel', x: -61.1, z: -4, r: 1.05, h: 2.55, seed: 1702 },
+  );
+  return retained;
 }
 
 export const PROPS = buildProps();
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
+// Conservative horizontal cover test against the same solid prop footprints
+// used for movement. Small ground details and characters are not cover.
+// A small endpoint tolerance avoids self-intersections with boundary contact.
+export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
+  const dx = b.x - a.x, dz = b.z - a.z, len2 = dx*dx + dz*dz;
+  if (![a.x,a.z,b.x,b.z].every(Number.isFinite)) return false;
+  if (len2 < 1e-10) return true;
+  const eps = Math.min(0.01 / Math.sqrt(len2), 0.1);
+  for (const o of obstacles) {
+    if (o.h !== undefined && o.h < 0.8) continue;
+    if (o.r !== undefined) {
+      const t = Math.max(eps, Math.min(1-eps, ((o.x-a.x)*dx+(o.z-a.z)*dz)/len2));
+      if ((a.x+dx*t-o.x)**2+(a.z+dz*t-o.z)**2 < o.r**2-1e-9) return false;
+    } else {
+      let lo=eps, hi=1-eps;
+      for (const [start,delta,centre,half] of [[a.x,dx,o.x,o.hw],[a.z,dz,o.z,o.hd]]) {
+        if (Math.abs(delta)<1e-10) {
+          if (start<=centre-half || start>=centre+half) {lo=1;hi=0;break;}
+        } else {
+          const t1=(centre-half-start)/delta,t2=(centre+half-start)/delta;
+          lo=Math.max(lo,Math.min(t1,t2));hi=Math.min(hi,Math.max(t1,t2));
+          if (lo>=hi) break;
+        }
+      }
+      if (lo<hi) return false;
+    }
+  }
+  return true;
+}
+
 /** Interactive, non-hostile world objects. The server owns their state. */
 export const OBJECTS = [
   { key: 'obelisk', type: 'obelisk', name: 'The Listening Stone', x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 1.0 },
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
+  { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },
+  { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
+  { key: 'brine_research', type: 'brine_research', name: 'A · Research Station', x: 38, z: -39, r: 0, embedded: true },
+  { key: 'brine_engineering', type: 'brine_engineering', name: 'B · Engineering Station', x: 49, z: -39, r: 0, embedded: true },
+  { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
+  { key: 'deep_console', type: 'deep_console', name: 'Kestrel Phase Recorder', x: -61.5, z: -8, r: 0.8 },
 ];
 
-const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.map((o) => ({ x: o.x, z: o.z, r: o.r })));
+const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
+const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
+
+/** Exact segment/rectangle test limited to the new enclosed research deck.
+ * Old outdoor obstacles retain their existing planar combat semantics.
+ */
+export function deepLineClear(a, b) {
+  for (const c of DEEP_WALLS) {
+    let lo = 0, hi = 1;
+    for (const [origin, delta, min, max] of [
+      [a.x, b.x-a.x, c.x-c.hw, c.x+c.hw],
+      [a.z, b.z-a.z, c.z-c.hd, c.z+c.hd],
+    ]) {
+      if (Math.abs(delta) < 1e-9) {
+        if (origin < min || origin > max) { lo = 1; hi = 0; break; }
+      } else {
+        const t0 = (min-origin)/delta, t1 = (max-origin)/delta;
+        lo = Math.max(lo, Math.min(t0,t1));
+        hi = Math.min(hi, Math.max(t0,t1));
+        if (lo > hi) break;
+      }
+    }
+    if (lo <= hi) return false;
+  }
+  return true;
+}
 
 /**
  * Push a circle of radius `rad` out of all static colliders and keep it inside

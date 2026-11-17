@@ -2,14 +2,14 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 
 export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
   e.x = e.home.x;
   e.z = e.home.z;
-  e.yaw = e.yaw ?? game.rng() * Math.PI * 2;
+  e.yaw = e.yaw ?? (e.route ? Math.atan2(e.route[1].x - e.home.x, e.route[1].z - e.home.z) : game.rng() * Math.PI * 2);
   e.hp = def.hp;
   e.maxHp = def.hp;
   e.scale = 1;
@@ -23,7 +23,9 @@ export function resetEnemy(game, e) {
   e.specialAt = {};
   e.deadAt = 0;
   e.respawnAt = 0;
-  e.wanderAt = game.time + 2000 + game.rng() * 5000;
+  e.lootByPlayer=null;
+  e.wanderAt = e.route ? game.time : game.time + 2000 + game.rng() * 5000;
+  e.routeIndex = 1;
   e.wander = null;
   e.steerUntil = 0;
   e.steerSign = 1;
@@ -102,9 +104,9 @@ function resolveSpecial(game, e) {
   for (const p of [...game.players.values()]) {
     if (p.dead) continue;
     if (sp.at === 'all') {
-      if (e.threat.has(p.id) && dist(e, p) <= sp.radius) dealDamage(game, e, p, sp.dmg, sp.id);
-    } else if (Math.hypot(p.x - x, p.z - z) <= sp.radius + p.radius * 0.5) {
-      dealDamage(game, e, p, sp.dmg, sp.id);
+      if (e.threat.has(p.id) && dist(e, p) <= sp.radius && hasLineOfSight(e,p)) dealDamage(game, e, p, sp.dmg, sp.id);
+    } else if (Math.hypot(p.x - x, p.z - z) <= sp.radius + p.radius * 0.5 && hasLineOfSight({x,z},p)) {
+      dealDamage(game, e, p, sp.dmg, sp.id,{origin:{x,z}});
     }
   }
 }
@@ -132,6 +134,7 @@ export function tickEnemy(game, e, dt) {
       e.hp = e.maxHp;
       e.state = 'idle';
       e.wanderAt = game.time + 3000;
+      e.routeIndex = 1;
     } else {
       moveToward(e, e.home.x, e.home.z, def.speed * 2.2 * dt, def.radius, 0);
     }
@@ -140,10 +143,11 @@ export function tickEnemy(game, e, dt) {
 
   expireBuffs(game, e);
 
-  // Aggro: anyone alive, outside the Sanctum, who wanders too close.
+  // Passive fauna retaliate normally but never initiate proximity aggro.
   for (const p of game.players.values()) {
+    if (def.aggro <= 0) break;
     if (p.dead || e.threat.has(p.id) || inSanctum(p)) continue;
-    if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash) {
+    if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash && hasLineOfSight(e,p)) {
       addThreat(e, p.id, 1);
       if (def.social) {
         for (const o of game.enemies) {
@@ -158,12 +162,23 @@ export function tickEnemy(game, e, dt) {
   // Forget players who died, left, or reached safety.
   for (const id of [...e.threat.keys()]) {
     const p = game.players.get(id);
-    if (!p || p.dead || inSanctum(p)) e.threat.delete(id);
+    if (!p || p.dead || inSanctum(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
   }
 
   if (e.threat.size === 0) {
     if (e.state === 'combat') {
       startEvade(game, e);
+      return;
+    }
+    // Authored migration circuits run in real simulation time.
+    if (e.route) {
+      if (game.time < e.wanderAt) return;
+      const waypoint = e.route[e.routeIndex];
+      const ox = e.x, oz = e.z;
+      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? 0.43 : 0.56) * dt, def.radius, 0);
+      if (dist(e, waypoint) < 0.22 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
+        e.routeIndex = (e.routeIndex + 1) % e.route.length;
+      }
       return;
     }
     // Idle: amble around the spawn point.
@@ -219,7 +234,7 @@ export function tickEnemy(game, e, dt) {
   }
 
   for (const sp of def.specials || []) {
-    if (game.time >= e.specialAt[sp.id]) {
+    if (game.time >= e.specialAt[sp.id] && hasLineOfSight(e,target)) {
       beginSpecial(game, e, sp, target);
       return;
     }
@@ -228,7 +243,8 @@ export function tickEnemy(game, e, dt) {
   const gap = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
   const stopAt = def.attack.range * (def.attack.kind === 'melee' ? 0.7 : 0.8);
   const rooted = !!getBuff(e, 'root');
-  if (gap > stopAt && !rooted) {
+  const blocked = !hasLineOfSight(e,target);
+  if ((gap > stopAt || blocked) && !rooted) {
     // Detect being stuck behind an obstacle and steer around it.
     if (game.time >= e.progressAt) {
       if (gap > e.progressDist - 0.4) {
@@ -239,7 +255,7 @@ export function tickEnemy(game, e, dt) {
       e.progressAt = game.time + 1000;
     }
     const steer = game.time < e.steerUntil ? e.steerSign : 0;
-    moveToward(e, target.x, target.z, Math.min(def.speed * dt, gap - stopAt + 0.05), def.radius, steer);
+    moveToward(e, target.x, target.z, blocked ? def.speed * dt : Math.min(def.speed * dt, gap - stopAt + 0.05), def.radius, steer);
   } else {
     e.progressAt = game.time + 1000;
     e.progressDist = Infinity;
@@ -261,10 +277,10 @@ export function tickEnemy(game, e, dt) {
   }
 
   const reach = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
-  if (reach <= def.attack.range && game.time >= e.nextAttack) {
+  if (reach <= def.attack.range && game.time >= e.nextAttack && hasLineOfSight(e,target)) {
     e.nextAttack = game.time + def.attack.interval;
     dealDamage(game, e, target, def.attack.dmg, 'auto', { kind: def.attack.kind, melee: def.attack.kind === 'melee' });
-  } else if (def.attack.far && reach > def.attack.range && reach <= def.attack.far.range && game.time >= e.nextAttack + 600) {
+  } else if (def.attack.far && reach > def.attack.range && reach <= def.attack.far.range && game.time >= e.nextAttack + 600 && hasLineOfSight(e,target)) {
     // Elites punish kiting with a slower ranged strike.
     e.nextAttack = game.time + def.attack.far.interval;
     dealDamage(game, e, target, def.attack.far.dmg, 'hurl', { kind: 'bolt' });

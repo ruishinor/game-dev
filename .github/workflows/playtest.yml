@@ -1,7 +1,7 @@
 name: Integrated browser playtest
 on:
   pull_request:
-    branches: [ccr-9a6736d4-kufz9x]
+    branches: [ccr-9a6736d4-kufz9x, preview/playtest-pr4-5-6]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +17,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+      - name: Focused Workshop playtest
+        if: github.base_ref == 'preview/playtest-pr4-5-6' || github.ref_name == 'feat/workshop-character-interactions'
+        run: npm run e2e -- --workshop
+      - name: Integrated two-player playtest
+        if: always() && github.ref_name != 'feat/workshop-character-interactions'
+        run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:

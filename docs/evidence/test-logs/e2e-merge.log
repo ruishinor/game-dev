@@ -1,0 +1,95 @@
+
+> attunement@0.1.0 e2e
+> node test/e2e/play.mjs
+
+[harness] software WebGL: each client draws at most 1 frame per second (logic uncapped)
+[harness] graphics: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+PASS  1. both sessions enter the 3D world  — A id 24, B id 25, 185039 triangles drawn
+PASS  10. second session sees the first (and its class)
+PASS  7. symbiotech has a visible companion entity; vanguard has none
+PASS  14. all entities with production GLB assets use those assets  — bundles loaded: humanoid_f, humanoid_m, nature, sanctum, creatures
+PASS  14. the world is built from the kits with no missing pieces  — {"kits":true,"batches":213,"occluders":20,"fallbacks":0,"prototypeArt":"disabled","prototypeAssets":{},"faded":0}
+PASS  14. each session draws the other with its own look, standing idle  — A as seen by B: {"model":"glb","look":"vanguard_plate","base":"Idle_Loop","action":null,"last":"","played":0,"reacted":0}
+PASS  14. moving plays a locomotion clip, in the mover's session and in the observer's  — own session: Jog_Fwd_Loop
+PASS  2. W moves the character forward  — z 7.50 → 1.05
+FAIL  3. the beacon blocks movement (collision)  — stopped 10.23m from its centre (radius 1.5 + body 0.45)
+PASS  2. server position matches the predicted client position  — Δ 0.000m, 0 unacked inputs
+PASS  10. the other session observes that movement  — B sees A at (-1.9, -10.0)
+PASS  2. D turns the character and the camera follows  — yaw 3.14 → 1.84
+PASS  2. backpedal and strafe move the character
+PASS  2. Space jumps (server-simulated)
+PASS  2. right-drag steers camera and character together  — camera yaw 1.84 → 1.16
+PASS  2. left-drag orbits the camera without turning the character  — camera yaw 1.16 → 1.84, character yaw 1.16 → 1.16
+PASS  2. mouse wheel zooms the camera  — wanted distance 10.0 → 5.3
+PASS  2. losing window focus stops movement (no stuck keys)
+[harness] moved Brakka to (-29, 22)
+[harness] moved Lumen to (-25, 25)
+PASS  4. Tab selects a living nearby enemy  — target 22, distance 49.3m
+PASS  4. Tab cycling can reach the intended enemy  — skitter id 9
+PASS  4. clicking an enemy selects it  — clicked at (400, 355)
+PASS  4. target frame and selected nameplate are shown
+[harness] initial Skitter fixture health raised to 300 for timing-sensitive observer checks
+[harness] moved Brakka to (-28, 23)
+PASS  4/5. ability 1 damages the enemy (server-side health)  — server hp 300 → 268
+PASS  5. the ability goes on cooldown  — 3849 ms remaining
+PASS  5. using it again is refused with visible feedback
+PASS  14. the attack animates for both sessions and the enemy visibly reacts  — attacker {"model":"glb","look":"vanguard_plate","base":"Walk_Loop","action":"Punch_Jab","last":"Punch_Jab","played":2,"reacted":1}, observer {"model":"glb","look":"vanguard_plate","base":"Walk_Loop","action":"Punch_Jab","last":"Punch_Jab","played":2,"reacted":2}
+PASS  5. R and the HUD expose server-authoritative auto-attack state
+PASS  5. combat feedback: floating numbers and combat log
+PASS  11. both sessions hold exactly the server's enemy health  — server 268, A 268, B 268 of 300
+PASS  6. the enemy reacts and attacks
+PASS  11. healer targets the ally from the party frame
+PASS  11. player context menu opens from frames and nameplate; native menu suppressed elsewhere
+PASS  11. chat channel switches via slash commands and the chat icon
+[harness] set Brakka to 120 health so healing is measurable
+PASS  11. Mending Graft from one player heals the other
+PASS  8. the symbiote autonomously mends the injured ally (triage)
+PASS  8. companion frame says what it is doing  — Mender Symbiote / Triage · Mending Brakka
+PASS  8. Codex search finds other categories and opens the result
+PASS  8. companion selection stays unobtrusive; explicit Codex opens and closes
+PASS  8. commanding Bond attaches the symbiote to the ally (damage reduction buff)
+PASS  6/11. the two players defeat the enemy together
+PASS  11. both players are credited for the shared kill  — A 44 xp, B 44 xp
+[harness] moved Brakka to (-46, 26)
+[harness] moved Lumen to (-42, 29)
+[harness] moved Brakka to (-46, 34)
+[harness] moved Lumen to (-42, 37)
+PASS  9. the directive rewards each class its Device  — A: servo_harness, B: sporeglass_focus
+[harness] moved Brakka to (0, 8)
+[harness] moved Lumen to (0, 8)
+[harness] accelerated corpse expiry for Mire Skitter 12; production holds for 12s
+PASS  6/11. remains persist as 3D models, then disappear from both clients
+PASS  6/11. enemy respawns visibly in both browsers without a restart  — enemy id 12, renderer GLB
+[harness] moved Brakka to (3, 9)
+[harness] moved Lumen to (-3, 9)
+FAIL  script ran to completion  — locator.click: Timeout 90000ms exceeded.
+Call log:
+[2m  - waiting for locator('.doll-tabs [data-tab="character"]')[22m
+[2m    - locator resolved to <button type="button" class="active" aria-pressed="true" data-tab="character">Character</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <rect width="154" height="138" fill="#15242d"></rect> from <aside role="region" class="radio-panel" data-playing="false" data-source="kernel" aria-label="Radio transmission">…</aside> subtree intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <rect width="154" height="138" fill="#15242d"></rect> from <aside role="region" class="radio-panel" data-playing="false" data-source="kernel" aria-label="Radio transmission">…</aside> subtree intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    168 × waiting for element to be visible, enabled and stable[22m
+[2m        - element is visible, enabled and stable[22m
+[2m        - scrolling into view if needed[22m
+[2m        - done scrolling[22m
+[2m        - <rect width="154" height="138" fill="#15242d"></rect> from <aside role="region" class="radio-panel" data-playing="false" data-source="kernel" aria-label="Radio transmission">…</aside> subtree intercepts pointer events[22m
+[2m      - retrying click action[22m
+[2m        - waiting 500ms[22m
+
+    at /home/user/game-dev/test/e2e/play.mjs:608:61
+
+43 of 45 checks passed. Screenshots: /home/user/game-dev/test/e2e/out
+exit 1

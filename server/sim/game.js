@@ -2,14 +2,17 @@
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
 
-import { CLASSES, ENEMIES, SPAWNS, COMPANIONS } from '../../shared/content.js';
+import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
-import { WORLD, OBJECTS, MOVE_HZ, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { sanitizeMaterials } from '../../shared/crafting.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
-import { checkDirective } from './progress.js';
+import { workshopSite } from '../../shared/survey.js';
+import { checkDirective, tickBrineTrial } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
+import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
 export const CORPSE_MS = 12000;
@@ -49,6 +52,7 @@ export class Game {
         level: def.level,
         radius: def.radius,
         home: { x: s.x, z: s.z },
+        route: s.route ?? null,
         metaVer: 1,
       };
       resetEnemy(this, e);
@@ -93,10 +97,16 @@ export class Game {
       combatUntil: 0,
       lastSeq: 0,
       moveBudget: 12,
+      followId: 0,
+      followAcc: 0,
+      lootTarget:null,
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
       companion: null,
+      brineTrial: null,
+      brineServiceUntil: 0,
+      surveyKit: char.cls === 'surveyor' ? { mark: null, rig: null } : null,
       partyId: 0,
       partyInvite: null,
     };
@@ -135,12 +145,14 @@ export class Game {
     const p = this.players.get(id);
     if (!p) return;
     this.syncChar(p);
+    forgetLoot(this,p);
     removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
     if (p.companion) {
       this.companions = this.companions.filter((c) => c !== p.companion);
       this.ents.delete(p.companion.id);
     }
+    for(const other of this.players.values())if(other.followId===id)this.stopFollow(other);
     this.players.delete(id);
     this.ents.delete(id);
     this.onCharChanged(p.char);
@@ -187,10 +199,44 @@ export class Game {
     for (const inp of inputs) {
       if (inp.seq <= p.lastSeq) continue;
       p.lastSeq = inp.seq;
+      if(p.followId)this.stopFollow(p);
       if (p.moveBudget < 1) continue; // acknowledged but not applied
       p.moveBudget -= 1;
       p.yaw = inp.yaw;
       stepMove(p, inp, this.moveSpeedMul(p));
+    }
+  }
+
+  stopFollow(p) {p.followId=0;p.followAcc=0;}
+
+  setFollow(p,id) {
+    if(id===0){this.stopFollow(p);return {ok:true};}
+    const target=this.players.get(id);
+    if(p.dead||!target||target===p||target.dead||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
+    // Prevent mutual or longer cyclic following chains.
+    const seen=new Set([p.id]);
+    for(let t=target;t;t=this.players.get(t.followId)){
+      if(seen.has(t.id))return {ok:false,reason:'Cannot create a circular follow chain.'};
+      seen.add(t.id);
+    }
+    p.followId=id;p.followAcc=0;return {ok:true};
+  }
+
+  tickFollow(p,dt) {
+    if(!p.followId)return;
+    const target=this.players.get(p.followId);
+    if(p.dead||!target||target.dead||dist(p,target)>45){this.stopFollow(p);return;}
+    // Share the fixed-step movement budget with manual inputs.
+    p.followAcc+=Math.min(.1,Math.max(0,dt))*MOVE_HZ;
+    const steps=Math.min(6,Math.floor(p.followAcc+1e-9));p.followAcc=Math.max(0,p.followAcc-steps);
+    for(let i=0;i<steps&&p.moveBudget>=1;i++){
+      const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz);
+      const speed=this.moveSpeedMul(p);
+      const f=d>2.8&&speed>0?Math.min(1,(d-2.8)/(RUN_SPEED*MOVE_DT*speed)):0;
+      if(!f&&p.jy<=0&&p.vy<=0)break;
+      p.moveBudget-=1;
+      if(f)p.yaw=Math.atan2(dx,dz);
+      stepMove(p,{f,s:0,yaw:p.yaw,j:0},speed);
     }
   }
 
@@ -212,12 +258,15 @@ export class Game {
     if (!p.dead) return false;
     if (this.time - p.deadAt < RESPAWN_DELAY_MS) return false;
     p.dead = false;
+    this.stopFollow(p);
+    clearLoot(p);
     p.x = WORLD.spawn.x;
     p.z = WORLD.spawn.z;
     p.jy = 0;
     p.vy = 0;
     p.hp = p.maxHp;
     p.res = CLASSES[p.cls].resource.start;
+    p.surveyKit = p.cls === 'surveyor' ? { mark: null, rig: null } : null;
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
@@ -237,8 +286,11 @@ export class Game {
     const dt = dtMs / 1000;
     for (const p of this.players.values()) {
       p.moveBudget = Math.min(MOVE_BUDGET_MAX, p.moveBudget + dt * MOVE_HZ);
+      this.tickFollow(p,dt);
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
+      tickBrineTrial(this,p);
+      tickLoot(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -267,7 +319,8 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
-        b: p.buffs.map((b) => b.k),
+        b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
+        ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });
     }
     for (const e of this.enemies) {
@@ -296,7 +349,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0 };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
@@ -311,8 +364,12 @@ export class Game {
       const rem = p.cds[k] - this.time;
       if (rem > 0) cds[k] = Math.round(rem);
     }
+    const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       ack: p.lastSeq,
+      ...lootState(this,p),
+      barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
+      follow: p.followId,
       x: p.x,
       z: p.z,
       jy: p.jy,
@@ -322,10 +379,21 @@ export class Game {
       cds,
       gcd: Math.max(0, Math.round(p.gcdUntil - this.time)),
       auto: p.autoOn ? 1 : 0,
+      ...(p.cls==='keeper' ? {keeperShield: Math.max(0,Math.floor(p.buffs.find(b=>b.k==='shield'&&b.src===p.id&&b.keeper&&b.until>this.time)?.v||0))}:{}),
+      losTarget: p.target,
+      los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
+      workshop:workshopSite(p),
       party: partyState(this, p),
     };
+    if(p.char.equipped.implant==='brine_rescue_lattice')y.rescueReady=!p.rescueSpent;
+    if (p.brineTrial) y.brineTrial = { ms: Math.max(0,p.brineTrial.until-this.time), read:p.brineTrial.read };
+    if (p.cls === 'surveyor') {
+      const mark = p.surveyKit?.mark;
+      const rig = p.surveyKit?.rig;
+      y.surveyKit = { mark: mark?.id || 0, markMs: mark ? Math.max(0, mark.until - this.time) : 0, rigMs: rig ? Math.max(0, rig.until - this.time) : 0, rigDistance: rig ? r2(dist(p, rig)) : null };
+    }
     if (p.dead) y.dead = Math.max(0, Math.round(RESPAWN_DELAY_MS - (this.time - p.deadAt)));
     return y;
   }
@@ -340,9 +408,12 @@ export class Game {
       level: c.level,
       xp: c.xp,
       inventory: [...c.inventory],
+      materials: sanitizeMaterials(c.materials),
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      survey: c.survey ?? null,
+      brineStage: c.brineStage ?? 0,
       stats: p.stats,
     };
   }

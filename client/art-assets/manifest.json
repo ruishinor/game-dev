@@ -1,0 +1,674 @@
+{
+  "version": 1,
+  "status": "authoring-prototypes-not-live",
+  "models": [
+    {
+      "id": "backpack_research",
+      "packageId": "01",
+      "recipe": "01-backpack",
+      "args": {
+        "variant": "research"
+      },
+      "origin": "spine_03 mount; +Z toward wearer",
+      "file": "backpack_research.glb"
+    },
+    {
+      "id": "backpack_kinetic",
+      "packageId": "01",
+      "recipe": "01-backpack",
+      "args": {
+        "variant": "kinetic"
+      },
+      "origin": "spine_03 mount; +Z toward wearer",
+      "file": "backpack_kinetic.glb"
+    },
+    {
+      "id": "backpack_biotech",
+      "packageId": "01",
+      "recipe": "01-backpack",
+      "args": {
+        "variant": "biotech"
+      },
+      "origin": "spine_03 mount; +Z toward wearer",
+      "file": "backpack_biotech.glb"
+    },
+    {
+      "id": "backpack_utility",
+      "packageId": "01",
+      "recipe": "01-backpack",
+      "args": {
+        "variant": "utility"
+      },
+      "origin": "spine_03 mount; +Z toward wearer",
+      "file": "backpack_utility.glb"
+    },
+    {
+      "id": "capacitor_spine",
+      "packageId": "02",
+      "recipe": "02-capacitor-harness",
+      "args": {
+        "piece": "spine"
+      },
+      "origin": "spine_03",
+      "file": "capacitor_spine.glb"
+    },
+    {
+      "id": "capacitor_shoulder",
+      "packageId": "02",
+      "recipe": "02-capacitor-harness",
+      "args": {
+        "piece": "shoulder"
+      },
+      "origin": "upperarm_l/r",
+      "file": "capacitor_shoulder.glb"
+    },
+    {
+      "id": "capacitor_coil",
+      "packageId": "02",
+      "recipe": "02-capacitor-harness",
+      "args": {
+        "piece": "coil"
+      },
+      "origin": "lowerarm_l/r (X axis)",
+      "file": "capacitor_coil.glb"
+    },
+    {
+      "id": "capacitor_knee",
+      "packageId": "02",
+      "recipe": "02-capacitor-harness",
+      "args": {
+        "piece": "knee"
+      },
+      "origin": "calf_l/r",
+      "file": "capacitor_knee.glb"
+    },
+    {
+      "id": "capacitor_visor",
+      "packageId": "02",
+      "recipe": "02-capacitor-harness",
+      "args": {
+        "piece": "visor"
+      },
+      "origin": "Head",
+      "file": "capacitor_visor.glb"
+    },
+    {
+      "id": "glyph_gauntlet_right",
+      "packageId": "03",
+      "recipe": "03-glyph-gauntlet",
+      "args": {
+        "hand": "right"
+      },
+      "origin": "lowerarm; X axis",
+      "file": "glyph_gauntlet_right.glb"
+    },
+    {
+      "id": "glyph_gauntlet_left",
+      "packageId": "03",
+      "recipe": "03-glyph-gauntlet",
+      "args": {
+        "hand": "left"
+      },
+      "origin": "lowerarm; X axis",
+      "file": "glyph_gauntlet_left.glb"
+    },
+    {
+      "id": "cranial_interface_right",
+      "packageId": "04",
+      "recipe": "04-cranial-interface",
+      "args": {
+        "side": "right"
+      },
+      "origin": "Head; temple origin",
+      "file": "cranial_interface_right.glb"
+    },
+    {
+      "id": "cranial_interface_left",
+      "packageId": "04",
+      "recipe": "04-cranial-interface",
+      "args": {
+        "side": "left"
+      },
+      "origin": "Head; temple origin",
+      "file": "cranial_interface_left.glb"
+    },
+    {
+      "id": "culture_reservoir_restorative",
+      "packageId": "05",
+      "recipe": "05-culture-reservoir",
+      "args": {
+        "culture": "restorative"
+      },
+      "origin": "spine_03 mount",
+      "file": "culture_reservoir_restorative.glb"
+    },
+    {
+      "id": "culture_reservoir_resonant",
+      "packageId": "05",
+      "recipe": "05-culture-reservoir",
+      "args": {
+        "culture": "resonant"
+      },
+      "origin": "spine_03 mount",
+      "file": "culture_reservoir_resonant.glb"
+    },
+    {
+      "id": "mender_carapace",
+      "packageId": "11",
+      "recipe": "11-mender",
+      "args": {},
+      "origin": "hover centre; +Z forward",
+      "file": "mender_carapace.glb"
+    },
+    {
+      "id": "resonance_tower_deployed",
+      "packageId": "12",
+      "recipe": "12-resonance-tower",
+      "args": {
+        "state": "deployed"
+      },
+      "origin": "ground",
+      "file": "resonance_tower_deployed.glb"
+    },
+    {
+      "id": "resonance_tower_folded",
+      "packageId": "12",
+      "recipe": "12-resonance-tower",
+      "args": {
+        "state": "folded"
+      },
+      "origin": "ground",
+      "file": "resonance_tower_folded.glb"
+    },
+    {
+      "id": "resonance_tower_disabled",
+      "packageId": "12",
+      "recipe": "12-resonance-tower",
+      "args": {
+        "state": "disabled"
+      },
+      "origin": "ground",
+      "file": "resonance_tower_disabled.glb"
+    },
+    {
+      "id": "research_workstation",
+      "packageId": "13",
+      "recipe": "13-workstation",
+      "args": {
+        "kind": "research",
+        "base": true
+      },
+      "origin": "ground",
+      "file": "research_workstation.glb"
+    },
+    {
+      "id": "research_tabletop_module",
+      "packageId": "13",
+      "recipe": "13-workstation",
+      "args": {
+        "kind": "research",
+        "base": false
+      },
+      "origin": "tabletop",
+      "file": "research_tabletop_module.glb"
+    },
+    {
+      "id": "engineering_workstation",
+      "packageId": "13",
+      "recipe": "13-workstation",
+      "args": {
+        "kind": "engineering",
+        "base": true
+      },
+      "origin": "ground",
+      "file": "engineering_workstation.glb"
+    },
+    {
+      "id": "engineering_tabletop_module",
+      "packageId": "13",
+      "recipe": "13-workstation",
+      "args": {
+        "kind": "engineering",
+        "base": false
+      },
+      "origin": "tabletop",
+      "file": "engineering_tabletop_module.glb"
+    },
+    {
+      "id": "colony_ground",
+      "packageId": "14",
+      "recipe": "14-crystallogenic",
+      "args": {
+        "variant": "ground",
+        "seed": 417,
+        "density": 8
+      },
+      "origin": "ground +Y",
+      "file": "colony_ground.glb"
+    },
+    {
+      "id": "colony_mature",
+      "packageId": "14",
+      "recipe": "14-crystallogenic",
+      "args": {
+        "variant": "mature",
+        "seed": 807,
+        "density": 13
+      },
+      "origin": "ground +Y",
+      "file": "colony_mature.glb"
+    },
+    {
+      "id": "colony_wall",
+      "packageId": "14",
+      "recipe": "14-crystallogenic",
+      "args": {
+        "variant": "wall",
+        "seed": 153,
+        "density": 8
+      },
+      "origin": "wall +Z",
+      "file": "colony_wall.glb"
+    },
+    {
+      "id": "colony_pipe",
+      "packageId": "14",
+      "recipe": "14-crystallogenic",
+      "args": {
+        "variant": "pipe",
+        "seed": 92,
+        "density": 8
+      },
+      "origin": "pipe Z axis",
+      "file": "colony_pipe.glb"
+    },
+    {
+      "id": "adaptive_nodules_small",
+      "packageId": "15",
+      "recipe": "15-flora",
+      "args": {
+        "species": "nodules",
+        "seed": 417,
+        "count": 3
+      },
+      "origin": "ground",
+      "file": "adaptive_nodules_small.glb"
+    },
+    {
+      "id": "adaptive_nodules_mature",
+      "packageId": "15",
+      "recipe": "15-flora",
+      "args": {
+        "species": "nodules",
+        "seed": 701,
+        "count": 5,
+        "mature": true
+      },
+      "origin": "ground",
+      "file": "adaptive_nodules_mature.glb"
+    },
+    {
+      "id": "resonant_fungi_small",
+      "packageId": "15",
+      "recipe": "15-flora",
+      "args": {
+        "species": "fungi",
+        "seed": 313,
+        "count": 4
+      },
+      "origin": "ground",
+      "file": "resonant_fungi_small.glb"
+    },
+    {
+      "id": "resonant_fungi_mature",
+      "packageId": "15",
+      "recipe": "15-flora",
+      "args": {
+        "species": "fungi",
+        "seed": 812,
+        "count": 7,
+        "mature": true
+      },
+      "origin": "ground",
+      "file": "resonant_fungi_mature.glb"
+    }
+  ],
+  "files": [
+    {
+      "path": "adaptive_nodules_mature.glb",
+      "bytes": 550752,
+      "gitBlob": "30eaa0f710f09d61333940e263b5771d3757151b",
+      "source": "original"
+    },
+    {
+      "path": "adaptive_nodules_small.glb",
+      "bytes": 400596,
+      "gitBlob": "60be064bc3ed5b4497feae7fee160d66054694f5",
+      "source": "original"
+    },
+    {
+      "path": "backpack_biotech.glb",
+      "bytes": 605600,
+      "gitBlob": "acae92097bb0d2e0740bcc85e5c3ff4f41babf74",
+      "source": "original"
+    },
+    {
+      "path": "backpack_kinetic.glb",
+      "bytes": 670592,
+      "gitBlob": "53f5c4b7899fac26b956e4f789981b279e3c05f6",
+      "source": "original"
+    },
+    {
+      "path": "backpack_research.glb",
+      "bytes": 609040,
+      "gitBlob": "52c0ef437aff22844c87a1d988c27e1e689fd43d",
+      "source": "original"
+    },
+    {
+      "path": "backpack_utility.glb",
+      "bytes": 602040,
+      "gitBlob": "6c78379f88f6fba5efc733cac12605019087a8ea",
+      "source": "original"
+    },
+    {
+      "path": "capacitor_coil.glb",
+      "bytes": 358760,
+      "gitBlob": "0782d2a9bb4be0fa0294701f098b64c7f52784a9",
+      "source": "original"
+    },
+    {
+      "path": "capacitor_knee.glb",
+      "bytes": 232380,
+      "gitBlob": "4654ccbc41853e21c5b26b7548b2489d5c5c9292",
+      "source": "original"
+    },
+    {
+      "path": "capacitor_shoulder.glb",
+      "bytes": 254756,
+      "gitBlob": "15498d7de1701fa4dae65772fe4955ddc3a035c9",
+      "source": "original"
+    },
+    {
+      "path": "capacitor_spine.glb",
+      "bytes": 372776,
+      "gitBlob": "c272b0f4c98df0a6b6a2afe265c3b5b2df24647f",
+      "source": "original"
+    },
+    {
+      "path": "capacitor_visor.glb",
+      "bytes": 150512,
+      "gitBlob": "dcd69d802a0354afdf2d171113de808ed41683b8",
+      "source": "original"
+    },
+    {
+      "path": "colony_ground.glb",
+      "bytes": 477016,
+      "gitBlob": "0d3523b78abc3d0e6f67b14829334c3f3f19c29b",
+      "source": "original"
+    },
+    {
+      "path": "colony_mature.glb",
+      "bytes": 655960,
+      "gitBlob": "5c3aead99de13bc6f64a0c58f94f61b43081756c",
+      "source": "original"
+    },
+    {
+      "path": "colony_pipe.glb",
+      "bytes": 382844,
+      "gitBlob": "d7929ca31f2c565ddf71a672d2ce72e692eca739",
+      "source": "original"
+    },
+    {
+      "path": "colony_wall.glb",
+      "bytes": 477028,
+      "gitBlob": "c48b15dcd3491e85028077a146202c2dc786114e",
+      "source": "original"
+    },
+    {
+      "path": "cranial_interface_left.glb",
+      "bytes": 364160,
+      "gitBlob": "f1cc2c7f701246a94b008dab9b7f73847261dd64",
+      "source": "original"
+    },
+    {
+      "path": "cranial_interface_right.glb",
+      "bytes": 364172,
+      "gitBlob": "cc7e92896ef068f33aa2026aa2422b490251e08f",
+      "source": "original"
+    },
+    {
+      "path": "culture_reservoir_resonant.glb",
+      "bytes": 780920,
+      "gitBlob": "7d39d68a5fe666037b796e3904720de7cbc614ed",
+      "source": "original"
+    },
+    {
+      "path": "culture_reservoir_restorative.glb",
+      "bytes": 780920,
+      "gitBlob": "3c2bf3eaf4bbc80bbfeee8b90b020bd5599bb93c",
+      "source": "original"
+    },
+    {
+      "path": "engineering_tabletop_module.glb",
+      "bytes": 519436,
+      "gitBlob": "39962b22333f7959260c2155ce0916103cfdacc8",
+      "source": "original"
+    },
+    {
+      "path": "engineering_workstation.glb",
+      "bytes": 676556,
+      "gitBlob": "83f75bb8aefd66520108b8dce76925cb6da26d47",
+      "source": "original"
+    },
+    {
+      "path": "glyph_gauntlet_left.glb",
+      "bytes": 506512,
+      "gitBlob": "6d37adf9c2f3c2ac7f9106bed512259f77648536",
+      "source": "original"
+    },
+    {
+      "path": "glyph_gauntlet_right.glb",
+      "bytes": 506516,
+      "gitBlob": "2a9365334aac5d4319062770eaf0a06204618eb9",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/aegis.svg",
+      "bytes": 378,
+      "gitBlob": "c12d16c7e664115679c64e5a01ffdca8425ce922",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/anchor.svg",
+      "bytes": 598,
+      "gitBlob": "5a9f321a0ce64a511990a4363debffa3e256fe29",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/bond.svg",
+      "bytes": 397,
+      "gitBlob": "bdb100600ddabf1747b2b3dce4144902a3a77146",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/conduit.svg",
+      "bytes": 388,
+      "gitBlob": "f37905c2fc4193697353ede631602f36475e26fd",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/divide.svg",
+      "bytes": 418,
+      "gitBlob": "d6c2a3e906f637d825df338fcf6d3851bb342325",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/hinge.svg",
+      "bytes": 519,
+      "gitBlob": "23b441bb8386670cf5936da65ded13cc9c1d127c",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/lattice.svg",
+      "bytes": 412,
+      "gitBlob": "b50a38f5d120c68f0c7f1fd24adb2a9d4c2dfd99",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/manifest.json",
+      "bytes": 1991,
+      "gitBlob": "8c2966fa830ffd30206e3d073afd03cab5624597",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/network.svg",
+      "bytes": 468,
+      "gitBlob": "5be6c75726c7fbf90c2b997ba068eb9b953e5f80",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/persist.svg",
+      "bytes": 535,
+      "gitBlob": "c98644157e8509c6b0a2111511658ab9c7485ce7",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/phase.svg",
+      "bytes": 733,
+      "gitBlob": "fb2675cd2307c096a3bc306be5990ff0f8c62e23",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/relay.svg",
+      "bytes": 431,
+      "gitBlob": "be14118d40a95cdc7e4a9b29d0e69f539736ceb9",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/reroute.svg",
+      "bytes": 420,
+      "gitBlob": "0800555733e9d2622ad1f6e81d5716e04ffd2d09",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/resonate.svg",
+      "bytes": 477,
+      "gitBlob": "24a7c516b5d0f1e298268bf323fb26a54bd7fce0",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/span.svg",
+      "bytes": 385,
+      "gitBlob": "a6d769ffbb64c1b6ed7fc5f361bec0b2bc92eb31",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/sprite.svg",
+      "bytes": 7933,
+      "gitBlob": "00ce10be86c6ca4cdaa56d5002b98d245acb41bc",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/stabilize.svg",
+      "bytes": 357,
+      "gitBlob": "cfb8955cde36cde60dbedbf2596959b5e040034a",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/unmended.svg",
+      "bytes": 341,
+      "gitBlob": "36c296af3a01e72d98b20411766a986f61057bdd",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/unseen.svg",
+      "bytes": 344,
+      "gitBlob": "1888003f033ff9039d206771d2c6c402be0442fc",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/unstrike.svg",
+      "bytes": 311,
+      "gitBlob": "026f4de405f5dee097dcb7780dc1bbe49494488d",
+      "source": "original"
+    },
+    {
+      "path": "glyphs/unwall.svg",
+      "bytes": 373,
+      "gitBlob": "066b3be617c4f0ac1097c2477d0c6db33c45e096",
+      "source": "original"
+    },
+    {
+      "path": "industrial_atlas.json",
+      "bytes": 2412,
+      "gitBlob": "3e525fea531b8c69bcfa7ef8ba6e8d0e88211d9d",
+      "source": "original"
+    },
+    {
+      "path": "industrial_base.png",
+      "bytes": 393570,
+      "gitBlob": "56e7ee462fa5ce1e6b1bf9ad121f0a445e8f41d4",
+      "source": "original"
+    },
+    {
+      "path": "industrial_normal.png",
+      "bytes": 393570,
+      "gitBlob": "6700ca0d0c542527d56ba6b74d455933bfad49b4",
+      "source": "original"
+    },
+    {
+      "path": "industrial_orm.png",
+      "bytes": 393570,
+      "gitBlob": "cd8e94cf27dd1e06e44b91fd21ec0f6346b08367",
+      "source": "original"
+    },
+    {
+      "path": "mender_carapace.glb",
+      "bytes": 732884,
+      "gitBlob": "f1adb17ea673905e018b5f3b74e35eb800464f3b",
+      "source": "original"
+    },
+    {
+      "path": "research_tabletop_module.glb",
+      "bytes": 488408,
+      "gitBlob": "c3ff18bf610d00bf742af1e5184afe88cdaccb96",
+      "source": "original"
+    },
+    {
+      "path": "research_workstation.glb",
+      "bytes": 645544,
+      "gitBlob": "4e0f6ccc11ca2067a2d7027dfbed866df4177385",
+      "source": "original"
+    },
+    {
+      "path": "resonance_tower_deployed.glb",
+      "bytes": 638920,
+      "gitBlob": "197c7d45001455f6acb17f4791e3c3d00bd56809",
+      "source": "original"
+    },
+    {
+      "path": "resonance_tower_disabled.glb",
+      "bytes": 637224,
+      "gitBlob": "c8d4a7e1deaf80277b077b3177abca45fe6dea2f",
+      "source": "original"
+    },
+    {
+      "path": "resonance_tower_folded.glb",
+      "bytes": 582308,
+      "gitBlob": "dc09313689496b3a08b6f32920f6f1f53c167b10",
+      "source": "original"
+    },
+    {
+      "path": "resonant_fungi_mature.glb",
+      "bytes": 734776,
+      "gitBlob": "730e0f98b60925dea654c475bb0012eca10dd73a",
+      "source": "original"
+    },
+    {
+      "path": "resonant_fungi_small.glb",
+      "bytes": 510128,
+      "gitBlob": "d725cd3c0646efe6a0a66bf84893e7d62e7cc3fd",
+      "source": "original"
+    }
+  ]
+}

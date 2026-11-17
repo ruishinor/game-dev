@@ -8,6 +8,8 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { validateLoadout } from '../shared/build.js';
+import { surveyState, brineStage } from '../shared/survey.js';
+import { sanitizeMaterials } from '../shared/crafting.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -43,12 +45,15 @@ function sanitize(raw) {
     level: int(raw.level, 1, MAX_LEVEL, 1),
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
+    materials: sanitizeMaterials(raw.materials),
     equipped: { device: null, implant: null, glyph: null },
     attunements: Array.isArray(raw.attunements) ? [...new Set(raw.attunements.filter((a) => Object.hasOwn(ATTUNEMENT_NAMES, a)))] : [],
     quest: {
       step: int(raw.quest?.step, 0, DIRECTIVES.length, 0),
       progress: int(raw.quest?.progress, 0, 1000, 0),
     },
+    survey: surveyState(raw.survey),
+    brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
     petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
@@ -144,9 +149,12 @@ export class CharacterStore {
       level: 1,
       xp: 0,
       inventory: [],
+      materials: {},
       equipped: { device: null, implant: null, glyph: null },
       attunements: [],
       quest: { step: 0, progress: 0 },
+      survey: null,
+      brineStage: 0,
       pos: null,
       hp: 0,
       petMode: 'triage',

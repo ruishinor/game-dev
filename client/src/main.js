@@ -4,12 +4,20 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
+import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
-import { Assets } from './assets.js';
-import { createModel, CHARACTER_BUNDLES } from './characters.js';
+import { Assets, disposeInstance, shared } from './assets.js';
+import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
+import { LiveAegis } from './live-aegis.js';
+import { LiveCasts } from './live-casts.js';
+import { createVfx } from './vfx/engine.js';
+import { buildTextures } from './vfx/textures.js';
+import { CombatVfx } from './vfx/combat.js';
+import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
@@ -56,8 +64,48 @@ const environment = glbOnly === 'none' ? null : makeEnvironment(renderer);
 scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
-const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1 });
+const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
 const fx = new Fx(scene);
+const legacyFx = fx;
+const liveAegis = new LiveAegis(THREE);
+const liveCasts = new LiveCasts(THREE,scene);
+const pointOf = ent=>[ent.pos.x,ent.pos.y-ent.model.hover+.08,ent.pos.z];
+const toward = (a,b)=>{const d=b.map((v,i)=>v-a[i]);return Math.hypot(...d)>0.01?d:[0,1,0];};
+function authored(name,family,options){
+  if(quality===0)return false;
+  return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},fxClock);
+}
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+// Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
+// rendering can photograph them mid-flight; simulation time is untouched.
+const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
+let fxClock = 0;
+// Particle/shader effect engine (quality >= 1). Quality 0 keeps the original
+// lightweight Fx primitives. Flash lights exist only when starting at quality 2.
+let vfx = null;
+let cvfx = null;
+let svfx = null;
+// Items and materials reach the player through both a 'loot' event and a gain
+// message; show one acquisition effect for the pair.
+let acquiredAt = -1e9;
+function acquired() {
+  const me = S.ents.get(S.myId);
+  if (!rich() || !me?.placed || fxClock - acquiredAt < 400) return;
+  acquiredAt = fxClock;
+  cvfx.acquire(me);
+}
+try {
+  const startQ = new URLSearchParams(location.search).get('q');
+  vfx = createVfx(THREE, scene, { textures: buildTextures(THREE), groundHeight, quality: /^[01]$/.test(startQ || '') ? Number(startQ) : 2, reducedMotion: motionPreference.matches });
+  cvfx = new CombatVfx(vfx);
+  svfx = new StatusVfx(cvfx);
+} catch (err) {
+  console.warn('Effect engine unavailable; using basic effects.', err);
+}
+motionPreference.addEventListener?.('change', () => { if (vfx) vfx.reducedMotion = motionPreference.matches; });
+const rich = () => !!cvfx && quality > 0;
+// Inside onEvent the legacy primitives are muted while the engine is active.
+const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
 const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
 // pointer lock misbehaves, and for automated input).
@@ -67,6 +115,88 @@ const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.02, 40), new THREE.Me
 ring.rotation.x = -Math.PI / 2;
 ring.visible = false;
 scene.add(ring);
+const pressureZone = new THREE.Mesh(new THREE.RingGeometry(BRINE_TRIAL.exclusion.r-0.10,BRINE_TRIAL.exclusion.r,48),new THREE.MeshBasicMaterial({color:0xe9a54e,transparent:true,opacity:0.85,side:THREE.DoubleSide,depthWrite:false}));
+pressureZone.rotation.x=-Math.PI/2;
+pressureZone.position.set(BRINE_TRIAL.exclusion.x,groundHeight(BRINE_TRIAL.exclusion.x,BRINE_TRIAL.exclusion.z)+0.12,BRINE_TRIAL.exclusion.z);
+pressureZone.visible=false;scene.add(pressureZone);
+
+// Snapshot-driven stationary survey equipment, independent of its owner's model.
+// Module-level resources are reused by every rig: flagged shared so that
+// disposing one rig's instance never frees them.
+const rigParts = {
+  base: shared(new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8)),
+  body: shared(new THREE.BoxGeometry(0.32, 0.52, 0.29)),
+  mast: shared(new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8)),
+  lamp: shared(new THREE.BoxGeometry(0.21, 0.05, 0.03)),
+  area: shared(new THREE.RingGeometry(0.985, 1, 48)),
+};
+const rigMetal = shared(new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 }));
+const rigDark = shared(new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 }));
+const rigLight = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9 }));
+const rigArea = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }));
+function dropRig(ent) {
+  if (ent.rigModel) {
+    scene.remove(ent.rigModel);
+    disposeInstance(ent.rigModel);
+  }
+  ent.rigModel = null;
+  ent.rigArea?.dispose();
+  ent.rigArea = null;
+}
+function syncRig(ent) {
+  const r = ent.row?.rig;
+  if (!r) {
+    dropRig(ent);
+    return;
+  }
+  if (!ent.rigModel) {
+    const g = new THREE.Group();
+    const part = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x,y,z); g.add(mesh); return mesh; };
+    // Detailed deployable from the shared gear kit; the original blocks remain the fallback.
+    try {
+      g.userData.update = gearKit().instantiate('field_rig', fieldRigDevice, { attach: (_bone, obj) => g.add(obj) });
+    } catch (err) {
+      console.warn('Field rig model unavailable; using basic model.', err);
+    }
+    if (!g.children.length) {
+      part(rigParts.base, rigDark, 0, 0.075, 0);
+      part(rigParts.body, rigMetal, 0, 0.38, 0);
+      part(rigParts.mast, rigDark, 0.11, 0.88, 0);
+      part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    }
+    g.userData.arcAt = 0;
+    const area = part(rigParts.area, rigArea, 0, 0.12, 0);
+    area.rotation.x = -Math.PI / 2;
+    g.userData.area = area;
+    scene.add(g);
+    ent.rigModel = g;
+  }
+  const gy = groundHeight(r.x, r.z);
+  ent.rigModel.position.set(r.x, gy, r.z);
+  ent.rigModel.userData.area.scale.setScalar(r.r);
+  // The survey sigil marks the rig's real recharge radius (quality >= 1).
+  if (rich()) {
+    if (!ent.rigArea?.alive) ent.rigArea = vfx.area({ at: [r.x, gy, r.z], radius: r.r, style: 'survey', color: 0x5fd0ff, alpha: 0.45, spin: 0.2 });
+    else ent.rigArea.set([r.x, gy, r.z], r.r);
+  } else if (ent.rigArea) {
+    ent.rigArea.dispose();
+    ent.rigArea = null;
+  }
+}
+
+/** Per frame: animate deployed rigs and show recharge arcs to an owner in range. */
+function animateRig(ent, t) {
+  const g = ent.rigModel;
+  const r = ent.row?.rig;
+  if (!g || !r) return;
+  g.userData.update?.({ t, combat: true });
+  if (!rich() || !ent.placed || ent.dead || fxClock - g.userData.arcAt < 750) return;
+  if (Math.hypot(ent.pos.x - r.x, ent.pos.z - r.z) > r.r) return;
+  g.userData.arcAt = fxClock;
+  const top = [r.x, g.position.y + 1.36, r.z];
+  vfx.beam({ from: top, to: ent.chest, color: 0x6fd6ff, width: 0.05, life: 0.35, jitter: 0.18, grow: 0.4, taper: 1 });
+  vfx.burst({ at: ent.chest, count: 4, cell: 13, color: 0xd8f6ff, color2: 0x6fd6ff, size: 0.08, life: 0.35, speed: [0.3, 1], drag: 2 });
+}
 
 function resize() {
   const w = window.innerWidth;
@@ -172,6 +302,12 @@ const ui = new UI({
   petRename: (name) => net.send({ t: 'pet_rename', name }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
+  followChat: (name) => {
+    if(!name)return followPlayer(S.target);
+    const matches=[...S.ents.values()].filter(e=>e.meta.k==='p'&&e.id!==S.myId&&e.meta.n.toLowerCase()===name.toLowerCase());
+    if(matches.length!==1)return ui.error('Select a player or enter /follow followed by their exact name.');
+    followPlayer(matches[0].id);
+  },
   isFollowing: (id) => S.followId===id,
   cancelMovement: () => stopAutomaticMovement(),
   stopFollowing: (id) => { if(S.followId===id)stopAutomaticMovement(); },
@@ -190,6 +326,11 @@ const ui = new UI({
   },
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
+  interact: id=>net.send({t:'act',id}),
+  lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
+  lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
+  lootClose:()=>net.send({t:'loot_close'}),
+  craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -197,10 +338,6 @@ const ui = new UI({
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
-  forget: () => {
-    saveToken(null);
-    location.reload();
-  },
 });
 
 // --- login -------------------------------------------------------------------
@@ -277,6 +414,8 @@ function showAccountLogin(message = '') {
   $('character-roster').hidden = true;
   $('guest-note').hidden = false;
   $('saved-guest').hidden = !net.token;
+  $('abandon-saved-guest').dataset.armed='';
+  $('abandon-saved-guest').textContent='Abandon saved guest character';
   // Do not offer to overwrite the local guest key with a new character.
   $('login-form').hidden = !!net.token;
   $('resuming').hidden = true;
@@ -364,6 +503,12 @@ function buildAccountUI() {
     } catch {
       window.prompt('Copy your private guest recovery key:', net.token);
     }
+  });
+  $('abandon-saved-guest').addEventListener('click',()=>{
+    if(!net.token||net.accountLogged)return;
+    const btn=$('abandon-saved-guest');
+    if(!btn.dataset.armed){btn.dataset.armed='1';btn.textContent='Confirm · forget local guest key';return;}
+    saveToken(null);location.reload();
   });
   $('resume-guest-key').addEventListener('click', () => {
     const token = $('guest-resume-key').value.trim();
@@ -463,7 +608,10 @@ function addEntity(meta) {
 
 function removeEntity(ent) {
   fx.clearRoot(ent.id);
+  svfx?.remove(ent.id);
+  liveAegis.remove(ent.id);
   scene.remove(ent.holder);
+  dropRig(ent);
   if (ent.model.dispose) ent.model.dispose();
   else {
     ent.holder.traverse((o) => {
@@ -479,6 +627,10 @@ function removeEntity(ent) {
 function clearWorld() {
   stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);
+  liveAegis.clear();
+  liveCasts.clear();
+  vfx?.clear();
+  svfx?.clear();
   ui.clearPlates();
 }
 
@@ -527,6 +679,7 @@ function onSnapshot(m) {
     if (!ent) continue;
     seen.add(row.i);
     ent.row = row;
+    if (ent.meta.c === 'surveyor') syncRig(ent);
     ent.dead = !!(row.f & 1);
     ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
     if (ent.buf.length > 12) ent.buf.shift();
@@ -536,6 +689,8 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  S.followId=y.follow||0;
+  if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
   while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
   const s = { x: y.x, z: y.z, jy: y.jy, vy: y.vy };
   for (const c of local.pending) stepMove(s, c, y.sp);
@@ -576,9 +731,9 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
-const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
+const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
 function nameOf(ent) {
   if (!ent) return 'Something';
@@ -593,17 +748,22 @@ function nameOf(ent) {
 
 function onEvent(e) {
   const now = performance.now();
+  // Muted only where the engine has a recipe; see the 'fx' case for the fallback.
+  let fx = rich() ? MUTED_FX : legacyFx;
   switch (e.e) {
     case 'dmg': {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
       if (d) {
-        d.hit = 1;
-        if (d.model.trigger) d.model.trigger('hit');
-        const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
-        ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
-        if (e.k !== 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
+        // A fully absorbed attack is a shield impact, not a body hit.
+        const blocked=e.a===0&&e.sh>0;
+        const cls = blocked?'shield':e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
+        ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
+        if (rich() && d.placed) cvfx.hit(d, s, e);
+        if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
+        else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -616,10 +776,15 @@ function onEvent(e) {
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
+        if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
+          const a=pointOf(s),b=pointOf(d);
+          authored(e.ab,'kinetic',{variant:e.ab==='phase_needle'||e.ab==='resonant_reversal'?'resonance':'impact',center:[b[0],b[1]+.7,b[2]],direction:toward(a,b),radius:Math.min(2,d.model.radius+.45),duration:.85});
+        }
       }
       // Melee already has a burst above. Make bolt impacts readable too,
       // without doubling particles or changing combat damage.
-      if (d && e.k === 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
+      if (d && e.k === 'bolt' && e.a>0) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
       break;
@@ -628,6 +793,7 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       if (d) ui.floatText(toScreen(d.head), `+${e.a}`, 'heal');
+      if (d?.placed && rich()) cvfx.heal(d, s);
       const mine = e.s === S.myId || e.s === S.compId;
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} heals ${e.d === S.myId ? 'you' : d.meta.n} for ${e.a}.`, 'heal');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} heals you for ${e.a}.`, 'heal');
@@ -638,8 +804,20 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (s && d) {
         if (s.meta.k === 'c') s.castAnim = 1;
-        fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
-        fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        if(s.placed&&d.placed&&Math.hypot(s.pos.x-d.pos.x,s.pos.z-d.pos.z)>.2)
+          authored('mender-transfer','restorative',{variant:'transfer',source:pointOf(s),target:pointOf(d),radius:.8,duration:.8});
+        if (e.k === 'aegis_relay') {
+          fx.beam(chestOf(s), chestOf(d), 0x8eddf0, 650, 0.10);
+          fx.ring(d.pos.x, d.pos.z, 1.7, 0xa9eaf0, 540, d.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.burst(d.chest, 0x8eddf0, 6, 0.8);
+        } else {
+          fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
+          fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        }
+        if (rich() && s.placed && d.placed && s !== d) {
+          if (e.k === 'aegis_relay') cvfx.relay(s, d);
+          else cvfx.transfer(s, d);
+        }
       }
       break;
     }
@@ -648,40 +826,100 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
-      if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
+      if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
+      if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
+      else if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
+      else if (e.ab === 'fault_scan' && d) {
+        if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9});}
+        fx.beam(chestOf(s), chestOf(d), 0x85cde9, 480, 0.035);
+        fx.ring(d.pos.x, d.pos.z, 1.8, 0x85cde9, 600, d.pos.y);
+      } else if (e.ab === 'field_rig') fx.ring(s.pos.x, s.pos.z, 4, 0x85cde9, 550, s.pos.y);
       else if (e.ab === 'mending_graft') {
         s.castAnim = 1;
         if (d && d !== s) fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 480, 0.07);
-        if (d) fx.burst(d.chest, 0x7dffc4, 10, 1.1);
+        if (d) {fx.burst(d.chest, 0x7dffc4, 10, 1.1);if(d.placed)authored('mending-graft','restorative',{variant:'restore',target:pointOf(d),radius:1.0,duration:1.5});}
       } else if (e.ab === 'kinetic_ward') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, 2.2, 0xffb45c, 500, s.pos.y);
+        if(s.placed)authored('kinetic-ward','kinetic',{variant:'charge',center:[s.pos.x,s.pos.y+1,s.pos.z],direction:[Math.sin(s.yaw),0,Math.cos(s.yaw)],radius:1.1,duration:1.2});
       } else if (e.ab === 'spore_snare' && d) fx.ring(d.pos.x, d.pos.z, 2, 0x9dffb0, 700, d.pos.y);
       break;
     }
     case 'fx': {
       const s = S.ents.get(e.s);
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
+      let handled = false;
+      if (rich() && (Number.isFinite(e.x) ? Number.isFinite(e.z) : s?.placed)) {
+        handled = cvfx.area(Number.isFinite(e.x) ? { ...e, y: groundHeight(e.x, e.z) } : e, s, S.ents.get(e.o), S.ents.get(e.d));
+        const o = e.k === 'attune' ? S.ents.get(e.o) : null;
+        if (o && s) cvfx.attuneLink(o, s);
+      }
+      // A kind without an engine recipe (or one that could not be placed)
+      // keeps its original effect, so new server effects never go invisible.
+      if (!handled) fx = legacyFx;
+      if (e.k === 'survey_blast') {
+        fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
+        fx.pillar(e.x, e.z, 0xf0b56b, 450);
+        authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1});
+        break;
+      }
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
       }
+      if (e.k === 'carapace_echo') {
+        fx.ring(e.x, e.z, e.r, 0xc9ae76, 650);
+        const target = S.ents.get(e.d);
+        if (s && target && !motionPreference.matches && quality > 0) {
+          fx.beam(chestOf(s), chestOf(target), 0xc9ae76, 420, 0.11);
+          fx.ring(e.x, e.z, e.r * 0.54, 0xe1dbb0, 430);
+        }
+        break;
+      }
       if (!s) break;
+      if (e.k === 'deep_record') {
+        const o = S.ents.get(e.o);
+        if (o) {
+          fx.ring(o.pos.x,o.pos.z,1.5,0xbacb9a,700,o.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.beam(() => o.head,chestOf(s),0xbacb9a,850,0.09);
+        }
+        break;
+      }
+      if (e.k === 'sinter_sample') {
+        const o = S.ents.get(e.o);
+        if (o) {
+          const colour = e.mode === 'kinetic' ? 0x8ec4d5 : 0x90c6a1;
+          fx.ring(o.pos.x, o.pos.z, 1.6, colour, 680, o.pos.y);
+          if (!motionPreference.matches && quality > 0) {
+            fx.beam(chestOf(s), () => o.head, colour, 720, 0.085);
+            fx.burst(o.head, colour, 5, 0.65);
+          }
+        }
+        break;
+      }
+      if (e.k === 'carapace_imprint') {
+        fx.ring(s.pos.x, s.pos.z, 1.3, 0x97b6a1, 430, s.pos.y);
+        break;
+      }
       if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
-      if (e.k === 'discharge') {
+      if(e.k==='lattice_relay'){fx.ring(s.pos.x,s.pos.z,e.r,0x7fd0ff,650,s.pos.y);if(s.placed)authored('lattice-relay','aegis',{variant:'lattice',center:pointOf(s),radius:1.5,yaw:s.yaw,duration:1.2});}
+      else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6});fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
+      else if (e.k === 'discharge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
         fx.burst(s.chest, 0xffb45c, 14, 2.4);
+        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
-        fx.pillar(s.pos.x, s.pos.z, 0x7fd0ff, 600);
+        if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
       } else if (e.k === 'surge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.5, 0xd8ffe9, 500, s.pos.y - s.model.hover);
         fx.burst(s.chest, 0x7dffc4, 16, 2.6);
+        if(s.placed)authored('overgrowth-surge','restorative',{variant:'restore',target:pointOf(s),radius:Math.min(8,e.r),duration:1.6});
       } else if (e.k === 'resonance_burst') {
         fx.ring(s.pos.x, s.pos.z, 20, 0xb48cff, 800, s.pos.y);
         fx.burst(s.chest, 0xb48cff, 14, 3);
@@ -704,8 +942,10 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
+        if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
         const me = S.ents.get(S.myId);
         if (me && !me.dead && Math.hypot(me.pos.x - e.x, me.pos.z - e.z) < e.r + 1) ui.toast(`${e.n} — move out of the marked ground!`, 'warn');
       }
@@ -716,18 +956,20 @@ function onEvent(e) {
       if (!ent) break;
       ent.dead = true;
       ent.cast = null;
+      if (rich() && ent.placed) cvfx.die(ent);
       if (ent.meta.k === 'e') ui.log(`${ent.meta.n} is destroyed.`, 'info');
       else if (e.id !== S.myId) ui.log(`${ent.meta.n} has been defeated.`, 'in');
       break;
     }
     case 'shield': {
       const d = S.ents.get(e.d);
-      if (d) ui.floatText(toScreen(d.head), `Aegis ${e.a}`, 'shield');
+      if (d) ui.floatText(toScreen(d.head), e.k === 'relay' ? `Relay +${e.a}` : `Aegis ${e.a}`, 'shield');
       break;
     }
     case 'lvl': {
       const ent = S.ents.get(e.id);
       if (ent) {
+        if (rich() && ent.placed) cvfx.level(ent);
         fx.pillar(ent.pos.x, ent.pos.z, 0xffd27a, 1400);
         fx.ring(ent.pos.x, ent.pos.z, 4, 0xffd27a, 900, ent.pos.y);
         if (e.id !== S.myId) ui.log(`${ent.meta.n} reached level ${e.l}.`, 'info');
@@ -741,15 +983,26 @@ function onEvent(e) {
       if (e.k === 'err') ui.error(e.m);
       else {
         ui.log(e.m, e.k);
-        if (e.k === 'gain') ui.toast(e.m, 'gain');
+        if (e.k === 'gain') {
+          ui.toast(e.m, 'gain');
+          acquired();
+        }
       }
+      break;
+    case 'loot':
+      acquired();
       break;
     case 'xp': {
       const me = S.ents.get(S.myId);
       if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');
       break;
     }
+    case 'radio':
+      ui.radio.receive(e.source,e.m,e.dialogueId);break;
+    case 'field_record':
+      ui.showFieldRecord(e.key);break;
     case 'say':
+      ui.showNpcDialogue(e.id,e.m);
       ui.chatLine(e.n, e.m, 'npc');
       ui.toast(`${e.n}: “${e.m}”`, 'npc');
       break;
@@ -775,12 +1028,18 @@ function toScreen(v) {
 }
 
 /** Entity under a screen point, nearest to the camera first. */
-function pick(x, y, kinds) {
+function pick(x, y, kinds, allowLoot=false) {
   let best = null;
   let bestDist = Infinity;
   for (const ent of S.ents.values()) {
     if (!kinds.includes(ent.meta.k) || ent.id === S.myId || !ent.placed) continue;
-    if (ent.meta.k === 'e' && ent.dead) continue;
+    if(ent.meta.k==='e'&&ent.dead){
+      if(!allowLoot||!ui.loot.canLoot(ent.id))continue;
+      const body=toScreen(ent.pos);if(!body)continue;
+      const radius=Math.max(25,Math.min(58,ent.model.radius*36));
+      if(Math.hypot(x-body.x,y-body.y)<=radius){const d=camera.position.distanceToSquared(ent.holder.position);if(d<bestDist){bestDist=d;best=ent;}}
+      continue;
+    }
     const top = toScreen(ent.head);
     if (!top) continue;
     proj.set(ent.pos.x, ent.pos.y - ent.model.hover * 0.2, ent.pos.z);
@@ -805,7 +1064,7 @@ function nearestObject() {
   let best = null;
   let bestD = INTERACT_RANGE;
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'o') continue;
+    if(ent.meta.k!=='o'&&!(ent.meta.k==='e'&&ent.dead&&ui.loot.canLoot(ent.id)))continue;
     const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
     if (d < bestD) {
       bestD = d;
@@ -822,7 +1081,7 @@ function nextEnemy() {
   const fz_ = Math.cos(cam.yaw);
   const list = [];
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead) continue;
+    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
     const dx = ent.pos.x - me.pos.x;
     const dz = ent.pos.z - me.pos.z;
     const d = Math.hypot(dx, dz);
@@ -841,17 +1100,23 @@ function nextEnemy() {
 
 input.onClick = (button, x, y) => {
   if (button === 0) {
-    const ent = pick(x, y, ['e', 'p', 'c', 'o']);
+    const ent = pick(x, y, ['e', 'p', 'c', 'o'],true);
+    if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
+    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {
     S.inspect = null;
-    const ent = pick(x, y, ['e', 'o', 'p']);
+    const ent = pick(x, y, ['e', 'o', 'p'],true);
     if (!ent) return;
+    if(ent.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
-    if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
+    if (ent.meta.k === 'o') {
+      if(ent.meta.c==='archivist')ui.openNpc(ent);
+      net.send({ t: 'act', id: ent.id });
+    }
     else {
       setTarget(ent.id);
       net.send({ t: 'atk' });
@@ -901,8 +1166,10 @@ input.onAction = (code, e) => {
       } else ui.error('You have no companion to inspect.');
       break;
     case 'KeyC':
-    case 'KeyB':
       ui.toggleBuild();
+      break;
+    case 'KeyB':
+      ui.toggleWorkshop();
       break;
     case 'KeyI':
       ui.toggleInventory();
@@ -927,7 +1194,8 @@ input.onAction = (code, e) => {
       break;
     case 'KeyF': {
       const o = nearestObject();
-      if (o) net.send({ t: 'act', id: o.id });
+      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
     }
@@ -967,6 +1235,7 @@ function sampleRemote(ent, rt) {
 
 function stopAutomaticMovement() {
   S.autoRun = false;
+  if(S.followId)net.send({t:'follow',id:0});
   S.followId = 0;
 }
 function followPlayer(id) {
@@ -974,34 +1243,24 @@ function followPlayer(id) {
   const me = S.ents.get(S.myId);
   if (!me || me.dead || !ent || ent.id === S.myId || ent.meta.k !== 'p' || ent.dead) return ui.error('Select a living player to follow.');
   stopAutomaticMovement();
+  // Deliver any earlier manual input before the follow intent.
+  while(local.outbox.length)net.send({t:'in',s:local.outbox.splice(0,16)});
   S.followId = id;
+  net.send({t:'follow',id});
 }
-// A visible second browser may follow while the leader has keyboard focus.
-// Hidden tabs, logout and disconnect still cancel automatic movement.
-input.onReset = () => {
-  S.autoRun = false;
-  if (document.hidden || !input.enabled) S.followId = 0;
-};
+// Manual/auto-run inputs reset on blur; explicit server follow survives hidden tabs.
+input.onReset = () => { S.autoRun = false; };
 
 function stepLocal(inp, now, dt) {
   const me = S.ents.get(S.myId);
   const dead = !!(me && me.dead);
-  if (!me || dead || !input.enabled || document.hidden) stopAutomaticMovement();
+  if (!me || dead || !input.enabled) stopAutomaticMovement();
   // Automatic movement is only an input convenience. It uses the same
   // collision, speed, prediction, rate limits and server movement validation.
-  if (inp.f || inp.s || inp.turn || inp.jump) stopAutomaticMovement();
-  if (S.followId) {
-    const ent = S.ents.get(S.followId);
-    const dx = ent ? ent.pos.x - local.pred.x : 0;
-    const dz = ent ? ent.pos.z - local.pred.z : 0;
-    const distance = Math.hypot(dx, dz);
-    if (!ent || ent.dead || !ent.placed || distance > 45) stopAutomaticMovement();
-    else if (distance > 2.8) {
-      local.yaw = Math.atan2(dx, dz);
-      inp.f = Math.min(1, (distance - 2.8) / 1.4);
-      inp.steering = false;
-    }
-  } else if (S.autoRun) inp.f = 1;
+  if (inp.f || inp.s || inp.turn || inp.jump || inp.steering) stopAutomaticMovement();
+  // Following is server-driven; do not send duplicate movement steps.
+  if (!S.followId && S.autoRun) inp.f = 1;
+  if(document.hidden){inp.f=0;inp.s=0;inp.turn=0;inp.jump=false;}
   if (inp.lookX || inp.lookY) cam.look(inp.lookX, inp.lookY);
   if (inp.wheel) cam.zoom(inp.wheel);
   if (!dead) {
@@ -1011,7 +1270,7 @@ function stepLocal(inp, now, dt) {
       local.yaw += d;
       cam.yaw += d;
     }
-    if (inp.f > 0 && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
+    if ((inp.f > 0 || S.followId) && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
   }
   local.yaw = wrap(local.yaw);
   cam.yaw = wrap(cam.yaw);
@@ -1030,7 +1289,7 @@ function stepLocal(inp, now, dt) {
     const yaw = Math.round(local.yaw * 10000) / 10000;
     const airborne = local.pred.jy > 0 || local.pred.vy > 0;
     const turned = Math.abs(wrap(yaw - local.sentYaw)) > 0.01 && now - local.yawSentAt > 90;
-    if (f || st || jump || airborne || turned) {
+    if (!S.followId && (f || st || jump || airborne || turned)) {
       const cmd = { seq: ++local.seq, f, s: st, yaw, j: jump ? 1 : 0 };
       stepMove(local.pred, cmd, local.speedMul);
       local.pending.push(cmd);
@@ -1135,6 +1394,11 @@ function updateEntities(dt, t, now) {
     ent.inView = frustum.intersectsSphere(cullSphere) && (quality > 0 || ent.id === S.myId || camera.position.distanceToSquared(cullSphere.center) < 80 * 80);
     ent.holder.visible = ent.inView;
     if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
+    liveAegis.sync(ent, motionPreference.matches || quality === 0, t);
+    // Persistent statuses (ward, regeneration, bond, corrode, sap, root) while the server reports them.
+    if (svfx && rich() && ent.placed && ent.inView && !ent.dead) svfx.sync(ent, row?.b, dt * vfxTime);
+    else svfx?.remove(ent.id);
+    if (ent.rigModel) animateRig(ent, t);
     ent.model.update(dt, {
       t,
       speed: ent.speed,
@@ -1148,6 +1412,9 @@ function updateEntities(dt, t, now) {
       casting,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
+      self: ent.id === S.myId,
+      // Presentation only: how close the local player stands to an object.
+      near: ent.meta.k === 'o' && S.ents.get(S.myId) ? Math.hypot(S.ents.get(S.myId).pos.x - x, S.ents.get(S.myId).pos.z - z) : undefined,
       fwd: ent.fwd,
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
@@ -1164,17 +1431,21 @@ function updatePlates(now) {
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
     const screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
+    const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
-      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : 'enemy';
-      label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
+      const calm = ent.meta.neu && !(row.f & 8);
+      cls = ent.dead ? (lootable?'corpse lootable':'corpse') : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
+      label = ent.dead ? `${ent.meta.n} · ${lootable?"Loot":"remains"}` : `${ent.meta.n}${ent.meta.el ? " ◆" : ""}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
+      else if (!ent.dead && calm) label += ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
     ui.placePlate(ent, screen, {
       cls,
       label,
+      lootable,
       selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
       owned: k === 'c' && ent.meta.o === S.myId,
       hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
@@ -1227,6 +1498,8 @@ function setQuality(q) {
   scene.environment = q >= 1 ? environment : null;
   world.ambient.intensity = world.ambientBase * (q >= 1 ? 1 : 1.5);
   lowSpec(scene, q === 0);
+  if (q === 0) svfx?.clear();
+  vfx?.setQuality(q);
   renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
   resize();
 }
@@ -1277,7 +1550,11 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
-  fx.update(dt);
+  fxClock += dt * 1000 * vfxTime;
+  fx.update(dt * vfxTime);
+  liveCasts.update(fxClock);
+  vfx?.update(dt * vfxTime);
+  pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;
   if (me && me.placed) {
@@ -1292,7 +1569,7 @@ function frame(now) {
     ring.scale.setScalar(r);
     ring.position.set(target.pos.x, groundHeight(target.pos.x, target.pos.z) + 0.14, target.pos.z);
     ring.rotation.z = time * 0.8;
-    ring.material.color.setHex(target.meta.k === 'e' ? 0xff5a4a : 0x7dffc4);
+    ring.material.color.setHex(target.meta.k === 'e' ? (S.you?.surveyKit?.mark === target.id ? 0x85cde9 : 0xff5a4a) : 0x7dffc4);
   } else ring.visible = false;
 
   camera.updateMatrixWorld();
@@ -1353,6 +1630,7 @@ window.__attune = {
       drawn: S.drawn,
       quality,
       target: S.target,
+      followId:S.followId,
       inspected: S.inspect?.id || 0,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
       yaw: local.yaw,

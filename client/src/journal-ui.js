@@ -3,6 +3,8 @@
 import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
+import { MATERIALS } from '../../shared/crafting.js';
+import { inventoryView } from './inventory-view.js';
 
 function h(tag, cls, text) {
   const e=document.createElement(tag);
@@ -11,6 +13,24 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  mire_fibre:'<path d="M3 19C6 7 17 20 21 5M3 15C7 2 17 17 20 3M5 22C9 12 18 23 22 10" stroke="#9bac78" stroke-width="2.5"/>',
+  sentinel_alloy:'<path d="m3 7 10-4 8 5-10 5z" fill="#a1a9a6"/><path d="m3 7 8 6v8l-8-5z" fill="#596b72"/><path d="m11 13 10-5v8l-10 5z" fill="#778891"/><path d="m5 9 5 3m3 4 6-4"/>',
+  resonance_fragment:'<path d="m9 2 9 4 3 11-10 5L3 14z" fill="#5f758b"/><path d="m9 2 2 20 7-16M3 14l8-3 10 6" stroke="#d0b3ea"/>',
+  kinetic_coupler:'<path d="m3 8 5-4h8l5 4v8l-5 4H8l-5-4z" fill="#66747b"/><path d="M7 6v12m10-12v12" stroke="#d4a766" stroke-width="3"/><circle cx="12" cy="12" r="3" fill="#142b35"/>',
+  culture_matrix:'<rect x="3" y="5" width="18" height="14" rx="4" fill="#344b48"/><path d="M7 8v8m5-8v8m5-8v8M6 10h12m-12 4h12" stroke="#8bca9d"/><circle cx="12" cy="12" r="2" fill="#c6e6ae"/>',
+  calibrated_servo:'<path d="M3 5h6v8h6V5h6v14h-6v-3H9v3H3z" fill="#627883"/><path d="M9 9h6M6 7v9m12-9v9" stroke="#e9b976"/>',
+  cultured_focus:'<path d="m12 2 8 7-5 12L5 14z" fill="#4b7770"/><path d="M12 2v14l8-7M5 14l7 2 3 5" stroke="#b1e5b0"/><circle cx="12" cy="12" r="3" fill="#99d3a5"/>',
+  resonance_buffer:'<rect x="5" y="3" width="14" height="18" rx="4" fill="#566477"/><path d="M8 5v14m8-14v14" stroke="#9ab8d9"/><circle cx="12" cy="12" r="3" stroke="#dfc0fa" fill="#334353"/>',
+  field_vector_array:'<path d="M3 19 12 3l9 16z" fill="#5f7781"/><path d="M7 15h10M12 7v12" stroke="#a8e0e4"/><circle cx="12" cy="12" r="2"/>',
+  conductive_membrane:'<path d="M3 6q9-5 18 0v12q-9 5-18 0z" fill="#526961"/><path d="M5 9q7-5 14 0M5 13q7-5 14 0M5 17q7-5 14 0" stroke="#b5cb8f"/>',
+  keeper_prism:'<path d="m12 2 8 5v10l-8 5-8-5V7z" fill="#526779"/><path d="m4 7 8 5 8-5m-8 5v10" stroke="#a3dbe4"/><circle cx="12" cy="8" r="2" fill="#d6b9ee"/>',
+  phase_damper:'<path d="M5 4h14v16H5z" fill="#526879"/><path d="m7 11 3-3 4 8 3-3" stroke="#d5bcf0"/><path d="M3 7h2m14 0h2M3 17h2m14 0h2"/>',
+  sinter_laminate:'<path d="m3 8 12-5 6 5-12 5zM3 12l6 5 12-5M3 16l6 5 12-5" fill="#78877a" stroke="#b9cfac"/>',
+  aegis_rectifier:'<path d="m12 2 8 4v6l-8 10-8-10V6zM4 6l8 6 8-6M12 12v10"/><circle cx="12" cy="8" r="2"/>',
+  brine_rescue_lattice:'<path d="M4 5h16v14H4zM12 6v12M6 12h12M4 5l4 4m12-4-4 4M4 19l4-4m12 4-4-4"/>',
+  keeper_resonator:'<path d="M5 4h14v16H5zM7 12l3-5 4 10 3-5"/>',
+  glyph_hinge:'<path d="M4 20V7l8-4 8 4v13M4 20l8-4 8 4M12 3v13"/>',
+
   sporeglass_focus:'<path d="M12 2 20 9 15 21 5 14zM12 2v14l8-7M5 14l7 2 3 5"/>',
   servo_harness:'<path d="M4 5h5v8h6V5h5v14h-5v-3H9v3H4z"/><path d="M9 9h6"/>',
   wardstone_shard:'<path d="m12 2 8 6-3 12-10 2-4-9zM12 2l-1 14 6 4M3 13l8 3 9-8"/>',
@@ -26,9 +46,9 @@ const art={
   device:'<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3m14 0h3M2 15h3m14 0h3"/>',
   implant:'<path d="M12 3 19 7v10l-7 4-7-4V7zM12 7v10M8 12h8"/>',
 };
-function itemArt(id) {
-  const slot=ITEMS[id]?.slot || '';
-  const e=h('span','item-art '+slot);
+export function itemArt(id) {
+  const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':'');
+  const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
   e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(art[id]||art[slot]||art.glyph)+'</svg>';
   return e;
@@ -39,6 +59,32 @@ function requirements(s,id) {
     if(r.detail){ line.title=r.detail; line.setAttribute('aria-label',r.text+'. '+r.detail); }
     return line;
   });
+}
+function bindItem(ui,el,id) {
+  el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();ui.openItemContext(id,e.clientX,e.clientY,el);});
+  el.addEventListener('keydown',e=>{
+    if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
+      e.preventDefault();e.stopPropagation();const r=el.getBoundingClientRect();
+      ui.openItemContext(id,r.left,r.bottom,el);
+    }
+  });
+  el.draggable=true;
+  el.addEventListener('dragstart',e=>{
+    if(ui.buildLock||!ui.sheet?.inventory.includes(id)){e.preventDefault();return;}
+    ui.dragItem=id; e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('application/x-attunement-item',id);
+  });
+  el.addEventListener('dragend',()=>{ui.dragItem=null;});
+}
+function itemDrop(ui,el,accept,apply){
+  el.ondragover=e=>{
+    if(ui.dragItem&&accept(ui.dragItem)){e.preventDefault();e.dataTransfer.dropEffect='move';}
+  };
+  el.ondrop=e=>{
+    const id=ui.dragItem;
+    if(!id||e.dataTransfer.getData('application/x-attunement-item')!==id||!accept(id))return;
+    e.preventDefault();e.stopPropagation();ui.dragItem=null;apply(id);
+  };
 }
 function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const s=ui.sheet,item=ITEMS[id];
@@ -59,6 +105,8 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   card.append(btn);
   if(!res.ok)card.append(h('div','why',res.reason));
   if(onSelect)card.addEventListener('click',()=>onSelect(id));
+  card.tabIndex=0;
+  bindItem(ui,card,id);
   ui.hover(label,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
   return card;
 }
@@ -80,6 +128,7 @@ const LOADOUT_TABS = [
     present('left-hand','Left hand',1,3),present('implant','Implant',2,3,'implant'),present('right-hand','Right hand',3,3),
     present('left-leg','Left leg',1,4),present('spine','Spine',2,4),present('right-leg','Right leg',3,4),
   ]},
+  {id:'glyphs',name:'Glyphs',slots:[present('glyph','Glyph',2,2,'glyph')]},
   {id:'weapons',name:'Weapons',slots:[
     present('right-hand','Right hand',1,1),present('left-hand','Left hand',3,1),
     present('ranged','Ranged',2,2),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
@@ -101,9 +150,13 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph'}[t.id];
+    const unseen=[...(ui.unseenItems||[])].filter(id=>ITEMS[id]?.slot===slotFor);
+    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
-      if(ui.loadoutTab===t.id)return;
+      if(unseen.length){for(const id of unseen)ui.unseenItems.delete(id);ui.buildBtn.classList.toggle('new',ui.unseenItems.size>0);ui.inventoryBtn.classList.toggle('new',ui.unseenItems.size>0);}
+      if(ui.loadoutTab===t.id&&!unseen.length)return;
       ui.loadoutTab=t.id;
       ui.loadoutSelection=ui.loadoutSlot=null;
       ui.renderBuild();
@@ -147,10 +200,11 @@ export function renderLoadout(ui,body,stats) {
   }else{
     const grid=h('div','equipment-slot-grid');
     grid.setAttribute('aria-label',tab.name+' equipment slots');
-    // A schematic, not a claim about an installed item or the current rig.
+    // Front orthographic render from the actual class/look model.
     const sketch=h('div','equipment-sketch');
     sketch.setAttribute('aria-hidden','true');
-    sketch.innerHTML='<svg viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="#26778c" fill-opacity=".22" stroke="#8ee9f6" stroke-width="1.3" stroke-linejoin="round"><path d="M83 43Q78 23 87 10Q100 1 113 10Q122 23 117 43L108 55H92Z"/><path d="M91 55L88 67 63 75 52 87 61 111 71 139 77 166 72 189 81 209 100 217 119 209 128 189 123 166 129 139 139 111 148 87 137 75 112 67 109 55Z"/><path d="M53 86L42 98 29 143 22 179 15 195 15 212 25 218 35 210 40 191 39 180 52 151 65 112Z"/><path d="M147 86L158 98 171 143 178 179 185 195 185 212 175 218 165 210 160 191 161 180 148 151 135 112Z"/><path d="M78 207L66 245 65 275 68 315 61 329 62 334 84 334 91 327 89 305 93 275 97 246 100 217Z"/><path d="M122 207L134 245 135 275 132 315 139 329 138 334 116 334 109 327 111 305 107 275 103 246 100 217Z"/></g><g stroke="#8ee9f6" stroke-width=".8" opacity=".65"><path d="M100 8V217M84 29H116M89 46H111M65 79L100 96 135 79M70 113H130M76 143H124M77 166H123M72 189L100 203 128 189M44 135L56 142M144 142L156 135M26 174L41 180M159 180L174 174M68 260L93 265M107 265L132 260M68 278L92 278M108 278L132 278M70 311L89 309M111 309L130 311"/></g><g fill="#a1eaf3" opacity=".65"><circle cx="100" cy="96" r="3"/><circle cx="100" cy="143" r="3"/><circle cx="100" cy="203" r="3"/><circle cx="55" cy="89" r="3"/><circle cx="145" cy="89" r="3"/><circle cx="80" cy="266" r="3"/><circle cx="120" cy="266" r="3"/></g></svg>';
+    const blueprint=ui.a.portrait({k:'p',c:s.cls,a:s.look},'sketch');
+    if(blueprint){const img=h('img');img.src=blueprint;img.alt='';sketch.append(img);}
     grid.append(sketch);
     const rows=Math.max(...tab.slots.map(t=>t.row));
     grid.style.setProperty('--slot-rows',rows);
@@ -172,6 +226,8 @@ export function renderLoadout(ui,body,stats) {
         ui.loadoutSelection=null;
         renderDetail();
       });
+      if(id)bindItem(ui,btn,id);
+      if(slot.slot)itemDrop(ui,btn,itemId=>!ui.buildLock&&ITEMS[itemId]?.slot===slot.slot&&ui.sheet.inventory.includes(itemId)&&ui.sheet.equipped[slot.slot]!==itemId,itemId=>ui.itemAction(itemId,'equip'));
       buttons.set(slot.key,btn);
       grid.append(btn);
     }
@@ -216,33 +272,48 @@ export function renderInventory(ui) {
   const root=ui.inventoryBody;
   if(ui.tipFor&&root.contains(ui.tipFor))ui.tooltip.hidden=true;
   root.replaceChildren();
+  itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
+    const unseen=[...(ui.unseenItems||[])].filter(item=>ITEMS[item]?.slot===id);
+    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';}
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }
-  const carried=s.inventory.filter(id=>ITEMS[id]&&s.equipped[ITEMS[id].slot]!==id);
-  const items=carried.filter(id=>ui.inventoryFilter==='all'||ITEMS[id].slot===ui.inventoryFilter);
-  if(!items.includes(ui.inventorySelection))ui.inventorySelection=items[0]||null;
+  const view=inventoryView(s,ui.inventoryFilter),items=view.entries;
+  const equipment=items.filter(e=>e.kind==='equipment');
+  if(!equipment.some(e=>e.id===ui.inventorySelection))ui.inventorySelection=equipment[0]?.id||null;
   const grid=h('div','inventory-grid');
-  for(const id of items){
+  for(const entry of items){
+    const {id,kind,quantity}=entry;
+    if(kind==='material'){
+      const material=MATERIALS[id],btn=h('button','item-cell material-cell');
+      btn.type='button';btn.dataset.material=id;
+      btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
+      btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
+      btn.addEventListener('click',()=>ui.toggleCodex(true,id));
+      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body','Material · quantity '+quantity)]);
+      grid.append(btn);continue;
+    }
     const item=ITEMS[id];
     const btn=h('button','item-cell'+(ui.inventorySelection===id?' active':''));
     btn.append(itemArt(id));
     btn.title=item.name;btn.setAttribute('aria-label',item.name);
+    bindItem(ui,btn,id);
     btn.addEventListener('click',()=>{ui.inventorySelection=id;renderInventory(ui);});
     ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
     grid.append(btn);
   }
-  // Empty cells reproduce the grid, not a storage-capacity mechanic.
+  // A cell is an equipment item or one material stack, not storage capacity.
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
-  root.append(tabs,h('div','inventory-count',items.length+' shown · '+carried.length+' carried'),grid);
-  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
+  const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
+  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units';
+  root.append(tabs,count,grid);
+  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
-    const id=ui.inventorySelection;
-    const card=equipmentCard(ui,id,false,null,true);
+    const card=equipmentCard(ui,ui.inventorySelection,false,null,true);
     card.classList.add('inventory-detail');
     root.append(card);
   }
@@ -295,6 +366,7 @@ export function renderCodex(ui,abilityIcons) {
     }
     if(!pictured){
       if(entry.item)picture.append(itemArt(entry.item));
+      else if(Object.hasOwn(MATERIALS,entry.id))picture.append(itemArt(entry.id));
       else if(entry.ability&&abilityIcons[entry.ability]){
         const icon=h('span','codex-symbol');icon.innerHTML=abilityIcons[entry.ability];picture.append(icon);
       }else picture.append(itemArt(entry.zone?'location':'glyph'));

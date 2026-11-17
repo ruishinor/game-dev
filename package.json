@@ -15,7 +15,9 @@
     "assets:build": "node tools/assets/build.mjs",
     "assets:preview": "node tools/assets/preview.mjs",
     "capture": "node tools/capture.mjs",
-    "profile": "node tools/profile.mjs"
+    "profile": "node tools/profile.mjs",
+    "assets:originals": "node tools/assets/originals/build.mjs",
+    "assets:originals:check": "node tools/assets/originals/build.mjs --check"
   },
   "dependencies": {
     "three": "^0.187.0",

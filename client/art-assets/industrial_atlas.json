@@ -1,0 +1,126 @@
+{
+  "width": 512,
+  "height": 256,
+  "cell": 128,
+  "gutter": 6,
+  "seed": 417,
+  "tiles": [
+    {
+      "id": "ceramic",
+      "offset": [
+        0.0126953125,
+        0.025390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "ochre_paint",
+      "offset": [
+        0.2626953125,
+        0.025390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "graphite_steel",
+      "offset": [
+        0.5126953125,
+        0.025390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "bare_alloy",
+      "offset": [
+        0.7626953125,
+        0.025390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "technical_fabric",
+      "offset": [
+        0.0126953125,
+        0.525390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "rubber",
+      "offset": [
+        0.2626953125,
+        0.525390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "concrete",
+      "offset": [
+        0.5126953125,
+        0.525390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    },
+    {
+      "id": "polymer",
+      "offset": [
+        0.7626953125,
+        0.525390625
+      ],
+      "scale": [
+        0.224609375,
+        0.44921875
+      ],
+      "baseColorSpace": "sRGB",
+      "normalColorSpace": "linear",
+      "ormColorSpace": "linear"
+    }
+  ],
+  "files": {
+    "base": "industrial_base.png",
+    "normal": "industrial_normal.png",
+    "orm": "industrial_orm.png"
+  }
+}

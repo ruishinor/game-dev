@@ -1,0 +1,14 @@
+# Glyph coupling — bounded relational interactions
+
+This increment uses the four existing glyphs, not a second loadout slot or universal composition grammar. Resonance makes compatible patterns interact in the world rather than awarding passive stacking bonuses. Cooperation is optional; existing solo behavior is unchanged in the absence of a compatible field/imprint.
+
+## Aegis × Shared Pulse — Field Relay
+An active Resonant Aegis has an original capacity. Shared Pulse keeps its direct Triage mend, but routes a secondary pulse into a partially depleted Aegis instead of healing that recipient's health. The ordinary scaled splash amount is the budget; actual repair cannot exceed original capacity. A fully depleted/expired field cannot be revived, duration never renews, and the live original glyph source is required. If no repair is possible, ordinary splash healing proceeds. Repair generates support threat. A pale-blue link and ring, Relay float text and unchanged Aegis snapshot distinguish this from health regeneration.
+
+## Carapace × Rending Echo — Imprinted Echo
+Carapace's reflected melee sting leaves a 4.5s pattern on a surviving attacker. Targeting that marked creature with Rending Arc while Rending Echo is equipped relocates the normal 4.5m secondary damage area from the caster to the primary target and consumes the imprint. Damage coefficient, primary reach, cooldown and charge generation remain unchanged. This trades local coverage for projected coverage, not a second AoE or multiplicative damage. A buff chip, material-colored imprint ring and projected echo ring announce the interaction. Expired marks do not redirect. Marks are transient world residues, not saved inventory or an unlock.
+
+## Simulated review
+Game design: situational cooperation across the two available professions, no compulsory partners; preparation and target selection matter. Lore: structural fields and transferred patterns rather than elemental spell colors. UX: inventory descriptions, tooltips, target chip and distinct effect geometry; full screen readability requires gameplay evidence. Performance: reuse existing effect resources, no persistent new mesh or dependency. Authority: only damage/buff/ability server code can generate an imprint or repair; one field cap, bounded duration, no new network command, no persistence schema. Adversarial: actual repair amount and threat, no double heal, no revive, no expiry extension, missing/dead source, single consumption, normal behavior without a living mark. Retrospective: prove two bounded pair interactions before expanding Hinge/Span/Lattice or a universal combinator. Numeric balance, actual visual rendering and cross-branch reconciliation remain unverified.
+
+Authoring harness uses retrieved simulation source with minimal host fixtures, not native Node/WebGL. Committed focused tests and hosted workflows are the checkout validation gate.

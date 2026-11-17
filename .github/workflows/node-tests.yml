@@ -2,6 +2,9 @@ name: Node regression tests
 
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -19,4 +22,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: node --check client/src/main.js && node --check client/src/ui.js && node --check client/src/portraits.js && node --check client/src/journal.js && node --check client/src/journal-ui.js && node --check client/src/scene.js && node --check client/src/looks.js && node --check test/e2e/play.mjs
+      - run: node --check client/src/main.js && node --check client/src/ui.js && node --check client/src/portraits.js && node --check client/src/journal.js && node --check client/src/journal-ui.js && node --check client/src/workshop-ui.js && node --check client/src/scene.js && node --check client/src/looks.js && node --check test/e2e/play.mjs

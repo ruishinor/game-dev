@@ -1,0 +1,101 @@
+"""Promote explicitly reviewed recordings; no automatic audition acceptance."""
+import argparse
+import hashlib
+import json
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from audition import catalog
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+def signal(path):
+    import numpy as np
+    raw = subprocess.check_output(['ffmpeg','-nostdin','-v','error','-i',str(path),'-f','f32le','-ac','1','-ar','24000','-'])
+    x = np.frombuffer(raw, dtype='<f4')
+    if not 0 < x.size <= 24000*300 or not np.isfinite(x).all() or np.max(np.abs(x)) < .001:
+        raise ValueError('Invalid decoded signal')
+    # RMS per 50 ms; fixed scaling maintains relative volume between recordings.
+    pad = (-len(x)) % 1200
+    rms = np.sqrt(np.mean(np.pad(x,(0,pad)).reshape(-1,1200)**2,axis=1))
+    return [round(float(v),3) for v in np.clip(rms*4,0,1)]
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument('auditions',type=pathlib.Path)
+    p.add_argument('decisions',type=pathlib.Path)
+    p.add_argument('--apply',action='store_true',help='write reviewed game assets; otherwise dry run')
+    p.add_argument('--private-playtest',action='store_true',help='permit explicitly scoped private preview assets; never public clearance')
+    args=p.parse_args()
+    source=args.auditions.resolve()
+    provenance=json.loads((source/'manifest.json').read_text(encoding='utf-8'))
+    decisions=json.loads(args.decisions.read_text(encoding='utf-8'))
+    entries=catalog()
+    reviewed={}
+    copies={}
+    # Full approved snapshot; do not silently overwrite or drop previous clips.
+    existing=ROOT/'client/src/radio-assets.js'
+    old=existing.read_text(encoding='utf-8')
+    # Supported manifests are emitted by this tool or are the original empty manifest.
+    prefix='export const APPROVED_RADIO_ASSETS=Object.freeze('
+    if prefix not in old: raise ValueError('Unrecognized manifest format')
+    current=json.loads(old.split(prefix,1)[1].rsplit(');',1)[0])
+    reviewed.update(current)
+    if not isinstance(decisions,list) or not decisions: raise ValueError('Expected nonempty review decisions')
+    seen=set()
+    for d in decisions:
+        id=d['id']; voice=d['voice']; digest=d['deliverySha256']
+        if id in seen: raise ValueError('Duplicate review decision: '+id)
+        seen.add(id)
+        if d.get('decision')!='accepted' or not str(d.get('reviewer','')).strip() or not str(d.get('listeningNotes','')).strip() or not str(d.get('rightsNotes','')).strip():
+            raise ValueError('Explicit listening and rights acceptance required: '+id)
+        scope=d.get('distributionScope')
+        if scope!='release-cleared' and not (scope=='private-playtest' and args.private_playtest): raise ValueError('Explicit distribution scope required: '+id)
+        if id not in entries: raise ValueError('Unknown dialogue: '+id)
+        matches=[c for c in provenance['clips'] if c['id']==id and c['voice']==voice and c['deliverySha256']==digest]
+        if len(matches)!=1: raise ValueError('Missing/ambiguous reviewed take: '+id)
+        c=matches[0]
+        if c['transcript']!=entries[id]['transcript'] or c['voiceProfile']!=entries[id]['voiceProfile']: raise ValueError('Stale dialogue: '+id)
+        expected=id+'--'+voice+'.mp3'
+        if c['delivery']!=expected or not voice.isidentifier(): raise ValueError('Unsafe take filename')
+        path=source/expected
+        if path.is_symlink() or path.resolve().parent!=source: raise ValueError('Unsafe take path')
+        data=path.read_bytes()
+        if len(data)>3_000_000 or sha(data)!=digest: raise ValueError('Take hash/size mismatch: '+id)
+        envelope=signal(path)
+        reviewed[id]={'transcript':c['transcript'],'sha256':digest,'envelope':envelope,
+                      'provenance':{'model':provenance['model'],'revision':provenance['revision'],'modelSha256':provenance['modelSha256'],
+                      'voice':voice,'voiceSha256':provenance['voiceSha256'][voice],
+                      'spokenText':c['spokenText'],'reviewer':d['reviewer'],'listeningNotes':d['listeningNotes'],'rightsNotes':d['rightsNotes'],'distributionScope':scope}}
+        copies[id]=data
+    print('Validated',len(copies),'reviewed takes;',sum(map(len,copies.values())),'delivery bytes')
+    target=ROOT/'client/assets/voice'
+    # Validate the resulting complete snapshot, including previously accepted takes.
+    for id,c in reviewed.items():
+        if id not in entries or c['transcript']!=entries[id]['transcript']: raise ValueError('Stale existing manifest: '+id)
+        data=copies.get(id)
+        if data is None:
+            old_path=target/(id+'.mp3')
+            if old_path.is_symlink(): raise ValueError('Unsafe existing asset: '+id)
+            data=old_path.read_bytes()
+        if sha(data)!=c['sha256']: raise ValueError('Existing asset mismatch: '+id)
+    if not args.private_playtest and any(c.get('provenance',{}).get('distributionScope')!='release-cleared' for c in reviewed.values()):
+        raise ValueError('Existing private-only or undocumented assets block release promotion')
+    if not args.apply: return
+    target.mkdir(parents=True,exist_ok=True)
+    if target.is_symlink(): raise ValueError('Unsafe delivery directory')
+    for id,data in copies.items():
+        with tempfile.NamedTemporaryFile(dir=target,delete=False) as f:
+            f.write(data); tmp=pathlib.Path(f.name)
+        tmp.replace(target/(id+'.mp3'))
+    content='// Generated by tools/voice/promote.py from explicit review decisions.\n'+prefix+json.dumps(reviewed,ensure_ascii=False,indent=2,sort_keys=True)+');\n'
+    with tempfile.NamedTemporaryFile(dir=existing.parent,delete=False,mode='w',encoding='utf-8') as f:
+        f.write(content); tmp=pathlib.Path(f.name)
+    tmp.replace(existing)
+    print('Updated local game assets. Inspect git diff, run tests, and commit only reviewed clips.')
+if __name__=='__main__': main()

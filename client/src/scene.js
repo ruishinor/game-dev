@@ -2,9 +2,10 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32 } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -72,6 +73,9 @@ function groundColor(x, z, out) {
   blend(ZONES.vault, 19, 0x34334f, 0x4a4870);
   blend(ZONES.obelisk, 9, 0x223f5c, 0x2f5a78);
   blend(ZONES.sanctum, 15, 0x4d6670, 0x5f7c86);
+  blend(ZONES.survey, 20, 0x645043, 0x9b7962);
+  blend(ZONES.sinter, 19, 0x827769, 0xbab09a);
+  blend(ZONES.deep, 19, 0x484b48, 0x78796e);
   const edge = smooth((Math.hypot(x, z) - (WORLD.radius - 12)) / 9);
   if (edge > 0) out.lerp(tmpB.setHex(0x2c2b36).lerp(tmpA.setHex(0x45434f), n), edge);
   return out;
@@ -233,7 +237,159 @@ function jitteredRock(seed) {
 }
 const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
+// A roofed laboratory rather than a surface ruin. Floor, ducts and
+// lights share a bounded static kit; the walkable height stays authoritative.
+function buildDeepArchitecture(scene) {
+  const g = new THREE.Group();
+  g.name = 'kestrel:architecture';
+  const concrete = mat(0x585950, { rough: 0.94 });
+  const steel = mat(0x3b4647, { metal: 0.52, rough: 0.6 });
+  const plate = mat(0x626660, { metal: 0.18, rough: 0.79 });
+  const seam = mat(0x222c2c, { rough: 0.85 });
+  const ochre = mat(0x927447, { rough: 0.8, metal: 0.18 });
+  const ceiling = scaled(G.box, concrete, DEEP.hw * 2, DEEP.roofTop - DEEP.roofBottom, DEEP.hd * 2,
+    DEEP.x, (DEEP.roofBottom + DEEP.roofTop) / 2, DEEP.z, true);
+  ceiling.name = 'kestrel:roof';
+  g.add(ceiling);
+  // Long industrial slabs and recessed seams: no holes in the walkable deck.
+  g.add(scaled(G.box, plate, 13.2, 0.065, 11.8, DEEP.x, DEEP.floor + 0.035, DEEP.z, false));
+  for (let x = -63; x <= -51; x += 2) {
+    g.add(scaled(G.box, seam, 0.045, 0.02, 11.5, x, DEEP.floor + 0.08, DEEP.z, false));
+    g.add(scaled(G.box, steel, 0.28, 0.31, 12.5, x, DEEP.roofBottom - 0.16, DEEP.z));
+  }
+  for (const side of [-1,1]) {
+    const z = DEEP.z + side * 5.65;
+    g.add(scaled(G.box, ochre, 12.7, 0.015, 0.12, DEEP.x, DEEP.floor + 0.08, z, false));
+    // Wall-hugging insulated pipes stay outside usable floor space.
+    for (let i=0; i<2; i++) {
+      const pipe = scaled(G.cyl8, i ? steel : ochre, 0.14, 12.5, 0.14, DEEP.x, DEEP.floor + 3.25 + i * 0.35, DEEP.z + side * 6.0);
+      pipe.rotation.z = Math.PI / 2;
+      g.add(pipe);
+    }
+    g.add(scaled(G.box, steel, 12, 0.14, 0.28, DEEP.x, DEEP.roofBottom - 0.42, DEEP.z + side * 3.7));
+    for (const x of [-61,-55]) {
+      g.add(scaled(G.box, glow(0xd5d4a2), 2.6, 0.035, 0.16, x, DEEP.roofBottom - 0.5, DEEP.z + side * 3.7, false));
+    }
+  }
+  // Open portal fascia, no doorway collision across the aisle.
+  g.add(scaled(G.box, ochre, 0.16, 0.42, 12.7, DEEP.x + DEEP.hw - 0.1, DEEP.roofBottom - 0.18, DEEP.z));
+  const lamp = new THREE.PointLight(0xffddb2, 75, 13, 2);
+  lamp.position.set(DEEP.x, DEEP.roofBottom - 0.92, DEEP.z);
+  lamp.name = 'kestrel:worklight';
+  g.add(lamp);
+  scene.add(g);
+}
+
 const procedural = {
+  deep_wall(p) {
+    const g = new THREE.Group();
+    const concrete = mat(0x525750, { rough: 0.94 });
+    const rail = mat(0x333e40, { metal: 0.38, rough: 0.75 });
+    const longX = p.hw > p.hd;
+    g.add(scaled(G.box, concrete, p.hw * 2, p.h, p.hd * 2, 0, p.h / 2, 0));
+    for (const along of [-0.65,0,0.65]) {
+      g.add(scaled(G.box, rail, longX ? 0.22 : p.hw * 2 + 0.12, p.h, longX ? p.hd * 2 + 0.12 : 0.22,
+        longX ? along * p.hw : 0, p.h / 2, longX ? 0 : along * p.hd));
+    }
+    return g;
+  },
+  deep_vessel(p) {
+    const g = new THREE.Group();
+    g.name = 'kestrel:vessel:' + p.seed;
+    const shell = mat(0x78817a, { metal: 0.38, rough: 0.67 });
+    const clamp = mat(0x353e3c, { metal: 0.55, rough: 0.57 });
+    const window = mat(0x718b7a, { metal: 0.05, rough: 0.35, emissive: 0x162b21 });
+    // G.cyl8 has unit radius, not unit diameter: keep all equipment
+    // surfaces inside the simulation's 1.05m circular footprint.
+    g.add(scaled(G.cyl8, clamp, 1.0, 0.24, 1.0, 0, 0.12, 0));
+    g.add(scaled(G.cyl8, shell, 0.9, p.h - 0.5, 0.9, 0, p.h / 2, 0));
+    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 0.99, 0.18, 0.99, 0, y, 0));
+    g.add(scaled(G.cyl8, clamp, 0.55, 0.2, 0.55, 0, p.h-0.1, 0));
+    for (const side of [-1,1]) g.add(scaled(G.box, clamp, 0.13, p.h-0.64, 0.14, side*0.62, p.h/2, 0.64));
+    g.add(scaled(G.box, clamp, 0.72, 0.91, 0.15, 0, p.h*0.58, 0.8));
+    g.add(scaled(G.box, window, 0.52, 0.65, 0.045, 0, p.h*0.58, 0.89, false));
+    for(let i=0;i<3;i++) g.add(scaled(G.box, shell, 0.43, 0.035, 0.015, 0, p.h*0.58-0.18+i*0.18, 0.922, false));
+    return g;
+  },
+  // Wind-cut, laminated mineral fins: broad bases, fractured edges, no emission.
+  sinter_ridge(p) {
+    const g = new THREE.Group();
+    g.name = 'sinter-ridge:' + p.seed;
+    const rnd = mulberry32(p.seed);
+    const strata = [0x514d48, 0x938572, 0x665c51, 0xb5a88b, 0x807266];
+    for (let i = 0; i < strata.length; i++) {
+      const taper = 1 - i * 0.115;
+      const dx = (rnd() - 0.5) * p.hw * 0.22;
+      const dz = (rnd() - 0.5) * p.hd * 0.16;
+      const layer = scaled(rockGeos[(p.seed+i)%rockGeos.length], mat(strata[i], {rough:0.96}),
+        p.hw*0.75*taper, p.h*0.20, p.hd*0.74*taper, dx, p.h*(0.13+i*0.17), dz);
+      g.add(layer);
+    }
+    return g;
+  },
+  // A complete grounded fallback if the original biological colony is unavailable.
+  sinter_colony(p) {
+    const g = new THREE.Group();
+    const rind = mat(0x675d50, {rough:0.94});
+    const mineral = mat(0x9c9881, {rough:0.73,metal:0.12});
+    const dark = mat(0x4b514a, {rough:0.87});
+    const rnd = mulberry32(p.seed);
+    g.add(scaled(G.sph,rind,1.15,0.17,0.92,0,0.13,0));
+    for (let i=0;i<7;i++) {
+      const a=i*Math.PI*2/7, r=0.42+rnd()*0.34;
+      const x=Math.cos(a)*r,z=Math.sin(a)*r;
+      g.add(scaled(G.sph,dark,0.23,0.16,0.20,x,0.24,z));
+      const h=0.36+rnd()*0.78;
+      const fin=scaled(G.ico,mineral,0.16,h*0.48,0.12,x,0.28+h*.40,z);
+      fin.rotation.z=Math.sin(a)*0.24;
+      g.add(fin);
+    }
+    return g;
+  },
+  survey_pump(p) {
+    const g = new THREE.Group();
+    const base = mat(0x494a43, { rough: 0.91 });
+    const steel = mat(0x727b78, { rough: 0.57, metal: 0.55 });
+    const paint = mat(0x82704f, { rough: 0.82, metal: 0.24 });
+    const dark = mat(0x2b3333, { rough: 0.75, metal: 0.4 });
+    const add = (geo, material, ...args) => g.add(scaled(geo, material, ...args));
+    add(G.box, base, 4.1, 0.45, 2.8, 0, 0.23, 0);
+    add(G.box, dark, 3.1, 0.42, 1.9, 0, 0.65, 0);
+    const tank = new THREE.CylinderGeometry(0.72, 0.72, 2.1, 20);
+    const pipe = new THREE.CylinderGeometry(0.16, 0.16, 1.6, 12);
+    for (const side of [-1, 1]) {
+      add(tank, paint, 1, 1, 1, side * 0.96, 1.95, 0);
+      for (const y of [1.05, 2.72]) add(G.cyl8, steel, 0.77, 0.16, 0.77, side * 0.96, y, 0);
+      add(pipe, steel, 1, 1, 1, side * 1.72, 1.28, 0.7);
+      add(G.box, dark, 0.23, 1.28, 0.19, side * 1.84, 1.12, -0.75);
+    }
+    add(G.box, dark, 3.45, 0.28, 0.55, 0, 3.03, 0);
+    add(G.box, steel, 1.18, 0.82, 0.66, 0, 2.23, 0.52);
+    for (let i = 0; i < 5; i++) add(G.box, dark, 0.84, 0.043, 0.03, 0, 1.96 + i * 0.11, 0.87);
+    add(G.box, paint, 0.36, 1.25, 0.34, 0, 3.76, 0);
+    add(G.box, steel, 0.83, 0.18, 0.68, 0, 4.46, 0);
+    add(G.box, glow(0xe1bc6b), 0.12, 0.055, 0.025, 0.36, 2.55, 0.87, false);
+    return g;
+  },
+  survey_tower(p) { return procedural.survey_pump(p); },
+  survey_workstation(p) { return procedural.console(p); },
+  survey_engineering(p) {
+    const g = new THREE.Group();
+    const steel = mat(0x747872, { rough: 0.66, metal: 0.45 });
+    const dark = mat(0x353c3d, { rough: 0.8, metal: 0.25 });
+    const ochre = mat(0x897049, { rough: 0.82, metal: 0.22 });
+    const add = (...a) => g.add(scaled(G.box, ...a));
+    for (const side of [-1, 1]) {
+      add(dark, 0.22, 0.82, 1.15, side * 0.87, 0.41, 0);
+      add(steel, 0.44, 0.12, 1.22, side * 0.82, 0.06, 0);
+    }
+    add(steel, 2.12, 0.16, 1.32, 0, 0.9, 0);
+    add(dark, 0.95, 0.55, 0.95, -0.50, 0.35, -0.05);
+    add(ochre, 0.55, 0.26, 0.56, -0.55, 1.1, -0.08);
+    add(steel, 0.19, 0.68, 0.2, 0.72, 1.32, -0.46);
+    add(dark, 0.58, 0.21, 0.31, 0.47, 1.57, -0.35);
+    return g;
+  },
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -852,7 +1008,7 @@ function buildVegetation(c, detail) {
     const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7)) return null;
+    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18) || inRange(x, z, ZONES.deep, 20)) return null;
     return [x, z];
   };
   const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
@@ -942,7 +1098,7 @@ function buildProceduralDecor(scene) {
     const r = Math.sqrt(rnd()) * (WORLD.radius - 8);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15) continue;
+    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18) || inRange(x, z, ZONES.deep, 20)) continue;
     const s = 0.7 + rnd() * 1.4;
     dummy.position.set(x, groundHeight(x, z) + 0.22 * s, z);
     dummy.rotation.set((rnd() - 0.5) * 0.4, rnd() * 6, (rnd() - 0.5) * 0.4);
@@ -1055,6 +1211,11 @@ export function buildWorld(scene, assets = null, opts = {}) {
   vaultLight.position.set(ZONES.vault.x, 6, ZONES.vault.z);
   scene.add(vaultLight);
 
+  const prototypeStates = Object.create(null);
+  const enablePrototypeArt = !!(opts.prototypeArt && assets);
+  if (enablePrototypeArt) for (const p of PROPS) {
+    if (Object.hasOwn(STATIC_ART, p.type)) prototypeStates[p.type] = 'loading';
+  }
   let fallbacks = 0;
   for (const p of PROPS) {
     let obj;
@@ -1071,9 +1232,58 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - 0.15;
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type.startsWith('sinter_') || p.type.startsWith('deep_') ? 0 : 0.15);
     scene.add(obj);
+    if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
+      // Keep the complete fallback until the fitted model is ready.
+      const fallback = obj;
+      fallback.name = 'prototype-fallback:' + p.type;
+      const url = '/client/art-assets/' + STATIC_ART[p.type];
+      assets.loader.loadAsync(url).then(gltf => {
+        const root = gltf.scene;
+        root.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(root);
+        const fit = fitStaticArt(bounds, p);
+        const fitted = new THREE.Group();
+        fitted.name = 'prototype-art:' + p.type;
+        fitted.add(root);
+        fitted.scale.setScalar(fit.scale);
+        fitted.position.fromArray(fit.position);
+        root.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+        fallback.clear();
+        fallback.add(fitted);
+        prototypeStates[p.type] = 'ready';
+      }).catch(err => {
+        prototypeStates[p.type] = 'fallback';
+        console.warn('[scene] prototype ' + p.type + ' unavailable; retaining procedural structure:', err.message || err);
+      });
+    }
   }
+
+  buildDeepArchitecture(scene);
+  // Flush, noninteractive surface details on the excavated flat floor.
+  // Explicit positions, no added colliders, no tall geometry in the travel lane.
+  const serviceDeck = new THREE.Group();
+  serviceDeck.name = 'brineworks-service-deck';
+  const deckY = groundHeight(43, -35);
+  const deck = mat(0x545753, { rough: 0.93, metal: 0.13 });
+  const joint = mat(0x303635, { rough: 0.94 });
+  const faded = mat(0x92774d, { rough: 0.93 });
+  const flat = (x, z, w, d, material, height = 0.035) => {
+    const tile = scaled(G.box, material, w, 0.012, d, x, deckY + height, z, false);
+    tile.receiveShadow = true;
+    serviceDeck.add(tile);
+  };
+  // Work areas only; the approach to both evidence terminals stays soil.
+  for (const x of [38, 49]) {
+    flat(x, -38.4, 2.8, 2.4, deck);
+    for (const side of [-1, 1]) flat(x + side * 1.34, -38.4, 0.07, 2.38, faded, 0.048);
+    flat(x, -37.22, 2.7, 0.07, joint, 0.048);
+  }
+  // Recessed-looking service channel on the pump approach, no raised obstruction.
+  flat(43, -35.8, 0.53, 4.0, joint);
+  for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
+  scene.add(serviceDeck);
 
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);
@@ -1102,7 +1312,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; } },
     occluders,
     /**
      * @param focus the player's feet

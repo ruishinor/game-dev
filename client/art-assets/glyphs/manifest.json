@@ -1,0 +1,116 @@
+[
+  {
+    "id": "aegis",
+    "label": "Aegis",
+    "group": "ability",
+    "file": "aegis.svg"
+  },
+  {
+    "id": "hinge",
+    "label": "Hinge",
+    "group": "transform",
+    "file": "hinge.svg"
+  },
+  {
+    "id": "span",
+    "label": "Span",
+    "group": "transform",
+    "file": "span.svg"
+  },
+  {
+    "id": "relay",
+    "label": "Relay",
+    "group": "transform",
+    "file": "relay.svg"
+  },
+  {
+    "id": "persist",
+    "label": "Persist",
+    "group": "transform",
+    "file": "persist.svg"
+  },
+  {
+    "id": "divide",
+    "label": "Divide",
+    "group": "transform",
+    "file": "divide.svg"
+  },
+  {
+    "id": "lattice",
+    "label": "Lattice",
+    "group": "transform",
+    "file": "lattice.svg"
+  },
+  {
+    "id": "stabilize",
+    "label": "Stabilize",
+    "group": "environment",
+    "file": "stabilize.svg"
+  },
+  {
+    "id": "reroute",
+    "label": "Reroute",
+    "group": "environment",
+    "file": "reroute.svg"
+  },
+  {
+    "id": "phase",
+    "label": "Phase",
+    "group": "environment",
+    "file": "phase.svg"
+  },
+  {
+    "id": "resonate",
+    "label": "Resonate",
+    "group": "environment",
+    "file": "resonate.svg"
+  },
+  {
+    "id": "bond",
+    "label": "Bond",
+    "group": "link",
+    "file": "bond.svg"
+  },
+  {
+    "id": "conduit",
+    "label": "Conduit",
+    "group": "link",
+    "file": "conduit.svg"
+  },
+  {
+    "id": "anchor",
+    "label": "Anchor",
+    "group": "link",
+    "file": "anchor.svg"
+  },
+  {
+    "id": "network",
+    "label": "Network",
+    "group": "link",
+    "file": "network.svg"
+  },
+  {
+    "id": "unstrike",
+    "label": "The Unstrike",
+    "group": "counterglyph",
+    "file": "unstrike.svg"
+  },
+  {
+    "id": "unmended",
+    "label": "The Unmended",
+    "group": "counterglyph",
+    "file": "unmended.svg"
+  },
+  {
+    "id": "unwall",
+    "label": "The Unwall",
+    "group": "counterglyph",
+    "file": "unwall.svg"
+  },
+  {
+    "id": "unseen",
+    "label": "The Unseen",
+    "group": "counterglyph",
+    "file": "unseen.svg"
+  }
+]
