@@ -1,0 +1,57 @@
+import { getRadioDialogue } from '../../shared/dialogue.js';
+import { APPROVED_RADIO_ASSETS } from './radio-assets.js';
+
+// Resolve only a known, exact authored event and a reviewed manifest entry.
+// Never interpret network input as a URL, and never probe absent recordings.
+export function radioAssetFor(event,manifest=APPROVED_RADIO_ASSETS){
+ const entry=getRadioDialogue(event?.dialogueId);
+ if(!entry||entry.source!==event.source||entry.transcript!==event.message||!Object.hasOwn(manifest,entry.id))return null;
+ const asset=manifest[entry.id];
+ if(!asset||asset.transcript!==entry.transcript||!/^[a-f0-9]{64}$/.test(asset.sha256??''))return null;
+ const envelope=asset.envelope;
+ return {url:'/client/assets/voice/'+entry.id+'.mp3?v='+asset.sha256.slice(0,16),
+   envelope:Array.isArray(envelope)&&envelope.length<=6000&&envelope.every(v=>Number.isFinite(v)&&v>=0&&v<=1)?envelope:null};
+}
+export function normalizeVolume(value,fallback=.8){
+ if(value===null||value===''||typeof value==='boolean')return fallback;
+ const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):fallback;
+}
+export function envelopeAt(envelope,seconds){
+ if(!envelope||!Number.isFinite(seconds)||seconds<0)return 0;
+ return envelope[Math.floor(seconds*20)]??0;
+}
+
+// One owner. Detach event handlers and release the media element on cancellation,
+// replay, error, completion and world reset. Late promises/events are ignored.
+export class RecordedRadioPlayback{
+ constructor({createAudio=()=>new Audio(),schedule=(f,ms)=>setTimeout(f,ms),cancel=clearTimeout}={}){
+   this.createAudio=createAudio;this.schedule=schedule;this.cancel=cancel;this.audio=null;this.timer=null;
+ }
+ stop(){
+   if(this.timer!==null){this.cancel(this.timer);this.timer=null;}
+   const a=this.audio;this.audio=null;
+   if(!a)return;
+   a.onplaying=a.onwaiting=a.onended=a.onerror=null;
+   try{a.pause();a.removeAttribute('src');a.load();}catch{}
+ }
+ setVolume(v){if(this.audio)this.audio.volume=normalizeVolume(v);}
+ start(asset,volume,onState){
+   this.stop();
+   let a;
+   try{a=this.createAudio();}catch{onState('error');return;}
+   this.audio=a;
+   const current=()=>this.audio===a;
+   const clearTimer=()=>{if(this.timer!==null){this.cancel(this.timer);this.timer=null;}};
+   const finish=state=>{if(!current())return;this.stop();onState(state);};
+   const wait=()=>{if(!current())return;clearTimer();this.timer=this.schedule(()=>finish('error'),15000);};
+   a.onplaying=()=>{if(!current())return;clearTimer();onState('playing');};
+   a.onwaiting=()=>{if(!current())return;onState('loading');wait();};
+   a.onended=()=>finish('ended');
+   a.onerror=()=>finish('error');
+   try{
+     a.preload='auto';a.volume=normalizeVolume(volume);a.src=asset.url;
+     onState('loading');wait();
+     Promise.resolve(a.play()).catch(e=>finish(e?.name==='NotAllowedError'?'blocked':'error'));
+   }catch(e){finish(e?.name==='NotAllowedError'?'blocked':'error');}
+ }
+}

@@ -23,6 +23,7 @@ const MIME = {
   '.webp': 'image/webp',
   '.glb': 'model/gltf-binary',
   '.json': 'application/json; charset=utf-8',
+  '.mp3': 'audio/mpeg',
 };
 
 // URL prefix -> directory. Nothing outside these is ever served.

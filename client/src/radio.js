@@ -1,6 +1,7 @@
 // Local presentation of private authored transmissions. No remote speech
 // service, microphone, uploaded recording, or game-authority changes.
 import { getRadioDialogue } from '../../shared/dialogue.js';
+import { radioAssetFor, normalizeVolume, envelopeAt, RecordedRadioPlayback } from './radio-playback.js';
 export const RADIO_SOURCES=Object.freeze({
  kernel:{name:'KERNEL',channel:'Directive uplink',colour:'#91c9dc',portrait:'operator'},
  field:{name:'Field Archive',channel:'Brineworks / Sinter service channel',colour:'#e4b478',portrait:'technician'},
@@ -28,7 +29,8 @@ export class RadioQueue{
 export class RadioPanel{
  constructor(root){
   this.queue=new RadioQueue();this.token=0;this.utterance=null;this.playing=false;this.open=false;
-  try{this.enabled=localStorage.getItem('attunement.radioVoice')!=='0';}catch{this.enabled=true;}
+  this.recorded=new RecordedRadioPlayback();this.volume=.8;this.waveFrame=null;
+  try{this.enabled=localStorage.getItem('attunement.radioVoice')!=='0';this.volume=normalizeVolume(localStorage.getItem('attunement.radioVolume'));}catch{this.enabled=true;}
   this.el=h('aside','radio-panel');this.el.hidden=true;this.el.setAttribute('aria-label','Radio transmission');
   this.el.setAttribute('role','region');root.append(this.el);
  }
@@ -40,7 +42,15 @@ export class RadioPanel{
   else if(!this.open)this.next();else this.updateCount();return true;
  }
  updateCount(){if(this.count)this.count.textContent=this.queue.pending.length?this.queue.pending.length+' queued':'';}
- stop(){this.token++;if(this.utterance){try{globalThis.speechSynthesis?.cancel();}catch{}}this.utterance=null;this.playing=false;this.el.dataset.playing='false';}
+ stop(){this.token++;this.recorded.stop();this.stopWave();if(this.utterance){try{globalThis.speechSynthesis?.cancel();}catch{}}this.utterance=null;this.playing=false;this.el.dataset.playing='false';delete this.el.dataset.recorded;}
+ stopWave(){if(this.waveFrame!==null){cancelAnimationFrame(this.waveFrame);this.waveFrame=null;}for(const bar of this.bars??[])bar.style.removeProperty('--level');}
+ startWave(asset,token){
+  this.stopWave();if(!asset.envelope||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const tick=()=>{if(token!==this.token||!this.playing||!this.recorded.audio){this.waveFrame=null;return;}
+   const level=envelopeAt(asset.envelope,this.recorded.audio.currentTime);
+   for(let i=0;i<this.bars.length;i++){const taper=1-Math.abs(i-(this.bars.length-1)/2)/this.bars.length;this.bars[i].style.setProperty('--level',String(.35+level*2*taper));}
+   this.waveFrame=requestAnimationFrame(tick);};this.waveFrame=requestAnimationFrame(tick);
+ }
  clear(){this.stop();this.queue.clear();this.open=false;this.el.hidden=true;}
  next(){this.stop();const event=this.queue.next();if(!event){this.open=false;this.el.hidden=true;return;}this.open=true;this.draw(event);if(this.enabled)this.play();}
  draw(event){
@@ -49,21 +59,29 @@ export class RadioPanel{
   const close=h('button',null,'×');close.type='button';close.setAttribute('aria-label','Dismiss transmission');close.addEventListener('click',()=>this.next());header.append(close);
   const grid=h('div','radio-grid'),portrait=h('div','radio-portrait');
   portrait.innerHTML='<svg viewBox="0 0 154 138" aria-hidden="true"><rect width="154" height="138" fill="#15242d"/><path d="M0 18H154M0 43H154M0 68H154M0 93H154M0 118H154" stroke="#35515c" opacity=".5"/>'+portraits[s.portrait]+'</svg>';
-  const bars=h('div','radio-wave');bars.setAttribute('aria-hidden','true');for(let i=0;i<18;i++){const b=h('i');b.style.setProperty('--i',String(i));bars.append(b);}portrait.append(bars);
+  const bars=h('div','radio-wave');bars.setAttribute('aria-hidden','true');for(let i=0;i<18;i++){const b=h('i');b.style.setProperty('--i',String(i));bars.append(b);}portrait.append(bars);this.bars=Array.from(bars.children);
   const copy=h('div','radio-copy');copy.append(h('strong','radio-name',s.name),h('small','radio-channel',s.channel));const transcript=h('p','radio-transcript',event.message);transcript.setAttribute('aria-live','polite');copy.append(transcript);grid.append(portrait,copy);
   const footer=h('div','radio-footer');this.status=h('span','radio-status','Transcript ready');
   this.replay=h('button',null,'Play voice');this.replay.type='button';this.replay.addEventListener('click',()=>this.play());
   this.mute=h('button',null,this.enabled?'Mute auto voice':'Enable auto voice');this.mute.type='button';this.mute.addEventListener('click',()=>{this.enabled=!this.enabled;try{localStorage.setItem('attunement.radioVoice',this.enabled?'1':'0');}catch{}this.mute.textContent=this.enabled?'Mute auto voice':'Enable auto voice';if(!this.enabled){this.stop();this.status.textContent='Voice muted';}else this.play();});
-  footer.append(this.status,this.replay,this.mute);this.el.append(header,grid,footer);this.updateCount();
+  const volume=h('input','radio-volume');volume.type='range';volume.min='0';volume.max='1';volume.step='.05';volume.value=String(this.volume);volume.setAttribute('aria-label','Dialogue volume');volume.title='Dialogue volume';
+  volume.addEventListener('input',()=>{this.volume=normalizeVolume(volume.value);this.recorded.setVolume(this.volume);if(this.utterance){this.stop();this.status.textContent='Volume changed · replay voice';}try{localStorage.setItem('attunement.radioVolume',String(this.volume));}catch{}});
+  footer.append(this.status,this.replay,this.mute,volume);this.el.append(header,grid,footer);this.updateCount();
  }
  play(){
   const event=this.queue.current;if(!event)return;this.stop();const token=this.token;
+  const asset=radioAssetFor(event);
+  if(asset){this.el.dataset.recorded='true';this.recorded.start(asset,this.volume,state=>{
+    if(token!==this.token)return;this.playing=state==='playing';this.el.dataset.playing=String(this.playing);
+    this.status.textContent=({loading:'Acquiring recording',playing:'Playing recording',ended:'Playback complete',blocked:'Select Play voice to listen',error:'Recording unavailable · transcript'})[state];
+    if(this.playing)this.startWave(asset,token);else this.stopWave();
+  });return;}
   const synth=globalThis.speechSynthesis,Voice=globalThis.SpeechSynthesisUtterance;
   // Local voices only: do not send dialogue to an OS/browser cloud provider.
   const voices=synth?.getVoices?.().filter(v=>v.localService&&/^en(?:-|$)/i.test(v.lang))||[];
   if(!Voice||!voices.length){this.status.textContent='Local voice unavailable · transcript';return;}
   try{
-    const u=new Voice(event.message);u.voice=voices[event.source==='kestrel'?Math.min(1,voices.length-1):0];u.lang=u.voice.lang;u.rate=.94;u.pitch=event.source==='kernel'?.86:1;
+    const u=new Voice(event.message);u.voice=voices[event.source==='kestrel'?Math.min(1,voices.length-1):0];u.lang=u.voice.lang;u.rate=.94;u.volume=this.volume;u.pitch=event.source==='kernel'?.86:1;
     u.onstart=()=>{if(token!==this.token)return;this.playing=true;this.el.dataset.playing='true';this.status.textContent='Playing local voice';};
     const done=()=>{if(token!==this.token)return;this.utterance=null;this.playing=false;this.el.dataset.playing='false';};
     u.onend=()=>{done();if(token===this.token)this.status.textContent='Playback complete';};

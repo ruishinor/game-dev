@@ -1,0 +1,7 @@
+# Prerecorded radio runtime gate
+
+The playback owner resolves only exact server-authored IDs with matching source/transcript and entries in client/src/radio-assets.js. The manifest is intentionally empty until real clips are auditioned and rights reviewed. Paths are derived from IDs, never accepted from network input. MP3 is served via existing same-origin HTTP static mount and CSP; sequential playback only, no seek controls or Range guarantee.
+
+When a reviewed clip exists, HTMLAudioElement replaces synthesis for that dialogue. Missing/failed/decode/autoplay/stalled clips retain transcript and explicit replay control rather than silently changing identity. Unrecorded legacy lines continue existing local-only synthesis. One playback owner, bounded existing radio queue, cancellation on replay/clear/interruption and stale callbacks ignored. Volume persists independently; active prerecorded volume adjusts live, synthesis stops on slider change so replay uses new volume. Auto mute retains existing manual-replay semantics. The optional 20 Hz RMS envelope is intended to be generated from delivered audio, not guessed; with no envelope motion is static. Reduced motion uses a static activity indicator. No game state or reward changes.
+
+Tests use controlled audio objects; actual audio decoding, browser autoplay and end-to-end gameplay still need real recordings and browser tests. Promotion requires exact approved record hash, transcript match, provenance/rights and listening decision. No placeholder audio or fictional artistic approval.
