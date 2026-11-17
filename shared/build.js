@@ -122,9 +122,10 @@ export function describeRequirements(char, itemId) {
         const base = CLASSES[char.cls].skills[k] + (CLASSES[char.cls].primary === k ? char.level - 1 : 0);
         const effective = skills[k] || 0;
         const bonus = effective - base;
-        const breakdown = bonus ? `${base} base + ${bonus} equipment` : `${base} base`;
+        const breakdown = bonus ? `${base} base + ${bonus} equipment = ${effective}` : `${base} base`;
         out.push({
-          text: `${SKILL_NAMES[k]} ${item.req.skills[k]} (after equipping: ${effective} = ${breakdown})`,
+          text: `${SKILL_NAMES[k]} ${effective} / ${item.req.skills[k]}`,
+          detail: `After equipping: ${breakdown}. Minimum ${item.req.skills[k]} required.`,
           met: effective >= item.req.skills[k],
         });
       }
