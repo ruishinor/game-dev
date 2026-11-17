@@ -81,21 +81,14 @@ function capacitorHarness(ctx) {
   const plate = ctx.shellMaterial('chest');
   const amber = glow(0xffb45c);
   ctx.glows.push(amber);
+  // Pauldrons, dorsal stack and gauntlet housings: gear-recipes.js (vanguardKinetic).
   for (const s of [-1, 1]) {
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), plate);
-    p.scale.set(1.25, 0.8, 1.15);
-    ctx.attach(`upperarm_${s > 0 ? 'l' : 'r'}`, place(p, s * 0.225, 1.47, -0.06, 0, 0, s * -0.5));
-    const rim = new THREE.Mesh(box(0.06, 0.014, 0.19), amber);
-    ctx.attach(`upperarm_${s > 0 ? 'l' : 'r'}`, place(rim, s * 0.3, 1.455, -0.06, 0, 0, s * -0.9));
     const coil = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.012, 6, 16), amber);
     ctx.attach(`lowerarm_${s > 0 ? 'l' : 'r'}`, place(coil, s * 0.67, 1.441, -0.068, 0, Math.PI / 2, 0));
     ctx.coils.push(coil);
     const knee = new THREE.Mesh(box(0.1, 0.1, 0.04), plate);
     ctx.attach(`calf_${s > 0 ? 'l' : 'r'}`, place(knee, s * 0.089, 0.52, 0.075, -0.2));
   }
-  const spine = new THREE.Mesh(box(0.05, 0.3, 0.03), amber);
-  ctx.attach('spine_03', place(spine, 0, 1.3, -0.19));
-  for (const s of [-1, 1]) ctx.attach('spine_03', place(new THREE.Mesh(box(0.035, 0.22, 0.05), plate), s * 0.055, 1.3, -0.185));
   const visor = new THREE.Mesh(box(0.13, 0.022, 0.02), amber);
   ctx.attach('Head', place(visor, 0, 1.7, 0.128));
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), amber);
@@ -107,26 +100,7 @@ function cultureTank(ctx) {
   const casing = std({ color: 0x1b2e30, metalness: 0.6, roughness: 0.4 });
   const teal = glow(0x7dffc4);
   ctx.glows.push(teal);
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 10), casing);
-  ctx.attach('spine_03', place(tank, 0, 1.31, -0.2));
-  const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.24, 10), teal);
-  ctx.attach('spine_03', place(fluid, 0, 1.31, -0.215));
-  ctx.fluid = fluid;
-  for (const s of [-1, 1]) {
-    ctx.attach(
-      'spine_03',
-      strap(
-        [
-          [s * 0.03, 1.46, -0.19],
-          [s * 0.07, 1.53, -0.12],
-          [s * 0.085, 1.52, -0.02],
-          [s * 0.06, 1.49, 0.05],
-        ],
-        teal,
-        0.011
-      )
-    );
-  }
+  // Reservoirs, frame and feed lines: gear-recipes.js (conductorCulture).
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 6, 14), casing);
   ctx.attach('neck_01', place(collar, 0, 1.5, 0.0, Math.PI / 2 - 0.25));
   const satchel = new THREE.Mesh(box(0.09, 0.12, 0.05), std({ color: 0x2a4a44, roughness: 0.9 }));
@@ -163,22 +137,7 @@ function surveyRig(ctx) {
   const ochre = std({ color: 0x9b713d, roughness: 0.72 });
   const glass = std({ color: 0x2a4549, metalness: 0.55, roughness: 0.24 });
   const status = glow(0xe1bc6b);
-  const pack = new THREE.Group();
-  const add = (g, m, ...at) => pack.add(place(new THREE.Mesh(g, m), ...at));
-  add(box(0.24, 0.32, 0.075), rubber, 0, 1.30, -0.18);
-  for (const side of [-1, 1]) {
-    add(new THREE.CylinderGeometry(0.052, 0.052, 0.31, 20), steel, side * 0.073, 1.32, -0.255);
-    for (const y of [1.20, 1.44]) {
-      add(new THREE.CylinderGeometry(0.057, 0.057, 0.028, 20), rubber, side * 0.073, y, -0.255);
-    }
-    add(box(0.115, 0.035, 0.104), ochre, side * 0.073, 1.47, -0.255);
-  }
-  add(box(0.13, 0.105, 0.045), steel, 0, 1.31, -0.326);
-  for (let i = 0; i < 3; i++) add(box(0.094, 0.009, 0.005), rubber, 0, 1.287 + i * 0.021, -0.351);
-  add(box(0.045, 0.065, 0.045), ochre, -0.12, 1.49, -0.245);
-  add(new THREE.CylinderGeometry(0.005, 0.008, 0.18, 8), steel, -0.12, 1.60, -0.245, 0, 0, 0.12);
-  pack.add(strap([[0.09, 1.42, -0.25], [0.14, 1.47, -0.10], [0.12, 1.46, 0.035], [0.09, 1.37, 0.13]], rubber, 0.014));
-  ctx.attach('spine_03', pack);
+  // Cartridges, power cell, mast and supply line: gear-recipes.js (surveyorField).
   ctx.attach('Head', place(new THREE.Mesh(box(0.133, 0.039, 0.028), rubber), 0, 1.698, 0.117));
   ctx.attach('Head', place(new THREE.Mesh(box(0.117, 0.022, 0.009), glass), 0, 1.70, 0.135));
   ctx.attach('Head', place(new THREE.Mesh(box(0.014, 0.008, 0.006), status), -0.045, 1.70, 0.141));
@@ -192,11 +151,7 @@ function aegisArray(ctx) {
   const insulator = std({ color: 0xa28b61, roughness: 0.8 });
   const status = glow(0x89cfe1);
   const attach = (bone, geo, mat, ...at) => ctx.attach(bone, place(new THREE.Mesh(geo, mat), ...at));
-  attach('spine_03', new THREE.CylinderGeometry(0.058, 0.072, 0.31, 12), ceramic, -0.075, 1.31, -0.21, 0, 0, -0.12);
-  for (const y of [1.19, 1.43]) attach('spine_03', new THREE.CylinderGeometry(0.073, 0.073, 0.032, 12), alloy, -0.075, y, -0.21);
-  attach('spine_03', box(0.12, 0.15, 0.055), alloy, 0.075, 1.36, -0.20);
-  for (let i = 0; i < 3; i++) attach('spine_03', box(0.08, 0.009, 0.006), insulator, 0.075, 1.32 + i * 0.035, -0.23);
-  ctx.attach('spine_03', strap([[-0.075,1.43,-0.21],[-0.025,1.50,-0.16],[0.08,1.44,-0.21]], ceramic, 0.013));
+  // Dorsal resonance apparatus: gear-recipes.js (keeperResonance).
   const emitter = new THREE.Group();
   emitter.name = 'aegis-projector';
   emitter.add(place(new THREE.Mesh(box(0.16, 0.065, 0.115), ceramic), 0.60, 1.45, -0.065));

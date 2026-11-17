@@ -1,5 +1,9 @@
 # Attunement — handoff
 
+> **Latest (2026-11-17):** the visual fidelity pass (effects, character gear, gadgets, Listening Stone) is on
+> branch `charlie/confident-wright-b2bh7j`. Start with
+> [`art/VFX-ENGINE-HANDOFF.md`](art/VFX-ENGINE-HANDOFF.md). The text below is older.
+
 Last updated 2026-11-16, at a pause in the visual-upgrade assignment
 (branch `ccr-9a6736d4-kufz9x`). Work stopped for usage limits, not for a
 blocker. This file says what exists, what was verified, and what to do next.

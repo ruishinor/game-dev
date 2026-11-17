@@ -511,3 +511,7 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 
 /* Inventory material stacks share the carried-item grid; never behave as equipment. */
 .item-cell .stack-quantity{position:absolute;right:3px;bottom:2px;padding:1px 3px;border-radius:3px;background:#091015e6;color:var(--ink);font-size:11px;font-weight:600;pointer-events:none}.item-cell.material-cell{border-color:#5a746b}
+/* A radio transmission floats over the top of the screen; like the Workshop,
+   the Character panel needs that space, so the transmission waits (it stays
+   queued and reappears when the panel closes). */
+body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}

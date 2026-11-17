@@ -1,0 +1,37 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Lesson 1 \/ 4/. Input:
+
+'Field manual · Build & Fabrication\n' +
+  'Hide tutorial\n' +
+  'LESSON 1 / 4\n' +
+  'PLAN BEFORE YOU COMMIT\n' +
+  '\n' +
+  'Choose a device, implant or glyph in Build Planner. Compare Current and Planned statistics. Unowned items can be previewed; the planner never equips or spends anything.\n' +
+  '\n' +
+  'Previous\n' +
+  'Show Planner\n' +
+  'Next'
+
+    at file:///tmp/claude-0/-home-user-game-dev/5b45945b-344d-5961-8633-68d84d74f954/scratchpad/pbase/test/e2e/preview-expansion.mjs:123:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'Field manual · Build & Fabrication\n' +
+    'Hide tutorial\n' +
+    'LESSON 1 / 4\n' +
+    'PLAN BEFORE YOU COMMIT\n' +
+    '\n' +
+    'Choose a device, implant or glyph in Build Planner. Compare Current and Planned statistics. Unowned items can be previewed; the planner never equips or spends anything.\n' +
+    '\n' +
+    'Previous\n' +
+    'Show Planner\n' +
+    'Next',
+  expected: /Lesson 1 \/ 4/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.22.1
+exit 1
