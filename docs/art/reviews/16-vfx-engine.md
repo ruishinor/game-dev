@@ -46,3 +46,26 @@ presentation only; no server, rules, timing, range or authority code changed.
 Executed: 10 Node tests (in a 124/124 suite on Node 24). Vanguard browser capture
 showed no page errors. Other classes have not been inspected in browser yet.
 No final art approval.
+
+## Full capture and tuning pass
+
+All 20 ability frames for the four professions were captured in
+`docs/evidence/vfx/after/` and compared with `before/`. Every recipe renders
+without page errors.
+
+Adversarial findings and fixes:
+- The Overgrowth Surge dome was a milky hemisphere hiding the fight. It is
+  now a faint boundary.
+- Controlled Blast washed the frame out to white (flare 1.4× radius, light
+  intensity 30). The flare is now capped at 4 m and the light halved.
+- Enemy melee fans were larger and more opaque than player strikes. They are now
+  smaller and fainter, so the player's crescents stay dominant.
+
+Retrospective:
+- The capture harness had to keep the staged player alive, because software
+  frames take seconds while several enemies are aggroed. This is harness setup
+  only.
+- The authored `LiveCasts` lines still draw underneath. In captures they add
+  engineered structure rather than clutter, so they are kept.
+- Remaining risk: several large casts overlapping in a group fight. This has
+  not been captured.

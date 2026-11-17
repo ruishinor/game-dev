@@ -1,6 +1,6 @@
 # Attunement — handoff
 
-> **Latest (2026-11-17):** combat VFX engine work is paused for manual pick-up on
+> **Latest (2026-11-17):** the visual fidelity pass (effects, character gear, gadgets, Listening Stone) is on
 > branch `charlie/confident-wright-b2bh7j`. Start with
 > [`art/VFX-ENGINE-HANDOFF.md`](art/VFX-ENGINE-HANDOFF.md). The text below is older.
 

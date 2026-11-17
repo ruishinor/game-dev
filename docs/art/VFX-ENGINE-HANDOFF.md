@@ -1,113 +1,120 @@
-# Combat VFX engine — handoff (paused for manual pick-up)
+# Visual fidelity pass: effects, characters, gadgets, artefacts — handoff
 
 Branch: `charlie/confident-wright-b2bh7j`, fast-forwarded from
 `preview/playtest-brineworks` @ `7a9c5d7` (the most integrated head: Brineworks,
 Sinter Flats, Keeper, Surveyor, live authored effects). No other branch was changed.
 `feat/attunement-asset-production` @ `3c06a99` (Sinter Flats fauna) is **not**
-merged here yet.
+merged here; that is a world/gameplay feature, outside this visual pass. No PR is
+open.
 
 Owner request (2026-11-17): drastically raise the visual fidelity of combat effects,
 skills, gadgets, items and environmental assets, and the distinctive features of the
 character models. References: industrial props, ring megastructure, the Listening
 Stone (golden circuit rings), CHR-008 Suture Diver, EQP-001 reservoir family.
-The owner asked to pause after tasks 1–2 below.
 
 ## Status
 
 | # | Task | State |
 |---|---|---|
-| 1 | VFX capture harness + before evidence | **Done** — `tools/vfx-capture.mjs`, `docs/evidence/vfx/before/` (20 frames) |
-| 2 | GPU particle + shader VFX engine | **Done** — `client/src/vfx/{textures,engine,combat}.js`, `test/vfx-engine.test.js` |
-| 3 | Rework every combat event onto the engine | **Done** — all 20 ability frames captured in `docs/evidence/vfx/after/` and reviewed; Surge dome, Controlled Blast and enemy melee fans tuned |
-| 4 | Character distinctive equipment upgrade | **Done (first pass)** — `client/src/gear-kit.js`, `client/src/gear-recipes.js`, `test/gear-kit.test.js`, `tools/gear-capture.mjs`; evidence `docs/evidence/gear/{before,after}/` |
-| 5 | Environmental artefacts (Listening Stone etc.) | **Listening Stone done** — `client/src/listening-stone.js`, `tools/env-capture.mjs`, evidence `docs/evidence/env/{before,after}/`; other kit props (crates, generators, terminals) not started |
-| 6 | Full review, full after-capture, docs | Partial (this file, review 16) |
+| 1 | VFX capture harness + before evidence | **Done**: `tools/vfx-capture.mjs`, `docs/evidence/vfx/before/` |
+| 2 | GPU particle + shader VFX engine | **Done**: `client/src/vfx/{textures,engine,combat}.js` |
+| 3 | Every combat event on the engine | **Done**: 20 ability frames in `docs/evidence/vfx/after/`, tuned (review 16) |
+| 4 | Character signature equipment | **Done, first pass**: `client/src/gear-{kit,recipes}.js`, `docs/evidence/gear/` (review 17) |
+| 5 | Environment and gadgets | **Done**: the Listening Stone (`client/src/listening-stone.js`) and the Surveyor field rig, evidence in `docs/evidence/env/` (review 18). **Not done**: containers, generators, pipes, towers and terminals |
+| 6 | Reviews, tests, docs | **Done** for this pass (reviews 16–18, this file) |
 
 ## What exists
 
-- **`client/src/vfx/textures.js`** — seeded canvas textures, built once: a 4×4
-  sprite atlas (glow, flare, streak, smoke, bubble, hex, cross, spore, shard,
-  3 runes, dust, ember, diamond, petal); five layered **discipline sigils**
-  (kinetic, resonance, restorative, survey, hazard; R = outer ring, G = inner ring,
-  B = wash, rotated independently by the shader); a fracture/scorch map; tileable
-  fbm noise.
-- **`client/src/vfx/engine.js`** — `createVfx(THREE, scene, opts)`:
-  - two instanced, GPU-billboarded, velocity-stretched particle systems (additive
-    1800, alpha 420): **2 draw calls total**; emission past capacity is dropped and counted
-  - pooled shader meshes, capped at 40 (oldest retired): terrain-conforming
-    `sigil`, `shock`, `scorch`, `telegraph`; camera-facing jittering `beam`
-    ribbons; swept melee `arc`; fresnel/hex `shell` (sphere, dome, wall, pillar)
-  - `flash`: 2 point lights created once at start-up, only when starting at quality 2
-    (never added later, so no shader recompiles mid-fight)
-  - `emitter` for compound effects (projectiles with trails that land on arrival)
-  - seeded RNG, explicit `dispose`, `clear`, `setQuality`, reduced-motion (no
-    spin/swirl/jitter, ~45% particles, static sigils)
-  - invalid input (NaN, huge coordinates, missing targets) is ignored, never thrown
-- **`client/src/vfx/combat.js`** — `CombatVfx` recipes for all 16 player
-  abilities, enemy specials (arc pulse, seismic slam, resonance burst), ground
-  telegraphs, bolts/melee/shield-absorb hits, heals, Mender transfer, deaths, level-up,
-  respawn, spawn, equip and Listening Stone attunement.
-- **`client/src/main.js`** integration:
-  - quality ≥ 1 uses the engine; quality 0 keeps the original `fx.js` path
-    byte-for-byte (inside `onEvent` a muted `fx` stand-in shadows the legacy one)
-  - the existing authored `LiveCasts`/`LiveAegis` layers are kept unchanged
-  - root vines (`fx.setRooted`) are unaffected
-  - `?vfxt=0.12` slows **presentation-only** effect time for captures; the
-    simulation is untouched. `LiveCasts` now runs on that same effect clock.
+**Effects** (`client/src/vfx/`), presentation only:
+- **`textures.js`** — seeded canvas assets: a sprite atlas, five discipline
+  sigils, a scorch map and noise.
+- **`engine.js`** — `createVfx(THREE, scene, opts)`:
+  - two instanced, velocity-stretched particle systems (2 draw calls)
+  - pooled shader meshes (cap 40): terrain-conforming sigils, shocks, scorch and
+    hazard telegraphs; jittering beams; swept arcs; fresnel/hex shells and pillars
+  - 2 flash lights, created at start-up only at quality 2
+  - projectile emitters
+  - persistent caller-owned `area` decals (cap 16)
+- **`combat.js`** — recipes for all 16 abilities, the enemy specials,
+  telegraphs, hits, bolts (impact on arrival), heals, transfers, deaths,
+  level-up, respawn, equip and attunement.
+- **`main.js`** — quality ≥ 1 uses the engine; quality 0 keeps the original
+  `fx.js` path unchanged. The `LiveCasts`/`LiveAegis` layers are kept.
+  `?vfxt=<0.02..1>` slows presentation-only effect time for captures.
+
+**Characters** (`client/src/gear-kit.js`, `gear-recipes.js`):
+- Each look's gear is built once in bind-pose space, merged per bone and material,
+  and shared by everyone wearing that look.
+- The fluid, charge-segment and resonance-core shaders are per character. They
+  follow the local player's own resource; other players show an idle level that
+  rises in combat.
+- **Signature pieces:**
+  - Vanguard: kinetic accumulators and a charge cell
+  - Conductor: a CHR-008 dorsal frame with three distinct cultures
+  - Keeper: a resonance ring-core apparatus
+  - Surveyor: cartridges, a power cell and a survey mast
+- Overlapping legacy pieces were removed from `looks.js`. Coils, visors, the chest
+  core, the respirator, the projector and the pouches were kept.
+
+**World and gadgets:**
+- **Listening Stone** (`listening-stone.js`, mapped to the `obelisk` model): an
+  inscribed basalt monolith with a medallion, ground rings, orbital arcs,
+  debris and motes. It brightens as the local player approaches (`st.near`,
+  presentation only).
+- **Field rig** (`main.js` `syncRig`/`animateRig`): a detailed deployable built
+  from the gear kit.
+  - a survey sigil on its real radius
+  - throttled charge arcs to the owner when the owner is in range
+  - the original radius ring and block fallback kept
+
+**Tools:** `tools/vfx-capture.mjs`, `tools/gear-capture.mjs` and
+`tools/env-capture.mjs` produce repeatable, labelled evidence under `docs/evidence/`.
 
 ## Verified (commands actually run on 2026-11-17, Node 24.22)
 
-- `npm test` → **124/124 pass**: 114 existing tests plus 10 new engine/recipe
-  tests (bounds, expiry, determinism, invalid input, quality/reduced motion,
-  terrain conformity, light reuse, disposal, every recipe expiring to zero).
-- Browser (headless Chromium, SwiftShader): `node tools/vfx-capture.mjs <label> vanguard`
-  rendered all Vanguard effects with no page errors → `docs/evidence/vfx/engine-wip/`.
-  After those frames, sphere shells were made less opaque, because they hid the
-  character; this tuning has **not** been re-captured yet.
-- Integrated two-player e2e (`npm run e2e`, software GL) on this head: **71/72**.
-  The single failure is `9. five character tabs show real square selectable slots
-  and reserved details` (character-panel UI). The **same check fails identically on
-  the untouched base `7a9c5d7`** (71/72, run in a separate worktree the same day),
-  so it is pre-existing and unrelated to effects. Its cause has not been investigated.
-
-**Note: run the tests under Node 24, as CI does.** Under Node 22,
-`art-originals` byte-reproducibility fails (`backpack_research.glb differs`)
-because V8 `Math` precision differs between versions. This was true before this work.
+- `npm test`: **129/129 pass**. These are the 114 existing tests plus 15 new
+  ones (11 engine/recipe, 4 gear/rig).
+- Browser captures (headless Chromium, SwiftShader), with no page errors:
+  - all 20 ability frames
+  - 4 professions × 3 views of the gear, before and after
+  - the Listening Stone far, near and close, before and after
+  - the rig frames
+- Integrated two-player e2e (`npm run e2e`) on the final head: **71/72**. The single
+  failure, `9. five character tabs show real square selectable slots and reserved
+  details` (character panel UI), **fails identically on the untouched base
+  `7a9c5d7`** (71/72, run in a separate worktree). It is a pre-existing failure,
+  not investigated here.
+- **Use Node 24, as CI does.** Under Node 22 the `art-originals` byte-reproducibility
+  test fails because of V8 `Math` precision. This was already the case before this work.
 
 ## Not verified / known gaps
 
-- Keeper, Symbiotech and Surveyor recipes have not been looked at in a browser yet.
-  Run `node tools/vfx-capture.mjs after` for all 20 frames and compare with `before/`.
-- There are no real-GPU frame-time numbers. Software rendering is not performance evidence.
-- Shader colours bypass tone mapping on purpose, to keep emissive cores
-  saturated. Check them against the ACES-tone-mapped scene on a real display.
-- Flash lights stay in the scene at intensity 0 after a quality drop. They still
-  add per-fragment light cost; consider removing them permanently on the first drop.
-- Effects follow presentation transforms. A target removed mid-flight keeps its last position.
-- No final art approval. These are procedural effects, not authored flipbooks.
+- No real-GPU frame times. Software rendering is not performance evidence.
+- Gear clipping has been checked in the idle pose only. Run, attack and cast poses
+  have not been inspected.
+- Bodies, faces and anatomy are still the stock mannequin. This is the largest
+  remaining character gap.
+- Group fights with several overlapping large casts have not been captured.
+- Shader colours bypass tone mapping on purpose. Check them on a real display.
+- Flash lights stay in the scene, at intensity 0, after a quality drop.
+- No final art approval anywhere. These are procedural assets, not sculpted or
+  authored ones.
 
 ## Next steps, in order
 
-1. Run the full after-capture; tune each class's recipes in `combat.js`
-   (opacity, life, sizes). Copy the final frames to `docs/evidence/vfx/after/`.
-2. **Task 4 — characters.** In `client/src/looks.js`, replace the box-primitive gear
-   with a modular reservoir family (EQP-001): a caged transparent cylinder with a
-   fluid/charge shader. Its fill level and pulse follow the owner's resource
-   (`S.sheet` for self; idle pulse for others). The per-class signature pieces:
-   - Vanguard: a kinetic capacitor stack with lit charge segments
-   - Symbiotech: a CHR-008-style dorsal frame with three culture reservoirs and forearm interfaces
-   - Keeper: a resonance apparatus ring core
-   - Surveyor: power cartridges and an antenna
-
-   Test both humanoid rigs and representative poses.
-3. **Task 5 — environment.** Upgrade the Listening Stone: slow-rotating ground
-   circuit rings (reuse the `resonance` sigil and engine decals with a long life,
-   or a dedicated persistent decal), glowing inscriptions that respond when a
-   player is near (presentation only), and floating debris. After that: storage
-   crates, generators and terminals, as kit pieces.
-4. Merge `feat/attunement-asset-production` `3c06a99` if it is still wanted on this line.
-5. Full review (art, technical, runtime, UX, adversarial, retrospective). Update
-   `docs/art/reviews/16-vfx-engine.md`, then open a PR (none opened yet).
+1. Inspect gear in motion (run, attack, cast) on both rigs and fix any clipping.
+   One way to do this: extend `tools/gear-capture.mjs` to trigger abilities.
+2. Profile on a real GPU (`npm run profile`, `ATTUNEMENT_GPU=1`). If draw calls
+   matter, collapse each look's gear into one skinned mesh per material
+   (about 8 draws instead of 13–22).
+3. Industrial kit props from the references (storage containers, generators,
+   pipe runs, communication towers, terminals), built as gear-kit recipes on
+   world objects, starting at Brineworks.
+4. Character bodies: helmets and face plates per profession, and cloth layers
+   over the mannequin.
+5. Decide whether to keep the authored `LiveCasts` line layer alongside the engine.
+6. Investigate the pre-existing e2e check 9, then open a PR into
+   `preview/playtest-brineworks` (the PR template, if one exists, is a layout to follow).
 
 ## How to resume
 
@@ -115,7 +122,9 @@ because V8 `Math` precision differs between versions. This was true before this 
 export PATH=/opt/node24/bin:$PATH   # or any Node 24
 npm ci
 npm test
-node tools/vfx-capture.mjs after          # all classes, ~5 min in software GL
-node tools/vfx-capture.mjs after keeper   # one class
+node tools/vfx-capture.mjs after [filter]   # ability frames, ~5 min for all
+node tools/gear-capture.mjs after           # profession close-ups
+node tools/env-capture.mjs after            # Listening Stone near/far
+npm run e2e                                 # integrated two-player playtest (~10 min)
 npm start   # then open http://127.0.0.1:<port>/?q=2  (add &vfxt=0.2 to slow effects)
 ```
