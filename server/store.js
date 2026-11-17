@@ -10,6 +10,7 @@ import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, de
 import { validateLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
+import { appearanceString } from '../shared/appearance.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -42,6 +43,8 @@ function sanitize(raw) {
     cls: raw.cls,
     // Cosmetic only; anything unrecognised falls back to the class default.
     look: validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls),
+    // Cosmetic body/race/hair; saves made before it existed keep their look's body.
+    appearance: appearanceString(raw.appearance, validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls)),
     level: int(raw.level, 1, MAX_LEVEL, 1),
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
@@ -133,7 +136,7 @@ export class CharacterStore {
   }
 
   /** Create a character. Returns {char, token} or {error}. */
-  create(name, cls, look) {
+  create(name, cls, look, appearance) {
     if (!validName(name)) return { error: 'Names are 3–16 letters (spaces, apostrophes and hyphens allowed inside).' };
     if (!Object.hasOwn(CLASSES, cls)) return { error: 'Unknown class.' };
     if (this.byName.has(name.toLowerCase())) return { error: 'That name is already taken.' };
@@ -146,6 +149,7 @@ export class CharacterStore {
       name,
       cls,
       look: validLook(cls, look) ? look : defaultLook(cls),
+      appearance: appearanceString(appearance, validLook(cls, look) ? look : defaultLook(cls)),
       level: 1,
       xp: 0,
       inventory: [],
@@ -181,7 +185,7 @@ export class CharacterStore {
 
   listCharacters(account) {
     return [...this.chars.values()].filter((c) => c.accountId === account.id)
-      .map((c) => ({ id: c.id, name: c.name, cls: c.cls, look: c.look, level: c.level, lastSeen: c.lastSeen }))
+      .map((c) => ({ id: c.id, name: c.name, cls: c.cls, look: c.look, appearance: c.appearance, level: c.level, lastSeen: c.lastSeen }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -231,9 +235,9 @@ export class CharacterStore {
     return true;
   }
 
-  createForAccount(account, name, cls, look) {
+  createForAccount(account, name, cls, look, appearance) {
     if (this.listCharacters(account).length >= MAX_ACCOUNT_CHARACTERS) return { error: 'This account already has six characters.' };
-    const result = this.create(name, cls, look);
+    const result = this.create(name, cls, look, appearance);
     if (result.error) return result;
     const char = result.char;
     this.byToken.delete(char.tokenHash);

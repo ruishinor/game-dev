@@ -237,7 +237,7 @@ export class NetServer {
       }
       this.enter(conn, char, null);
     } else if (msg.t === 'create') {
-      const res = this.store.create(msg.name, msg.cls, msg.look);
+      const res = this.store.create(msg.name, msg.cls, msg.look, msg.appearance);
       if (res.error) {
         send(conn.ws, { t: 'create_fail', reason: res.error });
         if (++conn.authFails >= 8) conn.ws.close(4000, 'too many attempts');
@@ -259,7 +259,7 @@ export class NetServer {
       }
       this.enter(conn, char, null);
     } else if (msg.t === 'account_create_character') {
-      const res = this.store.createForAccount(account, msg.name, msg.cls, msg.look);
+      const res = this.store.createForAccount(account, msg.name, msg.cls, msg.look, msg.appearance);
       if (res.error) send(conn.ws, { t: 'create_fail', reason: res.error });
       else this.enter(conn, res.char, null);
     } else if (msg.t === 'account_claim_character') {

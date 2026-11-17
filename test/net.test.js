@@ -64,9 +64,9 @@ class Client {
     }
     throw new Error(`timed out waiting for ${what}`);
   }
-  async create(name, cls, look) {
+  async create(name, cls, look, appearance) {
     await this.open();
-    this.send({ t: 'create', name, cls, look });
+    this.send({ t: 'create', name, cls, look, ...(appearance === undefined ? {} : { appearance }) });
     const w = await this.until(() => this.msgs.find((m) => m.t === 'welcome' || m.t === 'create_fail'), 3000, 'welcome');
     this.welcome = w;
     return w;
@@ -181,6 +181,55 @@ test('looks: a cosmetic appearance is stored, relayed to other players, validate
     await a.until(() => a.sheet, 3000, 'sheet');
     assert.equal(a.sheet.look, 'red_rucker');
     assert.equal([...srv.store.chars.values()].find((ch) => ch.name === 'Plain').look, 'vanguard_plate');
+    a.close();
+  } finally {
+    await srv.close();
+  }
+});
+
+test('appearance: frame, race and hair are stored, relayed, validated and never change rules', async () => {
+  const file = tmpFile();
+  let srv = await startServer({ port: 0, dataFile: file });
+  let token;
+  try {
+    const a = new Client(srv.port);
+    const b = new Client(srv.port);
+    const c = new Client(srv.port);
+    const d = new Client(srv.port);
+    const wa = await a.create('Mirelle', 'vanguard', 'vanguard_plate', 'f.mirekin.2.locs.7');
+    const wb = await b.create('Default', 'vanguard'); // no appearance: the look's body
+    const wc = await c.create('Hostile', 'vanguard', 'vanguard_plate', { frame: '__proto__', race: 'constructor', skin: 1e9 });
+    const wd = await d.create('Hairless', 'keeper', 'aegis_keeper', 'f.veyran.1.ponytail.3'); // Veyran are hairless
+    token = wa.token;
+    await b.until(() => [wa, wc, wd].every((w) => b.meta.has(w.id)), 3000, 'meta for the others');
+    assert.equal(b.meta.get(wa.id).ap, 'f.mirekin.2.locs.7', 'another player is told the appearance');
+    assert.equal(b.meta.get(wa.id).c, 'vanguard', 'appearance does not replace the class');
+    await a.until(() => a.meta.has(wb.id), 3000, 'meta for b');
+    assert.equal(a.meta.get(wb.id).ap, 'm.human.2.crop.1', 'no choice keeps the look default');
+    assert.equal(b.meta.get(wc.id).ap, 'm.human.2.crop.1', 'hostile input falls back');
+    assert.equal(b.meta.get(wd.id).ap, 'f.veyran.1.none.3', 'race rules are enforced on the server');
+    await a.until(() => a.sheet && b.sheet, 3000, 'sheets');
+    assert.equal(a.sheet.appearance, 'f.mirekin.2.locs.7');
+    assert.deepEqual(a.sheet.stats, b.sheet.stats, 'appearance never changes stats');
+    for (const x of [a, b, c, d]) x.close();
+  } finally {
+    await srv.close();
+  }
+  // Survives a restart; a tampered or missing value on disk is corrected on load.
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.characters.find((ch) => ch.name === 'Mirelle').appearance, 'f.mirekin.2.locs.7');
+  saved.characters.find((ch) => ch.name === 'Default').appearance = 'x.<img>.9.9.9';
+  delete saved.characters.find((ch) => ch.name === 'Hairless').appearance; // a save from before appearance existed
+  fs.writeFileSync(file, JSON.stringify(saved));
+  srv = await startServer({ port: 0, dataFile: file });
+  try {
+    const a = new Client(srv.port);
+    await a.resume(token);
+    await a.until(() => a.sheet, 3000, 'sheet');
+    assert.equal(a.sheet.appearance, 'f.mirekin.2.locs.7');
+    const byName = (n) => [...srv.store.chars.values()].find((ch) => ch.name === n);
+    assert.equal(byName('Default').appearance, 'm.human.2.crop.1');
+    assert.equal(byName('Hairless').appearance, 'f.human.1.bun.0', 'legacy Keeper keeps the body its look always had');
     a.close();
   } finally {
     await srv.close();

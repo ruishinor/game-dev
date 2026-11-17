@@ -110,8 +110,7 @@ function ellipsoid(THREE, at, s, segs = [16, 12]) {
  * Hair geometry for a style on a frame: { hair, band } (either may be null).
  * Deterministic; vertices stay within ~0.45 m of the skull centre.
  */
-export function hairGeometry(THREE, frame, style) {
-  const head = HEAD[frame];
+export function hairGeometry(THREE, frame, style, head = HEAD[frame]) {
   if (!head || style === 'none') return { hair: null, band: null };
   const [cx, cy, cz] = head.c;
   const [rx, ry, rz] = head.r;
@@ -163,8 +162,7 @@ export function hairGeometry(THREE, frame, style) {
 }
 
 /** Race head features that change silhouette: { skin, chitin, glow } geometries. */
-export function featureGeometry(THREE, frame, race) {
-  const head = HEAD[frame];
+export function featureGeometry(THREE, frame, race, head = HEAD[frame]) {
   const [cx, cy, cz] = head.c;
   const [rx, ry, rz] = head.r;
   const skin = [];
@@ -213,8 +211,7 @@ export function featureGeometry(THREE, frame, race) {
 }
 
 /** A face mask: the front of the skull ellipsoid, slightly proud, carrying the painted face. */
-export function faceGeometry(THREE, frame) {
-  const head = HEAD[frame];
+export function faceGeometry(THREE, frame, head = HEAD[frame]) {
   const [cx, cy, cz] = head.c;
   const [rx, ry, rz] = head.r;
   // phi around Y with +Z at PI/2; theta from the crown.
@@ -459,6 +456,10 @@ export function paintAlteredSkin(skin) {
 export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
   const geo = new Map();
   const mat = new Map();
+  // Skulls measured from the live bodies (see characters.js) replace the
+  // static fallback; set once per frame, before the first character.
+  const heads = { ...HEAD };
+  const built = new Set(); // frames whose geometry exists: their skull is fixed
   const once = (cache, key, make) => {
     if (!cache.has(key)) cache.set(key, make());
     return cache.get(key);
@@ -504,6 +505,8 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
    */
   function apply(ap, ctx, opts = {}) {
     const frame = ap.frame;
+    const head = heads[frame];
+    built.add(frame);
     const meshes = [];
     const add = (g, m, name) => {
       if (!g) return;
@@ -516,7 +519,7 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
     };
     const helmet = opts.covered === 'helmet';
     if (!helmet) {
-      const f = sharedGeo(`feat:${frame}:${ap.race}`, () => featureGeometry(THREE, frame, ap.race));
+      const f = sharedGeo(`feat:${frame}:${ap.race}`, () => featureGeometry(THREE, frame, ap.race, head));
       add(f.skin, skinMaterial(ap), 'features');
       add(f.chitin, sharedMat('chitin', () => new THREE.MeshStandardMaterial({ color: 0x2c3632, roughness: 0.32, metalness: 0.25 })), 'chitin');
       add(f.glow, sharedMat('nodule', () => new THREE.MeshBasicMaterial({ color: 0x8ff0dc })), 'nodules');
@@ -525,11 +528,11 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
         const t = paintFace(ap);
         return new THREE.MeshStandardMaterial({ color: t ? 0xffffff : RACES[ap.race].skins[ap.skin], map: tex(t?.map), emissiveMap: tex(t?.emissive), emissive: t?.emissive ? (ap.race === 'veyran' ? 0xff6a4a : 0x6fe0c8) : 0x000000, emissiveIntensity: ap.race === 'veyran' ? 0.25 : 0.8, roughness: 0.6 });
       });
-      add(sharedGeo(`face:${frame}`, () => faceGeometry(THREE, frame)), faceMat, 'face');
+      add(sharedGeo(`face:${frame}`, () => faceGeometry(THREE, frame, head)), faceMat, 'face');
     }
     if (ap.hair !== 'none') {
       const h = sharedGeo(`hair:${frame}:${ap.hair}:${helmet ? 'tails' : 'full'}`, () => {
-        const full = hairGeometry(THREE, frame, ap.hair);
+        const full = hairGeometry(THREE, frame, ap.hair, head);
         if (!helmet) return full;
         // Under a helmet only what falls below its rim can show.
         const tails = { ...full };
@@ -537,7 +540,8 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
         const p = full.hair.getAttribute('position');
         const keep = [];
         for (let i = 0; i < p.count; i += 3) {
-          if (p.getY(i) < HEAD[frame].c[1] - HEAD[frame].r[1] * 0.4 && p.getY(i + 1) < HEAD[frame].c[1] - HEAD[frame].r[1] * 0.4 && p.getY(i + 2) < HEAD[frame].c[1] - HEAD[frame].r[1] * 0.4) keep.push(i, i + 1, i + 2);
+          const rim = head.c[1] - head.r[1] * 0.4;
+          if (p.getY(i) < rim && p.getY(i + 1) < rim && p.getY(i + 2) < rim) keep.push(i, i + 1, i + 2);
         }
         const g = new THREE.BufferGeometry();
         for (const k of ['position', 'normal', 'uv']) {
@@ -567,5 +571,13 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
     geo.clear();
     mat.clear();
   }
-  return { apply, skinMaterial, dispose };
+  /** Use a measured skull for a frame (finite, plausible values only). */
+  function setHead(frame, h) {
+    const ok = h && [...h.c, ...h.r].every(Number.isFinite) && h.r.every((x) => x > 0.04 && x < 0.2);
+    if (!ok || !Object.hasOwn(HEAD, frame) || built.has(frame)) return false;
+    heads[frame] = { c: [...h.c], r: [...h.r] };
+    return true;
+  }
+
+  return { apply, setHead, skinMaterial, dispose, head: (frame) => heads[frame] };
 }
