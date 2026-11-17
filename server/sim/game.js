@@ -5,7 +5,7 @@
 import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
-import { WORLD, OBJECTS, MOVE_HZ, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
@@ -96,6 +96,8 @@ export class Game {
       combatUntil: 0,
       lastSeq: 0,
       moveBudget: 12,
+      followId: 0,
+      followAcc: 0,
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
@@ -147,6 +149,7 @@ export class Game {
       this.companions = this.companions.filter((c) => c !== p.companion);
       this.ents.delete(p.companion.id);
     }
+    for(const other of this.players.values())if(other.followId===id)this.stopFollow(other);
     this.players.delete(id);
     this.ents.delete(id);
     this.onCharChanged(p.char);
@@ -193,10 +196,44 @@ export class Game {
     for (const inp of inputs) {
       if (inp.seq <= p.lastSeq) continue;
       p.lastSeq = inp.seq;
+      if(p.followId)this.stopFollow(p);
       if (p.moveBudget < 1) continue; // acknowledged but not applied
       p.moveBudget -= 1;
       p.yaw = inp.yaw;
       stepMove(p, inp, this.moveSpeedMul(p));
+    }
+  }
+
+  stopFollow(p) {p.followId=0;p.followAcc=0;}
+
+  setFollow(p,id) {
+    if(id===0){this.stopFollow(p);return {ok:true};}
+    const target=this.players.get(id);
+    if(p.dead||!target||target===p||target.dead||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
+    // Prevent mutual or longer cyclic following chains.
+    const seen=new Set([p.id]);
+    for(let t=target;t;t=this.players.get(t.followId)){
+      if(seen.has(t.id))return {ok:false,reason:'Cannot create a circular follow chain.'};
+      seen.add(t.id);
+    }
+    p.followId=id;p.followAcc=0;return {ok:true};
+  }
+
+  tickFollow(p,dt) {
+    if(!p.followId)return;
+    const target=this.players.get(p.followId);
+    if(p.dead||!target||target.dead||dist(p,target)>45){this.stopFollow(p);return;}
+    // Share the fixed-step movement budget with manual inputs.
+    p.followAcc+=Math.min(.1,Math.max(0,dt))*MOVE_HZ;
+    const steps=Math.min(6,Math.floor(p.followAcc+1e-9));p.followAcc=Math.max(0,p.followAcc-steps);
+    for(let i=0;i<steps&&p.moveBudget>=1;i++){
+      const dx=target.x-p.x,dz=target.z-p.z,d=Math.hypot(dx,dz);
+      const speed=this.moveSpeedMul(p);
+      const f=d>2.8&&speed>0?Math.min(1,(d-2.8)/(RUN_SPEED*MOVE_DT*speed)):0;
+      if(!f&&p.jy<=0&&p.vy<=0)break;
+      p.moveBudget-=1;
+      if(f)p.yaw=Math.atan2(dx,dz);
+      stepMove(p,{f,s:0,yaw:p.yaw,j:0},speed);
     }
   }
 
@@ -218,6 +255,7 @@ export class Game {
     if (!p.dead) return false;
     if (this.time - p.deadAt < RESPAWN_DELAY_MS) return false;
     p.dead = false;
+    this.stopFollow(p);
     p.x = WORLD.spawn.x;
     p.z = WORLD.spawn.z;
     p.jy = 0;
@@ -244,6 +282,7 @@ export class Game {
     const dt = dtMs / 1000;
     for (const p of this.players.values()) {
       p.moveBudget = Math.min(MOVE_BUDGET_MAX, p.moveBudget + dt * MOVE_HZ);
+      this.tickFollow(p,dt);
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
       tickBrineTrial(this,p);
@@ -322,6 +361,7 @@ export class Game {
     }
     const y = {
       ack: p.lastSeq,
+      follow: p.followId,
       x: p.x,
       z: p.z,
       jy: p.jy,

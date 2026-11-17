@@ -321,6 +321,10 @@ export class NetServer {
         game.handleInputs(p, inputs);
         break;
       }
+      case 'follow':
+        if (!isId(msg.id)) return this.strike(conn);
+        reply(game.setFollow(p,msg.id));
+        break;
       case 'tgt':
         if (!isId(msg.id)) return this.strike(conn);
         game.setTarget(p, msg.id);

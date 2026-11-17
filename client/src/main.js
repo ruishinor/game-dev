@@ -224,6 +224,12 @@ const ui = new UI({
   petRename: (name) => net.send({ t: 'pet_rename', name }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
+  followChat: (name) => {
+    if(!name)return followPlayer(S.target);
+    const matches=[...S.ents.values()].filter(e=>e.meta.k==='p'&&e.id!==S.myId&&e.meta.n.toLowerCase()===name.toLowerCase());
+    if(matches.length!==1)return ui.error('Select a player or enter /follow followed by their exact name.');
+    followPlayer(matches[0].id);
+  },
   isFollowing: (id) => S.followId===id,
   cancelMovement: () => stopAutomaticMovement(),
   stopFollowing: (id) => { if(S.followId===id)stopAutomaticMovement(); },
@@ -595,6 +601,8 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  S.followId=y.follow||0;
+  if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
   while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
   const s = { x: y.x, z: y.z, jy: y.jy, vy: y.vy };
   for (const c of local.pending) stepMove(s, c, y.sp);
@@ -1100,6 +1108,7 @@ function sampleRemote(ent, rt) {
 
 function stopAutomaticMovement() {
   S.autoRun = false;
+  if(S.followId)net.send({t:'follow',id:0});
   S.followId = 0;
 }
 function followPlayer(id) {
@@ -1107,34 +1116,24 @@ function followPlayer(id) {
   const me = S.ents.get(S.myId);
   if (!me || me.dead || !ent || ent.id === S.myId || ent.meta.k !== 'p' || ent.dead) return ui.error('Select a living player to follow.');
   stopAutomaticMovement();
+  // Deliver any earlier manual input before the follow intent.
+  while(local.outbox.length)net.send({t:'in',s:local.outbox.splice(0,16)});
   S.followId = id;
+  net.send({t:'follow',id});
 }
-// A visible second browser may follow while the leader has keyboard focus.
-// Hidden tabs, logout and disconnect still cancel automatic movement.
-input.onReset = () => {
-  S.autoRun = false;
-  if (document.hidden || !input.enabled) S.followId = 0;
-};
+// Manual/auto-run inputs reset on blur; explicit server follow survives hidden tabs.
+input.onReset = () => { S.autoRun = false; };
 
 function stepLocal(inp, now, dt) {
   const me = S.ents.get(S.myId);
   const dead = !!(me && me.dead);
-  if (!me || dead || !input.enabled || document.hidden) stopAutomaticMovement();
+  if (!me || dead || !input.enabled) stopAutomaticMovement();
   // Automatic movement is only an input convenience. It uses the same
   // collision, speed, prediction, rate limits and server movement validation.
-  if (inp.f || inp.s || inp.turn || inp.jump) stopAutomaticMovement();
-  if (S.followId) {
-    const ent = S.ents.get(S.followId);
-    const dx = ent ? ent.pos.x - local.pred.x : 0;
-    const dz = ent ? ent.pos.z - local.pred.z : 0;
-    const distance = Math.hypot(dx, dz);
-    if (!ent || ent.dead || !ent.placed || distance > 45) stopAutomaticMovement();
-    else if (distance > 2.8) {
-      local.yaw = Math.atan2(dx, dz);
-      inp.f = Math.min(1, (distance - 2.8) / 1.4);
-      inp.steering = false;
-    }
-  } else if (S.autoRun) inp.f = 1;
+  if (inp.f || inp.s || inp.turn || inp.jump || inp.steering) stopAutomaticMovement();
+  // Following is server-driven; do not send duplicate movement steps.
+  if (!S.followId && S.autoRun) inp.f = 1;
+  if(document.hidden){inp.f=0;inp.s=0;inp.turn=0;inp.jump=false;}
   if (inp.lookX || inp.lookY) cam.look(inp.lookX, inp.lookY);
   if (inp.wheel) cam.zoom(inp.wheel);
   if (!dead) {
@@ -1144,7 +1143,7 @@ function stepLocal(inp, now, dt) {
       local.yaw += d;
       cam.yaw += d;
     }
-    if (inp.f > 0 && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
+    if ((inp.f > 0 || S.followId) && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
   }
   local.yaw = wrap(local.yaw);
   cam.yaw = wrap(cam.yaw);
@@ -1163,7 +1162,7 @@ function stepLocal(inp, now, dt) {
     const yaw = Math.round(local.yaw * 10000) / 10000;
     const airborne = local.pred.jy > 0 || local.pred.vy > 0;
     const turned = Math.abs(wrap(yaw - local.sentYaw)) > 0.01 && now - local.yawSentAt > 90;
-    if (f || st || jump || airborne || turned) {
+    if (!S.followId && (f || st || jump || airborne || turned)) {
       const cmd = { seq: ++local.seq, f, s: st, yaw, j: jump ? 1 : 0 };
       stepMove(local.pred, cmd, local.speedMul);
       local.pending.push(cmd);
@@ -1491,6 +1490,7 @@ window.__attune = {
       drawn: S.drawn,
       quality,
       target: S.target,
+      followId:S.followId,
       inspected: S.inspect?.id || 0,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
       yaw: local.yaw,

@@ -337,6 +337,9 @@ export class UI {
         e.preventDefault();
         const text = this.chat.value.trim();
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
+        const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
+        if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
           const message=(command[2]||'').trim();
@@ -574,6 +577,7 @@ export class UI {
       ['Both buttons', 'Run forward'],
       ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
+      ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
