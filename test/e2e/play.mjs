@@ -128,7 +128,13 @@ try {
   let sb = await state(B);
   note(`graphics: ${(await describeGraphics(A.page)).renderer}`);
   await until(A, () => window.__attune.state().drawn >= 2 && window.__attune.state().draw.triangles > 10000, null, 60000, 'first frames drawn');
+  // Wait for both clients to receive the other's metadata and a snapshot.
+  // A ready local character does not imply the remote observer is ready.
+  const seenA=await until(B,id=>window.__attune.state().ents.some(e=>e.id===id&&e.row&&e.anim?.base),sa.myId,20000,'B receives A model and snapshot');
+  const seenB=await until(A,id=>window.__attune.state().ents.some(e=>e.id===id&&e.row&&e.anim?.base),sb.myId,20000,'A receives B model and snapshot');
   sa = await state(A);
+  sb = await state(B);
+  if(!seenA||!seenB)throw Error('Mutual observer metadata/snapshot did not arrive');
   check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000, `A id ${sa.myId}, B id ${sb.myId}, ${sa.draw.triangles} triangles drawn`);
   check('10. second session sees the first (and its class)', sb.ents.some((e) => e.id === sa.myId && e.c === 'vanguard') && sa.ents.some((e) => e.id === sb.myId && e.c === 'symbiotech'));
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);

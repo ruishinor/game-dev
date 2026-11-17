@@ -282,6 +282,24 @@ export const ITEMS = {
     mods: { dmgMul: 1.2, hpMul: 0.85 },
     desc: 'A crude sentinel-tech bypass. +20% damage dealt, but -15% maximum health.',
   },
+  calibrated_servo: {
+    name:'Calibrated Servo Harness',slot:'device',cls:'vanguard',
+    skills:{kinetics:3},mods:{chargeMul:1.2,hpMul:.93},
+    summary:'+3 Kinetics · +20% Charge generation · −7% maximum health',
+    desc:'A calibrated kinetic interface accelerates Charge transfer at the cost of protective mass. +3 Kinetics, +20% Charge generation, −7% maximum health.',
+  },
+  cultured_focus: {
+    name:'Cultured Sporeglass Focus',slot:'device',cls:'symbiotech',
+    skills:{biotech:3},mods:{healMul:1.1,dmgMul:.9},
+    summary:'+3 Biotech · +10% healing · −10% damage',
+    desc:'A stabilized living scaffold amplifies restorative signals while diverting offensive energy. +3 Biotech, +10% healing, −10% damage.',
+  },
+  resonance_buffer: {
+    name:'Resonance Buffer',slot:'implant',req:{attune:'resonance'},
+    mods:{hpAdd:25,dmgMul:.9},
+    summary:'+25 maximum health · −10% damage',
+    desc:'A damped resonance implant reinforces structural tolerance at the expense of offensive output. +25 maximum health, −10% damage.',
+  },
   glyph_shared_pulse: {
     summary: "Triage: 60% splash healing within 8m of patient",
     name: 'Glyph of Shared Pulse',
