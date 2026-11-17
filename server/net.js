@@ -193,7 +193,10 @@ export class NetServer {
         reply(useAbility(game, p, msg.a));
         break;
       case 'atk':
-        reply(startAttack(game, p));
+        // Right-click (legacy atk) always engages; explicit on=0 disengages.
+        if (msg.on !== undefined && msg.on !== 0 && msg.on !== 1) return this.strike(conn);
+        if (msg.on === 0) p.autoOn = false;
+        else reply(startAttack(game, p));
         break;
       case 'pet':
         reply(petCommand(game, p, msg.c));
