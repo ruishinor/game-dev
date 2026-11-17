@@ -1,6 +1,7 @@
 // Original art catalog. Raw prototypes stay outside the production meshopt directory.
 import crypto from 'node:crypto';
 import { glb,verify } from './geometry.mjs';
+import { finishedGLB } from './finish.mjs';
 import { build as atlas } from './06-industrial-atlas.mjs';
 import { glyphs,svg,sprite } from './07-glyphs.mjs';
 import { build as recipe0 } from './01-backpack.mjs';
@@ -361,7 +362,7 @@ const utf8=s=>Buffer.from(s,'utf8');
 const metadata=(path,bytes)=>({path,bytes:bytes.length,gitBlob:crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),source:'original'});
 export function generateOriginals(){
  const generated=new Map();
- for(const spec of MODEL_SPECS){const out=glb(spec.id,builders[spec.recipe](spec.args));verify(out.bytes,9000);generated.set(spec.file,Buffer.from(out.bytes));}
+ for(const spec of MODEL_SPECS){const parts=builders[spec.recipe](spec.args);const out=spec.packageId==='01'?finishedGLB(spec.id,parts):glb(spec.id,parts);verify(out.bytes,9000);generated.set(spec.file,Buffer.from(out.bytes));}
  const a=atlas();
  for(const [name,bytes] of Object.entries(a.files))generated.set('industrial_'+name+'.png',Buffer.from(bytes));
  generated.set('industrial_atlas.json',utf8(JSON.stringify({width:a.width,height:a.height,cell:a.cell,gutter:a.gutter,seed:a.seed,tiles:a.tiles,files:{base:'industrial_base.png',normal:'industrial_normal.png',orm:'industrial_orm.png'}},null,2)));

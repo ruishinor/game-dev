@@ -1,18 +1,38 @@
 import { kit } from './geometry.mjs';
-// Mount origin; +Z towards wearer, +Y up.
+// Local +Z lies toward wearer; padded contact surface remains near mount plane.
+// Shoulder straps require rig-aware attachment and are intentionally not baked.
 export function build({variant='research',reservoirs=2}={}){
  if(!['research','kinetic','biotech','utility'].includes(variant)||!Number.isInteger(reservoirs)||reservoirs<0||reservoirs>4)throw Error('invalid backpack configuration');
- const k=kit(),{box,rod,ring}=k;const accent={research:'cyan',kinetic:'amber',biotech:'green',utility:'ochre'}[variant];
- box('fabric',[0,0,-.055],[.30,.43,.13]);box('frame',[0,0,-.128],[.32,.46,.08]);box('ceramic',[0,0,-.178],[.27,.40,.045],{bevel:.018});
- box('frame',[0,.053,-.208],[.20,.14,.022]);box('screen',[0,.053,-.224],[.155,.092,.012]);
- for(const x of [-.112,.112]){box('steel',[x,0,-.206],[.035,.31,.025]);for(const y of [-.135,.132])rod('black',[x,y,-.221],[x,y,-.23],.009,{sides:6});}
- for(const y of [-.185,.185])box('ochre',[0,y,-.216],[.23,.028,.021]);
- box('frame',[0,-.13,-.225],[.15,.09,.024]);for(let i=0;i<3;i++)box(accent,[-.045+i*.045,-.13,-.241],[.022,.053,.007]);
- rod('steel',[-.065,.233,-.119],[.065,.233,-.119],.012);for(const x of [-.065,.065])rod('frame',[x,.208,-.119],[x,.233,-.119],.014);
- for(let i=0;i<reservoirs;i++){const x=(i%2?-1:1)*.179,y=i<2?.085:-.10;rod(accent,[x,y-.057,-.132],[x,y+.057,-.132],.024);for(const a of [-1,1])rod('steel',[x,y+a*.058,-.132],[x,y+a*.073,-.132],.031);for(const a of [0,2.094,4.189]){const dx=Math.cos(a)*.029,dz=Math.sin(a)*.029;rod('frame',[x+dx,y-.060,-.132+dz],[x+dx,y+.060,-.132+dz],.0045,{sides:6});}box('frame',[x,y,-.104],[.04,.045,.03]);}
- if(variant==='research'){rod('black',[.11,.23,-.15],[.11,.32,-.15],.007);rod('cyan',[.11,.32,-.15],[.11,.333,-.15],.009);for(let i=0;i<4;i++)box('cyan',[-.047+i*.032,.035+i%2*.026,-.232],[.015,.025+i%2*.02,.004]);}
- if(variant==='kinetic'){ring('copper',[0,.05,-.236],.044,.008);box('amber',[0,.05,-.248],[.046,.022,.008]);}
- if(variant==='biotech'){rod('dermal',[-.06,-.06,-.24],[.06,.02,-.24],.014);rod('green',[-.06,-.06,-.253],[.06,.02,-.253],.004);}
- if(variant==='utility'){for(const y of [.04,.075])box('steel',[0,y,-.241],[.12,.014,.01]);}
+ const k=kit(),{box,rod,ring}=k,accent={research:'cyan',kinetic:'amber',biotech:'green',utility:'ochre'}[variant];
+ const bolt=(x,y,z,s=.006)=>rod('steel',[x,y,z],[x,y,z-.004],s,{sides:8});
+ const hose=(points,r=.008)=>{for(let j=1;j<points.length;j++)rod('black',points[j-1],points[j],r,{sides:10});};
+ // Layered carrier, shaped frame and discrete padded wearer-contact surfaces.
+ box('frame',[0,0,-.068],[.286,.408,.095],{bevel:.027});box('fabric',[0,0,-.018],[.26,.378,.048],{bevel:.021});
+ for(const x of [-.086,.086]){box('fabric',[x,.082,.009],[.092,.176,.038],{bevel:.020});box('fabric',[x,-.107,.007],[.093,.142,.035],{bevel:.018});box('frame',[x,0,-.044],[.024,.415,.036]);for(const y of [-.188,.185]){box('steel',[x,y,.011],[.045,.032,.016]);box('black',[x,y,.022],[.026,.015,.012]);}}
+ box('black',[0,-.169,.009],[.135,.063,.031],{bevel:.011});box('fabric',[0,.193,.008],[.14,.035,.035]);
+ // Rear housing has segmented, replaceable armor rather than one slab.
+ box('frame',[0,.012,-.122],[.306,.405,.087],{bevel:.023});box('ochre',[0,.13,-.172],[.255,.147,.038],{bevel:.017});
+ box('ceramic',[0,-.027,-.179],[.247,.154,.049],{bevel:.018});box('frame',[0,-.147,-.174],[.24,.075,.050],{bevel:.012});
+ for(const x of [-.133,.133]){box('steel',[x,.003,-.164],[.026,.345,.055],{bevel:.009});for(const y of [-.14,-.03,.09,.15])bolt(x,y,-.194);}
+ for(const y of [-.202,.20]){box('frame',[0,y,-.124],[.255,.031,.108]);for(const x of [-.10,.10])box('ochre',[x,y,-.185],[.049,.029,.017]);}
+ box('frame',[-.036,.129,-.199],[.124,.078,.019],{bevel:.008});box('screen',[-.036,.129,-.211],[.102,.057,.008]);
+ for(let i=0;i<5;i++)box(accent,[-.071+i*.017,.119+(i%3)*.005,-.217],[.008,.012+(i%3)*.009,.003]);
+ for(const x of [.055,.079,.103])box('black',[x,.128,-.202],[.012,.052,.010]);
+ // Replaceable center module and localized indicators.
+ box('frame',[0,-.028,-.212],[.166,.104,.033],{bevel:.009});
+ if(variant==='kinetic'){ring('copper',[0,-.027,-.233],.037,.008,{sides:24,segments:8});rod('amber',[0,-.027,-.231],[0,-.027,-.244],.022,{sides:16});}
+ else if(variant==='biotech'){for(let i=0;i<3;i++)rod('dermal',[-.048+i*.048,-.060,-.235],[-.033+i*.048,.006,-.236],.014,{sides:12});rod('green',[-.064,-.039,-.251],[.064,-.039,-.251],.004,{sides:8});}
+ else {for(let i=0;i<5;i++)box(i%2?'steel':'black',[0,-.062+i*.017,-.233],[.137,.009,.014],{bevel:.002});if(variant==='research')box('cyan',[.057,-.015,-.244],[.012,.057,.007]);}
+ for(const x of [-.069,-.023,.023,.069]){box('black',[x,-.152,-.206],[.036,.041,.015]);box(accent,[x,-.139,-.216],[.023,.009,.005]);}
+ // Top carry grip and side mount rails.
+ rod('steel',[-.062,.235,-.116],[.062,.235,-.116],.012,{sides:16});for(const x of [-.062,.062])rod('frame',[x,.207,-.116],[x,.235,-.116],.014,{sides:12});
+ for(let i=0;i<reservoirs;i++){const x=(i%2?-1:1)*.177,y=i<2?.074:-.106,z=-.132;
+  rod(accent,[x,y-.056,z],[x,y+.056,z],.022,{sides:20});for(const s of [-1,1]){rod('frame',[x,y+s*.054,z],[x,y+s*.073,z],.030,{sides:16});rod('steel',[x,y+s*.066,z],[x,y+s*.076,z],.027,{sides:16});}
+  for(const a of [0,2.094,4.189]){const dx=Math.cos(a)*.028,dz=Math.sin(a)*.028;rod('steel',[x+dx,y-.062,z+dz],[x+dx,y+.062,z+dz],.0042,{sides:8});}
+  box('frame',[x*.94,y,z+.028],[.040,.048,.037]);box('ochre',[x*1.08,y-.055,z-.019],[.025,.027,.020]);if(i<2)hose([[x,y+.074,z],[x,y+.092,z],[x*.76,y+.103,z-.018],[x*.70,y+.085,z-.027]],.007);
+ }
+ for(const x of [-.105,.105]){box('black',[x,-.154,-.218],[.04,.07,.019]);for(let i=0;i<3;i++)box('steel',[x,-.175+i*.021,-.230],[.028,.005,.009]);}
+ if(variant==='research'){rod('black',[.11,.208,-.15],[.11,.284,-.15],.010,{sides:10});rod('steel',[.11,.284,-.15],[.11,.326,-.15],.005,{sides:10});rod('cyan',[.11,.326,-.15],[.11,.335,-.15],.006,{sides:10});}
+ else {box('frame',[.083,.212,-.14],[.074,.026,.056]);box(accent,[.083,.229,-.14],[.043,.006,.012]);}
  return k.parts;
 }

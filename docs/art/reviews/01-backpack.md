@@ -15,3 +15,10 @@ Executed structural checks:
 - backpack_kinetic: 1284 triangles, 9 materials, 130720 bytes.
 - backpack_biotech: 1104 triangles, 9 materials, 113432 bytes.
 - backpack_utility: 1072 triangles, 7 materials, 108728 bytes.
+
+## Visual revision v2
+Owner accepted the concept/technical direction, not visual fidelity. Rebuilt all four variants with separate service panels, exposed reservoir fittings, vent banks, rear hardware, and padded wearer-contact surfaces. Embedded original repeatable base colour, normal and packed ORM maps for non-emissive materials using metre UVs. No external scans or Blender hand unwrap. Rig-dependent shoulder straps intentionally remain separate. Art review: avoid covering both sides with generic armor; technical art: cap geometry, use real maps; adversarial: tested 0/4 reservoirs, deterministic output and structural GLB; retrospective: default preview previously faced the blank wearer side. Both angles inspected in neutral untextured software preview; actual PBR appearance and body fit pending browser/rig evidence. Not artistic approval.
+- backpack_research: 3372 triangles, 18 embedded maps, 556808 bytes.
+- backpack_kinetic: 3596 triangles, 21 embedded maps, 616824 bytes.
+- backpack_biotech: 3312 triangles, 18 embedded maps, 551832 bytes.
+- backpack_utility: 3292 triangles, 18 embedded maps, 548272 bytes.
