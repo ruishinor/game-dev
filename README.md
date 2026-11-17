@@ -1,5 +1,7 @@
 # Attunement — vertical slice
 
+**Proprietary project — all rights reserved.** Public visibility does not grant a general license to reuse or commercialize protected Attunement materials. See [LICENSE](LICENSE). Third-party materials retain their own terms.
+
 Browser-based, third-person 3D MMORPG slice: an authoritative Node server and a
 Three.js client. Two classes (Kinetic Vanguard, Symbiotech Conductor), a
 companion, a build system, shared-world combat and persistence, drawn with
