@@ -2,7 +2,7 @@
 // Every outcome a client sees originates here.
 
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 
@@ -219,7 +219,7 @@ export function tickPlayerCombat(game, p, dt) {
     const t = game.ents.get(p.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
-    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range) {
+    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range && hasLineOfSight(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
       dealDamage(game, p, t, cdef.auto.dmg, 'auto', { kind: cdef.auto.kind });
       gainCharge(p, 5);
@@ -251,6 +251,7 @@ export function useAbility(game, p, abilityId) {
     if (!target || target.kind !== 'enemy' || target.state === 'dead') return fail('You need an enemy target.');
     if (target.state === 'evade') return fail('Your target is retreating.');
     if (dist(p, target) - target.radius > ab.range) return fail('Out of range.');
+    if (!hasLineOfSight(p,target)) return fail('Line of sight blocked.');
     if (ab.root && ENEMIES[target.type].elite) return fail(`${target.name} is too massive to root.`);
   } else if (ab.type === 'friendly') {
     const t = game.ents.get(p.target);
@@ -302,14 +303,14 @@ export function useAbility(game, p, abilityId) {
       const radius = p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius;
       game.events.push({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
       for (const enemy of game.enemies) {
-        if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius) dealDamage(game, p, enemy, ab.dmg, abilityId);
+        if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius && hasLineOfSight(rig,enemy)) dealDamage(game, p, enemy, ab.dmg, abilityId);
       }
       break;
     }
     case 'rending_arc': {
       const echo = p.stats.glyph === 'glyph_rending_echo';
       const others = echo
-        ? game.enemies.filter((e) => e !== target && e.state !== 'dead' && e.state !== 'evade' && dist(p, e) - e.radius <= GLYPH.echo.radius)
+        ? game.enemies.filter((e) => e !== target && e.state !== 'dead' && e.state !== 'evade' && dist(p, e) - e.radius <= GLYPH.echo.radius && hasLineOfSight(p,e))
         : [];
       dealDamage(game, p, target, ab.dmg, abilityId, { kind: 'melee' });
       for (const e of others) dealDamage(game, p, e, ab.dmg * GLYPH.echo.pct, 'rending_echo', { kind: 'melee' });
@@ -351,7 +352,7 @@ export function useAbility(game, p, abilityId) {
       game.events.push({ e: 'fx', k: aegis ? 'aegis' : 'discharge', s: p.id, r: radius });
       for (const e of [...game.enemies]) {
         if (e.state === 'dead' || e.state === 'evade') continue;
-        if (dist(p, e) - e.radius <= radius) dealDamage(game, p, e, dmg, abilityId);
+        if (dist(p, e) - e.radius <= radius && hasLineOfSight(p,e)) dealDamage(game, p, e, dmg, abilityId);
       }
       if (aegis) {
         const shield = Math.round(charge * GLYPH.aegis.shieldPct * p.stats.power);

@@ -4,7 +4,7 @@
 
 import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
-import { WORLD, OBJECTS, MOVE_HZ, dist, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
@@ -325,6 +325,8 @@ export class Game {
       cds,
       gcd: Math.max(0, Math.round(p.gcdUntil - this.time)),
       auto: p.autoOn ? 1 : 0,
+      losTarget: p.target,
+      los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
       party: partyState(this, p),

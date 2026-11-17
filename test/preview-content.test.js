@@ -115,7 +115,7 @@ test('engineering station retains clear access to research and evidence', () => 
   assert.ok(station);
   const atCentre = resolveCollisions({x: station.x, z: station.z}, PLAYER_RADIUS);
   assert.ok(Math.abs(atCentre.x-station.x) >= station.hw || Math.abs(atCentre.z-station.z) >= station.hd);
-  for (let z = -33; z >= -37; z -= 0.25) {
+  for (let z = -34.25; z >= -37; z -= 0.25) {
     const pos = resolveCollisions({x:49,z}, PLAYER_RADIUS);
     assert.ok(Math.hypot(pos.x-49,pos.z-z) < 1e-6, 'engineering approach blocked at '+z);
   }

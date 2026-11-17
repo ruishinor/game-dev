@@ -188,6 +188,36 @@ function buildProps() {
 export const PROPS = buildProps();
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
+// Conservative horizontal cover test against the same solid prop footprints
+// used for movement. Small ground details and characters are not cover.
+// A small endpoint tolerance avoids self-intersections with boundary contact.
+export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
+  const dx = b.x - a.x, dz = b.z - a.z, len2 = dx*dx + dz*dz;
+  if (![a.x,a.z,b.x,b.z].every(Number.isFinite)) return false;
+  if (len2 < 1e-10) return true;
+  const eps = Math.min(0.01 / Math.sqrt(len2), 0.1);
+  for (const o of obstacles) {
+    if (o.h !== undefined && o.h < 0.8) continue;
+    if (o.r !== undefined) {
+      const t = Math.max(eps, Math.min(1-eps, ((o.x-a.x)*dx+(o.z-a.z)*dz)/len2));
+      if ((a.x+dx*t-o.x)**2+(a.z+dz*t-o.z)**2 < o.r**2-1e-9) return false;
+    } else {
+      let lo=eps, hi=1-eps;
+      for (const [start,delta,centre,half] of [[a.x,dx,o.x,o.hw],[a.z,dz,o.z,o.hd]]) {
+        if (Math.abs(delta)<1e-10) {
+          if (start<=centre-half || start>=centre+half) {lo=1;hi=0;break;}
+        } else {
+          const t1=(centre-half-start)/delta,t2=(centre+half-start)/delta;
+          lo=Math.max(lo,Math.min(t1,t2));hi=Math.min(hi,Math.max(t1,t2));
+          if (lo>=hi) break;
+        }
+      }
+      if (lo<hi) return false;
+    }
+  }
+  return true;
+}
+
 /** Interactive, non-hostile world objects. The server owns their state. */
 export const OBJECTS = [
   { key: 'obelisk', type: 'obelisk', name: 'The Listening Stone', x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 1.0 },

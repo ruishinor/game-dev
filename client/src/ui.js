@@ -1167,12 +1167,13 @@ export class UI {
     // ignore range. Hostile abilities and right-click can also engage it.
     const autoTarget = target?.meta.k === 'e' && !target.dead;
     const engaging = !!you.auto;
+    const obstructed = !!target && you.losTarget === target.id && you.los === 0;
     const reach = def.auto.range;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
     set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     set(this.autoStatus, 'text', autoText);
 
     // Action bar
@@ -1194,7 +1195,7 @@ export class UI {
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;
-        else if (st.dist(target) > ab.range) ranged = false;
+        else if (st.dist(target) > ab.range || obstructed) ranged = false;
       } else if (ab.type === 'friendly' && target && target.meta.k === 'p' && target.id !== me.id && st.dist(target) > ab.range) ranged = false;
       b.el.classList.toggle('unusable', !usable);
       b.el.classList.toggle('far', usable && !ranged);
