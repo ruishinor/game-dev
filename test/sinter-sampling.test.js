@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { makeGame, makeChar, place } from './helpers.js';
+import { useAbility, getBuff } from '../server/sim/combat.js';
+import { interact } from '../server/sim/progress.js';
+import { OBJECTS, ZONES, dist, resolveCollisions } from '../shared/world.js';
+
+const fixture=(cls,glyph)=>{
+  const g=makeGame();
+  const p=g.addPlayer(makeChar(cls,{inventory:[glyph],attunements:['resonance'],equipped:{device:null,implant:null,glyph}}));
+  const o=g.objects.find(o=>o.type==='sinter_sampler');
+  place(p,o.x+2,o.z);
+  return {g,p,o};
+};
+test('Aegis and active Kinetic Ward isolate a unique noncombat laminate sample',()=>{
+  const {g,p,o}=fixture('vanguard','glyph_resonant_aegis');
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+  assert.ok(useAbility(g,p,'kinetic_ward').ok);
+  p.combatUntil=1000;
+  assert.equal(interact(g,p,o.id).ok,false);
+  p.combatUntil=0;
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(g.events.some(e=>e.k==='sinter_sample' && e.mode==='kinetic'));
+  assert.equal(p.char.xp,0);
+  assert.ok(interact(g,p,o.id).ok);
+  assert.equal(p.char.inventory.filter(i=>i==='sinter_laminate').length,1);
+  assert.equal(g.events.filter(e=>e.k==='sinter_sample').length,1);
+});
+test('Shared Pulse, companion Triage and self-graft must all be valid',()=>{
+  const {g,p,o}=fixture('symbiotech','glyph_shared_pulse');
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+  assert.ok(useAbility(g,p,'mending_graft').ok);
+  p.companion.mode='assist';
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+  p.companion.mode='triage';
+  p.companion.x=o.x+10;
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+  p.companion.x=p.x; p.companion.z=p.z;
+  const hot=getBuff(p,'hot');
+  const originalExpiry=hot.until;
+  hot.until=0;
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+  hot.until=originalExpiry;
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(p.char.inventory.includes('sinter_laminate'));
+  assert.ok(g.events.some(e=>e.k==='sinter_sample' && e.mode==='symbiotic'));
+});
+test('sampling retains distance, defeat, attunement and geometry gates',()=>{
+  const {g,p,o}=fixture('vanguard','glyph_resonant_aegis');
+  const def=OBJECTS.find(o=>o.type==='sinter_sampler');
+  assert.ok(dist(def,ZONES.sinter)<ZONES.sinter.r);
+  assert.ok(dist(resolveCollisions({x:o.x,z:o.z},0.45),o)>=1.25-1e-6);
+  assert.ok(useAbility(g,p,'kinetic_ward').ok);
+  place(p,o.x+6,o.z);
+  assert.equal(interact(g,p,o.id).ok,false);
+  place(p,o.x+2,o.z);
+  p.dead=true;
+  assert.equal(interact(g,p,o.id).ok,false);
+  p.dead=false;
+  p.char.attunements=[];
+  assert.ok(interact(g,p,o.id).ok);
+  assert.ok(!p.char.inventory.includes('sinter_laminate'));
+});

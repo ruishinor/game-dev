@@ -272,7 +272,7 @@ export const ITEMS = {
     slot: 'device',
     skills: { kinetics: 1, biotech: 1 },
     mods: { hpAdd: 18 },
-    desc: 'A reclaimed field laminate scraped from a predator’s mineral plates. +1 Kinetics, +1 Biotech, +18 maximum health. Trades specialization for durability.',
+    desc: 'A mineral-biological composite obtained from predator plates or an isolated field collector. +1 Kinetics, +1 Biotech, +18 maximum health. Trades specialization for durability.',
   },
   sporeglass_focus: {
     name: 'Sporeglass Focus',

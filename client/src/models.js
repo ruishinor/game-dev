@@ -545,6 +545,7 @@ function makeSurveyTerminal(ledger) {
 // Different body plans, shared primitive geometry; per-instance materials.
 function makeSinterFauna(predator) {
   const group = new THREE.Group(), rig = new THREE.Group();
+  group.name = predator ? 'fauna:faultstalker' : 'fauna:sinter-grazer';
   group.add(rig);
   const shell = std(predator ? 0x756c5e : 0xb4a48a, { rough: 0.92 });
   const dark = std(predator ? 0x343b37 : 0x5a6457, { rough: 0.75 });
@@ -610,6 +611,39 @@ function makeSinterFauna(predator) {
   };
 }
 
+// Weathered, isolated sample frame with opposing probes and a removable cassette.
+function makeSinterSampler() {
+  const group = new THREE.Group();
+  group.name = 'sinter:interferometer';
+  const ceramic = std(0x8f8978, { rough: 0.83, metal: 0.12 });
+  const frame = std(0x4b504d, { rough: 0.7, metal: 0.52 });
+  const seal = std(0x343c39, { rough: 0.95 });
+  const brass = std(0x987e55, { rough: 0.56, metal: 0.52 });
+  const glass = std(0x899e8b, { rough: 0.26, metal: 0.16 });
+  group.add(part(BOX, frame, 1.27, 0.16, 0.9, 0, 0.08, 0));
+  group.add(part(BOX, ceramic, 0.92, 0.72, 0.7, 0, 0.55, 0));
+  group.add(part(BOX, seal, 0.85, 0.14, 0.68, 0, 0.95, 0));
+  for (const side of [-1,1]) {
+    group.add(part(BOX, frame, 0.14, 1.24, 0.26, side * 0.55, 0.78, -0.12));
+    group.add(part(BOX, brass, 0.23, 0.22, 0.28, side * 0.48, 1.36, 0.12));
+    const fork = part(CYL, frame, 0.095, 0.66, 0.095, side * 0.40, 1.39, 0.12);
+    fork.rotation.z = side * Math.PI / 2;
+    group.add(fork);
+    group.add(part(BOX, seal, 0.12, 0.35, 0.62, side * 0.47, 0.56, 0));
+    for (let i=0;i<3;i++) group.add(part(BOX, frame, 0.24, 0.045, 0.028, side * 0.24, 0.42+i*0.13, 0.37));
+  }
+  group.add(part(BOX, brass, 0.51, 0.15, 0.36, 0, 1.08, 0.1));
+  const sample = part(ICO, ceramic, 0.24, 0.16, 0.25, 0, 1.27, 0.10);
+  sample.rotation.y = 0.4;
+  group.add(sample);
+  group.add(part(BOX, seal, 0.52, 0.30, 0.10, 0, 0.79, 0.42));
+  const display = part(BOX, glass, 0.43, 0.18, 0.035, 0, 0.79, 0.49);
+  display.rotation.x = -0.10;
+  group.add(display);
+  return { group, height: 1.58, radius: 0.8, hover: 0, update() {},
+    dispose() { for(const m of [ceramic, frame, seal, brass, glass]) m.dispose(); } };
+}
+
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
@@ -623,4 +657,5 @@ export const MODEL_FACTORIES = {
   archivist: makeArchivist,
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
+  sinter_sampler: makeSinterSampler,
 };

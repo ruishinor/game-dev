@@ -211,6 +211,7 @@ export const OBJECTS = [
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
   { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },
   { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
+  { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.map((o) => ({ x: o.x, z: o.z, r: o.r })));

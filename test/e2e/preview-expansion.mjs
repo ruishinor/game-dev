@@ -69,6 +69,32 @@ try {
   assert.equal(p.char.quest.step, 0);
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
+  // Knowledge is a fixture; sample interaction and ability are real.
+  p.char.inventory.push('glyph_shared_pulse');
+  p.char.attunements.push('resonance');
+  p.char.equipped.glyph = 'glyph_shared_pulse';
+  server.game.refreshStats(p);
+  server.game.markDirty(p);
+  await moveTo(-3,58.4);
+  await page.waitForFunction(() => {
+    const s = window.__attune.state();
+    return s.sheet.equipped.glyph === 'glyph_shared_pulse' &&
+      s.ents.filter(e => e.c === 'sinter_grazer').length === 3 &&
+      s.ents.some(e => e.c === 'faultstalker') &&
+      s.ents.some(e => e.c === 'sinter_sampler');
+  });
+  assert.ok(await page.evaluate(() => {
+    const scene = window.__attune.gfx.scene;
+    return ['fauna:sinter-grazer','fauna:faultstalker','sinter:interferometer'].every(n => scene.getObjectByName(n));
+  }));
+  p.target = 0;
+  p.res = 100;
+  assert.ok(useAbility(server.game,p,'mending_graft').ok);
+  await page.keyboard.press('f');
+  await page.waitForFunction(() => window.__attune.state().sheet.inventory.includes('sinter_laminate'));
+  assert.equal(p.char.xp,35);
+  await page.evaluate(() => window.__attune.view({yaw:Math.PI/2,pitch:0.22,dist:7,face:Math.PI/2}));
+  await capture('preview-evidence/04a-strata-interferometer.png');
   await moveTo(6, 58);
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));

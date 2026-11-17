@@ -138,6 +138,33 @@ export function interact(game, p, objectId) {
     checkDirective(game, p);
     return { ok: true };
   }
+  if (obj.type === 'sinter_sampler') {
+    // Alternative source of the existing unique item; no repeatable XP or new save state.
+    if (p.char.inventory.includes('sinter_laminate')) {
+      game.message(p, 'info', 'The interferometer identifies the same mineral-biological composite already in your inventory.');
+      return { ok: true };
+    }
+    if (!p.char.attunements.includes('resonance')) {
+      game.message(p, 'info', 'A maintenance note identifies the pale strata as living filters. The interference pattern requires Resonance attunement.');
+      return { ok: true };
+    }
+    if (inCombat(game, p)) return { ok: false, reason: 'The interferometer cannot resolve a sample while you are in combat.' };
+    let mode;
+    if (p.cls === 'vanguard') {
+      if (p.stats.glyph === 'glyph_resonant_aegis' && p.buffs.some(b => b.k === 'ward' && b.until > game.time)) mode = 'kinetic';
+      else game.message(p, 'info', 'Inscribe Resonant Aegis, activate Kinetic Ward beside the probe, then inspect it again. The ward isolates the mineral pattern.');
+    } else if (p.cls === 'symbiotech') {
+      if (p.stats.glyph === 'glyph_shared_pulse' && p.companion?.mode === 'triage' && dist(p.companion, obj) <= 5 &&
+          p.buffs.some(b => b.k === 'hot' && b.src === p.id && b.until > game.time)) mode = 'symbiotic';
+      else game.message(p, 'info', 'Inscribe Shared Pulse, bring your Mender in Triage, cast Mending Graft on yourself, then inspect the probe again. Its culture traces the pattern.');
+    }
+    if (!mode) return { ok: true };
+    if (grantItem(game, p, 'sinter_laminate')) {
+      game.events.push({ e: 'fx', k: 'sinter_sample', s: p.id, o: obj.id, mode });
+      game.message(p, 'info', 'A stable interference trace separates a loose laminate from the collector. The grazers and their predators incorporate the same mineral layers.');
+    }
+    return { ok: true };
+  }
   const branch = Object.keys(SURVEY).find(key => SURVEY[key].type === obj.type);
   if (branch) {
     const current = surveyState(p.char.survey);
