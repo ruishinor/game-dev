@@ -106,7 +106,15 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   amt = Math.round(amt);
   absorbed = Math.round(absorbed);
   if (amt < 1 && absorbed < 1) amt = 1;
+  const beforeHp=dst.hp;
   dst.hp -= amt;
+  if(dst.kind==='player' && dst.char.equipped.implant==='brine_rescue_lattice' && !dst.rescueSpent && beforeHp>dst.maxHp*.35 && dst.hp>0 && dst.hp<=dst.maxHp*.35){
+    dst.rescueSpent=true;
+    const old=getBuff(dst,'shield');
+    if(!old||old.until<=game.time||old.v<20){addBuff(dst,{k:'shield',v:20,until:game.time+8000,src:dst.id});game.events.push({e:'shield',s:dst.id,d:dst.id,a:20});}
+    game.events.push({e:'fx',k:'rescue_lattice',s:dst.id});
+    game.message(dst,'info','Shelter Rescue Lattice: emergency barrier deployed. Rearms after combat.');
+  }
 
   const ev = { e: 'dmg', s: src ? src.id : 0, d: dst.id, a: amt, ab: ability };
   if (absorbed > 0) ev.sh = absorbed;
@@ -196,6 +204,7 @@ export function tickPlayerCombat(game, p, dt) {
   const cdef = CLASSES[p.cls];
   const res = cdef.resource;
   const inCombat = game.time < p.combatUntil;
+  if(!inCombat)p.rescueSpent=false;
 
   // Heal-over-time grafts.
   const hot = getBuff(p, 'hot');

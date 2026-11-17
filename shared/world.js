@@ -241,8 +241,8 @@ export const OBJECTS = [
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
   { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },
   { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
-  { key: 'brine_research', type: 'brine_research', name: 'Research Station', x: 38, z: -39, r: 0, embedded: true },
-  { key: 'brine_engineering', type: 'brine_engineering', name: 'Engineering Station', x: 49, z: -39, r: 0, embedded: true },
+  { key: 'brine_research', type: 'brine_research', name: 'A · Research Station', x: 38, z: -39, r: 0, embedded: true },
+  { key: 'brine_engineering', type: 'brine_engineering', name: 'B · Engineering Station', x: 49, z: -39, r: 0, embedded: true },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));

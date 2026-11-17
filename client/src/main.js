@@ -832,6 +832,8 @@ function onEvent(e) {
       if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');
       break;
     }
+    case 'field_record':
+      ui.showFieldRecord(e.key);break;
     case 'say':
       ui.showNpcDialogue(e.id,e.m);
       ui.chatLine(e.n, e.m, 'npc');

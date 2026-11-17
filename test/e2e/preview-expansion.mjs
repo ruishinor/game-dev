@@ -75,6 +75,7 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
+  await page.locator('.field-record').waitFor({state:'visible'});
   await capture('preview-evidence/03-field-evidence.png');
   await moveTo(6.2, -2.6);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'archivist'));
@@ -89,7 +90,7 @@ try {
   await moveTo(49,-36.5);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.ms > 0);
-  await capture('preview-evidence/05-live-test.png');
+  assert.match(await page.locator('.tracker').last().innerText(),/LIVE TEST/);
   await moveTo(39,-30);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
@@ -97,7 +98,15 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
+  await page.locator('.field-record').waitFor({state:'visible'});
+  assert.match(await page.locator('.field-record').innerText(),/SHIFT LEDGER 07/);
   await capture('preview-evidence/06-commissioned.png');
+  await moveTo(49,-36.5);
+  await page.waitForFunction(()=>window.__attune.state().you.workshop==='brine_engineering');
+  await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
+  await page.getByRole('dialog',{name:'Build Planner and Workshop'}).waitFor();
+  await page.getByRole('button',{name:'Close Build'}).click();
+  await page.locator('#view').focus();
   await moveTo(6, 58);
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));

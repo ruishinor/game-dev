@@ -7,7 +7,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
-import { brineHint } from '../../shared/survey.js';
+import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 
@@ -121,6 +121,8 @@ export class UI {
   constructor(actions) {
     this.a = actions;
     this.sheet = null;
+    this.unseenItems = new Set();
+    this.workshopSite=null;
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
@@ -220,6 +222,8 @@ export class UI {
     this.npcPanel.setAttribute('role','dialog');
     this.npcPanel.setAttribute('aria-label','NPC interaction');
     root.append(this.npcPanel);
+    this.fieldRecordPanel=h('aside','field-record');this.fieldRecordPanel.hidden=true;
+    this.fieldRecordPanel.setAttribute('aria-label','Field record');root.append(this.fieldRecordPanel);
     document.addEventListener('pointerdown', (e) => {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
@@ -255,7 +259,10 @@ export class UI {
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
     this.surveyTracker = h('div', 'tracker');
     this.surveyText = h('div', 'text');
-    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText);
+    this.brineWorkshop=h('button','brine-workshop','Open field Workshop [B]');
+    this.brineWorkshop.hidden=true;
+    this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
     side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
@@ -361,7 +368,8 @@ export class UI {
     this.moveStatus.hidden = true;
     this.surveyStatus = h('div', 'auto-status');
     this.surveyStatus.hidden = true;
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.autoControl, this.actionBar, this.xp.wrap);
+    this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -448,6 +456,7 @@ export class UI {
     });
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
+    this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
 
@@ -760,6 +769,7 @@ export class UI {
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
@@ -1024,6 +1034,17 @@ export class UI {
     this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
   }
 
+  showFieldRecord(key) {
+    const record=FIELD_RECORDS[key];if(!record)return;
+    const panel=this.fieldRecordPanel;panel.replaceChildren();
+    const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
+    close.addEventListener('click',()=>{panel.hidden=true;});
+    panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    const lines=h('div','field-record-lines');
+    for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
+    panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
+  }
+
   openNpc(ent) {
     if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
     this.hideJournalPanels();
@@ -1075,8 +1096,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
@@ -1092,10 +1114,15 @@ export class UI {
   }
 
   setSheet(sheet) {
-    const grew = this.sheet && sheet.inventory.length > this.sheet.inventory.length;
+    const previous=this.sheet;
+    if(previous&&previous.name===sheet.name&&previous.cls===sheet.cls){
+      for(const id of sheet.inventory)if(!previous.inventory.includes(id))this.unseenItems.add(id);
+      for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
+    }else this.unseenItems.clear();
     this.sheet = sheet;
     this.setClass(sheet.cls);
-    if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
     if(!this.workshopPanel.hidden)renderWorkshop(this);
@@ -1106,7 +1133,7 @@ export class UI {
     if (d) {
       set(this.trackerTitle, 'text', d.title);
       set(this.trackerText, 'text', d.text);
-      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful bores' : 'defeated'}` : '');
+      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful strikes' : 'defeated'}` : '');
     } else {
       set(this.trackerTitle, 'text', 'The Reach is yours');
       set(this.trackerText, 'text', 'Every directive is complete. Experiment with your glyphs and implants, or help another traveller.');
@@ -1205,8 +1232,12 @@ export class UI {
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
-    const workshopChanged=!!you.safe!==this.atSanctum||lock!==this.buildLock;
-    this.atSanctum=!!you.safe;
+    const site=you.workshop??(you.safe?'sanctum':null);
+    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock;
+    this.workshopSite=site;this.atSanctum=!!you.safe;
+    set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
+    set(this.rescueStatus,'hidden',you.rescueReady===undefined);
+    if(you.rescueReady!==undefined)set(this.rescueStatus,'text',you.rescueReady?'Rescue Lattice · emergency barrier ready':'Rescue Lattice · re-arms after combat');
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();

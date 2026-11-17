@@ -109,6 +109,7 @@ const LOADOUT_TABS = [
     present('left-hand','Left hand',1,3),present('implant','Implant',2,3,'implant'),present('right-hand','Right hand',3,3),
     present('left-leg','Left leg',1,4),present('spine','Spine',2,4),present('right-leg','Right leg',3,4),
   ]},
+  {id:'glyphs',name:'Glyphs',slots:[present('glyph','Glyph',2,2,'glyph')]},
   {id:'weapons',name:'Weapons',slots:[
     present('right-hand','Right hand',1,1),present('left-hand','Left hand',3,1),
     present('ranged','Ranged',2,2),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
@@ -130,9 +131,13 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph'}[t.id];
+    const unseen=[...(ui.unseenItems||[])].filter(id=>ITEMS[id]?.slot===slotFor);
+    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
-      if(ui.loadoutTab===t.id)return;
+      if(unseen.length){for(const id of unseen)ui.unseenItems.delete(id);ui.buildBtn.classList.toggle('new',ui.unseenItems.size>0);ui.inventoryBtn.classList.toggle('new',ui.unseenItems.size>0);}
+      if(ui.loadoutTab===t.id&&!unseen.length)return;
       ui.loadoutTab=t.id;
       ui.loadoutSelection=ui.loadoutSlot=null;
       ui.renderBuild();
@@ -253,6 +258,8 @@ export function renderInventory(ui) {
   for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
+    const unseen=[...(ui.unseenItems||[])].filter(item=>ITEMS[item]?.slot===id);
+    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';}
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }

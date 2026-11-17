@@ -479,3 +479,10 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .materials-list{display:flex;flex-direction:column;gap:5px;margin-top:8px;min-height:130px;}
 .material-row{display:flex;justify-content:space-between;gap:10px;text-align:left;font-size:12px;}
 @media(max-width:720px){.workshop-layout,.workshop-layout.fabrication{grid-template-columns:1fr;}.workshop-recipes{max-height:180px;}.recipe-parts{grid-template-columns:1fr;}}
+
+/* Local field records do not block the live test or the player's movement. */
+.field-record{position:absolute;left:18px;top:120px;width:min(390px,calc(100vw - 36px));max-height:52vh;overflow:auto;padding:16px 18px;background:rgba(19,26,29,.96);border:1px solid #8d7955;border-left:4px solid #ba9a62;color:#dce1d8;box-shadow:0 14px 40px #0008;z-index:42;pointer-events:auto}
+.field-record h2{font-size:1rem;letter-spacing:.075em;margin:8px 30px 4px 0}.field-record .close{top:8px;right:8px}.field-record-lines{margin-top:14px;border-top:1px solid #726344}.field-record-row{display:grid;grid-template-columns:70px 1fr;gap:10px;border-bottom:1px solid #72634455;padding:7px 0;font-size:12px;line-height:1.35}.field-record-row strong{color:#ddba77;font-variant-numeric:tabular-nums}.field-record-row p{margin:0}.field-record[hidden]{display:none}
+.brine-workshop{margin-top:7px;width:100%;font-size:11px;padding:6px}
+.doll-tabs button.new-equipment,.inventory-tabs button.new-equipment{border-color:#f1cb7a;box-shadow:0 0 11px #f1cb7a88,inset 0 0 7px #f1cb7a33;color:#f7dda3}
+.new-equipment::after{content:' •';color:#f3d18c}

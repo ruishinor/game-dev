@@ -64,3 +64,5 @@ export function previewRecipe(char,id){
   if(output.item)inventory.push(output.item);
   return {ok:true,inventory,materials};
 }
+
+export function canFabricateAt(recipe,site){return !!recipe && (site==='sanctum' ? !recipe.site : recipe.site ? recipe.site===site : (site==='brine_engineering'&&recipe.discipline==='Engineering')||(site==='brine_research'&&recipe.discipline==='Research'));}

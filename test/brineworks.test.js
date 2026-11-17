@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeGame, makeChar, place } from './helpers.js';
-import { interact, tickBrineTrial } from '../server/sim/progress.js';
-import { BRINE_ROUTES, BRINE_TRIAL, brineHint } from '../shared/survey.js';
+import { interact, tickBrineTrial, craftRecipe } from '../server/sim/progress.js';
+import { BRINE_ROUTES, BRINE_TRIAL, brineHint, FIELD_RECORDS } from '../shared/survey.js';
 import { resolveCollisions, PLAYER_RADIUS } from '../shared/world.js';
 const positions={brine_research:[38,-36.5],brine_engineering:[49,-36.5],survey_signal:[39,-30],survey_ledger:[47,-30]};
 function fixture(route){
@@ -50,4 +50,22 @@ test('reconnect preserves preparation but does not preserve live test timer',()=
  assert.ok(use(route.first).ok);assert.ok(use(route.second).ok);
  const saved=p.char;game.removePlayer(p.id);const next=game.addPlayer(saved);
  assert.equal(next.char.brineStage,2);assert.equal(next.brineTrial,null);
+});
+
+test('records and commissioned workshops are meaningful, gated by station and proximity',()=>{
+ const {game,p,use,route}=fixture('ledger');
+ use(route.first);assert.ok(p.outbox.some(e=>e.e==='field_record'&&e.key===route.first));
+ use(route.second);use(route.read[0]);use(route.read[1]);
+ assert.ok(p.outbox.some(e=>e.e==='field_record'&&e.key==='survey_ledger'));
+ assert.ok(FIELD_RECORDS.survey_ledger.lines.length>=5);
+ const conductor=game.addPlayer(makeChar('symbiotech',{survey:'ledger_done',brineStage:3,inventory:['sporeglass_focus'],equipped:{device:'sporeglass_focus',implant:null,glyph:null},materials:{mire_fibre:2,sentinel_alloy:1}}));
+ place(conductor,49,-36.5);
+ assert.equal(game.privateState(conductor).workshop,'brine_engineering');
+ assert.equal(craftRecipe(game,conductor,'matrix').ok,false);
+ place(conductor,38,-36.5);
+ assert.equal(game.privateState(conductor).workshop,'brine_research');
+ assert.ok(craftRecipe(game,conductor,'matrix').ok);
+ assert.equal(conductor.char.materials.culture_matrix,1);
+ conductor.char.brineStage=2;
+ assert.equal(game.privateState(conductor).workshop,null);
 });

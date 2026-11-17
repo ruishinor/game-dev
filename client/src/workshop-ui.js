@@ -2,7 +2,7 @@
 // recipe ID; the authoritative server revalidates skill, materials and location.
 import { ITEMS, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
-import { MATERIALS, RECIPES, previewRecipe } from '../../shared/crafting.js';
+import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
@@ -86,9 +86,11 @@ function fabrication(ui,body){
   detail.append(parts,result,h('h3',null,'Requirements'));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
-  detail.append(row('Lattice Sanctum',ui.atSanctum?'Present':'Outside',!!ui.atSanctum));
+  const site=ui.workshopSite??(ui.atSanctum?'sanctum':null),siteOk=canFabricateAt(recipe,site);
+  const names={sanctum:'Lattice Sanctum',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
+  detail.append(row('Fabrication site',site?names[site]:'Outside workshop',siteOk));
   const preview=previewRecipe(s,id);
-  const reason=ui.buildLock?'Unavailable during combat or defeat.':!ui.atSanctum?'Return to the Lattice Sanctum.':!preview.ok?preview.reason:'';
+  const reason=ui.buildLock?'Unavailable during combat or defeat.':!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'';
   if(reason)detail.append(h('p','why',reason));
   const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':'Fabricate',()=>ui.a.craft(id),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;

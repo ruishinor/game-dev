@@ -5,8 +5,8 @@
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum } from '../../shared/world.js';
-import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe } from '../../shared/crafting.js';
-import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage } from '../../shared/survey.js';
+import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
+import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -99,7 +99,8 @@ function grantSalvage(game,p,id) {
 export function craftRecipe(game,p,id) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
-  if(!inSanctum(p))return {ok:false,reason:'Return to the Lattice Sanctum workshop.'};
+  if(!Object.hasOwn(RECIPES,id))return {ok:false,reason:'Unknown recipe.'};
+  if(!canFabricateAt(RECIPES[id],workshopSite(p)))return {ok:false,reason:'Use the appropriate Workshop: Lattice Sanctum or commissioned Brineworks station.'};
   const result=previewRecipe(p.char,id);
   if(!result.ok)return result;
   // One synchronous transaction, after every requirement has passed.
@@ -181,6 +182,7 @@ function operateBrine(game,p,obj) {
       game.message(p,'gain','Field repair: up to 30% maximum health restored.');
     }
     p.brineServiceUntil=game.time+BRINE_TRIAL.serviceMs;
+    game.events.push({e:'fx',k:'brine_service',s:p.id});
     return ok;
   }
   if (stage===0) {
@@ -204,7 +206,8 @@ function operateBrine(game,p,obj) {
   }
   p.brineTrial=null;p.char.brineStage=3;
   grantItem(game,p,route.reward);grantXp(game,p,55);game.markDirty(p);
-  game.message(p,'gain','Brineworks commissioned. Field services unlocked.');
+  game.message(p,'gain','Brineworks commissioned. A: research fabrication and resource service. B: engineering fabrication and field repair. Approach either station and open Workshop [B].');
+  game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
 }
 export function interact(game, p, objectId) {
@@ -212,6 +215,7 @@ export function interact(game, p, objectId) {
   if (!obj || obj.kind !== 'object') return { ok: false, reason: 'Nothing to interact with.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
+  if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
       game.message(p, 'info', 'The stone hums in recognition. You are already attuned.');
