@@ -30,7 +30,13 @@ export class RadioPanel{
   this.el=h('aside','radio-panel');this.el.hidden=true;this.el.setAttribute('aria-label','Radio transmission');
   this.el.setAttribute('role','region');root.append(this.el);
  }
- receive(source,message){if(!this.queue.push(source,message))return false;if(!this.open)this.next();else this.updateCount();return true;}
+ receive(source,message){
+  if(!this.queue.push(source,message))return false;
+  // Explicit field interactions must not sit behind earlier directive chatter.
+  // The interrupted message remains in the regular log; queued directives remain.
+  if(this.open&&source!=='kernel'){const active=this.queue.pending.pop();this.queue.pending.unshift(active);this.next();}
+  else if(!this.open)this.next();else this.updateCount();return true;
+ }
  updateCount(){if(this.count)this.count.textContent=this.queue.pending.length?this.queue.pending.length+' queued':'';}
  stop(){this.token++;if(this.utterance){try{globalThis.speechSynthesis?.cancel();}catch{}}this.utterance=null;this.playing=false;this.el.dataset.playing='false';}
  clear(){this.stop();this.queue.clear();this.open=false;this.el.hidden=true;}

@@ -300,7 +300,9 @@ export function interact(game, p, objectId) {
       return { ok: true };
     }
     p.char.survey = branch;
-    transmit(game,p,'field','info',SURVEY[branch].field+' Return to Archivist Venn to report your findings.');
+    game.message(p,'info',SURVEY[branch].field);
+    game.message(p,'info','Return to Archivist Venn to report your findings.');
+    p.outbox.push({e:'radio',source:'field',m:SURVEY[branch].field+' Return to Archivist Venn to report your findings.'});
     game.markDirty(p);
     return { ok: true };
   }

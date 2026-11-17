@@ -368,6 +368,7 @@ export function renderCodex(ui,abilityIcons) {
     }
     if(!pictured){
       if(entry.item)picture.append(itemArt(entry.item));
+      else if(Object.hasOwn(MATERIALS,entry.id))picture.append(itemArt(entry.id));
       else if(entry.ability&&abilityIcons[entry.ability]){
         const icon=h('span','codex-symbol');icon.innerHTML=abilityIcons[entry.ability];picture.append(icon);
       }else picture.append(itemArt(entry.zone?'location':'glyph'));
