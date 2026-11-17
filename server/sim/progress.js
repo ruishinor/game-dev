@@ -2,10 +2,10 @@
 // world interactions. All mutations of persistent character state go
 // through here.
 
-import { ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist } from '../../shared/world.js';
-import { SURVEY, surveyState } from '../../shared/survey.js';
+import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage } from '../../shared/survey.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -121,6 +121,64 @@ function applyLoadout(game, p, equipped) {
   checkDirective(game, p);
 }
 
+const denied = reason => ({ok:false, reason});
+const ok = {ok:true};
+function abortTrial(game,p,reason) {
+  p.brineTrial = null;
+  game.message(p,'info',reason+' Re-arm at the second station.');
+}
+export function tickBrineTrial(game,p) {
+  if (!p.brineTrial) return;
+  if (p.dead) abortTrial(game,p,'Field test interrupted.');
+  else if (game.time >= p.brineTrial.until) abortTrial(game,p,'Field test timed out.');
+  else if (dist(p,BRINE_TRIAL.exclusion) < BRINE_TRIAL.exclusion.r) abortTrial(game,p,'Pressure exclusion breached. Readings invalidated.');
+}
+function operateBrine(game,p,obj) {
+  const state=surveyState(p.char.survey);
+  if (!state?.endsWith('_done')) return denied('Report your evidence to Venn first.');
+  const route=BRINE_ROUTES[state.slice(0,-5)], stage=brineStage(p.char.brineStage);
+  const type=obj.type, station=type.startsWith('brine_');
+  if (inCombat(game,p)) return denied('Disengage before handling exposed equipment.');
+  tickBrineTrial(game,p);
+  if (stage===3) {
+    if (!station) {game.message(p,'info','The verified field record is archived.');return ok;}
+    if (game.time < p.brineServiceUntil) return denied('Facility cooling down: '+Math.ceil((p.brineServiceUntil-game.time)/1000)+'s.');
+    if (type==='brine_research') {
+      if (p.res>=CLASSES[p.cls].resource.max) return denied('Resource already full.');
+      p.res=Math.min(CLASSES[p.cls].resource.max,p.res+35);
+      game.message(p,'gain','Field supply: 35 resource restored.');
+    } else {
+      if (p.hp>=p.maxHp) return denied('Health already full.');
+      p.hp=Math.min(p.maxHp,p.hp+Math.ceil(p.maxHp*0.3));
+      game.message(p,'gain','Field repair: up to 30% maximum health restored.');
+    }
+    p.brineServiceUntil=game.time+BRINE_TRIAL.serviceMs;
+    return ok;
+  }
+  if (stage===0) {
+    if (type!==route.first) return denied('Start at '+route.firstName+'.');
+    p.char.brineStage=1;game.markDirty(p);
+    game.message(p,'info','Preparation recorded. Continue to '+route.secondName+'.');
+    return ok;
+  }
+  if (stage===1 || (stage===2 && !p.brineTrial)) {
+    if (type!==route.second) return denied('Arm the live test at '+route.secondName+'.');
+    if (dist(p,BRINE_TRIAL.exclusion)<BRINE_TRIAL.exclusion.r) return denied('Stand outside the pressure exclusion zone.');
+    p.char.brineStage=2;p.brineTrial={until:game.time+BRINE_TRIAL.ms,read:0};game.markDirty(p);
+    game.message(p,'info','Live test armed: '+route.readNames.join(' then ')+'. Avoid the pressure exclusion zone.');
+    return ok;
+  }
+  if (!p.brineTrial) return denied('Re-arm the live test.');
+  if (type!==route.read[p.brineTrial.read]) return denied('Next reading: '+route.readNames[p.brineTrial.read]+'.');
+  if (++p.brineTrial.read<route.read.length) {
+    game.message(p,'info','Reading recorded. Continue to '+route.readNames[p.brineTrial.read]+'.');
+    return ok;
+  }
+  p.brineTrial=null;p.char.brineStage=3;
+  grantItem(game,p,route.reward);grantXp(game,p,55);game.markDirty(p);
+  game.message(p,'gain','Brineworks commissioned. Field services unlocked.');
+  return ok;
+}
 export function interact(game, p, objectId) {
   const obj = game.ents.get(objectId);
   if (!obj || obj.kind !== 'object') return { ok: false, reason: 'Nothing to interact with.' };
@@ -139,6 +197,7 @@ export function interact(game, p, objectId) {
     checkDirective(game, p);
     return { ok: true };
   }
+  if (obj.type.startsWith('brine_') || (obj.type.startsWith('survey_') && surveyState(p.char.survey)?.endsWith('_done'))) return operateBrine(game,p,obj);
   const branch = Object.keys(SURVEY).find(key => SURVEY[key].type === obj.type);
   if (branch) {
     const current = surveyState(p.char.survey);
@@ -157,7 +216,7 @@ export function interact(game, p, objectId) {
     if (current && !current.endsWith('_done')) {
       p.char.survey = current + '_done'; // mark complete before granting XP
       p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: SURVEY[current].report });
-      game.message(p, 'gain', 'Investigation complete: ' + SURVEY[current].title + '.');
+      game.message(p, 'gain', 'Evidence reported: ' + SURVEY[current].title + '. Return to Brineworks to commission the site.');
       grantXp(game, p, 35);
       game.markDirty(p);
       return { ok: true };

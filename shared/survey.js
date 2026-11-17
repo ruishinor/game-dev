@@ -20,3 +20,21 @@ export function surveyHint(value) {
   if (state.endsWith('_done')) return SURVEY[state.slice(0, -5)].title + ' — reported to Venn.';
   return SURVEY[state].title + ' — return to Archivist Venn in the Sanctum.';
 }
+
+export const BRINE_TRIAL = Object.freeze({ ms: 45000, exclusion: Object.freeze({x:43,z:-35.5,r:2.5}), serviceMs:45000 });
+export const brineStage = value => Number.isInteger(value) && value >= 0 && value <= 3 ? value : 0;
+export const BRINE_ROUTES = {
+  signal: { first:'brine_research', second:'brine_engineering', read:['survey_signal','survey_ledger'], reward:'brine_phase_filter', firstName:'Research Station', secondName:'Engineering Station', readNames:['Pressure Receiver','Shift Ledger'], setup:'Calibrate a passive filter, then isolate the pump feed. Verify the waveform against the shift log.' },
+  ledger: { first:'brine_engineering', second:'brine_research', read:['survey_ledger','survey_signal'], reward:'brine_rescue_lattice', firstName:'Engineering Station', secondName:'Research Station', readNames:['Shift Ledger','Pressure Receiver'], setup:'Isolate the power feed, then extract the shelter record. Authenticate it against the pressure log.' },
+};
+export function brineHint(survey, stage, trial) {
+  const state=surveyState(survey);
+  if (!state?.endsWith('_done')) return surveyHint(survey);
+  const route=BRINE_ROUTES[state.slice(0,-5)];
+  const n=brineStage(stage);
+  if (n===3) return 'Brineworks commissioned. Research replenishes resources; Engineering repairs health. Outside combat, shared 45s service cooldown.';
+  if (n===0) return route.setup+' Start at '+route.firstName+' [F].';
+  if (n===1) return 'Preparation recorded. Visit '+route.secondName+' [F] to start a 45s field test.';
+  if (!trial?.ms) return 'Test ready. Re-arm at '+route.secondName+' [F].';
+  return 'LIVE TEST · '+Math.ceil(trial.ms/1000)+'s · '+route.readNames[trial.read]+' [F]. Avoid the marked pressure exclusion zone.';
+}

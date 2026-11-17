@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { validateLoadout } from '../shared/build.js';
-import { surveyState } from '../shared/survey.js';
+import { surveyState, brineStage } from '../shared/survey.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -51,6 +51,7 @@ function sanitize(raw) {
       progress: int(raw.quest?.progress, 0, 1000, 0),
     },
     survey: surveyState(raw.survey),
+    brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
     petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
@@ -150,6 +151,7 @@ export class CharacterStore {
       attunements: [],
       quest: { step: 0, progress: 0 },
       survey: null,
+      brineStage: 0,
       pos: null,
       hp: 0,
       petMode: 'triage',

@@ -258,6 +258,8 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  brine_phase_filter: { name:'Brine Phase Filter', slot:'device', summary:'+2 to all three skills', skills:{kinetics:2,biotech:2,instrumentation:2}, desc:'A passive receiver recovered from Brineworks. +2 Kinetics, Biotech and Instrumentation.' },
+  brine_rescue_lattice: { name:'Shelter Rescue Lattice', slot:'implant', summary:'+25 maximum health', mods:{hpAdd:25}, desc:'An emergency support circuit recovered from the workers’ shelter records. +25 maximum health.' },
   survey_calibrator: { name: 'Brine Calibrator', slot: 'device', cls: 'surveyor', skills: { instrumentation: 3 }, summary: '+3 Instrumentation · +6 percentage points of Power', desc: 'Calibrated field receiver. Raises Instrumentation by 3 and unlocks Surveyor equipment.' },
   survey_induction: { name: 'Induction Lattice', slot: 'implant', cls: 'surveyor', req: { skills: { instrumentation: 13 } }, mods: { dmgMul: 1.12 }, summary: '+12% damage', desc: 'Insulated pulse-shaping lattice. Increases damage by 12%.' },
   glyph_faultline: { name: 'Glyph of the Faultline', slot: 'glyph', cls: 'surveyor', req: { attune: 'resonance' }, summary: 'Controlled Blast: 7m radius', desc: 'Expands the demolition radius from 5m to 7m.' },

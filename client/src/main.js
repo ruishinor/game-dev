@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
+import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets } from './assets.js';
@@ -67,6 +68,10 @@ const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.02, 40), new THREE.Me
 ring.rotation.x = -Math.PI / 2;
 ring.visible = false;
 scene.add(ring);
+const pressureZone = new THREE.Mesh(new THREE.RingGeometry(BRINE_TRIAL.exclusion.r-0.10,BRINE_TRIAL.exclusion.r,48),new THREE.MeshBasicMaterial({color:0xe9a54e,transparent:true,opacity:0.85,side:THREE.DoubleSide,depthWrite:false}));
+pressureZone.rotation.x=-Math.PI/2;
+pressureZone.position.set(BRINE_TRIAL.exclusion.x,groundHeight(BRINE_TRIAL.exclusion.x,BRINE_TRIAL.exclusion.z)+0.12,BRINE_TRIAL.exclusion.z);
+pressureZone.visible=false;scene.add(pressureZone);
 
 // Snapshot-driven stationary survey equipment, independent of its owner's model.
 const rigParts = {
@@ -1325,6 +1330,7 @@ function frame(now) {
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
   fx.update(dt);
+  pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;
   if (me && me.placed) {

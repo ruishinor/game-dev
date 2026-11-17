@@ -564,6 +564,9 @@ export const MODEL_FACTORIES = {
   warden: makeWarden,
   obelisk: makeObelisk,
   archivist: makeArchivist,
+  // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
+  brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
+  brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
 };

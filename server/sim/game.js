@@ -8,7 +8,7 @@ import { WORLD, OBJECTS, MOVE_HZ, dist, hasLineOfSight, stepMove, resolveCollisi
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
-import { checkDirective } from './progress.js';
+import { checkDirective, tickBrineTrial } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -97,6 +97,8 @@ export class Game {
       sheetDirty: true,
       metaVer: 1,
       companion: null,
+      brineTrial: null,
+      brineServiceUntil: 0,
       surveyKit: char.cls === 'surveyor' ? { mark: null, rig: null } : null,
       partyId: 0,
       partyInvite: null,
@@ -241,6 +243,7 @@ export class Game {
       p.moveBudget = Math.min(MOVE_BUDGET_MAX, p.moveBudget + dt * MOVE_HZ);
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
+      tickBrineTrial(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -331,6 +334,7 @@ export class Game {
       safe: inSanctum(p) ? 1 : 0,
       party: partyState(this, p),
     };
+    if (p.brineTrial) y.brineTrial = { ms: Math.max(0,p.brineTrial.until-this.time), read:p.brineTrial.read };
     if (p.cls === 'surveyor') {
       const mark = p.surveyKit?.mark;
       const rig = p.surveyKit?.rig;
@@ -354,6 +358,7 @@ export class Game {
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
       survey: c.survey ?? null,
+      brineStage: c.brineStage ?? 0,
       stats: p.stats,
     };
   }

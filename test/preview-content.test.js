@@ -45,7 +45,7 @@ for (const route of ['signal', 'ledger']) test('Brineworks: ' + route + ' branch
   assert.ok(interact(game, p, venn.id).ok);
   assert.equal(p.char.xp, 35);
   place(p, source.x, source.z + 2);
-  assert.ok(interact(game, p, source.id).ok);
+  assert.equal(interact(game, p, source.id).ok,false,'commissioning must start at a station');
   assert.equal(p.char.survey, route + '_done');
 });
 

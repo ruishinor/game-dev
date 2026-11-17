@@ -7,7 +7,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
-import { surveyHint } from '../../shared/survey.js';
+import { brineHint } from '../../shared/survey.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -242,7 +242,7 @@ export class UI {
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
     this.surveyTracker = h('div', 'tracker');
     this.surveyText = h('div', 'text');
-    this.surveyTracker.append(h('div', 'kicker', 'Field investigation · choose one'), this.surveyText);
+    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText);
     side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
@@ -992,7 +992,7 @@ export class UI {
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
 
-    set(this.surveyText, 'text', surveyHint(sheet.survey));
+    set(this.surveyText, 'text', brineHint(sheet.survey,sheet.brineStage,null));
     const q = sheet.quest;
     const d = directiveFor(sheet.cls, q.step);
     if (d) {
@@ -1094,6 +1094,7 @@ export class UI {
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
     const def = CLASSES[this.sheet.cls];
+    set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
     if (lock !== this.buildLock) {
@@ -1241,7 +1242,7 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('survey_') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : st.nearObject.meta.c.startsWith('survey_') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
