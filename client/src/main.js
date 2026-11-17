@@ -1277,6 +1277,7 @@ function updateEntities(dt, t, now) {
       casting,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
+      self: ent.id === S.myId,
       fwd: ent.fwd,
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
