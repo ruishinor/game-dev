@@ -362,7 +362,7 @@ const utf8=s=>Buffer.from(s,'utf8');
 const metadata=(path,bytes)=>({path,bytes:bytes.length,gitBlob:crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),source:'original'});
 export function generateOriginals(){
  const generated=new Map();
- for(const spec of MODEL_SPECS){const parts=builders[spec.recipe](spec.args);const out=['01','02','03','04','11','12','13','14','15'].includes(spec.packageId)?finishedGLB(spec.id,parts,['12','14'].includes(spec.packageId)?3:spec.packageId==='13'?2.5:['02','11'].includes(spec.packageId)?6:spec.packageId==='03'?7:spec.packageId==='04'?12:5,['11','14','15'].includes(spec.packageId),['01','02','03','04','12','13'].includes(spec.packageId)):glb(spec.id,parts);verify(out.bytes,9000);generated.set(spec.file,Buffer.from(out.bytes));}
+ for(const spec of MODEL_SPECS){const parts=builders[spec.recipe](spec.args);const out=['01','02','03','04','05','11','12','13','14','15'].includes(spec.packageId)?finishedGLB(spec.id,parts,['12','14'].includes(spec.packageId)?3:spec.packageId==='13'?2.5:['02','05','11'].includes(spec.packageId)?6:spec.packageId==='03'?7:spec.packageId==='04'?12:5,['05','11','14','15'].includes(spec.packageId),['01','02','03','04','05','12','13'].includes(spec.packageId)):glb(spec.id,parts);verify(out.bytes,9000);generated.set(spec.file,Buffer.from(out.bytes));}
  const a=atlas();
  for(const [name,bytes] of Object.entries(a.files))generated.set('industrial_'+name+'.png',Buffer.from(bytes));
  generated.set('industrial_atlas.json',utf8(JSON.stringify({width:a.width,height:a.height,cell:a.cell,gutter:a.gutter,seed:a.seed,tiles:a.tiles,files:{base:'industrial_base.png',normal:'industrial_normal.png',orm:'industrial_orm.png'}},null,2)));
