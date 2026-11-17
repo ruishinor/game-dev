@@ -137,6 +137,7 @@ const net = new Net({
 const ui = new UI({
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
+  autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   target: (id) => setTarget(id),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
@@ -637,7 +638,7 @@ function nextEnemy() {
 
 input.onClick = (button, x, y) => {
   if (button === 0) {
-    const ent = pick(x, y, ['e', 'p']);
+    const ent = pick(x, y, ['e', 'p', 'c']);
     if (ent) setTarget(ent.id);
   } else {
     const ent = pick(x, y, ['e', 'o']);
@@ -666,12 +667,20 @@ input.onAction = (code, e) => {
       e.preventDefault();
       nextEnemy();
       break;
+    case 'KeyR':
+      net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
+      break;
     case 'Escape':
       if (!ui.closePanels() && S.target) setTarget(0);
       break;
     case 'F1':
       e.preventDefault();
       setTarget(S.myId);
+      break;
+    case 'F2':
+      e.preventDefault();
+      if (S.compId && S.ents.has(S.compId)) setTarget(S.compId);
+      else ui.error('You have no companion to inspect.');
       break;
     case 'KeyC':
     case 'KeyB':
