@@ -5,10 +5,11 @@
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
-import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
+import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
 import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
+import { distributeCorpseLoot } from './loot.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -86,14 +87,11 @@ export function checkDirective(game, p) {
 /** Reward everyone who fought the enemy. Small groups are never split. */
 export function onEnemyKilled(game, enemy, creditedIds) {
   const def = ENEMIES[enemy.type];
-  for (const id of creditedIds) {
+  distributeCorpseLoot(game,enemy,creditedIds);
+  for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
-    grantSalvage(game,p,SALVAGE[enemy.type]);
-    for (const drop of def.loot) {
-      if (!p.char.inventory.includes(drop.item) && game.rng() < drop.chance) grantItem(game, p, drop.item);
-    }
     const d = directiveFor(p.cls, p.char.quest.step);
     if (d && d.goal.kill === enemy.type) {
       p.char.quest.progress += 1;
@@ -103,14 +101,14 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   }
 }
 
-function grantSalvage(game,p,id) {
-  if(!Object.hasOwn(MATERIALS,id))return;
+export function grantSalvage(game,p,id,count=1) {
+  if(!Object.hasOwn(MATERIALS,id)||!Number.isSafeInteger(count)||count<1)return false;
   const m=sanitizeMaterials(p.char.materials);
-  if((m[id]||0)>=MATERIAL_CAP)return;
-  m[id]=(m[id]||0)+1;
+  if((m[id]||0)+count>MATERIAL_CAP)return false;
+  m[id]=(m[id]||0)+count;
   p.char.materials=m;
-  game.message(p,'gain','Salvaged: '+MATERIALS[id].name+'.');
-  game.markDirty(p);
+  game.message(p,'gain','Salvaged: '+MATERIALS[id].name+(count>1?' × '+count:'')+'.');
+  game.markDirty(p);return true;
 }
 
 export function craftRecipe(game,p,id) {

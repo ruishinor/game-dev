@@ -12,6 +12,7 @@ import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
+import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
 export const CORPSE_MS = 12000;
@@ -98,6 +99,7 @@ export class Game {
       moveBudget: 12,
       followId: 0,
       followAcc: 0,
+      lootTarget:null,
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
@@ -143,6 +145,7 @@ export class Game {
     const p = this.players.get(id);
     if (!p) return;
     this.syncChar(p);
+    forgetLoot(this,p);
     removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
     if (p.companion) {
@@ -256,6 +259,7 @@ export class Game {
     if (this.time - p.deadAt < RESPAWN_DELAY_MS) return false;
     p.dead = false;
     this.stopFollow(p);
+    clearLoot(p);
     p.x = WORLD.spawn.x;
     p.z = WORLD.spawn.z;
     p.jy = 0;
@@ -286,6 +290,7 @@ export class Game {
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
       tickBrineTrial(this,p);
+      tickLoot(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -362,6 +367,7 @@ export class Game {
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       ack: p.lastSeq,
+      ...lootState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,
       x: p.x,

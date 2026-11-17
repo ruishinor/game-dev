@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ITEMS, ENEMIES } from '../shared/content.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
-import { onEnemyKilled } from '../server/sim/progress.js';
-import { useAbility } from '../server/sim/combat.js';
+import { openLoot,takeLoot } from '../server/sim/loot.js';
+import { useAbility,dealDamage } from '../server/sim/combat.js';
 import { makeGame, makeChar, place, enemyOf } from './helpers.js';
 
 test('sentinel gadgets are server-awarded unique loot, not guaranteed or global rewards', () => {
@@ -14,15 +14,20 @@ test('sentinel gadgets are server-awarded unique loot, not guaranteed or global 
   place(near, enemy.x, enemy.z);
   place(far, enemy.x + 100, enemy.z);
   game.rng = () => 0;
-  onEnemyKilled(game, enemy, [near.id, far.id]);
+  enemy.threat.set(far.id,1);
+  dealDamage(game,near,enemy,9999,'test');
+  assert.deepEqual(near.char.inventory,[]);
+  assert.ok(openLoot(game,near,enemy.id,enemy.lootGeneration,true).ok);
   assert.deepEqual([...near.char.inventory].sort(), ['adrenal_shunt','conductive_membrane','field_vector_array']);
   assert.deepEqual(far.char.inventory, []);
-  onEnemyKilled(game, enemy, [near.id]);
+  assert.equal(takeLoot(game,near,enemy.id,enemy.lootGeneration,null).ok,false);
   assert.equal(near.char.inventory.length, 3);
   const unlucky = game.addPlayer(makeChar('vanguard'));
   place(unlucky, enemy.x, enemy.z);
   game.rng = () => 0.99;
-  onEnemyKilled(game, enemy, [unlucky.id]);
+  const another=enemyOf(game,'sentinel',1);place(unlucky,another.x,another.z);
+  dealDamage(game,unlucky,another,9999,'test');
+  assert.ok(openLoot(game,unlucky,another.id,another.lootGeneration,true).ok);
   assert.deepEqual(unlucky.char.inventory, []);
   assert.deepEqual(ENEMIES.skitter.loot, []);
   assert.deepEqual(ENEMIES.warden.loot, [{item:'wardstone_shard',chance:1}]);
