@@ -11,5 +11,5 @@ These logs are kept so that the claims in the handoff documents can be checked.
 | `base-e2e.log`, `base-pex.log` | Preview `232aa02` untouched | Same radio timeout; pex uppercase lesson failure (both pre-existing) |
 | `e2e-gate.log`, `pex-gate.log` | After the radio/tutorial fixes | 72/72; pex exit 0 |
 | `e2e-cov.log` | `play.mjs` after the full effect coverage | 72/72 |
-| `pex-cov.log` | `preview-expansion.mjs` after coverage | Not captured: still running at handoff |
+| `pex-cov.log` | `preview-expansion.mjs` after coverage | Pass (exit 0) |
 | `art.log`, `pex.log` | art-originals and the first merged pex run | art pass; pex uppercase failure |
