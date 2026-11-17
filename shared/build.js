@@ -104,7 +104,7 @@ export function tryUnequip(char, slot) {
   const equipped = { ...char.equipped, [slot]: null };
   const res = validateLoadout(char, equipped);
   if (!res.ok) {
-    return { ok: false, reason: `Cannot remove ${ITEMS[char.equipped[slot]].name}: ${res.reason}` };
+    return { ok: false, reason: `Cannot remove ${ITEMS[char.equipped[slot]].name}: ${res.reason}`, item: res.item };
   }
   return { ok: true, equipped };
 }
@@ -119,7 +119,15 @@ export function describeRequirements(char, itemId) {
     const skills = computeSkills(char.cls, char.level, { ...char.equipped, [item.slot]: itemId });
     if (item.req.skills) {
       for (const k of Object.keys(item.req.skills)) {
-        out.push({ text: `${SKILL_NAMES[k]} ${item.req.skills[k]} (yours: ${skills[k] || 0})`, met: (skills[k] || 0) >= item.req.skills[k] });
+        const base = CLASSES[char.cls].skills[k] + (CLASSES[char.cls].primary === k ? char.level - 1 : 0);
+        const effective = skills[k] || 0;
+        const bonus = effective - base;
+        const breakdown = bonus ? `${base} base + ${bonus} equipment = ${effective}` : `${base} base`;
+        out.push({
+          text: `${SKILL_NAMES[k]} ${effective} / ${item.req.skills[k]}`,
+          detail: `After equipping: ${breakdown}. Minimum ${item.req.skills[k]} required.`,
+          met: effective >= item.req.skills[k],
+        });
       }
     }
     if (item.req.attune) {

@@ -313,6 +313,7 @@ export class Game {
       cds,
       gcd: Math.max(0, Math.round(p.gcdUntil - this.time)),
       auto: p.autoOn ? 1 : 0,
+      autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
     };
     if (p.dead) y.dead = Math.max(0, Math.round(RESPAWN_DELAY_MS - (this.time - p.deadAt)));

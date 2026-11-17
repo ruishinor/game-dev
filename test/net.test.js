@@ -226,6 +226,13 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await b.until(() => b.events.some((e) => e.e === 'dmg' && e.s === wa.id && e.d === skitter.id), 3000, 'B sees A damage the skitter');
     assert.equal(a.ent(skitter.id).h, b.ent(skitter.id).h, 'both see the same enemy health');
 
+    // Explicit stop/resume is authoritative; a legacy right-click request still engages.
+    a.send({ t: 'atk', on: 0 });
+    await a.until(() => !pa.autoOn && a.snap?.y?.auto === 0, 3000, 'auto-attack disengaged');
+    a.send({ t: 'atk', on: 1 });
+    await a.until(() => pa.autoOn && a.snap?.y?.auto === 1, 3000, 'auto-attack re-engaged');
+    assert.ok(a.snap.y.autoCd >= 0, 'auto-attack timer exposed');
+
     // Cross-player support: B heals A; A observes it. Companion triage too.
     pa.hp = 80;
     b.send({ t: 'tgt', id: wa.id });

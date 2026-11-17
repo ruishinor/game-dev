@@ -68,6 +68,14 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .frame.pet.mode-guard { border-left-color: #7fd0ff; }
 .frame.pet.mode-assist { border-left-color: var(--amber); }
 .frame.pet.mode-dormant { border-left-color: #56616a; opacity: 0.7; }
+.frame.pet { cursor: pointer; }
+.frame.pet:focus-visible, .frame.pet.selected { outline: 1px solid var(--green); outline-offset: 1px; }
+.companion-inspector { position: fixed; width: min(250px, calc(100vw - 16px)); padding: 10px 34px 10px 12px; border: 1px solid rgba(125, 255, 196, 0.7); border-radius: 9px; background: rgba(9, 19, 25, 0.96); box-shadow: 0 5px 18px rgba(0,0,0,0.4); z-index: 35; font-size: 12px; line-height: 1.38; }
+.inspect-name { font-weight: 600; font-size: 14px; }
+.inspect-sub { color: var(--green); margin: 2px 0 5px; }
+.inspect-action { color: var(--muted); }
+.inspect-close { position: absolute; right: 5px; top: 5px; width: 25px; height: 25px; padding: 0; font-size: 17px; }
+.target-details { white-space: pre-line; border-top: 1px solid var(--edge); padding-top: 5px; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.4; }
 .bar { position: relative; height: 15px; background: rgba(0, 0, 0, 0.55); border-radius: 4px; overflow: hidden; margin-top: 3px; }
 .bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; transition: width 0.12s linear; }
 .bar .label { position: absolute; inset: 0; font-size: 10.5px; line-height: 15px; text-align: center; text-shadow: 0 1px 2px #000; }
@@ -132,6 +140,11 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .bars { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; width: 300px; }
 .actionbar, .petbar { display: flex; gap: 8px; }
 .petbar { margin-bottom: 8px; }
+.auto-control { width: 100%; display: flex; align-items: center; gap: 8px; justify-content: center; margin: 0 0 7px; padding: 4px 6px; border-radius: 7px; background: rgba(8, 14, 18, 0.82); border: 1px solid rgba(111, 230, 255, 0.18); }
+.auto-control.engaged { border-color: rgba(125, 255, 196, 0.55); }
+.auto-toggle { flex: 0 0 auto; font-size: 11px; padding: 5px 7px; white-space: nowrap; }
+.auto-control.engaged .auto-toggle { border-color: var(--green); color: var(--green); }
+.auto-status { min-width: 0; font-size: 10px; line-height: 1.25; color: var(--muted); }
 .slot { position: relative; width: 62px; height: 62px; padding: 0; border-radius: 10px; background: linear-gradient(#22363e, #14232a); border: 1px solid var(--edge); overflow: hidden; }
 .slot.small { width: 46px; height: 46px; border-radius: 8px; }
 .slot .icon { position: absolute; inset: 11px; color: var(--cyan); }
@@ -162,6 +175,9 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .panel .close { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
 .panel.build { width: min(940px, 94vw); }
 .panel-body { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 20px; }
+.build-lock { grid-column: 1 / -1; color: #ffb0a6; border-left: 3px solid var(--red); background: rgba(104, 31, 33, 0.2); padding: 7px 9px; font-size: 12px; }
+.why-next { color: var(--muted); font-size: 11px; margin-top: 3px; }
+@media (max-width: 680px) { .panel-body { grid-template-columns: 1fr; } }
 .stat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 2px 0; border-bottom: 1px dotted rgba(255, 255, 255, 0.08); }
 .stat .val { font-weight: 600; }
 .stat .val.changed, .bonus { color: var(--green); font-style: normal; }
@@ -171,7 +187,7 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .card .iname { font-weight: 600; margin: 2px 0; color: var(--gold); }
 .card .idesc { font-size: 12.5px; line-height: 1.4; color: var(--ink); }
 .card button { margin-top: 7px; }
-.req { font-size: 12px; margin-top: 3px; }
+.req { font-size: 12px; margin-top: 5px; line-height: 1.3; }
 .req.met { color: var(--green); }
 .req.unmet, .why { color: #ff9a8c; }
 .why { font-size: 12px; margin-top: 5px; }

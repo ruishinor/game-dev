@@ -262,6 +262,12 @@ try {
     return e && e.row.h < e.row.m;
   }, sk.id, 3000, 'enemy damaged');
   check('4/5. ability 1 damages the enemy (server-side health)', hit && sk.hp < hpBefore, `server hp ${hpBefore} → ${Math.ceil(sk.hp)}`);
+  const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && /ON/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack ON in HUD');
+  await A.page.keyboard.press('KeyR');
+  const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && /OFF/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack OFF in HUD');
+  await A.page.keyboard.press('KeyR');
+  const autoResumed = await until(A, () => window.__attune.state().you.auto === 1, null, 3000, 'auto-attack resumed');
+  check('5. R and the HUD expose server-authoritative auto-attack state', autoStarted && autoStopped && autoResumed);
   sa = await state(A);
   check('5. the ability goes on cooldown', sa.you.cds.rending_arc > 0, `${sa.you.cds.rending_arc} ms remaining`);
   const swingSelf = await drawn(A, sa.myId);
@@ -323,6 +329,15 @@ try {
   check("8. the symbiote autonomously mends the injured ally (triage)", triaged);
   const petText = await B.page.evaluate(() => document.querySelector('.frame.pet').innerText);
   check('8. companion frame says what it is doing', /Triage/.test(petText), petText.replace(/\n/g, ' / '));
+  await B.page.click('.frame.pet');
+  const companionInspected = await until(B, () => {
+    const s = window.__attune.state();
+    const popup = document.querySelector('.companion-inspector');
+    return s.inspected === s.compId && !popup.hidden && /Lumen · Triage/.test(popup.textContent);
+  }, null, 3000, 'companion inspected beside frame');
+  await B.page.click('.inspect-close');
+  const companionDismissed = await until(B, () => document.querySelector('.companion-inspector').hidden && window.__attune.state().inspected === 0, null, 3000, 'companion inspector closed');
+  check('8. companion inspector opens near the frame and can close', companionInspected && companionDismissed);
 
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit2');
