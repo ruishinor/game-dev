@@ -1,5 +1,7 @@
 # Attunement — handoff
 
+> **Standing review requirement (2026-11-18):** Read [AGENTS.md](../AGENTS.md) before planning, implementation, review and handoff. Apply its server-authority, minimum-disclosure, repository-hygiene and publication gate to all relevant work.
+
 Last updated 2026-11-16, at a pause in the visual-upgrade assignment
 (branch `ccr-9a6736d4-kufz9x`). Work stopped for usage limits, not for a
 blocker. This file says what exists, what was verified, and what to do next.
