@@ -330,15 +330,20 @@ try {
   check("8. the symbiote autonomously mends the injured ally (triage)", triaged);
   const petText = await B.page.evaluate(() => document.querySelector('.frame.pet').innerText);
   check('8. companion frame says what it is doing', /Triage/.test(petText), petText.replace(/\n/g, ' / '));
-  await B.page.click('.frame.pet');
-  const companionInspected = await until(B, () => {
+  await B.page.click('.frame.pet .pet-select');
+  const companionSelected = await until(B, () => {
     const s = window.__attune.state();
-    const popup = document.querySelector('.companion-inspector');
-    return s.inspected === s.compId && !popup.hidden && /Lumen · Triage/.test(popup.textContent);
-  }, null, 3000, 'companion inspected beside frame');
+    const actions = document.querySelector('.plate.comp.selected .companion-actions');
+    return s.inspected === s.compId && actions && !actions.hidden && document.querySelector('.companion-dialog').hidden;
+  }, null, 3000, 'companion selection reveals icons without opening a panel');
+  await B.page.click('.frame.pet .companion-info');
+  const companionInfo = await until(B, () => {
+    const dialog = document.querySelector('.companion-dialog');
+    return !dialog.hidden && /Codex/.test(dialog.textContent) && dialog.querySelector('.rename-row').hidden;
+  }, null, 3000, 'explicit Codex entry');
   await B.page.click('.inspect-close');
-  const companionDismissed = await until(B, () => document.querySelector('.companion-inspector').hidden && window.__attune.state().inspected === 0, null, 3000, 'companion inspector closed');
-  check('8. companion inspector opens near the frame and can close', companionInspected && companionDismissed);
+  const companionDismissed = await until(B, () => document.querySelector('.companion-dialog').hidden, null, 3000, 'companion Codex closed');
+  check('8. companion selection stays unobtrusive; explicit Codex opens and closes', companionSelected && companionInfo && companionDismissed);
 
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit2');

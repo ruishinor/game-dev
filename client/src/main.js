@@ -1107,7 +1107,8 @@ function updatePlates(now) {
     ui.placePlate(ent, screen, {
       cls,
       label,
-      selected: ent.id === S.target,
+      selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
+      owned: k === 'c' && ent.meta.o === S.myId,
       hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
     });
   }

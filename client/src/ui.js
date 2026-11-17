@@ -63,6 +63,22 @@ function set(el, key, value) {
   else el.style.setProperty(key, value);
 }
 
+function companionIcon(kind, action) {
+  const rename = kind === 'rename';
+  const btn = h('button', `companion-icon companion-${kind}`);
+  btn.type = 'button';
+  btn.title = rename ? 'Rename companion' : 'Companion Codex';
+  btn.setAttribute('aria-label', btn.title);
+  btn.innerHTML = rename
+    ? svg('<path d="m4 16-1 5 5-1L20 8l-4-4L4 16Zm10-10 4 4"/>')
+    : svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>');
+  btn.addEventListener('click', (e) => { e.stopPropagation(); action(); });
+  btn.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation();
+  });
+  return btn;
+}
+
 function bar(cls) {
   const wrap = h('div', `bar ${cls}`);
   const fill = h('div', 'fill');
@@ -111,69 +127,68 @@ export class UI {
     this.target.details.hidden = true;
     this.target.el.append(this.target.cast.wrap, this.target.details);
     this.pet = h('div', 'frame pet');
-    this.petName = h('div', 'name');
+    this.petName = h('button', 'name pet-select');
+    this.petName.type = 'button';
+    this.petName.title = 'Select companion (F2)';
     this.petAct = h('div', 'sub');
-    this.pet.append(this.petName, this.petAct);
-    this.pet.setAttribute('role', 'button');
-    this.pet.setAttribute('tabindex', '0');
-    this.pet.title = 'Inspect your companion (F2)';
+    const petHead = h('div', 'pet-head');
+    const petActions = h('div', 'companion-actions');
+    petActions.append(
+      companionIcon('rename', () => this.openCompanionDetails(this.currentCompanion, 'rename')),
+      companionIcon('info', () => this.openCompanionDetails(this.currentCompanion, 'info')),
+    );
+    petHead.append(this.petName, petActions);
+    this.pet.append(petHead, this.petAct);
     const inspectPet = () => {
-      if (!this.companionId) return;
-      const r = this.pet.getBoundingClientRect();
-      this.a.inspectCompanion(this.companionId, { x: r.right + 10, y: r.top });
+      if (this.companionId) this.a.inspectCompanion(this.companionId, { x: 0, y: 0 });
     };
     this.pet.addEventListener('click', inspectPet);
-    this.pet.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter' || e.code === 'Space') {
-        e.preventDefault();
-        e.stopPropagation();
-        inspectPet();
-      }
+    this.petName.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation();
     });
     const left = h('div', 'col');
     left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
 
-    // Compact, dismissible inspector beside the selected companion or its frame.
-    // Unlike a combat target, inspection does not change server targeting.
-    this.inspectBox = h('div', 'companion-inspector');
+    // Selection itself opens nothing. Explicit nameplate actions open a
+    // small dialog, separate from combat controls on the companion hotbar.
+    this.inspectBox = h('div', 'panel companion-dialog');
     this.inspectBox.hidden = true;
     this.inspectBox.setAttribute('role', 'dialog');
     this.inspectBox.setAttribute('aria-label', 'Companion details');
-    this.inspectClose = h('button', 'inspect-close', '×');
+    this.inspectClose = h('button', 'close inspect-close', '×');
     this.inspectClose.setAttribute('aria-label', 'Close companion details');
-    this.inspectClose.addEventListener('click', () => this.a.closeInspect());
-    this.inspectName = h('div', 'inspect-name');
+    this.inspectClose.addEventListener('click', () => this.closeCompanionDetails());
+    this.inspectName = h('h2', 'inspect-name');
     this.inspectSub = h('div', 'inspect-sub');
-    this.inspectAction = h('div', 'inspect-action');
-    this.inspectCommands = h('div', 'inspect-commands');
-    this.inspectCommandButtons = [];
-    for (const mode of PET_KEYS) {
-      const name = COMPANIONS.mender.modes[mode].name;
-      const btn = h('button', null, name);
-      btn.title = COMPANIONS.mender.modes[mode].desc;
-      btn.addEventListener('click', () => this.a.pet(mode));
-      this.inspectCommands.append(btn);
-      this.inspectCommandButtons.push({ mode, btn });
-    }
-    this.renameRow = h('div', 'rename-row');
+    this.codexBody = h('div', 'companion-codex');
+    this.renameRow = h('form', 'rename-row');
     this.renameInput = h('input');
     this.renameInput.maxLength = 18;
     this.renameInput.setAttribute('aria-label', 'New companion name');
     this.renameInput.placeholder = 'Companion name';
-    const rename = h('button', null, 'Rename');
-    rename.addEventListener('click', () => {
+    this.renameInput.autocomplete = 'off';
+    const rename = h('button', 'primary', 'Save');
+    rename.type = 'submit';
+    this.renameRow.addEventListener('submit', (e) => {
+      e.preventDefault();
       const name = this.renameInput.value.trim();
-      if (name) this.a.petRename(name);
+      if (name && this.dialogCompanionId === this.companionId) {
+        this.a.petRename(name);
+        this.closeCompanionDetails();
+      }
     });
     this.renameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); rename.click(); }
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeCompanionDetails();
+      }
     });
     this.renameRow.append(this.renameInput, rename);
-    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction, this.inspectCommands, this.renameRow);
+    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.codexBody, this.renameRow);
     root.append(this.inspectBox);
-    this.inspectAt = null;
 
     this.party = h('div', 'party');
     root.append(this.party);
@@ -266,8 +281,7 @@ export class UI {
     this.tooltip = h('div', 'tooltip');
     this.tooltip.hidden = true;
     root.append(this.tooltip);
-    this.hover(this.pet, () => this.petTip(this.activePetMode || 'triage'));
-    this.hover(this.inspectName, () => [h('div', 'tip-title', 'Mender Symbiote'), h('div', 'tip-body', this.inspectModeInfo || 'A bioengineered companion with healing, bonding, attacking and following commands.')]);
+
 
     // Build panel
     this.panel = h('div', 'panel build');
@@ -349,7 +363,7 @@ export class UI {
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
-      ['F1 / F2', 'Target yourself / inspect companion (Esc closes)'],
+      ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 4', 'Companion: Triage / Bond / Attack / Follow'],
       ['F', 'Interact with what is in front of you'],
@@ -620,16 +634,49 @@ export class UI {
     if (open) this.panel.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
   }
 
+  openCompanionDetails(ent, kind) {
+    if (!ent || ent.meta.k !== 'c') return;
+    if (kind === 'rename' && ent.id !== this.companionId) return;
+    this.panel.hidden = this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = this.menuItems.hidden = true;
+    this.tooltip.hidden = true;
+    this.dialogCompanionId = ent.id;
+    const def = COMPANIONS[ent.meta.c];
+    const renaming = kind === 'rename';
+    this.inspectName.textContent = renaming ? 'Rename companion' : (def?.name || 'Companion');
+    this.inspectSub.textContent = renaming ? '3–18 letters, spaces or hyphens. Outside combat.' : 'Codex · Companion';
+    this.codexBody.replaceChildren();
+    this.renameRow.hidden = !renaming;
+    this.codexBody.hidden = renaming;
+    if (renaming) {
+      this.renameInput.value = ent.meta.n;
+    } else {
+      this.codexBody.append(
+        h('p', null, 'A bioengineered symbiote bonded to a Conductor. It supports its owner and allies according to the selected companion command.'),
+        h('p', 'muted', 'Companion commands and their effects are explained on the companion hotbar.'),
+      );
+    }
+    this.inspectBox.hidden = false;
+    if (renaming) { this.renameInput.focus(); this.renameInput.select(); }
+    else this.inspectClose.focus();
+  }
+
+  closeCompanionDetails() {
+    if (this.inspectBox.contains(document.activeElement)) document.activeElement.blur();
+    this.inspectBox.hidden = true;
+    this.dialogCompanionId = 0;
+  }
+
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden;
+    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId;
     this.menuItems.hidden = true;
     this.panel.hidden = true;
     this.partyPanel.hidden = true;
     this.settingsPanel.hidden = true;
     this.help.hidden = true;
     this.tooltip.hidden = true;
-    if (!this.inspectBox.hidden) this.a.closeInspect();
+    this.closeCompanionDetails();
+    if (this.selectedCompanionId) this.a.closeInspect();
     return any;
   }
 
@@ -823,46 +870,23 @@ export class UI {
       }
     }
 
-    // Contextual companion inspection, anchored to the interaction point.
+    // World selection only reveals the nameplate icons. Do not open a panel.
     const inspected = st.inspect && st.ents.get(st.inspect.id);
-    set(this.inspectBox, 'hidden', !inspected || inspected.meta.k !== 'c');
-    if (inspected && inspected.meta.k === 'c') {
-      const owner = st.ents.get(inspected.meta.o);
-      const c = inspected.row;
-      const mode = COMPANIONS[inspected.meta.c]?.modes[c.md];
-      this.inspectModeInfo = mode?.desc || '';
-      const who = st.ents.get(c.t);
-      const action = c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : ACT_TEXT[c.a] || c.a;
-      set(this.inspectName, 'text', inspected.meta.n);
-      set(this.inspectSub, 'text', `${owner?.meta.n || 'Unknown owner'} · ${mode?.name || c.md}`);
-      set(this.inspectAction, 'text', who && c.a !== 'idle' ? `${action} ${who.meta.n}` : action);
-      const ownCompanion = inspected.meta.o === me.id;
-      set(this.renameRow, 'hidden', !ownCompanion);
-      set(this.inspectCommands, 'hidden', !ownCompanion);
-      for (const entry of this.inspectCommandButtons) entry.btn.classList.toggle('active', entry.mode === c.md);
-      if (st.inspect !== this.inspectAt) {
-        this.renameInput.value = inspected.meta.n;
-        const { x, y } = st.inspect;
-        const w = this.inspectBox.offsetWidth || 250;
-        const h = this.inspectBox.offsetHeight || 90;
-        const left = x + w + 12 > window.innerWidth ? x - w - 12 : x;
-        this.inspectBox.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, left))}px`;
-        this.inspectBox.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y))}px`;
-        this.inspectAt = st.inspect;
-      }
-    } else this.inspectAt = null;
+    this.selectedCompanionId = inspected?.id || 0;
+    if (this.dialogCompanionId && !st.ents.has(this.dialogCompanionId)) this.closeCompanionDetails();
 
     // Companion frame
     this.companionId = st.comp?.id || 0;
+    this.currentCompanion = st.comp;
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;
       const cdef = COMPANIONS[def.companion];
-      set(this.petName, 'text', `${st.comp.meta.n} — ${cdef.modes[c.md].name}`);
+      set(this.petName, 'text', st.comp.meta.n);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
-      set(this.petAct, 'text', whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act);
+      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
       for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
     }
@@ -951,9 +975,18 @@ export class UI {
       const hp = h('div', 'php');
       const fill = h('div', 'pfill');
       hp.append(fill);
-      el.append(name, hp);
+      let actions = null, rename = null;
+      if (ent.meta.k === 'c') {
+        const head = h('div', 'plate-head');
+        actions = h('div', 'companion-actions');
+        actions.hidden = true;
+        rename = companionIcon('rename', () => this.openCompanionDetails(ent, 'rename'));
+        actions.append(rename, companionIcon('info', () => this.openCompanionDetails(ent, 'info')));
+        head.append(name, actions);
+        el.append(head, hp);
+      } else el.append(name, hp);
       this.overlay.append(el);
-      p = { el, name, hp, fill };
+      p = { el, name, hp, fill, actions, rename };
       this.plates.set(ent.id, p);
     }
     return p;
@@ -969,6 +1002,10 @@ export class UI {
 
   clearPlates() {
     for (const id of [...this.plates.keys()]) this.removePlate(id);
+    this.closeCompanionDetails();
+    this.selectedCompanionId = 0;
+    this.currentCompanion = null;
+    this.companionId = 0;
   }
 
   /** Position a nameplate at screen coordinates, or hide it. */
@@ -982,6 +1019,10 @@ export class UI {
     p.el.style.transform = `translate(-50%, -100%) translate(${screen.x.toFixed(1)}px, ${screen.y.toFixed(1)}px)`;
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
+    if (p.actions) {
+      set(p.actions, 'hidden', !opts.selected);
+      set(p.rename, 'hidden', !opts.owned);
+    }
     set(p.hp, 'hidden', !opts.hp);
     if (opts.hp) set(p.fill, 'width', `${opts.hp * 100}%`);
   }
