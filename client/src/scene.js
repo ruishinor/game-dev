@@ -548,26 +548,34 @@ class Occluders {
   }
 
   add(object, x, z, radius, y0, y1) {
-    this.list.push({ object, x, z, r2: radius * radius, y0, y1, alpha: 1, mats: null });
+    // One mesh may have multiple occluding volumes (a sporetree cap + stem).
+    // Group them so their fading cannot fight over the same materials.
+    const existing = this.list.find((o) => o.object === object);
+    const volume = { x, z, r2: radius * radius, y0, y1 };
+    if (existing) existing.volumes.push(volume);
+    else this.list.push({ object, volumes: [volume], alpha: 1, mats: null });
   }
 
   update(dt, eye, points) {
     for (const o of this.list) {
       let hit = false;
       for (const p of points) {
-        // Sample the sight line; skip the ends so standing beside something
-        // does not fade it.
+        // Sample each sight line, skipping its endpoints. Test all volumes of
+        // the same mesh, but apply one final opacity to its materials.
         for (let i = 1; i <= 9 && !hit; i++) {
           const k = 0.04 + (i / 10) * 0.9;
-          const x = eye.x + (p.x - eye.x) * k - o.x;
-          const z = eye.z + (p.z - eye.z) * k - o.z;
-          if (x * x + z * z > o.r2) continue;
-          const y = eye.y + (p.y - eye.y) * k;
-          if (y > o.y0 && y < o.y1) hit = true;
+          const sx = eye.x + (p.x - eye.x) * k;
+          const sz = eye.z + (p.z - eye.z) * k;
+          const sy = eye.y + (p.y - eye.y) * k;
+          for (const v of o.volumes) {
+            const x = sx - v.x;
+            const z = sz - v.z;
+            if (x * x + z * z <= v.r2 && sy > v.y0 && sy < v.y1) { hit = true; break; }
+          }
         }
         if (hit) break;
       }
-      const target = hit ? 0.16 : 1;
+      const target = hit ? 0.08 : 1;
       if (Math.abs(target - o.alpha) < 0.004) {
         if (o.alpha === target) continue;
         o.alpha = target;
@@ -679,7 +687,9 @@ const kit = {
     if (c.detail < 1) return procedural.pod(p, c.anim); // low preset: no extra skinned meshes
     const obj = c.animated('nature', 'pod', at(p.x, p.z, { y: 1.0 * p.s, ry: p.x * 1.7, s: 1.25 * p.s }), 'Alien_Idle', { tint: 0x8fd49a, emissive: 0x12301a, phase: p.x });
     if (!obj) return;
-    c.beads.push([p.x, groundHeight(p.x, p.z) + 1.95 * p.s, p.z, 0.16 * p.s, 0x9dffb0]);
+    const y = groundHeight(p.x, p.z);
+    c.occluders.add(obj, p.x, p.z, 1.15 * p.s, y + 0.5 * p.s, y + 3.1 * p.s);
+    c.beads.push([p.x, y + 1.95 * p.s, p.z, 0.16 * p.s, 0x9dffb0]);
   },
   rock(p, c) {
     const n = (p.seed % 3) + 1;
@@ -694,9 +704,10 @@ const kit = {
     const rnd = mulberry32(p.seed);
     const name = rnd() < 0.5 ? 'DeadTree_1' : 'DeadTree_3';
     const s = (3.6 + 2.1 * p.s) / 10;
-    c.solid.add(c.piece('nature', name), at(p.x, p.z, { y: -0.1, ry: rnd() * 6, s }));
+    const obj = c.single('nature', name, at(p.x, p.z, { y: -0.1, ry: rnd() * 6, s }));
     const hue = rnd() < 0.5 ? 0x9dffb0 : 0xffd27a;
     const y = groundHeight(p.x, p.z);
+    c.occluders.add(obj, p.x, p.z, Math.max(0.7, p.r * 1.5), y, y + p.h);
     for (let i = 0; i < 3; i++) {
       const a = rnd() * Math.PI * 2;
       const r = (0.5 + rnd() * 1.2) * s * 2;
