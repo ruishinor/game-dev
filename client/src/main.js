@@ -138,6 +138,16 @@ const net = new Net({
 const ui = new UI({
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
+  petRename: (name) => net.send({ t: 'pet_rename', name }),
+  partyInvite: (id) => net.send({ t: 'party_invite', id }),
+  partyAnswer: (accept) => net.send({ t: 'party_answer', accept }),
+  partyLeave: () => net.send({ t: 'party_leave' }),
+  quality: (preset) => {
+    if (!['0', '1', '2'].includes(preset)) return;
+    const next = new URL(location.href);
+    next.searchParams.set('q', preset);
+    location.assign(next.toString());
+  },
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   inspectCompanion: (id, point) => {
     S.inspect = S.inspect?.id === id ? null : { id, x: point.x, y: point.y };
@@ -699,6 +709,15 @@ input.onAction = (code, e) => {
     case 'KeyC':
     case 'KeyB':
       ui.toggleBuild();
+      break;
+    case 'KeyI':
+      ui.toggleInventory();
+      break;
+    case 'KeyP':
+      ui.toggleParty();
+      break;
+    case 'KeyO':
+      ui.toggleSettings();
       break;
     case 'KeyH':
       ui.toggleHelp();
