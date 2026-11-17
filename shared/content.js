@@ -203,6 +203,22 @@ export const COMPANIONS = {
 };
 
 export const ENEMIES = {
+  sinter_grazer: {
+    name: 'Sinter Grazer',
+    level: 1, hp: 85, speed: 3.1, radius: 0.62,
+    neutral: true, aggro: 0, social: 0, leash: 19,
+    attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
+    xp: 0, respawn: 24000, loot: [],
+  },
+  faultstalker: {
+    name: 'Faultstalker',
+    level: 2, hp: 148, speed: 4.3, radius: 0.85,
+    aggro: 8, social: 0, leash: 24,
+    attack: { range: 3.0, interval: 1900, dmg: 10, kind: 'melee' },
+    specials: [{ id: 'fault_shear', name: 'Fault Shear', cd: 10500, first: 2800, windup: 1800, radius: 4.1, dmg: 28, at: 'target' }],
+    xp: 46, respawn: 31000,
+    loot: [{ item: 'sinter_laminate', chance: 0.45 }],
+  },
   skitter: {
     name: 'Mire Skitter',
     level: 1,
@@ -256,6 +272,14 @@ export const ENEMIES = {
 };
 
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });
+// Routes are independent of combat RNG. Herd members share a circuit
+// with offsets; there is no ambient loot farm.
+const grazerCircuit = [[3,47],[5,52],[4,62],[2,65],[1,58],[2,50]];
+const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+const patrol = (type, circuit, dx = 0, dz = 0) => ({
+  type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
+  route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),
+});
 export const SPAWNS = [
   sp('skitter', 'sporefield', 9, -6),
   sp('skitter', 'sporefield', 5, 5),
@@ -267,6 +291,10 @@ export const SPAWNS = [
   sp('sentinel', 'relay', 6, 5),
   sp('sentinel', 'relay', 4, -13),
   sp('warden', 'vault', 0, 0),
+  patrol('sinter_grazer', grazerCircuit, -0.85, 0.8),
+  patrol('sinter_grazer', grazerCircuit),
+  patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
+  patrol('faultstalker', stalkerCircuit),
 ];
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;
@@ -283,6 +311,13 @@ export const ITEMS = {
   glyph_faultline: { name: 'Glyph of the Faultline', slot: 'glyph', cls: 'surveyor', req: { attune: 'resonance' }, summary: 'Controlled Blast: 7m radius', desc: 'Expands the demolition radius from 5m to 7m.' },
   glyph_wideband: { name: 'Glyph of Wideband', slot: 'glyph', cls: 'surveyor', summary: 'Fault Scan: 14s analysis', desc: 'Keeps a target analysis active for 14 seconds instead of 9.' },
   ...GADGET_ITEMS,
+  sinter_laminate: {
+    name: 'Sinter Laminate',
+    slot: 'device',
+    skills: { kinetics: 1, biotech: 1 },
+    mods: { hpAdd: 18 },
+    desc: 'A reclaimed field laminate scraped from a predator’s mineral plates. +1 Kinetics, +1 Biotech, +18 maximum health. Trades specialization for durability.',
+  },
   sporeglass_focus: {
     summary: "+3 Biotech · +6 percentage points of Power (Conductors)",
     name: 'Sporeglass Focus',
@@ -351,14 +386,14 @@ export const ITEMS = {
     slot: 'glyph',
     cls: 'symbiotech',
     req: { attune: 'resonance' },
-    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%.',
+    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%, or repair a damaged active Resonant Aegis instead (no extra duration).',
   },
   glyph_carapace: {
     summary: "Bond: 45% damage reduction · 6 melee retaliation · no regeneration",
     name: 'Glyph of the Carapace',
     slot: 'glyph',
     cls: 'symbiotech',
-    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6.',
+    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6 and carry a Carapace Imprint for 4.5s. Rending Echo can redirect through that imprint.',
   },
   glyph_resonant_aegis: {
     summary: "Discharge: −40% damage · shield for 60% of Charge spent (8s)",
@@ -366,20 +401,20 @@ export const ITEMS = {
     slot: 'glyph',
     cls: 'vanguard',
     req: { attune: 'resonance' },
-    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s).',
+    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s). Shared Pulse can repair a partially depleted field instead of splash healing.',
   },
   glyph_rending_echo: {
     summary: "Rending Arc: 70% splash damage within 4.5m",
     name: 'Glyph of Rending Echo',
     slot: 'glyph',
     cls: 'vanguard',
-    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage.',
+    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage. A Carapace-imprinted primary target relocates the echo to that target and consumes the imprint.',
   },
 };
 
 export const GLYPH = {
   sharedPulse: { radius: 8, pct: 0.6 },
-  carapace: { dr: 0.45, reflect: 6 },
+  carapace: { dr: 0.45, reflect: 6, imprintMs: 4500 },
   aegis: { dmgMul: 0.6, shieldPct: 0.6, dur: 8000 },
   echo: { radius: 4.5, pct: 0.7 },
 };

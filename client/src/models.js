@@ -563,6 +563,74 @@ function makeSurveyTerminal(ledger) {
   return { group, height: ledger ? 1.65 : 2.0, radius: 0.8, hover: 0, update() {} };
 }
 
+// Different body plans, shared primitive geometry; per-instance materials.
+function makeSinterFauna(predator) {
+  const group = new THREE.Group(), rig = new THREE.Group();
+  group.add(rig);
+  const shell = std(predator ? 0x756c5e : 0xb4a48a, { rough: 0.92 });
+  const dark = std(predator ? 0x343b37 : 0x5a6457, { rough: 0.75 });
+  const facet = std(predator ? 0x9c7959 : 0xd0c1a4, { rough: 0.68, metal: 0.14 });
+  const sensory = std(predator ? 0x9c582d : 0x777959, { rough: 0.45 });
+  const y = predator ? 1.12 : 0.61;
+  const torso = pivot(0, y, 0);
+  rig.add(torso);
+  torso.add(part(SPH, dark, predator ? 0.45 : 0.49, predator ? 0.43 : 0.29, 0.76));
+  for (let i = 0; i < 5; i++) {
+    const plate = part(ICO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
+    plate.rotation.z = (i % 2 ? 1 : -1) * 0.14;
+    torso.add(plate);
+  }
+  const head = pivot(0, predator ? 0.03 : -0.13, 0.66);
+  torso.add(head);
+  head.add(part(ICO, shell, predator ? 0.3 : 0.37, predator ? 0.32 : 0.18, 0.36, 0, 0, 0.15));
+  for (const side of [-1, 1]) {
+    head.add(part(SPH, sensory, 0.055, 0.055, 0.056, side * 0.23, 0.06, 0.26));
+    const jaw = part(CONE, dark, 0.10, predator ? 0.52 : 0.26, 0.12, side * 0.17, -0.08, 0.36);
+    jaw.rotation.x = Math.PI / 2.7;
+    head.add(jaw);
+    if (!predator) for (let i = 0; i < 3; i++) {
+      const rib = part(BOX, dark, 0.025, 0.13, 0.18, side * 0.34, -0.04, i * 0.12);
+      rib.rotation.z = side * 0.32;
+      head.add(rib);
+    }
+  }
+  const legs = [];
+  for (let i = 0; i < (predator ? 2 : 3); i++) for (const side of [-1, 1]) {
+    const length = predator ? (i === 0 ? 0.93 : 0.8) : 0.46;
+    const leg = pivot(side * 0.31, y - 0.11, 0.45 - i * (predator ? 0.92 : 0.44));
+    const upper = part(SPH, shell, predator ? 0.13 : 0.12, length * 0.39, 0.13, side * 0.11, -length * 0.29, 0.03);
+    upper.rotation.z = side * 0.47;
+    const knee = part(SPH, dark, 0.115, 0.115, 0.115, side * 0.24, -length * 0.54, 0.05);
+    const shin = part(SPH, facet, 0.09, length * 0.30, 0.09, side * 0.27, -length * 0.76, 0.04);
+    shin.rotation.z = -side * 0.11;
+    leg.add(upper, knee, shin, part(ICO, dark, 0.13, 0.07, 0.19, side * 0.28, -length * 0.99, 0.1));
+    rig.add(leg);
+    legs.push({ leg, side, i });
+  }
+  if (predator) for (const side of [-1, 1]) {
+    const fin = part(ICO, facet, 0.12, 0.38, 0.48, side * 0.33, 0.36, -0.13);
+    fin.rotation.z = -side * 0.25;
+    torso.add(fin);
+  }
+  const flash = flasher([shell, dark, facet, sensory]);
+  let phase = 0, fallen = 0;
+  return {
+    group, height: predator ? 1.85 : 1.03, radius: predator ? 0.85 : 0.62, hover: 0,
+    update(dt, st) {
+      const stride = Math.min(1, st.speed / (predator ? 3.4 : 1.7));
+      phase += dt * st.speed * 3.8;
+      for (const {leg, side, i} of legs) leg.rotation.x = Math.sin(phase + i * Math.PI + (side > 0 ? Math.PI : 0)) * stride * 0.48;
+      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055;
+      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? 0.02 : 0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
+      rig.rotation.z = fallen * 1.22;
+      rig.position.y = fallen * 0.16;
+      flash(st.hit || 0);
+    },
+    dispose() { for (const m of [shell, dark, facet, sensory]) m.dispose(); },
+  };
+}
+
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
@@ -570,6 +638,8 @@ export const MODEL_FACTORIES = {
   keeper: makeKeeper,
   mender: makeMender,
   skitter: makeSkitter,
+  sinter_grazer: () => makeSinterFauna(false),
+  faultstalker: () => makeSinterFauna(true),
   sentinel: makeSentinel,
   warden: makeWarden,
   obelisk: makeObelisk,

@@ -486,3 +486,8 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .brine-workshop{margin-top:7px;width:100%;font-size:11px;padding:6px}
 .doll-tabs button.new-equipment,.inventory-tabs button.new-equipment{border-color:#f1cb7a;box-shadow:0 0 11px #f1cb7a88,inset 0 0 7px #f1cb7a33;color:#f7dda3}
 .new-equipment::after{content:' •';color:#f3d18c}
+
+/* Neutral fauna remain targetable. */
+.plate.enemy.neutral .pname { color: #e6c58d; }
+.frame.target.neutral { border-color: rgba(230, 197, 141, 0.65); }
+.frame.target.neutral .name { color: #e6c58d; }

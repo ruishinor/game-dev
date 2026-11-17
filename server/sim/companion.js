@@ -4,9 +4,9 @@
 //   guard  — bonds to one ally: regeneration + damage reduction
 //   assist — harries the owner's target and makes it take more damage
 
-import { COMPANIONS, GLYPH, validCompanionName } from '../../shared/content.js';
+import { COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
 import { dist, hasLineOfSight } from '../../shared/world.js';
-import { addBuff, applyHeal, dealDamage } from './combat.js';
+import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
 
 function flyToward(c, tx, tz, step) {
   const dx = tx - c.x;
@@ -118,7 +118,7 @@ export function tickCompanion(game, c, dt) {
 
   if (c.mode === 'assist') {
     const t = game.ents.get(owner.target);
-    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || dist(t, owner) > def.leash) {
+    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || (ENEMIES[t.type].neutral && !t.threat.has(owner.id)) || dist(t, owner) > def.leash) {
       c.act = 'idle';
       c.actTarget = 0;
       followOwner(c, owner, def, step);
@@ -166,8 +166,14 @@ export function tickCompanion(game, c, dt) {
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || p.dead || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
-        const healed = applyHeal(game, owner, p, def.triage.heal * GLYPH.sharedPulse.pct, 'shared_pulse', c.id);
-        if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        const budget = def.triage.heal * GLYPH.sharedPulse.pct;
+        const repaired = repairAegis(game, owner, p, budget, c.id);
+        if (repaired > 0) {
+          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+        } else {
+          const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
+          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        }
       }
     }
   }

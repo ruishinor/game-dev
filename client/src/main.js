@@ -635,7 +635,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -704,8 +704,14 @@ function onEvent(e) {
         if (s.meta.k === 'c') s.castAnim = 1;
         if(s.placed&&d.placed&&Math.hypot(s.pos.x-d.pos.x,s.pos.z-d.pos.z)>.2)
           authored('mender-transfer','restorative',{variant:'transfer',source:pointOf(s),target:pointOf(d),radius:.8,duration:.8},now);
-        fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
-        fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        if (e.k === 'aegis_relay') {
+          fx.beam(chestOf(s), chestOf(d), 0x8eddf0, 650, 0.10);
+          fx.ring(d.pos.x, d.pos.z, 1.7, 0xa9eaf0, 540, d.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.burst(d.chest, 0x8eddf0, 6, 0.8);
+        } else {
+          fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
+          fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        }
       }
       break;
     }
@@ -740,12 +746,25 @@ function onEvent(e) {
         authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1},now);
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
       }
+      if (e.k === 'carapace_echo') {
+        fx.ring(e.x, e.z, e.r, 0xc9ae76, 650);
+        const target = S.ents.get(e.d);
+        if (s && target && !motionPreference.matches && quality > 0) {
+          fx.beam(chestOf(s), chestOf(target), 0xc9ae76, 420, 0.11);
+          fx.ring(e.x, e.z, e.r * 0.54, 0xe1dbb0, 430);
+        }
+        break;
+      }
       if (!s) break;
+      if (e.k === 'carapace_imprint') {
+        fx.ring(s.pos.x, s.pos.z, 1.3, 0x97b6a1, 430, s.pos.y);
+        break;
+      }
       if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
       if(e.k==='lattice_relay'){fx.ring(s.pos.x,s.pos.z,e.r,0x7fd0ff,650,s.pos.y);if(s.placed)authored('lattice-relay','aegis',{variant:'lattice',center:pointOf(s),radius:1.5,yaw:s.yaw,duration:1.2},now);}
       else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6},now);fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
@@ -805,7 +824,7 @@ function onEvent(e) {
     }
     case 'shield': {
       const d = S.ents.get(e.d);
-      if (d) ui.floatText(toScreen(d.head), `Aegis ${e.a}`, 'shield');
+      if (d) ui.floatText(toScreen(d.head), e.k === 'relay' ? `Relay +${e.a}` : `Aegis ${e.a}`, 'shield');
       break;
     }
     case 'lvl': {
@@ -908,7 +927,7 @@ function nextEnemy() {
   const fz_ = Math.cos(cam.yaw);
   const list = [];
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead) continue;
+    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
     const dx = ent.pos.x - me.pos.x;
     const dz = ent.pos.z - me.pos.z;
     const d = Math.hypot(dx, dz);
@@ -1260,9 +1279,11 @@ function updatePlates(now) {
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
-      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : 'enemy';
+      const calm = ent.meta.neu && !(row.f & 8);
+      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
       label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
+      else if (!ent.dead && calm) label += ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
     ui.placePlate(ent, screen, {
