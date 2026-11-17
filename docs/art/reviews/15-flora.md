@@ -13,3 +13,10 @@ Simulated roundtable:
 - adaptive_nodules_mature: 3192 triangles, 5 material batches, 310696 bytes.
 - resonant_fungi_small: 1716 triangles, 5 material batches, 168992 bytes.
 - resonant_fungi_mature: 2964 triangles, 5 material batches, 288804 bytes.
+
+## Visual revision v2
+Rebuilt nodules with gently tapered curved stems, individually curved closed petals around restrained warm cores and surface runners. Fungi use closed asymmetric wavy caps with raised underside gills, natural stem curvature and restrained emission. Both species have material-specific PBR maps; no transparent foliage or biological simulation. Simulated perspectives: art emphasizes different silhouettes rather than colour alone; modeling uses closed meshes and signed-volume winding; technical retains seeded IDs, ground origin and existing cap; adversarial checks both count extremes, actual committed geometry bounds and repeated output bytes; retrospective compares neutral previews before WebGL review. No artistic approval implied.
+- adaptive_nodules_small: 2556 triangles, 12 embedded maps, 400596 bytes.
+- adaptive_nodules_mature: 4120 triangles, 12 embedded maps, 550752 bytes.
+- resonant_fungi_small: 3296 triangles, 15 embedded maps, 510128 bytes.
+- resonant_fungi_mature: 5636 triangles, 15 embedded maps, 734772 bytes.

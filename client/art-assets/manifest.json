@@ -336,14 +336,14 @@
   "files": [
     {
       "path": "adaptive_nodules_mature.glb",
-      "bytes": 310696,
-      "gitBlob": "f6ef2ba580281c1929fe08f22dd3b2378d65b357",
+      "bytes": 550752,
+      "gitBlob": "30eaa0f710f09d61333940e263b5771d3757151b",
       "source": "original"
     },
     {
       "path": "adaptive_nodules_small.glb",
-      "bytes": 192804,
-      "gitBlob": "575de3d214e5de6cb7edcecc10d3bfca1ae98bd8",
+      "bytes": 400596,
+      "gitBlob": "60be064bc3ed5b4497feae7fee160d66054694f5",
       "source": "original"
     },
     {
@@ -660,14 +660,14 @@
     },
     {
       "path": "resonant_fungi_mature.glb",
-      "bytes": 288804,
-      "gitBlob": "34a5959936130b300c845440feea43a2548c0f14",
+      "bytes": 734772,
+      "gitBlob": "75091a2594615c7d95fbf5778c1a77d10e627083",
       "source": "original"
     },
     {
       "path": "resonant_fungi_small.glb",
-      "bytes": 168992,
-      "gitBlob": "540f722bd45b408a5c58fef56a6d1d34c9d8be6d",
+      "bytes": 510128,
+      "gitBlob": "d9834be1d6d68e32826f06e28a4e95c3a16011a6",
       "source": "original"
     }
   ]
