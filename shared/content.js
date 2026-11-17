@@ -2,6 +2,7 @@
 // Data only. Rules live in shared/build.js (loadouts) and server/sim (combat).
 
 import { ZONES } from './world.js';
+import { GADGET_ITEMS, SENTINEL_GADGET_DROPS } from './gadgets.js';
 
 export const GCD_MS = 1000;
 export const MAX_LEVEL = 5;
@@ -195,7 +196,7 @@ export const ENEMIES = {
     specials: [{ id: 'arc_pulse', name: 'Arc Pulse', cd: 9000, first: 4000, windup: 1600, radius: 4.5, dmg: 24, at: 'target' }],
     xp: 42,
     respawn: 28000,
-    loot: [{ item: 'adrenal_shunt', chance: 0.35 }],
+    loot: [{ item: 'adrenal_shunt', chance: 0.35 }, ...SENTINEL_GADGET_DROPS],
   },
   warden: {
     name: 'Vault Warden',
@@ -237,6 +238,7 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  ...GADGET_ITEMS,
   sporeglass_focus: {
     name: 'Sporeglass Focus',
     slot: 'device',
