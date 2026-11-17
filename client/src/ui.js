@@ -86,6 +86,8 @@ export class UI {
     this.partyRows = new Map();
     this.lastInventory = 0;
     this.tipFor = null;
+    this.buildLock = '';
+    this.companionId = 0;
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
     this.build();
@@ -100,11 +102,25 @@ export class UI {
     this.player = unitFrame('player');
     this.target = unitFrame('target');
     this.target.cast = bar('cast');
-    this.target.el.append(this.target.cast.wrap);
+    this.target.details = h('div', 'target-details');
+    this.target.details.hidden = true;
+    this.target.el.append(this.target.cast.wrap, this.target.details);
     this.pet = h('div', 'frame pet');
     this.petName = h('div', 'name');
     this.petAct = h('div', 'sub');
     this.pet.append(this.petName, this.petAct);
+    this.pet.setAttribute('role', 'button');
+    this.pet.setAttribute('tabindex', '0');
+    this.pet.title = 'Click to inspect your companion (F2)';
+    const inspectPet = () => { if (this.companionId) this.a.target(this.companionId); };
+    this.pet.addEventListener('click', inspectPet);
+    this.pet.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        inspectPet();
+      }
+    });
     const left = h('div', 'col');
     left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
@@ -160,9 +176,14 @@ export class UI {
     // Bars
     const bars = h('div', 'bars');
     this.petBar = h('div', 'petbar');
+    this.autoControl = h('div', 'auto-control');
+    this.autoButton = h('button', 'auto-toggle', '[R] Auto-attack OFF');
+    this.autoButton.addEventListener('click', () => this.a.autoAttack());
+    this.autoStatus = h('span', 'auto-status', 'Select an enemy');
+    this.autoControl.append(this.autoButton, this.autoStatus);
     this.actionBar = h('div', 'actionbar');
     this.xp = bar('xp');
-    bars.append(this.petBar, this.actionBar, this.xp.wrap);
+    bars.append(this.petBar, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -209,9 +230,10 @@ export class UI {
       ['Left-drag', 'Look around without turning'],
       ['Both buttons', 'Run forward'],
       ['Wheel', 'Zoom'],
-      ['Click / Tab', 'Select a target / next enemy'],
-      ['Right-click', 'Attack an enemy, or use an object'],
-      ['F1', 'Target yourself (Esc clears the target)'],
+      ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
+      ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
+      ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
+      ['F1 / F2', 'Target yourself / inspect your companion (Esc clears target)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 3', 'Companion: Triage / Bond / Harry'],
       ['F', 'Interact with what is in front of you'],
@@ -274,6 +296,7 @@ export class UI {
     }
     set(this.pet, 'hidden', !def.companion);
     this.petBar.hidden = !def.companion;
+    this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click engages; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
   }
 
@@ -435,6 +458,7 @@ export class UI {
     const def = CLASSES[s.cls];
     const body = this.panelBody;
     body.replaceChildren();
+    if (this.buildLock) body.append(h('div', 'build-lock', this.buildLock === 'dead' ? 'Build changes are unavailable while defeated.' : 'Build changes are locked during combat. Disengage and wait for combat to end.'));
 
     // Column 1: who you are.
     const c1 = h('section', 'pcol');
@@ -445,8 +469,8 @@ export class UI {
       const total = s.stats.skills[k];
       const row = h('div', 'stat');
       row.append(h('span', null, SKILL_NAMES[k] + (def.primary === k ? ' (primary)' : '')));
-      const v = h('span', 'val', String(total));
-      if (total > base) v.append(h('em', 'bonus', ` +${total - base}`));
+      const v = h('span', `val${total > base ? ' changed' : ''}`, total > base ? `${base} + ${total - base} = ${total}` : String(total));
+      v.title = total > base ? `${base} base + ${total - base} equipment = ${total} effective` : `${total} base / effective`;
       row.append(v);
       c1.append(row);
     }
@@ -480,10 +504,13 @@ export class UI {
         card.append(h('div', 'iname', ITEMS[id].name), h('div', 'idesc', ITEMS[id].desc));
         const res = tryUnequip(s, slot);
         const btn = h('button', null, 'Remove');
-        btn.disabled = !res.ok;
+        btn.disabled = !res.ok || !!this.buildLock;
         btn.addEventListener('click', () => this.a.unequip(slot));
         card.append(btn);
-        if (!res.ok) card.append(h('div', 'why', res.reason));
+        if (!res.ok) {
+          card.append(h('div', 'why', res.reason));
+          if (res.item && res.item !== id && ITEMS[res.item]) card.append(h('div', 'why-next', `Remove or replace ${ITEMS[res.item].name} first, or preserve its requirements with different equipment.`));
+        }
       } else {
         card.append(h('div', 'muted', slot === 'device' ? 'Devices lend you skill.' : slot === 'implant' ? 'Implants demand skill and reshape your power.' : 'A glyph rewrites how one power behaves.'));
       }
@@ -503,7 +530,7 @@ export class UI {
       for (const r of describeRequirements(s, id)) card.append(h('div', `req ${r.met ? 'met' : 'unmet'}`, `${r.met ? '✓' : '✗'} Requires ${r.text}`));
       const res = tryEquip(s, id);
       const btn = h('button', res.ok ? 'primary' : '', s.equipped[item.slot] ? 'Swap in' : 'Equip');
-      btn.disabled = !res.ok;
+      btn.disabled = !res.ok || !!this.buildLock;
       btn.addEventListener('click', () => this.a.equip(id));
       card.append(btn);
       if (!res.ok) card.append(h('div', 'why', res.reason));
@@ -534,6 +561,11 @@ export class UI {
     if (!me || !you || !this.sheet) return;
     const def = CLASSES[this.sheet.cls];
 
+    const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
+    if (lock !== this.buildLock) {
+      this.buildLock = lock;
+      if (!this.panel.hidden) this.renderBuild();
+    }
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
@@ -548,8 +580,19 @@ export class UI {
       set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
-      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const companion = target.meta.k === 'c';
+      const owner = companion ? st.ents.get(target.meta.o) : null;
+      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
+      set(this.target.details, 'hidden', !companion);
+      if (companion) {
+        const cdef = COMPANIONS[target.meta.c];
+        const mode = cdef?.modes[target.row.md];
+        const actingOn = st.ents.get(target.row.t);
+        const activity = ACT_TEXT[target.row.a] || target.row.a;
+        const who = actingOn ? ` ${actingOn.id === me.id ? 'you' : actingOn.meta.n}` : '';
+        set(this.target.details, 'text', [`Mode: ${mode?.name || target.row.md}`, mode?.desc || '', `Activity: ${activity}${who}`, 'No separate HP or energy pool in the current companion system.'].filter(Boolean).join('\n'));
+      }
       const hasHp = target.row.m !== undefined;
       set(this.target.hp.wrap, 'hidden', !hasHp);
       if (hasHp) this.frameBars(this.target, target.row.h, target.row.m);
@@ -564,6 +607,7 @@ export class UI {
     }
 
     // Companion frame
+    this.companionId = st.comp?.id || 0;
     if (st.comp) {
       const c = st.comp.row;
       const cdef = COMPANIONS[def.companion];
@@ -572,9 +616,21 @@ export class UI {
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
       set(this.petAct, 'text', whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act);
-      set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}`);
+      set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${target?.id === st.comp.id ? ' selected' : ''}`);
       for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
     }
+
+    // Auto-attack state is server-authoritative: it does not chase enemies or
+    // ignore range. Hostile abilities and right-click can also engage it.
+    const autoTarget = target?.meta.k === 'e' && !target.dead;
+    const engaging = !!you.auto;
+    const reach = def.auto.range;
+    const distance = autoTarget ? st.dist(target) : Infinity;
+    this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
+    set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
+    set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    set(this.autoStatus, 'text', autoText);
 
     // Action bar
     for (const b of this.abilityButtons) {
