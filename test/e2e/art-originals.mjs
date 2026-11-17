@@ -13,9 +13,26 @@ try{
  const ids=await page.evaluate(()=>window.__artPreview.ids);assert.equal(ids.length,45);
  console.log('Graphics:',await describeGraphics(page));
  await fs.mkdir('art-evidence',{recursive:true});
- for(const id of ids){const result=await page.evaluate(async id=>{await window.__artPreview.select(id);return {ready:window.__artPreview.ready,triangles:window.__artPreview.triangles,error:window.__artPreview.error};},id);assert.ok(result.ready&&result.triangles>0&&!result.error,id+': '+JSON.stringify(result));if(['backpack_research','mender:visual','aegis:base','aegis:span','kinetic:charge','kinetic:impact','kinetic:resonance','kinetic:survey','colony_mature','colony_pipe','adaptive_nodules_mature','resonant_fungi_mature','research_workstation','engineering_workstation','restorative:restore','restorative:bond','restorative:transfer','restorative:stabilize'].includes(id))await page.locator('#view').screenshot({path:'art-evidence/'+id.replace(':','_')+'.png'});}
+ for(const id of ids){const result=await page.evaluate(async id=>{await window.__artPreview.select(id);return {ready:window.__artPreview.ready,triangles:window.__artPreview.triangles,error:window.__artPreview.error};},id);assert.ok(result.ready&&result.triangles>0&&!result.error,id+': '+JSON.stringify(result));await page.locator('#view').screenshot({path:'art-evidence/'+id.replace(':','_')+'.png'});}
  await page.evaluate(()=>window.__artPreview.select('backpack_research'));await page.locator('#view').screenshot({path:'art-evidence/backpack_research_rear.png'});await page.locator('#yaw').evaluate(e=>{e.value='34';e.dispatchEvent(new Event('input'));});await page.locator('#view').screenshot({path:'art-evidence/backpack_research_wearer.png'});
- assert.equal(await page.evaluate(()=>window.__artPreview.reviewIds.length),65);
+ const reviewIds=await page.evaluate(()=>window.__artPreview.reviewIds);assert.equal(reviewIds.length,65);
+ // Capture every flat item and verify decoded images, rather than treating a
+ // successfully selected dropdown value as proof that the image loaded.
+ for(const id of reviewIds.filter(x=>!ids.includes(x))){
+  await page.evaluate(id=>window.__artPreview.select(id),id);
+  const pane=page.locator('#flat-preview');
+  await pane.locator('img').evaluateAll(imgs=>Promise.all(imgs.map(img=>img.decode())));
+  await pane.screenshot({path:'art-evidence/'+id.replace(':','_')+'.png'});
+ }
+ // Two distinct phases expose effect motion and fading in the evidence.
+ for(const id of ids.filter(x=>x.includes(':')&&!x.startsWith('mender:'))){
+  await page.evaluate(id=>window.__artPreview.select(id),id);
+  for(const phase of [20,75]){
+   await page.locator('#phase').evaluate((e,p)=>{e.value=String(p);e.dispatchEvent(new Event('input'));},phase);
+   await page.locator('#view').screenshot({path:'art-evidence/'+id.replace(':','_')+'_phase'+phase+'.png'});
+  }
+ }
+ await page.locator('#phase').evaluate(e=>{e.value='42';e.dispatchEvent(new Event('input'));});
  await page.evaluate(()=>window.__artPreview.select('backpack_research'));
  await page.locator('input[name="review-decision"][value="modify"]').check();
  await page.locator('#review-note').fill('Check silhouette');

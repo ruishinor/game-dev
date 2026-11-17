@@ -29,6 +29,20 @@ const ids=[...models.keys(),'mender:visual',...fx.keys()];
 
 function disposeModel(obj){if(!obj)return;const geo=new Set(),mat=new Set(),tex=new Set();obj.traverse(o=>{if(o.geometry)geo.add(o.geometry);for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m){mat.add(m);for(const x of Object.values(m))if(x?.isTexture)tex.add(x);}});for(const x of geo)x.dispose();for(const x of mat)x.dispose();for(const x of tex)x.dispose();obj.removeFromParent();}
 function clear(){if(effect){effect.dispose();effect=null;}disposeModel(body);body=null;if(root)root.removeFromParent();root=null;if(grid){grid.dispose();grid.removeFromParent();grid=null;}}
+// Fit the entire moving effect rather than one frame; invisible pooled meshes
+// are excluded. The camera stays steady when the phase slider changes.
+function fitEffect(){
+ const bounds=new THREE.Box3(),part=new THREE.Box3();
+ for(const phase of [.12,.35,.6,.85,.96]){
+  effect.update(duration*phase);root.updateMatrixWorld(true);
+  root.traverseVisible(obj=>{
+   if(!obj.isMesh)return;
+   part.setFromObject(obj);if(!part.isEmpty())bounds.union(part);
+  });
+ }
+ if(bounds.isEmpty())throw Error('empty effect bounds');
+ bounds.getCenter(center);radius=Math.max(.12,bounds.getSize(new THREE.Vector3()).length()/2);
+}
 function draw(){if(!root)return;const t=Number($('phase').value)/100;
  if(kind==='fx')effect.update(t*duration);else if(kind==='mender')effect.update({time:t*4,act:'mending',cast:.7,reducedMotion:$('reduced').checked});
  const yaw=Number($('yaw').value)*Math.PI/180,pitch=Number($('pitch').value)*Math.PI/180,d=radius/Math.tan(35*Math.PI/360)*1.15;
@@ -43,7 +57,7 @@ async function select(id){if(!reviewIds.includes(id))throw Error('unknown asset'
   $('status').textContent=item.label;state.ready=true;return true;
  }
  try{
-  if(fx.has(id)){kind='fx';const f=fx.get(id);duration=f.d;effect=createArtEffect(THREE,f.sampler({variant:f.variant,anchor:[2,0,0],reducedMotion:$('reduced').checked}));root=effect.group;center.set(.5,.6,0);radius=2.4;}
+  if(fx.has(id)){kind='fx';const f=fx.get(id);duration=f.d;effect=createArtEffect(THREE,f.sampler({variant:f.variant,anchor:[2,0,0],reducedMotion:$('reduced').checked}));root=effect.group;fitEffect();}
   else{kind=id==='mender:visual'?'mender':'model';const item=models.get(kind==='mender'?'mender_carapace':id);const gltf=await loader.loadAsync(BASE+item.file);
    if(seq!==token){disposeModel(gltf.scene);return false;}body=gltf.scene;
    if(kind==='mender'){effect=makeMenderVisual(THREE,body);effect.update({time:1,act:'mending'});root=effect.group;}else root=body;
