@@ -40,7 +40,9 @@ export function build({species='nodules',seed=417,count=4,mature=false}={}){
    for(let i=0;i<rows-1;i++){const x=1+i*n+j,y=1+i*n+q;triangles.push([x,y,y+n],[x,y+n,x+n],[x+layer,y+n+layer,y+layer],[x+layer,x+n+layer,y+n+layer]);}
    const x=1+(rows-1)*n+j,y=1+(rows-1)*n+q;triangles.push([x,y,x+layer],[y,y+layer,x+layer]);
   }
-  pushClosed('cap',vertices,triangles);
+  // Quantize cap coordinates to a 1 micrometre lattice before accumulating normals.
+  // Avoid host libm differences at symmetric vertices without affecting silhouette.
+  pushClosed('cap',vertices.map(v=>v.map(x=>Math.round(x*1e6)/1e6)),triangles);
   // Separate raised gills on the underside; narrow, non-emissive ridges.
   for(let i=0;i<12;i++){const a=i*TAU/12,dir=[Math.cos(a),0,Math.sin(a)*.82];
    const pt=t=>[p[0]+dir[0]*s*t,p[1]+s*(-.06+.13*t),p[2]+dir[2]*s*t];

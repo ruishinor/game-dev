@@ -660,14 +660,14 @@
     },
     {
       "path": "resonant_fungi_mature.glb",
-      "bytes": 734772,
-      "gitBlob": "c102b88392365fb6aec374945cd04f77ea25e3c4",
+      "bytes": 734776,
+      "gitBlob": "730e0f98b60925dea654c475bb0012eca10dd73a",
       "source": "original"
     },
     {
       "path": "resonant_fungi_small.glb",
       "bytes": 510128,
-      "gitBlob": "dd3c6a2848d989f92425313841b890c2ed0a879a",
+      "gitBlob": "d725cd3c0646efe6a0a66bf84893e7d62e7cc3fd",
       "source": "original"
     }
   ]
