@@ -35,13 +35,13 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: 
 .login-card { width: min(680px, 100%); background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 26px 28px; backdrop-filter: blur(6px); }
 .login-card h1 { font-size: 40px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan); text-shadow: 0 0 24px rgba(111, 230, 255, 0.45); }
 .tagline { color: var(--muted); margin: 6px 0 18px; }
-#login-form label, #login-form .label, #account-form label, .legacy-link label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cyan); margin: 12px 0 6px; }
-#login-form input, #account-form input, #recovery-token { width: 100%; min-width: 0; font: inherit; font-size: 15px; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--edge); background: rgba(6, 12, 16, 0.8); color: var(--ink); }
+#login-form label, #login-form .label, #account-form label, .legacy-link label, #guest-note label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cyan); margin: 12px 0 6px; }
+#login-form input, #account-form input, #recovery-token, #guest-resume-key { width: 100%; min-width: 0; font: inherit; font-size: 15px; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--edge); background: rgba(6, 12, 16, 0.8); color: var(--ink); }
 #account-auth, #character-roster { border: 1px solid rgba(111,230,255,.18); border-radius: 9px; padding: 14px; margin: 14px 0; background: rgba(8, 17, 22, 0.6); }
 #account-form { margin-top: 9px; }
 .account-buttons { display: flex; gap: 9px; align-items: center; margin-top: 11px; flex-wrap: wrap; }
 .account-buttons button { flex: 1; min-width: 130px; }
-#account-error, #roster-error { color: #ffb0a6; font-size: 12px; min-height: 1.2em; }
+#account-error, #roster-error, #guest-error { color: #ffb0a6; font-size: 12px; min-height: 1.2em; }
 .roster-head, .roster-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .roster-head { margin-bottom: 10px; }
 .roster-row { border-top: 1px solid rgba(111,230,255,.18); padding: 9px 0; }
