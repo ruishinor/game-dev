@@ -41,7 +41,20 @@ function compile(parts) {
  function convex(p,faces,center,material,normalFor=null){for(const f of faces){for(let i=1;i<f.length-1;i++){const a=p[f[0]],b=p[f[i]],c=p[f[i+1]];triangle(material,a,b,c,S(M(V(V(a,b),c),1/3),center),normalFor?[normalFor(a),normalFor(b),normalFor(c)]:null);}}}
  for(const part of parts){
   const {kind,material}=part;const center=part.center||[0,0,0];
-  if(kind==='box'){
+  if(kind==='box'&&part.bevel3d!==undefined){
+   // Machined 3-axis chamfer: 6 main faces, 12 edge faces and 8 corner faces.
+   const h=part.size.map(x=>x/2),r=part.bevel3d;if(!h.every(x=>x>r)||!(r>0))throw Error('invalid 3d bevel');
+   const angle=part.angle??0,ca=Math.cos(angle),sa=Math.sin(angle);
+   const xform=([x,y,z])=>V(center,[x*ca-y*sa,x*sa+y*ca,z]);
+   const face=(ax,sign,otherSigns)=>{let k=0;return h.map((n,i)=>i===ax?sign*n:otherSigns[k++]*(n-r));};
+   const emit=points=>{const p=points.map(xform);for(let i=1;i<p.length-1;i++)triangle(material,p[0],p[i],p[i+1],S(M(V(V(p[0],p[i]),p[i+1]),1/3),center));};
+   for(let i=0;i<3;i++)for(const s of [-1,1])emit([[-1,-1],[1,-1],[1,1],[-1,1]].map(o=>face(i,s,o)));
+   for(let i=0;i<3;i++)for(let j=i+1;j<3;j++)for(const si of [-1,1])for(const sj of [-1,1]){
+    const k=3-i-j,point=(axis,sk)=>h.map((n,l)=>(l===i?si:l===j?sj:sk)*(n-(l===axis?0:r)));
+    emit([point(i,-1),point(i,1),point(j,1),point(j,-1)]);
+   }
+   for(const sx of [-1,1])for(const sy of [-1,1])for(const sz of [-1,1]){const ss=[sx,sy,sz];emit([0,1,2].map(ax=>h.map((n,i)=>ss[i]*(n-(i===ax?0:r)))));}
+  }else if(kind==='box'){
    const [w,h,d]=part.size.map(x=>x/2);let bevel=part.bevel??Math.min(w,h)*.24;
    if(!(w>0&&h>0&&d>0&&bevel>0&&bevel<Math.min(w,h)))throw Error('invalid box');
    const ring=[[-w+bevel,-h],[w-bevel,-h],[w,-h+bevel],[w,h-bevel],[w-bevel,h],[-w+bevel,h],[-w,h-bevel],[-w,-h+bevel]];

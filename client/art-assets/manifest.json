@@ -348,26 +348,26 @@
     },
     {
       "path": "backpack_biotech.glb",
-      "bytes": 551832,
-      "gitBlob": "889c0184fedda24faa6851c21481e34c484fac1b",
+      "bytes": 605600,
+      "gitBlob": "acae92097bb0d2e0740bcc85e5c3ff4f41babf74",
       "source": "original"
     },
     {
       "path": "backpack_kinetic.glb",
-      "bytes": 616824,
-      "gitBlob": "b77beaa18d9285f2c221933f25fc95b41129993b",
+      "bytes": 670592,
+      "gitBlob": "53f5c4b7899fac26b956e4f789981b279e3c05f6",
       "source": "original"
     },
     {
       "path": "backpack_research.glb",
-      "bytes": 556808,
-      "gitBlob": "a691c0153fa268b6abe8ff17b681861806b7f3ba",
+      "bytes": 609040,
+      "gitBlob": "52c0ef437aff22844c87a1d988c27e1e689fd43d",
       "source": "original"
     },
     {
       "path": "backpack_utility.glb",
-      "bytes": 548272,
-      "gitBlob": "b71baf7f3b4151a6035639a47664d672e8f34ea8",
+      "bytes": 602040,
+      "gitBlob": "6c78379f88f6fba5efc733cac12605019087a8ea",
       "source": "original"
     },
     {
@@ -450,14 +450,14 @@
     },
     {
       "path": "engineering_tabletop_module.glb",
-      "bytes": 421500,
-      "gitBlob": "df897e7031a25f3f31e22dc55a4c28171aec58d6",
+      "bytes": 519436,
+      "gitBlob": "39962b22333f7959260c2155ce0916103cfdacc8",
       "source": "original"
     },
     {
       "path": "engineering_workstation.glb",
-      "bytes": 547916,
-      "gitBlob": "d65ff72c1ceaa61a3af617cc4537506b236be205",
+      "bytes": 676556,
+      "gitBlob": "83f75bb8aefd66520108b8dce76925cb6da26d47",
       "source": "original"
     },
     {
@@ -630,14 +630,14 @@
     },
     {
       "path": "research_tabletop_module.glb",
-      "bytes": 399216,
-      "gitBlob": "aae3b68b5a2d2fc368bd1d0750c662afdd937916",
+      "bytes": 488408,
+      "gitBlob": "c3ff18bf610d00bf742af1e5184afe88cdaccb96",
       "source": "original"
     },
     {
       "path": "research_workstation.glb",
-      "bytes": 525636,
-      "gitBlob": "ab08d963a117e5ad4ec37a486c3cba61756d7331",
+      "bytes": 645544,
+      "gitBlob": "4e0f6ccc11ca2067a2d7027dfbed866df4177385",
       "source": "original"
     },
     {

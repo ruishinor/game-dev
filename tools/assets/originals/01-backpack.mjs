@@ -34,5 +34,7 @@ export function build({variant='research',reservoirs=2}={}){
  for(const x of [-.105,.105]){box('black',[x,-.154,-.218],[.04,.07,.019]);for(let i=0;i<3;i++)box('steel',[x,-.175+i*.021,-.230],[.028,.005,.009]);}
  if(variant==='research'){rod('black',[.11,.208,-.15],[.11,.284,-.15],.010,{sides:10});rod('steel',[.11,.284,-.15],[.11,.326,-.15],.005,{sides:10});rod('cyan',[.11,.326,-.15],[.11,.335,-.15],.006,{sides:10});}
  else {box('frame',[.083,.212,-.14],[.074,.026,.056]);box(accent,[.083,.229,-.14],[.043,.006,.012]);}
+ // Apply actual edge machining to major rigid housings and padded contact forms, not tiny fasteners.
+ for(const p of k.parts)if(p.kind==='box'&&Math.min(...p.size)>.015)p.bevel3d=Math.min(.009,Math.min(...p.size)*(p.material==='fabric'?.20:.12));
  return k.parts;
 }
