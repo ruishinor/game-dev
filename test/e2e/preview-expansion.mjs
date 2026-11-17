@@ -249,8 +249,11 @@ try {
     const s=window.__attune?.state();
     return s?.myId && s.sheet?.look==='aegis_keeper' && s.ents.some(e=>e.id===s.myId && e.model==='glb') && s.drawn>=2;
   });
-  const tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper');
-  assert.ok(tank);
+  // A starved software-GL page can miss a heartbeat and resume its session;
+  // wait for the server-side player to exist rather than sample it once.
+  let tank;
+  for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
+  assert.ok(tank,'Aegis Keeper never appeared on the server');
   assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
