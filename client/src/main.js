@@ -123,7 +123,13 @@ const net = new Net({
   onAccountFail: (reason) => {
     const el = net.accountLogged && !$('character-roster').hidden ? $('roster-error') : $('account-error');
     el.textContent = reason;
-    if (!net.accountToken && /session expired/i.test(reason)) showAccountLogin(reason);
+    if (!net.accountToken && /session expired/i.test(reason)) {
+      clearWorld();
+      S.myId = 0;
+      input.enabled = false;
+      $('status').hidden = true;
+      showAccountLogin(reason);
+    }
   },
   onAccountLoggedOut: () => {
     clearWorld();
@@ -243,7 +249,9 @@ function showAccountLogin(message = '') {
   $('account-auth').hidden = false;
   $('character-roster').hidden = true;
   $('guest-note').hidden = false;
-  $('login-form').hidden = false;
+  $('saved-guest').hidden = !net.token;
+  // Do not offer to overwrite the local guest key with a new character.
+  $('login-form').hidden = !!net.token;
   $('resuming').hidden = true;
   $('account-error').textContent = message;
   $('login-error').textContent = '';
@@ -318,6 +326,27 @@ function buildAccountUI() {
     net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
   });
   $('account-signout').addEventListener('click', () => net.signOut());
+  $('resume-saved-guest').addEventListener('click', () => {
+    if (net.token) net.resumeGuest(net.token);
+  });
+  $('copy-saved-guest').addEventListener('click', async () => {
+    if (!net.token) return;
+    try {
+      await navigator.clipboard.writeText(net.token);
+      $('guest-error').textContent = 'Recovery key copied. Keep it private.';
+    } catch {
+      window.prompt('Copy your private guest recovery key:', net.token);
+    }
+  });
+  $('resume-guest-key').addEventListener('click', () => {
+    const token = $('guest-resume-key').value.trim();
+    if (net.token && token !== net.token) {
+      $('guest-error').textContent = 'A guest is already saved here. Back up its recovery key first and use another browser slot for the imported guest.';
+      return;
+    }
+    if (!net.resumeGuest(token)) $('guest-error').textContent = 'Enter a valid 64-character recovery key.';
+    else { $('guest-resume-key').value = ''; $('guest-error').textContent = ''; }
+  });
   $('link-legacy').addEventListener('click', () => {
     if (net.token) net.claimLegacy(net.token);
   });
@@ -341,7 +370,7 @@ function openCharacterMenu() {
     $('character-roster').hidden = true;
     $('resuming').hidden = false;
     $('resuming').textContent = 'Loading your characters…';
-  } else showAccountLogin('Sign in or register, then link this browser\'s guest character.');
+  } else showAccountLogin('Your guest is saved. Return to it below, or create an account and link it.');
 }
 
 async function copyGuestRecoveryKey() {
