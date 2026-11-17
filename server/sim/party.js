@@ -44,7 +44,8 @@ export function answerParty(game, player, accept) {
 }
 
 export function leaveParty(game, player) {
-  const members = game.parties.get(player.partyId);
+  const partyId = player.partyId;
+  const members = game.parties.get(partyId);
   if (!members) {
     player.partyId = 0;
     player.partyInvite = null;
@@ -58,7 +59,7 @@ export function leaveParty(game, player) {
       const remaining = game.players.get(id);
       if (remaining) remaining.partyId = 0;
     }
-    game.parties.delete([...game.parties].find(([, value]) => value === members)?.[0]);
+    game.parties.delete(partyId);
   } else for (const id of members) {
     const p = game.players.get(id);
     if (p) game.message(p, 'info', `${player.name} left the party.`);
