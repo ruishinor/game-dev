@@ -273,7 +273,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
-    this.radio=new RadioPanel(root);
+    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -554,7 +554,7 @@ export class UI {
     this.settingsPanel.append(sc, h('h2', null, 'Settings'),
       qualityLabel, this.qualitySelect, applyQuality,
       h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
-      plateLabel);
+      plateLabel,this.radio.settings());
     root.append(this.settingsPanel);
 
     // Help panel

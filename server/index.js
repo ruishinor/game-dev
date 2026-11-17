@@ -105,7 +105,26 @@ function handleHttp(req, res) {
       res.writeHead(404, SECURITY_HEADERS).end('Not found');
       return;
     }
-    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': versioned ? 'public, max-age=31536000, immutable' : 'no-cache' });
+    const headers={...SECURITY_HEADERS,'Content-Type':type,'Content-Length':buf.length,'Cache-Control':versioned?'public, max-age=31536000, immutable':'no-cache'};
+    // Chromium media loaders may require byte-range seeking even for short clips.
+    if(type==='audio/mpeg'){
+      headers['Accept-Ranges']='bytes';
+      if(req.headers.range){
+        const m=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+        let start,end;
+        if(m&&(m[1]||m[2])){
+          start=m[1]?Number(m[1]):Math.max(0,buf.length-Number(m[2]));
+          end=m[1]&&m[2]?Math.min(Number(m[2]),buf.length-1):buf.length-1;
+        }
+        if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=buf.length||end<start){
+          res.writeHead(416,{...headers,'Content-Length':0,'Content-Range':'bytes */'+buf.length}).end();return;
+        }
+        const part=buf.subarray(start,end+1);
+        res.writeHead(206,{...headers,'Content-Length':part.length,'Content-Range':'bytes '+start+'-'+end+'/'+buf.length});
+        res.end(req.method==='HEAD'?undefined:part);return;
+      }
+    }
+    res.writeHead(200,headers);
     res.end(req.method === 'HEAD' ? undefined : buf);
   });
 }

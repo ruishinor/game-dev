@@ -6,6 +6,8 @@ on:
       - 'test/assets.test.js'
       - 'test/radio-playback.test.js'
       - 'test/e2e/radio-audio.mjs'
+      - 'client/src/radio.js'
+      - 'server/index.js'
       - '.github/workflows/voice-preview-promotion.yml'
 permissions: {}
 concurrency:
