@@ -203,7 +203,22 @@ export class UI {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
     this.playerContext.addEventListener('keydown', e => {
-      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.closePlayerContext(true);}
+      // Prevent game hotkeys (including Tab targeting, Space jump and Enter
+      // chat) from consuming keyboard interactions with the menu buttons.
+      e.stopPropagation();
+      if(e.key==='Escape'){
+        e.preventDefault();
+        this.a.cancelMovement();
+        this.closePlayerContext(true);
+      }else if(['Tab','ArrowUp','ArrowDown','Home','End'].includes(e.key)){
+        e.preventDefault();
+        const buttons=[...this.playerContext.querySelectorAll('button')];
+        if(!buttons.length)return;
+        const i=buttons.indexOf(document.activeElement);
+        const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:
+          (i+(e.key==='ArrowUp'||e.shiftKey?-1:1)+buttons.length)%buttons.length;
+        buttons[next].focus({preventScroll:true});
+      }
     });
 
     const side = h('div', 'side');
@@ -687,7 +702,11 @@ export class UI {
       this.partyBody.append(h('h3', null, `Members (${data.members.length} / ${data.cap})`));
       for (const m of data.members) {
         const row=h('div','party-member',`${m.name} · L${m.level} ${CLASSES[m.cls]?.name || m.cls}`);
-        if(m.id!==st.me.id){row.tabIndex=0;this.bindPlayerContext(row,()=>m.id);}
+        if(m.id!==st.me.id){
+          row.tabIndex=0;
+          row.addEventListener('click',()=>{if(this.liveEntities?.get(m.id)?.meta.k==='p')this.a.target(m.id);});
+          this.bindPlayerContext(row,()=>m.id);
+        }
         this.partyBody.append(row);
       }
       const leave = h('button', null, 'Leave party');
@@ -701,6 +720,7 @@ export class UI {
         if (members.has(ent.id)) continue;
         const row = h('div', 'party-member');
         row.tabIndex=0;
+        row.addEventListener('click',e=>{if(!e.target.closest('button')&&this.liveEntities?.get(ent.id)?.meta.k==='p')this.a.target(ent.id);});
         this.bindPlayerContext(row,()=>ent.id);
         row.append(h('span', null, ent.meta.n));
         const invite = h('button', null, 'Invite');

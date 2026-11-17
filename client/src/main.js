@@ -167,6 +167,7 @@ const ui = new UI({
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
   isFollowing: (id) => S.followId===id,
+  cancelMovement: () => stopAutomaticMovement(),
   stopFollowing: (id) => { if(S.followId===id)stopAutomaticMovement(); },
   whisper: (id, m) => net.send({ t: 'whisper', id, m }),
   partyAnswer: (accept) => net.send({ t: 'party_answer', accept }),

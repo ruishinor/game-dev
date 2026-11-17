@@ -497,7 +497,10 @@ try {
   await until(B, () => window.__attune.state().sheet.equipped.device === 'sporeglass_focus', null, 4000, 'device equipped');
   sb = await state(B);
   const baseBio = 10 + sb.sheet.level - 1;
-  check('9. equipping the Device raises the skill by 3', sb.sheet.stats.skills.biotech === baseBio + 3, `Biotech ${baseBio} → ${sb.sheet.stats.skills.biotech} at level ${sb.sheet.level}`);
+  await B.page.locator('.equipment-slot-grid [data-slot="device"]').click();
+  const installedSlot = await B.page.locator('.equipment-slot-grid [data-slot="device"]').getAttribute('data-state') === 'installed'
+    && /Sporeglass Focus/.test(await B.page.locator('.loadout-detail').innerText());
+  check('9. equipping the Device updates its slot and raises the skill by 3', installedSlot && sb.sheet.stats.skills.biotech === baseBio + 3, `Biotech ${baseBio} → ${sb.sheet.stats.skills.biotech} at level ${sb.sheet.level}`);
   check('9. the next directive hands over the Implant that needs that skill', sb.sheet.inventory.includes('myelin_lattice'));
   await shot(B, '04-build-panel.png');
   await B.page.keyboard.press('KeyI');
