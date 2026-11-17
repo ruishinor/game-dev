@@ -25,6 +25,11 @@ export function resetEnemy(game, e) {
   e.respawnAt = 0;
   e.wanderAt = e.route ? game.time : game.time + 2000 + game.rng() * 5000;
   e.routeIndex = 1;
+  e.ecologyMode = 'travel';
+  e.routeLaps = 0;
+  e.grown = false;
+  e.alarmUntil = 0;
+  e.alarmFrom = null;
   e.wander = null;
   e.steerUntil = 0;
   e.steerSign = 1;
@@ -169,14 +174,48 @@ export function tickEnemy(game, e, dt) {
       startEvade(game, e);
       return;
     }
+    // A nearby threat causes non-defending, unengaged herd members to
+    // scatter temporarily. Selection and proximity alone never trigger it.
+    if (e.form && e.alarmUntil > game.time && e.alarmFrom) {
+      e.ecologyMode = 'scatter';
+      const dx=e.x-e.alarmFrom.x, dz=e.z-e.alarmFrom.z;
+      const len=Math.hypot(dx,dz)||1;
+      const tx=e.x+dx/len*3, tz=e.z+dz/len*3;
+      // Flee locally; do not leave the biome or cross an obstacle.
+      if (Math.hypot(tx-6,tz-58)<14.5) moveToward(e,tx,tz,def.speed*0.85*dt,def.radius,0);
+      return;
+    }
     // Authored migration circuits run in real simulation time.
     if (e.route) {
-      if (game.time < e.wanderAt) return;
+      if (game.time < e.wanderAt) { if(e.form)e.ecologyMode='forage'; return; }
       const waypoint = e.route[e.routeIndex];
       const ox = e.x, oz = e.z;
-      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? 0.43 : 0.56) * dt, def.radius, 0);
-      if (dist(e, waypoint) < 0.22 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
+      const pace = e.form === 'juvenile' ? 0.61 : e.form === 'shieldback' ? 0.38 : 0.47;
+      if(e.form)e.ecologyMode='travel';
+      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? pace : 0.56) * dt, def.radius, 0);
+      if(e.form){
+        // Soft local spacing, with collision re-resolution. No global
+        // flocking or RNG consumption; it affects only the three grazers.
+        for(const other of game.enemies){
+          if(other===e||!other.form||other.state==='dead')continue;
+          const dx=e.x-other.x,dz=e.z-other.z,d=Math.hypot(dx,dz);
+          if(d>1e-5&&d<1.85){
+            const push=Math.min(def.speed*dt,(1.85-d)*0.5);
+            e.x+=dx/d*push;e.z+=dz/d*push;
+            resolveCollisions(e,def.radius);
+          }
+        }
+      }
+      if (dist(e, waypoint) < 0.30 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
         e.routeIndex = (e.routeIndex + 1) % e.route.length;
+        if(e.form){
+          if(e.routeIndex===1){
+            e.routeLaps++;
+            if(!e.grown&&e.routeLaps>=2){e.grown=true;game.events.push({e:'fx',k:'sinter_molt',s:e.id});}
+          }
+          // Distinct feeding intervals, long circuits, no per-frame random roll.
+          if(e.routeIndex%3===0)e.wanderAt=game.time+(e.form==='juvenile'?1600:e.form==='shieldback'?4200:2700);
+        }
       }
       return;
     }
@@ -212,6 +251,7 @@ export function tickEnemy(game, e, dt) {
     e.progressDist = Infinity;
   }
   e.target = target.id;
+  if(e.form)e.ecologyMode=e.form==='shieldback'?'defend':'retaliate';
 
   // Encounter scaling: tougher for every extra player who joins the fight.
   if (def.perPlayer) {

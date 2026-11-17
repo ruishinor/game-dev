@@ -12,7 +12,7 @@ test('Sinter circuits move continuously, stay in the biome and avoid colliders',
   assert.equal(fauna.length, 4);
   const initial = fauna.map(e => ({ x:e.x, z:e.z }));
   const visited = fauna.map(() => new Set());
-  for (let i=0; i<2400; i++) {
+  for (let i=0; i<7200; i++) {
     game.tick(50);
     for (const [j,e] of fauna.entries()) {
       assert.ok(dist(e,ZONES.sinter) < ZONES.sinter.r);
@@ -20,18 +20,20 @@ test('Sinter circuits move continuously, stay in the biome and avoid colliders',
       assert.ok(dist(safe,e)<1e-5);
       visited[j].add(e.routeIndex);
     }
-    if (i===99) fauna.forEach((e,j)=>assert.ok(dist(e,initial[j])>3));
+    if (i===99) fauna.forEach((e,j)=>assert.ok(dist(e,initial[j])>2));
     game.endTick();
   }
   fauna.forEach((e,j)=>assert.equal(visited[j].size,e.route.length));
   assert.equal(new Set(fauna.slice(0,3).map(e=>e.x+':'+e.z)).size,3);
 });
 
-test('neutral grazer selection and Harry do not initiate combat; damage provokes only the victim', () => {
+test('neutral grazer selection and Harry do not initiate combat; isolated damage provokes only the victim', () => {
   const game = makeGame();
   const herd = game.enemies.filter(e=>e.type==='sinter_grazer');
   const e = herd[0];
   const p = game.addPlayer(makeChar('symbiotech'));
+  place(herd[1],6,65);
+  place(herd[2],8,65);
   place(p,e.x,e.z);
   game.setTarget(p,e.id);
   petCommand(game,p,'assist');
@@ -61,4 +63,29 @@ test('faultstalker independently initiates combat and telegraphs a hostile shear
   assert.ok(ev.some(x=>x.e==='tele' && x.k==='fault_shear' && x.g===1));
   assert.equal(ENEMIES.faultstalker.loot[0].item,'sinter_laminate');
   assert.equal(SPAWNS.filter(s=>s.type==='sinter_grazer').length,3);
+});
+
+
+test('nearby shieldback defends attacked juvenile while an unengaged adult scatters',()=>{
+  const g=makeGame(),herd=g.enemies.filter(e=>e.type==='sinter_grazer');
+  const [juvenile,adult,defender]=herd;
+  place(juvenile,4,51);place(adult,1,51);place(defender,6.8,51);
+  const p=g.addPlayer(makeChar('vanguard'));place(p,4,49);
+  run(g,100);
+  assert.ok(herd.every(e=>e.threat.size===0));
+  dealDamage(g,p,juvenile,5,'test');
+  assert.ok(defender.threat.has(p.id));
+  assert.equal(adult.threat.size,0);
+  assert.ok(adult.alarmUntil>g.time);
+  run(g,100);
+  assert.equal(adult.ecologyMode,'scatter');
+  assert.equal(defender.ecologyMode,'defend');
+  assert.equal(g.metaFor(defender).form,'shieldback');
+});
+
+test('long-lived grazers develop additional mineral growth without changing stats or loot',()=>{
+  const g=makeGame(),herd=g.enemies.filter(e=>e.form);
+  run(g,360000);
+  assert.ok(herd.every(e=>e.grown&&e.routeLaps>=2));
+  assert.ok(herd.every(e=>e.hp===ENEMIES.sinter_grazer.hp&&e.radius===ENEMIES.sinter_grazer.radius));
 });

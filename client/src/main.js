@@ -605,7 +605,27 @@ function onEvent(e) {
     }
     case 'fx': {
       const s = S.ents.get(e.s);
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
+      if (e.k === 'fault_shear') {
+        fx.ring(e.x,e.z,e.r,0xd18b4b,680);
+        fx.ring(e.x,e.z,e.r*0.72,0xf2d6a0,450);
+        if(!motionPreference.matches&&quality>0){
+          for(let i=0;i<5;i++){
+            const a=i*Math.PI*2/5;
+            const x=e.x+Math.cos(a)*e.r*0.58,z=e.z+Math.sin(a)*e.r*0.58;
+            fx.burst(new THREE.Vector3(x,groundHeight(x,z)+0.25,z),0xc8a481,3,0.8);
+          }
+        }
+        break;
+      }
+      if(e.k==='sinter_alarm'||e.k==='sinter_guard'||e.k==='sinter_molt'){
+        if(s&&s.placed){
+          const colour=e.k==='sinter_alarm'?0xcbb67a:e.k==='sinter_guard'?0xd98f52:0x9eae83;
+          fx.ring(s.pos.x,s.pos.z,e.k==='sinter_alarm'?2.3:1.3,colour,680,s.pos.y);
+          if(!motionPreference.matches&&quality>0)fx.burst(s.chest,colour,5,0.65);
+        }
+        break;
+      }
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1054,6 +1074,8 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
+      ecology: row?.ec,
+      grown: !!row?.grown,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
       fwd: ent.fwd,
@@ -1064,13 +1086,20 @@ function updateEntities(dt, t, now) {
 
 function updatePlates(now) {
   const me = S.ents.get(S.myId);
-  for (const ent of S.ents.values()) {
+  // Only suppress overlapping calm wildlife labels, never active enemies,
+  // allies, objects or the currently selected target. Stable priority.
+  const occupied=[];
+  const entries=[...S.ents.values()].sort((a,b)=>{
+    const priority=e=>e.id===S.target?0:e.meta.neu&&!(e.row?.f&8)&&!e.dead?2:1;
+    return priority(a)-priority(b)||a.id-b.id;
+  });
+  for (const ent of entries) {
     if (ent.id === S.myId) continue;
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
-    const screen = hide ? null : toScreen(ent.head);
+    let screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     let label = ent.meta.n;
     let cls = 'player';
@@ -1079,14 +1108,21 @@ function updatePlates(now) {
       cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
       label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
-      else if (!ent.dead && calm) label += ' · neutral';
+      else if (!ent.dead && calm) label += ent.meta.form ? ' · '+(row.grown?'matured ': '')+ent.meta.form : ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
+    if(screen){
+      const half=Math.max(36,label.length*3.9);
+      const rect={l:screen.x-half,r:screen.x+half,t:screen.y-30,b:screen.y};
+      const calm=ent.meta.neu&&!(row.f&8)&&!ent.dead;
+      if(calm&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
+      if(screen)occupied.push(rect);
+    }
     ui.placePlate(ent, screen, {
       cls,
       label,
       selected: ent.id === S.target,
-      hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
+      hp: (k === 'e' || k === 'p') && row.m && (!ent.meta.neu || row.f&8 || ent.id===S.target) ? Math.max(0, row.h / row.m) : 0,
     });
   }
 }

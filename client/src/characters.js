@@ -418,7 +418,7 @@ export function createModel(assets, meta, glb = true) {
     model = null;
   }
   if (model) return model;
-  const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)();
+  const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)(meta);
   fallback.kind = 'procedural';
   return fallback;
 }
