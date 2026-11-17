@@ -1,0 +1,8 @@
+Graphics: {
+  webgl2: true,
+  vendor: 'Google Inc. (Google)',
+  renderer: 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)',
+  userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36'
+}
+Rendered 45 authoring previews
+exit 0

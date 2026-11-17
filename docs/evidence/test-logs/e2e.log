@@ -1,0 +1,106 @@
+
+> attunement@0.1.0 e2e
+> node test/e2e/play.mjs
+
+[harness] software WebGL: each client draws at most 1 frame per second (logic uncapped)
+[harness] graphics: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+PASS  1. both sessions enter the 3D world  — A id 17, B id 18, 161012 triangles drawn
+PASS  10. second session sees the first (and its class)
+PASS  7. symbiotech has a visible companion entity; vanguard has none
+PASS  14. every character, companion and enemy is drawn from the GLB assets  — bundles loaded: humanoid_m, humanoid_f, nature, creatures, sanctum
+PASS  14. the world is built from the kits with no missing pieces  — {"kits":true,"batches":218,"occluders":20,"fallbacks":0,"prototypeArt":"disabled","prototypeAssets":{},"faded":0}
+PASS  14. each session draws the other with its own look, standing idle  — A as seen by B: {"model":"glb","look":"vanguard_plate","base":"Idle_Loop","action":null,"last":"","played":0,"reacted":0}
+PASS  14. moving plays a locomotion clip, in the mover's session and in the observer's  — own session: Walk_Loop
+PASS  2. W moves the character forward  — z 7.50 → 1.95
+PASS  3. the beacon blocks movement (collision)  — stopped 1.95m from its centre (radius 1.5 + body 0.45)
+PASS  2. server position matches the predicted client position  — Δ 0.000m, 0 unacked inputs
+PASS  10. the other session observes that movement  — B sees A at (-0.2, 1.9)
+PASS  2. D turns the character and the camera follows  — yaw 3.14 → 1.69
+PASS  2. backpedal and strafe move the character
+PASS  2. Space jumps (server-simulated)
+PASS  2. right-drag steers camera and character together  — camera yaw 1.69 → 1.02
+PASS  2. left-drag orbits the camera without turning the character  — camera yaw 1.02 → 1.69, character yaw 1.02 → 1.02
+PASS  2. mouse wheel zooms the camera  — wanted distance 10.0 → 5.3
+PASS  2. losing window focus stops movement (no stuck keys)
+[harness] moved Brakka to (-32, 27)
+[harness] moved Lumen to (-26, 33)
+PASS  4. Tab selects a living nearby enemy  — target 7, distance 3.2m
+PASS  4. Tab cycling can reach the intended enemy  — skitter id 7
+PASS  4. clicking an enemy selects it  — clicked at (414, 358)
+PASS  4. target frame and selected nameplate are shown
+[harness] moved Brakka to (-31, 27)
+PASS  4/5. ability 1 damages the enemy (server-side health)  — server hp 62 → 30
+PASS  5. R and the HUD expose server-authoritative auto-attack state
+PASS  5. the ability goes on cooldown  — 3698 ms remaining
+PASS  14. the attack animates for both sessions and the enemy visibly reacts  — attacker played Punch_Jab
+PASS  5. using it again is refused with visible feedback
+PASS  5. combat feedback: floating numbers and combat log
+PASS  11. both sessions hold exactly the server's enemy health  — server 30, A 30, B 30 of 62
+PASS  6. the enemy reacts and attacks
+PASS  11. healer targets the ally from the party frame
+PASS  11. player context menu opens from frames and nameplate; native menu suppressed elsewhere
+PASS  11. chat channel switches via slash commands and the chat icon
+[harness] set Brakka to 120 health so healing is measurable
+PASS  11. Mending Graft from one player heals the other
+PASS  8. the symbiote autonomously mends the injured ally (triage)
+PASS  8. companion frame says what it is doing  — Mender Symbiote / Triage · Mending Brakka
+PASS  8. Codex search finds other categories and opens the result
+PASS  8. companion selection stays unobtrusive; explicit Codex opens and closes
+PASS  8. commanding Bond attaches the symbiote to the ally (damage reduction buff)
+PASS  6/11. the two players defeat the enemy together
+PASS  11. both players are credited for the shared kill  — A 22 xp, B 22 xp
+[harness] moved Brakka to (-45, 21)
+[harness] moved Lumen to (-40, 27)
+[harness] moved Brakka to (-48, 38)
+[harness] moved Lumen to (-43, 44)
+PASS  9. the directive rewards each class its Device  — A: servo_harness, B: sporeglass_focus
+[harness] moved Brakka to (0, 8)
+[harness] moved Lumen to (0, 8)
+[harness] accelerated corpse expiry for Mire Skitter 10; production holds for 12s
+PASS  6/11. remains persist as 3D models, then disappear from both clients
+PASS  6/11. enemy respawns visibly in both browsers without a restart  — enemy id 10, renderer GLB
+[harness] moved Brakka to (3, 9)
+[harness] moved Lumen to (-3, 9)
+FAIL  9. five character tabs show real square selectable slots and reserved details
+PASS  9. equipping the Device updates its slot and raises the skill by 3  — Biotech 11 → 14 at level 2
+PASS  9. the next directive hands over the Implant that needs that skill
+PASS  9. carried item has an equip and Codex context menu
+PASS  9. inventory excludes installed devices, stays open across panels, and has independent opacity/close controls
+PASS  9. Build opens independent planning and fabrication interfaces
+PASS  9. installing the Implant changes derived stats (+30% healing)
+PASS  9. the Device cannot be removed while the Implant depends on it (UI explains why)
+PASS  9. the vanguard build changes too (Charge generation +50%)
+[harness] moved Brakka to (20, 30)
+[harness] moved Lumen to (24, 30)
+[harness] set Brakka to 100 health
+PASS  9. the modification is felt in play: the same heal lands harder  — Mending Graft 24 → 34
+[harness] destroyed two sentinels on Lumen's behalf (the fight itself is covered by unit tests)
+PASS  9. an un-attuned character sees the glyph as inert, with the reason
+[harness] moved Lumen to (-55, -37)
+[harness] moved Brakka to (-54, -35)
+PASS  9. discovering the Listening Stone grants an Attunement
+PASS  9. the glyph marks the companion command it rewrites
+[harness] wounded both players near each other
+PASS  9. with the glyph, the symbiote's triage now also heals a second ally
+PASS  12. reloading the page resumes the same character with its state  — level 3, glyph glyph_shared_pulse, at (-55, -37)
+PASS  12. no duplicate character after reconnecting
+PASS  12. state is persisted on the server, not in the browser
+[harness] moved Brakka to (-37, 34)
+[harness] set Brakka to 1 health next to an enemy
+PASS  6. the player can be defeated (death screen shown)
+PASS  14. defeat plays the death animation and holds it
+PASS  6. recovery: respawn at the Sanctum at full health
+PASS  14. respawning releases the death pose
+[harness] moved Lumen to (0, 45)
+[harness] defeated Lumen server-side to exercise the second browser recovery UI
+PASS  6. the second player receives an independent death overlay
+PASS  6/11. second player respawns using own UI, keeps level and remains visible
+PASS  8. companion remains attached to the second player after recovery
+PASS  15. a second Vanguard can wear the Red Rucker look and other sessions see it  — class vanguard, look red_rucker
+PASS  13. the world carries on when the other player leaves
+[harness] moved Lumen to (-32, 30)
+PASS  13. the support class wins a fight alone (symbiote set to Harry)  — 168 health left
+PASS  no script errors in either browser
+
+71 of 72 checks passed. Screenshots: /home/user/game-dev/test/e2e/out
+exit 1

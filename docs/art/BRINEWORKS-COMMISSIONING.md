@@ -1,0 +1,9 @@
+# Combat cover and Brineworks commissioning
+
+## Combat 
+Server-authoritative conservative horizontal line of sight uses existing solid prop collision footprints. Direct targeted hostile abilities reject blocked attacks before consuming resources or cooldown; auto attacks pause and resume when clear, enemy attacks and companion stings respect cover, and area damage checks from impact origin. Terrain elevation, vertical sight and dynamic characters are not occluders in this increment. Client displays server cover state. Existing retreat, cooldown and collision rules are unchanged. Engineering approach test corrected to begin south of the tower rather than cross its footprint.
+
+## Brineworks second act
+Evidence report unlocks route-specific commissioning. Signal: research -> engineering -> pressure -> ledger. Ledger: engineering -> research -> ledger -> pressure. Prepare the first station, arm the second, then take two ordered readings within 45 seconds. Amber pressure exclusion ring aborts the test if entered; rearm, no loss of progress or gear. Death/disconnect/timeout rolls back only the live test. Completing grants route-specific equipment and 55 XP once, unlocks useful research resource replenishment and engineering field health repair on shared 45s session cooldown, outside combat. Existing report XP and directives preserved. Both stations use the current mesh, no extra collision. No material gathering, crafting economy, shared global state or additional combat systems. Test traversal locations and state, browser evidence uses teleports for setup, so player navigation and artistic assessment still required.
+
+Technical gate: full integrated browser failure predates these commits and remains a blocker for default-branch promotion. No claim of artistic or production acceptance.

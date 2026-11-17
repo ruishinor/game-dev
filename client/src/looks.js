@@ -81,21 +81,14 @@ function capacitorHarness(ctx) {
   const plate = ctx.shellMaterial('chest');
   const amber = glow(0xffb45c);
   ctx.glows.push(amber);
+  // Pauldrons, dorsal stack and gauntlet housings: gear-recipes.js (vanguardKinetic).
   for (const s of [-1, 1]) {
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), plate);
-    p.scale.set(1.25, 0.8, 1.15);
-    ctx.attach(`upperarm_${s > 0 ? 'l' : 'r'}`, place(p, s * 0.225, 1.47, -0.06, 0, 0, s * -0.5));
-    const rim = new THREE.Mesh(box(0.06, 0.014, 0.19), amber);
-    ctx.attach(`upperarm_${s > 0 ? 'l' : 'r'}`, place(rim, s * 0.3, 1.455, -0.06, 0, 0, s * -0.9));
     const coil = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.012, 6, 16), amber);
     ctx.attach(`lowerarm_${s > 0 ? 'l' : 'r'}`, place(coil, s * 0.67, 1.441, -0.068, 0, Math.PI / 2, 0));
     ctx.coils.push(coil);
     const knee = new THREE.Mesh(box(0.1, 0.1, 0.04), plate);
     ctx.attach(`calf_${s > 0 ? 'l' : 'r'}`, place(knee, s * 0.089, 0.52, 0.075, -0.2));
   }
-  const spine = new THREE.Mesh(box(0.05, 0.3, 0.03), amber);
-  ctx.attach('spine_03', place(spine, 0, 1.3, -0.19));
-  for (const s of [-1, 1]) ctx.attach('spine_03', place(new THREE.Mesh(box(0.035, 0.22, 0.05), plate), s * 0.055, 1.3, -0.185));
   const visor = new THREE.Mesh(box(0.13, 0.022, 0.02), amber);
   ctx.attach('Head', place(visor, 0, 1.7, 0.128));
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), amber);
@@ -107,32 +100,22 @@ function cultureTank(ctx) {
   const casing = std({ color: 0x1b2e30, metalness: 0.6, roughness: 0.4 });
   const teal = glow(0x7dffc4);
   ctx.glows.push(teal);
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 10), casing);
-  ctx.attach('spine_03', place(tank, 0, 1.31, -0.2));
-  const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.24, 10), teal);
-  ctx.attach('spine_03', place(fluid, 0, 1.31, -0.215));
-  ctx.fluid = fluid;
-  for (const s of [-1, 1]) {
-    ctx.attach(
-      'spine_03',
-      strap(
-        [
-          [s * 0.03, 1.46, -0.19],
-          [s * 0.07, 1.53, -0.12],
-          [s * 0.085, 1.52, -0.02],
-          [s * 0.06, 1.49, 0.05],
-        ],
-        teal,
-        0.011
-      )
-    );
-  }
+  // Reservoirs, frame and feed lines: gear-recipes.js (conductorCulture).
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 6, 14), casing);
   ctx.attach('neck_01', place(collar, 0, 1.5, 0.0, Math.PI / 2 - 0.25));
   const satchel = new THREE.Mesh(box(0.09, 0.12, 0.05), std({ color: 0x2a4a44, roughness: 0.9 }));
   ctx.attach('pelvis', place(satchel, 0.19, 0.93, 0.0));
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), teal);
   ctx.attach('pelvis', place(lamp, 0.24, 0.95, 0.01));
+  // A small industrial lower-face respirator breaks up the exposed
+  // mannequin silhouette without hiding the eyes or adding fantasy trim.
+  const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
+  const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
+  ctx.attach('Head', place(mask, 0, 1.635, 0.143, -0.12));
+  for (const side of [-1, 1]) {
+    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
+    ctx.attach('Head', place(port, side * 0.085, 1.632, 0.153, Math.PI / 2));
+  }
 }
 
 /** Archivist: a slate held at the hip that she gestures over, and a gold collar. */
@@ -145,6 +128,40 @@ function archivistKit(ctx) {
   ctx.attach('pelvis', place(slate, -0.2, 0.98, 0.02, 0, 0, 1.2));
   const face = new THREE.Mesh(box(0.14, 0.004, 0.09), gold);
   ctx.attach('pelvis', place(face, -0.207, 0.98, 0.02, 0, 0, 1.2));
+}
+
+/** Field survey rig: twin sealed cartridges, asymmetric receiver and protected visor. */
+function surveyRig(ctx) {
+  const steel = std({ color: 0x687779, metalness: 0.65, roughness: 0.55 });
+  const rubber = std({ color: 0x252a2a, roughness: 0.94 });
+  const ochre = std({ color: 0x9b713d, roughness: 0.72 });
+  const glass = std({ color: 0x2a4549, metalness: 0.55, roughness: 0.24 });
+  const status = glow(0xe1bc6b);
+  // Cartridges, power cell, mast and supply line: gear-recipes.js (surveyorField).
+  ctx.attach('Head', place(new THREE.Mesh(box(0.133, 0.039, 0.028), rubber), 0, 1.698, 0.117));
+  ctx.attach('Head', place(new THREE.Mesh(box(0.117, 0.022, 0.009), glass), 0, 1.70, 0.135));
+  ctx.attach('Head', place(new THREE.Mesh(box(0.014, 0.008, 0.006), status), -0.045, 1.70, 0.141));
+  ctx.attach('pelvis', place(new THREE.Mesh(box(0.10, 0.15, 0.06), ochre), 0.185, 0.94, -0.02));
+}
+
+/** A forearm projector and offset reserve cell, not a physical shield. */
+function aegisArray(ctx) {
+  const alloy = std({ color: 0x697f83, metalness: 0.65, roughness: 0.5 });
+  const ceramic = std({ color: 0x31383b, metalness: 0.25, roughness: 0.82 });
+  const insulator = std({ color: 0xa28b61, roughness: 0.8 });
+  const status = glow(0x89cfe1);
+  const attach = (bone, geo, mat, ...at) => ctx.attach(bone, place(new THREE.Mesh(geo, mat), ...at));
+  // Dorsal resonance apparatus: gear-recipes.js (keeperResonance).
+  const emitter = new THREE.Group();
+  emitter.name = 'aegis-projector';
+  emitter.add(place(new THREE.Mesh(box(0.16, 0.065, 0.115), ceramic), 0.60, 1.45, -0.065));
+  for (const z of [-0.132, 0.002]) emitter.add(place(new THREE.Mesh(box(0.13, 0.034, 0.024), alloy), 0.60, 1.47, z, 0, 0, 0.16));
+  emitter.add(place(new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.008, 6, 16), alloy), 0.60, 1.491, -0.065, -Math.PI / 2));
+  emitter.add(place(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.014, 10), status), 0.60, 1.488, -0.065));
+  ctx.attach('lowerarm_l', emitter);
+  attach('Head', box(0.054, 0.028, 0.021), alloy, -0.043, 1.7, 0.125);
+  attach('Head', box(0.032, 0.009, 0.008), status, -0.043, 1.7, 0.139);
+  attach('pelvis', box(0.09, 0.12, 0.055), insulator, -0.18, 0.94, -0.02);
 }
 
 // --- looks -------------------------------------------------------------------
@@ -180,6 +197,22 @@ export const LOOK_DEFS = {
     gear: [rucksack, shortsStar],
     accent: 0xff6a4a,
   },
+  aegis_keeper: {
+    body: 'humanoid_f',
+    scale: 0.95,
+    parts: { body: { color: 0x919b91, roughness: 0.78 }, joints: { color: 0x282d30, roughness: 0.88 } },
+    shells: {
+      coat: { color: 0x777c76, roughness: 0.86, map: 'look_coat_panels' },
+      upperarms: { color: 0x414b50, roughness: 0.72 },
+      forearms: { color: 0x506063, metalness: 0.48, roughness: 0.59 },
+      thighs: { color: 0x373d41, roughness: 0.86 },
+      shins: { color: 0x515b5e, metalness: 0.38, roughness: 0.67 },
+      shoes: { color: 0x343b3d, roughness: 0.88 },
+      hood: { color: 0x414b50, roughness: 0.83 },
+    },
+    gear: [aegisArray],
+    accent: 0x89cfe1,
+  },
   conductor: {
     body: 'humanoid_f',
     scale: 1.0,
@@ -195,6 +228,22 @@ export const LOOK_DEFS = {
     },
     gear: [cultureTank],
     accent: 0x7dffc4,
+  },
+  brine_surveyor: {
+    body: 'humanoid_f',
+    scale: 1.0,
+    parts: { body: { color: 0x64716e, roughness: 0.72 }, joints: { color: 0x252d2c, roughness: 0.88 } },
+    shells: {
+      coat: { color: 0x777b70, roughness: 0.88, map: 'look_coat_panels' },
+      upperarms: { color: 0x9b713d, roughness: 0.84 },
+      forearms: { color: 0x444b48, roughness: 0.60, metalness: 0.32 },
+      thighs: { color: 0x454b46, roughness: 0.9 },
+      shins: { color: 0x343b3b, roughness: 0.75, metalness: 0.2 },
+      shoes: { color: 0x303534, roughness: 0.88 },
+      hood: { color: 0x8e653a, roughness: 0.82 },
+    },
+    gear: [surveyRig],
+    accent: 0xe1bc6b,
   },
   archivist: {
     body: 'humanoid_f',
@@ -215,7 +264,7 @@ export const LOOK_DEFS = {
 };
 
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', archivist: 'archivist' };
+export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;

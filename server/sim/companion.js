@@ -4,9 +4,9 @@
 //   guard  — bonds to one ally: regeneration + damage reduction
 //   assist — harries the owner's target and makes it take more damage
 
-import { COMPANIONS, GLYPH } from '../../shared/content.js';
-import { dist } from '../../shared/world.js';
-import { addBuff, applyHeal, dealDamage } from './combat.js';
+import { COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
+import { dist, hasLineOfSight } from '../../shared/world.js';
+import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
 
 function flyToward(c, tx, tz, step) {
   const dx = tx - c.x;
@@ -49,6 +49,12 @@ export function tickCompanion(game, c, dt) {
   const step = def.speed * dt;
 
   if (dist(c, owner) > def.leash && c.mode !== 'guard') {
+    if (c.mode === 'stay') {
+      c.mode = 'follow';
+      owner.char.petMode = 'follow';
+      game.onCharChanged(owner.char);
+      game.message(owner, 'info', 'Your symbiote returns: its tether limit was reached.');
+    }
     c.x = owner.x + 1.2;
     c.z = owner.z - 1.2;
   }
@@ -97,9 +103,22 @@ export function tickCompanion(game, c, dt) {
     return;
   }
 
+  if (c.mode === 'stay') {
+    c.act = 'idle';
+    c.actTarget = 0;
+    return;
+  }
+
+  if (c.mode === 'follow') {
+    c.act = 'idle';
+    c.actTarget = 0;
+    followOwner(c, owner, def, step);
+    return;
+  }
+
   if (c.mode === 'assist') {
     const t = game.ents.get(owner.target);
-    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || dist(t, owner) > def.leash) {
+    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || (ENEMIES[t.type].neutral && !t.threat.has(owner.id)) || dist(t, owner) > def.leash) {
       c.act = 'idle';
       c.actTarget = 0;
       followOwner(c, owner, def, step);
@@ -108,9 +127,9 @@ export function tickCompanion(game, c, dt) {
     c.actTarget = t.id;
     c.act = 'harrying';
     const d = dist(c, t) - t.radius;
-    if (d > def.assist.range * 0.6) hoverNear(c, t, t.radius + def.assist.range * 0.5, step);
+    if (d > def.assist.range * 0.6 || !hasLineOfSight(c,t)) hoverNear(c, t, t.radius + def.assist.range * 0.5, step);
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
-    if (d <= def.assist.range && game.time >= c.nextPulse) {
+    if (d <= def.assist.range && game.time >= c.nextPulse && hasLineOfSight(c,t)) {
       c.nextPulse = game.time + def.assist.interval;
       dealDamage(game, c, t, def.assist.dmg, 'sting', { kind: 'bolt' });
       if (t.state !== 'dead') addBuff(t, { k: 'corrode', until: game.time + def.assist.corrode.dur, mul: def.assist.corrode.mul });
@@ -147,8 +166,14 @@ export function tickCompanion(game, c, dt) {
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || p.dead || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
-        const healed = applyHeal(game, owner, p, def.triage.heal * GLYPH.sharedPulse.pct, 'shared_pulse', c.id);
-        if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        const budget = def.triage.heal * GLYPH.sharedPulse.pct;
+        const repaired = repairAegis(game, owner, p, budget, c.id);
+        if (repaired > 0) {
+          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+        } else {
+          const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
+          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        }
       }
     }
   }
@@ -158,6 +183,19 @@ export function tickCompanion(game, c, dt) {
  * Change the companion's mode at its owner's request. `guard` bonds to the
  * owner's friendly target when valid, otherwise to the owner.
  */
+/** Rename only the owner's companion. Metadata propagates to every client. */
+export function renameCompanion(game, p, name) {
+  if (!p.companion) return { ok: false, reason: 'You have no companion.' };
+  if (!validCompanionName(name)) return { ok: false, reason: 'Companion names must be 3–18 letters with internal spaces or hyphens.' };
+  if (p.dead || game.time < p.combatUntil) return { ok: false, reason: 'Rename your companion outside combat.' };
+  if (p.companion.name === name) return { ok: true };
+  p.companion.name = name;
+  p.companion.metaVer += 1;
+  p.char.petName = name;
+  game.markDirty(p);
+  return { ok: true };
+}
+
 export function petCommand(game, p, cmd) {
   const c = p.companion;
   if (!c) return { ok: false, reason: 'You have no companion.' };

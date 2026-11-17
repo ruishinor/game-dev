@@ -9,6 +9,7 @@ import { startServer } from '../server/index.js';
 import { CharacterStore } from '../server/store.js';
 import { RESPAWN_DELAY_MS, CORPSE_MS } from '../server/sim/game.js';
 import { dealDamage } from '../server/sim/combat.js';
+import { clearCombatSpot } from './cover-setup.js';
 
 const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'attune-')), 'characters.json');
 
@@ -199,6 +200,52 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await a.until(() => a.ent(wb.id) && b.ent(wa.id), 3000, 'mutual visibility');
     assert.ok(a.sheet && a.sheet.name === 'Brakka');
 
+    // Focused live-party and companion identity checks in the existing
+    // two-player integration test. Neither changes XP or encounter rules.
+    b.send({ t: 'pet_rename', name: 'Tender' });
+    await a.until(() => a.meta.get(wb.comp)?.n === 'Tender', 3000, 'companion name seen by ally');
+    assert.equal(srv.game.players.get(wb.id).char.petName, 'Tender');
+    b.send({ t: 'party_invite', id: wa.id });
+    await a.until(() => a.snap?.y?.party?.invite?.name === 'Lumen', 3000, 'party invitation');
+    a.send({ t: 'party_answer', accept: true });
+    await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'party formed');
+    assert.equal(a.snap.y.party.members.length, 2);
+    // Verify scoped chat using the existing third socket; no new test suite.
+    const observer = new Client(srv.port);
+    try {
+      const wc = await observer.create('Witness', 'vanguard');
+      await observer.until(() => observer.ent(wa.id) && observer.ent(wc.id));
+      const near=srv.game.players.get(wa.id);
+      const ally=srv.game.players.get(wb.id);
+      const witness=srv.game.players.get(wc.id);
+      witness.x=near.x;witness.z=near.z;
+      a.send({t:'chat',channel:'party',m:'Party greeting'});
+      await b.until(()=>b.events.some(e=>e.channel==='party'&&e.m==='Party greeting'));
+      await a.until(()=>a.events.some(e=>e.channel==='party'&&e.m==='Party greeting'));
+      await observer.until(()=>observer.snap?.time>=b.snap.time);
+      assert.ok(!observer.events.some(e=>e.m==='Party greeting'),'party chat is not sent to a nearby non-member');
+      // Far-away witness receives no vicinity message, but nearby ally does.
+      witness.x=near.x+60;witness.z=near.z;
+      ally.x=near.x+3;ally.z=near.z;
+      b.send({t:'chat',channel:'vicinity',m:'Vicinity greeting'});
+      await a.until(()=>a.events.some(e=>e.channel==='vicinity'&&e.m==='Vicinity greeting'));
+      await observer.until(()=>observer.snap?.time>=a.snap.time);
+      assert.ok(!observer.events.some(e=>e.m==='Vicinity greeting'),'vicinity chat is not broadcast beyond 45m');
+      a.send({ t: 'party_leave' });
+      await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
+      await new Promise(r=>setTimeout(r,850));
+      a.send({t:'chat',channel:'party',m:'Must not leak'});
+      await a.until(()=>a.events.some(e=>e.k==='err'&&/not in a party/.test(e.m)));
+      await observer.until(()=>observer.snap?.time>=a.snap.time);
+      assert.ok(!b.events.some(e=>e.m==='Must not leak')&&!observer.events.some(e=>e.m==='Must not leak'),'party chat never falls back to public');
+      await new Promise(r=>setTimeout(r,850));
+      a.send({ t: 'whisper', id: wb.id, m: 'Private greeting' });
+      await b.until(() => b.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)), 3000, 'whisper received');
+      await a.until(() => a.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)));
+      await observer.until(() => observer.snap?.time >= b.snap.time);
+      assert.ok(!observer.events.some(e => /Private greeting/.test(e.m || '')), 'whisper is not broadcast');
+    } finally { observer.close(); }
+
     // Movement: A walks forward; B observes A's authoritative position change.
     const startZ = b.ent(wa.id).z;
     let seq = 0;
@@ -207,6 +254,7 @@ test('multiplayer: two clients share one world, see each other, fight the same e
       await new Promise((r) => setTimeout(r, 50));
     }
     await b.until(() => b.ent(wa.id).z > startZ + 5, 3000, 'B sees A move');
+    await a.until(() => a.snap?.y?.ack === seq, 3000, 'movement input acknowledgements');
     assert.equal(a.snap.y.ack, seq, 'inputs acknowledged');
 
     // Shared combat: move both next to the same skitter (server-side teleport
@@ -216,13 +264,19 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     for (const e of game.enemies) if (e !== skitter) { e.state = 'dead'; e.respawnAt = Infinity; e.deadAt = -1e9; }
     const pa = game.players.get(wa.id);
     const pb = game.players.get(wb.id);
-    pa.x = skitter.x; pa.z = skitter.z + 2.5;
-    pb.x = skitter.x + 8; pb.z = skitter.z + 8;
+    Object.assign(pa,clearCombatSpot(skitter,0,2.5));
+    Object.assign(pb,clearCombatSpot(skitter,5.5,6));
+    if(pb.companion){pb.companion.x=pb.x;pb.companion.z=pb.z;}
+    // Both actors must visibly land their actual socket actions before this
+    // fixture can die; this changes only its test health, never damage rules.
+    skitter.maxHp=skitter.hp=Math.max(skitter.maxHp,220);
     a.send({ t: 'tgt', id: skitter.id });
     b.send({ t: 'tgt', id: skitter.id });
-    a.send({ t: 'use', a: 'rending_arc' });
+    await a.until(()=>pa.target===skitter.id&&pb.target===skitter.id,3000,'both targets authoritative');
     b.send({ t: 'use', a: 'neural_lash' });
-    await a.until(() => a.events.some((e) => e.e === 'dmg' && e.s === wb.id && e.d === skitter.id), 3000, 'A sees B damage the skitter');
+    try {await a.until(() => a.events.some((e) => e.e === 'dmg' && e.s === wb.id && e.d === skitter.id), 3000, 'A sees B damage the skitter');}
+    catch(err){throw Error(err.message+'; B: '+JSON.stringify({position:{x:pb.x,z:pb.z},enemy:{x:skitter.x,z:skitter.z,hp:skitter.hp},target:pb.target,errors:b.events.filter(e=>e.k==='err').slice(-5)}));}
+    a.send({ t: 'use', a: 'rending_arc' });
     await b.until(() => b.events.some((e) => e.e === 'dmg' && e.s === wa.id && e.d === skitter.id), 3000, 'B sees A damage the skitter');
     assert.equal(a.ent(skitter.id).h, b.ent(skitter.id).h, 'both see the same enemy health');
 
@@ -442,6 +496,87 @@ test('security: clients cannot act for others, forge state, or crash the server 
   }
 });
 
+test('accounts: ownership, guest recovery, roster deletion and sign-in survive restart', async () => {
+  const file = tmpFile();
+  let srv = await startServer({ port: 0, dataFile: file });
+  const guest = new Client(srv.port);
+  const owner = new Client(srv.port);
+  const parallel = new Client(srv.port);
+  const password = 'Example-LocalPassword-2026!';
+  let sessionToken;
+  try {
+    const eve = await guest.create('Eve', 'symbiotech');
+    assert.equal(eve.t, 'welcome');
+    await owner.open();
+    owner.send({ t: 'account_register', handle: 'EveningPlayer', password });
+    const ready = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready'), 8000, 'new account roster');
+    assert.equal(ready.chars.length, 0);
+    sessionToken = ready.token;
+    assert.match(sessionToken, /^[0-9a-f]{64}$/);
+
+    owner.send({ t: 'account_claim_character', token: eve.token });
+    const linked = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready' && m.chars.some((c) => c.name === 'Eve')), 3000, 'legacy character linked');
+    const eveId = linked.chars[0].id;
+    await guest.until(() => guest.closed !== null, 3000, 'old bearer disconnected');
+    assert.equal(srv.store.authenticate(eve.token), null, 'old guest token revoked');
+    owner.send({ t: 'account_select', id: eveId });
+    const welcome = await owner.until(() => owner.msgs.find((m) => m.t === 'welcome' && m.charId === eveId), 3000, 'owned Eve enters world');
+    assert.ok(welcome.id > 0);
+
+    const rosterBefore = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
+    // The new roster is emitted when leaving the active character.
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > rosterBefore, 3000, 'character menu');
+    owner.send({ t: 'account_create_character', name: 'Rhea', cls: 'vanguard' });
+    const created = await owner.until(() => owner.msgs.some((m) => m.t === 'welcome' && m.charId !== eveId), 3000, 'second character');
+    assert.ok(created);
+    const rheaId = srv.store.byName.get('rhea').id;
+    const beforeLeave = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > beforeLeave, 3000, 'return to roster');
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'WrongName' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_fail' && /not authorised/.test(m.reason)), 3000, 'unauthorized deletion refused');
+    assert.ok(srv.store.chars.has(rheaId));
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'Rhea' });
+    await owner.until(() => !srv.store.chars.has(rheaId), 3000, 'authorized deletion');
+    assert.equal(srv.store.byName.has('rhea'), false);
+
+    await parallel.open();
+    parallel.send({ t: 'account_resume', token: sessionToken });
+    await parallel.until(() => parallel.msgs.some((m) => m.t === 'account_ready'), 3000, 'second socket using the session');
+    owner.send({ t: 'account_logout' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_logged_out'), 3000, 'logout acknowledgement');
+    assert.equal(srv.store.authenticateAccount(sessionToken), null, 'session revoked on logout');
+    await parallel.until(() => parallel.closed !== null, 3000, 'revoked open socket disconnected');
+  } finally {
+    guest.close();
+    owner.close();
+    parallel.close();
+    await srv.close();
+  }
+
+  const disk = fs.readFileSync(file, 'utf8');
+  assert.ok(!disk.includes(password), 'plaintext password never written to disk');
+  assert.ok(!disk.includes(sessionToken), 'account bearer token never written to disk');
+  srv = await startServer({ port: 0, dataFile: file });
+  const returning = new Client(srv.port);
+  const outsider = new Client(srv.port);
+  try {
+    await returning.open();
+    returning.send({ t: 'account_login', handle: 'EveningPlayer', password });
+    const ready = await returning.until(() => returning.msgs.find((m) => m.t === 'account_ready'), 8000, 'account login after restart');
+    assert.deepEqual(ready.chars.map((c) => c.name), ['Eve']);
+    const other = await outsider.create('OtherPlayer', 'vanguard');
+    assert.equal(other.t, 'welcome');
+    returning.send({ t: 'account_select', id: srv.store.byName.get('otherplayer').id });
+    await returning.until(() => returning.msgs.some((m) => m.t === 'account_fail' && /does not belong/.test(m.reason)), 3000, 'cannot select another owner character');
+  } finally {
+    returning.close();
+    outsider.close();
+    await srv.close();
+  }
+});
+
 test('names: validated and unique', async () => {
   const srv = await startServer({ port: 0, dataFile: null });
   try {
@@ -480,6 +615,14 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     a.send({ t: 'equip', item: 'myelin_lattice' });
     a.send({ t: 'pet', c: 'assist' });
     await a.until(() => a.sheet && a.sheet.equipped.implant === 'myelin_lattice', 3000, 'equip applied');
+    // Exercise the actual authenticated craft command and persisted inventory.
+    p.char.materials={mire_fibre:3,sentinel_alloy:1};
+    srv.game.markDirty(p);
+    p.x=0;p.z=8;
+    a.send({t:'craft',recipe:'matrix',owner:999,output:'wardstone_shard'});
+    await a.until(()=>a.sheet?.materials?.culture_matrix===1,3000,'workshop output');
+    assert.deepEqual(a.sheet.materials,{mire_fibre:1,culture_matrix:1});
+    assert.ok(!a.sheet.inventory.includes('wardstone_shard'));
     p.x = 20;
     p.z = 30;
     p.hp = 77;
@@ -520,6 +663,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     assert.deepEqual(c.sheet.inventory.sort(), ['myelin_lattice', 'sporeglass_focus']);
     assert.equal(c.sheet.equipped.implant, 'myelin_lattice');
     assert.equal(c.sheet.stats.healMul, 1.3);
+    assert.deepEqual(c.sheet.materials,{mire_fibre:1,culture_matrix:1});
     c.close();
   } finally {
     await srv.close();
@@ -594,6 +738,7 @@ test('store: corrupt or tampered files never crash or cross-contaminate characte
   rec.inventory = ['glyph_shared_pulse', 'not_an_item', 'glyph_shared_pulse'];
   rec.equipped = { device: null, implant: 'myelin_lattice', glyph: 'glyph_shared_pulse' };
   rec.attunements = ['resonance', 'godmode'];
+  rec.materials={mire_fibre:1000,sentinel_alloy:-1,culture_matrix:'5',unknown:2};
   data.characters.push({ ...data.characters.find((c) => c.id === other.char.id), id: 'dupe', name: 'OTHER' });
   data.characters.push({ id: 'broken' }, null, 7);
   fs.writeFileSync(file, JSON.stringify(data));
@@ -605,6 +750,7 @@ test('store: corrupt or tampered files never crash or cross-contaminate characte
   assert.deepEqual(loaded.inventory, ['glyph_shared_pulse']);
   assert.deepEqual(loaded.equipped, { device: null, implant: null, glyph: null }, 'invalid loadout cleared');
   assert.deepEqual(loaded.attunements, ['resonance']);
+  assert.deepEqual(loaded.materials,{mire_fibre:99});
   assert.equal(s3.authenticate(other.token).name, 'Other');
   assert.equal(s3.authenticate('f'.repeat(64)), null);
   assert.equal(s3.authenticate({ toString: () => token }), null);

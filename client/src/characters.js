@@ -10,6 +10,8 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
+import { createGearKit } from './gear-kit.js';
+import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
@@ -45,6 +47,9 @@ function throttle(state, dt, interval) {
 }
 
 // --- humanoids ---------------------------------------------------------------
+
+let kit = null;
+export const gearKit = () => (kit ??= createGearKit(THREE, { shared }));
 
 export function makeHumanoid(assets, lookId, opts = {}) {
   const def = LOOK_DEFS[lookId];
@@ -104,6 +109,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
   };
   for (const build of def.gear || []) build(ctx);
+  // Signature equipment (shared static meshes + per-character animated parts).
+  let gearUpdate = null;
+  if (SIGNATURE_GEAR[lookId]) {
+    try {
+      gearUpdate = gearKit().instantiate(lookId, SIGNATURE_GEAR[lookId], ctx);
+    } catch (err) {
+      console.warn(`[models] signature gear for ${lookId} unavailable`, err);
+    }
+  }
 
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
@@ -151,6 +165,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         const k = 1 + (st.charge ?? 0) * 0.7;
         for (const c of ctx.coils) c.scale.set(k, k, 1 + (st.charge ?? 0) * 1.5);
       }
+      if (gearUpdate) gearUpdate(st);
       if (ctx.fluid) ctx.fluid.scale.y = 0.8 + Math.sin(st.t * 2.2) * 0.14;
     },
     trigger(kind, id) {

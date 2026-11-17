@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { makeChar, makeGame, run, place, enemyOf, isolate } from './helpers.js';
 import { useAbility, startAttack, dealDamage, applyHeal, getBuff } from '../server/sim/combat.js';
 import { petCommand } from '../server/sim/companion.js';
-import { equipItem, unequipSlot, interact, grantItem, grantXp } from '../server/sim/progress.js';
+import { equipItem, unequipSlot, interact, grantItem, grantXp, craftRecipe } from '../server/sim/progress.js';
+import { openLoot,takeLoot } from '../server/sim/loot.js';
 import { ABILITIES, ENEMIES, CLASSES, DIRECTIVES } from '../shared/content.js';
 import { stepMove, resolveCollisions, COLLIDERS, WORLD, ZONES, RUN_SPEED, MOVE_DT, PLAYER_RADIUS } from '../shared/world.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
@@ -414,7 +415,7 @@ test('companion bond: protects the chosen ally, and releases when the host dies'
   assert.equal(comp.host, 0);
 });
 
-test('companion harry: attacks the owner target and corrodes it', () => {
+test('companion attack and follow: attacks the target, then disengages on command', () => {
   const { game, p, e } = duel('symbiotech');
   place(p, e.x, e.z + 14);
   assert.ok(petCommand(game, p, 'assist').ok);
@@ -423,6 +424,17 @@ test('companion harry: attacks the owner target and corrodes it', () => {
   assert.ok(ev.some((x) => x.e === 'dmg' && x.s === p.companion.id && x.d === e.id));
   assert.ok(getBuff(e, 'corrode'));
   assert.ok(e.threat.has(p.id), 'companion damage is credited to its owner');
+  assert.ok(petCommand(game, p, 'follow').ok);
+  const following = [];
+  run(game, 2000, following);
+  assert.equal(p.companion.act, 'idle');
+  assert.ok(!following.some((x) => x.e === 'dmg' && x.s === p.companion.id), 'Follow prevents automatic attacks even with a hostile target selected');
+  assert.ok(petCommand(game, p, 'stay').ok);
+  const held = [p.companion.x, p.companion.z];
+  // Move only the owner: the general place() fixture also moves companions.
+  p.x += 4;
+  run(game, 1000);
+  assert.deepEqual([p.companion.x, p.companion.z], held, 'Stay holds position inside the tether');
   game.setTarget(p, 0);
   run(game, 300);
   assert.equal(p.companion.act, 'idle');
@@ -657,9 +669,13 @@ test('progression: the directive chain hands out the build pieces in order', () 
   assert.deepEqual(p.char.attunements, ['resonance'], 'attuning twice does nothing');
   assert.ok(equipItem(game, p, 'glyph_shared_pulse').ok);
   assert.equal(p.char.quest.step, 6);
-  dealDamage(game, p, enemyOf(game, 'warden'), 9999, 'test');
+  const warden=enemyOf(game,'warden');
+  dealDamage(game, p, warden, 9999, 'test');
   assert.equal(p.char.quest.step, DIRECTIVES.length);
   assert.ok(p.char.inventory.includes('glyph_carapace'));
+  assert.ok(!p.char.inventory.includes('wardstone_shard'));
+  place(p,warden.x,warden.z);assert.ok(openLoot(game,p,warden.id,warden.lootGeneration).ok);
+  assert.ok(takeLoot(game,p,warden.id,warden.lootGeneration,'wardstone_shard').ok);
   assert.ok(p.char.inventory.includes('wardstone_shard'));
 });
 
@@ -854,4 +870,36 @@ test('world: spawn point, interactables and enemy homes are not inside colliders
   const ob = ZONES.obelisk;
   const a = (2 / 9) * Math.PI * 2;
   for (let d = 12; d > 2.5; d -= 0.5) assert.ok(free(ob.x + Math.sin(a) * d, ob.z + Math.cos(a) * d, PLAYER_RADIUS), `gap blocked at ${d}`);
+});
+
+test('workshop: skill gates, owned targets, atomic material consumption and reversible equipment variants',()=>{
+  const game=makeGame();
+  const p=game.addPlayer(makeChar('vanguard',{level:2,inventory:['servo_harness'],materials:{sentinel_alloy:3,mire_fibre:1}}));
+  place(p,0,8);
+  const before=JSON.stringify(p.char.materials);
+  assert.equal(craftRecipe(game,p,'coupler').ok,false,'skill not met');
+  assert.equal(JSON.stringify(p.char.materials),before);
+  assert.ok(equipItem(game,p,'servo_harness').ok);
+  place(p,0,40);
+  assert.equal(craftRecipe(game,p,'coupler').ok,false,'not at workshop');
+  place(p,0,8);
+  assert.ok(craftRecipe(game,p,'coupler').ok);
+  assert.deepEqual(p.char.materials,{sentinel_alloy:1,kinetic_coupler:1});
+  const result=JSON.stringify(p.char);
+  assert.equal(craftRecipe(game,p,'calibrate_servo').ok,false,'cannot consume equipped target');
+  assert.equal(JSON.stringify(p.char),result);
+  assert.ok(unequipSlot(game,p,'device').ok);
+  p.combatUntil=game.time+1000;
+  assert.equal(craftRecipe(game,p,'calibrate_servo').ok,false);
+  p.combatUntil=0;
+  assert.ok(craftRecipe(game,p,'calibrate_servo').ok);
+  assert.deepEqual(p.char.inventory,['calibrated_servo']);
+  assert.deepEqual(p.char.materials,{});
+  assert.equal(craftRecipe(game,p,'calibrate_servo').ok,false,'replay cannot duplicate output');
+  assert.equal(craftRecipe(game,p,'constructor').ok,false,'untrusted recipe key rejected');
+  assert.ok(equipItem(game,p,'calibrated_servo').ok);
+  assert.equal(p.stats.chargeMul,1.2);
+  assert.ok(unequipSlot(game,p,'device').ok);
+  assert.ok(craftRecipe(game,p,'restore_servo').ok);
+  assert.deepEqual(p.char.inventory,['servo_harness']);
 });

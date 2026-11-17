@@ -1,0 +1,50 @@
+[
+  {
+    "id": "brine.evidence.signal",
+    "voice": "af_heart",
+    "deliverySha256": "71360e008157f3a85b675ee0588593ecedba40fe0f67336eef17b3123b1f8ac7",
+    "decision": "accepted",
+    "reviewer": "Attunement project owner (explicit chat review, 2026-11-17)",
+    "listeningNotes": "All auditions good; owner selected this exact voice/take. Processed MP3 volume appropriate; master quieter. Preserve original reviewed bytes.",
+    "rightsNotes": "Private owner-controlled development/playtest only. Publisher model revision f3ff357 is Apache-2.0 and explicitly welcomes production use; model card describes mixed training data including proprietary-system synthetic speech and CC BY sources Koniwa and SIWIS. Per-voice provenance and generated-output redistribution terms not fully documented (upstream issue #376 unresolved). Public/commercial distribution not cleared. No model weights or third-party speech recordings distributed.",
+    "distributionScope": "private-playtest",
+    "deliveryLufs": -18.52,
+    "masterLufs": -25.47
+  },
+  {
+    "id": "kernel.directive.relay",
+    "voice": "am_michael",
+    "deliverySha256": "2ea7860f4df47d7e0350640b443b0b46f61e39ee66eafdaf02ffc104522fa19d",
+    "decision": "accepted",
+    "reviewer": "Attunement project owner (explicit chat review, 2026-11-17)",
+    "listeningNotes": "All auditions good; owner selected this exact voice/take. Processed MP3 volume appropriate; master quieter. Preserve original reviewed bytes.",
+    "rightsNotes": "Private owner-controlled development/playtest only. Publisher model revision f3ff357 is Apache-2.0 and explicitly welcomes production use; model card describes mixed training data including proprietary-system synthetic speech and CC BY sources Koniwa and SIWIS. Per-voice provenance and generated-output redistribution terms not fully documented (upstream issue #376 unresolved). Public/commercial distribution not cleared. No model weights or third-party speech recordings distributed.",
+    "distributionScope": "private-playtest",
+    "deliveryLufs": -18.58,
+    "masterLufs": -26.53
+  },
+  {
+    "id": "kestrel.log17",
+    "voice": "af_heart",
+    "deliverySha256": "1d33d72c442a67ed4cfe52934eb80a66c08d3dbd91e8fa027784640aa95fd073",
+    "decision": "accepted",
+    "reviewer": "Attunement project owner (explicit chat review, 2026-11-17)",
+    "listeningNotes": "All auditions good; owner selected this exact voice/take. Processed MP3 volume appropriate; master quieter. Preserve original reviewed bytes.",
+    "rightsNotes": "Private owner-controlled development/playtest only. Publisher model revision f3ff357 is Apache-2.0 and explicitly welcomes production use; model card describes mixed training data including proprietary-system synthetic speech and CC BY sources Koniwa and SIWIS. Per-voice provenance and generated-output redistribution terms not fully documented (upstream issue #376 unresolved). Public/commercial distribution not cleared. No model weights or third-party speech recordings distributed.",
+    "distributionScope": "private-playtest",
+    "deliveryLufs": -19.07,
+    "masterLufs": -25.85
+  },
+  {
+    "id": "sinter.instruction.vanguard",
+    "voice": "am_michael",
+    "deliverySha256": "e755f69dbbf8bba84ab63ceff4116a713c90e81b40e63d20614395a740a8518e",
+    "decision": "accepted",
+    "reviewer": "Attunement project owner (explicit chat review, 2026-11-17)",
+    "listeningNotes": "All auditions good; owner selected this exact voice/take. Processed MP3 volume appropriate; master quieter. Preserve original reviewed bytes.",
+    "rightsNotes": "Private owner-controlled development/playtest only. Publisher model revision f3ff357 is Apache-2.0 and explicitly welcomes production use; model card describes mixed training data including proprietary-system synthetic speech and CC BY sources Koniwa and SIWIS. Per-voice provenance and generated-output redistribution terms not fully documented (upstream issue #376 unresolved). Public/commercial distribution not cleared. No model weights or third-party speech recordings distributed.",
+    "distributionScope": "private-playtest",
+    "deliveryLufs": -18.6,
+    "masterLufs": -26.87
+  }
+]

@@ -2,12 +2,27 @@
 // button just asks main.js to send an intent. Dynamic text (names, chat) is
 // only ever written with textContent.
 
-import { ABILITIES, CLASSES, COMPANIONS, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
+import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { ENTRIES } from './journal.js';
+import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
+import { RECIPES } from '../../shared/crafting.js';
+import { renderWorkshop } from './workshop-ui.js';
+import { RadioPanel } from './radio.js';
+import { LootPanel } from './loot-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
+  hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
+  resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
+  lattice_relay:svg('<path d="m12 3 9 9-9 9-9-9zM3 12h18M12 3v18"/><circle cx="12" cy="12" r="3"/>'),
+  fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
+  core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
+  field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
+  controlled_blast: svg('<circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5M4 4l4 4m8 8 4 4M4 20l4-4m8-8 4-4"/>'),
   rending_arc: svg('<path d="M4 19C7 8 14 4 21 5"/><path d="M7 21 19 9"/>'),
   graviton_tether: svg('<circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M8.5 15.5 15.5 8.5"/><path d="M11 7h-4M17 13v4"/>'),
   kinetic_ward: svg('<path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/><path d="M12 8v8"/>'),
@@ -19,6 +34,8 @@ const ICONS = {
   triage: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>'),
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
+  follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
+  stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
 
 const BUFFS = {
@@ -28,18 +45,28 @@ const BUFFS = {
   shield: ['Aegis', 'good'],
   sap: ['Sapped', 'bad'],
   corrode: ['Corroded', 'bad'],
+  carapace_imprint: ['Carapace Imprint', 'bad'],
   root: ['Rooted', 'bad'],
 };
 
 const GLYPH_NOTES = {
-  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
-  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent.' },
-  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%.' },
-  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung.' },
+  glyph_hinge:{ability:'hinge_field',text:'Hinge + Lattice Resonator: Shared Pulse can restore active barrier capacity.'},
+  glyph_reversal:{ability:'resonant_reversal',text:'Divide: retains 25% of remaining barrier and releases the other 75%.'},
+  glyph_faultline: { ability: 'controlled_blast', text: 'Glyph of the Faultline: 7m demolition radius.' },
+  glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
+  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%. An imprinted target moves the echo to its position, consuming the imprint.' },
+  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent. Shared Pulse repairs an active damaged Aegis instead of splash healing.' },
+  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
+  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Harrying', dormant: 'Dormant' };
-const PET_KEYS = ['triage', 'guard', 'assist'];
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
+const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
+const SKILL_INFO = {
+  instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
+  kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
+  biotech: 'Conductor primary skill: increases Power by 2 percentage points per point above 10 and meets Biotech equipment requirements.',
+};
 
 function h(tag, cls, text) {
   const el = document.createElement(tag);
@@ -56,6 +83,22 @@ function set(el, key, value) {
   else if (key === 'hidden') el.hidden = value;
   else if (key === 'cls') el.className = value;
   else el.style.setProperty(key, value);
+}
+
+function companionIcon(kind, action) {
+  const rename = kind === 'rename';
+  const btn = h('button', `companion-icon companion-${kind}`);
+  btn.type = 'button';
+  btn.title = rename ? 'Rename companion' : 'Companion Codex';
+  btn.setAttribute('aria-label', btn.title);
+  btn.innerHTML = rename
+    ? svg('<path d="m4 16-1 5 5-1L20 8l-4-4L4 16Zm10-10 4 4"/>')
+    : svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>');
+  btn.addEventListener('click', (e) => { e.stopPropagation(); action(); });
+  btn.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation();
+  });
+  return btn;
 }
 
 function bar(cls) {
@@ -81,6 +124,8 @@ export class UI {
   constructor(actions) {
     this.a = actions;
     this.sheet = null;
+    this.unseenItems = new Set();
+    this.workshopSite=null;
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
@@ -106,48 +151,103 @@ export class UI {
     this.target.details.hidden = true;
     this.target.el.append(this.target.cast.wrap, this.target.details);
     this.pet = h('div', 'frame pet');
-    this.petName = h('div', 'name');
+    this.petName = h('button', 'name pet-select');
+    this.petName.type = 'button';
+    this.petName.title = 'Select companion (F2)';
     this.petAct = h('div', 'sub');
-    this.pet.append(this.petName, this.petAct);
-    this.pet.setAttribute('role', 'button');
-    this.pet.setAttribute('tabindex', '0');
-    this.pet.title = 'Inspect your companion (F2)';
+    const petHead = h('div', 'pet-head');
+    const petActions = h('div', 'companion-actions');
+    petActions.append(
+      companionIcon('rename', () => this.openCompanionDetails(this.currentCompanion, 'rename')),
+      companionIcon('info', () => this.openCompanionDetails(this.currentCompanion, 'info')),
+    );
+    petHead.append(this.petName, petActions);
+    this.pet.append(petHead, this.petAct);
     const inspectPet = () => {
-      if (!this.companionId) return;
-      const r = this.pet.getBoundingClientRect();
-      this.a.inspectCompanion(this.companionId, { x: r.right + 10, y: r.top });
+      if (this.companionId) this.a.inspectCompanion(this.companionId, { x: 0, y: 0 });
     };
     this.pet.addEventListener('click', inspectPet);
-    this.pet.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter' || e.code === 'Space') {
-        e.preventDefault();
-        e.stopPropagation();
-        inspectPet();
-      }
+    this.petName.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation();
     });
     const left = h('div', 'col');
     left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
 
-    // Compact, dismissible inspector beside the selected companion or its frame.
-    // Unlike a combat target, inspection does not change server targeting.
-    this.inspectBox = h('div', 'companion-inspector');
+    // Selection itself opens nothing. Explicit nameplate actions open a
+    // small dialog, separate from combat controls on the companion hotbar.
+    this.inspectBox = h('div', 'panel companion-dialog');
     this.inspectBox.hidden = true;
     this.inspectBox.setAttribute('role', 'dialog');
     this.inspectBox.setAttribute('aria-label', 'Companion details');
-    this.inspectClose = h('button', 'inspect-close', '×');
+    this.inspectClose = h('button', 'close inspect-close', '×');
     this.inspectClose.setAttribute('aria-label', 'Close companion details');
-    this.inspectClose.addEventListener('click', () => this.a.closeInspect());
-    this.inspectName = h('div', 'inspect-name');
+    this.inspectClose.addEventListener('click', () => this.closeCompanionDetails());
+    this.inspectName = h('h2', 'inspect-name');
     this.inspectSub = h('div', 'inspect-sub');
-    this.inspectAction = h('div', 'inspect-action');
-    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction);
+    this.codexBody = h('div', 'companion-codex');
+    this.renameRow = h('form', 'rename-row');
+    this.renameInput = h('input');
+    this.renameInput.maxLength = 18;
+    this.renameInput.setAttribute('aria-label', 'New companion name');
+    this.renameInput.placeholder = 'Companion name';
+    this.renameInput.autocomplete = 'off';
+    const rename = h('button', 'primary', 'Save');
+    rename.type = 'submit';
+    this.renameRow.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = this.renameInput.value.trim();
+      if (name && this.dialogCompanionId === this.companionId) {
+        this.a.petRename(name);
+        this.closeCompanionDetails();
+      }
+    });
+    this.renameInput.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeCompanionDetails();
+      }
+    });
+    this.renameRow.append(this.renameInput, rename);
+    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.codexBody, this.renameRow);
     root.append(this.inspectBox);
-    this.inspectAt = null;
 
     this.party = h('div', 'party');
     root.append(this.party);
+    this.playerContext = h('div', 'player-context');
+    this.playerContext.hidden = true;
+    root.append(this.playerContext);
+    this.bindPlayerContext(this.target.el, () => this.currentTarget?.id);
+    this.npcPanel=h('div','panel npc-panel');
+    this.npcPanel.hidden=true;
+    this.npcPanel.setAttribute('role','dialog');
+    this.npcPanel.setAttribute('aria-label','NPC interaction');
+    root.append(this.npcPanel);
+    this.fieldRecordPanel=h('aside','field-record');this.fieldRecordPanel.hidden=true;
+    this.fieldRecordPanel.setAttribute('aria-label','Field record');root.append(this.fieldRecordPanel);
+    document.addEventListener('pointerdown', (e) => {
+      if (!this.playerContext.contains(e.target)) this.closePlayerContext();
+    });
+    this.playerContext.addEventListener('keydown', e => {
+      // Prevent game hotkeys (including Tab targeting, Space jump and Enter
+      // chat) from consuming keyboard interactions with the menu buttons.
+      e.stopPropagation();
+      if(e.key==='Escape'){
+        e.preventDefault();
+        this.a.cancelMovement();
+        this.closePlayerContext(true);
+      }else if(['Tab','ArrowUp','ArrowDown','Home','End'].includes(e.key)){
+        e.preventDefault();
+        const buttons=[...this.playerContext.querySelectorAll('button:not(:disabled)')];
+        if(!buttons.length)return;
+        const i=buttons.indexOf(document.activeElement);
+        const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:
+          (i+(e.key==='ArrowUp'||e.shiftKey?-1:1)+buttons.length)%buttons.length;
+        buttons[next].focus({preventScroll:true});
+      }
+    });
 
     const side = h('div', 'side');
     this.minimap = document.createElement('canvas');
@@ -160,7 +260,13 @@ export class UI {
     this.trackerText = h('div', 'text');
     this.trackerProgress = h('div', 'progress');
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
-    side.append(this.minimap, this.zoneLabel, this.tracker);
+    this.surveyTracker = h('div', 'tracker');
+    this.surveyText = h('div', 'text');
+    this.brineWorkshop=h('button','brine-workshop','Open field Workshop [B]');
+    this.brineWorkshop.hidden=true;
+    this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
+    side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
     this.errors = h('div', 'errors');
@@ -168,6 +274,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
+    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -176,21 +283,82 @@ export class UI {
     this.chat = document.createElement('input');
     this.chat.className = 'chat';
     this.chat.maxLength = 140;
-    this.chat.placeholder = 'Press Enter to talk';
+    this.chatChannel = 'vicinity';
+    this.whisperTarget = null;
     this.chat.setAttribute('aria-label', 'Chat message');
+    const chatRow=h('div','chat-row');
+    this.chatModeButton=h('button','chat-mode');
+    this.chatModeButton.type='button';
+    this.chatModeButton.setAttribute('aria-label','Choose chat channel');
+    this.chatModeButton.setAttribute('aria-expanded','false');
+    this.chatModeButton.innerHTML=svg('<path d="M4 4h16v12H10l-6 4zM8 8h8M8 12h5"/>');
+    this.chatChannelLabel=h('span','chat-channel-label');
+    this.chatModeButton.append(this.chatChannelLabel);
+    this.chatOptions=h('div','chat-options');
+    this.chatOptions.hidden=true;
+    for(const [channel,label] of [['vicinity','Vicinity /v'],['party','Party /p']]){
+      const btn=h('button','chat-option',label);
+      btn.type='button';
+      btn.dataset.channel=channel;
+      btn.addEventListener('click',()=>this.selectChatChannel(channel));
+      this.chatOptions.append(btn);
+    }
+    this.chatModeButton.addEventListener('click',()=>{
+      const open=this.chatOptions.hidden;
+      this.setChatOptions(open);
+      if(open)this.chatOptions.querySelector('[aria-pressed="true"]')?.focus();
+    });
+    this.chatOptions.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Escape'){e.preventDefault();this.setChatOptions(false);this.chatModeButton.focus();}
+      else if(['Tab','ArrowDown','ArrowUp'].includes(e.key)){
+        e.preventDefault();
+        const b=[...this.chatOptions.querySelectorAll('button')];
+        b[(b.indexOf(document.activeElement)+1)%b.length].focus();
+      }
+    });
+    this.chatModeButton.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Escape'){e.preventDefault();this.setChatOptions(false);}
+      else if(e.key==='Tab'){e.preventDefault();this.chat.focus();}
+    });
+    document.addEventListener('pointerdown',e=>{
+      if(!chatRow.contains(e.target))this.setChatOptions(false);
+    });
+    this.chat.addEventListener('input',()=>{
+      const match=/^\/([pv])\s+/i.exec(this.chat.value);
+      if(!match)return;
+      const rest=this.chat.value.slice(match[0].length);
+      this.selectChatChannel(match[1].toLowerCase()==='p'?'party':'vicinity');
+      this.chat.value=rest;
+    });
     this.chat.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
+        e.preventDefault();
         const text = this.chat.value.trim();
-        if (text) this.a.chat(text);
-        this.chat.value = '';
-        this.chat.blur();
+        const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
+        const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
+        if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
+        if(command){
+          this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
+          const message=(command[2]||'').trim();
+          if(!message){this.chat.value='';return;}
+          this.a.chat(message,this.chatChannel);
+        } else if (text) {
+          if (this.whisperTarget) this.a.whisper(this.whisperTarget.id, text);
+          else this.a.chat(text,this.chatChannel);
+        }
+        this.resetChatTarget();
       } else if (e.key === 'Escape') {
-        this.chat.value = '';
-        this.chat.blur();
+        e.preventDefault();
+        this.resetChatTarget();
       }
     });
-    logWrap.append(this.logEl, this.chat);
+    chatRow.append(this.chatModeButton,this.chat,this.chatOptions);
+    logWrap.append(this.logEl,chatRow);
+    this.updateChatChannel();
     root.append(logWrap);
 
     // Bars
@@ -203,36 +371,196 @@ export class UI {
     this.autoControl.append(this.autoButton, this.autoStatus);
     this.actionBar = h('div', 'actionbar');
     this.xp = bar('xp');
-    bars.append(this.petBar, this.autoControl, this.actionBar, this.xp.wrap);
+    this.moveStatus = h('div', 'move-status');
+    this.moveStatus.hidden = true;
+    this.surveyStatus = h('div', 'auto-status');
+    this.surveyStatus.hidden = true;
+    this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Build [C]');
+    this.buildBtn = h('button', 'menubtn', 'Character [C]');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
+    this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
+    this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
+    this.partyBtn = h('button', 'menubtn', 'Party [P]');
+    this.partyBtn.addEventListener('click', () => this.toggleParty());
+    this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
+    this.settingsBtn.addEventListener('click', () => this.toggleSettings());
     const helpBtn = h('button', 'menubtn', 'Help [H]');
     helpBtn.addEventListener('click', () => this.toggleHelp());
+    this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn.addEventListener('click', () => this.toggleMenu());
+    this.menuItems = h('div', 'menu-items');
+    this.menuItems.hidden = true;
+    this.charactersBtn = h('button', 'menubtn', 'Characters');
+    this.charactersBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.characters(); });
+    this.signoutBtn = h('button', 'menubtn', 'Sign out');
+    this.signoutBtn.hidden = true;
+    this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
+    this.codexBtn = h('button', 'menubtn', 'Codex [J]');
+    this.codexBtn.addEventListener('click', () => this.toggleCodex());
+    this.workshopBtn=h('button','menubtn','Build [B]');
+    this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
-    menu.append(this.buildBtn, helpBtn, this.netLabel);
+    menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
 
     this.tooltip = h('div', 'tooltip');
     this.tooltip.hidden = true;
     root.append(this.tooltip);
+    this.loot=new LootPanel(this);
+
 
     // Build panel
     this.panel = h('div', 'panel build');
     this.panel.hidden = true;
     this.panel.setAttribute('role', 'dialog');
-    this.panel.setAttribute('aria-label', 'Character build');
+    this.panel.setAttribute('aria-label', 'Character and loadout');
     const close = h('button', 'close', '×');
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.toggleBuild(false));
     this.panelBody = h('div', 'panel-body');
-    this.panel.append(close, this.panelBody);
+    this.panel.append(h('div','journal-brand','ATTUNEMENT'), h('h2','journal-title','Character & Loadout'), close, this.panelBody);
     root.append(this.panel);
+
+    this.inventoryPanel = h('div','panel inventory-window');
+    this.inventoryPanel.hidden = true;
+    this.inventoryPanel.setAttribute('role','dialog');
+    this.inventoryPanel.setAttribute('aria-label','Inventory');
+    const invClose = h('button','close','×');
+    invClose.setAttribute('aria-label','Close inventory');
+    invClose.addEventListener('click',()=>this.toggleInventory(false));
+    // Cycle the window's surface transparency without fading readable content.
+    this.inventoryOpacityButton = h('button','inventory-opacity');
+    this.inventoryOpacityButton.type='button';
+    this.inventoryOpacityButton.innerHTML=svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>');
+    this.inventoryOpacity=100;
+    try {
+      const saved=Number(localStorage.getItem('attunement.inventoryOpacity'));
+      if([100,80,60,40].includes(saved))this.inventoryOpacity=saved;
+    }catch{}
+    this.inventoryOpacityButton.addEventListener('click',()=>{
+      const levels=[100,80,60,40];
+      this.setInventoryOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
+    });
+    this.inventoryOpacityButton.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' ')e.stopPropagation();
+    });
+    this.inventoryBody = h('div','inventory-body');
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,this.inventoryBody);
+    root.append(this.inventoryPanel);
+    this.setInventoryOpacity(this.inventoryOpacity);
+    // On smaller screens, either overlapping window can be brought forward
+    // by clicking its visible area. Large screens use side-by-side positioning.
+    root.addEventListener('pointerdown',e=>{
+      const panel=e.target.closest('.panel');
+      if(panel)root.classList.toggle('inventory-front',panel===this.inventoryPanel);
+    });
+    this.inventoryFilter = 'all';
+    this.inventorySelection = this.loadoutSelection = null;
+    this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
+    this.loadoutTab = 'character';
+    this.loadoutSlot = null;
+
+    this.codexPanel = h('div','panel codex-window');
+    this.codexPanel.hidden = true;
+    this.codexPanel.setAttribute('role','dialog');
+    this.codexPanel.setAttribute('aria-label','Codex');
+    const codexClose = h('button','close codex-close','×');
+    codexClose.setAttribute('aria-label','Close Codex');
+    codexClose.addEventListener('click',()=>this.toggleCodex(false));
+    this.codexContent = h('div','codex-layout');
+    const searchRow = h('div','codex-search-row');
+    this.codexSearch = h('input','codex-search');
+    this.codexSearch.type = 'search';
+    this.codexSearch.placeholder = 'Search the Codex…';
+    this.codexSearch.setAttribute('aria-label','Search Codex');
+    this.codexSearch.autocomplete = 'off';
+    this.codexSearch.maxLength = 100;
+    this.codexQuery = '';
+    this.codexSearch.addEventListener('input',()=>{
+      this.codexQuery = this.codexSearch.value;
+      renderCodex(this, ICONS);
+    });
+    this.codexSearch.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.toggleCodex(false);}
+      else if(e.key==='Enter'){e.preventDefault();this.codexContent.querySelector('.codex-entry')?.click();}
+    });
+    searchRow.append(this.codexSearch);
+    this.codexPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Codex'),codexClose,searchRow,this.codexContent);
+    root.append(this.codexPanel);
+    this.codexGroup = 'Creatures';
+    this.codexSelection = 'skitter';
+
+    this.workshopPanel=h('div','panel workshop-window');
+    this.workshopPanel.hidden=true;
+    this.workshopPanel.setAttribute('role','dialog');
+    this.workshopPanel.setAttribute('aria-label','Build Planner and Workshop');
+    const workshopClose=h('button','close','×');
+    workshopClose.setAttribute('aria-label','Close Build');
+    workshopClose.addEventListener('click',()=>this.toggleWorkshop(false));
+    this.workshopBody=h('div','workshop-body');
+    this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
+    root.append(this.workshopPanel);
+    this.workshopTab='planner';
+    this.recipeId=null;
+    this.plannedLoadout=null;
+    this.atSanctum=false;
+
+    this.partyPanel = h('div', 'panel party-panel');
+    this.partyPanel.hidden = true;
+    this.partyPanel.setAttribute('role', 'dialog');
+    this.partyPanel.setAttribute('aria-label', 'Party management');
+    const pc = h('button', 'close', '×');
+    pc.setAttribute('aria-label', 'Close party');
+    pc.addEventListener('click', () => this.toggleParty(false));
+    this.partyBody = h('div');
+    this.partyPanel.append(pc, h('h2', null, 'Party'), this.partyBody);
+    root.append(this.partyPanel);
+    this.partySignature = '';
+
+    this.settingsPanel = h('div', 'panel settings-panel');
+    this.settingsPanel.hidden = true;
+    this.settingsPanel.setAttribute('role', 'dialog');
+    this.settingsPanel.setAttribute('aria-label', 'Settings');
+    const sc = h('button', 'close', '×');
+    sc.setAttribute('aria-label', 'Close settings');
+    sc.addEventListener('click', () => this.toggleSettings(false));
+    const qualityLabel = h('label', null, 'Graphics preset');
+    qualityLabel.setAttribute('for', 'graphics-quality');
+    this.qualitySelect = h('select');
+    this.qualitySelect.id = 'graphics-quality';
+    for (const [value, name] of [['2', 'High'], ['1', 'Medium'], ['0', 'Low']]) {
+      const opt = h('option', null, name);
+      opt.value = value;
+      this.qualitySelect.append(opt);
+    }
+    this.qualitySelect.value = new URLSearchParams(location.search).get('q') || '2';
+    const applyQuality = h('button', 'primary', 'Apply and reload');
+    applyQuality.addEventListener('click', () => this.a.quality(this.qualitySelect.value));
+    const plateLabel = h('label');
+    this.nameplatesSetting = h('input');
+    this.nameplatesSetting.type = 'checkbox';
+    let showNames = true;
+    try { showNames = localStorage.getItem('attunement.showNameplates') !== '0'; } catch {}
+    this.nameplatesSetting.checked = showNames;
+    document.body.classList.toggle('hide-nameplates', !showNames);
+    this.nameplatesSetting.addEventListener('change', () => {
+      document.body.classList.toggle('hide-nameplates', !this.nameplatesSetting.checked);
+      try { localStorage.setItem('attunement.showNameplates', this.nameplatesSetting.checked ? '1' : '0'); } catch {}
+    });
+    plateLabel.append(this.nameplatesSetting, document.createTextNode(' Show world nameplates'));
+    this.settingsPanel.append(sc, h('h2', null, 'Settings'),
+      qualityLabel, this.qualitySelect, applyQuality,
+      h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
+      plateLabel,this.loot.settings(),this.radio.settings());
+    root.append(this.settingsPanel);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -249,30 +577,32 @@ export class UI {
       ['Right-drag', 'Steer: turn the camera and your character'],
       ['Left-drag', 'Look around without turning'],
       ['Both buttons', 'Run forward'],
+      ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
+      ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
+      ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
-      ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
+      ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
-      ['F1 / F2', 'Target yourself / inspect companion (Esc closes)'],
+      ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
-      ['Shift + 1 – 3', 'Companion: Triage / Bond / Harry'],
-      ['F', 'Interact with what is in front of you'],
+      ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
+      ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['V', 'Reset the camera behind you'],
-      ['C', 'Build: devices, implants, glyphs'],
-      ['Enter', 'Chat'],
+      ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
+      ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
+      ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
+      ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
+      ['P', 'Party: invite, accept, leave'],
+      ['O', 'Settings: graphics preset, nameplates'],
+      ['M', 'Open the corner menu'],
+      ['H', 'Help and command reference'],
+      ['Enter / /', 'Open chat. /p switches to party; /v switches to vicinity. Type a space or press Enter after the command.'],
+      ['Chat icon', 'Choose vicinity or party. Right-click a player for private whispers.'],
     ];
     const table = h('div', 'keys');
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
     this.help.append(table);
-    const forget = h('button', 'danger', 'Abandon this character and create a new one');
-    forget.addEventListener('click', () => {
-      if (forget.dataset.armed) this.a.forget();
-      else {
-        forget.dataset.armed = '1';
-        forget.textContent = 'Click again to confirm — this cannot be undone from this browser';
-      }
-    });
-    this.help.append(forget);
     root.append(this.help);
 
     // Death overlay
@@ -286,6 +616,11 @@ export class UI {
     this.interact = h('div', 'interact');
     this.interact.hidden = true;
     root.append(this.interact);
+  }
+
+  setAccountLinked(linked) {
+    this.signoutBtn.hidden = !linked;
+    this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
   }
 
   /** Build the class-specific action bars once the class is known. */
@@ -341,7 +676,8 @@ export class UI {
       const r = el.getBoundingClientRect();
       const t = this.tooltip.getBoundingClientRect();
       this.tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2))}px`;
-      this.tooltip.style.top = `${Math.max(8, r.top - t.height - 10)}px`;
+      const above = r.top - t.height - 10;
+      this.tooltip.style.top = `${above >= 8 ? above : Math.max(8, Math.min(window.innerHeight - t.height - 8, r.bottom + 8))}px`;
     };
     const hide = () => {
       if (this.tipFor === el) this.tooltip.hidden = true;
@@ -412,51 +748,388 @@ export class UI {
     this.banner.classList.add('show');
   }
 
-  focusChat() {
+  focusChat(prefix='') {
+    this.setChatOptions(false);
     this.chat.focus();
+    if(prefix&&!this.chat.value)this.chat.value=prefix;
   }
 
   // --- panels ---------------------------------------------------------------
 
+  toggleMenu(force) {
+    this.menuItems.hidden = !(force ?? this.menuItems.hidden);
+  }
+
+  hideJournalPanels() {
+    if(document.activeElement === this.codexSearch) this.codexSearch.blur();
+    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
+    this.fieldRecordPanel.hidden=true;
+    this.npcId=0;
+    this.root.classList.remove('inventory-front');
+    this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
+    this.menuItems.hidden = this.tooltip.hidden = true;
+    this.closePlayerContext();
+    this.closeCompanionDetails();
+  }
+
   toggleBuild(force) {
     const open = force ?? this.panel.hidden;
+    this.hideJournalPanels();
     this.panel.hidden = !open;
     if (open) {
-      this.help.hidden = true;
       this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
   }
 
-  toggleHelp(force) {
-    const open = force ?? this.help.hidden;
-    this.help.hidden = !open;
-    if (open) this.panel.hidden = true;
+  toggleWorkshop(force,recipeId=null) {
+    const open=force??this.workshopPanel.hidden;
+    this.hideJournalPanels();
+    this.workshopPanel.hidden=!open;
+    if(!open)return;
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    renderWorkshop(this);
   }
 
-  /** Close any open panel. Returns true if something was closed. */
+  setInventoryOpacity(value) {
+    if(![100,80,60,40].includes(value))return;
+    this.inventoryOpacity=value;
+    this.inventoryPanel.style.setProperty('--inventory-alpha',String(value/100));
+    this.inventoryOpacityButton.title='Inventory opacity: '+value+'% · click to cycle';
+    this.inventoryOpacityButton.setAttribute('aria-label',this.inventoryOpacityButton.title);
+    try{localStorage.setItem('attunement.inventoryOpacity',String(value));}catch{}
+  }
+
+  toggleInventory(force) {
+    const open = force ?? this.inventoryPanel.hidden;
+    this.menuItems.hidden=true;
+    if(this.tipFor&&this.inventoryPanel.contains(this.tipFor))this.tooltip.hidden=true;
+    if(!open&&this.inventoryPanel.contains(document.activeElement))document.activeElement.blur();
+    this.inventoryPanel.hidden = !open;
+    this.root.classList.toggle('inventory-open',open);
+    this.root.classList.toggle('inventory-front',open);
+    if (open) renderInventory(this);
+  }
+
+  toggleCodex(force, id = null) {
+    const open = force ?? this.codexPanel.hidden;
+    this.hideJournalPanels();
+    this.codexPanel.hidden = !open;
+    if (!open) return;
+    if (id) {
+      this.codexQuery = '';
+      this.codexSearch.value = '';
+      const entry = ENTRIES.find(e => e.id === id);
+      if (entry) { this.codexGroup = entry.group; this.codexSelection = id; }
+    }
+    renderCodex(this, ICONS);
+  }
+
+  toggleParty(force) {
+    const open = force ?? this.partyPanel.hidden;
+    this.hideJournalPanels();
+    this.partyPanel.hidden = !open;
+    if (open) this.partySignature = '';
+  }
+
+  toggleSettings(force) {
+    const open = force ?? this.settingsPanel.hidden;
+    this.hideJournalPanels();
+    this.settingsPanel.hidden = !open;
+  }
+
+  renderParty(st) {
+    const data = st.you.party || { members: [], invite: null, cap: 4 };
+    const nearby = [...st.ents.values()].filter((e) => e.meta.k === 'p' && e.id !== st.me.id);
+    const signature = JSON.stringify([data, nearby.map((e) => [e.id, e.meta.n])]);
+    if (signature === this.partySignature) return;
+    this.partySignature = signature;
+    this.partyBody.replaceChildren();
+    if (data.invite) {
+      this.partyBody.append(h('p', null, `${data.invite.name} invited you to a party.`));
+      const accept = h('button', 'primary', 'Accept');
+      accept.addEventListener('click', () => this.a.partyAnswer(true));
+      const decline = h('button', null, 'Decline');
+      decline.addEventListener('click', () => this.a.partyAnswer(false));
+      this.partyBody.append(accept, decline);
+    }
+    if (data.members.length) {
+      this.partyBody.append(h('h3', null, `Members (${data.members.length} / ${data.cap})`));
+      for (const m of data.members) {
+        const row=h('div','party-member',`${m.name} · L${m.level} ${CLASSES[m.cls]?.name || m.cls}`);
+        if(m.id!==st.me.id){
+          row.tabIndex=0;
+          row.addEventListener('click',()=>{if(this.liveEntities?.get(m.id)?.meta.k==='p')this.a.target(m.id);});
+          this.bindPlayerContext(row,()=>m.id);
+        }
+        this.partyBody.append(row);
+      }
+      const leave = h('button', null, 'Leave party');
+      leave.addEventListener('click', () => this.a.partyLeave());
+      this.partyBody.append(leave);
+    } else this.partyBody.append(h('p', 'muted', 'No party. Invite a connected player to cooperate without attendance obligations.'));
+    const members = new Set(data.members.map((m) => m.id));
+    if (nearby.length && data.members.length < data.cap) {
+      this.partyBody.append(h('h3', null, 'Available players'));
+      for (const ent of nearby) {
+        if (members.has(ent.id)) continue;
+        const row = h('div', 'party-member');
+        row.tabIndex=0;
+        row.addEventListener('click',e=>{if(!e.target.closest('button')&&this.liveEntities?.get(ent.id)?.meta.k==='p')this.a.target(ent.id);});
+        this.bindPlayerContext(row,()=>ent.id);
+        row.append(h('span', null, ent.meta.n));
+        const invite = h('button', null, 'Invite');
+        invite.addEventListener('click', () => this.a.partyInvite(ent.id));
+        row.append(invite);
+        this.partyBody.append(row);
+      }
+    }
+  }
+
+  toggleHelp(force) {
+    const open = force ?? this.help.hidden;
+    this.hideJournalPanels();
+    this.help.hidden = !open;
+  }
+
+  setChatOptions(open) {
+    this.chatOptions.hidden=!open;
+    this.chatModeButton.setAttribute('aria-expanded',String(open));
+  }
+
+  updateChatChannel() {
+    const name=this.whisperTarget?'Whisper':this.chatChannel==='party'?'Party':'Vicinity';
+    this.chatChannelLabel.textContent=name;
+    this.chatModeButton.dataset.channel=this.whisperTarget?'whisper':this.chatChannel;
+    this.chat.placeholder=this.whisperTarget?'Whisper to '+this.whisperTarget.name:'Press Enter to talk';
+    this.chat.setAttribute('aria-label',this.whisperTarget?'Whisper to '+this.whisperTarget.name:name+' chat message');
+    for(const option of this.chatOptions.querySelectorAll('button'))option.setAttribute('aria-pressed',String(!this.whisperTarget&&option.dataset.channel===this.chatChannel));
+  }
+
+  selectChatChannel(channel) {
+    if(channel!=='party'&&channel!=='vicinity')return;
+    if(this.whisperTarget||this.chatChannel!==channel)this.chat.value='';
+    this.whisperTarget=null;
+    this.chatChannel=channel;
+    this.updateChatChannel();
+    this.setChatOptions(false);
+    this.chat.focus();
+  }
+
+  resetChatTarget() {
+    this.whisperTarget = null;
+    this.chat.value = '';
+    this.updateChatChannel();
+    this.setChatOptions(false);
+    this.chat.blur();
+  }
+
+  // All player surfaces use the same live-entity resolution and menu.
+  bindPlayerContext(el, getId) {
+    const open=(x,y)=>{
+      const ent=this.liveEntities?.get(getId());
+      if(!ent||ent.meta.k!=='p'||ent.id===this.selfId)return false;
+      this.openPlayerContext(ent,x,y,el);
+      return true;
+    };
+    el.addEventListener('contextmenu', e=>{
+      if(open(e.clientX,e.clientY)){e.preventDefault();e.stopPropagation();}
+    });
+    el.addEventListener('keydown', e=>{
+      if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
+        const r=el.getBoundingClientRect();
+        if(open(r.left+12,r.bottom)){e.preventDefault();e.stopPropagation();}
+      }
+    });
+  }
+
+  closePlayerContext(restoreFocus=false) {
+    if(this.playerContext.contains(document.activeElement))document.activeElement.blur();
+    this.playerContext.hidden=true;
+    const anchor=this.contextAnchor;
+    this.contextAnchor=null;
+    this.contextPlayerId=0;
+    if(restoreFocus&&anchor?.isConnected&&anchor.tabIndex>=0)anchor.focus();
+  }
+
+  openPlayerContext(ent, x, y, anchor=null) {
+    ent=this.liveEntities?.get(ent?.id);
+    if(!ent||ent.meta.k!=='p'||ent.id===this.selfId)return;
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    const id=ent.id;
+    this.contextPlayerId=id;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',ent.meta.n));
+    const action=(label,cb)=>{
+      const btn=h('button',null,label);
+      btn.type='button';
+      btn.addEventListener('click',()=>{
+        this.closePlayerContext();
+        const current=this.liveEntities?.get(id);
+        if(current?.meta.k==='p'&&id!==this.selfId)cb(current);
+        else this.error('That player is unavailable.');
+      });
+      this.playerContext.append(btn);
+    };
+    action('Invite to party',()=>this.a.partyInvite(id));
+    if(this.a.isFollowing(id))action('Stop following',()=>this.a.stopFollowing(id));
+    else action('Follow',()=>this.a.followPlayer(id));
+    action('Whisper',current=>{
+      // A draft for a different recipient must never be silently redirected.
+      this.chat.value='';
+      this.whisperTarget={id,name:current.meta.n};
+      this.updateChatChannel();
+      this.setChatOptions(false);
+      this.chat.focus();
+    });
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=`${Math.max(8,Math.min(window.innerWidth-w-8,x))}px`;
+    this.playerContext.style.top=`${Math.max(8,Math.min(window.innerHeight-hgt-8,y))}px`;
+    this.playerContext.querySelector('button')?.focus({preventScroll:true});
+  }
+
+  itemAction(id,action) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return this.error('Item is unavailable.');
+    if(this.buildLock)return this.error('Equipment changes are locked in combat or defeat.');
+    const slot=ITEMS[id].slot, installed=s.equipped[slot]===id;
+    if((action==='remove'&&!installed)||(action==='equip'&&installed))return;
+    const res=action==='remove'?tryUnequip(s,slot):tryEquip(s,id);
+    if(!res.ok)return this.error(res.reason);
+    if(action==='remove')this.a.unequip(slot);
+    else this.a.equip(id);
+  }
+
+  openItemContext(id,x,y,anchor) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return;
+    const item=ITEMS[id],installed=s.equipped[item.slot]===id,action=installed?'remove':'equip';
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',item.name));
+    const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+    const equip=h('button',null,installed?'Unequip':s.equipped[item.slot]?'Swap in':'Equip');
+    equip.disabled=!!this.buildLock||!res.ok;
+    equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
+    this.playerContext.append(equip);
+    if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
+    this.playerContext.append(info);
+    const recipe=Object.entries(RECIPES).find(([,r])=>r.target===id&&r.kind==='upgrade');
+    if(recipe){const upgrade=h('button',null,'Upgrade · Workshop');upgrade.addEventListener('click',()=>{this.closePlayerContext();this.toggleWorkshop(true,recipe[0]);});this.playerContext.append(upgrade);}
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=Math.max(8,Math.min(window.innerWidth-w-8,x))+'px';
+    this.playerContext.style.top=Math.max(8,Math.min(window.innerHeight-hgt-8,y))+'px';
+    this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  }
+
+  showFieldRecord(key) {
+    const record=FIELD_RECORDS[key];if(!record)return;
+    const panel=this.fieldRecordPanel;panel.replaceChildren();
+    const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
+    close.addEventListener('click',()=>{panel.hidden=true;});
+    panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    const lines=h('div','field-record-lines');
+    for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
+    panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
+  }
+
+  openNpc(ent) {
+    if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
+    this.hideJournalPanels();
+    this.npcId=ent.id;
+    const panel=this.npcPanel;
+    panel.replaceChildren();
+    const close=h('button','close','×');
+    close.setAttribute('aria-label','Close NPC interaction');
+    close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
+    const content=h('div','npc-content');
+    const art=this.a.portrait(ent.meta);
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
+    const details=h('div','npc-options');
+    this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
+    const talk=h('button','primary','Talk');
+    talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
+    const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
+    content.append(details);panel.append(close,content);panel.hidden=false;
+  }
+
+  showNpcDialogue(id,message) {
+    if(id===this.npcId&&!this.npcPanel.hidden)this.npcDialogue.textContent=message;
+  }
+
+  openCompanionDetails(ent, kind) {
+    if (!ent || ent.meta.k !== 'c') return;
+    if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
+    if (ent.id !== this.companionId) return;
+    this.hideJournalPanels();
+    this.dialogCompanionId = ent.id;
+    this.inspectName.textContent = 'Rename companion';
+    this.inspectSub.textContent = '3–18 letters, spaces or hyphens. Outside combat.';
+    this.renameRow.hidden = false;
+    this.codexBody.hidden = true;
+    this.renameInput.value = ent.meta.n;
+    this.inspectBox.hidden = false;
+    this.renameInput.focus();
+    this.renameInput.select();
+  }
+
+  closeCompanionDetails() {
+    if (this.inspectBox.contains(document.activeElement)) document.activeElement.blur();
+    this.inspectBox.hidden = true;
+    this.dialogCompanionId = 0;
+  }
+
+  /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden;
+    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
+    this.fieldRecordPanel.hidden=true;
+    this.npcId=0;
+    this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
+    this.closePlayerContext();
+    this.menuItems.hidden = true;
     this.panel.hidden = true;
+    this.partyPanel.hidden = true;
+    this.settingsPanel.hidden = true;
     this.help.hidden = true;
     this.tooltip.hidden = true;
-    if (!this.inspectBox.hidden) this.a.closeInspect();
+    this.closeCompanionDetails();
+    if (this.selectedCompanionId) this.a.closeInspect();
     return any;
   }
 
   setSheet(sheet) {
-    const grew = this.sheet && sheet.inventory.length > this.sheet.inventory.length;
+    const previous=this.sheet;
+    if(previous&&previous.name===sheet.name&&previous.cls===sheet.cls){
+      for(const id of sheet.inventory)if(!previous.inventory.includes(id))this.unseenItems.add(id);
+      for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
+    }else this.unseenItems.clear();
     this.sheet = sheet;
     this.setClass(sheet.cls);
-    if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
+    if (!this.inventoryPanel.hidden) renderInventory(this);
+    if(!this.workshopPanel.hidden)renderWorkshop(this);
 
+    set(this.surveyText, 'text', brineHint(sheet.survey,sheet.brineStage,null));
     const q = sheet.quest;
-    const d = DIRECTIVES[q.step];
+    const d = directiveFor(sheet.cls, q.step);
     if (d) {
       set(this.trackerTitle, 'text', d.title);
       set(this.trackerText, 'text', d.text);
-      set(this.trackerProgress, 'text', d.goal.kill ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} defeated` : '');
+      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful strikes' : 'defeated'}` : '');
     } else {
       set(this.trackerTitle, 'text', 'The Reach is yours');
       set(this.trackerText, 'text', 'Every directive is complete. Experiment with your glyphs and implants, or help another traveller.');
@@ -478,7 +1151,9 @@ export class UI {
     if (!s) return;
     const def = CLASSES[s.cls];
     const body = this.panelBody;
+    if (this.tipFor && body.contains(this.tipFor)) this.tooltip.hidden = true;
     body.replaceChildren();
+    const explain = (el, title, detail) => this.hover(el, () => [h('div', 'tip-title', title), h('div', 'tip-body', detail)]);
     if (this.buildLock) body.append(h('div', 'build-lock', this.buildLock === 'dead' ? 'Build changes are unavailable while defeated.' : 'Build changes are locked during combat. Disengage and wait for combat to end.'));
 
     // Column 1: who you are.
@@ -493,78 +1168,34 @@ export class UI {
       const v = h('span', `val${total > base ? ' changed' : ''}`, total > base ? `${base} + ${total - base} = ${total}` : String(total));
       v.title = total > base ? `${base} base + ${total - base} equipment = ${total} effective` : `${total} base / effective`;
       row.append(v);
+      explain(row, SKILL_NAMES[k], `${SKILL_INFO[k]} ${base} base + ${total - base} equipment = ${total}.`);
       c1.append(row);
     }
     c1.append(h('h3', null, 'Derived'));
-    const stat = (label, value, changed) => {
+    const stat = (label, value, changed, detail) => {
       const row = h('div', 'stat');
       row.append(h('span', null, label), h('span', `val${changed ? ' changed' : ''}`, value));
+      if (detail) explain(row, label, detail);
       c1.append(row);
     };
     const pct = (m) => `${m >= 1 ? '+' : ''}${Math.round((m - 1) * 100)}%`;
-    stat('Maximum health', String(s.stats.maxHp));
-    stat(`Power (from ${SKILL_NAMES[def.primary]})`, pct(s.stats.power), s.stats.power !== 1);
-    stat('Damage dealt', pct(s.stats.dmgMul), s.stats.dmgMul !== 1);
-    if (def.companion) stat('Healing done (you and symbiote)', pct(s.stats.healMul), s.stats.healMul !== 1);
+    stat('Maximum health', String(s.stats.maxHp), false, 'Total health capacity after level and equipment modifiers.');
+    stat(`Power (from ${SKILL_NAMES[def.primary]})`, pct(s.stats.power), s.stats.power !== 1, 'Multiplies damage and healing before other modifiers. Each primary skill point above 10 adds 2 percentage points.');
+    stat('Damage modifier', pct(s.stats.dmgMul), s.stats.dmgMul !== 1, 'Additional equipment damage multiplier, applied separately from Power.');
+    if (def.companion) stat('Healing modifier', pct(s.stats.healMul), s.stats.healMul !== 1, 'Additional equipment healing multiplier for you and your symbiote, separate from Power.');
     if (def.resource.id === 'charge') {
-      stat('Charge generation', pct(s.stats.chargeMul), s.stats.chargeMul !== 1);
-      stat('Discharge reach', `${ABILITIES.discharge.radius + s.stats.dischargeRadius}m`, s.stats.dischargeRadius > 0);
+      stat('Charge generation', pct(s.stats.chargeMul), s.stats.chargeMul !== 1, 'Equipment multiplier for Charge gained by your abilities and combat actions.');
+      stat('Discharge reach', `${ABILITIES.discharge.radius + s.stats.dischargeRadius}m`, s.stats.dischargeRadius > 0, 'Area radius of Discharge around your character.');
     }
     c1.append(h('h3', null, 'Attunements'));
-    if (s.attunements.length) for (const a of s.attunements) c1.append(h('div', 'attune', `◈ ${ATTUNEMENT_NAMES[a]}`));
+    if (s.attunements.length) for (const a of s.attunements) {
+      const entry = h('div', 'attune', `◈ ${ATTUNEMENT_NAMES[a]}`);
+      if (a === 'resonance') explain(entry, 'Resonance', 'Granted by interacting with the Listening Stone. Unlocks Resonance-dependent glyphs; does not itself increase Power.');
+      c1.append(entry);
+    }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
 
-    // Column 2: what is installed.
-    const c2 = h('section', 'pcol');
-    c2.append(h('h2', null, 'Loadout'));
-    for (const slot of SLOTS) {
-      const id = s.equipped[slot];
-      const card = h('div', `card slotcard${id ? '' : ' empty'}`);
-      card.append(h('div', 'kicker', SLOT_NAMES[slot]));
-      if (id) {
-        card.append(h('div', 'iname', ITEMS[id].name), h('div', 'idesc', ITEMS[id].desc));
-        const res = tryUnequip(s, slot);
-        const btn = h('button', null, 'Remove');
-        btn.disabled = !res.ok || !!this.buildLock;
-        btn.addEventListener('click', () => this.a.unequip(slot));
-        card.append(btn);
-        if (!res.ok) {
-          card.append(h('div', 'why', res.reason));
-          if (res.item && res.item !== id && ITEMS[res.item]) card.append(h('div', 'why-next', `Remove or replace ${ITEMS[res.item].name} first, or preserve its requirements with different equipment.`));
-        }
-      } else {
-        card.append(h('div', 'muted', slot === 'device' ? 'Devices lend you skill.' : slot === 'implant' ? 'Implants demand skill and reshape your power.' : 'A glyph rewrites how one power behaves.'));
-      }
-      c2.append(card);
-    }
-
-    // Column 3: what you carry.
-    const c3 = h('section', 'pcol wide');
-    c3.append(h('h2', null, 'Inventory'));
-    const spare = s.inventory.filter((id) => s.equipped[ITEMS[id].slot] !== id);
-    if (!s.inventory.length) c3.append(h('div', 'muted', 'Empty. Follow your directive — the Reach provides.'));
-    else if (!spare.length) c3.append(h('div', 'muted', 'Everything you own is installed.'));
-    for (const id of spare) {
-      const item = ITEMS[id];
-      const card = h('div', 'card');
-      card.append(h('div', 'kicker', SLOT_NAMES[item.slot]), h('div', 'iname', item.name), h('div', 'idesc', item.desc));
-      for (const r of describeRequirements(s, id)) {
-        const line = h('div', `req ${r.met ? 'met' : 'unmet'}`, `${r.met ? '✓' : '✗'} ${r.text}`);
-        if (r.detail) {
-          line.title = r.detail;
-          line.setAttribute('aria-label', `${r.text}. ${r.detail}`);
-        }
-        card.append(line);
-      }
-      const res = tryEquip(s, id);
-      const btn = h('button', res.ok ? 'primary' : '', s.equipped[item.slot] ? 'Swap in' : 'Equip');
-      btn.disabled = !res.ok || !!this.buildLock;
-      btn.addEventListener('click', () => this.a.equip(id));
-      card.append(btn);
-      if (!res.ok) card.append(h('div', 'why', res.reason));
-      c3.append(card);
-    }
-    body.append(c1, c2, c3);
+    renderLoadout(this, body, c1);
   }
 
   // --- per-frame ------------------------------------------------------------
@@ -574,11 +1205,15 @@ export class UI {
     set(f.hp.label, 'text', `${hp} / ${max}`);
   }
 
-  buffChips(el, keys) {
-    const sig = keys.join(',');
+  buffChips(el, keys, barrier=null) {
+    const sig = keys.join(',')+'|'+(barrier?`${barrier.remaining}/${barrier.capacity}/${Math.ceil(barrier.ms/1000)}`:'');
     if (el._sig === sig) return;
     el._sig = sig;
-    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => h('span', `chip ${BUFFS[k][1]}`, BUFFS[k][0])));
+    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
+      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
+      if(k==='shield')chip.title='Damage absorption; finite capacity, not a solid collision wall.';
+      return chip;
+    }));
   }
 
   /**
@@ -586,31 +1221,59 @@ export class UI {
    */
   update(st) {
     const { me, you, target } = st;
+    this.currentTarget = target;
+    this.selfId = me?.id;
+    this.liveEntities = st.ents;
+    if(this.contextPlayerId&&!st.ents.has(this.contextPlayerId))this.closePlayerContext();
+    set(this.moveStatus, 'hidden', !st.movement);
+    set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
+    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
+    set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
+    const site=you.workshop??(you.safe?'sanctum':null);
+    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock;
+    this.workshopSite=site;this.atSanctum=!!you.safe;
+    set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
+    set(this.rescueStatus,'hidden',you.rescueReady===undefined);
+    if(you.rescueReady!==undefined)set(this.rescueStatus,'text',you.rescueReady?'Rescue Lattice · emergency barrier ready':'Rescue Lattice · re-arms after combat');
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
+      if (!this.inventoryPanel.hidden) renderInventory(this);
     }
+    if(workshopChanged&&!this.workshopPanel.hidden)renderWorkshop(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
-    this.buffChips(this.player.buffs, me.row.b || []);
+    this.buffChips(this.player.buffs, me.row.b || [], you.barrier);
+    const kit = you.surveyKit;
+    set(this.surveyStatus, 'hidden', !kit && you.keeperShield===undefined);
+    if (you.keeperShield!==undefined) set(this.surveyStatus,'text','Own barrier: '+you.keeperShield+' · Reversal consumes available protection');
+    if (kit) {
+      const marked = kit.mark && st.ents.get(kit.mark);
+      const markText = marked && kit.markMs > 0 ? 'Analyzed: ' + marked.meta.n + ' · ' + Math.ceil(kit.markMs / 1000) + 's' : 'Scan a target [1]';
+      const rigText = kit.rigMs > 0 ? 'Rig: ' + Math.ceil(kit.rigMs / 1000) + 's · ' + kit.rigDistance.toFixed(1) + 'm · ' + (kit.rigDistance <= SURVEYOR.rechargeRadius ? 'charging' : kit.rigDistance <= SURVEYOR.remoteRange ? 'remote ready' : 'out of remote range') : 'Deploy rig [3]';
+      set(this.surveyStatus, 'text', markText + ' | ' + rigText);
+    }
 
     // Target frame
     set(this.target.el, 'hidden', !target);
     if (target) {
-      const hostile = target.meta.k === 'e';
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
+      const enemy = target.meta.k === 'e';
+      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
+      const hostile = enemy && !neutral;
+      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
+      this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
@@ -626,39 +1289,23 @@ export class UI {
       }
     }
 
-    // Contextual companion inspection, anchored to the interaction point.
+    // World selection only reveals the nameplate icons. Do not open a panel.
     const inspected = st.inspect && st.ents.get(st.inspect.id);
-    set(this.inspectBox, 'hidden', !inspected || inspected.meta.k !== 'c');
-    if (inspected && inspected.meta.k === 'c') {
-      const owner = st.ents.get(inspected.meta.o);
-      const c = inspected.row;
-      const mode = COMPANIONS[inspected.meta.c]?.modes[c.md];
-      const who = st.ents.get(c.t);
-      const action = c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : ACT_TEXT[c.a] || c.a;
-      set(this.inspectName, 'text', inspected.meta.n);
-      set(this.inspectSub, 'text', `${owner?.meta.n || 'Unknown owner'} · ${mode?.name || c.md}`);
-      set(this.inspectAction, 'text', who && c.a !== 'idle' ? `${action} ${who.meta.n}` : action);
-      if (st.inspect !== this.inspectAt) {
-        const { x, y } = st.inspect;
-        const w = this.inspectBox.offsetWidth || 250;
-        const h = this.inspectBox.offsetHeight || 90;
-        const left = x + w + 12 > window.innerWidth ? x - w - 12 : x;
-        this.inspectBox.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, left))}px`;
-        this.inspectBox.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y))}px`;
-        this.inspectAt = st.inspect;
-      }
-    } else this.inspectAt = null;
+    this.selectedCompanionId = inspected?.id || 0;
+    if (this.dialogCompanionId && !st.ents.has(this.dialogCompanionId)) this.closeCompanionDetails();
 
     // Companion frame
     this.companionId = st.comp?.id || 0;
+    this.currentCompanion = st.comp;
     if (st.comp) {
       const c = st.comp.row;
+      this.activePetMode = c.md;
       const cdef = COMPANIONS[def.companion];
-      set(this.petName, 'text', `${cdef.name} — ${cdef.modes[c.md].name}`);
+      set(this.petName, 'text', st.comp.meta.n);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
-      const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
-      set(this.petAct, 'text', whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act);
+      const act = c.a === 'idle' && c.md === 'stay' ? 'Holding position' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
+      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
       for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
     }
@@ -667,12 +1314,13 @@ export class UI {
     // ignore range. Hostile abilities and right-click can also engage it.
     const autoTarget = target?.meta.k === 'e' && !target.dead;
     const engaging = !!you.auto;
+    const obstructed = !!target && you.losTarget === target.id && you.los === 0;
     const reach = def.auto.range;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
     set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     set(this.autoStatus, 'text', autoText);
 
     // Action bar
@@ -685,10 +1333,17 @@ export class UI {
       let usable = !me.dead;
       if (ab.cost && you.res < ab.cost) usable = false;
       if (ab.minRes && you.res < ab.minRes) usable = false;
+      if (kit) {
+        if (you.safe) usable = false;
+        if (b.id === 'core_bore' && (kit.mark !== target?.id || kit.markMs <= 0)) usable = false;
+        if (b.id === 'field_rig' && kit.rigMs > 0) usable = false;
+        if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
+      }
+      if(b.id==='resonant_reversal' && !(you.keeperShield>0))usable=false;
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;
-        else if (st.dist(target) > ab.range) ranged = false;
+        else if (st.dist(target) > ab.range || obstructed) ranged = false;
       } else if (ab.type === 'friendly' && target && target.meta.k === 'p' && target.id !== me.id && st.dist(target) > ab.range) ranged = false;
       b.el.classList.toggle('unusable', !usable);
       b.el.classList.toggle('far', usable && !ranged);
@@ -704,6 +1359,8 @@ export class UI {
         row = unitFrame('ally');
         row.el.setAttribute('role', 'button');
         row.el.addEventListener('click', () => this.a.target(ent.id));
+        row.el.tabIndex=0;
+        this.bindPlayerContext(row.el,()=>ent.id);
         this.party.append(row.el);
         this.partyRows.set(ent.id, row);
       }
@@ -721,6 +1378,8 @@ export class UI {
       }
     }
 
+    if (!this.partyPanel.hidden) this.renderParty(st);
+
     // Death
     set(this.death, 'hidden', !me.dead);
     if (me.dead) {
@@ -730,7 +1389,8 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -745,9 +1405,36 @@ export class UI {
       const hp = h('div', 'php');
       const fill = h('div', 'pfill');
       hp.append(fill);
-      el.append(name, hp);
+      let actions = null, rename = null;
+      if (ent.meta.k === 'c') {
+        const head = h('div', 'plate-head');
+        actions = h('div', 'companion-actions');
+        actions.hidden = true;
+        rename = companionIcon('rename', () => this.openCompanionDetails(ent, 'rename'));
+        actions.append(rename, companionIcon('info', () => this.openCompanionDetails(ent, 'info')));
+        head.append(name, actions);
+        el.append(head, hp);
+      } else el.append(name, hp);
+      if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
+        el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
+        el.addEventListener('contextmenu',e=>{e.preventDefault();this.openNpc(this.liveEntities?.get(ent.id));});
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
+        el.dataset.npc='archivist';
+      }
+      if(ent.meta.k==='e'){
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
+      }
+      if(ent.meta.k==='p'){
+        el.dataset.playerId=String(ent.id);
+        el.tabIndex=0;
+        el.setAttribute('role','button');
+        el.addEventListener('click',()=>{if(this.liveEntities?.get(ent.id)?.meta.k==='p')this.a.target(ent.id);});
+        this.bindPlayerContext(el,()=>ent.id);
+      }
       this.overlay.append(el);
-      p = { el, name, hp, fill };
+      p = { el, name, hp, fill, actions, rename };
       this.plates.set(ent.id, p);
     }
     return p;
@@ -762,7 +1449,24 @@ export class UI {
   }
 
   clearPlates() {
+    this.radio.clear();this.loot.reset();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
+    this.closePanels();
+    // Do not carry an old character's visible inventory into a world reset.
+    this.toggleInventory(false);
+    this.inventorySelection = this.loadoutSelection = null;
+    this.loadoutTab = 'character';
+    this.loadoutSlot = null;
+    this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
+    this.codexQuery = this.codexSearch.value = '';
+    this.selectedCompanionId = 0;
+    this.currentCompanion = null;
+    this.companionId = 0;
+    this.closePlayerContext();
+    this.liveEntities=null;
+    this.dragItem=null;
+    this.chatChannel='vicinity';
+    this.resetChatTarget();
   }
 
   /** Position a nameplate at screen coordinates, or hide it. */
@@ -776,6 +1480,16 @@ export class UI {
     p.el.style.transform = `translate(-50%, -100%) translate(${screen.x.toFixed(1)}px, ${screen.y.toFixed(1)}px)`;
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
+    if(ent.meta.k==='p') p.el.setAttribute('aria-label',opts.label+' player');
+    if(ent.meta.k==='e'&&p.el.dataset.lootable!==String(!!opts.lootable)){
+      p.el.dataset.lootable=String(!!opts.lootable);
+      if(opts.lootable){p.el.tabIndex=0;p.el.setAttribute('role','button');p.el.setAttribute('aria-label','Loot '+ent.meta.n);}
+      else{p.el.removeAttribute('tabindex');p.el.removeAttribute('role');p.el.removeAttribute('aria-label');}
+    }
+    if (p.actions) {
+      set(p.actions, 'hidden', !opts.selected);
+      set(p.rename, 'hidden', !opts.owned);
+    }
     set(p.hp, 'hidden', !opts.hp);
     if (opts.hp) set(p.fill, 'width', `${opts.hp * 100}%`);
   }
@@ -808,7 +1522,7 @@ export class UI {
     // Top-down with north (-Z) up and east (+X) to the right.
     const X = (x) => x * k;
     const Z = (z) => z * k;
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff' };
+    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
@@ -827,7 +1541,7 @@ export class UI {
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
       g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? '#ff6a5a' : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
+      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
       g.fill();
     }
     // Player arrow
