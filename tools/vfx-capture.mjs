@@ -95,6 +95,9 @@ try {
     if (only && !abilities.some((a) => `${cls}-${a}`.includes(only)) && !cls.includes(only)) continue;
     const enemy = skitters[i++ % skitters.length];
     const c = await join(`Fx${cls.slice(0, 6)}`, cls);
+    // Harness setup only: software frames take seconds, so keep the staged
+    // player alive while several enemies are aggroed.
+    const keep = setInterval(() => { if (!c.p.dead) c.p.hp = c.p.maxHp; }, 100);
     await stage(c, enemy, cls === 'vanguard' ? 2.6 : 6);
     for (const ab of abilities) {
       if (only && !`${cls}-${ab}`.includes(only)) continue;
@@ -107,6 +110,7 @@ try {
     }
     // A plain auto-attack / hit exchange.
     await shot(c, `${cls}-ambient-combat`, 1200);
+    clearInterval(keep);
     await c.ctx.close();
   }
 } catch (err) {

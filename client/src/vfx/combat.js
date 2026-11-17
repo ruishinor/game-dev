@@ -88,7 +88,7 @@ export class CombatVfx {
     if (e.k === 'melee' && s && !hostile && e.ab !== 'rending_arc') {
       this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: 1.6, color: hot(c, 0.2), sweep: 2.0, tilt: (this.v.rand() - 0.5) * 0.9, life: 0.24, alpha: 0.75, reverse: this.v.rand() < 0.5 });
     } else if (e.k === 'melee' && hostile) {
-      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1.2, this.radiusOf(s) * 1.3), color: PALETTE.hostile, sweep: 1.8, tilt: 0.6, life: 0.26, alpha: 0.65 });
+      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1, this.radiusOf(s) * 1.1), color: PALETTE.hostile, sweep: 1.5, tilt: 0.6, life: 0.22, alpha: 0.4 });
     }
     if (heavy) this.v.flash({ at, color: c, intensity: 10, life: 0.22 });
   }
@@ -212,9 +212,9 @@ export class CombatVfx {
     if (e.k === 'survey_blast') {
       const f = [e.x, e.y, e.z];
       const up = [e.x, e.y + 0.8, e.z];
-      v.flash({ at: up, color: 0xffb060, intensity: 30, life: 0.5, distance: e.r * 3 });
-      v.burst({ at: up, count: 1, exact: true, cell: CELL.flare, color: 0xffffff, color2: 0xffb060, size: e.r * 1.4, sizeEnd: e.r * 0.4, life: 0.25, speed: 0 });
-      v.burst({ at: up, shape: 'sphere', radius: 0.6, count: 26, cell: CELL.glow, color: 0xfff0c0, color2: 0xff6a20, size: [0.6, 1.1], sizeEnd: [0.1, 0.2], life: [0.3, 0.6], speed: [1.5, e.r * 1.1], drag: 3 });
+      v.flash({ at: up, color: 0xffb060, intensity: 16, life: 0.45, distance: e.r * 2.5 });
+      v.burst({ at: up, count: 1, exact: true, cell: CELL.flare, color: 0xffffff, color2: 0xffb060, size: Math.min(4, e.r * 0.65), sizeEnd: 0.4, life: 0.22, speed: 0 });
+      v.burst({ at: up, shape: 'sphere', radius: 0.6, count: 26, cell: CELL.glow, color: 0xffd8a0, color2: 0xff6a20, size: [0.45, 0.8], sizeEnd: [0.1, 0.2], life: [0.3, 0.6], speed: [1.5, e.r * 1.1], drag: 3 });
       v.burst({ at: up, shape: 'sphere', radius: 0.8, count: 16, blend: 'alpha', cell: CELL.smoke, color: 0x4a3c34, color2: 0x2a2624, size: [0.9, 1.4], sizeEnd: [2.4, 3.2], life: [1.4, 2.2], speed: [0.6, 2], dir: [0, 1, 0], spread: 1.2, drag: 1.2, gravity: -0.6, alpha: 0.55, spin: [-0.5, 0.5] });
       v.burst({ at: up, count: 22, cell: CELL.shard, color: 0xffd090, color2: 0xa06030, size: [0.12, 0.22], life: [0.6, 1.1], speed: [4, 9], dir: [0, 1, 0], spread: 1.1, gravity: 14, spin: [-8, 8] });
       v.shock({ at: f, radius: e.r, color: 0xffa050, life: 0.6, width: 0.07 });
@@ -270,7 +270,7 @@ export class CombatVfx {
       v.flash({ at: s.chest, color: PALETTE.restore, intensity: 16, life: 0.6, distance: e.r * 2 });
       v.sigil({ at: f, radius: e.r, style: 'restorative', color: PALETTE.restore, life: 1.7, spin: 0.6, grow: 0.15 });
       v.shock({ at: f, radius: e.r, color: PALETTE.teal, life: 0.8 });
-      v.shell({ at: f, radius: Math.min(e.r, 6), color: PALETTE.restore, kind: 'dome', life: 1, alpha: 0.35, streak: 1.2 });
+      v.shell({ at: f, radius: Math.min(e.r, 6), color: PALETTE.restore, kind: 'dome', life: 1, alpha: 0.16, streak: 0.5 });
       v.burst({ at: f, shape: 'disc', radius: e.r * 0.8, ground: true, lift: 0.2, count: 46, cell: [CELL.petal, CELL.spore, CELL.cross], color: hot(PALETTE.restore, 0.4), color2: PALETTE.teal, size: [0.1, 0.22], sizeEnd: 0.03, life: [1, 1.8], speed: [0.8, 2], dir: [0, 1, 0], spread: 0.5, drag: 0.8, swirl: 1.2, spin: [-2, 2] });
     } else if (e.k === 'resonance_burst') {
       v.shock({ at: f, radius: Math.min(e.r, 24), color: PALETTE.graviton, life: 0.9, width: 0.04 });
