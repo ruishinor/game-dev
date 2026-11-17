@@ -118,6 +118,7 @@ export class Net {
           break;
         case 'account_fail':
           this.pendingAccount = null;
+          this.pendingClaim = false;
           if (/session expired/i.test(m.reason || '')) {
             this.accountToken = null;
             this.accountLogged = false;
