@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
-import { useAbility } from '../../server/sim/combat.js';
+import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null });
@@ -11,6 +11,9 @@ try {
   fs.mkdirSync('preview-evidence', { recursive: true });
   browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+  // Hosted Chromium may have no installed local voice. Verify transcript UX
+  // independently of machine audio, and do not launch an external speech service.
+  await page.addInitScript(()=>localStorage.setItem('attunement.radioVoice','0'));
   page.setDefaultTimeout(90000);
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -75,6 +78,16 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
+  await page.locator('.field-record').waitFor({state:'visible'});
+  await page.locator('.radio-panel[data-source="field"]').waitFor({state:'visible'});
+  assert.match(await page.locator('.radio-transcript').innerText(),/Return to Archivist Venn/);
+  assert.equal(await page.locator('.radio-portrait svg').count(),1);
+  assert.equal(await page.locator('.radio-wave i').count(),18);
+  assert.ok(await page.locator('.radio-panel').getByRole('button',{name:'Play voice'}).isVisible());
+  assert.match(await page.locator('.log').innerText(),/Return to Archivist Venn/);
+  await capture('preview-evidence/03-field-radio.png');
+  await page.getByRole('button',{name:'Dismiss transmission'}).click();
+  await page.locator('#view').focus();
   await capture('preview-evidence/03-field-evidence.png');
   await moveTo(6.2, -2.6);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'archivist'));
@@ -89,7 +102,7 @@ try {
   await moveTo(49,-36.5);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.ms > 0);
-  await capture('preview-evidence/05-live-test.png');
+  assert.match(await page.locator('.tracker').last().innerText(),/LIVE TEST/);
   await moveTo(39,-30);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
@@ -97,12 +110,117 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
+  await page.locator('.field-record').waitFor({state:'visible'});
+  assert.match(await page.locator('.field-record').innerText(),/SHIFT LEDGER 07/);
   await capture('preview-evidence/06-commissioned.png');
-  await moveTo(6, 58);
+  await moveTo(49,-36.5);
+  await page.waitForFunction(()=>window.__attune.state().you.workshop==='brine_engineering');
+  await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
+  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
+  await workshop.waitFor();
+  const baseline=JSON.stringify({equipped:p.char.equipped,inventory:p.char.inventory,materials:p.char.materials});
+  await workshop.locator('.workshop-tutorial').waitFor();
+  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Lesson 1 \/ 4/);
+  await workshop.getByRole('button',{name:'Next',exact:true}).click();
+  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Recover components/);
+  await workshop.locator('[data-recipe="coupler"]').click();
+  assert.equal(await workshop.locator('.recipe-part [data-art="sentinel_alloy"] svg').count(),1);
+  assert.equal(await workshop.locator('.recipe-part [data-art="mire_fibre"] svg').count(),1);
+  assert.equal(await workshop.locator('.recipe-result [data-art="kinetic_coupler"] svg').count(),1);
+  await workshop.locator('[data-recipe="aegis_rectifier"]').click();
+  assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
+  assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
+  assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
+  assert.equal(await workshop.locator('[data-craft="aegis_rectifier"]').isDisabled(),true);
+  await capture('preview-evidence/06b-workshop-tutorial.png');
+  await workshop.getByRole('button',{name:'Next',exact:true}).click();
+  await workshop.getByRole('button',{name:'Next',exact:true}).click();
+  await workshop.getByRole('button',{name:'Finish tutorial',exact:true}).click();
+  assert.ok(await workshop.getByRole('button',{name:'Open tutorial',exact:true}).isVisible());
+  assert.equal(await page.evaluate(()=>localStorage.getItem('attunement.workshopTutorial')),'1');
+  assert.equal(JSON.stringify({equipped:p.char.equipped,inventory:p.char.inventory,materials:p.char.materials}),baseline);
+  await workshop.getByRole('button',{name:'Close Build'}).click();
+  await page.locator('#view').focus();
+  // Observe from the west, outside the predator's patrol. The earlier
+  // camera setup placed a stationary player inside its aggro radius.
+  await moveTo(-3, 58.4);
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Unlock is a fixture; deployment and sample collection use real server rules.
+  p.char.inventory.push('glyph_faultline');
+  p.char.attunements.push('resonance');
+  p.char.equipped.glyph='glyph_faultline';
+  server.game.refreshStats(p);
+  server.game.markDirty(p);
+  await moveTo(-3,58.4);
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.equipped.glyph==='glyph_faultline'&&s.ents.some(e=>e.c==='sinter_sampler');});
+  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('sinter:interferometer')));
+  const beforeSampleXp=p.char.xp;
+  // Actual ability; fixture only clears earlier cooldown from Brineworks for slow CI.
+  p.cds.field_rig=0;p.gcdUntil=0;
+  const deployment=useAbility(server.game,p,'field_rig');
+  assert.ok(deployment.ok,JSON.stringify({deployment,dead:p.dead,hp:p.hp,position:{x:p.x,z:p.z},rig:p.surveyKit?.rig,now:server.game.time,combatUntil:p.combatUntil}));
+  await page.locator('#view').focus();
+  await page.keyboard.press('f');
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
+  assert.equal(p.char.xp,beforeSampleXp);
+  await capture('preview-evidence/04c-strata-interferometer.png');
+  await moveTo(-39,-8);
+  await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.16,dist:10,face:-Math.PI/2}));
+  await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Kestrel Deep'));
+  await capture('preview-evidence/06-kestrel-approach.png');
+  const custodian=server.game.enemies.find(e=>e.type==='quarantine_custodian');
+  assert.ok(custodian);
+  p.hp=p.maxHp;
+  await moveTo(-53,-8);
+  await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.18,dist:6,face:-Math.PI/2}));
+  assert.ok(await page.evaluate(() => {
+    const scene=window.__attune.gfx.scene;
+    return ['kestrel:roof','kestrel:vessel:1701','kestrel:custodian','kestrel:recorder'].every(n=>scene.getObjectByName(n));
+  }));
+  // Verify actual mesh vertices fit the authoritative cylindrical envelope.
+  assert.ok(await page.evaluate(async () => {
+    const {Vector3}=await import('/vendor/three/three.module.js');
+    const scene=window.__attune.gfx.scene;
+    scene.updateMatrixWorld(true);
+    for(const seed of [1701,1702]){
+      const group=scene.getObjectByName('kestrel:vessel:'+seed);
+      if(!group)return false;
+      const origin=group.getWorldPosition(new Vector3()),v=new Vector3();
+      let max=0;
+      group.traverse(n=>{
+        if(!n.isMesh)return;
+        const p=n.geometry.attributes.position;
+        for(let i=0;i<p.count;i++){
+          v.fromBufferAttribute(p,i).applyMatrix4(n.matrixWorld).sub(origin);
+          max=Math.max(max,Math.hypot(v.x,v.z));
+        }
+      });
+      if(max>1.05+1e-5)return false;
+    }
+    return true;
+  }));
+  await capture('preview-evidence/07-kestrel-interior.png');
+  // A deterministic kill and cleared linger are setup for the recorder
+  // interaction; Node tests independently cover actual encounter rules.
+  // The actual damage API is used from the same room, never a wall bypass.
+  custodian.x=-55;custodian.z=-8;
+  if(custodian.state!=='dead') {
+    custodian.state='combat';
+    dealDamage(server.game,p,custodian,9999,'fixture');
+  }
+  p.combatUntil=0;
+  await moveTo(-59,-8);
+  await page.keyboard.press('f');
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('phase_damper'));
+  assert.ok(p.char.inventory.includes('sinter_laminate'));
+  await page.locator('.radio-panel[data-source="kestrel"]').waitFor({state:'visible'});
+  assert.match(await page.locator('.radio-transcript').innerText(),/Kestrel Phase Damper/);
+  assert.match(await page.locator('.log').innerText(),/Kestrel Phase Damper/);
+  await capture('preview-evidence/08-kestrel-recorder.png');
+  await moveTo(-39,-8);
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});

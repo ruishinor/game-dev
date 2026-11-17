@@ -21,7 +21,7 @@ jobs:
         if: github.base_ref == 'preview/playtest-pr4-5-6' || github.ref_name == 'feat/workshop-character-interactions'
         run: npm run e2e -- --workshop
       - name: Integrated two-player playtest
-        if: github.base_ref != 'preview/playtest-pr4-5-6' && github.ref_name != 'feat/workshop-character-interactions'
+        if: always() && github.ref_name != 'feat/workshop-character-interactions'
         run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: always()

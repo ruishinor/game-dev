@@ -148,6 +148,12 @@ test('combat vfx: every ability, area event and common event plays and fully exp
   for (const k of ['discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune']) c.area({ e: 'fx', k, s: 1, r: 6 }, s);
   for (const k of ['survey_blast', 'arc_pulse', 'seismic_slam']) c.area({ e: 'fx', k, x: 3, y: ground(3, 3), z: 3, r: 7 }, null);
   c.attuneLink(entity(4, 3, 3, 'o', 'stone'), s);
+  const obj = entity(6, 4, 4, 'o', 'sample');
+  for (const k of ['fault_shear', 'containment_sweep', 'carapace_echo']) assert.equal(c.area({ e: 'fx', k, s: 1, d: 9, x: 2, y: ground(2, 2), z: 2, r: 5 }, s, null, enemy), true, k);
+  for (const k of ['deep_record', 'sinter_sample', 'carapace_imprint']) assert.equal(c.area({ e: 'fx', k, s: 1, o: 6, mode: 'kinetic' }, s, obj), true, k);
+  // Unknown kinds are not claimed, so the caller keeps the original effect.
+  assert.equal(c.area({ e: 'fx', k: 'some_future_effect', s: 1 }, s), false);
+  c.relay(s, enemy);
   c.hit(s, enemy, { ab: 'auto', k: 'melee', a: 6 });
   c.hit(s, enemy, { ab: 'hurl', k: 'bolt', a: 6 });
   c.heal(s, s);

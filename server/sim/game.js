@@ -9,6 +9,7 @@ import { WORLD, OBJECTS, MOVE_HZ, dist, hasLineOfSight, stepMove, resolveCollisi
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
+import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 
@@ -50,6 +51,7 @@ export class Game {
         level: def.level,
         radius: def.radius,
         home: { x: s.x, z: s.z },
+        route: s.route ?? null,
         metaVer: 1,
       };
       resetEnemy(this, e);
@@ -303,7 +305,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0 };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
@@ -334,8 +336,10 @@ export class Game {
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
+      workshop:workshopSite(p),
       party: partyState(this, p),
     };
+    if(p.char.equipped.implant==='brine_rescue_lattice')y.rescueReady=!p.rescueSpent;
     if (p.brineTrial) y.brineTrial = { ms: Math.max(0,p.brineTrial.until-this.time), read:p.brineTrial.read };
     if (p.cls === 'surveyor') {
       const mark = p.surveyKit?.mark;

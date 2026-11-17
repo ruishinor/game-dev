@@ -1,0 +1,13 @@
+# Environmental inscription — Strata Interferometer
+
+The old drainage-bed probe remains operable. A maintenance note establishes the mineral-biological role of the Flats without assigning a definitive origin to Resonance. Two solo-capable field procedures recover the same unique Sinter Laminate available through the Faultstalker; hunting is optional, the grazing herd is not a resource farm.
+
+- Vanguard: Resonance attunement, Resonant Aegis inscribed and active Kinetic Ward while near the probe.
+- Conductor: Resonance attunement, Shared Pulse inscribed, Mender in Triage within 5m of the probe, and an active self-sourced Mending Graft (cast on yourself).
+- Press F to inspect for clues, then repeat after preparing the field. Existing range, defeat and combat gates apply. Once owned, the item cannot be granted again; no XP, quest-chain bypass, new slots, schema or crafting engine. The station is on the west side, away from the migration circuit.
+
+Simulated review: world design — purposeful scenery and noncombat alternative; mechanics — actual ability, glyph and companion-state predicates; narrative — pattern measurement, not a definitive magical explanation; art — grounded fork/collector assembly and brief link; accessibility — explicit text cues and reduced-motion presentation; adversarial — distance, death, missing attunement, combat, wrong mode, foreign/expired state and duplicate reward. Retrospective — reuse unique inventory and input contract rather than duplicating Workshop. Initial geometry validation encountered a pre-existing straight-segment collider intersection; compare actual collision-resolving patrol trajectories against the prior version instead of claiming each raw line is unobstructed. Node and browser evidence scenarios added; owner visual assessment and hardware profiling remain outstanding.
+
+
+## Combined-preview reconciliation
+Surveyor uses Faultline + a deployed nearby Field Rig; Keeper uses Hinge + a personal, self-projected positive barrier. Four distinct solo-capable paths now share the unique sampling outcome. Browser scenario uses actual Surveyor deployment and interaction with a glyph-unlock fixture; never assigns Conductor equipment to Surveyor. No repeat XP or new state. Existing Brineworks and Workshop steps retained.

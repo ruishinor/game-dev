@@ -564,6 +564,176 @@ function makeSurveyTerminal(ledger) {
   return { group, height: ledger ? 1.65 : 2.0, radius: 0.8, hover: 0, update() {} };
 }
 
+// Different body plans, shared primitive geometry; per-instance materials.
+function makeSinterFauna(predator) {
+  const group = new THREE.Group(), rig = new THREE.Group();
+  group.name = predator ? 'fauna:faultstalker' : 'fauna:sinter-grazer';
+  group.add(rig);
+  const shell = std(predator ? 0x756c5e : 0xb4a48a, { rough: 0.92 });
+  const dark = std(predator ? 0x343b37 : 0x5a6457, { rough: 0.75 });
+  const facet = std(predator ? 0x9c7959 : 0xd0c1a4, { rough: 0.68, metal: 0.14 });
+  const sensory = std(predator ? 0x9c582d : 0x777959, { rough: 0.45 });
+  const y = predator ? 1.12 : 0.61;
+  const torso = pivot(0, y, 0);
+  rig.add(torso);
+  torso.add(part(SPH, dark, predator ? 0.45 : 0.49, predator ? 0.43 : 0.29, 0.76));
+  for (let i = 0; i < 5; i++) {
+    const plate = part(ICO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
+    plate.rotation.z = (i % 2 ? 1 : -1) * 0.14;
+    torso.add(plate);
+  }
+  const head = pivot(0, predator ? 0.03 : -0.13, 0.66);
+  torso.add(head);
+  head.add(part(ICO, shell, predator ? 0.3 : 0.37, predator ? 0.32 : 0.18, 0.36, 0, 0, 0.15));
+  for (const side of [-1, 1]) {
+    head.add(part(SPH, sensory, 0.055, 0.055, 0.056, side * 0.23, 0.06, 0.26));
+    const jaw = part(CONE, dark, 0.10, predator ? 0.52 : 0.26, 0.12, side * 0.17, -0.08, 0.36);
+    jaw.rotation.x = Math.PI / 2.7;
+    head.add(jaw);
+    if (!predator) for (let i = 0; i < 3; i++) {
+      const rib = part(BOX, dark, 0.025, 0.13, 0.18, side * 0.34, -0.04, i * 0.12);
+      rib.rotation.z = side * 0.32;
+      head.add(rib);
+    }
+  }
+  const legs = [];
+  for (let i = 0; i < (predator ? 2 : 3); i++) for (const side of [-1, 1]) {
+    const length = predator ? (i === 0 ? 0.93 : 0.8) : 0.46;
+    const leg = pivot(side * 0.31, y - 0.11, 0.45 - i * (predator ? 0.92 : 0.44));
+    const upper = part(SPH, shell, predator ? 0.13 : 0.12, length * 0.39, 0.13, side * 0.11, -length * 0.29, 0.03);
+    upper.rotation.z = side * 0.47;
+    const knee = part(SPH, dark, 0.115, 0.115, 0.115, side * 0.24, -length * 0.54, 0.05);
+    const shin = part(SPH, facet, 0.09, length * 0.30, 0.09, side * 0.27, -length * 0.76, 0.04);
+    shin.rotation.z = -side * 0.11;
+    leg.add(upper, knee, shin, part(ICO, dark, 0.13, 0.07, 0.19, side * 0.28, -length * 0.99, 0.1));
+    rig.add(leg);
+    legs.push({ leg, side, i });
+  }
+  if (predator) for (const side of [-1, 1]) {
+    const fin = part(ICO, facet, 0.12, 0.38, 0.48, side * 0.33, 0.36, -0.13);
+    fin.rotation.z = -side * 0.25;
+    torso.add(fin);
+  }
+  const flash = flasher([shell, dark, facet, sensory]);
+  let phase = 0, fallen = 0;
+  return {
+    group, height: predator ? 1.85 : 1.03, radius: predator ? 0.85 : 0.62, hover: 0,
+    update(dt, st) {
+      const stride = Math.min(1, st.speed / (predator ? 3.4 : 1.7));
+      phase += dt * st.speed * 3.8;
+      for (const {leg, side, i} of legs) leg.rotation.x = Math.sin(phase + i * Math.PI + (side > 0 ? Math.PI : 0)) * stride * 0.48;
+      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055;
+      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? 0.02 : 0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
+      rig.rotation.z = fallen * 1.22;
+      rig.position.y = fallen * 0.16;
+      flash(st.hit || 0);
+    },
+    dispose() { for (const m of [shell, dark, facet, sensory]) m.dispose(); },
+  };
+}
+
+// Weathered, isolated sample frame with opposing probes and a removable cassette.
+function makeSinterSampler() {
+  const group = new THREE.Group();
+  group.name = 'sinter:interferometer';
+  const ceramic = std(0x8f8978, { rough: 0.83, metal: 0.12 });
+  const frame = std(0x4b504d, { rough: 0.7, metal: 0.52 });
+  const seal = std(0x343c39, { rough: 0.95 });
+  const brass = std(0x987e55, { rough: 0.56, metal: 0.52 });
+  const glass = std(0x899e8b, { rough: 0.26, metal: 0.16 });
+  group.add(part(BOX, frame, 1.27, 0.16, 0.9, 0, 0.08, 0));
+  group.add(part(BOX, ceramic, 0.92, 0.72, 0.7, 0, 0.55, 0));
+  group.add(part(BOX, seal, 0.85, 0.14, 0.68, 0, 0.95, 0));
+  for (const side of [-1,1]) {
+    group.add(part(BOX, frame, 0.14, 1.24, 0.26, side * 0.55, 0.78, -0.12));
+    group.add(part(BOX, brass, 0.23, 0.22, 0.28, side * 0.48, 1.36, 0.12));
+    const fork = part(CYL, frame, 0.095, 0.66, 0.095, side * 0.40, 1.39, 0.12);
+    fork.rotation.z = side * Math.PI / 2;
+    group.add(fork);
+    group.add(part(BOX, seal, 0.12, 0.35, 0.62, side * 0.47, 0.56, 0));
+    for (let i=0;i<3;i++) group.add(part(BOX, frame, 0.24, 0.045, 0.028, side * 0.24, 0.42+i*0.13, 0.37));
+  }
+  group.add(part(BOX, brass, 0.51, 0.15, 0.36, 0, 1.08, 0.1));
+  const sample = part(ICO, ceramic, 0.24, 0.16, 0.25, 0, 1.27, 0.10);
+  sample.rotation.y = 0.4;
+  group.add(sample);
+  group.add(part(BOX, seal, 0.52, 0.30, 0.10, 0, 0.79, 0.42));
+  const display = part(BOX, glass, 0.43, 0.18, 0.035, 0, 0.79, 0.49);
+  display.rotation.x = -0.10;
+  group.add(display);
+  return { group, height: 1.58, radius: 0.8, hover: 0, update() {},
+    dispose() { for(const m of [ceramic, frame, seal, brass, glass]) m.dispose(); } };
+}
+
+// Kestrel's maintenance chassis: three articulated walking struts support
+// an enclosed rotor pack, an asymmetric inspection arm and a recessed slit.
+function makeQuarantineCustodian() {
+  const group = new THREE.Group(), torso = pivot(0,1.15,0);
+  group.name = 'kestrel:custodian';
+  group.add(torso);
+  const shell = std(0x7b7d6c, {metal:0.42,rough:0.68});
+  const dark = std(0x313c3c, {metal:0.46,rough:0.64});
+  const trim = std(0x9b7443, {metal:0.3,rough:0.75});
+  const sensor = std(0x8e4e35,{emissive:0x55261a,ei:0.6,rough:0.55});
+  torso.add(part(ICO,shell,0.61,0.51,0.55));
+  torso.add(part(CYL,dark,0.72,0.2,0.72,0,-0.39,0));
+  torso.add(part(BOX,dark,0.73,0.23,0.16,0,0.13,0.49));
+  torso.add(part(BOX,sensor,0.53,0.07,0.045,0,0.13,0.59));
+  for(let i=0;i<5;i++) torso.add(part(BOX,dark,0.055,0.25,0.36,-0.35+i*0.175,0.38,-0.16));
+  const arm=pivot(0.48,-0.12,0.12);
+  arm.add(part(BOX,trim,0.18,0.56,0.19,0,-0.23,0));
+  arm.add(part(CYL,dark,0.16,0.33,0.16,0,-0.53,0.12));
+  torso.add(arm);
+  const legs=[];
+  for(const angle of [Math.PI,Math.PI/3,-Math.PI/3]){
+    const hip=pivot(Math.sin(angle)*0.38,0.86,Math.cos(angle)*0.38);
+    hip.rotation.y=angle;
+    const knee=pivot(0,-0.32,0.28);
+    const strut=part(BOX,shell,0.2,0.47,0.19,0,-0.13,0.14);
+    strut.rotation.x=-0.62;
+    knee.add(part(SPH,dark,0.16,0.16,0.16),part(BOX,trim,0.135,0.48,0.16,0,-0.23,0.09),
+      part(BOX,dark,0.24,0.12,0.32,0,-0.47,0.13));
+    hip.add(strut,knee);group.add(hip);legs.push({hip,knee,angle});
+  }
+  const flash=flasher([shell,dark,trim,sensor]);
+  let phase=0,fallen=0;
+  return {group,height:1.82,radius:0.72,hover:0,
+    update(dt,st){
+      const speed=Math.min(1,st.speed/3.6);
+      phase+=dt*st.speed*4.3;
+      legs.forEach(({hip,knee},i)=>{
+        hip.rotation.x=Math.sin(phase+i*2*Math.PI/3)*speed*0.38;
+        knee.rotation.x=Math.max(0,Math.sin(phase+i*2*Math.PI/3))*speed*0.22;
+      });
+      torso.position.y=1.15+Math.sin(phase*3)*speed*0.025;
+      arm.rotation.x=st.casting?-0.9:st.attack>0.2?-0.48:0;
+      fallen+=((st.dead?1:0)-fallen)*Math.min(1,dt*4);
+      torso.rotation.z=fallen*0.95;torso.position.y-=fallen*0.66;
+      flash(st.hit||0);
+    },
+    dispose(){for(const m of [shell,dark,trim,sensor])m.dispose();}
+  };
+}
+function makeKestrelRecorder(){
+  const group=new THREE.Group();
+  group.name='kestrel:recorder';
+  const dark=std(0x374040,{metal:0.5,rough:0.72});
+  const shell=std(0x7a8277,{metal:0.25,rough:0.8});
+  const brass=std(0x967d54,{metal:0.45,rough:0.65});
+  const glass=std(0x789b91,{emissive:0x26473b,ei:0.8,rough:0.38});
+  group.add(part(BOX,dark,1.25,0.18,0.95,0,0.09,0));
+  group.add(part(BOX,shell,0.98,0.84,0.73,0,0.60,0));
+  group.add(part(BOX,dark,1.13,0.17,0.84,0,1.10,0));
+  for(const side of [-1,1])group.add(part(BOX,brass,0.12,0.92,0.76,side*0.50,0.62,0));
+  const panel=part(BOX,dark,0.87,0.14,0.55,0,1.24,0.05);panel.rotation.x=0.14;group.add(panel);
+  const screen=part(BOX,glass,0.75,0.035,0.37,0,1.32,0.05);screen.rotation.x=0.14;group.add(screen);
+  for(let i=0;i<3;i++)group.add(part(BOX,brass,0.16,0.05,0.1,-0.24+i*0.24,1.32,0.30));
+  group.add(part(CYL,dark,0.16,0.64,0.16,-0.39,1.57,-0.28));
+  group.add(part(BOX,brass,0.29,0.16,0.26,-0.39,1.92,-0.28));
+  return {group,height:2.0,radius:0.8,hover:0,update(){},dispose(){for(const m of [dark,shell,brass,glass])m.dispose();}};
+}
+
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
@@ -571,6 +741,10 @@ export const MODEL_FACTORIES = {
   keeper: makeKeeper,
   mender: makeMender,
   skitter: makeSkitter,
+  sinter_grazer: () => makeSinterFauna(false),
+  faultstalker: () => makeSinterFauna(true),
+  quarantine_custodian: makeQuarantineCustodian,
+  deep_console: makeKestrelRecorder,
   sentinel: makeSentinel,
   warden: makeWarden,
   obelisk: makeListeningStone, // makeObelisk is kept as the minimal original
@@ -580,4 +754,5 @@ export const MODEL_FACTORIES = {
   brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
+  sinter_sampler: makeSinterSampler,
 };

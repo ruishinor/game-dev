@@ -7,9 +7,10 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
-import { brineHint } from '../../shared/survey.js';
+import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
+import { RadioPanel } from './radio.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -43,6 +44,7 @@ const BUFFS = {
   shield: ['Aegis', 'good'],
   sap: ['Sapped', 'bad'],
   corrode: ['Corroded', 'bad'],
+  carapace_imprint: ['Carapace Imprint', 'bad'],
   root: ['Rooted', 'bad'],
 };
 
@@ -51,10 +53,10 @@ const GLYPH_NOTES = {
   glyph_reversal:{ability:'resonant_reversal',text:'Divide: retains 25% of remaining barrier and releases the other 75%.'},
   glyph_faultline: { ability: 'controlled_blast', text: 'Glyph of the Faultline: 7m demolition radius.' },
   glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
-  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
-  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent.' },
-  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%.' },
-  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung.' },
+  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%. An imprinted target moves the echo to its position, consuming the imprint.' },
+  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent. Shared Pulse repairs an active damaged Aegis instead of splash healing.' },
+  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
+  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
@@ -121,6 +123,8 @@ export class UI {
   constructor(actions) {
     this.a = actions;
     this.sheet = null;
+    this.unseenItems = new Set();
+    this.workshopSite=null;
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
@@ -220,6 +224,8 @@ export class UI {
     this.npcPanel.setAttribute('role','dialog');
     this.npcPanel.setAttribute('aria-label','NPC interaction');
     root.append(this.npcPanel);
+    this.fieldRecordPanel=h('aside','field-record');this.fieldRecordPanel.hidden=true;
+    this.fieldRecordPanel.setAttribute('aria-label','Field record');root.append(this.fieldRecordPanel);
     document.addEventListener('pointerdown', (e) => {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
@@ -255,7 +261,10 @@ export class UI {
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
     this.surveyTracker = h('div', 'tracker');
     this.surveyText = h('div', 'text');
-    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText);
+    this.brineWorkshop=h('button','brine-workshop','Open field Workshop [B]');
+    this.brineWorkshop.hidden=true;
+    this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
     side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
@@ -264,6 +273,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
+    this.radio=new RadioPanel(root);
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -361,7 +371,8 @@ export class UI {
     this.moveStatus.hidden = true;
     this.surveyStatus = h('div', 'auto-status');
     this.surveyStatus.hidden = true;
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.autoControl, this.actionBar, this.xp.wrap);
+    this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -448,6 +459,7 @@ export class UI {
     });
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
+    this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
 
@@ -760,6 +772,7 @@ export class UI {
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
@@ -1024,6 +1037,17 @@ export class UI {
     this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
   }
 
+  showFieldRecord(key) {
+    const record=FIELD_RECORDS[key];if(!record)return;
+    const panel=this.fieldRecordPanel;panel.replaceChildren();
+    const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
+    close.addEventListener('click',()=>{panel.hidden=true;});
+    panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    const lines=h('div','field-record-lines');
+    for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
+    panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
+  }
+
   openNpc(ent) {
     if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
     this.hideJournalPanels();
@@ -1075,8 +1099,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
@@ -1092,10 +1117,15 @@ export class UI {
   }
 
   setSheet(sheet) {
-    const grew = this.sheet && sheet.inventory.length > this.sheet.inventory.length;
+    const previous=this.sheet;
+    if(previous&&previous.name===sheet.name&&previous.cls===sheet.cls){
+      for(const id of sheet.inventory)if(!previous.inventory.includes(id))this.unseenItems.add(id);
+      for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
+    }else this.unseenItems.clear();
     this.sheet = sheet;
     this.setClass(sheet.cls);
-    if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
     if(!this.workshopPanel.hidden)renderWorkshop(this);
@@ -1106,7 +1136,7 @@ export class UI {
     if (d) {
       set(this.trackerTitle, 'text', d.title);
       set(this.trackerText, 'text', d.text);
-      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful bores' : 'defeated'}` : '');
+      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful strikes' : 'defeated'}` : '');
     } else {
       set(this.trackerTitle, 'text', 'The Reach is yours');
       set(this.trackerText, 'text', 'Every directive is complete. Experiment with your glyphs and implants, or help another traveller.');
@@ -1205,8 +1235,12 @@ export class UI {
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
-    const workshopChanged=!!you.safe!==this.atSanctum||lock!==this.buildLock;
-    this.atSanctum=!!you.safe;
+    const site=you.workshop??(you.safe?'sanctum':null);
+    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock;
+    this.workshopSite=site;this.atSanctum=!!you.safe;
+    set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
+    set(this.rescueStatus,'hidden',you.rescueReady===undefined);
+    if(you.rescueReady!==undefined)set(this.rescueStatus,'text',you.rescueReady?'Rescue Lattice · emergency barrier ready':'Rescue Lattice · re-arms after combat');
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
@@ -1232,14 +1266,16 @@ export class UI {
     // Target frame
     set(this.target.el, 'hidden', !target);
     if (target) {
-      const hostile = target.meta.k === 'e';
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
+      const enemy = target.meta.k === 'e';
+      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
+      const hostile = enemy && !neutral;
+      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
       this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
@@ -1355,7 +1391,7 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : st.nearObject.meta.c.startsWith('survey_') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1410,6 +1446,7 @@ export class UI {
   }
 
   clearPlates() {
+    this.radio.clear();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.
@@ -1477,7 +1514,7 @@ export class UI {
     // Top-down with north (-Z) up and east (+X) to the right.
     const X = (x) => x * k;
     const Z = (z) => z * k;
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497' };
+    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
@@ -1496,7 +1533,7 @@ export class UI {
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
       g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? '#ff6a5a' : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
+      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
       g.fill();
     }
     // Player arrow

@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
+import { clearCombatSpot } from '../cover-setup.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
@@ -138,7 +139,9 @@ async function workshopPlaytest(){
   await page.evaluate(()=>window.__attune.pause(true));
   const npc=game.objects.find(o=>o.type==='archivist');
   const npcPlate=page.locator('.plate[data-npc="archivist"]');
-  await npcPlate.click({timeout:20000});
+  // The first synchronous offscreen portrait may compile a new WebGL context.
+  // Retain actual pointer activation; use the same generous timeout as other UI actions.
+  await npcPlate.click({timeout:90000});
   const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   teleport('Mechanic',npc.x,npc.z+3);
   await settle(P,npc.x,npc.z+3);
@@ -204,19 +207,23 @@ try {
   await until(A, () => window.__attune.state().drawn >= 2 && window.__attune.state().draw.triangles > 10000, null, 60000, 'first frames drawn');
   // Wait for both clients to receive the other's metadata and a snapshot.
   // A ready local character does not imply the remote observer is ready.
-  const seenA=await until(B,id=>window.__attune.state().ents.some(e=>e.id===id&&e.row&&e.anim?.base),sa.myId,20000,'B receives A model and snapshot');
-  const seenB=await until(A,id=>window.__attune.state().ents.some(e=>e.id===id&&e.row&&e.anim?.base),sb.myId,20000,'A receives B model and snapshot');
+  // Keep metadata and loaded-model diagnostics separate; do not treat pending GLB as a lost snapshot.
+  const ready=(id)=>window.__attune.state().ents.some(e=>e.id===id&&e.row&&e.model==='glb'&&e.anim?.base);
+  const [seenA,seenB]=await Promise.all([until(B,ready,sa.myId,30000,'B receives A model and snapshot'),until(A,ready,sb.myId,30000,'A receives B model and snapshot')]);
   sa = await state(A);
   sb = await state(B);
-  if(!seenA||!seenB)throw Error('Mutual observer metadata/snapshot did not arrive');
+  if(!seenA||!seenB){
+    const inspect=(s,id)=>({myId:s.myId,snaps:s.snaps,drawn:s.drawn,assets:s.assets,observer:s.ents.find(e=>e.id===id)||null});
+    throw Error('Mutual observer not ready: '+JSON.stringify({A:inspect(sa,sb.myId),B:inspect(sb,sa.myId),pageErrors}));
+  }
   check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000, `A id ${sa.myId}, B id ${sb.myId}, ${sa.draw.triangles} triangles drawn`);
   check('10. second session sees the first (and its class)', sb.ents.some((e) => e.id === sa.myId && e.c === 'vanguard') && sa.ents.some((e) => e.id === sb.myId && e.c === 'symbiotech'));
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering'].includes(e.c)).map((e) => e.c);
-  check('14. every character, companion and enemy is drawn from the GLB assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian'].includes(e.c)).map((e) => e.c);
+  check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
   const aByB = await drawn(B, sa.myId);
   const bByA = await drawn(A, sb.myId);
@@ -300,10 +307,11 @@ try {
   // --------------------------------------------- 4/5/6. targeting + combat
   const skitters = game.enemies.filter((e) => e.type === 'skitter');
   const fightAt = async (sk) => {
-    teleport('Brakka', sk.x + 1.5, sk.z + 3);
-    teleport('Lumen', sk.x + 7, sk.z + 9);
-    await settle(A, sk.x + 1.5, sk.z + 3);
-    await settle(B, sk.x + 7, sk.z + 9);
+    const a=clearCombatSpot(sk,1.5,3), b=clearCombatSpot(sk,5.5,6);
+    teleport('Brakka', a.x,a.z);
+    teleport('Lumen', b.x,b.z);
+    await settle(A,a.x,a.z);
+    await settle(B,b.x,b.z);
   };
   let sk = skitters[0];
   await fightAt(sk);
@@ -334,9 +342,14 @@ try {
   const plateSelected = await until(A, () => !!document.querySelector('.plate.selected') && !document.querySelector('.frame.target').hidden && /Mire Skitter/.test(document.querySelector('.frame.target .name').textContent), null, 3000, 'target frame');
   check('4. target frame and selected nameplate are shown', plateSelected);
 
+  // Keep the initial action/observer checks independent of a low-HP target dying
+  // while software rendering is stalled. Only the fixture's HP changes, not damage.
+  sk.maxHp=sk.hp=Math.max(sk.maxHp,300);
+  note('initial Skitter fixture health raised to 300 for timing-sensitive observer checks');
   const hpBefore = sk.hp;
-  teleport('Brakka', sk.x + 1.5, sk.z + 2.5);
-  await settle(A, sk.x + 1.5, sk.z + 2.5);
+  const attackSpot=clearCombatSpot(sk,1.5,2.5);
+  teleport('Brakka',attackSpot.x,attackSpot.z);
+  await settle(A,attackSpot.x,attackSpot.z);
   await A.page.keyboard.press('Digit1');
   const hit = await until(A, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
@@ -344,26 +357,30 @@ try {
   }, sk.id, 3000, 'enemy damaged');
   check('4/5. ability 1 damages the enemy (server-side health)', hit && sk.hp < hpBefore, `server hp ${hpBefore} → ${Math.ceil(sk.hp)}`);
   const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && /ON/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack ON in HUD');
+  // Submit the refusal attempt while the cooldown is still active, before
+  // waiting on a separate browser's animation or screenshot.
+  sa = await state(A);
+  check('5. the ability goes on cooldown', sa.you.cds.rending_arc > 0, `${sa.you.cds.rending_arc} ms remaining`);
+  await A.page.keyboard.press('Digit1');
+  const refused = await until(A, () => /not ready/i.test(document.querySelector('.errors').textContent), null, 2000, 'cooldown refusal');
+  check('5. using it again is refused with visible feedback', refused);
+  const swingSelf = await drawn(A, sa.myId);
+  const swingSeen = await until(B, (id) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.anim && e.anim.played > 0 && /Punch/.test(e.anim.last);
+  }, sa.myId, 5000, 'B to see the attack animation');
+  const flinch = await until(A, (id) => {
+    const e = window.__attune.state().ents.find((x) => x.id === id);
+    return e && e.anim && e.anim.reacted > 0;
+  }, sk.id, 3000, 'enemy hit reaction');
+  check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker ${JSON.stringify(swingSelf)}, observer ${JSON.stringify(await drawn(B,sa.myId))}`);
   await A.page.keyboard.press('KeyR');
   const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && /OFF/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack OFF in HUD');
   await A.page.keyboard.press('KeyR');
   const autoResumed = await until(A, () => window.__attune.state().you.auto === 1, null, 3000, 'auto-attack resumed');
   check('5. R and the HUD expose server-authoritative auto-attack state', autoStarted && autoStopped && autoResumed);
-  sa = await state(A);
-  check('5. the ability goes on cooldown', sa.you.cds.rending_arc > 0, `${sa.you.cds.rending_arc} ms remaining`);
-  const swingSelf = await drawn(A, sa.myId);
-  const swingSeen = await until(B, (id) => {
-    const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.anim && e.anim.played > 0 && /Punch/.test(e.anim.last);
-  }, sa.myId, 3000, 'B to see the attack animation');
-  const flinch = await until(A, (id) => {
-    const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.anim && e.anim.reacted > 0;
-  }, sk.id, 3000, 'enemy hit reaction');
-  check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker played ${swingSelf.last}`);
-  await A.page.keyboard.press('Digit1');
-  const refused = await until(A, () => /not ready/i.test(document.querySelector('.errors').textContent), null, 2000, 'cooldown refusal');
-  check('5. using it again is refused with visible feedback', refused);
+  await A.page.keyboard.press('KeyR');
+  await until(A,()=>window.__attune.state().you.auto===0,null,3000,'pause auto for support checks');
   const floats = await A.page.evaluate(() => document.querySelectorAll('.float').length + document.querySelectorAll('.log .line.out').length);
   check('5. combat feedback: floating numbers and combat log', floats > 0);
   // Exact agreement, not a threshold: at a moment when the server's value is
@@ -484,6 +501,15 @@ try {
 
   // Kill three skitters together.
   const killCurrent = async (enemy) => {
+    // Each actual browser must contribute; selecting the enemy alone is not kill credit.
+    if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
+      for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id);i++){
+        await B.page.keyboard.press('Digit1');await sleep(400);
+      }
+      if(!enemy.threat.has(serverPlayer('Lumen').id)){
+        note('Lumen contribution missing for '+enemy.id+'; state '+JSON.stringify({hp:enemy.hp,target:serverPlayer('Lumen').target,threat:[...enemy.threat.keys()]}));
+      }
+    }
     for (let i = 0; i < 40 && enemy.state !== 'dead'; i++) {
       await A.page.keyboard.press('Digit1');
       await A.page.keyboard.press('Digit4');
@@ -522,7 +548,7 @@ try {
     killed = await killCurrent(next);
     if (!killed) break;
   }
-  await until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'directive 1 complete');
+  await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);
   sa = await state(A);
   sb = await state(B);
   check('9. the directive rewards each class its Device', sa.sheet.inventory.includes('servo_harness') && sb.sheet.inventory.includes('sporeglass_focus'), `A: ${sa.sheet.inventory}, B: ${sb.sheet.inventory}`);
@@ -571,14 +597,15 @@ try {
   const equipVia = async (p, itemName) => {
     const open = await p.page.evaluate(() => !document.querySelector('.panel.build').hidden);
     if (!open) await p.page.keyboard.press('KeyC');
-    const tab = ['Myelin Lattice', 'Kinetic Capacitor', 'Adrenal Shunt'].includes(itemName) ? 'implants' : 'gear';
+    const tab = itemName.startsWith('Glyph of ') ? 'glyphs' : ['Myelin Lattice', 'Kinetic Capacitor', 'Adrenal Shunt'].includes(itemName) ? 'implants' : 'gear';
     await p.page.locator('.doll-tabs [data-tab="'+tab+'"]').click();
     const card = p.page.locator('.panel.build .card', { hasText: itemName }).first();
     await card.locator('button').click({ timeout: 4000 });
   };
 
   // Requirement gate: the implant is not offered yet; after the device it is.
-  await B.page.keyboard.press('KeyC');
+  if(await B.page.locator('.panel.build').isHidden()) await B.page.keyboard.press('KeyC');
+  await B.page.locator('.doll-tabs [data-tab="character"]').click();
   const portraitTab=await B.page.locator('.doll-tabs [data-tab="character"]').getAttribute('aria-pressed')==='true';
   let slotTabs=portraitTab;
   const slotFaults=portraitTab?[]:['character tab not selected by default'];
@@ -596,7 +623,15 @@ try {
     if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
     slotTabs=slotTabs&&!faults.length;
   }
-  check('9. five character tabs show real square selectable slots and reserved details',slotTabs,slotFaults.join('; '));
+  await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
+  const glyphSlot= B.page.locator('.equipment-slot-grid [data-slot="glyph"]');
+  await glyphSlot.click();
+  const tabCount=await B.page.locator('.doll-tabs button').count();
+  const glyphSelected=await glyphSlot.getAttribute('aria-pressed')==='true';
+  if(tabCount!==6)slotFaults.push(`expected 6 tabs, found ${tabCount}`);
+  if(!glyphSelected)slotFaults.push('glyph slot not selectable');
+  slotTabs=slotTabs&&tabCount===6&&glyphSelected;
+  check('9. six character tabs show selectable real and reserved slots',slotTabs,slotFaults.join('; '));
   await equipVia(B, 'Sporeglass Focus');
   await until(B, () => window.__attune.state().sheet.equipped.device === 'sporeglass_focus', null, 4000, 'device equipped');
   sb = await state(B);

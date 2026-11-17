@@ -203,6 +203,30 @@ export const COMPANIONS = {
 };
 
 export const ENEMIES = {
+  sinter_grazer: {
+    name: 'Sinter Grazer',
+    level: 1, hp: 85, speed: 3.1, radius: 0.62,
+    neutral: true, aggro: 0, social: 0, leash: 19,
+    attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
+    xp: 0, respawn: 24000, loot: [],
+  },
+  quarantine_custodian: {
+    name: 'Quarantine Custodian',
+    level: 3, hp: 190, speed: 3.6, radius: 0.72,
+    aggro: 7, social: 0, leash: 17,
+    attack: { range: 3.0, interval: 2300, dmg: 12, kind: 'melee' },
+    specials: [{ id: 'containment_sweep', name: 'Containment Sweep', cd: 10000, first: 3500, windup: 1900, radius: 4.7, dmg: 32, at: 'self' }],
+    xp: 50, respawn: 38000, loot: [],
+  },
+  faultstalker: {
+    name: 'Faultstalker',
+    level: 2, hp: 148, speed: 4.3, radius: 0.85,
+    aggro: 8, social: 0, leash: 24,
+    attack: { range: 3.0, interval: 1900, dmg: 10, kind: 'melee' },
+    specials: [{ id: 'fault_shear', name: 'Fault Shear', cd: 10500, first: 2800, windup: 1800, radius: 4.1, dmg: 28, at: 'target' }],
+    xp: 46, respawn: 31000,
+    loot: [{ item: 'sinter_laminate', chance: 0.45 }],
+  },
   skitter: {
     name: 'Mire Skitter',
     level: 1,
@@ -256,6 +280,14 @@ export const ENEMIES = {
 };
 
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });
+// Routes are independent of combat RNG. Herd members share a circuit
+// with offsets; there is no ambient loot farm.
+const grazerCircuit = [[3,47],[5,52],[4,62],[2,65],[1,58],[2,50]];
+const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+const patrol = (type, circuit, dx = 0, dz = 0) => ({
+  type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
+  route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),
+});
 export const SPAWNS = [
   sp('skitter', 'sporefield', 9, -6),
   sp('skitter', 'sporefield', 5, 5),
@@ -267,6 +299,11 @@ export const SPAWNS = [
   sp('sentinel', 'relay', 6, 5),
   sp('sentinel', 'relay', 4, -13),
   sp('warden', 'vault', 0, 0),
+  patrol('sinter_grazer', grazerCircuit, -0.85, 0.8),
+  patrol('sinter_grazer', grazerCircuit),
+  patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
+  patrol('faultstalker', stalkerCircuit),
+  patrol('quarantine_custodian', [[-52,-8],[-54,-5.2],[-57,-5.2],[-57,-10.8],[-54,-10.8]]),
 ];
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;
@@ -277,12 +314,26 @@ export const ITEMS = {
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},
   glyph_reversal:{name:'Glyph of Divide',slot:'glyph',cls:'keeper',summary:'Resonant Reversal retains 25% barrier capacity',desc:'Divide partitions the field before reversal, leaving a quarter of its remaining capacity.'},
   brine_phase_filter: { name:'Brine Phase Filter', slot:'device', summary:'+2 to all three skills', skills:{kinetics:2,biotech:2,instrumentation:2}, desc:'A passive receiver recovered from Brineworks. +2 Kinetics, Biotech and Instrumentation.' },
-  brine_rescue_lattice: { name:'Shelter Rescue Lattice', slot:'implant', summary:'+25 maximum health', mods:{hpAdd:25}, desc:'An emergency support circuit recovered from the workers’ shelter records. +25 maximum health.' },
+  brine_rescue_lattice: { name:'Shelter Rescue Lattice', slot:'implant', summary:'+25 maximum health · emergency 20-point barrier once per combat', mods:{hpAdd:25}, desc:'Below 35% health after a surviving hit, projects a 20-point barrier for 8 seconds, once per combat. +25 maximum health. Does not revive or replace stronger barriers.' },
   survey_calibrator: { name: 'Brine Calibrator', slot: 'device', cls: 'surveyor', skills: { instrumentation: 3 }, summary: '+3 Instrumentation · +6 percentage points of Power', desc: 'Calibrated field receiver. Raises Instrumentation by 3 and unlocks Surveyor equipment.' },
   survey_induction: { name: 'Induction Lattice', slot: 'implant', cls: 'surveyor', req: { skills: { instrumentation: 13 } }, mods: { dmgMul: 1.12 }, summary: '+12% damage', desc: 'Insulated pulse-shaping lattice. Increases damage by 12%.' },
   glyph_faultline: { name: 'Glyph of the Faultline', slot: 'glyph', cls: 'surveyor', req: { attune: 'resonance' }, summary: 'Controlled Blast: 7m radius', desc: 'Expands the demolition radius from 5m to 7m.' },
   glyph_wideband: { name: 'Glyph of Wideband', slot: 'glyph', cls: 'surveyor', summary: 'Fault Scan: 14s analysis', desc: 'Keeps a target analysis active for 14 seconds instead of 9.' },
   ...GADGET_ITEMS,
+  phase_damper: {
+    name: 'Kestrel Phase Damper',
+    slot: 'implant',
+    req: { attune: 'resonance' },
+    mods: { hpAdd: 30, dmgMul: 0.9 },
+    desc: 'A stress-buffering neural laminate recovered from Kestrel Deep. +30 maximum health, -10% outgoing damage. Requires Resonance attunement.',
+  },
+  sinter_laminate: {
+    name: 'Sinter Laminate',
+    slot: 'device',
+    skills: { kinetics: 1, biotech: 1 },
+    mods: { hpAdd: 18 },
+    desc: 'A mineral-biological composite obtained from predator plates or an isolated field collector. +1 Kinetics, +1 Biotech, +18 maximum health. Trades specialization for durability.',
+  },
   sporeglass_focus: {
     summary: "+3 Biotech · +6 percentage points of Power (Conductors)",
     name: 'Sporeglass Focus',
@@ -351,14 +402,14 @@ export const ITEMS = {
     slot: 'glyph',
     cls: 'symbiotech',
     req: { attune: 'resonance' },
-    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%.',
+    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%, or repair a damaged active Resonant Aegis instead (no extra duration).',
   },
   glyph_carapace: {
     summary: "Bond: 45% damage reduction · 6 melee retaliation · no regeneration",
     name: 'Glyph of the Carapace',
     slot: 'glyph',
     cls: 'symbiotech',
-    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6.',
+    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6 and carry a Carapace Imprint for 4.5s. Rending Echo can redirect through that imprint.',
   },
   glyph_resonant_aegis: {
     summary: "Discharge: −40% damage · shield for 60% of Charge spent (8s)",
@@ -366,20 +417,20 @@ export const ITEMS = {
     slot: 'glyph',
     cls: 'vanguard',
     req: { attune: 'resonance' },
-    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s).',
+    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s). Shared Pulse can repair a partially depleted field instead of splash healing.',
   },
   glyph_rending_echo: {
     summary: "Rending Arc: 70% splash damage within 4.5m",
     name: 'Glyph of Rending Echo',
     slot: 'glyph',
     cls: 'vanguard',
-    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage.',
+    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage. A Carapace-imprinted primary target relocates the echo to that target and consumes the imprint.',
   },
 };
 
 export const GLYPH = {
   sharedPulse: { radius: 8, pct: 0.6 },
-  carapace: { dr: 0.45, reflect: 6 },
+  carapace: { dr: 0.45, reflect: 6, imprintMs: 4500 },
   aegis: { dmgMul: 0.6, shieldPct: 0.6, dur: 8000 },
   echo: { radius: 4.5, pct: 0.7 },
 };

@@ -23,6 +23,13 @@ export const PALETTE = {
   gold: 0xffd27a,
 };
 
+const AREA_KINDS = new Set([
+  'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
+  'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
+]);
+/** Ground height for an event: prefer its own world point, else its source's feet. */
+const groundHeightOr = (e, s) => (Number.isFinite(e.y) ? e.y : s ? s.pos.y - (s.model?.hover || 0) : 0);
+
 const CLASS_COLOUR = { vanguard: PALETTE.kinetic, symbiotech: PALETTE.restore, keeper: PALETTE.resonance, surveyor: PALETTE.survey, mender: 0xffc46b };
 
 export class CombatVfx {
@@ -206,9 +213,57 @@ export class CombatVfx {
     }
   }
 
-  /** Server 'fx' events with a radius or a world point. */
-  area(e, s) {
+  /**
+   * Server 'fx' events with a radius or a world point. Returns true when this
+   * kind has an engine recipe (the caller then mutes the legacy effect).
+   */
+  area(e, s, o = null, d = null) {
+    if (!AREA_KINDS.has(e.k)) return false;
+    this.areaRecipe(e, s, o, d);
+    return true;
+  }
+
+  areaRecipe(e, s, o, d) {
     const v = this.v;
+    if (e.k === 'fault_shear' || e.k === 'containment_sweep') {
+      // Kestrel/Sinter hostile specials: a fracture line field or a sweeping containment band.
+      const f = [e.x, e.y, e.z];
+      const sweep = e.k === 'containment_sweep';
+      v.shock({ at: f, radius: e.r, color: sweep ? 0xff7a50 : PALETTE.hostileHot, life: 0.6, width: sweep ? 0.12 : 0.08 });
+      v.shell({ at: f, radius: e.r, height: sweep ? 1.8 : 0.9, color: sweep ? 0xff6a40 : PALETTE.hostile, kind: 'wall', life: 0.55, from: sweep ? 0.95 : 0.15, to: sweep ? 1 : 1, growPart: 0.5, streak: sweep ? 1.3 : 0.6 });
+      if (!sweep) v.scorch({ at: f, radius: Math.min(e.r * 0.6, 5), color: PALETTE.hostile, life: 3 });
+      this.dust(f, e.r * 0.5, 10);
+      v.flash({ at: [e.x, e.y + 1, e.z], color: PALETTE.hostileHot, intensity: 12, life: 0.35 });
+      return;
+    }
+    if (e.k === 'carapace_echo') {
+      const f = [e.x, groundHeightOr(e, s), e.z];
+      v.shock({ at: f, radius: e.r, color: 0xc9ae76, life: 0.6 });
+      v.sigil({ at: f, radius: e.r * 0.6, style: 'kinetic', color: 0xd8c08a, life: 0.9, spin: 1.6 });
+      if (s?.placed && d?.placed) v.beam({ from: s.chest, to: d.chest, color: 0xd8c08a, width: 0.11, life: 0.45, jitter: 0.08, grow: 0.3 });
+      return;
+    }
+    if (e.k === 'deep_record' && o) {
+      v.sigil({ at: this.feet(o), radius: 1.5, style: 'survey', color: 0xbacb9a, life: 1.2, spin: 0.8 });
+      if (s?.placed) v.beam({ from: () => o.head, to: s.chest, color: 0xbacb9a, width: 0.08, life: 0.85, grow: 0.3, flow: -3, hold: true });
+      v.burst({ at: () => o.head, count: 10, cell: CELL.diamond, color: 0xe8f0d8, color2: 0xbacb9a, size: [0.05, 0.09], life: [0.6, 1], speed: [0.2, 0.8], drag: 1.5 });
+      return;
+    }
+    if (e.k === 'sinter_sample' && o) {
+      const c = e.mode === 'kinetic' ? 0x8ec4d5 : 0x90c6a1;
+      v.sigil({ at: this.feet(o), radius: 1.6, style: e.mode === 'kinetic' ? 'kinetic' : 'restorative', color: c, life: 1.1 });
+      if (s?.placed) {
+        v.beam({ from: s.chest, to: () => o.head, color: c, width: 0.085, life: 0.72, grow: 0.3, flow: 3 });
+        v.burst({ at: () => o.head, shape: 'sphere', radius: 0.3, count: 12, cell: [CELL.shard, CELL.ember], color: hot(c, 0.4), color2: c, size: [0.05, 0.1], life: [0.4, 0.8], speed: 0.2, attract: s.chest, pull: 4 });
+      }
+      return;
+    }
+    if (e.k === 'carapace_imprint') {
+      if (!s?.placed) return;
+      v.shell({ at: s.chest, radius: 0.9, color: 0x97b6a1, kind: 'sphere', hex: 1, life: 0.6, from: 1.3, to: 0.95, alpha: 0.4 });
+      v.sigil({ at: this.feet(s), radius: 1.3, style: 'restorative', color: 0x97b6a1, life: 0.8 });
+      return;
+    }
     if (e.k === 'survey_blast') {
       const f = [e.x, e.y, e.z];
       const up = [e.x, e.y + 0.8, e.z];
@@ -311,6 +366,13 @@ export class CombatVfx {
   heal(d, s) {
     const c = s?.meta?.c === 'keeper' ? PALETTE.teal : PALETTE.restore;
     this.v.burst({ at: d.chest, shape: 'sphere', radius: 0.5, count: 6, cell: [CELL.cross, CELL.glow], color: hot(c, 0.4), color2: c, size: [0.1, 0.18], sizeEnd: 0.03, life: [0.6, 1], speed: [0.5, 1], dir: [0, 1, 0], spread: 0.4, drag: 1 });
+  }
+
+  /** Keeper Aegis relay: a shield link that lands as a hex flare on the ally. */
+  relay(s, d) {
+    this.v.beam({ from: s.chest, to: d.chest, color: PALETTE.aegis, width: 0.12, life: 0.65, grow: 0.3, flow: 4 });
+    this.v.burst({ at: d.chest, count: 8, cell: CELL.hex, color: hot(PALETTE.aegis, 0.4), color2: PALETTE.aegis, size: [0.18, 0.28], sizeEnd: 0.06, life: [0.4, 0.6], speed: [0.6, 1.4], drag: 3, spin: [-3, 3] });
+    this.v.sigil({ at: this.feet(d), radius: 1.7, style: 'resonance', color: PALETTE.aegis, life: 0.9, spin: 1 });
   }
 
   /** Mender life-transfer beam (companion heal pulse). */

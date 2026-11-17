@@ -24,7 +24,7 @@ export function computeSkills(cls, level, equipped) {
 export function deriveStats(char) {
   const def = CLASSES[char.cls];
   const skills = computeSkills(char.cls, char.level, char.equipped);
-  const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0 };
+  const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0, shieldMul: 1 };
   for (const slot of SLOTS) {
     const item = ITEMS[char.equipped[slot]];
     if (!item || !item.mods) continue;
@@ -44,6 +44,7 @@ export function deriveStats(char) {
     dmgMul: mods.dmgMul,
     chargeMul: mods.chargeMul,
     dischargeRadius: mods.dischargeRadius,
+    shieldMul: mods.shieldMul,
     glyph: char.equipped.glyph || null,
   };
 }

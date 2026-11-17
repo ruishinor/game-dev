@@ -1,0 +1,7 @@
+# Consolidated preview — branch reconciliation
+
+The working integration branch is preview/playtest-brineworks. Source asset-production checkpoint d4609dd and Workshop checkpoint 2e2dab9 are retained as actual merge parents. PRs 1–3 were already merged into the original playtest base; PRs 4–6 are represented through the earlier integrated base. The combined candidate retains account/roster, social controls, Workshop, independent Surveyor and Keeper, line-of-sight and Brineworks commissioning, authored combat VFX and the new Sinter ecology.
+
+Conflict review: relocated Carapace/Rending Echo checks cover from the relocated impact origin, not the caster. Companion retains both naming and line-of-sight rules. Vanguard Aegis × Shared Pulse diverts splash into finite shields; Keeper Hinge × Resonator × Shared Pulse uses effective healing to restore finite capacity. Both preserve pre-existing ordinary behavior when an eligible field is absent. Distinct disciplines and route-specific stations share the existing Workshop; no second crafting engine.
+
+Gate: hosted checks on exact integrated head, not individual ancestry. Independent profession checkpoint 1ebc845 passed four workflows; later integrated browser run failed on NPC nameplate click. Do not claim artistic acceptance, mobile performance or general release readiness. User-facing effects and environmental narrative require actual visual/play testing. Keep source branch and combined preview aligned only after validation and explicit expected-head checks; no force-push.
