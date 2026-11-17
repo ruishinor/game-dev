@@ -508,7 +508,7 @@ try {
     await reserved.click();
     const selected=await reserved.getAttribute('aria-pressed')==='true';
     const detail=await B.page.locator('.loadout-detail').innerText();
-    const sketch=await B.page.locator('.equipment-sketch svg').count()===1;
+    const sketch=await B.page.locator('.equipment-sketch img').count()===1;
     slotTabs=slotTabs&&!!box&&Math.abs(box.width-box.height)<2&&selected&&sketch&&/Reserved slot/.test(detail);
   }
   check('9. five character tabs show real square selectable slots and reserved details',slotTabs);
@@ -529,6 +529,11 @@ try {
     return !inv.hidden && labels.includes('Myelin Lattice') && !labels.includes('Sporeglass Focus');
   }, null, 3000, 'equipped device excluded from inventory');
   const buildStillOpen=await B.page.locator('.panel.build').isVisible();
+  // The actual item context provides the same authoritative actions.
+  await B.page.locator('.inventory-window button.item-cell[aria-label="Myelin Lattice"]').click({button:'right'});
+  const itemContext=await B.page.locator('.player-context').isVisible()&&/Equip/.test(await B.page.locator('.player-context').innerText());
+  await B.page.keyboard.press('Escape');
+  check('9. carried item has an equip and Codex context menu',itemContext);
   await B.page.keyboard.press('KeyJ');
   const codexWithInventory=await B.page.locator('.codex-window').isVisible()&&await B.page.locator('.inventory-window').isVisible();
   await B.page.keyboard.press('Escape');

@@ -190,6 +190,7 @@ const ui = new UI({
   },
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
+  interact: id=>net.send({t:'act',id}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -750,6 +751,7 @@ function onEvent(e) {
       break;
     }
     case 'say':
+      ui.showNpcDialogue(e.id,e.m);
       ui.chatLine(e.n, e.m, 'npc');
       ui.toast(`${e.n}: “${e.m}”`, 'npc');
       break;
@@ -844,7 +846,8 @@ input.onClick = (button, x, y) => {
     const ent = pick(x, y, ['e', 'p', 'c', 'o']);
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
+    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {
     S.inspect = null;

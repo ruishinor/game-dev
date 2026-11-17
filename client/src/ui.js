@@ -199,6 +199,11 @@ export class UI {
     this.playerContext.hidden = true;
     root.append(this.playerContext);
     this.bindPlayerContext(this.target.el, () => this.currentTarget?.id);
+    this.npcPanel=h('div','panel npc-panel');
+    this.npcPanel.hidden=true;
+    this.npcPanel.setAttribute('role','dialog');
+    this.npcPanel.setAttribute('aria-label','NPC interaction');
+    root.append(this.npcPanel);
     document.addEventListener('pointerdown', (e) => {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
@@ -342,7 +347,7 @@ export class UI {
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Build [C]');
+    this.buildBtn = h('button', 'menubtn', 'Character [C]');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -377,7 +382,7 @@ export class UI {
     this.panel = h('div', 'panel build');
     this.panel.hidden = true;
     this.panel.setAttribute('role', 'dialog');
-    this.panel.setAttribute('aria-label', 'Character build');
+    this.panel.setAttribute('aria-label', 'Character and loadout');
     const close = h('button', 'close', '×');
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.toggleBuild(false));
@@ -715,7 +720,8 @@ export class UI {
 
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.codexPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = true;
+    this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = true;
@@ -932,6 +938,68 @@ export class UI {
     this.playerContext.querySelector('button')?.focus({preventScroll:true});
   }
 
+  itemAction(id,action) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return this.error('Item is unavailable.');
+    if(this.buildLock)return this.error('Equipment changes are locked in combat or defeat.');
+    const slot=ITEMS[id].slot, installed=s.equipped[slot]===id;
+    if((action==='remove'&&!installed)||(action==='equip'&&installed))return;
+    const res=action==='remove'?tryUnequip(s,slot):tryEquip(s,id);
+    if(!res.ok)return this.error(res.reason);
+    if(action==='remove')this.a.unequip(slot);
+    else this.a.equip(id);
+  }
+
+  openItemContext(id,x,y,anchor) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return;
+    const item=ITEMS[id],installed=s.equipped[item.slot]===id,action=installed?'remove':'equip';
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',item.name));
+    const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+    const equip=h('button',null,installed?'Unequip':s.equipped[item.slot]?'Swap in':'Equip');
+    equip.disabled=!!this.buildLock||!res.ok;
+    equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
+    this.playerContext.append(equip);
+    if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
+    this.playerContext.append(info);
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=Math.max(8,Math.min(window.innerWidth-w-8,x))+'px';
+    this.playerContext.style.top=Math.max(8,Math.min(window.innerHeight-hgt-8,y))+'px';
+    this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  }
+
+  openNpc(ent) {
+    if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
+    this.hideJournalPanels();
+    this.npcId=ent.id;
+    const panel=this.npcPanel;
+    panel.replaceChildren();
+    const close=h('button','close','×');
+    close.setAttribute('aria-label','Close NPC interaction');
+    close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
+    const content=h('div','npc-content');
+    const art=this.a.portrait(ent.meta);
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
+    const details=h('div','npc-options');
+    this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
+    const talk=h('button','primary','Talk');
+    talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
+    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info);
+    content.append(details);panel.append(close,content);panel.hidden=false;
+  }
+
+  showNpcDialogue(id,message) {
+    if(id===this.npcId&&!this.npcPanel.hidden)this.npcDialogue.textContent=message;
+  }
+
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
@@ -956,8 +1024,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.codexPanel.hidden = true;
+    const any = !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = this.npcPanel.hidden = true;
+    this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
     this.menuItems.hidden = true;
@@ -1237,6 +1306,13 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
+      if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
+        el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
+        el.addEventListener('contextmenu',e=>{e.preventDefault();this.openNpc(this.liveEntities?.get(ent.id));});
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
+        el.dataset.npc='archivist';
+      }
       if(ent.meta.k==='p'){
         el.dataset.playerId=String(ent.id);
         el.tabIndex=0;
@@ -1273,6 +1349,7 @@ export class UI {
     this.companionId = 0;
     this.closePlayerContext();
     this.liveEntities=null;
+    this.dragItem=null;
     this.chatChannel='vicinity';
     this.resetChatTarget();
   }

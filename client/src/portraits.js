@@ -6,11 +6,11 @@ import { createModel } from './characters.js';
 export function makePortraits(assets, useGlb) {
   const cache = new Map();
   let renderer, unavailable = false;
-  return (meta) => {
-    const key = [meta.k, meta.c, meta.a || ''].join(':');
+  return (meta, style = 'portrait') => {
+    const key = [meta.k, meta.c, meta.a || '', style].join(':');
     if (cache.has(key)) return cache.get(key);
     if (unavailable) return null;
-    let model;
+    let model, sketchMaterial;
     try {
       if (!renderer) {
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power', preserveDrawingBuffer: true });
@@ -35,8 +35,16 @@ export function makePortraits(assets, useGlb) {
       const size = box.getSize(new THREE.Vector3());
       const extent = Math.max(size.x, size.y, size.z, .7) * .69;
       if (!Number.isFinite(extent)) throw Error('Invalid model bounds');
-      const camera = new THREE.OrthographicCamera(-extent, extent, extent, -extent, .01, 100);
-      camera.position.copy(center).add(new THREE.Vector3(.38, .13, 1).normalize().multiplyScalar(extent * 5));
+      const sketch=style==='sketch';
+      renderer.setSize(sketch?320:400,sketch?480:400,false);
+      const halfY=sketch?Math.max(size.y*.55,size.x*.825,size.z*.55,.35):extent;
+      const halfX=halfY*(sketch?2/3:1);
+      if(sketch){
+        sketchMaterial=new THREE.MeshStandardMaterial({color:0x317789,emissive:0x102c36,roughness:.8,metalness:.05});
+        scene.overrideMaterial=sketchMaterial;
+      }
+      const camera = new THREE.OrthographicCamera(-halfX, halfX, halfY, -halfY, .01, 100);
+      camera.position.copy(center).add(new THREE.Vector3(sketch?0:.38, sketch?0:.13, 1).normalize().multiplyScalar(extent * 5));
       camera.lookAt(center);
       renderer.render(scene, camera);
       const data = renderer.domElement.toDataURL('image/png');
@@ -48,6 +56,6 @@ export function makePortraits(assets, useGlb) {
       renderer?.dispose();
       renderer = null;
       return null;
-    } finally { model?.dispose?.(); }
+    } finally { sketchMaterial?.dispose(); model?.dispose?.(); }
   };
 }

@@ -334,7 +334,7 @@ export const DIRECTIVES = [
   {
     id: 'calibrate',
     title: 'Calibrate',
-    text: 'Open your Build [C] and equip a Device. Devices raise skills.',
+    text: 'Open your Character [C] and equip a Device. Devices raise skills.',
     goal: { equip: 'device' },
     reward: { classItem: { symbiotech: 'myelin_lattice', vanguard: 'kinetic_capacitor' } },
   },
@@ -362,7 +362,7 @@ export const DIRECTIVES = [
   {
     id: 'inscribe',
     title: 'Inscribe',
-    text: 'You are attuned. Inscribe the glyph in your Build [C] and feel what changes.',
+    text: 'You are attuned. Inscribe the glyph in your Character [C] and feel what changes.',
     goal: { equip: 'glyph' },
     reward: { xp: 40 },
   },

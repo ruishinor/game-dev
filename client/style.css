@@ -432,3 +432,18 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 @media(min-width:1100px) {
   #hud.inventory-open .panel:not(.inventory-window) { left:calc((100% - 382px)/2);max-width:calc(100vw - 420px); }
 }
+
+/* Orthographic model-backed equipment anatomy and item interactions. */
+.equipment-sketch img { width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain; opacity:.94;filter:drop-shadow(0 0 5px #71c1d2); }
+.equipment-slot-grid .doll-slot.reserved { background:rgba(12,30,39,.24); }
+.equipment-slot-grid .doll-slot.empty { background:rgba(13,27,35,.36); }
+.player-context .why { max-width:220px; margin:4px 0;font-size:11px; }
+.plate[data-npc="archivist"] { pointer-events:auto;cursor:pointer; }
+.npc-panel { width:min(460px,94vw); }
+.npc-content { display:flex;gap:12px;align-items:flex-start;padding-top:14px; }
+.npc-portrait { width:35%;max-width:150px;aspect-ratio:1;object-fit:contain;background:radial-gradient(ellipse,#234b5a,#0d2029);border:1px solid #335b66; }
+.npc-options { flex:1;min-width:0; }
+.npc-options h2 { margin:0 0 4px; }
+.npc-options button { margin:4px 6px 0 0; }
+.npc-dialogue { font-size:13px;line-height:1.5; }
+@media(max-width:520px){.npc-content{flex-wrap:wrap;}.npc-portrait{width:110px;}}
