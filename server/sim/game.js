@@ -109,7 +109,7 @@ export class Game {
         id: this.nextId++,
         kind: 'companion',
         type: def.companion,
-        name: cdef.name,
+        name: char.petName || cdef.name,
         owner: p.id,
         x: p.x + 1.5,
         z: p.z - 1.5,
@@ -150,7 +150,10 @@ export class Game {
   syncChar(p) {
     p.char.pos = { x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
-    if (p.companion) p.char.petMode = p.companion.mode;
+    if (p.companion) {
+      p.char.petMode = p.companion.mode;
+      p.char.petName = p.companion.name;
+    }
   }
 
   markDirty(p) {
