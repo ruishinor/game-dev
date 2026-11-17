@@ -9,7 +9,7 @@ import { hasLineOfSight, resolveCollisions, inSanctum } from '../shared/world.js
 function echoGround(tank,primary,near,far){
   for(let z=23;z<=39;z+=2)for(let x=-18;x<=18;x+=2){
     const points=[{x,z},{x,z:z+3.5},{x,z:z-4},{x,z:z+8}];
-    if(points.some(p=>inSanctum(p)||Math.hypot(resolveCollisions(p,.8).x-p.x,resolveCollisions(p,.8).z-p.z)>1e-5))continue;
+    if(points.some(p=>{const safe=resolveCollisions({...p},.8);return inSanctum(p)||Math.hypot(safe.x-p.x,safe.z-p.z)>1e-5;}))continue;
     if(![[0,1],[0,2],[1,3]].every(([a,b])=>hasLineOfSight(points[a],points[b])))continue;
     [tank,primary,near,far].forEach((ent,i)=>place(ent,points[i].x,points[i].z));return;
   }
