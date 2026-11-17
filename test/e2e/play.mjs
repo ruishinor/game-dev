@@ -83,7 +83,15 @@ const hold = async (p, key, ms) => {
   await sleep(ms);
   await p.page.keyboard.up(key);
 };
-const shot = (p, file) => p.page.screenshot({ path: path.join(OUT, file), timeout: 120000 });
+// Screenshots are diagnostics, not an acceptance gate. Windows may deny an
+// overwrite when a previous image is open in a viewer or scanned by another app.
+const shot = async (p, file) => {
+  try {
+    await p.page.screenshot({ path: path.join(OUT, file), timeout: 120000 });
+  } catch (err) {
+    note(`optional screenshot skipped (${file}): ${err.message}`);
+  }
+};
 /** How one session is currently drawing an entity: model kind and animation state. */
 const drawn = (p, id) => p.page.evaluate((i) => {
   const e = window.__attune.state().ents.find((x) => x.id === i);
