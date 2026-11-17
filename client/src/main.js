@@ -679,7 +679,7 @@ input.onAction = (code, e) => {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
-      const mode = ['triage', 'guard', 'assist'][i];
+      const mode = ['triage', 'guard', 'assist', 'follow'][i];
       if (mode && def.companion) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
