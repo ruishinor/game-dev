@@ -299,10 +299,12 @@ const procedural = {
     const shell = mat(0x78817a, { metal: 0.38, rough: 0.67 });
     const clamp = mat(0x353e3c, { metal: 0.55, rough: 0.57 });
     const window = mat(0x718b7a, { metal: 0.05, rough: 0.35, emissive: 0x162b21 });
-    g.add(scaled(G.cyl8, clamp, 2.0, 0.24, 2.0, 0, 0.12, 0));
-    g.add(scaled(G.cyl8, shell, 1.8, p.h - 0.5, 1.8, 0, p.h / 2, 0));
-    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 1.98, 0.18, 1.98, 0, y, 0));
-    g.add(scaled(G.cyl8, clamp, 1.1, 0.2, 1.1, 0, p.h-0.1, 0));
+    // G.cyl8 has unit radius, not unit diameter: keep all equipment
+    // surfaces inside the simulation's 1.05m circular footprint.
+    g.add(scaled(G.cyl8, clamp, 1.0, 0.24, 1.0, 0, 0.12, 0));
+    g.add(scaled(G.cyl8, shell, 0.9, p.h - 0.5, 0.9, 0, p.h / 2, 0));
+    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 0.99, 0.18, 0.99, 0, y, 0));
+    g.add(scaled(G.cyl8, clamp, 0.55, 0.2, 0.55, 0, p.h-0.1, 0));
     for (const side of [-1,1]) g.add(scaled(G.box, clamp, 0.13, p.h-0.64, 0.14, side*0.62, p.h/2, 0.64));
     g.add(scaled(G.box, clamp, 0.72, 0.91, 0.15, 0, p.h*0.58, 0.8));
     g.add(scaled(G.box, window, 0.52, 0.65, 0.045, 0, p.h*0.58, 0.89, false));

@@ -113,6 +113,28 @@ try {
     const scene=window.__attune.gfx.scene;
     return ['kestrel:roof','kestrel:vessel:1701','kestrel:custodian','kestrel:recorder'].every(n=>scene.getObjectByName(n));
   }));
+  // Verify actual mesh vertices fit the authoritative cylindrical envelope.
+  assert.ok(await page.evaluate(async () => {
+    const {Vector3}=await import('/vendor/three/three.module.js');
+    const scene=window.__attune.gfx.scene;
+    scene.updateMatrixWorld(true);
+    for(const seed of [1701,1702]){
+      const group=scene.getObjectByName('kestrel:vessel:'+seed);
+      if(!group)return false;
+      const origin=group.getWorldPosition(new Vector3()),v=new Vector3();
+      let max=0;
+      group.traverse(n=>{
+        if(!n.isMesh)return;
+        const p=n.geometry.attributes.position;
+        for(let i=0;i<p.count;i++){
+          v.fromBufferAttribute(p,i).applyMatrix4(n.matrixWorld).sub(origin);
+          max=Math.max(max,Math.hypot(v.x,v.z));
+        }
+      });
+      if(max>1.05+1e-5)return false;
+    }
+    return true;
+  }));
   await capture('preview-evidence/07-kestrel-interior.png');
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.

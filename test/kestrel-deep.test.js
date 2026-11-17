@@ -32,7 +32,7 @@ test('steep orbit camera retracts below the roof and jump has physical clearance
   const cam=new ThirdPersonCamera({position:pos,lookAt(){}});
   cam.pitch=1.4;cam.want=20;cam.dist=20;
   cam.update({x:DEEP.x,y:DEEP.floor,z:DEEP.z},0.05);
-  assert.ok(pos.y<DEEP.roofBottom-0.15);
+  assert.ok(pos.y<DEEP.roofBottom-0.75);
   assert.ok(cam.dist<6);
   const p={x:DEEP.x,z:DEEP.z,jy:0,vy:0};
   let max=0;
