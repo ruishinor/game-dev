@@ -86,6 +86,7 @@ const S = {
   you: null,
   sheet: null,
   target: 0,
+  inspect: null,
   targetSentAt: 0,
   timeOffset: null,
   zone: '',
@@ -138,6 +139,10 @@ const ui = new UI({
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
+  inspectCompanion: (id, point) => {
+    S.inspect = S.inspect?.id === id ? null : { id, x: point.x, y: point.y };
+  },
+  closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
@@ -285,6 +290,7 @@ function removeEntity(ent) {
   ui.removePlate(ent.id);
   S.ents.delete(ent.id);
   if (S.target === ent.id) S.target = 0;
+  if (S.inspect?.id === ent.id) S.inspect = null;
 }
 
 function clearWorld() {
@@ -302,6 +308,7 @@ function onWelcome(m) {
   S.compId = m.comp;
   S.timeOffset = null;
   S.target = 0;
+  S.inspect = null;
   S.you = null;
   S.snaps = 0;
   local.pred = { x: m.x, z: m.z, jy: 0, vy: 0 };
@@ -559,6 +566,7 @@ function onEvent(e) {
 // --- targeting and interaction -------------------------------------------------
 
 function setTarget(id) {
+  S.inspect = null;
   S.target = id;
   S.targetSentAt = performance.now();
   net.send({ t: 'tgt', id });
@@ -638,9 +646,13 @@ function nextEnemy() {
 
 input.onClick = (button, x, y) => {
   if (button === 0) {
-    const ent = pick(x, y, ['e', 'p', 'c']);
-    if (ent) setTarget(ent.id);
+    const ent = pick(x, y, ['e', 'p', 'c', 'o']);
+    if (ent?.meta.k === 'c') {
+      S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
+    } else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
+    else S.inspect = null;
   } else {
+    S.inspect = null;
     const ent = pick(x, y, ['e', 'o']);
     if (!ent) return;
     if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
@@ -679,8 +691,10 @@ input.onAction = (code, e) => {
       break;
     case 'F2':
       e.preventDefault();
-      if (S.compId && S.ents.has(S.compId)) setTarget(S.compId);
-      else ui.error('You have no companion to inspect.');
+      if (S.compId && S.ents.has(S.compId)) {
+        const r = ui.pet.getBoundingClientRect();
+        S.inspect = S.inspect?.id === S.compId ? null : { id: S.compId, x: r.right + 10, y: r.top };
+      } else ui.error('You have no companion to inspect.');
       break;
     case 'KeyC':
     case 'KeyB':
@@ -1026,6 +1040,7 @@ function frame(now) {
       target,
       ents: S.ents,
       comp: S.compId ? S.ents.get(S.compId) : null,
+      inspect: S.inspect ? { ...S.inspect, entity: S.ents.get(S.inspect.id) } : null,
       now,
       cd: (id) => Math.max(0, (S.cdReady[id] || 0) - now),
       gcd: () => Math.max(0, S.gcdReady - now),
@@ -1071,6 +1086,7 @@ window.__attune = {
       drawn: S.drawn,
       quality,
       target: S.target,
+      inspected: S.inspect?.id || 0,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
       yaw: local.yaw,
       camYaw: cam.yaw,
