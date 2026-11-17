@@ -448,6 +448,7 @@ test('accounts: ownership, guest recovery, roster deletion and sign-in survive r
   let srv = await startServer({ port: 0, dataFile: file });
   const guest = new Client(srv.port);
   const owner = new Client(srv.port);
+  const parallel = new Client(srv.port);
   const password = 'Example-LocalPassword-2026!';
   let sessionToken;
   try {
@@ -487,12 +488,17 @@ test('accounts: ownership, guest recovery, roster deletion and sign-in survive r
     await owner.until(() => !srv.store.chars.has(rheaId), 3000, 'authorized deletion');
     assert.equal(srv.store.byName.has('rhea'), false);
 
+    await parallel.open();
+    parallel.send({ t: 'account_resume', token: sessionToken });
+    await parallel.until(() => parallel.msgs.some((m) => m.t === 'account_ready'), 3000, 'second socket using the session');
     owner.send({ t: 'account_logout' });
     await owner.until(() => owner.msgs.some((m) => m.t === 'account_logged_out'), 3000, 'logout acknowledgement');
     assert.equal(srv.store.authenticateAccount(sessionToken), null, 'session revoked on logout');
+    await parallel.until(() => parallel.closed !== null, 3000, 'revoked open socket disconnected');
   } finally {
     guest.close();
     owner.close();
+    parallel.close();
     await srv.close();
   }
 
