@@ -245,3 +245,8 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
   .menubtn.new { animation: none; box-shadow: 0 0 10px rgba(255, 210, 122, 0.7); }
   .float { animation-name: fade; }
 }
+
+/* Neutral fauna remain targetable. */
+.plate.enemy.neutral .pname { color: #e6c58d; }
+.frame.target.neutral { border-color: rgba(230, 197, 141, 0.65); }
+.frame.target.neutral .name { color: #e6c58d; }

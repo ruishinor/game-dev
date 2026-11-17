@@ -46,6 +46,7 @@ export class Game {
         level: def.level,
         radius: def.radius,
         home: { x: s.x, z: s.z },
+        route: s.route ?? null,
         metaVer: 1,
       };
       resetEnemy(this, e);
@@ -287,7 +288,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0 };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:

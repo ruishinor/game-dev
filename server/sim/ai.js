@@ -9,7 +9,7 @@ export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
   e.x = e.home.x;
   e.z = e.home.z;
-  e.yaw = e.yaw ?? game.rng() * Math.PI * 2;
+  e.yaw = e.yaw ?? (e.route ? Math.atan2(e.route[1].x - e.home.x, e.route[1].z - e.home.z) : game.rng() * Math.PI * 2);
   e.hp = def.hp;
   e.maxHp = def.hp;
   e.scale = 1;
@@ -23,7 +23,8 @@ export function resetEnemy(game, e) {
   e.specialAt = {};
   e.deadAt = 0;
   e.respawnAt = 0;
-  e.wanderAt = game.time + 2000 + game.rng() * 5000;
+  e.wanderAt = e.route ? game.time : game.time + 2000 + game.rng() * 5000;
+  e.routeIndex = 1;
   e.wander = null;
   e.steerUntil = 0;
   e.steerSign = 1;
@@ -132,6 +133,7 @@ export function tickEnemy(game, e, dt) {
       e.hp = e.maxHp;
       e.state = 'idle';
       e.wanderAt = game.time + 3000;
+      e.routeIndex = 1;
     } else {
       moveToward(e, e.home.x, e.home.z, def.speed * 2.2 * dt, def.radius, 0);
     }
@@ -140,8 +142,9 @@ export function tickEnemy(game, e, dt) {
 
   expireBuffs(game, e);
 
-  // Aggro: anyone alive, outside the Sanctum, who wanders too close.
+  // Passive fauna retaliate normally but never initiate proximity aggro.
   for (const p of game.players.values()) {
+    if (def.aggro <= 0) break;
     if (p.dead || e.threat.has(p.id) || inSanctum(p)) continue;
     if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash) {
       addThreat(e, p.id, 1);
@@ -164,6 +167,17 @@ export function tickEnemy(game, e, dt) {
   if (e.threat.size === 0) {
     if (e.state === 'combat') {
       startEvade(game, e);
+      return;
+    }
+    // Authored migration circuits run in real simulation time.
+    if (e.route) {
+      if (game.time < e.wanderAt) return;
+      const waypoint = e.route[e.routeIndex];
+      const ox = e.x, oz = e.z;
+      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? 0.43 : 0.56) * dt, def.radius, 0);
+      if (dist(e, waypoint) < 0.22 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
+        e.routeIndex = (e.routeIndex + 1) % e.route.length;
+      }
       return;
     }
     // Idle: amble around the spawn point.

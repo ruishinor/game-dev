@@ -169,6 +169,22 @@ export const COMPANIONS = {
 };
 
 export const ENEMIES = {
+  sinter_grazer: {
+    name: 'Sinter Grazer',
+    level: 1, hp: 85, speed: 3.1, radius: 0.62,
+    neutral: true, aggro: 0, social: 0, leash: 19,
+    attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
+    xp: 0, respawn: 24000, loot: [],
+  },
+  faultstalker: {
+    name: 'Faultstalker',
+    level: 2, hp: 148, speed: 4.3, radius: 0.85,
+    aggro: 8, social: 0, leash: 24,
+    attack: { range: 3.0, interval: 1900, dmg: 10, kind: 'melee' },
+    specials: [{ id: 'fault_shear', name: 'Fault Shear', cd: 10500, first: 2800, windup: 1800, radius: 4.1, dmg: 28, at: 'target' }],
+    xp: 46, respawn: 31000,
+    loot: [{ item: 'sinter_laminate', chance: 0.45 }],
+  },
   skitter: {
     name: 'Mire Skitter',
     level: 1,
@@ -222,6 +238,14 @@ export const ENEMIES = {
 };
 
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });
+// Routes are independent of combat RNG. Herd members share a circuit
+// with offsets; there is no ambient loot farm.
+const grazerCircuit = [[3,47],[5,52],[4,62],[2,65],[1,58],[2,50]];
+const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+const patrol = (type, circuit, dx = 0, dz = 0) => ({
+  type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
+  route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),
+});
 export const SPAWNS = [
   sp('skitter', 'sporefield', 9, -6),
   sp('skitter', 'sporefield', 5, 5),
@@ -233,12 +257,23 @@ export const SPAWNS = [
   sp('sentinel', 'relay', 6, 5),
   sp('sentinel', 'relay', 4, -13),
   sp('warden', 'vault', 0, 0),
+  patrol('sinter_grazer', grazerCircuit, -0.85, 0.8),
+  patrol('sinter_grazer', grazerCircuit),
+  patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
+  patrol('faultstalker', stalkerCircuit),
 ];
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
   ...GADGET_ITEMS,
+  sinter_laminate: {
+    name: 'Sinter Laminate',
+    slot: 'device',
+    skills: { kinetics: 1, biotech: 1 },
+    mods: { hpAdd: 18 },
+    desc: 'A reclaimed field laminate scraped from a predator’s mineral plates. +1 Kinetics, +1 Biotech, +18 maximum health. Trades specialization for durability.',
+  },
   sporeglass_focus: {
     name: 'Sporeglass Focus',
     slot: 'device',

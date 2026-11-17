@@ -523,7 +523,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -599,7 +599,7 @@ function onEvent(e) {
     }
     case 'fx': {
       const s = S.ents.get(e.s);
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -760,7 +760,7 @@ function nextEnemy() {
   const fz_ = Math.cos(cam.yaw);
   const list = [];
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead) continue;
+    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
     const dx = ent.pos.x - me.pos.x;
     const dz = ent.pos.z - me.pos.z;
     const d = Math.hypot(dx, dz);
@@ -1036,9 +1036,11 @@ function updatePlates(now) {
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
-      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : 'enemy';
+      const calm = ent.meta.neu && !(row.f & 8);
+      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
       label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
+      else if (!ent.dead && calm) label += ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
     ui.placePlate(ent, screen, {

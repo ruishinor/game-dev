@@ -4,7 +4,7 @@
 //   guard  — bonds to one ally: regeneration + damage reduction
 //   assist — harries the owner's target and makes it take more damage
 
-import { COMPANIONS, GLYPH } from '../../shared/content.js';
+import { COMPANIONS, GLYPH, ENEMIES } from '../../shared/content.js';
 import { dist } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage } from './combat.js';
 
@@ -99,7 +99,7 @@ export function tickCompanion(game, c, dt) {
 
   if (c.mode === 'assist') {
     const t = game.ents.get(owner.target);
-    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || dist(t, owner) > def.leash) {
+    if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || (ENEMIES[t.type].neutral && !t.threat.has(owner.id)) || dist(t, owner) > def.leash) {
       c.act = 'idle';
       c.actTarget = 0;
       followOwner(c, owner, def, step);

@@ -625,13 +625,15 @@ export class UI {
     // Target frame
     set(this.target.el, 'hidden', !target);
     if (target) {
-      const hostile = target.meta.k === 'e';
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
+      const enemy = target.meta.k === 'e';
+      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
+      const hostile = enemy && !neutral;
+      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
@@ -848,7 +850,7 @@ export class UI {
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
       g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? '#ff6a5a' : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
+      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
       g.fill();
     }
     // Player arrow
