@@ -18,3 +18,7 @@ Visual quality is faceted low-poly rather than concept-art fidelity. Bone placem
 ## Browser inspection
 
 Run the normal local server and open `/client/art-preview.html`. Select any of the 31 GLBs, the articulated Mender, or 13 effect variants. The page supports manual yaw, pitch, phase and reduced-motion review. The atlas and glyphs appear below the viewport. `node test/e2e/art-originals.mjs` runs a browser smoke check after Chromium installation; a separate Actions workflow also invokes it. Rendering smoke checks are not art approval or hardware profiling.
+
+## Artistic review
+
+Each of 45 3D/effect entries, 19 glyphs and the material atlas can be reviewed independently (65 items). Decisions are mutually exclusive: Unreviewed, Accepted, Modify, Not accepted. Optional notes and decisions are saved in browser localStorage; use JSON export to share or back them up. Decisions do not modify the game or technical validation. Changes in model/glyph/atlas file hashes invalidate previous local decisions; bump the explicit procedural effect revision when changing VFX or the Mender visual source. No server-side sharing or import is provided.
