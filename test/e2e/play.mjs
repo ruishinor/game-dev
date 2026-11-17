@@ -83,13 +83,14 @@ const hold = async (p, key, ms) => {
   await sleep(ms);
   await p.page.keyboard.up(key);
 };
-// Screenshots are diagnostics, not an acceptance gate. Windows may deny an
-// overwrite when a previous image is open in a viewer or scanned by another app.
+// Capture errors still fail the run; only optional disk writes are non-fatal.
+// On Windows, a viewer or scanner can prevent overwriting an earlier PNG.
 const shot = async (p, file) => {
+  const png = await p.page.screenshot({ timeout: 120000 });
   try {
-    await p.page.screenshot({ path: path.join(OUT, file), timeout: 120000 });
+    fs.writeFileSync(path.join(OUT, file), png);
   } catch (err) {
-    note(`optional screenshot skipped (${file}): ${err.message}`);
+    note(`optional screenshot not saved (${file}): ${err.message}`);
   }
 };
 /** How one session is currently drawing an entity: model kind and animation state. */
