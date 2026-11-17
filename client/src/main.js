@@ -871,6 +871,8 @@ function onEvent(e) {
       if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');
       break;
     }
+    case 'radio':
+      ui.radio.receive(e.source,e.m);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':

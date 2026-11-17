@@ -288,7 +288,7 @@ export function renderInventory(ui) {
       const quantity=s.materials?.[id]||0;
       if(!quantity)continue;
       const button=h('button','material-row');
-      button.append(h('span',null,material.name),h('strong',null,'× '+quantity));
+      button.append(itemArt(id),h('span',null,material.name),h('strong',null,'× '+quantity));
       button.addEventListener('click',()=>ui.toggleCodex(true,id));
       list.append(button);
     }
