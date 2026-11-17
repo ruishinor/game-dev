@@ -220,6 +220,7 @@ test('multiplayer: two clients share one world, see each other, fight the same e
       await new Promise((r) => setTimeout(r, 50));
     }
     await b.until(() => b.ent(wa.id).z > startZ + 5, 3000, 'B sees A move');
+    await a.until(() => a.snap?.y?.ack === seq, 3000, 'movement input acknowledgements');
     assert.equal(a.snap.y.ack, seq, 'inputs acknowledged');
 
     // Shared combat: move both next to the same skitter (server-side teleport
