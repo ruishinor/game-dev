@@ -7,12 +7,17 @@ import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js'
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
-import { Assets } from './assets.js';
-import { createModel, CHARACTER_BUNDLES } from './characters.js';
+import { Assets, disposeInstance, shared } from './assets.js';
+import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
 import { LiveAegis } from './live-aegis.js';
 import { LiveCasts } from './live-casts.js';
+import { createVfx } from './vfx/engine.js';
+import { buildTextures } from './vfx/textures.js';
+import { CombatVfx } from './vfx/combat.js';
+import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
@@ -61,15 +66,46 @@ scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
 const fx = new Fx(scene);
+const legacyFx = fx;
 const liveAegis = new LiveAegis(THREE);
 const liveCasts = new LiveCasts(THREE,scene);
 const pointOf = ent=>[ent.pos.x,ent.pos.y-ent.model.hover+.08,ent.pos.z];
 const toward = (a,b)=>{const d=b.map((v,i)=>v-a[i]);return Math.hypot(...d)>0.01?d:[0,1,0];};
-function authored(name,family,options,now){
+function authored(name,family,options){
   if(quality===0)return false;
-  return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},now);
+  return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},fxClock);
 }
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+// Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
+// rendering can photograph them mid-flight; simulation time is untouched.
+const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
+let fxClock = 0;
+// Particle/shader effect engine (quality >= 1). Quality 0 keeps the original
+// lightweight Fx primitives. Flash lights exist only when starting at quality 2.
+let vfx = null;
+let cvfx = null;
+let svfx = null;
+// Items and materials reach the player through both a 'loot' event and a gain
+// message; show one acquisition effect for the pair.
+let acquiredAt = -1e9;
+function acquired() {
+  const me = S.ents.get(S.myId);
+  if (!rich() || !me?.placed || fxClock - acquiredAt < 400) return;
+  acquiredAt = fxClock;
+  cvfx.acquire(me);
+}
+try {
+  const startQ = new URLSearchParams(location.search).get('q');
+  vfx = createVfx(THREE, scene, { textures: buildTextures(THREE), groundHeight, quality: /^[01]$/.test(startQ || '') ? Number(startQ) : 2, reducedMotion: motionPreference.matches });
+  cvfx = new CombatVfx(vfx);
+  svfx = new StatusVfx(cvfx);
+} catch (err) {
+  console.warn('Effect engine unavailable; using basic effects.', err);
+}
+motionPreference.addEventListener?.('change', () => { if (vfx) vfx.reducedMotion = motionPreference.matches; });
+const rich = () => !!cvfx && quality > 0;
+// Inside onEvent the legacy primitives are muted while the engine is active.
+const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
 const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
 // pointer lock misbehaves, and for automated input).
@@ -85,39 +121,81 @@ pressureZone.position.set(BRINE_TRIAL.exclusion.x,groundHeight(BRINE_TRIAL.exclu
 pressureZone.visible=false;scene.add(pressureZone);
 
 // Snapshot-driven stationary survey equipment, independent of its owner's model.
+// Module-level resources are reused by every rig: flagged shared so that
+// disposing one rig's instance never frees them.
 const rigParts = {
-  base: new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8),
-  body: new THREE.BoxGeometry(0.32, 0.52, 0.29),
-  mast: new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8),
-  lamp: new THREE.BoxGeometry(0.21, 0.05, 0.03),
-  area: new THREE.RingGeometry(0.985, 1, 48),
+  base: shared(new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8)),
+  body: shared(new THREE.BoxGeometry(0.32, 0.52, 0.29)),
+  mast: shared(new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8)),
+  lamp: shared(new THREE.BoxGeometry(0.21, 0.05, 0.03)),
+  area: shared(new THREE.RingGeometry(0.985, 1, 48)),
 };
-const rigMetal = new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 });
-const rigDark = new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 });
-const rigLight = new THREE.MeshBasicMaterial({ color: 0x85cde9 });
-const rigArea = new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+const rigMetal = shared(new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 }));
+const rigDark = shared(new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 }));
+const rigLight = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9 }));
+const rigArea = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }));
+function dropRig(ent) {
+  if (ent.rigModel) {
+    scene.remove(ent.rigModel);
+    disposeInstance(ent.rigModel);
+  }
+  ent.rigModel = null;
+  ent.rigArea?.dispose();
+  ent.rigArea = null;
+}
 function syncRig(ent) {
   const r = ent.row?.rig;
   if (!r) {
-    if (ent.rigModel) scene.remove(ent.rigModel);
-    ent.rigModel = null;
+    dropRig(ent);
     return;
   }
   if (!ent.rigModel) {
     const g = new THREE.Group();
     const part = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x,y,z); g.add(mesh); return mesh; };
-    part(rigParts.base, rigDark, 0, 0.075, 0);
-    part(rigParts.body, rigMetal, 0, 0.38, 0);
-    part(rigParts.mast, rigDark, 0.11, 0.88, 0);
-    part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    // Detailed deployable from the shared gear kit; the original blocks remain the fallback.
+    try {
+      g.userData.update = gearKit().instantiate('field_rig', fieldRigDevice, { attach: (_bone, obj) => g.add(obj) });
+    } catch (err) {
+      console.warn('Field rig model unavailable; using basic model.', err);
+    }
+    if (!g.children.length) {
+      part(rigParts.base, rigDark, 0, 0.075, 0);
+      part(rigParts.body, rigMetal, 0, 0.38, 0);
+      part(rigParts.mast, rigDark, 0.11, 0.88, 0);
+      part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    }
+    g.userData.arcAt = 0;
     const area = part(rigParts.area, rigArea, 0, 0.12, 0);
     area.rotation.x = -Math.PI / 2;
     g.userData.area = area;
     scene.add(g);
     ent.rigModel = g;
   }
-  ent.rigModel.position.set(r.x, groundHeight(r.x,r.z), r.z);
+  const gy = groundHeight(r.x, r.z);
+  ent.rigModel.position.set(r.x, gy, r.z);
   ent.rigModel.userData.area.scale.setScalar(r.r);
+  // The survey sigil marks the rig's real recharge radius (quality >= 1).
+  if (rich()) {
+    if (!ent.rigArea?.alive) ent.rigArea = vfx.area({ at: [r.x, gy, r.z], radius: r.r, style: 'survey', color: 0x5fd0ff, alpha: 0.45, spin: 0.2 });
+    else ent.rigArea.set([r.x, gy, r.z], r.r);
+  } else if (ent.rigArea) {
+    ent.rigArea.dispose();
+    ent.rigArea = null;
+  }
+}
+
+/** Per frame: animate deployed rigs and show recharge arcs to an owner in range. */
+function animateRig(ent, t) {
+  const g = ent.rigModel;
+  const r = ent.row?.rig;
+  if (!g || !r) return;
+  g.userData.update?.({ t, combat: true });
+  if (!rich() || !ent.placed || ent.dead || fxClock - g.userData.arcAt < 750) return;
+  if (Math.hypot(ent.pos.x - r.x, ent.pos.z - r.z) > r.r) return;
+  g.userData.arcAt = fxClock;
+  const top = [r.x, g.position.y + 1.36, r.z];
+  vfx.beam({ from: top, to: ent.chest, color: 0x6fd6ff, width: 0.05, life: 0.35, jitter: 0.18, grow: 0.4, taper: 1 });
+  vfx.burst({ at: ent.chest, count: 4, cell: 13, color: 0xd8f6ff, color2: 0x6fd6ff, size: 0.08, life: 0.35, speed: [0.3, 1], drag: 2 });
 }
 
 function resize() {
@@ -517,9 +595,10 @@ function addEntity(meta) {
 
 function removeEntity(ent) {
   fx.clearRoot(ent.id);
+  svfx?.remove(ent.id);
   liveAegis.remove(ent.id);
   scene.remove(ent.holder);
-  if (ent.rigModel) scene.remove(ent.rigModel);
+  dropRig(ent);
   if (ent.model.dispose) ent.model.dispose();
   else {
     ent.holder.traverse((o) => {
@@ -537,6 +616,8 @@ function clearWorld() {
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
   liveCasts.clear();
+  vfx?.clear();
+  svfx?.clear();
   ui.clearPlates();
 }
 
@@ -652,6 +733,8 @@ function nameOf(ent) {
 
 function onEvent(e) {
   const now = performance.now();
+  // Muted only where the engine has a recipe; see the 'fx' case for the fallback.
+  let fx = rich() ? MUTED_FX : legacyFx;
   switch (e.e) {
     case 'dmg': {
       const d = S.ents.get(e.d);
@@ -662,6 +745,7 @@ function onEvent(e) {
         if (d.model.trigger) d.model.trigger('hit');
         const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
+        if (rich() && d.placed) cvfx.hit(d, s, e);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
         else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
@@ -676,9 +760,10 @@ function onEvent(e) {
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);
-          authored(e.ab,'kinetic',{variant:e.ab==='phase_needle'||e.ab==='resonant_reversal'?'resonance':'impact',center:[b[0],b[1]+.7,b[2]],direction:toward(a,b),radius:Math.min(2,d.model.radius+.45),duration:.85},now);
+          authored(e.ab,'kinetic',{variant:e.ab==='phase_needle'||e.ab==='resonant_reversal'?'resonance':'impact',center:[b[0],b[1]+.7,b[2]],direction:toward(a,b),radius:Math.min(2,d.model.radius+.45),duration:.85});
         }
       }
       // Melee already has a burst above. Make bolt impacts readable too,
@@ -692,6 +777,7 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       if (d) ui.floatText(toScreen(d.head), `+${e.a}`, 'heal');
+      if (d?.placed && rich()) cvfx.heal(d, s);
       const mine = e.s === S.myId || e.s === S.compId;
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} heals ${e.d === S.myId ? 'you' : d.meta.n} for ${e.a}.`, 'heal');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} heals you for ${e.a}.`, 'heal');
@@ -703,7 +789,7 @@ function onEvent(e) {
       if (s && d) {
         if (s.meta.k === 'c') s.castAnim = 1;
         if(s.placed&&d.placed&&Math.hypot(s.pos.x-d.pos.x,s.pos.z-d.pos.z)>.2)
-          authored('mender-transfer','restorative',{variant:'transfer',source:pointOf(s),target:pointOf(d),radius:.8,duration:.8},now);
+          authored('mender-transfer','restorative',{variant:'transfer',source:pointOf(s),target:pointOf(d),radius:.8,duration:.8});
         if (e.k === 'aegis_relay') {
           fx.beam(chestOf(s), chestOf(d), 0x8eddf0, 650, 0.10);
           fx.ring(d.pos.x, d.pos.z, 1.7, 0xa9eaf0, 540, d.pos.y);
@@ -711,6 +797,10 @@ function onEvent(e) {
         } else {
           fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
           fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        }
+        if (rich() && s.placed && d.placed && s !== d) {
+          if (e.k === 'aegis_relay') cvfx.relay(s, d);
+          else cvfx.transfer(s, d);
         }
       }
       break;
@@ -720,30 +810,40 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
-      if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2},now);fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
+      if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
+      if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
       else if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
       else if (e.ab === 'fault_scan' && d) {
-        if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9},now);}
+        if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9});}
         fx.beam(chestOf(s), chestOf(d), 0x85cde9, 480, 0.035);
         fx.ring(d.pos.x, d.pos.z, 1.8, 0x85cde9, 600, d.pos.y);
       } else if (e.ab === 'field_rig') fx.ring(s.pos.x, s.pos.z, 4, 0x85cde9, 550, s.pos.y);
       else if (e.ab === 'mending_graft') {
         s.castAnim = 1;
         if (d && d !== s) fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 480, 0.07);
-        if (d) {fx.burst(d.chest, 0x7dffc4, 10, 1.1);if(d.placed)authored('mending-graft','restorative',{variant:'restore',target:pointOf(d),radius:1.0,duration:1.5},now);}
+        if (d) {fx.burst(d.chest, 0x7dffc4, 10, 1.1);if(d.placed)authored('mending-graft','restorative',{variant:'restore',target:pointOf(d),radius:1.0,duration:1.5});}
       } else if (e.ab === 'kinetic_ward') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, 2.2, 0xffb45c, 500, s.pos.y);
-        if(s.placed)authored('kinetic-ward','kinetic',{variant:'charge',center:[s.pos.x,s.pos.y+1,s.pos.z],direction:[Math.sin(s.yaw),0,Math.cos(s.yaw)],radius:1.1,duration:1.2},now);
+        if(s.placed)authored('kinetic-ward','kinetic',{variant:'charge',center:[s.pos.x,s.pos.y+1,s.pos.z],direction:[Math.sin(s.yaw),0,Math.cos(s.yaw)],radius:1.1,duration:1.2});
       } else if (e.ab === 'spore_snare' && d) fx.ring(d.pos.x, d.pos.z, 2, 0x9dffb0, 700, d.pos.y);
       break;
     }
     case 'fx': {
       const s = S.ents.get(e.s);
+      let handled = false;
+      if (rich() && (Number.isFinite(e.x) ? Number.isFinite(e.z) : s?.placed)) {
+        handled = cvfx.area(Number.isFinite(e.x) ? { ...e, y: groundHeight(e.x, e.z) } : e, s, S.ents.get(e.o), S.ents.get(e.d));
+        const o = e.k === 'attune' ? S.ents.get(e.o) : null;
+        if (o && s) cvfx.attuneLink(o, s);
+      }
+      // A kind without an engine recipe (or one that could not be placed)
+      // keeps its original effect, so new server effects never go invisible.
+      if (!handled) fx = legacyFx;
       if (e.k === 'survey_blast') {
         fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
         fx.pillar(e.x, e.z, 0xf0b56b, 450);
-        authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1},now);
+        authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1});
         break;
       }
       if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
@@ -786,14 +886,14 @@ function onEvent(e) {
         break;
       }
       if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
-      if(e.k==='lattice_relay'){fx.ring(s.pos.x,s.pos.z,e.r,0x7fd0ff,650,s.pos.y);if(s.placed)authored('lattice-relay','aegis',{variant:'lattice',center:pointOf(s),radius:1.5,yaw:s.yaw,duration:1.2},now);}
-      else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6},now);fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
+      if(e.k==='lattice_relay'){fx.ring(s.pos.x,s.pos.z,e.r,0x7fd0ff,650,s.pos.y);if(s.placed)authored('lattice-relay','aegis',{variant:'lattice',center:pointOf(s),radius:1.5,yaw:s.yaw,duration:1.2});}
+      else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6});fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
       else if (e.k === 'discharge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
         fx.burst(s.chest, 0xffb45c, 14, 2.4);
-        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1},now);
+        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
@@ -803,7 +903,7 @@ function onEvent(e) {
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.5, 0xd8ffe9, 500, s.pos.y - s.model.hover);
         fx.burst(s.chest, 0x7dffc4, 16, 2.6);
-        if(s.placed)authored('overgrowth-surge','restorative',{variant:'restore',target:pointOf(s),radius:Math.min(8,e.r),duration:1.6},now);
+        if(s.placed)authored('overgrowth-surge','restorative',{variant:'restore',target:pointOf(s),radius:Math.min(8,e.r),duration:1.6});
       } else if (e.k === 'resonance_burst') {
         fx.ring(s.pos.x, s.pos.z, 20, 0xb48cff, 800, s.pos.y);
         fx.burst(s.chest, 0xb48cff, 14, 3);
@@ -826,8 +926,10 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
+        if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
         const me = S.ents.get(S.myId);
         if (me && !me.dead && Math.hypot(me.pos.x - e.x, me.pos.z - e.z) < e.r + 1) ui.toast(`${e.n} — move out of the marked ground!`, 'warn');
       }
@@ -838,6 +940,7 @@ function onEvent(e) {
       if (!ent) break;
       ent.dead = true;
       ent.cast = null;
+      if (rich() && ent.placed) cvfx.die(ent);
       if (ent.meta.k === 'e') ui.log(`${ent.meta.n} is destroyed.`, 'info');
       else if (e.id !== S.myId) ui.log(`${ent.meta.n} has been defeated.`, 'in');
       break;
@@ -850,6 +953,7 @@ function onEvent(e) {
     case 'lvl': {
       const ent = S.ents.get(e.id);
       if (ent) {
+        if (rich() && ent.placed) cvfx.level(ent);
         fx.pillar(ent.pos.x, ent.pos.z, 0xffd27a, 1400);
         fx.ring(ent.pos.x, ent.pos.z, 4, 0xffd27a, 900, ent.pos.y);
         if (e.id !== S.myId) ui.log(`${ent.meta.n} reached level ${e.l}.`, 'info');
@@ -863,8 +967,14 @@ function onEvent(e) {
       if (e.k === 'err') ui.error(e.m);
       else {
         ui.log(e.m, e.k);
-        if (e.k === 'gain') ui.toast(e.m, 'gain');
+        if (e.k === 'gain') {
+          ui.toast(e.m, 'gain');
+          acquired();
+        }
       }
+      break;
+    case 'loot':
+      acquired();
       break;
     case 'xp': {
       const me = S.ents.get(S.myId);
@@ -1269,6 +1379,10 @@ function updateEntities(dt, t, now) {
     ent.holder.visible = ent.inView;
     if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
     liveAegis.sync(ent, motionPreference.matches || quality === 0, t);
+    // Persistent statuses (ward, regeneration, bond, corrode, sap, root) while the server reports them.
+    if (svfx && rich() && ent.placed && ent.inView && !ent.dead) svfx.sync(ent, row?.b, dt * vfxTime);
+    else svfx?.remove(ent.id);
+    if (ent.rigModel) animateRig(ent, t);
     ent.model.update(dt, {
       t,
       speed: ent.speed,
@@ -1282,6 +1396,9 @@ function updateEntities(dt, t, now) {
       casting,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
+      self: ent.id === S.myId,
+      // Presentation only: how close the local player stands to an object.
+      near: ent.meta.k === 'o' && S.ents.get(S.myId) ? Math.hypot(S.ents.get(S.myId).pos.x - x, S.ents.get(S.myId).pos.z - z) : undefined,
       fwd: ent.fwd,
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
@@ -1363,6 +1480,8 @@ function setQuality(q) {
   scene.environment = q >= 1 ? environment : null;
   world.ambient.intensity = world.ambientBase * (q >= 1 ? 1 : 1.5);
   lowSpec(scene, q === 0);
+  if (q === 0) svfx?.clear();
+  vfx?.setQuality(q);
   renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
   resize();
 }
@@ -1413,8 +1532,10 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
-  fx.update(dt);
-  liveCasts.update(now);
+  fxClock += dt * 1000 * vfxTime;
+  fx.update(dt * vfxTime);
+  liveCasts.update(fxClock);
+  vfx?.update(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;

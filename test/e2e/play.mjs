@@ -608,21 +608,30 @@ try {
   await B.page.locator('.doll-tabs [data-tab="character"]').click();
   const portraitTab=await B.page.locator('.doll-tabs [data-tab="character"]').getAttribute('aria-pressed')==='true';
   let slotTabs=portraitTab;
+  const slotFaults=portraitTab?[]:['character tab not selected by default'];
   for(const tab of ['gear','implants','weapons','social']){
     await B.page.locator('.doll-tabs [data-tab="'+tab+'"]').click();
     const reserved=B.page.locator('.equipment-slot-grid .doll-slot.reserved').first();
     const box=await reserved.boundingBox();
     await reserved.click();
     const selected=await reserved.getAttribute('aria-pressed')==='true';
+    // innerText is the rendered text, and the "Reserved slot" kicker is styled
+    // uppercase (.kicker), so match without case.
     const detail=await B.page.locator('.loadout-detail').innerText();
     const sketch=await B.page.locator('.equipment-sketch img').count()===1;
-    slotTabs=slotTabs&&!!box&&Math.abs(box.width-box.height)<2&&selected&&sketch&&/Reserved slot/.test(detail);
+    const faults=[!box&&'no slot box',box&&Math.abs(box.width-box.height)>=2&&`not square ${box.width}x${box.height}`,!selected&&'not selected',!sketch&&'no sketch',!/reserved slot/i.test(detail)&&'no reserved detail'].filter(Boolean);
+    if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
+    slotTabs=slotTabs&&!faults.length;
   }
   await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const glyphSlot= B.page.locator('.equipment-slot-grid [data-slot="glyph"]');
   await glyphSlot.click();
-  slotTabs=slotTabs&&await B.page.locator('.doll-tabs button').count()===6&&await glyphSlot.getAttribute('aria-pressed')==='true';
-  check('9. six character tabs show selectable real and reserved slots',slotTabs);
+  const tabCount=await B.page.locator('.doll-tabs button').count();
+  const glyphSelected=await glyphSlot.getAttribute('aria-pressed')==='true';
+  if(tabCount!==6)slotFaults.push(`expected 6 tabs, found ${tabCount}`);
+  if(!glyphSelected)slotFaults.push('glyph slot not selectable');
+  slotTabs=slotTabs&&tabCount===6&&glyphSelected;
+  check('9. six character tabs show selectable real and reserved slots',slotTabs,slotFaults.join('; '));
   await equipVia(B, 'Sporeglass Focus');
   await until(B, () => window.__attune.state().sheet.equipped.device === 'sporeglass_focus', null, 4000, 'device equipped');
   sb = await state(B);
