@@ -49,6 +49,7 @@ export class Net {
     this.accountLogged = false;
     this.pendingAccount = null;
     this.pendingClaim = false;
+    this.logoutPending = false;
     this.activeCharacterId = null;
     this.pendingCreate = null;
     this.entered = false;
@@ -128,11 +129,7 @@ export class Net {
           this.h.onAccountFail(m.reason);
           break;
         case 'account_logged_out':
-          this.accountToken = null;
-          this.accountLogged = false;
-          this.activeCharacterId = null;
-          saveAccountToken(null);
-          this.h.onAccountLoggedOut();
+          this.finishSignOut();
           break;
         case 'auth_fail':
           this.token = null;
@@ -154,6 +151,10 @@ export class Net {
     ws.onclose = (ev) => {
       if (this.ws !== ws) return;
       this.ws = null;
+      if (this.logoutPending) {
+        this.finishSignOut();
+        return;
+      }
       if (ev.code === 4001) {
         this.closedForGood = true;
         this.h.onReplaced();
@@ -205,7 +206,17 @@ export class Net {
   }
 
   signOut() {
-    if (this.accountLogged && this.ws?.readyState === 1) this.send({ t: 'account_logout' });
+    if (this.accountLogged && this.ws?.readyState === 1) {
+      // Let the server revoke the bearer session before closing the socket.
+      this.logoutPending = true;
+      this.send({ t: 'account_logout' });
+      return;
+    }
+    this.finishSignOut();
+  }
+
+  finishSignOut() {
+    this.logoutPending = false;
     this.accountLogged = false;
     this.entered = false;
     this.activeCharacterId = null;
