@@ -392,3 +392,23 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .slot-legend .legend-reserved::before { border:1px dashed #8aa1ad; background:transparent; }
 .plate.player { pointer-events:auto; cursor:pointer; }
 .frame.target[tabindex="0"],.party-member[tabindex="0"] { cursor:context-menu; }
+
+/* The blueprint sits behind the slots; never intercept clicks. */
+.equipment-slot-grid { position:relative; isolation:isolate; }
+.equipment-sketch { position:absolute; z-index:0; inset:7px 12px; pointer-events:none; display:grid; place-items:center; }
+.equipment-sketch svg { height:100%; max-height:100%; width:100%; max-width:100%; opacity:.94; filter:drop-shadow(0 0 3px #70ddf0); }
+.equipment-slot-grid .doll-slot { z-index:1; }
+.equipment-slot-grid .doll-slot.reserved { background:rgba(12,30,39,.43); }
+.equipment-slot-grid .doll-slot.empty { background:rgba(13,27,35,.55); }
+.equipment-slot-grid .doll-slot.installed { background:rgba(21,52,64,.68); }
+.equipment-slot-grid .doll-slot.selected { background:rgba(36,73,86,.58); }
+.equipment-slot-grid .slot-caption { text-shadow:0 1px 3px #06131b,0 0 4px #06131b; }
+.chat-row { display:flex; position:relative; background:rgba(6,12,16,.88); border:1px solid rgba(111,230,255,.18); border-top:0; border-radius:0 0 8px 8px; }
+.chat-row .chat { flex:1; min-width:0; width:auto; border:0; background:transparent; font-size:12.5px; }
+.chat-mode { display:flex; align-items:center; gap:4px; flex:none; padding:5px 7px; border:0; border-right:1px solid var(--edge); border-radius:0 0 0 7px; background:#13272e; color:#a8dce7; font-size:10px; }
+.chat-mode svg { width:17px; height:17px; }
+.chat-mode[data-channel="party"],.line.party-chat { color:#85e8bd; }
+.chat-mode[data-channel="whisper"] { color:#c9a2ff; }
+.chat-options { position:absolute; bottom:100%; left:0; display:flex; flex-direction:column; gap:4px; min-width:128px; background:#101c23; border:1px solid var(--edge); padding:5px; border-radius:5px; z-index:10; }
+.chat-options button { text-align:left; font-size:12px; padding:6px 8px; }
+.chat-options button[aria-pressed="true"] { border-color:var(--cyan); }

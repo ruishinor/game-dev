@@ -337,7 +337,25 @@ try {
     return event.defaultPrevented&&getComputedStyle(el).pointerEvents==='auto'&&!document.querySelector('.player-context').hidden;
   });
   await B.page.keyboard.press('Escape');
-  check('11. player context menu opens from both frames and the nameplate; Escape closes',allyMenu&&targetMenu&&plateMenu&&(await state(B)).target===sa.myId);
+  const nativeSuppressed=await B.page.locator('.frame.player').evaluate(el=>{
+    const e=new MouseEvent('contextmenu',{bubbles:true,cancelable:true});
+    el.dispatchEvent(e);
+    return e.defaultPrevented;
+  });
+  check('11. player context menu opens from frames and nameplate; native menu suppressed elsewhere',allyMenu&&targetMenu&&plateMenu&&nativeSuppressed&&(await state(B)).target===sa.myId);
+  await B.page.keyboard.press('Enter');
+  await B.page.locator('.chat').fill('/p ');
+  const partyChannel=await B.page.locator('.chat-mode').getAttribute('data-channel')==='party';
+  await B.page.locator('.chat').fill('/v');
+  await B.page.keyboard.press('Enter');
+  const vicinityChannel=await B.page.locator('.chat-mode').getAttribute('data-channel')==='vicinity';
+  await B.page.keyboard.press('Escape');
+  await B.page.locator('.chat-mode').click();
+  await B.page.locator('.chat-option[data-channel="party"]').click();
+  const iconChannel=await B.page.locator('.chat-mode').getAttribute('data-channel')==='party';
+  await B.page.locator('.chat').fill('/v ');
+  await B.page.keyboard.press('Escape');
+  check('11. chat channel switches via slash commands and the chat icon',partyChannel&&vicinityChannel&&iconChannel);
   const pA = serverPlayer('Brakka');
   pA.hp = Math.min(pA.hp, 120);
   note('set Brakka to 120 health so healing is measurable');
@@ -490,7 +508,8 @@ try {
     await reserved.click();
     const selected=await reserved.getAttribute('aria-pressed')==='true';
     const detail=await B.page.locator('.loadout-detail').innerText();
-    slotTabs=slotTabs&&!!box&&Math.abs(box.width-box.height)<2&&selected&&/Reserved slot/.test(detail);
+    const sketch=await B.page.locator('.equipment-sketch svg').count()===1;
+    slotTabs=slotTabs&&!!box&&Math.abs(box.width-box.height)<2&&selected&&sketch&&/Reserved slot/.test(detail);
   }
   check('9. five character tabs show real square selectable slots and reserved details',slotTabs);
   await equipVia(B, 'Sporeglass Focus');

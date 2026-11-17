@@ -158,6 +158,12 @@ const net = new Net({
   },
 });
 
+// Suppress the native menu throughout the active game, without consuming
+// events needed by our contextual player actions. Keep account forms native.
+document.addEventListener('contextmenu', e=>{
+  if(!document.getElementById('hud').hidden)e.preventDefault();
+},true);
+
 const portraits = makePortraits(assets, useGlb);
 const ui = new UI({
   portrait: portraits,
@@ -187,7 +193,7 @@ const ui = new UI({
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
-  chat: (m) => net.send({ t: 'chat', m }),
+  chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
@@ -729,7 +735,7 @@ function onEvent(e) {
       break;
     }
     case 'chat':
-      ui.chatLine(e.n, e.m);
+      ui.chatLine('['+(e.channel==='party'?'Party':'Vicinity')+'] '+e.n,e.m,e.channel==='party'?'party-chat':'chatline');
       break;
     case 'msg':
       if (e.k === 'err') ui.error(e.m);
@@ -925,6 +931,10 @@ input.onAction = (code, e) => {
       else ui.error('Nothing to interact with here.');
       break;
     }
+    case 'Slash':
+      e.preventDefault();
+      ui.focusChat('/');
+      break;
     case 'Enter':
       e.preventDefault();
       ui.focusChat();

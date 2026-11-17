@@ -147,6 +147,11 @@ export function renderLoadout(ui,body,stats) {
   }else{
     const grid=h('div','equipment-slot-grid');
     grid.setAttribute('aria-label',tab.name+' equipment slots');
+    // A schematic, not a claim about an installed item or the current rig.
+    const sketch=h('div','equipment-sketch');
+    sketch.setAttribute('aria-hidden','true');
+    sketch.innerHTML='<svg viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="#26778c" fill-opacity=".22" stroke="#8ee9f6" stroke-width="1.3" stroke-linejoin="round"><path d="M83 43Q78 23 87 10Q100 1 113 10Q122 23 117 43L108 55H92Z"/><path d="M91 55L88 67 63 75 52 87 61 111 71 139 77 166 72 189 81 209 100 217 119 209 128 189 123 166 129 139 139 111 148 87 137 75 112 67 109 55Z"/><path d="M53 86L42 98 29 143 22 179 15 195 15 212 25 218 35 210 40 191 39 180 52 151 65 112Z"/><path d="M147 86L158 98 171 143 178 179 185 195 185 212 175 218 165 210 160 191 161 180 148 151 135 112Z"/><path d="M78 207L66 245 65 275 68 315 61 329 62 334 84 334 91 327 89 305 93 275 97 246 100 217Z"/><path d="M122 207L134 245 135 275 132 315 139 329 138 334 116 334 109 327 111 305 107 275 103 246 100 217Z"/></g><g stroke="#8ee9f6" stroke-width=".8" opacity=".65"><path d="M100 8V217M84 29H116M89 46H111M65 79L100 96 135 79M70 113H130M76 143H124M77 166H123M72 189L100 203 128 189M44 135L56 142M144 142L156 135M26 174L41 180M159 180L174 174M68 260L93 265M107 265L132 260M68 278L92 278M108 278L132 278M70 311L89 309M111 309L130 311"/></g><g fill="#a1eaf3" opacity=".65"><circle cx="100" cy="96" r="3"/><circle cx="100" cy="143" r="3"/><circle cx="100" cy="203" r="3"/><circle cx="55" cy="89" r="3"/><circle cx="145" cy="89" r="3"/><circle cx="80" cy="266" r="3"/><circle cx="120" cy="266" r="3"/></g></svg>';
+    grid.append(sketch);
     const rows=Math.max(...tab.slots.map(t=>t.row));
     grid.style.setProperty('--slot-rows',rows);
     for(const slot of tab.slots){

@@ -248,23 +248,79 @@ export class UI {
     this.chat = document.createElement('input');
     this.chat.className = 'chat';
     this.chat.maxLength = 140;
-    this.chat.placeholder = 'Press Enter to talk';
+    this.chatChannel = 'vicinity';
     this.whisperTarget = null;
     this.chat.setAttribute('aria-label', 'Chat message');
+    const chatRow=h('div','chat-row');
+    this.chatModeButton=h('button','chat-mode');
+    this.chatModeButton.type='button';
+    this.chatModeButton.setAttribute('aria-label','Choose chat channel');
+    this.chatModeButton.setAttribute('aria-expanded','false');
+    this.chatModeButton.innerHTML=svg('<path d="M4 4h16v12H10l-6 4zM8 8h8M8 12h5"/>');
+    this.chatChannelLabel=h('span','chat-channel-label');
+    this.chatModeButton.append(this.chatChannelLabel);
+    this.chatOptions=h('div','chat-options');
+    this.chatOptions.hidden=true;
+    for(const [channel,label] of [['vicinity','Vicinity /v'],['party','Party /p']]){
+      const btn=h('button','chat-option',label);
+      btn.type='button';
+      btn.dataset.channel=channel;
+      btn.addEventListener('click',()=>this.selectChatChannel(channel));
+      this.chatOptions.append(btn);
+    }
+    this.chatModeButton.addEventListener('click',()=>{
+      const open=this.chatOptions.hidden;
+      this.setChatOptions(open);
+      if(open)this.chatOptions.querySelector('[aria-pressed="true"]')?.focus();
+    });
+    this.chatOptions.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Escape'){e.preventDefault();this.setChatOptions(false);this.chatModeButton.focus();}
+      else if(['Tab','ArrowDown','ArrowUp'].includes(e.key)){
+        e.preventDefault();
+        const b=[...this.chatOptions.querySelectorAll('button')];
+        b[(b.indexOf(document.activeElement)+1)%b.length].focus();
+      }
+    });
+    this.chatModeButton.addEventListener('keydown',e=>{
+      e.stopPropagation();
+      if(e.key==='Escape'){e.preventDefault();this.setChatOptions(false);}
+      else if(e.key==='Tab'){e.preventDefault();this.chat.focus();}
+    });
+    document.addEventListener('pointerdown',e=>{
+      if(!chatRow.contains(e.target))this.setChatOptions(false);
+    });
+    this.chat.addEventListener('input',()=>{
+      const match=/^\\/([pv])\\s+/i.exec(this.chat.value);
+      if(!match)return;
+      const rest=this.chat.value.slice(match[0].length);
+      this.selectChatChannel(match[1].toLowerCase()==='p'?'party':'vicinity');
+      this.chat.value=rest;
+    });
     this.chat.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
+        e.preventDefault();
         const text = this.chat.value.trim();
-        if (text) {
+        const command=/^\\/([pv])(?:\\s+(.*))?$/i.exec(text);
+        if(command){
+          this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
+          const message=(command[2]||'').trim();
+          if(!message){this.chat.value='';return;}
+          this.a.chat(message,this.chatChannel);
+        } else if (text) {
           if (this.whisperTarget) this.a.whisper(this.whisperTarget.id, text);
-          else this.a.chat(text);
+          else this.a.chat(text,this.chatChannel);
         }
         this.resetChatTarget();
       } else if (e.key === 'Escape') {
+        e.preventDefault();
         this.resetChatTarget();
       }
     });
-    logWrap.append(this.logEl, this.chat);
+    chatRow.append(this.chatModeButton,this.chat,this.chatOptions);
+    logWrap.append(this.logEl,chatRow);
+    this.updateChatChannel();
     root.append(logWrap);
 
     // Bars
@@ -455,7 +511,8 @@ export class UI {
       ['O', 'Settings: graphics preset, nameplates'],
       ['M', 'Open the corner menu'],
       ['H', 'Help and command reference'],
-      ['Enter', 'Chat'],
+      ['Enter / /', 'Open chat. /p switches to party; /v switches to vicinity. Type a space or press Enter after the command.'],
+      ['Chat icon', 'Choose vicinity or party. Right-click a player for private whispers.'],
     ];
     const table = h('div', 'keys');
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
@@ -620,8 +677,10 @@ export class UI {
     this.banner.classList.add('show');
   }
 
-  focusChat() {
+  focusChat(prefix='') {
+    this.setChatOptions(false);
     this.chat.focus();
+    if(prefix&&!this.chat.value)this.chat.value=prefix;
   }
 
   // --- panels ---------------------------------------------------------------
@@ -737,10 +796,35 @@ export class UI {
     this.help.hidden = !open;
   }
 
+  setChatOptions(open) {
+    this.chatOptions.hidden=!open;
+    this.chatModeButton.setAttribute('aria-expanded',String(open));
+  }
+
+  updateChatChannel() {
+    const name=this.whisperTarget?'Whisper':this.chatChannel==='party'?'Party':'Vicinity';
+    this.chatChannelLabel.textContent=name;
+    this.chatModeButton.dataset.channel=this.whisperTarget?'whisper':this.chatChannel;
+    this.chat.placeholder=this.whisperTarget?'Whisper to '+this.whisperTarget.name:'Press Enter to talk';
+    this.chat.setAttribute('aria-label',this.whisperTarget?'Whisper to '+this.whisperTarget.name:name+' chat message');
+    for(const option of this.chatOptions.querySelectorAll('button'))option.setAttribute('aria-pressed',String(!this.whisperTarget&&option.dataset.channel===this.chatChannel));
+  }
+
+  selectChatChannel(channel) {
+    if(channel!=='party'&&channel!=='vicinity')return;
+    if(this.whisperTarget||this.chatChannel!==channel)this.chat.value='';
+    this.whisperTarget=null;
+    this.chatChannel=channel;
+    this.updateChatChannel();
+    this.setChatOptions(false);
+    this.chat.focus();
+  }
+
   resetChatTarget() {
     this.whisperTarget = null;
     this.chat.value = '';
-    this.chat.placeholder = 'Press Enter to talk';
+    this.updateChatChannel();
+    this.setChatOptions(false);
     this.chat.blur();
   }
 
@@ -799,7 +883,8 @@ export class UI {
       // A draft for a different recipient must never be silently redirected.
       this.chat.value='';
       this.whisperTarget={id,name:current.meta.n};
-      this.chat.placeholder='Whisper to '+current.meta.n;
+      this.updateChatChannel();
+      this.setChatOptions(false);
       this.chat.focus();
     });
     this.playerContext.hidden=false;
@@ -1147,6 +1232,7 @@ export class UI {
     this.companionId = 0;
     this.closePlayerContext();
     this.liveEntities=null;
+    this.chatChannel='vicinity';
     this.resetChatTarget();
   }
 

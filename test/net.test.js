@@ -209,15 +209,35 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     a.send({ t: 'party_answer', accept: true });
     await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'party formed');
     assert.equal(a.snap.y.party.members.length, 2);
-    a.send({ t: 'party_leave' });
-    await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
-
-    // The third socket must not receive a private whisper. Remove it before
-    // the existing two-player combat scenario.
+    // Verify scoped chat using the existing third socket; no new test suite.
     const observer = new Client(srv.port);
     try {
       const wc = await observer.create('Witness', 'vanguard');
       await observer.until(() => observer.ent(wa.id) && observer.ent(wc.id));
+      const near=srv.game.players.get(wa.id);
+      const ally=srv.game.players.get(wb.id);
+      const witness=srv.game.players.get(wc.id);
+      witness.x=near.x;witness.z=near.z;
+      a.send({t:'chat',channel:'party',m:'Party greeting'});
+      await b.until(()=>b.events.some(e=>e.channel==='party'&&e.m==='Party greeting'));
+      await a.until(()=>a.events.some(e=>e.channel==='party'&&e.m==='Party greeting'));
+      await observer.until(()=>observer.snap?.time>=b.snap.time);
+      assert.ok(!observer.events.some(e=>e.m==='Party greeting'),'party chat is not sent to a nearby non-member');
+      // Far-away witness receives no vicinity message, but nearby ally does.
+      witness.x=near.x+60;witness.z=near.z;
+      ally.x=near.x+3;ally.z=near.z;
+      b.send({t:'chat',channel:'vicinity',m:'Vicinity greeting'});
+      await a.until(()=>a.events.some(e=>e.channel==='vicinity'&&e.m==='Vicinity greeting'));
+      await observer.until(()=>observer.snap?.time>=a.snap.time);
+      assert.ok(!observer.events.some(e=>e.m==='Vicinity greeting'),'vicinity chat is not broadcast beyond 45m');
+      a.send({ t: 'party_leave' });
+      await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
+      await new Promise(r=>setTimeout(r,850));
+      a.send({t:'chat',channel:'party',m:'Must not leak'});
+      await a.until(()=>a.events.some(e=>e.k==='err'&&/not in a party/.test(e.m)));
+      await observer.until(()=>observer.snap?.time>=a.snap.time);
+      assert.ok(!b.events.some(e=>e.m==='Must not leak')&&!observer.events.some(e=>e.m==='Must not leak'),'party chat never falls back to public');
+      await new Promise(r=>setTimeout(r,850));
       a.send({ t: 'whisper', id: wb.id, m: 'Private greeting' });
       await b.until(() => b.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)), 3000, 'whisper received');
       await a.until(() => a.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)));

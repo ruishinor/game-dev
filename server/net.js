@@ -17,6 +17,7 @@ const MAX_STRIKES = 300;
 const MAX_INPUTS_PER_MSG = 16;
 const CHAT_INTERVAL_MS = 800;
 const CHAT_MAX_LEN = 140;
+const VICINITY_CHAT_RANGE = 45; // world metres, independent of camera visibility
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isId = (v) => Number.isInteger(v) && v >= 0 && v < 2 ** 31;
@@ -380,6 +381,8 @@ export class NetServer {
       case 'whisper':
       case 'chat': {
         if (typeof msg.m !== 'string') return this.strike(conn);
+        const channel=msg.channel===undefined?'vicinity':msg.channel;
+        if(msg.t==='chat'&&channel!=='vicinity'&&channel!=='party')return this.strike(conn);
         const now = Date.now();
         if (now - conn.lastChat < CHAT_INTERVAL_MS) return;
         // Strip control characters; clients render chat as plain text only.
@@ -392,7 +395,21 @@ export class NetServer {
           if (!other || other.id === p.id) return game.message(p, 'err', 'That player is unavailable.');
           game.message(other, 'whisper', `From ${p.name}: ${text}`);
           game.message(p, 'whisper', `To ${other.name}: ${text}`);
-        } else game.events.push({ e: 'chat', id: p.id, n: p.name, m: text });
+        } else {
+          const event={e:'chat',id:p.id,n:p.name,m:text,channel};
+          if(channel==='party'){
+            const members=game.parties.get(p.partyId);
+            if(!members?.has(p.id))return game.message(p,'err','You are not in a party.');
+            for(const id of members){
+              const recipient=game.players.get(id);
+              if(recipient)recipient.outbox.push(event);
+            }
+          }else{
+            for(const recipient of game.players.values()){
+              if(Math.hypot(recipient.x-p.x,recipient.z-p.z)<=VICINITY_CHAT_RANGE)recipient.outbox.push(event);
+            }
+          }
+        }
         break;
       }
       case 'ping':
