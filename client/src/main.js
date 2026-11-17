@@ -1040,7 +1040,7 @@ function frame(now) {
       target,
       ents: S.ents,
       comp: S.compId ? S.ents.get(S.compId) : null,
-      inspect: S.inspect ? { ...S.inspect, entity: S.ents.get(S.inspect.id) } : null,
+      inspect: S.inspect,
       now,
       cd: (id) => Math.max(0, (S.cdReady[id] || 0) - now),
       gcd: () => Math.max(0, S.gcdReady - now),
