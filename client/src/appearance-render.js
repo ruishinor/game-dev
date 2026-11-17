@@ -97,6 +97,66 @@ function scalp(THREE, head, keep, lift, segs = [40, 26]) {
   return g;
 }
 
+/**
+ * Hair tufts: short curved ribbons rooted on the scalp, combed along a flow
+ * field (crown -> back and down), for a broken, fibrous silhouette. They use
+ * an alpha-tested strand texture. Returns a non-indexed geometry or null.
+ */
+function tufts(THREE, head, { count, keep, len, width, lift = 0.004, flow = [0, -1, -0.55], rise = 0.25, seed = 1 }) {
+  const r = rng(seed);
+  const [cx, cy, cz] = head.c;
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const n = new THREE.Vector3();
+  const f = new THREE.Vector3();
+  const side = new THREE.Vector3();
+  const g = new THREE.Vector3(...flow).normalize();
+  let placed = 0;
+  for (let tries = 0; tries < count * 12 && placed < count; tries++) {
+    n.set(r() * 2 - 1, r() * 2 - 1, r() * 2 - 1);
+    if (n.lengthSq() > 1 || n.lengthSq() < 0.01) continue;
+    n.normalize();
+    if (!keep(n)) continue;
+    // flow direction projected onto the scalp's tangent plane
+    f.copy(g).addScaledVector(n, -g.dot(n));
+    if (f.lengthSq() < 1e-4) f.set(0, 0, -1).addScaledVector(n, n.z);
+    f.normalize();
+    side.crossVectors(n, f).normalize();
+    const L = len[0] + r() * (len[1] - len[0]);
+    const W = width * (0.7 + r() * 0.6);
+    const R0 = surfaceRadius(head, n) + lift;
+    const base = [cx + n.x * R0, cy + n.y * R0, cz + n.z * R0];
+    const seg = 4;
+    const rows = [];
+    for (let k = 0; k <= seg; k++) {
+      const t = k / seg;
+      // lifts off the scalp, then lies back along the flow
+      const out = Math.sin(t * Math.PI * 0.85) * L * rise;
+      const c = base.map((b, j) => b + [f.x, f.y, f.z][j] * L * t + [n.x, n.y, n.z][j] * out);
+      const w = W * (1 - t * 0.75);
+      rows.push([c.map((v, j) => v - [side.x, side.y, side.z][j] * w), c.map((v, j) => v + [side.x, side.y, side.z][j] * w), t]);
+    }
+    for (let k = 0; k < seg; k++) {
+      const [a0, a1, ta] = rows[k];
+      const [b0, b1, tb] = rows[k + 1];
+      for (const [q, u, v] of [[a0, 0, ta], [a1, 1, ta], [b1, 1, tb], [a0, 0, ta], [b1, 1, tb], [b0, 0, tb]]) {
+        pos.push(...q);
+        nor.push(n.x, n.y, n.z);
+        uv.push(u, 1 - v);
+      }
+    }
+    placed++;
+  }
+  if (!placed) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.computeBoundingSphere();
+  return geo;
+}
+
 /** A tube along points whose radius tapers from r0 to r1; v runs along the tube. */
 function taperTube(THREE, points, r0, r1, segs = 14, radial = 6) {
   const curve = new THREE.CatmullRomCurve3(points.map((q) => new THREE.Vector3(...q)));
@@ -179,7 +239,17 @@ export function hairGeometry(THREE, frame, style, head = HEAD[frame]) {
     parts.push(scalp(THREE, head, (n) => capKeep(n) && Math.abs(n.x) < 0.3, (n) => 0.012 + 0.05 * Math.max(0, 1 - Math.abs(n.x) / 0.3) * smooth(-0.6, 0.6, n.y) * (0.75 + 0.25 * Math.sin(Math.acos(Math.max(-1, Math.min(1, n.z))) * 9))));
     parts.push(scalp(THREE, head, (n) => capKeep(n) && Math.abs(n.x) >= 0.28, () => 0.002));
   }
-  const out = { hair: mergeGeometries(THREE, parts), band: bands.length ? mergeGeometries(THREE, bands) : null };
+  const seed = 0x7f + style.length * 13 + (frame === 'f' ? 5 : 0);
+  const T = {
+    crop: { count: 170, keep: capKeep, len: [0.022, 0.04], width: 0.011, lift: 0.006, rise: 0.35 },
+    undercut: { count: 120, keep: (n) => n.y > 0.32 + 0.1 * (n.z > 0 ? 1 : 0) && Math.abs(n.x) < 0.78, len: [0.05, 0.09], width: 0.014, lift: 0.02, flow: [0, -0.15, -1], rise: 0.3 },
+    ponytail: { count: 110, keep: capKeep, len: [0.03, 0.05], width: 0.012, lift: 0.004, flow: [0, -0.3, -1], rise: 0.12 },
+    bun: { count: 110, keep: capKeep, len: [0.03, 0.05], width: 0.012, lift: 0.004, flow: [0, 0.2, -1], rise: 0.12 },
+    braids: { count: 100, keep: capKeep, len: [0.03, 0.05], width: 0.012, lift: 0.004, flow: [0, -1, -0.4], rise: 0.12 },
+    locs: null,
+    mohawk: { count: 90, keep: (n) => capKeep(n) && Math.abs(n.x) < 0.26, len: [0.05, 0.08], width: 0.012, lift: 0.03, flow: [0, 0.6, -1], rise: 0.6 },
+  }[style];
+  const out = { hair: mergeGeometries(THREE, parts), band: bands.length ? mergeGeometries(THREE, bands) : null, tufts: T ? tufts(THREE, head, { ...T, seed }) : null };
   for (const x of [...parts, ...bands]) x.dispose();
   return out;
 }
@@ -193,8 +263,7 @@ export function featureGeometry(THREE, frame, race, head = HEAD[frame]) {
   const glow = [];
   if (race === 'human' || race === 'mirekin') {
     // nose and ears break the mannequin egg into a face
-    skin.push(ellipsoid(THREE, [cx, cy - ry * 0.18, cz + rz * 0.97], [0.014, 0.026, 0.02]));
-    skin.push(ellipsoid(THREE, [cx, cy - ry * 0.33, cz + rz * 0.95], [0.02, 0.012, 0.016]));
+    skin.push(ellipsoid(THREE, [cx, cy - ry * 0.2, cz + rz * 0.93], [0.011, 0.022, 0.016]));
     for (const s of [-1, 1]) skin.push(ellipsoid(THREE, [cx + s * rx * 0.99, cy - ry * 0.1, cz - rz * 0.05], [0.011, 0.029, 0.02]));
     // brow ridge
     skin.push(ellipsoid(THREE, [cx, cy + ry * 0.12, cz + rz * 0.86], [rx * 0.82, 0.016, 0.03]));
@@ -438,6 +507,30 @@ export function paintStrands(kind = 'strand') {
   return c;
 }
 
+/** Alpha strand texture for tufts: fibres with gaps and tapered tips. */
+export function paintTuft() {
+  if (typeof document === 'undefined') return null;
+  const [c, g] = canvas(128, 256);
+  const r = rng(0x7af);
+  g.clearRect(0, 0, 128, 256);
+  for (let i = 0; i < 110; i++) {
+    const x = 6 + r() * 116;
+    const len = 150 + r() * 106;
+    const v = 120 + r() * 120;
+    const grd = g.createLinearGradient(0, 0, 0, len);
+    grd.addColorStop(0, `rgba(${v * 0.6},${v * 0.6},${v * 0.6},1)`);
+    grd.addColorStop(0.8, `rgba(${v},${v},${v},0.9)`);
+    grd.addColorStop(1, `rgba(${v},${v},${v},0)`);
+    g.strokeStyle = grd;
+    g.lineWidth = 1 + r() * 2.2;
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.quadraticCurveTo(x + (r() - 0.5) * 18, len * 0.5, x + (r() - 0.5) * 26, len);
+    g.stroke();
+  }
+  return c;
+}
+
 /** Mottled altered skin (Mirekin) for the body: albedo and a sparse vein glow. */
 export function paintAlteredSkin(skin) {
   if (typeof document === 'undefined') return null;
@@ -562,7 +655,7 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
         const full = hairGeometry(THREE, frame, ap.hair, head);
         if (!helmet) return full;
         // Under a helmet only what falls below its rim can show.
-        const tails = { ...full };
+        const tails = { ...full, tufts: null };
         if (!['ponytail', 'braids', 'locs'].includes(ap.hair)) return { hair: null, band: null };
         const p = full.hair.getAttribute('position');
         const keep = [];
@@ -584,6 +677,10 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
       const braid = ap.hair === 'braids';
       add(h.hair, sharedMat(`hair:${ap.hairColour}:${braid ? 'braid' : 'strand'}`, () => new THREE.MeshStandardMaterial({ color: hairHex, map: tex(paintStrands(braid ? 'braid' : 'strand')), roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide })), 'hair');
       add(h.band, sharedMat('hairband', () => new THREE.MeshStandardMaterial({ color: 0x3a3226, roughness: 0.8 })), 'hairband');
+      if (!helmet) add(h.tufts, sharedMat(`tuft:${ap.hairColour}`, () => {
+        const t = tex(paintTuft());
+        return new THREE.MeshStandardMaterial({ color: hairHex, map: t, alphaTest: t ? 0.35 : 0, transparent: false, roughness: 0.6, side: THREE.DoubleSide });
+      }), 'tufts');
     }
     return { meshes, skin: skinMaterial(ap) };
   }
