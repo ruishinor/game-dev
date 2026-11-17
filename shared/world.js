@@ -24,6 +24,7 @@ export const ZONES = {
   vault: { x: 6, z: -58, r: 17, name: 'Resonance Vault' },
   obelisk: { x: -57, z: -38, r: 8, name: 'The Listening Stone' },
   survey: { x: 43, z: -33, r: 17, name: 'Brineworks Cut' },
+  sinter: { x: 6, z: 58, r: 16, name: 'Sinter Flats' },
 };
 
 export function mulberry32(seed) {
@@ -64,6 +65,11 @@ export function groundHeight(x, z) {
   // A shallow excavated basin with an eroded rim, localized to the new site.
   const brineR = Math.hypot(x - ZONES.survey.x, z - ZONES.survey.z);
   h += 1.15 * smooth(1 - Math.abs(brineR - 17) / 5);
+  // The wind-scoured sinter bed is shallow, gently ribbed and walkable.
+  const sinterR = Math.hypot(x - ZONES.sinter.x, z - ZONES.sinter.z);
+  const sinterBlend = smooth(1 - (sinterR - 8) / 12);
+  const sinterBed = -0.55 + 0.19 * Math.sin(x * 0.46 + z * 0.12) + 0.10 * Math.cos(z * 0.38);
+  h = h * (1 - sinterBlend) + sinterBed * sinterBlend;
   for (const a of FLAT_AREAS) {
     const d = Math.hypot(x - a.x, z - a.z);
     const k = smooth(1 - (d - a.r) / a.f);
@@ -151,7 +157,7 @@ function buildProps() {
   const blocked = (x, z, pad) => {
     if (Math.hypot(x, z) > WORLD.radius - 12) return true;
     for (const k of Object.keys(ZONES)) {
-      if (k === 'survey') continue; // preserve the legacy scatter sequence
+      if (k === 'survey' || k === 'sinter') continue; // preserve the legacy scatter sequence
       const zn = ZONES[k];
       if (Math.hypot(x - zn.x, z - zn.z) < zn.r + pad) return true;
     }
@@ -173,7 +179,8 @@ function buildProps() {
   }
   // Replace only old scatter within the cut; keep the original world layout elsewhere.
   const survey = ZONES.survey;
-  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => Math.hypot(p.x - survey.x, p.z - survey.z) >= survey.r + 2));
+  const sinter = ZONES.sinter;
+  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => [survey, sinter].every(zn => Math.hypot(p.x - zn.x, p.z - zn.z) >= zn.r + 2)));
   retained.push(
     { type: 'survey_pump', x: 43, z: -39, hw: 2.15, hd: 1.45, h: 4.8 },
     { type: 'survey_tower', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
@@ -181,6 +188,16 @@ function buildProps() {
     { type: 'wall', x: 53, z: -37, hw: 0.6, hd: 3.5, h: 2.4 },
     { type: 'survey_workstation', x: 38, z: -39, hw: 1.15, hd: 0.64, h: 1.8 },
     { type: 'crate', x: 49, z: -39, hw: 0.8, hd: 0.7, h: 1.1 },
+  );
+  // Leave the central north-south approach open; no random obstacles in the new bed.
+  retained.push(
+    { type: 'sinter_ridge', x: -2, z: 54, hw: 2.5, hd: 1.1, h: 2.8, seed: 741 },
+    { type: 'sinter_ridge', x: 14, z: 54, hw: 2.0, hd: 1.3, h: 1.9, seed: 742 },
+    { type: 'sinter_ridge', x: -4, z: 64, hw: 2.3, hd: 1.5, h: 3.2, seed: 743 },
+    { type: 'sinter_ridge', x: 16, z: 62, hw: 1.8, hd: 1.1, h: 2.4, seed: 744 },
+    { type: 'sinter_ridge', x: 1, z: 69, hw: 2.1, hd: 1.2, h: 1.6, seed: 745 },
+    { type: 'sinter_ridge', x: 12, z: 69, hw: 2.0, hd: 1.0, h: 2.1, seed: 746 },
+    { type: 'sinter_colony', x: 9, z: 64, hw: 1.5, hd: 1.25, h: 1.8, seed: 747 },
   );
   return retained;
 }

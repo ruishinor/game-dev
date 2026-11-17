@@ -27,8 +27,8 @@ try {
     return s?.myId && s.sheet?.look === 'brine_surveyor' && s.drawn >= 2 && s.ents.some(e => e.id === s.myId && e.model === 'glb');
   });
   await page.waitForFunction(() => window.__attune.state().world.prototypeArt === 'ready');
-  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready'});
-  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation'].every(type => {
+  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready',sinter_colony:'ready'});
+  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation','sinter_colony'].every(type => {
     const group = window.__attune.gfx.scene.getObjectByName('prototype-art:'+type);
     let meshes = 0; group?.traverse(node => { if (node.isMesh) meshes++; });
     return meshes > 0;
@@ -69,6 +69,11 @@ try {
   assert.equal(p.char.quest.step, 0);
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
+  await moveTo(6, 58);
+  await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
+  await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
+  assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
+  await capture('preview-evidence/04b-sinter-flats.png');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
@@ -76,7 +81,7 @@ try {
   await fallbackPage.route('**/research_workstation.glb', route => route.abort());
   await fallbackPage.goto(url);
   await fallbackPage.waitForFunction(() => window.__attune?.state().world.prototypeArt === 'fallback');
-  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback'});
+  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback',sinter_colony:'ready'});
   assert.ok(await fallbackPage.evaluate(() => {
     const scene = window.__attune.gfx.scene;
     const holder = scene.getObjectByName('prototype-fallback:survey_workstation');

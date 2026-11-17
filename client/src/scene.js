@@ -74,6 +74,7 @@ function groundColor(x, z, out) {
   blend(ZONES.obelisk, 9, 0x223f5c, 0x2f5a78);
   blend(ZONES.sanctum, 15, 0x4d6670, 0x5f7c86);
   blend(ZONES.survey, 20, 0x645043, 0x9b7962);
+  blend(ZONES.sinter, 19, 0x827769, 0xbab09a);
   const edge = smooth((Math.hypot(x, z) - (WORLD.radius - 12)) / 9);
   if (edge > 0) out.lerp(tmpB.setHex(0x2c2b36).lerp(tmpA.setHex(0x45434f), n), edge);
   return out;
@@ -236,6 +237,41 @@ function jitteredRock(seed) {
 const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
 const procedural = {
+  // Wind-cut, laminated mineral fins: broad bases, fractured edges, no emission.
+  sinter_ridge(p) {
+    const g = new THREE.Group();
+    g.name = 'sinter-ridge:' + p.seed;
+    const rnd = mulberry32(p.seed);
+    const strata = [0x514d48, 0x938572, 0x665c51, 0xb5a88b, 0x807266];
+    for (let i = 0; i < strata.length; i++) {
+      const taper = 1 - i * 0.115;
+      const dx = (rnd() - 0.5) * p.hw * 0.22;
+      const dz = (rnd() - 0.5) * p.hd * 0.16;
+      const layer = scaled(rockGeos[(p.seed+i)%rockGeos.length], mat(strata[i], {rough:0.96}),
+        p.hw*0.75*taper, p.h*0.20, p.hd*0.74*taper, dx, p.h*(0.13+i*0.17), dz);
+      g.add(layer);
+    }
+    return g;
+  },
+  // A complete grounded fallback if the original biological colony is unavailable.
+  sinter_colony(p) {
+    const g = new THREE.Group();
+    const rind = mat(0x675d50, {rough:0.94});
+    const mineral = mat(0x9c9881, {rough:0.73,metal:0.12});
+    const dark = mat(0x4b514a, {rough:0.87});
+    const rnd = mulberry32(p.seed);
+    g.add(scaled(G.sph,rind,1.15,0.17,0.92,0,0.13,0));
+    for (let i=0;i<7;i++) {
+      const a=i*Math.PI*2/7, r=0.42+rnd()*0.34;
+      const x=Math.cos(a)*r,z=Math.sin(a)*r;
+      g.add(scaled(G.sph,dark,0.23,0.16,0.20,x,0.24,z));
+      const h=0.36+rnd()*0.78;
+      const fin=scaled(G.ico,mineral,0.16,h*0.48,0.12,x,0.28+h*.40,z);
+      fin.rotation.z=Math.sin(a)*0.24;
+      g.add(fin);
+    }
+    return g;
+  },
   survey_pump(p) {
     const g = new THREE.Group();
     const base = mat(0x494a43, { rough: 0.91 });
@@ -870,7 +906,7 @@ function buildVegetation(c, detail) {
     const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17)) return null;
+    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18)) return null;
     return [x, z];
   };
   const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
@@ -960,7 +996,7 @@ function buildProceduralDecor(scene) {
     const r = Math.sqrt(rnd()) * (WORLD.radius - 8);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17)) continue;
+    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18)) continue;
     const s = 0.7 + rnd() * 1.4;
     dummy.position.set(x, groundHeight(x, z) + 0.22 * s, z);
     dummy.rotation.set((rnd() - 0.5) * 0.4, rnd() * 6, (rnd() - 0.5) * 0.4);
@@ -1094,7 +1130,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' || p.type.startsWith('sinter_') ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
