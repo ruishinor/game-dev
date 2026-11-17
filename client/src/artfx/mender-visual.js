@@ -5,7 +5,8 @@ const MODES={triage:0x83d4a7,guard:0x82cce8,assist:0xefb36c,dormant:0x52616a};
 export function menderPose({time=0,speed=0,cast=0,mode='triage',act='idle',reducedMotion=false}={}){
  if(![time,speed,cast].every(Number.isFinite)||time<0)throw Error('invalid Mender pose');
  const active=act==='mending'||act==='bonding'||act==='harrying',k=Math.min(1,Math.max(0,cast)),v=Math.min(1,Math.max(0,speed/6));
- const color=MODES[act==='dormant'?'dormant':mode]??MODES.triage;
+ const modeKey=act==='dormant'?'dormant':mode;
+ const color=Object.hasOwn(MODES,modeKey)?MODES[modeKey]:MODES.triage;
  return {color,hover:reducedMotion?0:Math.sin(time*2.1)*.042,scale:act==='bonded'?.5:1,coreScale:1+(reducedMotion?0:Math.sin(time*(active?7:2.5))*(active?.12:.035))+k*.24,tendrils:Array.from({length:4},(_,i)=>({rootX:v*.5+(reducedMotion?0:Math.sin(time*2+i*1.5)*.16),rootZ:reducedMotion?0:Math.cos(time*1.8+i*1.4)*.15,midX:.23+(reducedMotion?0:Math.sin(time*2.6+i)*.23),tipX:.34+(reducedMotion?0:Math.cos(time*2.1+i)*.24)}))};
 }
 export function makeMenderVisual(THREE,body){

@@ -11,3 +11,5 @@ Simulated roundtable:
 - Retrospective: deliberately avoided clipping-prone outer armour wrapped over an unseen animated donor. A neutral software preview of the static carapace was generated; it omits procedural tendrils and animated lens.
 
 Executed GLB structure, finite/unit normals, deterministic byte equality and 200 procedural pose checks. 2656 triangles, 10 material batches, 263232 bytes. Hosted Three tests staged.
+
+Cross-package adversarial review: mode lookup now requires an own property; inherited object keys such as `constructor` fall back to triage and are covered by a test. This is presentation input hardening, not a gameplay/security assurance.

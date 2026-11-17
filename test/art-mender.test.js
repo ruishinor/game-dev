@@ -8,6 +8,7 @@ test('Mender presentation is deterministic and mode/act responsive',()=>{
  assert.equal(menderPose({time:3,reducedMotion:true}).hover,0);
  assert.notEqual(menderPose({mode:'guard'}).color,menderPose({mode:'assist'}).color);
  assert.throws(()=>menderPose({time:NaN}));
+ assert.equal(menderPose({mode:'constructor'}).color,menderPose({mode:'triage'}).color);
 });
 test('Mender owns dynamic parts, not carapace resources',()=>{
  const body=new THREE.Group(),geo=new THREE.BoxGeometry(),mat=new THREE.MeshBasicMaterial();body.add(new THREE.Mesh(geo,mat));
