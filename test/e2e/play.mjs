@@ -445,6 +445,8 @@ try {
   const equipVia = async (p, itemName) => {
     const open = await p.page.evaluate(() => !document.querySelector('.panel.build').hidden);
     if (!open) await p.page.keyboard.press('KeyC');
+    const tab = ['Myelin Lattice', 'Kinetic Capacitor', 'Adrenal Shunt'].includes(itemName) ? 'implants' : 'gear';
+    await p.page.locator('.doll-tabs [data-tab="'+tab+'"]').click();
     const card = p.page.locator('.panel.build .card', { hasText: itemName }).first();
     await card.locator('button').click({ timeout: 4000 });
   };
@@ -462,6 +464,7 @@ try {
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');
   sb = await state(B);
   check('9. installing the Implant changes derived stats (+30% healing)', sb.sheet.stats.healMul === 1.3);
+  await B.page.locator('.doll-tabs [data-tab="gear"]').click();
   const removeDisabled = await B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' }).locator('button').isDisabled();
   check('9. the Device cannot be removed while the Implant depends on it (UI explains why)', removeDisabled);
   await B.page.keyboard.press('Escape');

@@ -239,24 +239,28 @@ export const SPAWNS = [
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
   sporeglass_focus: {
+    summary: "+3 Biotech · +6% Power for Conductors",
     name: 'Sporeglass Focus',
     slot: 'device',
     skills: { biotech: 3 },
     desc: '+3 Biotech. For Conductors: +6 percentage points of Power; unlocks Biotech equipment.',
   },
   servo_harness: {
+    summary: "+3 Kinetics · +6% Power for Vanguards",
     name: 'Sentinel Servo Harness',
     slot: 'device',
     skills: { kinetics: 3 },
     desc: '+3 Kinetics. For Vanguards: +6 percentage points of Power; unlocks Kinetics equipment.',
   },
   wardstone_shard: {
+    summary: "+35 maximum health",
     name: 'Wardstone Shard',
     slot: 'device',
     mods: { hpAdd: 35 },
     desc: 'A fragment of the Vault Warden, still humming. +35 maximum health.',
   },
   myelin_lattice: {
+    summary: "+30% healing (you and symbiote)",
     name: 'Myelin Lattice',
     slot: 'implant',
     req: { skills: { biotech: 13 } },
@@ -264,6 +268,7 @@ export const ITEMS = {
     desc: 'Grown neural mesh. All healing you and your symbiote do is increased by 30%.',
   },
   kinetic_capacitor: {
+    summary: "+50% Charge generation · +2m Discharge radius",
     name: 'Kinetic Capacitor',
     slot: 'implant',
     req: { skills: { kinetics: 13 } },
@@ -271,12 +276,14 @@ export const ITEMS = {
     desc: 'Sub-dermal capacitor bank. Charge generation +50%. Discharge reaches 2m further.',
   },
   adrenal_shunt: {
+    summary: "+20% damage · −15% maximum health",
     name: 'Adrenal Shunt',
     slot: 'implant',
     mods: { dmgMul: 1.2, hpMul: 0.85 },
     desc: 'A crude sentinel-tech bypass. +20% damage dealt, but -15% maximum health.',
   },
   glyph_shared_pulse: {
+    summary: "Triage: 60% splash healing within 8m of patient",
     name: 'Glyph of Shared Pulse',
     slot: 'glyph',
     cls: 'symbiotech',
@@ -284,12 +291,14 @@ export const ITEMS = {
     desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%.',
   },
   glyph_carapace: {
+    summary: "Bond: 45% damage reduction · 6 melee retaliation · no regeneration",
     name: 'Glyph of the Carapace',
     slot: 'glyph',
     cls: 'symbiotech',
     desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6.',
   },
   glyph_resonant_aegis: {
+    summary: "Discharge: −40% damage · shield for 60% of Charge spent (8s)",
     name: 'Glyph of Resonant Aegis',
     slot: 'glyph',
     cls: 'vanguard',
@@ -297,6 +306,7 @@ export const ITEMS = {
     desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s).',
   },
   glyph_rending_echo: {
+    summary: "Rending Arc: 70% splash damage within 4.5m",
     name: 'Glyph of Rending Echo',
     slot: 'glyph',
     cls: 'vanguard',

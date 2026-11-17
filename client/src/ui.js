@@ -328,6 +328,7 @@ export class UI {
     root.append(this.inventoryPanel);
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
+    this.loadoutTab = 'gear';
 
     this.codexPanel = h('div','panel codex-window');
     this.codexPanel.hidden = true;
@@ -337,7 +338,24 @@ export class UI {
     codexClose.setAttribute('aria-label','Close Codex');
     codexClose.addEventListener('click',()=>this.toggleCodex(false));
     this.codexContent = h('div','codex-layout');
-    this.codexPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Codex'),codexClose,this.codexContent);
+    const searchRow = h('div','codex-search-row');
+    this.codexSearch = h('input','codex-search');
+    this.codexSearch.type = 'search';
+    this.codexSearch.placeholder = 'Search the Codex…';
+    this.codexSearch.setAttribute('aria-label','Search Codex');
+    this.codexSearch.autocomplete = 'off';
+    this.codexSearch.maxLength = 100;
+    this.codexQuery = '';
+    this.codexSearch.addEventListener('input',()=>{
+      this.codexQuery = this.codexSearch.value;
+      renderCodex(this, ICONS);
+    });
+    this.codexSearch.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.toggleCodex(false);}
+      else if(e.key==='Enter'){e.preventDefault();this.codexContent.querySelector('.codex-entry')?.click();}
+    });
+    searchRow.append(this.codexSearch);
+    this.codexPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Codex'),codexClose,searchRow,this.codexContent);
     root.append(this.codexPanel);
     this.codexGroup = 'Creatures';
     this.codexSelection = 'skitter';
@@ -628,6 +646,8 @@ export class UI {
     this.codexPanel.hidden = !open;
     if (!open) return;
     if (id) {
+      this.codexQuery = '';
+      this.codexSearch.value = '';
       const entry = ENTRIES.find(e => e.id === id);
       if (entry) { this.codexGroup = entry.group; this.codexSelection = id; }
     }
@@ -1036,6 +1056,8 @@ export class UI {
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     this.inventorySelection = this.loadoutSelection = null;
+    this.loadoutTab = 'gear';
+    this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;

@@ -1,6 +1,6 @@
 // The character sheet, inventory and Codex share a small visual language.
 // All displayed items, slots and requirements come from authoritative data.
-import { ITEMS, SLOTS, SLOT_NAMES } from '../../shared/content.js';
+import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
 
@@ -46,7 +46,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const label=h('div','compact-item-label');
   label.append(itemArt(id),h('div','iname',item.name));
   card.append(h('div','kicker',SLOT_NAMES[item.slot]),label);
-  if(showDescription)card.append(h('div','idesc',item.desc));
+  card.append(h('div',showDescription?'idesc':'item-summary',showDescription?item.desc:(item.summary||item.desc)));
   if(!equipped)card.append(...requirements(s,id));
   const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
   const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':s.equipped[item.slot]?'Swap in':'Equip');
@@ -63,16 +63,42 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   return card;
 }
 
+// Categories organize actual equipment, not additional gameplay slots.
+// Glyphs and devices are gear; implants have a dedicated tab.
+const LOADOUT_TABS = [
+  {id:'gear',name:'Gear',slots:['device','glyph']},
+  {id:'implants',name:'Implants',slots:['implant']},
+  {id:'weapons',name:'Weapons',slots:[]},
+  {id:'social',name:'Social clothing',slots:[]},
+];
 export function renderLoadout(ui,body,stats) {
   const s=ui.sheet;
+  const tab=LOADOUT_TABS.find(t=>t.id===ui.loadoutTab)||LOADOUT_TABS[0];
   const doll=h('section','paperdoll');
-  doll.append(h('div','paperdoll-heading','Gear · Augments'));
+  const tabs=h('div','doll-tabs');
+  tabs.setAttribute('role','group');
+  tabs.setAttribute('aria-label','Equipment category');
+  for(const t of LOADOUT_TABS){
+    const btn=h('button',t.id===tab.id?'active':'',t.name);
+    btn.type='button';
+    btn.dataset.tab=t.id;
+    btn.setAttribute('aria-pressed',String(t.id===tab.id));
+    btn.addEventListener('click',()=>{
+      if(ui.loadoutTab===t.id)return;
+      ui.loadoutTab=t.id;
+      ui.loadoutSelection=null;
+      ui.renderBuild();
+    });
+    tabs.append(btn);
+  }
+  doll.append(tabs);
   const portrait=h('div','doll-portrait');
   const data=ui.a.portrait({k:'p',c:s.cls,a:s.look});
   if(data){const img=h('img','doll-image');img.src=data;img.alt='Current character appearance';portrait.append(img);}
   else portrait.append(h('div','doll-fallback','Appearance preview unavailable'));
-  doll.append(portrait);
-  const slots=h('div','doll-slots');
+  const column=h('section','pcol loadout-column');
+  const list=h('div','loadout-list');
+  const detail=h('div','loadout-detail');
   let emptySlot=null;
   const select=(id,slot=null)=>{
     ui.loadoutSelection=id;
@@ -82,7 +108,8 @@ export function renderLoadout(ui,body,stats) {
     if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc));
     else detail.append(h('div','muted',emptySlot?'No '+SLOT_NAMES[emptySlot]+' installed.':'Select a slot or item.'));
   };
-  for(const slot of SLOTS){
+  const slots=h('div','doll-slots');
+  for(const slot of tab.slots){
     const id=s.equipped[slot];
     const btn=h('button','doll-slot'+(id?' installed':''));
     btn.append(id?itemArt(id):h('span','empty-slot-symbol','+'),h('span','slot-caption',SLOT_NAMES[slot]));
@@ -90,21 +117,30 @@ export function renderLoadout(ui,body,stats) {
     btn.addEventListener('click',()=>select(id||null,id?null:slot));
     slots.append(btn);
   }
-  doll.append(slots,h('div','doll-note','Actual loadout slots'));
-  const column=h('section','pcol loadout-column');
-  const list=h('div','loadout-list');
-  const detail=h('div','loadout-detail');
-  column.append(h('h3',null,'Loadout'),list,h('h3',null,'Details'),detail);
-  for(const slot of SLOTS){
-    const id=s.equipped[slot];
-    if(id)list.append(equipmentCard(ui,id,true,select));
-    else {const card=h('div','card slotcard empty');card.append(h('div','kicker',SLOT_NAMES[slot]),h('div','muted','Not installed'));list.append(card);}
+  doll.append(portrait);
+  if(tab.slots.length)doll.append(slots);
+  if(tab.slots.length){
+    column.append(h('h3',null,'Loadout'),list,h('h3',null,'Details'),detail);
+    for(const slot of tab.slots){
+      const id=s.equipped[slot];
+      if(id)list.append(equipmentCard(ui,id,true,select));
+      else {const card=h('div','card slotcard empty');card.append(h('div','kicker',SLOT_NAMES[slot]),h('div','muted','Not installed'));list.append(card);}
+    }
+    const spare=s.inventory.filter(id=>ITEMS[id]&&tab.slots.includes(ITEMS[id].slot)&&s.equipped[ITEMS[id].slot]!==id);
+    if(spare.length){list.append(h('h3',null,'Available equipment'));for(const id of spare)list.append(equipmentCard(ui,id,false,select));}
+    if(!s.inventory.includes(ui.loadoutSelection)||!tab.slots.includes(ITEMS[ui.loadoutSelection]?.slot))
+      ui.loadoutSelection=tab.slots.map(slot=>s.equipped[slot]).find(Boolean)||spare[0]||null;
+    select(ui.loadoutSelection);
+  }else if(tab.id==='social'){
+    const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
+    column.append(h('h3',null,'Current appearance'));
+    const card=h('div','card');
+    card.append(h('div','iname',look?.name||'Class appearance'),h('p','idesc',look?.blurb||'Current class look.'),h('div','muted','Social clothing is not yet equippable.'));
+    column.append(card);
+  }else{
+    column.append(h('h3',null,'Weapons'),h('div','card empty','Weapon equipment is not yet available. There are no weapon slots in the current game.'));
   }
-  const spare=s.inventory.filter(id=>ITEMS[id]&&s.equipped[ITEMS[id].slot]!==id);
-  if(spare.length){list.append(h('h3',null,'Available equipment'));for(const id of spare)list.append(equipmentCard(ui,id,false,select));}
   body.append(stats,doll,column);
-  if(!s.inventory.includes(ui.loadoutSelection))ui.loadoutSelection=Object.values(s.equipped).find(Boolean)||spare[0]||null;
-  select(ui.loadoutSelection);
 }
 
 export function renderInventory(ui) {
@@ -120,26 +156,26 @@ export function renderInventory(ui) {
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }
-  const items=s.inventory.filter(id=>ITEMS[id]&&(ui.inventoryFilter==='all'||ITEMS[id].slot===ui.inventoryFilter));
+  const carried=s.inventory.filter(id=>ITEMS[id]&&s.equipped[ITEMS[id].slot]!==id);
+  const items=carried.filter(id=>ui.inventoryFilter==='all'||ITEMS[id].slot===ui.inventoryFilter);
   if(!items.includes(ui.inventorySelection))ui.inventorySelection=items[0]||null;
   const grid=h('div','inventory-grid');
   for(const id of items){
-    const item=ITEMS[id],equipped=s.equipped[item.slot]===id;
+    const item=ITEMS[id];
     const btn=h('button','item-cell'+(ui.inventorySelection===id?' active':''));
     btn.append(itemArt(id));
-    if(equipped)btn.append(h('span','equipped-mark','E'));
-    btn.title=item.name;btn.setAttribute('aria-label',item.name+(equipped?' (equipped)':''));
+    btn.title=item.name;btn.setAttribute('aria-label',item.name);
     btn.addEventListener('click',()=>{ui.inventorySelection=id;renderInventory(ui);});
     ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
     grid.append(btn);
   }
   // Empty cells reproduce the grid, not a storage-capacity mechanic.
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
-  root.append(tabs,h('div','inventory-count',items.length+' shown · '+s.inventory.length+' owned'),grid);
+  root.append(tabs,h('div','inventory-count',items.length+' shown · '+carried.length+' carried'),grid);
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
     const id=ui.inventorySelection;
-    const card=equipmentCard(ui,id,s.equipped[ITEMS[id].slot]===id,null,true);
+    const card=equipmentCard(ui,id,false,null,true);
     card.classList.add('inventory-detail');
     root.append(card);
   }
@@ -150,7 +186,18 @@ export function renderCodex(ui,abilityIcons) {
   const out=ui.codexContent;
   out.replaceChildren();
   const nav=h('nav','codex-nav');
-  for(const group of GROUPS){
+  const query=(ui.codexQuery||'').trim().toLowerCase();
+  const terms=query.split(/\s+/).filter(Boolean);
+  const matches=ENTRIES.filter(entry=>terms.every(term=>[entry.name,entry.group,entry.type,entry.desc,...entry.facts].join(' ').toLowerCase().includes(term)));
+  if(query){
+    nav.append(h('div','codex-results-count',matches.length+' result'+(matches.length===1?'':'s')));
+    for(const entry of matches){
+      const link=h('button','codex-entry'+(ui.codexSelection===entry.id?' active':''));
+      link.append(h('span',null,entry.name),h('small',null,entry.group));
+      link.addEventListener('click',()=>{ui.codexGroup=entry.group;ui.codexSelection=entry.id;renderCodex(ui,abilityIcons);});
+      nav.append(link);
+    }
+  }else for(const group of GROUPS){
     const btn=h('button','codex-category'+(ui.codexGroup===group?' active':''),group);
     btn.setAttribute('aria-expanded',String(ui.codexGroup===group));
     btn.addEventListener('click',()=>{ui.codexGroup=group;ui.codexSelection=ENTRIES.find(e=>e.group===group)?.id||null;renderCodex(ui,abilityIcons);});
@@ -166,7 +213,7 @@ export function renderCodex(ui,abilityIcons) {
       nav.append(entries);
     }
   }
-  const entry=ENTRIES.find(e=>e.id===ui.codexSelection&&e.group===ui.codexGroup);
+  const entry=(query?matches:ENTRIES).find(e=>e.id===ui.codexSelection&&e.group===ui.codexGroup);
   const copy=h('section','codex-copy'),imagePane=h('section','codex-image-pane');
   if(entry){
     copy.append(h('div','kicker',entry.type),h('h2',null,entry.name),h('p',null,entry.desc));
@@ -187,7 +234,8 @@ export function renderCodex(ui,abilityIcons) {
     }
     imagePane.append(picture,h('div','codex-caption',pictured?'Current in-game model':'Reference schematic'),h('div','kicker',entry.group));
   } else {
-    copy.append(h('div','kicker',ui.codexGroup),h('h2',null,'No entries recorded'),h('p','muted','This category is reserved for future content.'));
+    if(query)copy.append(h('h2',null,matches.length?'Select an entry':'No matching entries'),h('p','muted',matches.length?'Choose a search result to read its entry.':'Try a different name, ability, item or keyword.'));
+    else copy.append(h('div','kicker',ui.codexGroup),h('h2',null,'No entries recorded'),h('p','muted','This category is reserved for future content.'));
   }
   out.append(nav,copy,imagePane);
 }

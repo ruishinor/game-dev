@@ -355,3 +355,19 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
  .panel.inventory-window { bottom:90px; }
  .journal-title { font-size:15px; top:14px; }
 }
+
+/* Character category tabs sit above the full-height appearance preview. */
+.doll-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; padding:5px; background:#10232c; border-bottom:1px solid #335b66; }
+.doll-tabs button { min-width:0; padding:5px 3px; font-size:10px; line-height:1.25; border-radius:3px; white-space:normal; background:#112731; }
+.doll-tabs button.active { background:#244956; border-color:#72bdcf; color:#d4f5ff; }
+.paperdoll .doll-portrait { aspect-ratio:1/1.15; }
+.paperdoll .doll-slots { position:relative; inset:auto; display:flex; justify-content:center; gap:6px; padding:6px; }
+.paperdoll .doll-slot { flex:0 1 88px; }
+.paperdoll .doll-note { display:none; }
+.item-summary { color:#b9d4dc; font-size:11px; line-height:1.4; margin:4px 0 2px; text-wrap:pretty; }
+.loadout-list { flex:1 1 auto; min-height:90px; }
+.loadout-detail { flex:0 0 auto; max-height:125px; }
+.codex-search-row { margin:4px 0 10px; }
+.codex-search { width:100%; background:#0d2029; color:var(--ink); border:1px solid #335b66; border-radius:4px; padding:8px 10px; font:inherit; font-size:13px; }
+.codex-results-count { color:var(--muted); font-size:11px; padding:3px 2px; }
+.codex-entry small { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
