@@ -239,14 +239,14 @@ export const SPAWNS = [
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
   sporeglass_focus: {
-    summary: "+3 Biotech · +6% Power for Conductors",
+    summary: "+3 Biotech · +6 percentage points of Power (Conductors)",
     name: 'Sporeglass Focus',
     slot: 'device',
     skills: { biotech: 3 },
     desc: '+3 Biotech. For Conductors: +6 percentage points of Power; unlocks Biotech equipment.',
   },
   servo_harness: {
-    summary: "+3 Kinetics · +6% Power for Vanguards",
+    summary: "+3 Kinetics · +6 percentage points of Power (Vanguards)",
     name: 'Sentinel Servo Harness',
     slot: 'device',
     skills: { kinetics: 3 },

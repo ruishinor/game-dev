@@ -341,6 +341,15 @@ try {
     const dialog = document.querySelector('.codex-window');
     return !dialog.hidden && /Mender Symbiote/.test(dialog.textContent);
   }, null, 3000, 'explicit Codex entry');
+  // Search the whole Codex while a creature entry is open; keep input focus.
+  await B.page.locator('.codex-search').fill('Kinetic Capacitor');
+  const codexFound = await until(B, () => {
+    const result = [...document.querySelectorAll('.codex-nav .codex-entry')].find(e=>e.textContent.includes('Kinetic Capacitor'));
+    return result && document.activeElement === document.querySelector('.codex-search');
+  }, null, 3000, 'live Codex search across categories');
+  await B.page.locator('.codex-nav .codex-entry').filter({ hasText: 'Kinetic Capacitor' }).first().click();
+  const codexOpened = await until(B, () => document.querySelector('.codex-copy h2')?.textContent === 'Kinetic Capacitor', null, 3000, 'search result opens');
+  check('8. Codex search finds other categories and opens the result', codexFound && codexOpened);
   await B.page.click('.codex-close');
   const companionDismissed = await until(B, () => document.querySelector('.codex-window').hidden, null, 3000, 'companion Codex closed');
   check('8. companion selection stays unobtrusive; explicit Codex opens and closes', companionSelected && companionInfo && companionDismissed);
@@ -460,6 +469,14 @@ try {
   check('9. equipping the Device raises the skill by 3', sb.sheet.stats.skills.biotech === baseBio + 3, `Biotech ${baseBio} → ${sb.sheet.stats.skills.biotech} at level ${sb.sheet.level}`);
   check('9. the next directive hands over the Implant that needs that skill', sb.sheet.inventory.includes('myelin_lattice'));
   await shot(B, '04-build-panel.png');
+  await B.page.keyboard.press('KeyI');
+  const carriedOnly = await until(B, () => {
+    const inv=document.querySelector('.inventory-window');
+    const labels=[...inv.querySelectorAll('button.item-cell')].map(e=>e.getAttribute('aria-label'));
+    return !inv.hidden && labels.includes('Myelin Lattice') && !labels.includes('Sporeglass Focus');
+  }, null, 3000, 'equipped device excluded from inventory');
+  check('9. inventory lists carried items, not installed devices', carriedOnly);
+  await B.page.keyboard.press('KeyC');
   await equipVia(B, 'Myelin Lattice');
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');
   sb = await state(B);

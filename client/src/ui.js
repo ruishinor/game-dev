@@ -617,6 +617,7 @@ export class UI {
   }
 
   hideJournalPanels() {
+    if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.inventoryPanel.hidden = this.codexPanel.hidden = true;
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = this.playerContext.hidden = true;
