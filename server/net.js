@@ -236,11 +236,16 @@ export class NetServer {
     const rows = game.buildRows();
     const rowsJson = JSON.stringify(rows);
     const evJson = JSON.stringify(game.events);
+    const liveIds = new Set(rows.map((row) => row.i));
     for (const conn of this.conns) {
       const p = conn.player;
       if (!p || conn.ws.readyState !== 1) continue;
       // Skip a snapshot rather than queue without bound for a stalled client.
       if (conn.ws.bufferedAmount > 512 * 1024) continue;
+      // Clients discard entities omitted from a snapshot (e.g. expired corpses).
+      // Forget those IDs here as well: an enemy respawning under the same ID
+      // must arrive with metadata so its model can be recreated.
+      for (const id of conn.known.keys()) if (!liveIds.has(id)) conn.known.delete(id);
       const meta = [];
       for (const row of rows) {
         const ent = game.ents.get(row.i);
@@ -248,10 +253,6 @@ export class NetServer {
           conn.known.set(row.i, ent.metaVer);
           meta.push(game.metaFor(ent));
         }
-      }
-      if (conn.known.size > rows.length + 32) {
-        const live = new Set(rows.map((r) => r.i));
-        for (const id of conn.known.keys()) if (!live.has(id)) conn.known.delete(id);
       }
       let out = `{"t":"s","time":${Math.round(game.time)},"ents":${rowsJson},"ev":${evJson},"y":${JSON.stringify(game.privateState(p))}`;
       if (meta.length) out += `,"meta":${JSON.stringify(meta)}`;
