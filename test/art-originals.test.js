@@ -34,3 +34,8 @@ test('original art: maps and all standalone glyphs decode',async()=>{
  const icons=JSON.parse(read('glyphs/manifest.json'));assert.equal(icons.length,19);
  for(const icon of icons){const {data,info}=await sharp(read('glyphs/'+icon.file)).ensureAlpha().raw().toBuffer({resolveWithObject:true});assert.ok(info.width>0&&info.height>0);assert.ok(data.some((v,i)=>i%4===3&&v>0),icon.id+' invisible');}
 });
+
+test('revised industrial models embed decodable material maps',async()=>{
+ for(const spec of MODEL_SPECS.filter(x=>['01','13'].includes(x.packageId))){const b=read(spec.file),size=b.readUInt32LE(12),j=JSON.parse(b.subarray(20,20+size).toString()),start=28+size;assert.ok(j.images.length>=12,spec.id);for(const m of j.materials.filter(x=>x.pbrMetallicRoughness.baseColorTexture)){assert.ok(m.normalTexture&&m.occlusionTexture&&m.pbrMetallicRoughness.metallicRoughnessTexture);}
+ for(const img of j.images){const v=j.bufferViews[img.bufferView],meta=await sharp(b.subarray(start+v.byteOffset,start+v.byteOffset+v.byteLength)).metadata();assert.equal(meta.width,64);assert.equal(meta.height,64);}}
+});

@@ -11,3 +11,6 @@ Simulated roundtable:
 - Retrospective: removed free-running shader time and dynamic hit assumptions, kept deterministic caller time. Actual Three lifecycle tests are committed but not yet run in the repository environment. No WebGL preview evidence.
 
 Executed in authoring runtime: 210 sample frame validations across five variants, three anchor configurations, both motion settings and boundary times; max 10 objects per sample. Three actual resource test requires npm dependencies/hosted CI.
+
+## Visual revision v2
+Replaced flat Aegis body surfaces (base, Hinge, Span, Lattice) with an additive depth-tested field shader, hex-like structural cells, restrained edge and Fresnel response, and a caller-time pulse disabled in reduced motion. Span has explicit source and destination posts/nodes and an optional traveling signal. Relay unchanged. No collision or authoritative effects changed. Review: show boundary topology, avoid opaque panels; shader resource ownership stays within existing effect pool; reduced motion disables traveling accents; preview uses stronger fill and equipment-facing default. Adversarial sample checks: 210 frames, max 10 objects; shader compilation and GLB PBR rendering still require hosted run. Sloped Span panel remains approximate. No final art approval.

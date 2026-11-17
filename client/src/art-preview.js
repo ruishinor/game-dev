@@ -11,10 +11,11 @@ const BASE='/client/art-assets/',$=id=>document.getElementById(id);
 const state={ready:false,id:null,triangles:0,error:null};
 window.__artPreview=state;
 const canvas=$('view'),renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
-renderer.setSize(800,600,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+renderer.setSize(800,600,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222831);scene.environment=makeEnvironment(renderer);
 scene.add(new THREE.HemisphereLight(0xc1d8ef,0x655045,1.35));
 const light=new THREE.DirectionalLight(0xffe6cd,2.5);light.position.set(-3,6,4);scene.add(light);
+const fill=new THREE.DirectionalLight(0xb5d8ed,1.65);fill.position.set(4,2,-4);scene.add(fill);
 const cam=new THREE.PerspectiveCamera(35,4/3,.01,200),loader=new GLTFLoader();
 let root=null,body=null,effect=null,grid=null,kind='model',duration=1,token=0,center=new THREE.Vector3(),radius=1;
 const manifest=await fetch(BASE+'manifest.json').then(r=>{if(!r.ok)throw Error('catalog unavailable');return r.json();});
@@ -30,13 +31,13 @@ function disposeModel(obj){if(!obj)return;const geo=new Set(),mat=new Set(),tex=
 function clear(){if(effect){effect.dispose();effect=null;}disposeModel(body);body=null;if(root)root.removeFromParent();root=null;if(grid){grid.dispose();grid.removeFromParent();grid=null;}}
 function draw(){if(!root)return;const t=Number($('phase').value)/100;
  if(kind==='fx')effect.update(t*duration);else if(kind==='mender')effect.update({time:t*4,act:'mending',cast:.7,reducedMotion:$('reduced').checked});
- const yaw=Number($('yaw').value)*Math.PI/180,pitch=Number($('pitch').value)*Math.PI/180,d=radius/Math.tan(35*Math.PI/360)*1.45;
+ const yaw=Number($('yaw').value)*Math.PI/180,pitch=Number($('pitch').value)*Math.PI/180,d=radius/Math.tan(35*Math.PI/360)*1.15;
  cam.position.set(center.x+Math.sin(yaw)*Math.cos(pitch)*d,center.y+Math.sin(pitch)*d,center.z+Math.cos(yaw)*Math.cos(pitch)*d);
  cam.near=Math.max(.001,d/200);cam.far=d*30;cam.updateProjectionMatrix();cam.lookAt(center);renderer.render(scene,cam);
  let triangles=0;root.traverse(o=>{if(o.isMesh&&o.visible)triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;});state.triangles=triangles;
  $('status').textContent=state.id+' • '+triangles.toLocaleString()+' visible triangles';
 }
-async function select(id){if(!reviewIds.includes(id))throw Error('unknown asset');const seq=++token;state.ready=false;state.error=null;state.triangles=0;clear();$('status').textContent='Loading '+id;state.id=id;syncReview();canvas.hidden=flat.has(id);$('flat-preview').hidden=!flat.has(id);$('flat-preview').replaceChildren();
+async function select(id){if(!reviewIds.includes(id))throw Error('unknown asset');const seq=++token;state.ready=false;state.error=null;state.triangles=0;clear();$('status').textContent='Loading '+id;state.id=id;$('yaw').value=id.startsWith('backpack_')?'148':'34';syncReview();canvas.hidden=flat.has(id);$('flat-preview').hidden=!flat.has(id);$('flat-preview').replaceChildren();
  if(flat.has(id)){
   const item=flat.get(id);for(const [label,file] of item.images){const img=document.createElement('img');img.src=BASE+file;img.alt=label;if(id.startsWith('glyph:'))img.className='glyph-large';const caption=document.createElement('p');caption.textContent=label;$('flat-preview').append(img,caption);}
   $('status').textContent=item.label;state.ready=true;return true;
@@ -61,11 +62,11 @@ const glyphs=await fetch(BASE+'glyphs/manifest.json').then(r=>r.json());
 for(const g of glyphs){const f=document.createElement('figure'),im=document.createElement('img'),c=document.createElement('figcaption');im.src=BASE+'glyphs/'+g.file;im.alt=g.id;c.textContent=g.id;f.append(im,c);$('glyphs').append(f);}
 // Keep stable item IDs; content changes invalidate old artwork decisions.
 // Bump this revision when procedural effect/Mender visual source changes.
-const effectRevision='artfx-v1';
+const effectRevision='artfx-v1',aegisRevision='aegis-field-v2';
 const hashes=new Map(manifest.files.map(f=>[f.path,f.gitBlob]));
 const flat=new Map([['material:atlas',{label:'Industrial material atlas',images:Object.entries(atlas.files)}],...glyphs.map(g=>['glyph:'+g.id,{label:g.label||g.id,images:[[g.label||g.id,'glyphs/'+g.file]]}])]);
 const reviewIds=[...ids,...flat.keys()];
-const reviewItems=reviewIds.map(id=>({id,revision:models.has(id)?hashes.get(models.get(id).file):id==='mender:visual'?effectRevision+':'+hashes.get('mender_carapace.glb'):fx.has(id)?effectRevision:id==='material:atlas'?Object.values(atlas.files).map(file=>hashes.get(file)).join(':'):hashes.get(flat.get(id).images[0][1])}));
+const reviewItems=reviewIds.map(id=>({id,revision:models.has(id)?hashes.get(models.get(id).file):id==='mender:visual'?effectRevision+':'+hashes.get('mender_carapace.glb'):fx.has(id)?(id.startsWith('aegis:')?aegisRevision:effectRevision):id==='material:atlas'?Object.values(atlas.files).map(file=>hashes.get(file)).join(':'):hashes.get(flat.get(id).images[0][1])}));
 let storage;try{storage=window.localStorage;}catch{storage={getItem(){throw Error('storage unavailable');},setItem(){throw Error('storage unavailable');}};}
 const review=createReviewStore(reviewItems,storage);
 const radios=[...document.querySelectorAll('input[name="review-decision"]')];

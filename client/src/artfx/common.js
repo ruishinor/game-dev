@@ -1,3 +1,4 @@
+import { fieldMaterial } from './field-material.js';
 // Presentation-only VFX. All timing, hits and gameplay state are caller-owned.
 const finite=Number.isFinite;
 export const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
@@ -19,6 +20,8 @@ export function validateFrame(frame){
   if(typeof o.id!=='string'||!/^[a-zA-Z0-9_-]{1,40}$/.test(o.id)||ids.has(o.id))throw Error('invalid/duplicate effect id');ids.add(o.id);
   if(!['hemisphere','sphere','ring','panel','beam','point'].includes(o.type))throw Error('invalid effect kind');
   if(!Number.isInteger(o.color)||o.color<0||o.color>0xffffff||!finite(o.opacity)||o.opacity<0||o.opacity>1)throw Error('invalid effect material');
+  if(o.surface!==undefined&&(o.surface!=='field'||!['panel','hemisphere'].includes(o.type)))throw Error('invalid field surface');
+  if(o.motion!==undefined&&typeof o.motion!=='boolean')throw Error('invalid motion');
   if(o.type==='beam'){vec3(o.a);vec3(o.b);positive(magnitude(sub(o.b,o.a)),100);positive(o.radius,2);}
   else {vec3(o.at);if(o.type==='panel'){positive(o.width,100);positive(o.height,100);unit(o.normal);}
    else {positive(o.radius,100);if(o.type==='ring'){unit(o.normal);positive(o.arc??Math.PI*2,Math.PI*2);positive(o.tube??.012,.2);}}}
@@ -31,7 +34,7 @@ export function createArtEffect(THREE,sample){
  if(typeof sample!=='function')throw Error('sample function required');
  const group=new THREE.Group(),pool=new Map();let disposed=false;
  const up=new THREE.Vector3(0,1,0),forward=new THREE.Vector3(0,0,1);
- const key=o=>[o.type,o.arc??Math.PI*2,o.tube??.012,!!o.wireframe].join('|');
+ const key=o=>[o.type,o.arc??Math.PI*2,o.tube??.012,!!o.wireframe,o.surface??'basic',o.motion!==false].join('|');
  function make(o){
   let geometry;
   if(o.type==='sphere'||o.type==='point')geometry=new THREE.SphereGeometry(1,o.type==='point'?8:24,o.type==='point'?6:12);
@@ -39,7 +42,7 @@ export function createArtEffect(THREE,sample){
   else if(o.type==='ring')geometry=new THREE.TorusGeometry(1,o.tube??.012,6,48,o.arc??Math.PI*2);
   else if(o.type==='panel')geometry=new THREE.PlaneGeometry(1,1);
   else geometry=new THREE.CylinderGeometry(1,1,1,6,1,true);
-  const material=new THREE.MeshBasicMaterial({color:o.color,transparent:true,opacity:o.opacity,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,wireframe:!!o.wireframe,toneMapped:false});
+  const material=o.surface==='field'?fieldMaterial(THREE,o):new THREE.MeshBasicMaterial({color:o.color,transparent:true,opacity:o.opacity,depthWrite:false,depthTest:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,wireframe:!!o.wireframe,toneMapped:false});
   const mesh=new THREE.Mesh(geometry,material);mesh.frustumCulled=false;mesh.renderOrder=3;group.add(mesh);return {mesh,key:key(o)};
  }
  function update(t){
@@ -49,7 +52,7 @@ export function createArtEffect(THREE,sample){
   for(const e of pool.values())e.mesh.visible=false;
   for(const o of frame){
    let e=pool.get(o.id);if(!e){e=make(o);pool.set(o.id,e);}
-   const m=e.mesh;m.visible=o.opacity>0;m.material.color.setHex(o.color);m.material.opacity=o.opacity;m.quaternion.identity();
+   const m=e.mesh;m.visible=o.opacity>0;if(m.material.isShaderMaterial){const u=m.material.uniforms;u.tint.value.setHex(o.color);u.alpha.value=o.opacity;u.phase.value=t;u.extent.value.set(o.type==='panel'?o.width:o.radius*3.14,o.type==='panel'?o.height:o.radius*1.57);}else{m.material.color.setHex(o.color);m.material.opacity=o.opacity;}m.quaternion.identity();
    if(o.type==='beam'){
     const a=new THREE.Vector3(...o.a),b=new THREE.Vector3(...o.b),d=b.clone().sub(a);
     m.position.copy(a).add(b).multiplyScalar(.5);m.scale.set(o.radius,d.length(),o.radius);m.quaternion.setFromUnitVectors(up,d.normalize());

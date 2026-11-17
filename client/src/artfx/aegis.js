@@ -13,12 +13,12 @@ export function aegisSampler({variant='base',center=[0,0,0],anchor=null,yaw=0,ra
   const ring=(id,at,r,normal,color=BLUE,alpha=.55,arc=Math.PI*2)=>emit(id,'ring',{at,radius:r,normal,arc,tube:.012},color,alpha);
   const beam=(id,a,b,color,alpha=.7)=>emit(id,'beam',{a,b,radius:.018},color,alpha);
   if(variant==='base'){
-   emit('dome','hemisphere',{at:c,radius:radius*pulse},BLUE,.12);
+   emit('dome','hemisphere',{at:c,radius:radius*pulse,surface:'field',motion:!reducedMotion},BLUE,.67);
    ring('rim',c,radius*pulse,up,BLUE,.7);
    if(!reducedMotion)for(let i=0;i<3;i++){let a=Math.PI*i/3+yaw;ring('arch'+i,c,radius*pulse,[Math.sin(a),0,Math.cos(a)],BLUE,.34,Math.PI);}
   }else if(variant==='hinge'){
    const q=at(0,radius*.75,radius*.55),w=radius*1.55,h=radius*1.45;
-   emit('shield','panel',{at:q,width:w,height:h,normal:n},AMBER,.15);
+   emit('shield','panel',{at:q,width:w,height:h,normal:n,surface:'field',motion:!reducedMotion},AMBER,.70);
    const corners=[at(-w/2,radius*.75-h/2,radius*.55),at(w/2,radius*.75-h/2,radius*.55),at(w/2,radius*.75+h/2,radius*.55),at(-w/2,radius*.75+h/2,radius*.55)];
    for(let i=0;i<4;i++)beam('edge'+i,corners[i],corners[(i+1)%4],AMBER);
   }else if(variant==='span'){
@@ -26,13 +26,15 @@ export function aegisSampler({variant='base',center=[0,0,0],anchor=null,yaw=0,ra
    if(hd<.25){beam('verticalLink',add(c,[0,.3,0]),add(b,[0,.3,0]),VIOLET);ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);}
    else{
     const norm=[-horizontal[2]/hd,0,horizontal[0]/hd];
-    emit('spanPanel','panel',{at:add(mid,[0,radius*.7,0]),width:hd,height:radius*1.4,normal:norm},VIOLET,.12);
+    emit('spanPanel','panel',{at:add(mid,[0,radius*.7,0]),width:hd,height:radius*1.4,normal:norm,surface:'field',motion:!reducedMotion},VIOLET,.70);
     beam('lower',add(c,[0,.12,0]),add(b,[0,.12,0]),VIOLET,.65);beam('upper',add(c,[0,radius*1.4,0]),add(b,[0,radius*1.4,0]),VIOLET,.65);
     ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);
+    for(const [id,p] of [['source',c],['target',b]]){beam(id+'Post',add(p,[0,.12,0]),add(p,[0,radius*1.4,0]),VIOLET,.54);ring(id+'Node',add(p,[0,radius*1.4,0]),.13,norm,VIOLET,.67);}
+    if(!reducedMotion){const p=add(c,scale(delta,time.p));emit('spanSignal','point',{at:add(p,[0,radius*1.4,0]),radius:.046},BLUE,.75);}
    }
   }else if(variant==='lattice'){
    for(let i=0;i<3;i++){const x=(i-1)*radius*.78,q=at(x,radius*.65,radius*.45),w=radius*.74,h=radius*1.3;
-    emit('panel'+i,'panel',{at:q,width:w,height:h,normal:n},BLUE,.12);
+    emit('panel'+i,'panel',{at:q,width:w,height:h,normal:n,surface:'field',motion:!reducedMotion},BLUE,.63);
     beam('post'+i,at(x-w/2,0,radius*.45),at(x-w/2,h,radius*.45),BLUE,.65);
     beam('cap'+i,at(x-w/2,h,radius*.45),at(x+w/2,h,radius*.45),BLUE,.65);
    }
