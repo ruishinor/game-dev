@@ -296,7 +296,7 @@ export class UI {
     }
     set(this.pet, 'hidden', !def.companion);
     this.petBar.hidden = !def.companion;
-    this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click engages; R toggles. There is no automatic chasing.`;
+    this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
   }
 
