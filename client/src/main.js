@@ -426,6 +426,7 @@ function removeEntity(ent) {
 function clearWorld() {
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
+  fx.clearFauna();
   ui.clearPlates();
 }
 
@@ -551,7 +552,13 @@ function onEvent(e) {
         const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
-        else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        else if (!e.sh && d.placed && (d.meta.c==='sinter_grazer'||d.meta.c==='faultstalker')){
+          const dx=(s?.placed?s.pos.x:d.pos.x)-d.pos.x,dz=(s?.placed?s.pos.z:d.pos.z+1)-d.pos.z;
+          const len=Math.hypot(dx,dz),nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          const reach=d.model.radius*.68;
+          fx.faunaImpact([d.chest.x+nx*reach,d.chest.y,d.chest.z+nz*reach],[nx,0,nz],
+            {radius:d.model.radius*.62,reducedMotion:motionPreference.matches||quality===0});
+        }else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -608,6 +615,8 @@ function onEvent(e) {
       if (e.k === 'fault_shear') {
         fx.ring(e.x,e.z,e.r,0xd18b4b,680);
         fx.ring(e.x,e.z,e.r*0.72,0xf2d6a0,450);
+        fx.faunaImpact([e.x,groundHeight(e.x,e.z)+.24,e.z],[0,1,0],
+          {variant:'shear',radius:e.r*.9,duration:.7,reducedMotion:motionPreference.matches||quality===0});
         if(!motionPreference.matches&&quality>0){
           for(let i=0;i<5;i++){
             const a=i*Math.PI*2/5;

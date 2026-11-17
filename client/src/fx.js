@@ -3,6 +3,8 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { groundHeight } from '../../shared/world.js';
+import { createArtEffect } from './artfx/common.js';
+import { faunaImpactSampler } from './artfx/fauna.js';
 
 const SPH = new THREE.SphereGeometry(1, 8, 6);
 const CYL = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
@@ -17,6 +19,21 @@ export class Fx {
   constructor(scene) {
     this.scene = scene;
     this.items = [];
+    this.faunaEffects = [];
+  }
+
+  /** Bounded effects rendered by the shared art-VFX engine. */
+  faunaImpact(center,direction,{radius=.48,duration=.48,reducedMotion=false,variant='contact'}={}){
+    if(this.faunaEffects.length>=12){this.faunaEffects.shift().effect.dispose();}
+    const effect=createArtEffect(THREE,faunaImpactSampler({center,direction,radius,duration,reducedMotion,variant}));
+    effect.group.name='live-fauna:'+variant;
+    this.scene.add(effect.group);
+    effect.update(0.001);
+    this.faunaEffects.push({effect,age:0,duration});
+  }
+  clearFauna(){
+    for(const it of this.faunaEffects)it.effect.dispose();
+    this.faunaEffects.length=0;
   }
 
   add(obj, life, tick) {
@@ -111,6 +128,11 @@ export class Fx {
   }
 
   update(dt) {
+    for(let i=this.faunaEffects.length-1;i>=0;i--){
+      const it=this.faunaEffects[i];it.age+=dt;
+      if(it.age>=it.duration){it.effect.dispose();this.faunaEffects.splice(i,1);}
+      else it.effect.update(it.age);
+    }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       it.age += dt;

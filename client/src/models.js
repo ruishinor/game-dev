@@ -567,7 +567,25 @@ function mineralTexture(){
   sinterTexture.name='sinter:mineral-strata';
   return sinterTexture;
 }
-const SHELL_GEO=new THREE.IcosahedronGeometry(1,1);
+// Continuous tapered, closed mineral scute, shared across all fauna.
+const SHELL_GEO=new THREE.SphereGeometry(1,16,10);
+{
+ const p=SHELL_GEO.attributes.position;
+ for(let i=0;i<p.count;i++){
+  const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+  const width=.85+.15*(1-z)*.5;
+  p.setXYZ(i,x*width,y>=0?Math.pow(y,.75):y*.30,z);
+ }
+ SHELL_GEO.computeVertexNormals();
+ SHELL_GEO.computeBoundingSphere();
+}
+function limbBetween(geo,material,a,b,width,depth=width){
+ const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);
+ const m=part(geo,material,width,d.length()*.58,depth);
+ m.position.copy(av).add(bv).multiplyScalar(.5);
+ m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+ return m;
+}
 // Different body plans, shared primitive geometry; per-instance materials.
 function makeSinterFauna(predator, form = 'adult') {
   const group = new THREE.Group(), rig = new THREE.Group();
@@ -581,16 +599,28 @@ function makeSinterFauna(predator, form = 'adult') {
   const edge = std(predator ? 0xc1a47d : 0xb9aa85,{rough:0.55,metal:0.08});
   const sensory = std(predator ? 0x9c582d : 0x777959, { rough: 0.45 });
   shell.map=facet.map=mineralTexture();
-  membrane.flatShading=false;
+  shell.bumpMap=facet.bumpMap=mineralTexture();
+  shell.bumpScale=.045;facet.bumpScale=.025;
+  shell.flatShading=facet.flatShading=membrane.flatShading=dark.flatShading=false;
   const y = predator ? 1.12 : 0.61;
   const torso = pivot(0, y, 0);
   rig.name=predator?'fauna:stalker-rig':'fauna:grazer-'+form;
   rig.add(torso);
-  torso.add(part(SPH, dark, predator ? 0.45 : 0.49, predator ? 0.43 : 0.29, 0.76));
-  for (let i = 0; i < 5; i++) {
-    const plate = part(SHELL_GEO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
-    plate.rotation.z = (i % 2 ? 1 : -1) * 0.14;
+  torso.add(part(SPH, dark, predator ? 0.38 : 0.43, predator ? 0.36 : 0.27, 0.78));
+  torso.add(part(SPH,membrane,predator?.31:.36,predator?.22:.16,.69,0,-.16,-.04));
+  // Overlapping scutes follow a continuous tapered ribcage.
+  for(let i=0;i<5;i++){
+    const taper=[.68,.92,1,.91,.72][i];
+    const plate=part(SHELL_GEO,i%2?facet:shell,(predator?.43:.49)*taper,(predator?.26:.23)*taper,.30,0,.18+(1-taper)*.025,-.55+i*.27);
+    plate.rotation.x=.10-i*.035;
     torso.add(plate);
+  }
+  for(const side of [-1,1]){
+    for(let i=0;i<4;i++){
+      const z=-.46+i*.28;
+      const rib=part(SHELL_GEO,shell,.17,.16,.21,side*(predator?.32:.40),.01,z);
+      rib.rotation.z=side*.64;torso.add(rib);
+    }
   }
   const molt = new THREE.Group();
   molt.name='fauna:mineral-growth';
@@ -619,12 +649,17 @@ function makeSinterFauna(predator, form = 'adult') {
   }
   const head = pivot(0, predator ? 0.03 : -0.13, 0.66);
   torso.add(head);
-  head.add(part(ICO, shell, predator ? 0.3 : 0.37, predator ? 0.32 : 0.18, 0.36, 0, 0, 0.15));
+  torso.add(part(SPH,membrane,predator?.24:.30,predator?.24:.16,.31,0,-.06,.57));
+  head.add(part(SHELL_GEO,shell,predator?.29:.35,predator?.32:.18,.40,0,.03,.15));
+  head.add(part(SPH,dark,predator?.22:.27,.125,.27,0,-.10,.31));
+  const jawRig=pivot(0,-.07,.18);
+  head.add(jawRig);
+  jawRig.add(part(SPH,membrane,predator?.20:.25,.09,.27,0,-.05,.20));
   for (const side of [-1, 1]) {
     head.add(part(SPH, sensory, 0.055, 0.055, 0.056, side * 0.23, 0.06, 0.26));
     const jaw = part(CONE, dark, 0.10, predator ? 0.52 : 0.26, 0.12, side * 0.17, -0.08, 0.36);
     jaw.rotation.x = Math.PI / 2.7;
-    head.add(jaw);
+    jaw.position.y+=.07;jaw.position.z-=.18;jawRig.add(jaw);
     if(predator){
       const fang=part(CONE,edge,0.064,0.29,0.06,side*0.12,-0.19,0.51);
       fang.rotation.z=Math.PI;head.add(fang);
@@ -639,14 +674,20 @@ function makeSinterFauna(predator, form = 'adult') {
   for (let i = 0; i < (predator ? 2 : 3); i++) for (const side of [-1, 1]) {
     const length = predator ? (i === 0 ? 0.93 : 0.8) : 0.46;
     const leg = pivot(side * 0.31, y - 0.11, 0.45 - i * (predator ? 0.92 : 0.44));
-    const upper = part(SPH, shell, predator ? 0.13 : 0.12, length * 0.39, 0.13, side * 0.11, -length * 0.29, 0.03);
-    upper.rotation.z = side * 0.47;
-    const knee = part(SPH, dark, 0.115, 0.115, 0.115, side * 0.24, -length * 0.54, 0.05);
-    const shin = part(SPH, facet, 0.09, length * 0.30, 0.09, side * 0.27, -length * 0.76, 0.04);
-    shin.rotation.z = -side * 0.11;
-    leg.add(upper, knee, shin, part(ICO, dark, 0.13, 0.07, 0.19, side * 0.28, -length * 0.99, 0.1));
+    const kx=side*.24,ky=-length*.52,kz=predator?-.13:.04;
+    const knee=pivot(kx,ky,kz);
+    const footY=-(y-.11)+.075-ky;
+    leg.add(part(SPH,membrane,.14,.15,.15),limbBetween(SPH,shell,[0,0,0],[kx,ky,kz],predator?.135:.105),knee);
+    knee.add(part(SPH,dark,.105,.105,.105),limbBetween(SPH,facet,[0,0,0],[side*.055,footY,.19],predator?.09:.07));
+    const ankle=pivot(side*.055,footY,.19);
+    knee.add(ankle);
+    ankle.add(part(SPH,dark,.12,.075,.16));
+    for(const dx of [-.065,.065]){
+      const toe=part(CONE,edge,.038,.15,.045,dx,-.015,.125);
+      toe.rotation.x=Math.PI/2;ankle.add(toe);
+    }
     rig.add(leg);
-    legs.push({ leg, side, i });
+    legs.push({ leg, knee, ankle, side, i });
   }
   if (predator) for (const side of [-1, 1]) {
     const fin = part(ICO, facet, 0.12, 0.38, 0.48, side * 0.33, 0.36, -0.13);
@@ -657,7 +698,6 @@ function makeSinterFauna(predator, form = 'adult') {
   // differ in silhouette; all three retain the same server combat envelope.
   if(juvenile)rig.scale.set(0.82,0.80,0.84);
   if(shieldback)rig.scale.set(1.07,1.16,1.02);
-  const flash = flasher([shell, dark, facet, sensory,membrane,edge]);
   let phase = 0, fallen = 0;
   return {
     group, height: predator ? 1.85 : juvenile ? 0.84 : shieldback ? 1.23 : 1.03, radius: predator ? 0.85 : 0.62, hover: 0,
@@ -665,15 +705,24 @@ function makeSinterFauna(predator, form = 'adult') {
       const stride = Math.min(1, st.speed / (predator ? 3.4 : 1.7));
       phase += dt * st.speed * (juvenile?5.0:shieldback?3.15:3.8);
       molt.visible=!!st.grown&&!predator;
-      for (const {leg, side, i} of legs) leg.rotation.x = Math.sin(phase + i * Math.PI + (side > 0 ? Math.PI : 0)) * stride * 0.48;
+      for(const {leg,knee,ankle,side,i} of legs){
+        const q=phase+i*Math.PI+(side>0?Math.PI:0),swing=Math.sin(q);
+        leg.rotation.x=swing*stride*.39;
+        knee.rotation.x=Math.max(0,swing)*stride*.46;
+        ankle.rotation.x=-leg.rotation.x-knee.rotation.x;
+      }
       const brace=st.ecology==='brace',watch=st.ecology==='watch';
       torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055-(brace?0.09:watch?0.07:0);
       head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
       head.rotation.y=watch?Math.sin(st.t*1.5)*0.28:0;
+      const bite=st.dead?0:Math.max(0,st.attack||0);
+      jawRig.rotation.x=.08+(st.casting?.35:bite*.50);
+      torso.rotation.x=-bite*(predator?.19:.10);
+      // Small physical recoil; material colours remain stable on damage.
+      torso.rotation.z=(st.hit||0)*.08;
       fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
       rig.rotation.z = fallen * 1.22;
       rig.position.y = fallen * 0.16;
-      flash(st.hit || 0);
     },
     dispose() { for (const m of [shell, dark, facet, sensory,membrane,edge]) m.dispose(); },
   };
