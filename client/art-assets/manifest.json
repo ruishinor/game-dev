@@ -642,20 +642,20 @@
     },
     {
       "path": "resonance_tower_deployed.glb",
-      "bytes": 166004,
-      "gitBlob": "3ddba149b3856b83e219714a8556aa7e2fd0e42a",
+      "bytes": 638920,
+      "gitBlob": "197c7d45001455f6acb17f4791e3c3d00bd56809",
       "source": "original"
     },
     {
       "path": "resonance_tower_disabled.glb",
-      "bytes": 165928,
-      "gitBlob": "373b13ba0bf4682694e6be1b85e2b0515df35ea2",
+      "bytes": 637224,
+      "gitBlob": "c8d4a7e1deaf80277b077b3177abca45fe6dea2f",
       "source": "original"
     },
     {
       "path": "resonance_tower_folded.glb",
-      "bytes": 142960,
-      "gitBlob": "4828f45936c53a17932a6010d4bd0238eebcde45",
+      "bytes": 582308,
+      "gitBlob": "dc09313689496b3a08b6f32920f6f1f53c167b10",
       "source": "original"
     },
     {

@@ -12,3 +12,9 @@ Simulated roundtable:
 - resonance_tower_deployed: 1668 triangles, 7 material batches, 166004 bytes.
 - resonance_tower_folded: 1444 triangles, 5 material batches, 142960 bytes.
 - resonance_tower_disabled: 1668 triangles, 7 material batches, 165928 bytes.
+
+## Visual revision v2
+Added pinned support joints, secondary braces, layered grounded shoes, protected emitter terminals, insulators, vents, field-service handles, heatsink and connectors. Embedded industrial PBR maps. Disabled/folded core and screens no longer emit. Concept/technical direction accepted by owner; visual quality outstanding. Simulated review: art—recognizable machine; modeling—real support and hinge cues, static pose only; rendering—bounded geometry and material maps; design—inactive state clearly distinguished; adversarial—ground datum, height, inactive materials, byte repeatability and triangle budget checked; retrospective—coordinate stabilization used to reduce cross-runtime floating-point drift. Hosted render and cross-runtime regeneration pending. No gameplay changes.
+- resonance_tower_deployed: 4228 triangles, 18 maps, 638920 bytes.
+- resonance_tower_folded: 3656 triangles, 18 maps, 582308 bytes.
+- resonance_tower_disabled: 4228 triangles, 18 maps, 637224 bytes.
