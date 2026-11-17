@@ -17,6 +17,10 @@ export const HUMANOID_BASE = {
 // Ability / event id -> clip. `start` skips the wind-up so the visible impact
 // lands close to the moment the server resolved the hit.
 export const HUMANOID_ACTIONS = {
+  phase_needle:{clip:'Spell_Simple_Shoot',timeScale:1.1},
+  hinge_field:{clip:'Spell_Simple_Enter',fadeOut:.4},
+  resonant_reversal:{clip:'Idle_Shield_Break',start:.1},
+  lattice_relay:{clip:'Shield_OneShot',start:.1},
   fault_scan: { clip: 'Interact', fadeOut: 0.3 },
   core_bore: { clip: 'Spell_Simple_Shoot', timeScale: 1.2 },
   field_rig: { clip: 'Interact', fadeOut: 0.3 },

@@ -329,6 +329,7 @@ export class Game {
       cds,
       gcd: Math.max(0, Math.round(p.gcdUntil - this.time)),
       auto: p.autoOn ? 1 : 0,
+      ...(p.cls==='keeper' ? {keeperShield: Math.max(0,Math.floor(p.buffs.find(b=>b.k==='shield'&&b.src===p.id&&b.keeper&&b.until>this.time)?.v||0))}:{}),
       losTarget: p.target,
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),

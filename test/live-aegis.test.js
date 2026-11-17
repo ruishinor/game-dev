@@ -6,16 +6,17 @@ import { validLook, defaultLook } from '../shared/content.js';
 import { useAbility } from '../server/sim/combat.js';
 import { makeGame, makeChar, place } from './helpers.js';
 
-test('Aegis Keeper is cosmetic and the existing glyph determines shield state', () => {
-  assert.ok(validLook('vanguard','aegis_keeper'));
+test('Aegis Keeper has an independent barrier discipline and snapshot shield state', () => {
+  assert.ok(validLook('keeper','aegis_keeper'));
+  assert.equal(validLook('vanguard','aegis_keeper'),false);
   assert.equal(validLook('symbiotech','aegis_keeper'),false);
   assert.equal(defaultLook('vanguard'),'vanguard_plate');
   const game=makeGame();
-  const p=game.addPlayer(makeChar('vanguard',{look:'aegis_keeper',inventory:['glyph_resonant_aegis'],attunements:['resonance'],equipped:{device:null,implant:null,glyph:'glyph_resonant_aegis'}}));
+  const p=game.addPlayer(makeChar('keeper',{look:'aegis_keeper'}));
   place(p,0,25);
   p.res=100;
-  assert.ok(useAbility(game,p,'discharge').ok);
-  assert.equal(p.res,0);
+  assert.ok(useAbility(game,p,'hinge_field').ok);
+  assert.equal(p.res,70);
   const row=()=>game.buildRows().find(r=>r.i===p.id);
   assert.ok(shieldVisible(row()));
   const buff=p.buffs.find(b=>b.k==='shield');

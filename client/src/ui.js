@@ -13,6 +13,10 @@ import { renderWorkshop } from './workshop-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
+  hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
+  resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
+  lattice_relay:svg('<path d="m12 3 9 9-9 9-9-9zM3 12h18M12 3v18"/><circle cx="12" cy="12" r="3"/>'),
   fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
   core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
   field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
@@ -43,6 +47,8 @@ const BUFFS = {
 };
 
 const GLYPH_NOTES = {
+  glyph_hinge:{ability:'hinge_field',text:'Hinge + Lattice Resonator: Shared Pulse can restore active barrier capacity.'},
+  glyph_reversal:{ability:'resonant_reversal',text:'Divide: retains 25% of remaining barrier and releases the other 75%.'},
   glyph_faultline: { ability: 'controlled_blast', text: 'Glyph of the Faultline: 7m demolition radius.' },
   glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
   glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
@@ -1214,7 +1220,8 @@ export class UI {
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
     this.buffChips(this.player.buffs, me.row.b || []);
     const kit = you.surveyKit;
-    set(this.surveyStatus, 'hidden', !kit);
+    set(this.surveyStatus, 'hidden', !kit && you.keeperShield===undefined);
+    if (you.keeperShield!==undefined) set(this.surveyStatus,'text','Own barrier: '+you.keeperShield+' · Reversal consumes available protection');
     if (kit) {
       const marked = kit.mark && st.ents.get(kit.mark);
       const markText = marked && kit.markMs > 0 ? 'Analyzed: ' + marked.meta.n + ' · ' + Math.ceil(kit.markMs / 1000) + 's' : 'Scan a target [1]';
@@ -1298,6 +1305,7 @@ export class UI {
         if (b.id === 'field_rig' && kit.rigMs > 0) usable = false;
         if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
       }
+      if(b.id==='resonant_reversal' && !(you.keeperShield>0))usable=false;
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;

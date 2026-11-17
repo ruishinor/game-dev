@@ -140,6 +140,16 @@ export function applyHeal(game, healer, dst, base, ability, srcId) {
   dst.hp = Math.min(dst.maxHp, dst.hp + amt);
   if (actual > 0) {
     game.events.push({ e: 'heal', s: srcId || (healer ? healer.id : 0), d: dst.id, a: actual, ab: ability });
+    // Hinge + Lattice Resonator and another profession's Shared Pulse:
+    // real healing restores at most the original finite barrier capacity.
+    const shield=getBuff(dst,'shield');
+    if (ability==='shared_pulse' && healer?.stats.glyph==='glyph_shared_pulse' &&
+        shield?.harmonic && shield.until>game.time && shield.v>0 && shield.v<shield.cap) {
+      const gain=Math.min(shield.cap-shield.v,Math.ceil(actual*.5));
+      shield.v+=gain;
+      game.events.push({e:'shield',s:healer.id,d:dst.id,a:gain});
+      game.events.push({e:'fx',k:'harmonic_restore',s:dst.id,r:1.4});
+    }
     if (healer) {
       // Healing draws the attention of everything fighting the patient.
       const engaged = game.enemies.filter((e) => e.state === 'combat' && e.threat.has(dst.id));
@@ -271,13 +281,47 @@ export function useAbility(game, p, abilityId) {
     }
   }
 
+  if (p.cls==='keeper') {
+    if (abilityId==='hinge_field' && target!==p && !hasLineOfSight(p,target)) return fail('Line of sight blocked.');
+    if (abilityId==='resonant_reversal') {
+      const shield=getBuff(p,'shield');
+      if (!shield || shield.src!==p.id || !shield.keeper || shield.v<=0 || shield.until<=game.time) return fail('Project your own active barrier first.');
+    }
+  }
+
   // Commit.
   p.cds[abilityId] = game.time + ab.cd;
   if (!ab.offGcd) p.gcdUntil = game.time + GCD_MS;
   if (ab.cost) p.res -= ab.cost;
   game.events.push({ e: 'cast', s: p.id, d: target ? target.id : 0, ab: abilityId });
 
+  const project=(ally,amount,dur)=>{
+    const value=Math.round(amount*p.stats.power);
+    const old=getBuff(ally,'shield');
+    if (old && old.until>game.time && old.v>=value) return;
+    addBuff(ally,{k:'shield',until:game.time+dur,v:value,cap:value,src:p.id,keeper:true,
+      harmonic:p.stats.glyph==='glyph_hinge'&&p.char.equipped.implant==='keeper_resonator'});
+    game.events.push({e:'shield',s:p.id,d:ally.id,a:value});
+  };
   switch (abilityId) {
+    case 'phase_needle': {
+      const hit=dealDamage(game,p,target,ab.dmg,abilityId,{kind:'bolt'});
+      p.res=Math.min(cdef.resource.max,p.res+12);
+      if (hit>0 && p.char.quest.step===0) {p.char.quest.progress++;game.markDirty(p);checkDirective(game,p);}
+      p.autoOn=true;break;
+    }
+    case 'hinge_field':
+      project(target,40,ab.dur);break;
+    case 'resonant_reversal': {
+      const shield=getBuff(p,'shield'),capacity=shield.v;
+      if (p.stats.glyph==='glyph_reversal') shield.v=Math.floor(capacity*.25);
+      else p.buffs=p.buffs.filter(b=>b!==shield);
+      dealDamage(game,p,target,12+(capacity-shield.v*(p.stats.glyph==='glyph_reversal'?1:0))*.65,abilityId,{kind:'bolt'});
+      p.autoOn=true;break;
+    }
+    case 'lattice_relay':
+      for(const ally of game.players.values())if(!ally.dead&&dist(p,ally)<=ab.radius&&hasLineOfSight(p,ally))project(ally,24,ab.dur);
+      game.events.push({e:'fx',k:'lattice_relay',s:p.id,r:ab.radius});break;
     case 'fault_scan': {
       p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) };
       p.res = Math.min(cdef.resource.max, p.res + 30);

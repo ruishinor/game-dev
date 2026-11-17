@@ -124,8 +124,7 @@ try {
   keeper.on('console', m => { if(m.type()==='error')keeperErrors.push(m.text()); });
   await keeper.goto(url);
   await keeper.fill('#name','Aegis Keeper');
-  await keeper.click('.classcard[data-cls="vanguard"]');
-  await keeper.click('.lookcard[data-look="aegis_keeper"]');
+  await keeper.click('.classcard[data-cls="keeper"]');
   await keeper.click('#enter');
   await keeper.waitForFunction(() => {
     const s=window.__attune?.state();
@@ -134,14 +133,12 @@ try {
   const tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper');
   assert.ok(tank);
   assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
-  tank.char.inventory.push('glyph_resonant_aegis');
-  tank.char.attunements.push('resonance');
-  tank.char.equipped.glyph='glyph_resonant_aegis';
-  server.game.refreshStats(tank);
-  server.game.markDirty(tank);
+  assert.equal(tank.cls,'keeper');
+  assert.equal(tank.companion,null);
+  assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
   tank.res=100;
   // Fixture invokes the actual authoritative ability; extend only for slow screenshot capture.
-  assert.ok(useAbility(server.game,tank,'discharge').ok);
+  assert.ok(useAbility(server.game,tank,'hinge_field').ok);
   const shield=tank.buffs.find(b=>b.k==='shield');
   assert.ok(shield && shield.v>0);
   shield.until=server.game.time+60000;

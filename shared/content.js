@@ -47,6 +47,14 @@ export const CLASSES = {
     abilities: ['neural_lash', 'mending_graft', 'spore_snare', 'overgrowth_surge'],
     companion: 'mender',
   },
+  keeper: {
+    id:'keeper', name:'Aegis Keeper', role:'Resonance / Barrier Architect',
+    blurb:'Project a Hinge field, redirect stored protection into an offensive reversal, or share a lattice with nearby allies. No Charge conversion or companion.',
+    baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
+    skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
+    auto:{range:22,interval:2000,dmg:6,kind:'bolt'},
+    abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay'],companion:null,
+  },
   surveyor: {
     id: 'surveyor', name: 'Brine Surveyor', role: 'Field Engineer / Ranged Control',
     blurb: 'An independent field technician. Survey hostile structures, bore through their weak points, deploy a stationary power rig and trigger controlled demolition. No symbiote or healing magic.',
@@ -68,11 +76,11 @@ export const LOOKS = {
   vanguard: [
     { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
     { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
-    { id: 'aegis_keeper', name: 'Aegis Keeper', blurb: 'Compact field-protection specialist with an asymmetric projection array. Earn and inscribe Resonant Aegis to shield allies. Appearance only; Vanguard rules apply.' },
   ],
   symbiotech: [
     { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
   ],
+  keeper: [{id:'aegis_keeper',name:'Projection Array',blurb:'Asymmetric forearm projector and reserve cell; dedicated resonance discipline.'}],
   surveyor: [
     { id: 'brine_surveyor', name: 'Brine Field Rig', blurb: 'Sealed power cartridges, insulated sampling equipment and an independent field instrument.' },
   ],
@@ -85,6 +93,10 @@ export const validLook = (cls, look) => typeof look === 'string' && Object.hasOw
 export const SURVEYOR = Object.freeze({ markMs: 9000, extendedMarkMs: 14000, rigMs: 12000, rechargeRadius: 4, rechargePerSecond: 8, blastRadius: 5, faultlineRadius: 7, remoteRange: 30 });
 
 export const ABILITIES = {
+  phase_needle:{name:'Phase Needle',type:'hostile',range:24,cd:2200,dmg:16,desc:'Project a focused resonance strike and recover 12 Coherence.'},
+  hinge_field:{name:'Hinge Field',type:'friendly',range:20,cd:6000,cost:30,dur:9000,desc:'Project a 40-point barrier onto an ally or yourself for 9 seconds. Cover blocks projection.'},
+  resonant_reversal:{name:'Resonant Reversal',type:'hostile',range:22,cd:5000,cost:15,desc:'Consume your own remaining Hinge or Relay barrier. Inflict 12 plus 65% of its remaining capacity as damage.'},
+  lattice_relay:{name:'Lattice Relay',type:'self',cd:12000,cost:40,radius:8,dur:8000,desc:'Project 24-point barriers onto yourself and unobstructed allies within 8m for 8s. Does not replace a stronger barrier.'},
   fault_scan: { name: 'Fault Scan', type: 'hostile', range: 30, cd: 4000, desc: 'Analyze one hostile target for 9s and recover 30 Power Cells. Does not deal damage or engage auto-attack.' },
   core_bore: { name: 'Core Bore', type: 'hostile', range: 24, cd: 2500, cost: 30, dmg: 30, desc: 'Fire a focused boring pulse into your own scanned target. Consumes its scan and 30 Power Cells.' },
   field_rig: { name: 'Field Rig', type: 'self', cd: 16000, desc: 'Deploy a stationary power rig at your feet for 12s. Recover 8 Power Cells per second within 4m. Cannot deploy in the Sanctum.' },
@@ -260,6 +272,10 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
+  keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
+  glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},
+  glyph_reversal:{name:'Glyph of Divide',slot:'glyph',cls:'keeper',summary:'Resonant Reversal retains 25% barrier capacity',desc:'Divide partitions the field before reversal, leaving a quarter of its remaining capacity.'},
   brine_phase_filter: { name:'Brine Phase Filter', slot:'device', summary:'+2 to all three skills', skills:{kinetics:2,biotech:2,instrumentation:2}, desc:'A passive receiver recovered from Brineworks. +2 Kinetics, Biotech and Instrumentation.' },
   brine_rescue_lattice: { name:'Shelter Rescue Lattice', slot:'implant', summary:'+25 maximum health', mods:{hpAdd:25}, desc:'An emergency support circuit recovered from the workers’ shelter records. +25 maximum health.' },
   survey_calibrator: { name: 'Brine Calibrator', slot: 'device', cls: 'surveyor', skills: { instrumentation: 3 }, summary: '+3 Instrumentation · +6 percentage points of Power', desc: 'Calibrated field receiver. Raises Instrumentation by 3 and unlocks Surveyor equipment.' },
@@ -376,14 +392,14 @@ export const DIRECTIVES = [
     title: 'Field Trial',
     text: 'Cull Mire Skitters in the Sporefield, west of the Sanctum.',
     goal: { kill: 'skitter', count: 3 },
-    reward: { xp: 30, classItem: { symbiotech: 'sporeglass_focus', vanguard: 'servo_harness', surveyor: 'survey_calibrator' } },
+    reward: { xp: 30, classItem: { symbiotech: 'sporeglass_focus', vanguard: 'servo_harness', surveyor: 'survey_calibrator', keeper:'keeper_prism' } },
   },
   {
     id: 'calibrate',
     title: 'Calibrate',
     text: 'Open your Character [C] and equip a Device. Devices raise skills.',
     goal: { equip: 'device' },
-    reward: { classItem: { symbiotech: 'myelin_lattice', vanguard: 'kinetic_capacitor', surveyor: 'survey_induction' } },
+    reward: { classItem: { symbiotech: 'myelin_lattice', vanguard: 'kinetic_capacitor', surveyor: 'survey_induction', keeper:'keeper_resonator' } },
   },
   {
     id: 'integrate',
@@ -397,7 +413,7 @@ export const DIRECTIVES = [
     title: 'The Derelict Relay',
     text: 'Destroy Rogue Sentinels at the relay, east of the Sanctum. Step out of their Arc Pulse.',
     goal: { kill: 'sentinel', count: 2 },
-    reward: { xp: 60, classItem: { symbiotech: 'glyph_shared_pulse', vanguard: 'glyph_resonant_aegis', surveyor: 'glyph_faultline' } },
+    reward: { xp: 60, classItem: { symbiotech: 'glyph_shared_pulse', vanguard: 'glyph_resonant_aegis', surveyor: 'glyph_faultline', keeper:'glyph_hinge' } },
   },
   {
     id: 'listening_stone',
@@ -418,14 +434,21 @@ export const DIRECTIVES = [
     title: 'The Vault Warden',
     text: 'Defeat the Vault Warden in the monolith ring to the north. Bring an ally, or come prepared.',
     goal: { kill: 'warden', count: 1 },
-    reward: { xp: 120, classItem: { symbiotech: 'glyph_carapace', vanguard: 'glyph_rending_echo', surveyor: 'glyph_wideband' } },
+    reward: { xp: 120, classItem: { symbiotech: 'glyph_carapace', vanguard: 'glyph_rending_echo', surveyor: 'glyph_wideband', keeper:'glyph_reversal' } },
   },
 ];
 
 // Surveyors commission instruments rather than starting with a kill quota.
 export function directiveFor(cls, step) {
   const base = DIRECTIVES[step];
-  if (!base || cls !== 'surveyor') return base;
+  if (!base) return base;
+  if (cls==='keeper') {
+    if (step===0) return {...base,title:'Phase Calibration',text:'Land two Phase Needle strikes [1]. Hinge Field [2] creates protection; Reversal [3] spends it. Relay [4] projects barriers nearby.',goal:{ability:'phase_needle',count:2}};
+    if (step===1) return {...base,title:'Tune the Prism',text:'Install your Hinge Projection Prism in the Device slot.'};
+    if (step===2) return {...base,title:'Install the Resonator',text:'Install the Lattice Resonator (Instrumentation 13).'};
+    return base;
+  }
+  if (cls !== 'surveyor') return base;
   if (step === 0) return { ...base, title: 'Instrument Commissioning', text: 'Analyze hostile targets with Fault Scan [1], then land two Core Bores [2]. Field Rig [3] restores cells; Controlled Blast [4] consumes the rig.', goal: { ability: 'core_bore', count: 2 } };
   if (step === 1) return { ...base, title: 'Calibrate the Receiver', text: 'Equip your Brine Calibrator in the Device slot to raise Instrumentation.' };
   if (step === 2) return { ...base, title: 'Induction Integration', text: 'Install the Induction Lattice. It requires Instrumentation 13.' };

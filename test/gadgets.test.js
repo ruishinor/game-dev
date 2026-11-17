@@ -35,7 +35,7 @@ test('gadget sidegrades preserve class, ownership and dependent implant restrict
   assert.equal(tryEquip(makeChar('symbiotech',{inventory:['field_vector_array']}),'field_vector_array').ok,false);
   char.equipped = tryEquip(char,'conductive_membrane').equipped;
   const stats = deriveStats(char);
-  assert.deepEqual(stats.skills,{kinetics:13,biotech:6});
+  assert.deepEqual(stats.skills,{kinetics:13,biotech:6,instrumentation:4});
   assert.equal(stats.dmgMul,0.9);
   const implant = tryEquip(char,'kinetic_capacitor');
   assert.ok(implant.ok);
