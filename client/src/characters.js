@@ -268,9 +268,10 @@ export function makeCreature(assets, type) {
       else anim.setBase(c.idle, { fade: 0.25 });
       const step = throttle(lod, dt, st.interval);
       if (step) anim.update(step);
-      // A destroyed machine settles into the ground rather than standing frozen.
+      // Hold a readable death pose throughout the corpse lifetime. A shallow
+      // settle avoids burying much of the model below uneven ground.
       sink += ((dead ? 1 : 0) - sink) * Math.min(1, dt * 2.5);
-      inst.position.y = -sink * spec.height * 0.28;
+      inst.position.y = -sink * spec.height * 0.07;
       inst.rotation.z = sink * 0.22;
       flash(st.hit);
       for (const fn of extras) fn(st);
