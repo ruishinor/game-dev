@@ -29,14 +29,15 @@ const BUFFS = {
   shield: ['Aegis', 'good'],
   sap: ['Sapped', 'bad'],
   corrode: ['Corroded', 'bad'],
+  carapace_imprint: ['Carapace Imprint', 'bad'],
   root: ['Rooted', 'bad'],
 };
 
 const GLYPH_NOTES = {
-  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
-  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent.' },
-  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%.' },
-  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung.' },
+  glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%. An imprinted target moves the echo to its position, consuming the imprint.' },
+  glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent. Shared Pulse repairs an active damaged Aegis instead of splash healing.' },
+  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
+  glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Harrying', dormant: 'Dormant' };

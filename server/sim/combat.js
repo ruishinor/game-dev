@@ -92,7 +92,13 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
       amt *= 1 - bond.dr;
       if (bond.reflect && opts.melee && src && src.kind === 'enemy') {
         const comp = game.ents.get(bond.src);
-        if (comp) dealDamage(game, comp, src, bond.reflect, 'carapace', { flat: true });
+        if (comp) {
+          const landed = dealDamage(game, comp, src, bond.reflect, 'carapace', { flat: true });
+          if (landed > 0 && src.state !== 'dead' && src.state !== 'evade') {
+            addBuff(src, { k: 'carapace_imprint', until: game.time + GLYPH.carapace.imprintMs, src: comp.id });
+            game.events.push({ e: 'fx', k: 'carapace_imprint', s: src.id });
+          }
+        }
       }
     }
     const shield = getBuff(dst, 'shield');
@@ -141,13 +147,38 @@ export function applyHeal(game, healer, dst, base, ability, srcId) {
   if (actual > 0) {
     game.events.push({ e: 'heal', s: srcId || (healer ? healer.id : 0), d: dst.id, a: actual, ab: ability });
     if (healer) {
-      // Healing draws the attention of everything fighting the patient.
-      const engaged = game.enemies.filter((e) => e.state === 'combat' && e.threat.has(dst.id));
-      for (const e of engaged) addThreat(e, healer.id, (actual * 0.5) / engaged.length);
-      if (engaged.length) healer.combatUntil = game.time + COMBAT_LINGER_MS;
+      supportThreat(game, healer, dst, actual);
     }
   }
   return actual;
+}
+
+// Both restorative pathways generate threat proportional to actual support.
+function supportThreat(game, healer, dst, actual) {
+  const engaged = game.enemies.filter(e => e.state === 'combat' && e.threat.has(dst.id));
+  for (const e of engaged) addThreat(e, healer.id, (actual * 0.5) / engaged.length);
+  if (engaged.length) healer.combatUntil = game.time + COMBAT_LINGER_MS;
+}
+
+/** Shared Pulse may repair an active Aegis instead of applying splash healing.
+ * Never recreate depleted fields, exceed the initial capacity or renew time.
+ * A valid living glyph source is required; the originating field owns its cap.
+ */
+export function repairAegis(game, healer, dst, base, sourceId) {
+  if (!healer || healer.dead || healer.stats.glyph !== 'glyph_shared_pulse' ||
+      !dst || dst.kind !== 'player' || dst.dead) return 0;
+  const field = getBuff(dst, 'shield');
+  if (!field || field.until <= game.time || !Number.isFinite(field.v) ||
+      !Number.isFinite(field.cap) || field.v <= 0 || field.v >= field.cap) return 0;
+  const origin = game.players.get(field.src);
+  if (!origin || origin.dead || origin.stats.glyph !== 'glyph_resonant_aegis') return 0;
+  const budget = Math.round(base * healer.stats.power * healer.stats.healMul);
+  const amount = Math.min(budget, Math.floor(field.cap - field.v));
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  field.v = Math.min(field.cap, field.v + amount);
+  supportThreat(game, healer, dst, amount);
+  game.events.push({ e: 'shield', s: sourceId, d: dst.id, a: amount, k: 'relay' });
+  return amount;
 }
 
 function killEnemy(game, e) {
@@ -261,9 +292,16 @@ export function useAbility(game, p, abilityId) {
   switch (abilityId) {
     case 'rending_arc': {
       const echo = p.stats.glyph === 'glyph_rending_echo';
+      const imprint = echo ? getBuff(target, 'carapace_imprint') : null;
+      const redirected = !!(imprint && imprint.until > game.time && target.state !== 'evade');
+      const center = redirected ? target : p;
       const others = echo
-        ? game.enemies.filter((e) => e !== target && e.state !== 'dead' && e.state !== 'evade' && dist(p, e) - e.radius <= GLYPH.echo.radius)
+        ? game.enemies.filter((e) => e !== target && e.state !== 'dead' && e.state !== 'evade' && dist(center, e) - e.radius <= GLYPH.echo.radius)
         : [];
+      if (redirected) {
+        target.buffs = target.buffs.filter(b => b !== imprint);
+        game.events.push({ e: 'fx', k: 'carapace_echo', s: p.id, d: target.id, x: target.x, z: target.z, r: GLYPH.echo.radius });
+      }
       dealDamage(game, p, target, ab.dmg, abilityId, { kind: 'melee' });
       for (const e of others) dealDamage(game, p, e, ab.dmg * GLYPH.echo.pct, 'rending_echo', { kind: 'melee' });
       gainCharge(p, ab.gain);
@@ -310,7 +348,7 @@ export function useAbility(game, p, abilityId) {
         const shield = Math.round(charge * GLYPH.aegis.shieldPct * p.stats.power);
         for (const ally of game.players.values()) {
           if (ally.dead || dist(p, ally) > radius) continue;
-          addBuff(ally, { k: 'shield', until: game.time + GLYPH.aegis.dur, v: shield, src: p.id });
+          addBuff(ally, { k: 'shield', until: game.time + GLYPH.aegis.dur, v: shield, cap: shield, src: p.id });
           game.events.push({ e: 'shield', s: p.id, d: ally.id, a: shield });
         }
       }

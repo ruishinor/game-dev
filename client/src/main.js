@@ -576,8 +576,14 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (s && d) {
         if (s.meta.k === 'c') s.castAnim = 1;
-        fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
-        fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        if (e.k === 'aegis_relay') {
+          fx.beam(chestOf(s), chestOf(d), 0x8eddf0, 650, 0.10);
+          fx.ring(d.pos.x, d.pos.z, 1.7, 0xa9eaf0, 540, d.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.burst(d.chest, 0x8eddf0, 6, 0.8);
+        } else {
+          fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
+          fx.burst(d.chest, 0x7dffc4, 4, 0.7);
+        }
       }
       break;
     }
@@ -604,7 +610,20 @@ function onEvent(e) {
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
       }
+      if (e.k === 'carapace_echo') {
+        fx.ring(e.x, e.z, e.r, 0xc9ae76, 650);
+        const target = S.ents.get(e.d);
+        if (s && target && !motionPreference.matches && quality > 0) {
+          fx.beam(chestOf(s), chestOf(target), 0xc9ae76, 420, 0.11);
+          fx.ring(e.x, e.z, e.r * 0.54, 0xe1dbb0, 430);
+        }
+        break;
+      }
       if (!s) break;
+      if (e.k === 'carapace_imprint') {
+        fx.ring(s.pos.x, s.pos.z, 1.3, 0x97b6a1, 430, s.pos.y);
+        break;
+      }
       if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
       if (e.k === 'discharge') {
         s.castAnim = 1;
@@ -660,7 +679,7 @@ function onEvent(e) {
     }
     case 'shield': {
       const d = S.ents.get(e.d);
-      if (d) ui.floatText(toScreen(d.head), `Aegis ${e.a}`, 'shield');
+      if (d) ui.floatText(toScreen(d.head), e.k === 'relay' ? `Relay +${e.a}` : `Aegis ${e.a}`, 'shield');
       break;
     }
     case 'lvl': {

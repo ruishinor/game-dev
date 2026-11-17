@@ -317,32 +317,32 @@ export const ITEMS = {
     slot: 'glyph',
     cls: 'symbiotech',
     req: { attune: 'resonance' },
-    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%.',
+    desc: 'Triage mends resonate: allies within 8m of the patient are also healed for 60%, or repair a damaged active Resonant Aegis instead (no extra duration).',
   },
   glyph_carapace: {
     name: 'Glyph of the Carapace',
     slot: 'glyph',
     cls: 'symbiotech',
-    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6.',
+    desc: 'Bond no longer regenerates. Instead the host takes 45% less damage and attackers in melee are stung for 6 and carry a Carapace Imprint for 4.5s. Rending Echo can redirect through that imprint.',
   },
   glyph_resonant_aegis: {
     name: 'Glyph of Resonant Aegis',
     slot: 'glyph',
     cls: 'vanguard',
     req: { attune: 'resonance' },
-    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s).',
+    desc: 'Discharge deals 40% less damage, but shields you and allies within reach for 60% of the Charge spent (8s). Shared Pulse can repair a partially depleted field instead of splash healing.',
   },
   glyph_rending_echo: {
     name: 'Glyph of Rending Echo',
     slot: 'glyph',
     cls: 'vanguard',
-    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage.',
+    desc: 'Rending Arc also strikes every other enemy within 4.5m of you for 70% damage. A Carapace-imprinted primary target relocates the echo to that target and consumes the imprint.',
   },
 };
 
 export const GLYPH = {
   sharedPulse: { radius: 8, pct: 0.6 },
-  carapace: { dr: 0.45, reflect: 6 },
+  carapace: { dr: 0.45, reflect: 6, imprintMs: 4500 },
   aegis: { dmgMul: 0.6, shieldPct: 0.6, dur: 8000 },
   echo: { radius: 4.5, pct: 0.7 },
 };

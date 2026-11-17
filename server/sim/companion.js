@@ -6,7 +6,7 @@
 
 import { COMPANIONS, GLYPH, ENEMIES } from '../../shared/content.js';
 import { dist } from '../../shared/world.js';
-import { addBuff, applyHeal, dealDamage } from './combat.js';
+import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
 
 function flyToward(c, tx, tz, step) {
   const dx = tx - c.x;
@@ -147,8 +147,14 @@ export function tickCompanion(game, c, dt) {
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || p.dead || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
-        const healed = applyHeal(game, owner, p, def.triage.heal * GLYPH.sharedPulse.pct, 'shared_pulse', c.id);
-        if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        const budget = def.triage.heal * GLYPH.sharedPulse.pct;
+        const repaired = repairAegis(game, owner, p, budget, c.id);
+        if (repaired > 0) {
+          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+        } else {
+          const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
+          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+        }
       }
     }
   }
