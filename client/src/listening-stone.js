@@ -161,6 +161,7 @@ export function makeListeningStone() {
   const owned = [];
   const own = (x) => (owned.push(x), x);
   const maps = stoneMaps();
+  for (const t of [maps.map, maps.emissiveMap]) if (t) owned.push(t);
   // Monolith: irregular basalt with golden inscriptions.
   const stoneMat = own(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, metalness: 0.08, map: maps.map || null, emissiveMap: maps.emissiveMap || null, emissive: maps.emissiveMap ? GOLD : 0x000000, emissiveIntensity: 0.6 }));
   const shaftGeo = own(displaced(new THREE.CylinderGeometry(0.62, 1.05, 5.6, 9, 18), 0.22, 0.9, 0x51));
