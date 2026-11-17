@@ -5,6 +5,8 @@
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand } from './sim/companion.js';
 import { equipItem, unequipSlot, interact } from './sim/progress.js';
+import { inviteParty, answerParty, leaveParty } from './sim/party.js';
+import { renameCompanion } from './sim/companion.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -200,6 +202,20 @@ export class NetServer {
         break;
       case 'pet':
         reply(petCommand(game, p, msg.c));
+        break;
+      case 'pet_rename':
+        reply(renameCompanion(game, p, msg.name));
+        break;
+      case 'party_invite':
+        if (!isId(msg.id)) return this.strike(conn);
+        reply(inviteParty(game, p, msg.id));
+        break;
+      case 'party_answer':
+        if (typeof msg.accept !== 'boolean') return this.strike(conn);
+        reply(answerParty(game, p, msg.accept));
+        break;
+      case 'party_leave':
+        reply(leaveParty(game, p));
         break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
