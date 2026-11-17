@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
+import { useAbility } from '../../server/sim/combat.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null });
@@ -25,8 +26,8 @@ try {
     return s?.myId && s.sheet?.cls === 'surveyor' && s.sheet.look === 'brine_surveyor' && s.drawn >= 2 && s.ents.some(e => e.id === s.myId && e.model === 'glb');
   });
   await page.waitForFunction(() => window.__attune.state().world.prototypeArt === 'ready');
-  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready',survey_engineering:'ready'});
-  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation','survey_engineering'].every(type => {
+  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready',survey_engineering:'ready',sinter_colony:'ready'});
+  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation','survey_engineering','sinter_colony'].every(type => {
     const group = window.__attune.gfx.scene.getObjectByName('prototype-art:'+type);
     let meshes = 0; group?.traverse(node => { if (node.isMesh) meshes++; });
     return meshes > 0;
@@ -97,6 +98,11 @@ try {
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
   await capture('preview-evidence/06-commissioned.png');
+  await moveTo(6, 58);
+  await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
+  await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
+  assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
+  await capture('preview-evidence/04b-sinter-flats.png');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
@@ -104,12 +110,53 @@ try {
   await fallbackPage.route('**/research_workstation.glb', route => route.abort());
   await fallbackPage.goto(url);
   await fallbackPage.waitForFunction(() => window.__attune?.state().world.prototypeArt === 'fallback');
-  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback',survey_engineering:'ready'});
+  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback',survey_engineering:'ready',sinter_colony:'ready'});
   assert.ok(await fallbackPage.evaluate(() => {
     const scene = window.__attune.gfx.scene;
     const holder = scene.getObjectByName('prototype-fallback:survey_workstation');
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
-  console.log('PASS distinct Surveyor class, no symbiote, live field rig/remote blast, GLB tower and research station, independent missing-model fallback, Brineworks evidence/report');
+  const keeper = await browser.newPage({viewport:{width:1000,height:700}});
+  keeper.setDefaultTimeout(90000);
+  const keeperErrors=[];
+  keeper.on('pageerror', e => keeperErrors.push(e.message));
+  keeper.on('console', m => { if(m.type()==='error')keeperErrors.push(m.text()); });
+  await keeper.goto(url);
+  await keeper.fill('#name','Aegis Keeper');
+  await keeper.click('.classcard[data-cls="vanguard"]');
+  await keeper.click('.lookcard[data-look="aegis_keeper"]');
+  await keeper.click('#enter');
+  await keeper.waitForFunction(() => {
+    const s=window.__attune?.state();
+    return s?.myId && s.sheet?.look==='aegis_keeper' && s.ents.some(e=>e.id===s.myId && e.model==='glb') && s.drawn>=2;
+  });
+  const tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper');
+  assert.ok(tank);
+  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  tank.char.inventory.push('glyph_resonant_aegis');
+  tank.char.attunements.push('resonance');
+  tank.char.equipped.glyph='glyph_resonant_aegis';
+  server.game.refreshStats(tank);
+  server.game.markDirty(tank);
+  tank.res=100;
+  // Fixture invokes the actual authoritative ability; extend only for slow screenshot capture.
+  assert.ok(useAbility(server.game,tank,'discharge').ok);
+  const shield=tank.buffs.find(b=>b.k==='shield');
+  assert.ok(shield && shield.v>0);
+  shield.until=server.game.time+60000;
+  await keeper.waitForFunction(()=>{
+    const s=window.__attune.state();
+    const g=window.__attune.gfx.scene.getObjectByName('live-aegis:'+s.myId);
+    return g?.children.some(m=>m.visible&&m.material.isShaderMaterial);
+  });
+  await keeper.evaluate(()=>window.__attune.view({yaw:0,pitch:.2,dist:6,face:Math.PI}));
+  const drawn=await keeper.evaluate(()=>window.__attune.state().drawn);
+  await keeper.waitForFunction(n=>window.__attune.state().drawn>n,drawn);
+  await keeper.screenshot({path:'preview-evidence/05-aegis-keeper.png'});
+  tank.buffs=tank.buffs.filter(b=>b.k!=='shield');
+  await keeper.waitForFunction(()=>!window.__attune.gfx.scene.getObjectByName('live-aegis:'+window.__attune.state().myId));
+  assert.deepEqual(keeperErrors,[]);
+  await keeper.close();
+  console.log('PASS integrated Surveyor, Brineworks commissioning, Sinter Flats, Aegis Keeper and independent asset fallbacks');
 } finally { await browser?.close(); await server.close(); }

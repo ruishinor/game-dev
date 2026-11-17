@@ -1,0 +1,9 @@
+# Live Aegis — bounded playable presentation
+
+Package 08 supplies the base dome/rim shader. This integrates existing Resonant Aegis, not speculative Hinge, Span, Lattice or Relay mechanics. The Discharge pulse marks the server-provided radius; a low-opacity personal field is shown on each visible shielded player while its authoritative snapshot contains a positive active shield. Depleted/expired shields are omitted from public buff lists. No changes to hit detection, duration, cooldown, numerical balance, unlocks, item ownership or slots.
+
+Aegis Keeper is a Vanguard appearance using the existing alternate humanoid rig, shorter silhouette, asymmetric forearm array and reserve cell. The glyph remains earned through existing progression. No new species, profession, animations or stat modifiers. Existing low-spec procedural class fallback remains; distinctive fallback appearance is not implemented.
+
+Simulated review: art/gameplay — differentiate protection from hostile warnings, not a physical blocker; rigging — existing female shells and shared attachment names, clipping unverified; runtime — one pooled effect per visible shielded player, stable resources, disposal on removal/death/quality transition, reduced-motion static field; adversarial — only server grants/removes shields, no new client authority; retrospective — reuse reviewed art before expanding mechanics. Focused Node and browser scenarios added; the browser uses server fixtures for the equipped glyph, ability invocation and extended capture duration. Hosted results pending; no independent artistic acceptance or device performance claim.
+
+Coordination: PR #9 has counted salvage, component recipes and deterministic conversions; do not introduce incompatible crafting here. PR #10 is an integrated preview and includes independent Surveyor mechanics. Reconcile this increment additively only after its own evidence passes.

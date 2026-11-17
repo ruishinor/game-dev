@@ -2,6 +2,7 @@
 // Data only. Rules live in shared/build.js (loadouts) and server/sim (combat).
 
 import { ZONES } from './world.js';
+import { GADGET_ITEMS, SENTINEL_GADGET_DROPS } from './gadgets.js';
 
 export const GCD_MS = 1000;
 export const MAX_LEVEL = 5;
@@ -67,6 +68,7 @@ export const LOOKS = {
   vanguard: [
     { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
     { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
+    { id: 'aegis_keeper', name: 'Aegis Keeper', blurb: 'Compact field-protection specialist with an asymmetric projection array. Earn and inscribe Resonant Aegis to shield allies. Appearance only; Vanguard rules apply.' },
   ],
   symbiotech: [
     { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
@@ -216,7 +218,7 @@ export const ENEMIES = {
     specials: [{ id: 'arc_pulse', name: 'Arc Pulse', cd: 9000, first: 4000, windup: 1600, radius: 4.5, dmg: 24, at: 'target' }],
     xp: 42,
     respawn: 28000,
-    loot: [{ item: 'adrenal_shunt', chance: 0.35 }],
+    loot: [{ item: 'adrenal_shunt', chance: 0.35 }, ...SENTINEL_GADGET_DROPS],
   },
   warden: {
     name: 'Vault Warden',
@@ -264,6 +266,7 @@ export const ITEMS = {
   survey_induction: { name: 'Induction Lattice', slot: 'implant', cls: 'surveyor', req: { skills: { instrumentation: 13 } }, mods: { dmgMul: 1.12 }, summary: '+12% damage', desc: 'Insulated pulse-shaping lattice. Increases damage by 12%.' },
   glyph_faultline: { name: 'Glyph of the Faultline', slot: 'glyph', cls: 'surveyor', req: { attune: 'resonance' }, summary: 'Controlled Blast: 7m radius', desc: 'Expands the demolition radius from 5m to 7m.' },
   glyph_wideband: { name: 'Glyph of Wideband', slot: 'glyph', cls: 'surveyor', summary: 'Fault Scan: 14s analysis', desc: 'Keeps a target analysis active for 14 seconds instead of 9.' },
+  ...GADGET_ITEMS,
   sporeglass_focus: {
     summary: "+3 Biotech · +6 percentage points of Power (Conductors)",
     name: 'Sporeglass Focus',

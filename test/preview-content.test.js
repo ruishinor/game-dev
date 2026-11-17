@@ -120,3 +120,22 @@ test('engineering station retains clear access to research and evidence', () => 
     assert.ok(Math.hypot(pos.x-49,pos.z-z) < 1e-6, 'engineering approach blocked at '+z);
   }
 });
+
+test('Sinter Flats has distinct terrain, bounded props and an unobstructed north-south approach', () => {
+  const z = ZONES.sinter;
+  assert.equal(zoneAt(z.x,z.z),'Sinter Flats');
+  assert.ok(groundHeight(z.x,z.z)<0);
+  const props=PROPS.filter(p=>p.type.startsWith('sinter_'));
+  assert.equal(props.length,7);
+  assert.equal(props.filter(p=>p.type==='sinter_colony').length,1);
+  for(const p of props){
+    assert.ok(Math.hypot(p.x-z.x,p.z-z.z)<z.r);
+    const hit=resolveCollisions({x:p.x,z:p.z},PLAYER_RADIUS);
+    assert.ok(Math.hypot(hit.x-p.x,hit.z-p.z)>PLAYER_RADIUS);
+  }
+  for(let zz=42;zz<=70;zz+=.25){
+    const p=resolveCollisions({x:6,z:zz},PLAYER_RADIUS);
+    assert.ok(Math.hypot(p.x-6,p.z-zz)<1e-6,'blocked Sinter approach at '+zz);
+    assert.ok(Number.isFinite(groundHeight(6,zz)));
+  }
+});

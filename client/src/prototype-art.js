@@ -4,6 +4,7 @@ export const STATIC_ART = Object.freeze({
   survey_tower: 'resonance_tower_deployed.glb',
   survey_workstation: 'research_workstation.glb',
   survey_engineering: 'engineering_workstation.glb',
+  sinter_colony: 'colony_mature.glb',
 });
 
 export function fitStaticArt(bounds, prop, margin = 0.2) {
