@@ -118,7 +118,20 @@ const local = {
 const net = new Net({
   onWelcome,
   onSnapshot,
-  onAuthFail: (reason) => showLogin(reason ? `${reason} Create a new character below.` : ''),
+  onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
+  onAccountReady: showRoster,
+  onAccountFail: (reason) => {
+    const el = net.accountLogged && !$('character-roster').hidden ? $('roster-error') : $('account-error');
+    el.textContent = reason;
+    if (!net.accountToken && /session expired/i.test(reason)) showAccountLogin(reason);
+  },
+  onAccountLoggedOut: () => {
+    clearWorld();
+    S.myId = 0;
+    input.enabled = false;
+    $('hud').hidden = true;
+    showAccountLogin('Signed out.');
+  },
   onCreateFail: (reason) => {
     $('login-error').textContent = reason;
     $('enter').disabled = false;
@@ -148,6 +161,9 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m) => net.send({ t: 'chat', m }),
+  characters: () => openCharacterMenu(),
+  signOut: () => net.signOut(),
+  copyRecoveryKey: () => copyGuestRecoveryKey(),
   forget: () => {
     saveToken(null);
     location.reload();
@@ -221,24 +237,134 @@ function buildLogin() {
   });
 }
 
-function showLogin(message) {
+function showAccountLogin(message = '') {
   $('login').hidden = false;
+  $('hud').hidden = true;
+  $('account-auth').hidden = false;
+  $('character-roster').hidden = true;
+  $('guest-note').hidden = false;
   $('login-form').hidden = false;
   $('resuming').hidden = true;
-  $('login-error').textContent = message || '';
+  $('account-error').textContent = message;
+  $('login-error').textContent = '';
+  $('enter').textContent = 'Enter as guest';
   $('enter').disabled = false;
 }
 
+function showRoster(m) {
+  input.enabled = false;
+  $('login').hidden = false;
+  $('hud').hidden = true;
+  $('resuming').hidden = true;
+  $('account-auth').hidden = true;
+  $('guest-note').hidden = true;
+  $('character-roster').hidden = false;
+  $('login-form').hidden = false;
+  $('enter').textContent = 'Create character';
+  $('enter').disabled = false;
+  $('roster-error').textContent = '';
+  $('login-error').textContent = '';
+  $('roster-title').textContent = `${m.handle}'s characters`;
+  $('link-legacy').hidden = !net.token;
+
+  const rows = $('roster-list');
+  rows.replaceChildren();
+  if (!m.chars.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'No characters yet. Create one below or link a previous guest character.';
+    rows.append(empty);
+  }
+  for (const c of m.chars) {
+    const row = document.createElement('div');
+    row.className = 'roster-row';
+    const info = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = c.name;
+    const detail = document.createElement('div');
+    detail.className = 'muted';
+    detail.textContent = `Level ${c.level} · ${CLASSES[c.cls]?.name || c.cls}`;
+    info.append(name, detail);
+    const actions = document.createElement('div');
+    actions.className = 'roster-actions';
+    const play = document.createElement('button');
+    play.textContent = 'Play';
+    play.addEventListener('click', () => net.selectCharacter(c.id));
+    const remove = document.createElement('button');
+    remove.className = 'remove';
+    remove.textContent = 'Delete';
+    remove.title = 'Permanent. Requires a second click.';
+    remove.addEventListener('click', () => {
+      if (remove.dataset.confirm === '1') net.deleteCharacter(c.id, c.name);
+      else {
+        remove.dataset.confirm = '1';
+        remove.textContent = 'Confirm delete';
+      }
+    });
+    actions.append(play, remove);
+    row.append(info, actions);
+    rows.append(row);
+  }
+}
+
+function buildAccountUI() {
+  $('account-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('account-error').textContent = '';
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, false);
+  });
+  $('account-register').addEventListener('click', () => {
+    $('account-error').textContent = '';
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
+  });
+  $('account-signout').addEventListener('click', () => net.signOut());
+  $('link-legacy').addEventListener('click', () => {
+    if (net.token) net.claimLegacy(net.token);
+  });
+  $('import-legacy').addEventListener('click', () => {
+    const token = $('recovery-token').value.trim();
+    if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
+    else $('recovery-token').value = '';
+  });
+}
+
+function openCharacterMenu() {
+  net.leaveWorld();
+  clearWorld();
+  S.myId = 0;
+  input.enabled = false;
+  $('hud').hidden = true;
+  if (net.accountLogged) {
+    $('login').hidden = false;
+    $('account-auth').hidden = true;
+    $('login-form').hidden = true;
+    $('character-roster').hidden = true;
+    $('resuming').hidden = false;
+    $('resuming').textContent = 'Loading your characters…';
+  } else showAccountLogin('Sign in or register, then link this browser\'s guest character.');
+}
+
+async function copyGuestRecoveryKey() {
+  if (!net.token) return ui.error('This character is already linked or has no guest key.');
+  try {
+    await navigator.clipboard.writeText(net.token);
+    ui.toast('Recovery key copied. Keep it private.', 'gain');
+  } catch {
+    window.prompt('Copy your private recovery key. Anyone with it can access this guest character:', net.token);
+  }
+}
+
 buildLogin();
-$('enter').textContent = 'Enter the Reach';
+buildAccountUI();
+$('enter').textContent = 'Enter as guest';
 $('enter').disabled = false;
-if (net.token) {
+if (net.accountToken || net.token) {
   $('login-form').hidden = true;
+  $('account-auth').hidden = true;
+  $('guest-note').hidden = true;
   $('resuming').hidden = false;
   net.connect();
-} else {
-  showLogin('');
-}
+} else showAccountLogin('');
 
 // --- entities ----------------------------------------------------------------
 
@@ -319,6 +445,7 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   $('login').hidden = true;
   $('hud').hidden = false;
+  ui.setAccountLinked(net.accountLogged);
   input.enabled = true;
   canvas.focus();
   if (!onWelcome.greeted) {
