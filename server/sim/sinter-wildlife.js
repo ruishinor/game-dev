@@ -92,7 +92,11 @@ export function tickWildHerd(game,e,dt){
  if(!e.form||!free(e))return false;
  if(e.wildWound>0&&game.time>=e.wildHealAt){
   const n=Math.min(e.wildWound,Math.max(0,e.maxHp-e.hp),dt*(sinterSiteAt(e)==='nursery'?6:4));e.hp+=n;e.wildWound-=n;
-  if(e.hp>=e.maxHp)e.wildWound=0;
+  // Normalize only numerical residue on completion; do not heal unrelated damage.
+  if(e.wildWound<=1e-8||e.maxHp-e.hp<=1e-8){
+   e.wildWound=0;
+   if(e.maxHp-e.hp<=1e-8)e.hp=e.maxHp;
+  }
  }
  const predator=game.enemies.find(o=>o.type==='faultstalker'&&free(o)&&o.wildPrey&&o.wildPhase!=='withdraw');
  const prey=predator&&game.enemies.find(o=>o.id===predator.wildPrey);
