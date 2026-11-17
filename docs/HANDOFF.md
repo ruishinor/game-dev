@@ -1,5 +1,7 @@
 # Attunement — handoff
 
+> **Standing review requirement (2026-11-18):** Read [AGENTS.md](../AGENTS.md) before planning, implementation, review and handoff. Apply its server-authority, minimum-disclosure, repository-hygiene and publication gate to all relevant work.
+
 > **Latest (2026-11-17):** the visual fidelity pass (effects, character gear, gadgets, Listening Stone) is on
 > branch `charlie/confident-wright-b2bh7j`. Start with
 > [`art/VFX-ENGINE-HANDOFF.md`](art/VFX-ENGINE-HANDOFF.md). The text below is older.
