@@ -120,9 +120,10 @@ try {
   await workshop.waitFor();
   const baseline=JSON.stringify({equipped:p.char.equipped,inventory:p.char.inventory,materials:p.char.materials});
   await workshop.locator('.workshop-tutorial').waitFor();
-  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Lesson 1 \/ 4/);
+  // innerText is rendered text; the lesson kicker and title are styled uppercase.
+  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Lesson 1 \/ 4/i);
   await workshop.getByRole('button',{name:'Next',exact:true}).click();
-  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Recover components/);
+  assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Recover components/i);
   await workshop.locator('[data-recipe="coupler"]').click();
   assert.equal(await workshop.locator('.recipe-part [data-art="sentinel_alloy"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="mire_fibre"] svg').count(),1);
