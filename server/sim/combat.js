@@ -347,7 +347,7 @@ export function useAbility(game, p, abilityId) {
   return { ok: true };
 }
 
-/** Toggle auto-attack on the current hostile target. */
+/** Engage auto-attack on the current hostile target; explicit disengage is handled by the network command. */
 export function startAttack(game, p) {
   if (p.dead) return fail('You are defeated.');
   const t = game.ents.get(p.target);
