@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook } from '../shared/content.js';
+import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { validateLoadout } from '../shared/build.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
@@ -42,6 +42,7 @@ function sanitize(raw) {
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
     petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
+    petName: validCompanionName(raw.petName) ? raw.petName : COMPANIONS.mender.name,
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
@@ -117,6 +118,7 @@ export class CharacterStore {
       pos: null,
       hp: 0,
       petMode: 'triage',
+      petName: COMPANIONS.mender.name,
       createdAt: Date.now(),
       lastSeen: Date.now(),
     };
