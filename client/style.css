@@ -202,6 +202,7 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .plate { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; will-change: transform; }
 .pname { font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
 .plate.enemy .pname { color: #ff9a8c; }
+.plate.corpse .pname { color: #a5b2af; font-size: 10px; font-weight: 400; }
 .plate.elite .pname { color: #ffd27a; font-size: 13.5px; }
 .plate.player .pname { color: #a8ffd9; }
 .plate.comp .pname { color: #8fdcc0; font-size: 10.5px; font-weight: 400; }
