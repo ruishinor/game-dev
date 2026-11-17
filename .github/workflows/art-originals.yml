@@ -1,0 +1,32 @@
+name: Original art browser inspection
+on:
+  pull_request:
+    paths:
+      - 'client/art-assets/**'
+      - 'client/art-preview.html'
+      - 'client/src/art-preview.js'
+      - 'client/src/artfx/**'
+      - 'test/e2e/art-originals.mjs'
+      - '.github/workflows/art-originals.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/art-originals.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: art-evidence
+          path: art-evidence/
+          if-no-files-found: ignore
