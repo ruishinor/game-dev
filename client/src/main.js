@@ -68,6 +68,42 @@ ring.rotation.x = -Math.PI / 2;
 ring.visible = false;
 scene.add(ring);
 
+// Snapshot-driven stationary survey equipment, independent of its owner's model.
+const rigParts = {
+  base: new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8),
+  body: new THREE.BoxGeometry(0.32, 0.52, 0.29),
+  mast: new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8),
+  lamp: new THREE.BoxGeometry(0.21, 0.05, 0.03),
+  area: new THREE.RingGeometry(0.985, 1, 48),
+};
+const rigMetal = new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 });
+const rigDark = new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 });
+const rigLight = new THREE.MeshBasicMaterial({ color: 0x85cde9 });
+const rigArea = new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+function syncRig(ent) {
+  const r = ent.row?.rig;
+  if (!r) {
+    if (ent.rigModel) scene.remove(ent.rigModel);
+    ent.rigModel = null;
+    return;
+  }
+  if (!ent.rigModel) {
+    const g = new THREE.Group();
+    const part = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x,y,z); g.add(mesh); return mesh; };
+    part(rigParts.base, rigDark, 0, 0.075, 0);
+    part(rigParts.body, rigMetal, 0, 0.38, 0);
+    part(rigParts.mast, rigDark, 0.11, 0.88, 0);
+    part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    const area = part(rigParts.area, rigArea, 0, 0.12, 0);
+    area.rotation.x = -Math.PI / 2;
+    g.userData.area = area;
+    scene.add(g);
+    ent.rigModel = g;
+  }
+  ent.rigModel.position.set(r.x, groundHeight(r.x,r.z), r.z);
+  ent.rigModel.userData.area.scale.setScalar(r.r);
+}
+
 function resize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -464,6 +500,7 @@ function addEntity(meta) {
 function removeEntity(ent) {
   fx.clearRoot(ent.id);
   scene.remove(ent.holder);
+  if (ent.rigModel) scene.remove(ent.rigModel);
   if (ent.model.dispose) ent.model.dispose();
   else {
     ent.holder.traverse((o) => {
@@ -527,6 +564,7 @@ function onSnapshot(m) {
     if (!ent) continue;
     seen.add(row.i);
     ent.row = row;
+    if (ent.meta.c === 'surveyor') syncRig(ent);
     ent.dead = !!(row.f & 1);
     ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
     if (ent.buf.length > 12) ent.buf.shift();
@@ -578,7 +616,7 @@ function onSnapshot(m) {
 
 const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
-const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
+const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
 function nameOf(ent) {
   if (!ent) return 'Something';
@@ -649,6 +687,10 @@ function onEvent(e) {
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
       if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
+      else if (e.ab === 'fault_scan' && d) {
+        fx.beam(chestOf(s), chestOf(d), 0x85cde9, 480, 0.035);
+        fx.ring(d.pos.x, d.pos.z, 1.8, 0x85cde9, 600, d.pos.y);
+      } else if (e.ab === 'field_rig') fx.ring(s.pos.x, s.pos.z, 4, 0x85cde9, 550, s.pos.y);
       else if (e.ab === 'mending_graft') {
         s.castAnim = 1;
         if (d && d !== s) fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 480, 0.07);
@@ -661,6 +703,11 @@ function onEvent(e) {
     }
     case 'fx': {
       const s = S.ents.get(e.s);
+      if (e.k === 'survey_blast') {
+        fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
+        fx.pillar(e.x, e.z, 0xf0b56b, 450);
+        break;
+      }
       if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
@@ -1292,7 +1339,7 @@ function frame(now) {
     ring.scale.setScalar(r);
     ring.position.set(target.pos.x, groundHeight(target.pos.x, target.pos.z) + 0.14, target.pos.z);
     ring.rotation.z = time * 0.8;
-    ring.material.color.setHex(target.meta.k === 'e' ? 0xff5a4a : 0x7dffc4);
+    ring.material.color.setHex(target.meta.k === 'e' ? (S.you?.surveyKit?.mark === target.id ? 0x85cde9 : 0xff5a4a) : 0x7dffc4);
   } else ring.visible = false;
 
   camera.updateMatrixWorld();

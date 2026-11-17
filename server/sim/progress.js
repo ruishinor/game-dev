@@ -2,7 +2,7 @@
 // world interactions. All mutations of persistent character state go
 // through here.
 
-import { ENEMIES, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist } from '../../shared/world.js';
 import { SURVEY, surveyState } from '../../shared/survey.js';
@@ -41,6 +41,7 @@ export function grantItem(game, p, itemId) {
 
 function goalMet(p, goal) {
   const c = p.char;
+  if (goal.ability) return c.quest.progress >= goal.count;
   if (goal.kill) return c.quest.progress >= goal.count;
   if (goal.equip) return !!c.equipped[goal.equip];
   if (goal.attune) return c.attunements.includes(goal.attune);
@@ -51,8 +52,8 @@ function goalMet(p, goal) {
 export function checkDirective(game, p) {
   const c = p.char;
   let advanced = false;
-  while (c.quest.step < DIRECTIVES.length && goalMet(p, DIRECTIVES[c.quest.step].goal)) {
-    const d = DIRECTIVES[c.quest.step];
+  while (c.quest.step < DIRECTIVES.length && goalMet(p, directiveFor(c.cls, c.quest.step).goal)) {
+    const d = directiveFor(c.cls, c.quest.step);
     c.quest.step += 1;
     c.quest.progress = 0;
     advanced = true;
@@ -74,7 +75,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
     for (const drop of def.loot) {
       if (!p.char.inventory.includes(drop.item) && game.rng() < drop.chance) grantItem(game, p, drop.item);
     }
-    const d = DIRECTIVES[p.char.quest.step];
+    const d = directiveFor(p.cls, p.char.quest.step);
     if (d && d.goal.kill === enemy.type) {
       p.char.quest.progress += 1;
       game.markDirty(p);
@@ -159,6 +160,10 @@ export function interact(game, p, objectId) {
       game.message(p, 'gain', 'Investigation complete: ' + SURVEY[current].title + '.');
       grantXp(game, p, 35);
       game.markDirty(p);
+      return { ok: true };
+    }
+    if (p.cls === 'surveyor' && p.char.quest.step === 0) {
+      p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: 'Do not waste a charge on a blind shot. Map the fault, bore into it, and rig the ground before you commit.' });
       return { ok: true };
     }
     const line = ARCHIVIST_LINES[Math.min(p.char.quest.step, ARCHIVIST_LINES.length - 1)];

@@ -2,9 +2,9 @@
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
 
-import { CLASSES, ENEMIES, SPAWNS, COMPANIONS } from '../../shared/content.js';
+import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
-import { WORLD, OBJECTS, MOVE_HZ, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, dist, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
@@ -97,6 +97,7 @@ export class Game {
       sheetDirty: true,
       metaVer: 1,
       companion: null,
+      surveyKit: char.cls === 'surveyor' ? { mark: null, rig: null } : null,
       partyId: 0,
       partyInvite: null,
     };
@@ -218,6 +219,7 @@ export class Game {
     p.vy = 0;
     p.hp = p.maxHp;
     p.res = CLASSES[p.cls].resource.start;
+    p.surveyKit = p.cls === 'surveyor' ? { mark: null, rig: null } : null;
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
@@ -268,6 +270,7 @@ export class Game {
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
         b: p.buffs.map((b) => b.k),
+        ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });
     }
     for (const e of this.enemies) {
@@ -326,6 +329,11 @@ export class Game {
       safe: inSanctum(p) ? 1 : 0,
       party: partyState(this, p),
     };
+    if (p.cls === 'surveyor') {
+      const mark = p.surveyKit?.mark;
+      const rig = p.surveyKit?.rig;
+      y.surveyKit = { mark: mark?.id || 0, markMs: mark ? Math.max(0, mark.until - this.time) : 0, rigMs: rig ? Math.max(0, rig.until - this.time) : 0, rigDistance: rig ? r2(dist(p, rig)) : null };
+    }
     if (p.dead) y.dead = Math.max(0, Math.round(RESPAWN_DELAY_MS - (this.time - p.deadAt)));
     return y;
   }

@@ -1,10 +1,10 @@
 // Combat rules: damage, healing, threat, buffs and player abilities.
 // Every outcome a client sees originates here.
 
-import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH } from '../../shared/content.js';
+import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
 import { dist, inSanctum, resolveCollisions } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
-import { onEnemyKilled } from './progress.js';
+import { onEnemyKilled, checkDirective } from './progress.js';
 
 // --- buffs -----------------------------------------------------------------
 
@@ -168,6 +168,7 @@ function killEnemy(game, e) {
 function killPlayer(game, p) {
   p.hp = 0;
   p.dead = true;
+  p.surveyKit = null;
   p.deadAt = game.time;
   p.buffs = [];
   p.autoOn = false;
@@ -197,6 +198,12 @@ export function tickPlayerCombat(game, p, dt) {
     if (actual > 0) game.events.push({ e: 'heal', s: healer ? healer.id : 0, d: p.id, a: actual, ab: 'mending_graft' });
   }
 
+  if (p.cls === 'surveyor' && p.surveyKit) {
+    const kit = p.surveyKit;
+    if (kit.mark && (kit.mark.until <= game.time || !game.ents.get(kit.mark.id) || ['dead', 'evade'].includes(game.ents.get(kit.mark.id).state))) kit.mark = null;
+    if (kit.rig && kit.rig.until <= game.time) kit.rig = null;
+    if (kit.rig && dist(p, kit.rig) <= SURVEYOR.rechargeRadius) p.res = Math.min(res.max, p.res + SURVEYOR.rechargePerSecond * dt);
+  }
   if (res.regen) p.res = Math.min(res.max, p.res + res.regen * dt);
   if (res.decay && !inCombat) p.res = Math.max(0, p.res - res.decay * dt);
 
@@ -252,6 +259,17 @@ export function useAbility(game, p, abilityId) {
   }
   if (abilityId === 'overgrowth_surge' && !p.companion) return fail('You have no symbiote.');
 
+  if (p.cls === 'surveyor') {
+    if (inSanctum(p)) return fail('Field instruments cannot operate in the Sanctum.');
+    const kit = p.surveyKit;
+    if (abilityId === 'core_bore' && (!kit?.mark || kit.mark.id !== target.id || kit.mark.until <= game.time)) return fail('Analyze this target with Fault Scan first.');
+    if (abilityId === 'field_rig' && kit?.rig && kit.rig.until > game.time) return fail('Your field rig is already deployed.');
+    if (abilityId === 'controlled_blast') {
+      if (!kit?.rig || kit.rig.until <= game.time) return fail('Deploy a field rig first.');
+      if (dist(p, kit.rig) > SURVEYOR.remoteRange) return fail('Field rig is out of remote range.');
+    }
+  }
+
   // Commit.
   p.cds[abilityId] = game.time + ab.cd;
   if (!ab.offGcd) p.gcdUntil = game.time + GCD_MS;
@@ -259,6 +277,35 @@ export function useAbility(game, p, abilityId) {
   game.events.push({ e: 'cast', s: p.id, d: target ? target.id : 0, ab: abilityId });
 
   switch (abilityId) {
+    case 'fault_scan': {
+      p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) };
+      p.res = Math.min(cdef.resource.max, p.res + 30);
+      break;
+    }
+    case 'core_bore': {
+      p.surveyKit.mark = null;
+      const hit = dealDamage(game, p, target, ab.dmg, abilityId, { kind: 'bolt' });
+      if (hit > 0 && p.char.quest.step === 0) {
+        p.char.quest.progress += 1;
+        game.markDirty(p);
+        checkDirective(game, p);
+      }
+      p.autoOn = true;
+      break;
+    }
+    case 'field_rig':
+      p.surveyKit.rig = { x: p.x, z: p.z, until: game.time + SURVEYOR.rigMs };
+      break;
+    case 'controlled_blast': {
+      const rig = p.surveyKit.rig;
+      p.surveyKit.rig = null;
+      const radius = p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius;
+      game.events.push({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
+      for (const enemy of game.enemies) {
+        if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius) dealDamage(game, p, enemy, ab.dmg, abilityId);
+      }
+      break;
+    }
     case 'rending_arc': {
       const echo = p.stats.glyph === 'glyph_rending_echo';
       const others = echo

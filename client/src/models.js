@@ -203,6 +203,18 @@ export function makeSymbiotech() {
   });
 }
 
+export function makeSurveyor() {
+  return humanoid({
+    body: 0x777b70, trim: 0x9b713d, glow: 0x84cde9, bulk: 1.0, metal: 0.25,
+    extras({ torso, head, armR, trim, glowMat }) {
+      for (const side of [-1, 1]) torso.add(part(CYL, trim, 0.10, 0.40, 0.10, side * 0.15, 0.43, -0.29));
+      head.add(part(BOX, glowMat, 0.35, 0.07, 0.16, 0, -0.12, 0.15));
+      armR.add(part(BOX, trim, 0.20, 0.32, 0.21, 0, -0.45, 0.10));
+      return () => {};
+    },
+  });
+}
+
 export function makeArchivist() {
   const m = humanoid({ body: 0x5a4f78, trim: 0x2d2a44, glow: 0xffd27a, bulk: 0.95, skin: 0xd9c2a8 });
   const pad = part(BOX, lit(0xffd27a, 0.85), 0.34, 0.24, 0.02, 0.5, 1.35, 0.35);
@@ -545,6 +557,7 @@ function makeSurveyTerminal(ledger) {
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
+  surveyor: makeSurveyor,
   mender: makeMender,
   skitter: makeSkitter,
   sentinel: makeSentinel,

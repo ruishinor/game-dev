@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CLASSES, LOOKS, defaultLook, validLook } from '../shared/content.js';
 
-test('Brine Surveyor is an additional cosmetic option without changing class defaults', () => {
+test('Brine Surveyor is a distinct profession without changing existing class defaults', () => {
   assert.equal(defaultLook('symbiotech'), 'conductor');
   assert.equal(defaultLook('vanguard'), 'vanguard_plate');
-  assert.ok(validLook('symbiotech', 'brine_surveyor'));
+  assert.ok(validLook('surveyor', 'brine_surveyor'));
+  assert.equal(validLook('symbiotech', 'brine_surveyor'), false);
+  assert.equal(CLASSES.surveyor.companion, null);
+  assert.equal(defaultLook('surveyor'), 'brine_surveyor');
   assert.equal(validLook('vanguard', 'brine_surveyor'), false);
   assert.equal(new Set(LOOKS.symbiotech.map(x => x.id)).size, LOOKS.symbiotech.length);
   assert.equal(CLASSES.symbiotech.companion, 'mender');
@@ -70,16 +73,24 @@ test('Brineworks: survey and new appearance survive a save/reload; old and inval
   try {
     const file = path.join(dir, 'characters.json');
     const store = new CharacterStore(file);
-    const { char, token } = store.create('Brine Tester', 'symbiotech', 'brine_surveyor');
+    const { char, token } = store.create('Brine Tester', 'surveyor', 'brine_surveyor');
     char.survey = 'ledger_done';
     store.flush();
     const restored = new CharacterStore(file).authenticate(token);
     assert.equal(restored.survey, 'ledger_done');
     assert.equal(restored.look, 'brine_surveyor');
+    assert.equal(restored.cls, 'surveyor');
     const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
     delete raw.characters[0].survey;
     fs.writeFileSync(file, JSON.stringify(raw));
     assert.equal(new CharacterStore(file).authenticate(token).survey, null);
+    // A previously cosmetic Surveyor stays a Conductor; do not rewrite profession or equipment.
+    raw.characters[0].cls = 'symbiotech';
+    fs.writeFileSync(file, JSON.stringify(raw));
+    const legacy = new CharacterStore(file).authenticate(token);
+    assert.equal(legacy.cls, 'symbiotech');
+    assert.equal(legacy.look, 'conductor');
+    raw.characters[0].cls = 'surveyor';
     raw.characters[0].survey = 'invalid';
     fs.writeFileSync(file, JSON.stringify(raw));
     assert.equal(new CharacterStore(file).authenticate(token).survey, null);

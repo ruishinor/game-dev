@@ -2,7 +2,7 @@
 // button just asks main.js to send an intent. Dynamic text (names, chat) is
 // only ever written with textContent.
 
-import { ABILITIES, CLASSES, COMPANIONS, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
+import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
@@ -11,6 +11,10 @@ import { surveyHint } from '../../shared/survey.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
+  core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
+  field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
+  controlled_blast: svg('<circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5M4 4l4 4m8 8 4 4M4 20l4-4m8-8 4-4"/>'),
   rending_arc: svg('<path d="M4 19C7 8 14 4 21 5"/><path d="M7 21 19 9"/>'),
   graviton_tether: svg('<circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M8.5 15.5 15.5 8.5"/><path d="M11 7h-4M17 13v4"/>'),
   kinetic_ward: svg('<path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/><path d="M12 8v8"/>'),
@@ -37,6 +41,8 @@ const BUFFS = {
 };
 
 const GLYPH_NOTES = {
+  glyph_faultline: { ability: 'controlled_blast', text: 'Glyph of the Faultline: 7m demolition radius.' },
+  glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
   glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%.' },
   glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent.' },
   glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%.' },
@@ -46,6 +52,7 @@ const GLYPH_NOTES = {
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SKILL_INFO = {
+  instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
   biotech: 'Conductor primary skill: increases Power by 2 percentage points per point above 10 and meets Biotech equipment requirements.',
 };
@@ -339,7 +346,9 @@ export class UI {
     this.xp = bar('xp');
     this.moveStatus = h('div', 'move-status');
     this.moveStatus.hidden = true;
-    bars.append(this.petBar, this.moveStatus, this.autoControl, this.actionBar, this.xp.wrap);
+    this.surveyStatus = h('div', 'auto-status');
+    this.surveyStatus.hidden = true;
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -985,11 +994,11 @@ export class UI {
 
     set(this.surveyText, 'text', surveyHint(sheet.survey));
     const q = sheet.quest;
-    const d = DIRECTIVES[q.step];
+    const d = directiveFor(sheet.cls, q.step);
     if (d) {
       set(this.trackerTitle, 'text', d.title);
       set(this.trackerText, 'text', d.text);
-      set(this.trackerProgress, 'text', d.goal.kill ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} defeated` : '');
+      set(this.trackerProgress, 'text', (d.goal.kill || d.goal.ability) ? `${Math.min(q.progress, d.goal.count)} / ${d.goal.count} ${d.goal.ability ? 'successful bores' : 'defeated'}` : '');
     } else {
       set(this.trackerTitle, 'text', 'The Reach is yours');
       set(this.trackerText, 'text', 'Every directive is complete. Experiment with your glyphs and implants, or help another traveller.');
@@ -1098,6 +1107,14 @@ export class UI {
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
     this.buffChips(this.player.buffs, me.row.b || []);
+    const kit = you.surveyKit;
+    set(this.surveyStatus, 'hidden', !kit);
+    if (kit) {
+      const marked = kit.mark && st.ents.get(kit.mark);
+      const markText = marked && kit.markMs > 0 ? 'Analyzed: ' + marked.meta.n + ' · ' + Math.ceil(kit.markMs / 1000) + 's' : 'Scan a target [1]';
+      const rigText = kit.rigMs > 0 ? 'Rig: ' + Math.ceil(kit.rigMs / 1000) + 's · ' + kit.rigDistance.toFixed(1) + 'm · ' + (kit.rigDistance <= SURVEYOR.rechargeRadius ? 'charging' : kit.rigDistance <= SURVEYOR.remoteRange ? 'remote ready' : 'out of remote range') : 'Deploy rig [3]';
+      set(this.surveyStatus, 'text', markText + ' | ' + rigText);
+    }
 
     // Target frame
     set(this.target.el, 'hidden', !target);
@@ -1168,6 +1185,12 @@ export class UI {
       let usable = !me.dead;
       if (ab.cost && you.res < ab.cost) usable = false;
       if (ab.minRes && you.res < ab.minRes) usable = false;
+      if (kit) {
+        if (you.safe) usable = false;
+        if (b.id === 'core_bore' && (kit.mark !== target?.id || kit.markMs <= 0)) usable = false;
+        if (b.id === 'field_rig' && kit.rigMs > 0) usable = false;
+        if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
+      }
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;

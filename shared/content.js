@@ -8,7 +8,7 @@ export const MAX_LEVEL = 5;
 /** XP needed to advance from level L to L+1 (index L). */
 export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
-export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech' };
+export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
 export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph' };
 export const SLOTS = ['device', 'implant', 'glyph'];
@@ -23,7 +23,7 @@ export const CLASSES = {
     baseHp: 230,
     hpPerLevel: 22,
     resource: { id: 'charge', name: 'Charge', max: 100, start: 0, regen: 0, decay: 3 },
-    skills: { kinetics: 10, biotech: 4 },
+    skills: { kinetics: 10, biotech: 4, instrumentation: 4 },
     primary: 'kinetics',
     threatMul: 2.2,
     auto: { range: 3.6, interval: 2000, dmg: 10, kind: 'melee' },
@@ -39,12 +39,21 @@ export const CLASSES = {
     baseHp: 155,
     hpPerLevel: 15,
     resource: { id: 'energy', name: 'Bio-energy', max: 100, start: 100, regen: 5, decay: 0 },
-    skills: { kinetics: 4, biotech: 10 },
+    skills: { kinetics: 4, biotech: 10, instrumentation: 4 },
     primary: 'biotech',
     threatMul: 1,
     auto: { range: 26, interval: 2000, dmg: 5, kind: 'bolt' },
     abilities: ['neural_lash', 'mending_graft', 'spore_snare', 'overgrowth_surge'],
     companion: 'mender',
+  },
+  surveyor: {
+    id: 'surveyor', name: 'Brine Surveyor', role: 'Field Engineer / Ranged Control',
+    blurb: 'An independent field technician. Survey hostile structures, bore through their weak points, deploy a stationary power rig and trigger controlled demolition. No symbiote or healing magic.',
+    baseHp: 175, hpPerLevel: 17,
+    resource: { id: 'cells', name: 'Power Cells', max: 100, start: 60, regen: 0, decay: 0 },
+    skills: { kinetics: 5, biotech: 3, instrumentation: 10 }, primary: 'instrumentation', threatMul: 1,
+    auto: { range: 22, interval: 1800, dmg: 7, kind: 'bolt' },
+    abilities: ['fault_scan', 'core_bore', 'field_rig', 'controlled_blast'], companion: null,
   },
 };
 
@@ -61,7 +70,9 @@ export const LOOKS = {
   ],
   symbiotech: [
     { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
-    { id: 'brine_surveyor', name: 'Brine Surveyor', blurb: 'Independent field technician with a sealed survey rig and insulated sampling equipment. Same abilities; different appearance.' },
+  ],
+  surveyor: [
+    { id: 'brine_surveyor', name: 'Brine Field Rig', blurb: 'Sealed power cartridges, insulated sampling equipment and an independent field instrument.' },
   ],
 };
 export const defaultLook = (cls) => LOOKS[cls][0].id;
@@ -69,7 +80,13 @@ export const validLook = (cls, look) => typeof look === 'string' && Object.hasOw
 
 // type: 'hostile' needs a living enemy target; 'friendly' uses a friendly
 // player target or falls back to self; 'self' needs no target.
+export const SURVEYOR = Object.freeze({ markMs: 9000, extendedMarkMs: 14000, rigMs: 12000, rechargeRadius: 4, rechargePerSecond: 8, blastRadius: 5, faultlineRadius: 7, remoteRange: 30 });
+
 export const ABILITIES = {
+  fault_scan: { name: 'Fault Scan', type: 'hostile', range: 30, cd: 4000, desc: 'Analyze one hostile target for 9s and recover 30 Power Cells. Does not deal damage or engage auto-attack.' },
+  core_bore: { name: 'Core Bore', type: 'hostile', range: 24, cd: 2500, cost: 30, dmg: 30, desc: 'Fire a focused boring pulse into your own scanned target. Consumes its scan and 30 Power Cells.' },
+  field_rig: { name: 'Field Rig', type: 'self', cd: 16000, desc: 'Deploy a stationary power rig at your feet for 12s. Recover 8 Power Cells per second within 4m. Cannot deploy in the Sanctum.' },
+  controlled_blast: { name: 'Controlled Blast', type: 'self', cd: 5000, cost: 25, dmg: 28, desc: 'Destroy your active rig from up to 30m away, damaging enemies within 5m of it. Costs 25 Power Cells; ends recharge.' },
   rending_arc: {
     name: 'Rending Arc',
     type: 'hostile',
@@ -241,6 +258,10 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  survey_calibrator: { name: 'Brine Calibrator', slot: 'device', cls: 'surveyor', skills: { instrumentation: 3 }, summary: '+3 Instrumentation · +6 percentage points of Power', desc: 'Calibrated field receiver. Raises Instrumentation by 3 and unlocks Surveyor equipment.' },
+  survey_induction: { name: 'Induction Lattice', slot: 'implant', cls: 'surveyor', req: { skills: { instrumentation: 13 } }, mods: { dmgMul: 1.12 }, summary: '+12% damage', desc: 'Insulated pulse-shaping lattice. Increases damage by 12%.' },
+  glyph_faultline: { name: 'Glyph of the Faultline', slot: 'glyph', cls: 'surveyor', req: { attune: 'resonance' }, summary: 'Controlled Blast: 7m radius', desc: 'Expands the demolition radius from 5m to 7m.' },
+  glyph_wideband: { name: 'Glyph of Wideband', slot: 'glyph', cls: 'surveyor', summary: 'Fault Scan: 14s analysis', desc: 'Keeps a target analysis active for 14 seconds instead of 9.' },
   sporeglass_focus: {
     summary: "+3 Biotech · +6 percentage points of Power (Conductors)",
     name: 'Sporeglass Focus',
@@ -332,14 +353,14 @@ export const DIRECTIVES = [
     title: 'Field Trial',
     text: 'Cull Mire Skitters in the Sporefield, west of the Sanctum.',
     goal: { kill: 'skitter', count: 3 },
-    reward: { xp: 30, classItem: { symbiotech: 'sporeglass_focus', vanguard: 'servo_harness' } },
+    reward: { xp: 30, classItem: { symbiotech: 'sporeglass_focus', vanguard: 'servo_harness', surveyor: 'survey_calibrator' } },
   },
   {
     id: 'calibrate',
     title: 'Calibrate',
     text: 'Open your Build [C] and equip a Device. Devices raise skills.',
     goal: { equip: 'device' },
-    reward: { classItem: { symbiotech: 'myelin_lattice', vanguard: 'kinetic_capacitor' } },
+    reward: { classItem: { symbiotech: 'myelin_lattice', vanguard: 'kinetic_capacitor', surveyor: 'survey_induction' } },
   },
   {
     id: 'integrate',
@@ -353,7 +374,7 @@ export const DIRECTIVES = [
     title: 'The Derelict Relay',
     text: 'Destroy Rogue Sentinels at the relay, east of the Sanctum. Step out of their Arc Pulse.',
     goal: { kill: 'sentinel', count: 2 },
-    reward: { xp: 60, classItem: { symbiotech: 'glyph_shared_pulse', vanguard: 'glyph_resonant_aegis' } },
+    reward: { xp: 60, classItem: { symbiotech: 'glyph_shared_pulse', vanguard: 'glyph_resonant_aegis', surveyor: 'glyph_faultline' } },
   },
   {
     id: 'listening_stone',
@@ -374,9 +395,19 @@ export const DIRECTIVES = [
     title: 'The Vault Warden',
     text: 'Defeat the Vault Warden in the monolith ring to the north. Bring an ally, or come prepared.',
     goal: { kill: 'warden', count: 1 },
-    reward: { xp: 120, classItem: { symbiotech: 'glyph_carapace', vanguard: 'glyph_rending_echo' } },
+    reward: { xp: 120, classItem: { symbiotech: 'glyph_carapace', vanguard: 'glyph_rending_echo', surveyor: 'glyph_wideband' } },
   },
 ];
+
+// Surveyors commission instruments rather than starting with a kill quota.
+export function directiveFor(cls, step) {
+  const base = DIRECTIVES[step];
+  if (!base || cls !== 'surveyor') return base;
+  if (step === 0) return { ...base, title: 'Instrument Commissioning', text: 'Analyze hostile targets with Fault Scan [1], then land two Core Bores [2]. Field Rig [3] restores cells; Controlled Blast [4] consumes the rig.', goal: { ability: 'core_bore', count: 2 } };
+  if (step === 1) return { ...base, title: 'Calibrate the Receiver', text: 'Equip your Brine Calibrator in the Device slot to raise Instrumentation.' };
+  if (step === 2) return { ...base, title: 'Induction Integration', text: 'Install the Induction Lattice. It requires Instrumentation 13.' };
+  return base;
+}
 
 export const ARCHIVIST_LINES = [
   'The skitters breed faster than the bog can hold them. Thin them out.',

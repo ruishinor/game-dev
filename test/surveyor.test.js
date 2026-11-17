@@ -1,0 +1,123 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { CLASSES, ITEMS, SURVEYOR, directiveFor } from '../shared/content.js';
+import { useAbility, dealDamage } from '../server/sim/combat.js';
+import { petCommand } from '../server/sim/companion.js';
+import { equipItem } from '../server/sim/progress.js';
+import { makeChar, makeGame, place, enemyOf, isolate } from './helpers.js';
+
+function fixture(over = {}) {
+  const game = makeGame();
+  const p = game.addPlayer(makeChar('surveyor', over));
+  const e = enemyOf(game, 'sentinel');
+  isolate(game, e);
+  place(p, e.x + 8, e.z);
+  game.setTarget(p, e.id);
+  return { game, p, e };
+}
+const advance = (g, ms) => { g.time += ms; };
+
+test('Surveyor is no reskin: unique abilities, resource, no pet or cross-class actions', () => {
+  const {game,p} = fixture();
+  assert.equal(p.companion, null);
+  assert.equal(p.res, 60);
+  assert.equal(CLASSES.surveyor.primary, 'instrumentation');
+  assert.equal(CLASSES.surveyor.abilities.some(a => CLASSES.symbiotech.abilities.includes(a) || CLASSES.vanguard.abilities.includes(a)), false);
+  assert.equal(useAbility(game,p,'mending_graft').ok,false);
+  assert.equal(useAbility(game,p,'rending_arc').ok,false);
+  assert.equal(petCommand(game,p,'assist').ok,false);
+  assert.equal(directiveFor('surveyor',0).goal.ability,'core_bore');
+  assert.equal(directiveFor('symbiotech',0).goal.kill,'skitter');
+});
+test('scan is personal, limited, non-damaging; bore consumes mark and cells and commissions equipment', () => {
+  const {game,p,e} = fixture();
+  const hp = e.hp;
+  assert.equal(useAbility(game,p,'core_bore').ok,false);
+  assert.equal(p.res,60); assert.deepEqual(p.cds,{});
+  assert.ok(useAbility(game,p,'fault_scan').ok);
+  assert.equal(e.hp,hp); assert.equal(p.res,90); assert.equal(p.autoOn,false);
+  assert.equal(game.privateState(p).surveyKit.mark,e.id);
+  const other = game.addPlayer(makeChar('surveyor'));
+  place(other,p.x,p.z); game.setTarget(other,e.id);
+  assert.equal(useAbility(game,other,'core_bore').ok,false);
+  advance(game,1000);
+  assert.ok(useAbility(game,p,'core_bore').ok);
+  assert.equal(e.hp,hp-30); assert.equal(p.res,60); assert.equal(p.surveyKit.mark,null);
+  assert.equal(p.char.quest.progress,1);
+  advance(game,4000);
+  assert.ok(useAbility(game,p,'fault_scan').ok);
+  advance(game,1000);
+  assert.ok(useAbility(game,p,'core_bore').ok);
+  assert.equal(p.char.quest.step,1);
+  assert.ok(p.char.inventory.includes('survey_calibrator'));
+  p.combatUntil=0;
+  assert.ok(equipItem(game,p,'survey_calibrator').ok);
+  assert.equal(p.stats.skills.instrumentation,13);
+  assert.ok(p.char.inventory.includes('survey_induction'));
+  assert.ok(equipItem(game,p,'survey_induction').ok);
+  assert.equal(p.char.quest.step,3);
+});
+test('scan expires, target changes do not transfer analysis, and invalid attempts do not spend', () => {
+  const {game,p,e} = fixture();
+  assert.ok(useAbility(game,p,'fault_scan').ok);
+  const other = enemyOf(game,'skitter');
+  other.state='idle'; other.hp=other.maxHp; place(other,p.x+3,p.z);
+  game.setTarget(p,other.id);
+  advance(game,1000);
+  assert.equal(useAbility(game,p,'core_bore').ok,false);
+  assert.equal(p.res,90);
+  game.setTarget(p,e.id);
+  advance(game,SURVEYOR.markMs);
+  assert.equal(useAbility(game,p,'core_bore').ok,false);
+  assert.equal(p.res,90);
+});
+test('rig is stationary, recharges only nearby, detonates remotely at rig, and cannot be reused', () => {
+  const {game,p,e}=fixture();
+  place(p,e.x+3,e.z); p.res=30;
+  assert.ok(useAbility(game,p,'field_rig').ok);
+  const rig = {...p.surveyKit.rig}; const hp=e.hp;
+  // Keep world AI out of the resource-only tick by moving it away temporarily.
+  const old={x:e.x,z:e.z}; place(e,old.x+100,old.z);
+  game.tick(1000);
+  assert.equal(p.res,38);
+  place(p,rig.x+10,rig.z); game.tick(1000);
+  assert.equal(p.res,38);
+  place(e,old.x,old.z);
+  assert.equal(game.buildRows().find(r=>r.i===p.id).rig.x,Number(rig.x.toFixed(2)));
+  place(p,rig.x+31,rig.z);
+  assert.equal(useAbility(game,p,'controlled_blast').ok,false); assert.equal(p.res,38);
+  place(p,rig.x+10,rig.z);
+  assert.ok(useAbility(game,p,'controlled_blast').ok);
+  assert.equal(p.res,13); assert.equal(p.surveyKit.rig,null);
+  assert.equal(e.hp,hp-28);
+  assert.equal(game.buildRows().find(r=>r.i===p.id).rig,undefined);
+  advance(game,5000);
+  assert.equal(useAbility(game,p,'controlled_blast').ok,false);
+});
+test('rig expiry and death remove deployables; safe-zone deployment denied; glyphs alter mechanics', () => {
+  const {game,p,e}=fixture({inventory:['glyph_faultline','glyph_wideband'],attunements:['resonance'],equipped:{device:null,implant:null,glyph:'glyph_faultline'}});
+  assert.ok(useAbility(game,p,'field_rig').ok);
+  assert.equal(game.buildRows().find(r=>r.i===p.id).rig.r,7);
+  advance(game,SURVEYOR.rigMs);
+  assert.equal(useAbility(game,p,'controlled_blast').ok,false);
+  game.tick(50);
+  assert.equal(p.surveyKit.rig,null);
+  advance(game,5000); p.combatUntil=0;
+  assert.ok(equipItem(game,p,'glyph_wideband').ok);
+  assert.ok(useAbility(game,p,'fault_scan').ok);
+  assert.equal(p.surveyKit.mark.until-game.time,14000);
+  advance(game,1000);
+  assert.ok(useAbility(game,p,'field_rig').ok);
+  dealDamage(game,e,p,9999,'test',{flat:true});
+  assert.equal(p.dead,true); assert.equal(p.surveyKit,null);
+  assert.equal(game.buildRows().find(r=>r.i===p.id).rig,undefined);
+  advance(game,3000); assert.ok(game.respawn(p));
+  assert.equal(useAbility(game,p,'field_rig').ok,false);
+  assert.equal(p.surveyKit.rig,null);
+});
+test('directive gear is class-locked and mechanically distinct', () => {
+  for (const id of ['survey_calibrator','survey_induction','glyph_faultline','glyph_wideband']) assert.equal(ITEMS[id].cls,'surveyor');
+  const game=makeGame();
+  const p=game.addPlayer(makeChar('symbiotech',{inventory:['survey_calibrator']}));
+  assert.equal(equipItem(game,p,'survey_calibrator').ok,false);
+});

@@ -269,7 +269,7 @@ export const LOOK_DEFS = {
 };
 
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', archivist: 'archivist' };
+export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', archivist: 'archivist' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;
