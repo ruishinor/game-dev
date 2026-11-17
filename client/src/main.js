@@ -896,15 +896,15 @@ function updatePlates(now) {
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
-    const hide = !ent.placed || d > max || (k === 'e' && ent.dead);
+    const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
     const screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
-      cls = ent.meta.el ? 'enemy elite' : 'enemy';
-      label = `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
-      if (row.f & 2) label += ' (retreating)';
+      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : 'enemy';
+      label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
+      if (!ent.dead && row.f & 2) label += ' (retreating)';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
     ui.placePlate(ent, screen, {
