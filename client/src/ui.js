@@ -142,7 +142,21 @@ export class UI {
     this.inspectName = h('div', 'inspect-name');
     this.inspectSub = h('div', 'inspect-sub');
     this.inspectAction = h('div', 'inspect-action');
-    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction);
+    this.renameRow = h('div', 'rename-row');
+    this.renameInput = h('input');
+    this.renameInput.maxLength = 18;
+    this.renameInput.setAttribute('aria-label', 'New companion name');
+    this.renameInput.placeholder = 'Companion name';
+    const rename = h('button', null, 'Rename');
+    rename.addEventListener('click', () => {
+      const name = this.renameInput.value.trim();
+      if (name) this.a.petRename(name);
+    });
+    this.renameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); rename.click(); }
+    });
+    this.renameRow.append(this.renameInput, rename);
+    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction, this.renameRow);
     root.append(this.inspectBox);
     this.inspectAt = null;
 
@@ -212,10 +226,16 @@ export class UI {
     const menu = h('div', 'menu');
     this.buildBtn = h('button', 'menubtn', 'Build [C]');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
+    this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
+    this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
+    this.partyBtn = h('button', 'menubtn', 'Party [P]');
+    this.partyBtn.addEventListener('click', () => this.toggleParty());
+    this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
+    this.settingsBtn.addEventListener('click', () => this.toggleSettings());
     const helpBtn = h('button', 'menubtn', 'Help [H]');
     helpBtn.addEventListener('click', () => this.toggleHelp());
     this.netLabel = h('div', 'net');
-    menu.append(this.buildBtn, helpBtn, this.netLabel);
+    menu.append(this.buildBtn, this.inventoryBtn, this.partyBtn, this.settingsBtn, helpBtn, this.netLabel);
     root.append(menu);
 
     this.tooltip = h('div', 'tooltip');
@@ -233,6 +253,55 @@ export class UI {
     this.panelBody = h('div', 'panel-body');
     this.panel.append(close, this.panelBody);
     root.append(this.panel);
+
+    this.partyPanel = h('div', 'panel party-panel');
+    this.partyPanel.hidden = true;
+    this.partyPanel.setAttribute('role', 'dialog');
+    this.partyPanel.setAttribute('aria-label', 'Party management');
+    const pc = h('button', 'close', '×');
+    pc.setAttribute('aria-label', 'Close party');
+    pc.addEventListener('click', () => this.toggleParty(false));
+    this.partyBody = h('div');
+    this.partyPanel.append(pc, h('h2', null, 'Party'), this.partyBody);
+    root.append(this.partyPanel);
+    this.partySignature = '';
+
+    this.settingsPanel = h('div', 'panel settings-panel');
+    this.settingsPanel.hidden = true;
+    this.settingsPanel.setAttribute('role', 'dialog');
+    this.settingsPanel.setAttribute('aria-label', 'Settings');
+    const sc = h('button', 'close', '×');
+    sc.setAttribute('aria-label', 'Close settings');
+    sc.addEventListener('click', () => this.toggleSettings(false));
+    const qualityLabel = h('label', null, 'Graphics preset');
+    qualityLabel.setAttribute('for', 'graphics-quality');
+    this.qualitySelect = h('select');
+    this.qualitySelect.id = 'graphics-quality';
+    for (const [value, name] of [['2', 'High'], ['1', 'Medium'], ['0', 'Low']]) {
+      const opt = h('option', null, name);
+      opt.value = value;
+      this.qualitySelect.append(opt);
+    }
+    this.qualitySelect.value = new URLSearchParams(location.search).get('q') || '2';
+    const applyQuality = h('button', 'primary', 'Apply and reload');
+    applyQuality.addEventListener('click', () => this.a.quality(this.qualitySelect.value));
+    const plateLabel = h('label');
+    this.nameplatesSetting = h('input');
+    this.nameplatesSetting.type = 'checkbox';
+    let showNames = true;
+    try { showNames = localStorage.getItem('attunement.showNameplates') !== '0'; } catch {}
+    this.nameplatesSetting.checked = showNames;
+    document.body.classList.toggle('hide-nameplates', !showNames);
+    this.nameplatesSetting.addEventListener('change', () => {
+      document.body.classList.toggle('hide-nameplates', !this.nameplatesSetting.checked);
+      try { localStorage.setItem('attunement.showNameplates', this.nameplatesSetting.checked ? '1' : '0'); } catch {}
+    });
+    plateLabel.append(this.nameplatesSetting, document.createTextNode(' Show world nameplates'));
+    this.settingsPanel.append(sc, h('h2', null, 'Settings'),
+      qualityLabel, this.qualitySelect, applyQuality,
+      h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
+      plateLabel);
+    root.append(this.settingsPanel);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -258,7 +327,9 @@ export class UI {
       ['Shift + 1 – 3', 'Companion: Triage / Bond / Harry'],
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
-      ['C', 'Build: devices, implants, glyphs'],
+      ['C / I', 'Build / Inventory'],
+      ['P', 'Party: invite, accept, leave'],
+      ['O', 'Settings: graphics preset, nameplates'],
       ['Enter', 'Chat'],
     ];
     const table = h('div', 'keys');
@@ -419,25 +490,93 @@ export class UI {
   // --- panels ---------------------------------------------------------------
 
   toggleBuild(force) {
-    const open = force ?? this.panel.hidden;
+    const wasInventory = this.panel.classList.contains('inventory-only');
+    this.panel.classList.remove('inventory-only');
+    const open = force ?? (wasInventory || this.panel.hidden);
     this.panel.hidden = !open;
     if (open) {
-      this.help.hidden = true;
+      this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
       this.buildBtn.classList.remove('new');
       this.renderBuild();
+    }
+  }
+
+  toggleInventory(force) {
+    const wasInventory = this.panel.classList.contains('inventory-only');
+    const open = force ?? (!wasInventory || this.panel.hidden);
+    this.panel.hidden = !open;
+    this.panel.classList.toggle('inventory-only', open);
+    this.panel.setAttribute('aria-label', open ? 'Inventory' : 'Character build');
+    if (open) {
+      this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
+      this.renderBuild();
+    }
+  }
+
+  toggleParty(force) {
+    const open = force ?? this.partyPanel.hidden;
+    this.partyPanel.hidden = !open;
+    if (open) {
+      this.panel.hidden = this.help.hidden = this.settingsPanel.hidden = true;
+      this.partySignature = '';
+    }
+  }
+
+  toggleSettings(force) {
+    const open = force ?? this.settingsPanel.hidden;
+    this.settingsPanel.hidden = !open;
+    if (open) this.panel.hidden = this.help.hidden = this.partyPanel.hidden = true;
+  }
+
+  renderParty(st) {
+    const data = st.you.party || { members: [], invite: null, cap: 4 };
+    const nearby = [...st.ents.values()].filter((e) => e.meta.k === 'p' && e.id !== st.me.id);
+    const signature = JSON.stringify([data, nearby.map((e) => [e.id, e.meta.n])]);
+    if (signature === this.partySignature) return;
+    this.partySignature = signature;
+    this.partyBody.replaceChildren();
+    if (data.invite) {
+      this.partyBody.append(h('p', null, `${data.invite.name} invited you to a party.`));
+      const accept = h('button', 'primary', 'Accept');
+      accept.addEventListener('click', () => this.a.partyAnswer(true));
+      const decline = h('button', null, 'Decline');
+      decline.addEventListener('click', () => this.a.partyAnswer(false));
+      this.partyBody.append(accept, decline);
+    }
+    if (data.members.length) {
+      this.partyBody.append(h('h3', null, `Members (${data.members.length} / ${data.cap})`));
+      for (const m of data.members) this.partyBody.append(h('div', 'party-member', `${m.name} · L${m.level} ${CLASSES[m.cls]?.name || m.cls}`));
+      const leave = h('button', null, 'Leave party');
+      leave.addEventListener('click', () => this.a.partyLeave());
+      this.partyBody.append(leave);
+    } else this.partyBody.append(h('p', 'muted', 'No party. Invite a connected player to cooperate without attendance obligations.'));
+    const members = new Set(data.members.map((m) => m.id));
+    if (nearby.length && data.members.length < data.cap) {
+      this.partyBody.append(h('h3', null, 'Available players'));
+      for (const ent of nearby) {
+        if (members.has(ent.id)) continue;
+        const row = h('div', 'party-member');
+        row.append(h('span', null, ent.meta.n));
+        const invite = h('button', null, 'Invite');
+        invite.addEventListener('click', () => this.a.partyInvite(ent.id));
+        row.append(invite);
+        this.partyBody.append(row);
+      }
     }
   }
 
   toggleHelp(force) {
     const open = force ?? this.help.hidden;
     this.help.hidden = !open;
-    if (open) this.panel.hidden = true;
+    if (open) this.panel.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
   }
 
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden;
+    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden;
     this.panel.hidden = true;
+    this.partyPanel.hidden = true;
+    this.settingsPanel.hidden = true;
     this.help.hidden = true;
     this.tooltip.hidden = true;
     if (!this.inspectBox.hidden) this.a.closeInspect();
@@ -638,7 +777,9 @@ export class UI {
       set(this.inspectName, 'text', inspected.meta.n);
       set(this.inspectSub, 'text', `${owner?.meta.n || 'Unknown owner'} · ${mode?.name || c.md}`);
       set(this.inspectAction, 'text', who && c.a !== 'idle' ? `${action} ${who.meta.n}` : action);
+      set(this.renameRow, 'hidden', inspected.meta.o !== me.id);
       if (st.inspect !== this.inspectAt) {
+        this.renameInput.value = inspected.meta.n;
         const { x, y } = st.inspect;
         const w = this.inspectBox.offsetWidth || 250;
         const h = this.inspectBox.offsetHeight || 90;
@@ -654,7 +795,7 @@ export class UI {
     if (st.comp) {
       const c = st.comp.row;
       const cdef = COMPANIONS[def.companion];
-      set(this.petName, 'text', `${cdef.name} — ${cdef.modes[c.md].name}`);
+      set(this.petName, 'text', `${st.comp.meta.n} — ${cdef.modes[c.md].name}`);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
@@ -720,6 +861,8 @@ export class UI {
         this.partyRows.delete(id);
       }
     }
+
+    if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
     set(this.death, 'hidden', !me.dead);
