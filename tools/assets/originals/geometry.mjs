@@ -20,7 +20,8 @@ const MATERIALS={
  green:mat(0x86cda5,.06,.46,0x399769), violet:mat(0x9d80be,.07,.42,0x6442a0),
  dermal:mat(0x654b59,.02,.78), membrane:mat(0x8c6875,.02,.56),
  crystal:mat(0x99b6cb,.22,.25), crystalDark:mat(0x69769b,.20,.33),
- leaf:mat(0x626e3d,.0,.88), stem:mat(0x594b3d,.0,.87), cap:mat(0x6f5a86,.03,.62)
+ leaf:mat(0x626e3d,.0,.88), stem:mat(0x594b3d,.0,.87), cap:mat(0x6f5a86,.03,.62),
+ mineral:mat(0x92b8ca,.17,.28), mineralDark:mat(0x566b85,.12,.40), biofilm:mat(0x53414b,.0,.62), bioRidge:mat(0x886773,.0,.49), noduleCore:mat(0xb89150,.0,.50,0x68401e), gill:mat(0x9987a2,.0,.84)
 };
 // Triangle winding is checked against an outward hint for closed convex parts.
 // Every face has independent normals/UVs; intentional faceted art style.

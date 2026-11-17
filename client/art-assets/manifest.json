@@ -402,26 +402,26 @@
     },
     {
       "path": "colony_ground.glb",
-      "bytes": 266736,
-      "gitBlob": "130dff27ac29114635e42ac85399f7603455ec04",
+      "bytes": 477016,
+      "gitBlob": "0d3523b78abc3d0e6f67b14829334c3f3f19c29b",
       "source": "original"
     },
     {
       "path": "colony_mature.glb",
-      "bytes": 424756,
-      "gitBlob": "896e9a9fdcdf31ba1830f55ad4072f638880904f",
+      "bytes": 655960,
+      "gitBlob": "5c3aead99de13bc6f64a0c58f94f61b43081756c",
       "source": "original"
     },
     {
       "path": "colony_pipe.glb",
-      "bytes": 138576,
-      "gitBlob": "7c3012e8d2b9b7945747791e49f118d23b612a23",
+      "bytes": 382844,
+      "gitBlob": "d7929ca31f2c565ddf71a672d2ce72e692eca739",
       "source": "original"
     },
     {
       "path": "colony_wall.glb",
-      "bytes": 266740,
-      "gitBlob": "38405f85a652c6ad7e2c3cb9f622237300a6e0e6",
+      "bytes": 477028,
+      "gitBlob": "c48b15dcd3491e85028077a146202c2dc786114e",
       "source": "original"
     },
     {
