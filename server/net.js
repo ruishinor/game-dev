@@ -157,6 +157,8 @@ export class NetServer {
     this.accountAttempts.set(remote, item);
     if (this.accountAttempts.size > 512) {
       for (const [key, v] of this.accountAttempts) if (now - v.start > 60000) this.accountAttempts.delete(key);
+      // A burst of distinct active addresses must not grow this table forever.
+      while (this.accountAttempts.size > 512) this.accountAttempts.delete(this.accountAttempts.keys().next().value);
     }
     return item.count <= 12;
   }
