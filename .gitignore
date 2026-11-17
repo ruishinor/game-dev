@@ -2,3 +2,43 @@ node_modules/
 data/
 *.log
 test/e2e/out/
+
+# Local credentials and deployment overrides
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+/.vercel/
+
+# Local working files and unpublished production materials
+/private/
+/local/
+/docs/private/
+/assets/private/
+/assets/source/
+/art-source/
+/reference-library/
+/.asset-cache/
+/tools/dev/out/
+/voice-auditions/
+
+# Newly generated review evidence and temporary build/test output
+/docs/evidence/
+/docs/art/previews/
+/coverage/
+/test-results/
+/playwright-report/
+/dist/
+/tmp/
+*.local.json
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+.DS_Store
+Thumbs.db
