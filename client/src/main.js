@@ -14,6 +14,7 @@ import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI } from './ui.js';
+import { makePortraits } from './portraits.js';
 
 const INTERP_MS = 110;
 const TURN_RATE = 2.9;
@@ -157,7 +158,9 @@ const net = new Net({
   },
 });
 
+const portraits = makePortraits(assets, useGlb);
 const ui = new UI({
+  portrait: portraits,
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
   petRename: (name) => net.send({ t: 'pet_rename', name }),
@@ -893,6 +896,9 @@ input.onAction = (code, e) => {
       break;
     case 'KeyI':
       ui.toggleInventory();
+      break;
+    case 'KeyJ':
+      ui.toggleCodex();
       break;
     case 'KeyP':
       ui.toggleParty();
