@@ -15,6 +15,9 @@ class Client {
     this.ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     this.msgs = [];
     this.meta = new Map();
+    // Mirror the browser's entity creation/removal lifecycle. Metadata alone
+    // is not a rendered entity: a returning ID needs a fresh metadata row.
+    this.rendered = new Set();
     this.snap = null;
     this.sheet = null;
     this.events = [];
@@ -23,7 +26,12 @@ class Client {
       const m = JSON.parse(d.toString());
       if (m.t === 's') {
         this.snap = m;
-        for (const meta of m.meta || []) this.meta.set(meta.i, meta);
+        for (const meta of m.meta || []) {
+          this.meta.set(meta.i, meta);
+          this.rendered.add(meta.i);
+        }
+        const visible = new Set(m.ents.map((row) => row.i));
+        for (const id of this.rendered) if (!visible.has(id)) this.rendered.delete(id);
         if (m.sheet) this.sheet = m.sheet;
         this.events.push(...m.ev, ...(m.pv || []));
       } else this.msgs.push(m);
@@ -239,6 +247,108 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await a.until(() => a.events.some((e) => e.e === 'die' && e.id === skitter.id), 3000, 'skitter dies');
     await b.until(() => b.events.some((e) => e.e === 'xp'), 3000, 'B gets xp');
     assert.ok(a.events.some((e) => e.e === 'xp'));
+  } finally {
+    a.close();
+    b.close();
+    await srv.close();
+  }
+});
+
+test('combat lifecycle: two clients recreate an enemy after corpse expiry and respawn, without a server restart', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  const a = new Client(srv.port);
+  const b = new Client(srv.port);
+  try {
+    const wa = await a.create('Aster', 'vanguard');
+    const wb = await b.create('Boreal', 'symbiotech');
+    const game = srv.game;
+    const e = game.enemies.find((x) => x.type === 'skitter');
+    const pa = game.players.get(wa.id);
+    const pb = game.players.get(wb.id);
+
+    // Isolate one enemy so an unrelated spawn cannot interrupt the sequence.
+    for (const other of game.enemies) {
+      if (other === e) continue;
+      other.state = 'dead';
+      other.deadAt = -1e9;
+      other.respawnAt = Infinity;
+    }
+    pa.x = e.x;
+    pa.z = e.z + 2.5;
+    await a.until(() => a.rendered.has(e.id) && b.rendered.has(e.id), 3000, 'enemy model in both sessions');
+
+    e.hp = 1;
+    a.send({ t: 'tgt', id: e.id });
+    a.send({ t: 'use', a: 'rending_arc' });
+    await a.until(() => a.events.some((event) => event.e === 'die' && event.id === e.id), 3000, 'enemy death for A');
+    await b.until(() => b.events.some((event) => event.e === 'die' && event.id === e.id), 3000, 'enemy death for B');
+
+    // Keep the real corpse lifetime, but shorten the longer respawn wait.
+    // Both clients must receive an absent snapshot before the enemy returns.
+    e.respawnAt = game.time + 4500;
+    pa.x = 0; pa.z = 0;
+    pb.x = 0; pb.z = 0;
+    await a.until(() => !a.ent(e.id) && !a.rendered.has(e.id), 6000, 'A drops expired corpse');
+    await b.until(() => !b.ent(e.id) && !b.rendered.has(e.id), 3000, 'B drops expired corpse');
+    await a.until(() => e.state === 'idle' && a.ent(e.id) && a.rendered.has(e.id), 4000, 'A recreates respawned enemy');
+    await b.until(() => b.ent(e.id) && b.rendered.has(e.id), 3000, 'B recreates respawned enemy');
+    assert.equal(a.meta.get(e.id).n, e.name);
+    assert.equal(b.meta.get(e.id).n, e.name);
+
+    // The revived enemy is not merely visible: another player can fight it.
+    pb.x = e.x; pb.z = e.z + 3;
+    b.send({ t: 'tgt', id: e.id });
+    b.send({ t: 'use', a: 'neural_lash' });
+    await a.until(() => a.events.some((ev) => ev.e === 'dmg' && ev.s === wb.id && ev.d === e.id), 3000, 'A sees B hit respawned enemy');
+    assert.ok(a.rendered.has(e.id) && b.rendered.has(e.id));
+    assert.ok(e.hp < e.maxHp, 'the respawned enemy can take damage');
+  } finally {
+    a.close();
+    b.close();
+    await srv.close();
+  }
+});
+
+test('two-player recovery: either session can respawn independently and remain visible to its ally', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  const a = new Client(srv.port);
+  const b = new Client(srv.port);
+  try {
+    const wa = await a.create('RecoveryA', 'vanguard');
+    const wb = await b.create('RecoveryB', 'symbiotech');
+    const game = srv.game;
+    const pa = game.players.get(wa.id);
+    const pb = game.players.get(wb.id);
+
+    // Remove unrelated combat, keeping both sockets connected throughout.
+    for (const e of game.enemies) {
+      e.state = 'dead';
+      e.deadAt = -1e9;
+      e.respawnAt = Infinity;
+    }
+    for (const p of [pa, pb]) { p.x = 0; p.z = 45; }
+    await a.until(() => a.ent(wb.id) && b.ent(wa.id), 3000, 'both player frames');
+
+    for (const [victim, watcher, player] of [[a, b, pa], [b, a, pb]]) {
+      const id = player.id;
+      const level = player.char.level;
+      dealDamage(game, null, player, player.hp + 100, 'test_defeat');
+      await victim.until(() => (victim.me()?.f & 1) !== 0, 3000, 'defeated player sees death');
+      await watcher.until(() => (watcher.ent(id)?.f & 1) !== 0, 3000, 'ally sees player defeated');
+      victim.send({ t: 'respawn' });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(player.dead, true, 'early respawn request respects the delay');
+
+      await victim.until(() => victim.snap?.y?.dead === 0, 5000, 'respawn delay elapsed');
+      victim.send({ t: 'respawn' });
+      await victim.until(() => !(victim.me()?.f & 1) && victim.me()?.h === victim.me()?.m, 3000, 'player recovered at full health');
+      await watcher.until(() => !(watcher.ent(id)?.f & 1) && watcher.ent(id)?.h === watcher.ent(id)?.m, 3000, 'ally sees recovery');
+      assert.ok(Math.hypot(player.x, player.z) < 13, 'respawn returned player to Sanctum');
+      assert.equal(player.char.level, level, 'respawn preserves progression');
+      assert.equal(game.players.size, 2, 'neither recovery disconnects the other player');
+    }
+    assert.ok(b.ent(wb.comp), 'companion remains present after its owner recovers');
+    assert.ok(a.me() && b.me(), 'both sessions are still usable');
   } finally {
     a.close();
     b.close();
