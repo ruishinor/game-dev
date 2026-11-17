@@ -3,13 +3,11 @@
 <title>Attunement • Art inspection</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#161b21;color:#e0e4e7;font:15px system-ui,sans-serif}main{max-width:960px;margin:auto;padding:18px}h1{font-size:24px}p{color:#aab7c1}label{display:inline-flex;gap:8px;align-items:center;margin:8px 14px 8px 0}select,input{max-width:100%;accent-color:#92cad6}select{background:#28323a;color:inherit;padding:8px;border:1px solid #55636e;border-radius:4px}canvas{width:100%;aspect-ratio:4/3;display:block;background:#222831}#status{min-height:24px}#maps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}#maps img{display:block;width:100%}#glyphs{display:flex;flex-wrap:wrap;gap:8px}#glyphs figure{margin:0;width:83px;text-align:center;font-size:11px}#glyphs img{width:44px;height:44px;padding:5px;background:#d5dde0;border-radius:4px}
-#review{margin:14px 0;padding:12px 14px;border:1px solid #465561;border-radius:6px;background:#202831}#review fieldset{border:0;margin:0;padding:0}#review legend{font-weight:600}#review label{margin:8px 14px 8px 0}#review textarea{width:100%;min-height:62px;resize:vertical;background:#151c23;color:inherit;border:1px solid #53636e;border-radius:4px;padding:8px;font:inherit}button{background:#28323a;color:inherit;border:1px solid #55636e;border-radius:4px;padding:8px 12px;cursor:pointer}button:disabled{opacity:.45;cursor:default}#review-progress,#review-storage{color:#aab7c1;font-size:13px;margin:6px 0}#flat-preview{background:#242c34;padding:16px;min-height:220px;text-align:center}#flat-preview img{max-width:100%;max-height:420px;display:block;margin:12px auto}#flat-preview .glyph-large{width:160px;height:160px;background:#d5dde0;padding:12px;border-radius:6px}#glyphs button,#maps button{font:inherit;padding:4px;max-width:100%;overflow-wrap:anywhere}
+[hidden]{display:none!important}#review{margin:14px 0;padding:12px 14px;border:1px solid #465561;border-radius:6px;background:#202831}#review fieldset{border:0;margin:0;padding:0}#review legend{font-weight:600}#review label{margin:8px 14px 8px 0}#review textarea{width:100%;min-height:62px;resize:vertical;background:#151c23;color:inherit;border:1px solid #53636e;border-radius:4px;padding:8px;font:inherit}button{background:#28323a;color:inherit;border:1px solid #55636e;border-radius:4px;padding:8px 12px;cursor:pointer}button:disabled{opacity:.45;cursor:default}#review-progress,#review-storage{color:#aab7c1;font-size:13px;margin:6px 0}#flat-preview{background:#242c34;padding:16px;min-height:220px;text-align:center}#flat-preview img{max-width:100%;max-height:420px;display:block;margin:12px auto}#flat-preview .glyph-large{width:160px;height:160px;background:#d5dde0;padding:12px;border-radius:6px}#glyphs button,#maps button{font:inherit;padding:4px;max-width:100%;overflow-wrap:anywhere}
 </style>
 <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three-addons/"}}</script>
 <main><h1>Attunement — art inspection</h1><p>Original authoring prototypes. Not the live game or an art approval.</p>
 <label>Asset <select id="asset"></select></label><label>Review filter <select id="review-filter"><option value="all">All</option><option value="unreviewed">Unreviewed</option><option value="accepted">Accepted</option><option value="modify">Modify</option><option value="not-accepted">Not accepted</option></select></label><button id="review-next" type="button">Next unreviewed</button><label>Yaw <input id="yaw" type="range" min="-180" max="180" value="34"></label><label>Pitch <input id="pitch" type="range" min="-20" max="70" value="22"></label><label>Phase <input id="phase" type="range" min="0" max="100" value="42"></label><label><input id="reduced" type="checkbox"> Reduced motion</label>
-<div id="status" role="status">Loading…</div><canvas id="view" width="800" height="600"></canvas>
-<div id="flat-preview" hidden></div>
 <section id="review" aria-label="Artistic review">
  <fieldset id="review-controls" disabled><legend>Artistic review — <span id="review-name">Loading</span></legend>
  <label><input type="radio" name="review-decision" value="unreviewed" checked> Unreviewed</label>
@@ -20,5 +18,8 @@
  </fieldset>
  <p id="review-progress" aria-live="polite"></p><p id="review-storage" role="status"></p><button id="review-export" type="button" disabled>Export review (JSON)</button>
 </section>
+<div id="status" role="status">Loading…</div><canvas id="view" width="800" height="600"></canvas>
+<div id="flat-preview" hidden></div>
+
 <h2>Material atlas</h2><div id="maps"></div><h2>Glyphs</h2><div id="glyphs"></div></main>
 <script type="module" src="/client/src/art-preview.js"></script></html>
