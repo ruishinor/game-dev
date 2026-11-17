@@ -4,6 +4,7 @@ import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
+import { inventoryView } from './inventory-view.js';
 
 function h(tag, cls, text) {
   const e=document.createElement(tag);
@@ -281,25 +282,21 @@ export function renderInventory(ui) {
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }
-  if(ui.inventoryFilter==='materials'){
-    root.append(tabs);
-    const list=h('div','materials-list');
-    for(const [id,material] of Object.entries(MATERIALS)){
-      const quantity=s.materials?.[id]||0;
-      if(!quantity)continue;
-      const button=h('button','material-row');
-      button.append(itemArt(id),h('span',null,material.name),h('strong',null,'× '+quantity));
-      button.addEventListener('click',()=>ui.toggleCodex(true,id));
-      list.append(button);
-    }
-    if(!list.children.length)list.append(h('p','muted','No salvage or components carried. Defeat enemies to recover materials.'));
-    root.append(list);return;
-  }
-  const carried=s.inventory.filter(id=>ITEMS[id]&&s.equipped[ITEMS[id].slot]!==id);
-  const items=carried.filter(id=>ui.inventoryFilter==='all'||ITEMS[id].slot===ui.inventoryFilter);
-  if(!items.includes(ui.inventorySelection))ui.inventorySelection=items[0]||null;
+  const view=inventoryView(s,ui.inventoryFilter),items=view.entries;
+  const equipment=items.filter(e=>e.kind==='equipment');
+  if(!equipment.some(e=>e.id===ui.inventorySelection))ui.inventorySelection=equipment[0]?.id||null;
   const grid=h('div','inventory-grid');
-  for(const id of items){
+  for(const entry of items){
+    const {id,kind,quantity}=entry;
+    if(kind==='material'){
+      const material=MATERIALS[id],btn=h('button','item-cell material-cell');
+      btn.type='button';btn.dataset.material=id;
+      btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
+      btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
+      btn.addEventListener('click',()=>ui.toggleCodex(true,id));
+      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body','Material · quantity '+quantity)]);
+      grid.append(btn);continue;
+    }
     const item=ITEMS[id];
     const btn=h('button','item-cell'+(ui.inventorySelection===id?' active':''));
     btn.append(itemArt(id));
@@ -309,13 +306,14 @@ export function renderInventory(ui) {
     ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
     grid.append(btn);
   }
-  // Empty cells reproduce the grid, not a storage-capacity mechanic.
+  // A cell is an equipment item or one material stack, not storage capacity.
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
-  root.append(tabs,h('div','inventory-count',items.length+' shown · '+carried.length+' carried'),grid);
-  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
+  const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
+  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units';
+  root.append(tabs,count,grid);
+  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
-    const id=ui.inventorySelection;
-    const card=equipmentCard(ui,id,false,null,true);
+    const card=equipmentCard(ui,ui.inventorySelection,false,null,true);
     card.classList.add('inventory-detail');
     root.append(card);
   }

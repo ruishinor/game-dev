@@ -7,6 +7,7 @@ import { petCommand } from './sim/companion.js';
 import { equipItem, unequipSlot, interact, craftRecipe } from './sim/progress.js';
 import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { renameCompanion } from './sim/companion.js';
+import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -321,6 +322,10 @@ export class NetServer {
         game.handleInputs(p, inputs);
         break;
       }
+      case 'follow':
+        if (!isId(msg.id)) return this.strike(conn);
+        reply(game.setFollow(p,msg.id));
+        break;
       case 'tgt':
         if (!isId(msg.id)) return this.strike(conn);
         game.setTarget(p, msg.id);
@@ -360,6 +365,14 @@ export class NetServer {
       case 'unequip':
         reply(unequipSlot(game, p, msg.slot));
         break;
+      case 'loot_open':
+        if(!isId(msg.id)||!isId(msg.generation)||typeof msg.auto!=='boolean')return this.strike(conn);
+        reply(openLoot(game,p,msg.id,msg.generation,msg.auto));break;
+      case 'loot_take':
+        if(!isId(msg.id)||!isId(msg.generation)||!(msg.item===null||typeof msg.item==='string'&&msg.item.length<=80))return this.strike(conn);
+        reply(takeLoot(game,p,msg.id,msg.generation,msg.item));break;
+      case 'loot_close':
+        clearLoot(p);break;
       case 'act':
         if (!isId(msg.id)) return this.strike(conn);
         reply(interact(game, p, msg.id));

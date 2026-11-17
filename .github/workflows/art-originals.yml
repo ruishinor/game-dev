@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'client/art-assets/**'
+      - 'tools/assets/originals/**'
       - 'client/art-preview.html'
       - 'client/src/art-preview.js'
       - 'client/src/artfx/**'
@@ -22,6 +23,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: npm run assets:originals:check
       - run: npx playwright install --with-deps chromium
       - run: node test/e2e/art-originals.mjs
       - uses: actions/upload-artifact@v4

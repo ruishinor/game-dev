@@ -4,3 +4,5 @@ data/
 test/e2e/out/
 .asset-cache/
 tools/dev/out/
+
+voice-auditions/

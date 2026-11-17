@@ -302,6 +302,12 @@ const ui = new UI({
   petRename: (name) => net.send({ t: 'pet_rename', name }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
+  followChat: (name) => {
+    if(!name)return followPlayer(S.target);
+    const matches=[...S.ents.values()].filter(e=>e.meta.k==='p'&&e.id!==S.myId&&e.meta.n.toLowerCase()===name.toLowerCase());
+    if(matches.length!==1)return ui.error('Select a player or enter /follow followed by their exact name.');
+    followPlayer(matches[0].id);
+  },
   isFollowing: (id) => S.followId===id,
   cancelMovement: () => stopAutomaticMovement(),
   stopFollowing: (id) => { if(S.followId===id)stopAutomaticMovement(); },
@@ -321,6 +327,9 @@ const ui = new UI({
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
+  lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
+  lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
+  lootClose:()=>net.send({t:'loot_close'}),
   craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
@@ -329,10 +338,6 @@ const ui = new UI({
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
-  forget: () => {
-    saveToken(null);
-    location.reload();
-  },
 });
 
 // --- login -------------------------------------------------------------------
@@ -409,6 +414,8 @@ function showAccountLogin(message = '') {
   $('character-roster').hidden = true;
   $('guest-note').hidden = false;
   $('saved-guest').hidden = !net.token;
+  $('abandon-saved-guest').dataset.armed='';
+  $('abandon-saved-guest').textContent='Abandon saved guest character';
   // Do not offer to overwrite the local guest key with a new character.
   $('login-form').hidden = !!net.token;
   $('resuming').hidden = true;
@@ -496,6 +503,12 @@ function buildAccountUI() {
     } catch {
       window.prompt('Copy your private guest recovery key:', net.token);
     }
+  });
+  $('abandon-saved-guest').addEventListener('click',()=>{
+    if(!net.token||net.accountLogged)return;
+    const btn=$('abandon-saved-guest');
+    if(!btn.dataset.armed){btn.dataset.armed='1';btn.textContent='Confirm · forget local guest key';return;}
+    saveToken(null);location.reload();
   });
   $('resume-guest-key').addEventListener('click', () => {
     const token = $('guest-resume-key').value.trim();
@@ -676,6 +689,8 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  S.followId=y.follow||0;
+  if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
   while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
   const s = { x: y.x, z: y.z, jy: y.jy, vy: y.vy };
   for (const c of local.pending) stepMove(s, c, y.sp);
@@ -741,10 +756,11 @@ function onEvent(e) {
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
       if (d) {
-        d.hit = 1;
-        if (d.model.trigger) d.model.trigger('hit');
-        const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
-        ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
+        if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
+        // A fully absorbed attack is a shield impact, not a body hit.
+        const blocked=e.a===0&&e.sh>0;
+        const cls = blocked?'shield':e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
+        ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (rich() && d.placed) cvfx.hit(d, s, e);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
         else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
@@ -768,7 +784,7 @@ function onEvent(e) {
       }
       // Melee already has a burst above. Make bolt impacts readable too,
       // without doubling particles or changing combat damage.
-      if (d && e.k === 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
+      if (d && e.k === 'bolt' && e.a>0) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
       break;
@@ -982,7 +998,7 @@ function onEvent(e) {
       break;
     }
     case 'radio':
-      ui.radio.receive(e.source,e.m);break;
+      ui.radio.receive(e.source,e.m,e.dialogueId);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':
@@ -1012,12 +1028,18 @@ function toScreen(v) {
 }
 
 /** Entity under a screen point, nearest to the camera first. */
-function pick(x, y, kinds) {
+function pick(x, y, kinds, allowLoot=false) {
   let best = null;
   let bestDist = Infinity;
   for (const ent of S.ents.values()) {
     if (!kinds.includes(ent.meta.k) || ent.id === S.myId || !ent.placed) continue;
-    if (ent.meta.k === 'e' && ent.dead) continue;
+    if(ent.meta.k==='e'&&ent.dead){
+      if(!allowLoot||!ui.loot.canLoot(ent.id))continue;
+      const body=toScreen(ent.pos);if(!body)continue;
+      const radius=Math.max(25,Math.min(58,ent.model.radius*36));
+      if(Math.hypot(x-body.x,y-body.y)<=radius){const d=camera.position.distanceToSquared(ent.holder.position);if(d<bestDist){bestDist=d;best=ent;}}
+      continue;
+    }
     const top = toScreen(ent.head);
     if (!top) continue;
     proj.set(ent.pos.x, ent.pos.y - ent.model.hover * 0.2, ent.pos.z);
@@ -1042,7 +1064,7 @@ function nearestObject() {
   let best = null;
   let bestD = INTERACT_RANGE;
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'o') continue;
+    if(ent.meta.k!=='o'&&!(ent.meta.k==='e'&&ent.dead&&ui.loot.canLoot(ent.id)))continue;
     const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
     if (d < bestD) {
       bestD = d;
@@ -1078,7 +1100,8 @@ function nextEnemy() {
 
 input.onClick = (button, x, y) => {
   if (button === 0) {
-    const ent = pick(x, y, ['e', 'p', 'c', 'o']);
+    const ent = pick(x, y, ['e', 'p', 'c', 'o'],true);
+    if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
     } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
@@ -1086,8 +1109,9 @@ input.onClick = (button, x, y) => {
     else S.inspect = null;
   } else {
     S.inspect = null;
-    const ent = pick(x, y, ['e', 'o', 'p']);
+    const ent = pick(x, y, ['e', 'o', 'p'],true);
     if (!ent) return;
+    if(ent.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
     if (ent.meta.k === 'o') {
       if(ent.meta.c==='archivist')ui.openNpc(ent);
@@ -1170,7 +1194,8 @@ input.onAction = (code, e) => {
       break;
     case 'KeyF': {
       const o = nearestObject();
-      if (o) net.send({ t: 'act', id: o.id });
+      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
     }
@@ -1210,6 +1235,7 @@ function sampleRemote(ent, rt) {
 
 function stopAutomaticMovement() {
   S.autoRun = false;
+  if(S.followId)net.send({t:'follow',id:0});
   S.followId = 0;
 }
 function followPlayer(id) {
@@ -1217,34 +1243,24 @@ function followPlayer(id) {
   const me = S.ents.get(S.myId);
   if (!me || me.dead || !ent || ent.id === S.myId || ent.meta.k !== 'p' || ent.dead) return ui.error('Select a living player to follow.');
   stopAutomaticMovement();
+  // Deliver any earlier manual input before the follow intent.
+  while(local.outbox.length)net.send({t:'in',s:local.outbox.splice(0,16)});
   S.followId = id;
+  net.send({t:'follow',id});
 }
-// A visible second browser may follow while the leader has keyboard focus.
-// Hidden tabs, logout and disconnect still cancel automatic movement.
-input.onReset = () => {
-  S.autoRun = false;
-  if (document.hidden || !input.enabled) S.followId = 0;
-};
+// Manual/auto-run inputs reset on blur; explicit server follow survives hidden tabs.
+input.onReset = () => { S.autoRun = false; };
 
 function stepLocal(inp, now, dt) {
   const me = S.ents.get(S.myId);
   const dead = !!(me && me.dead);
-  if (!me || dead || !input.enabled || document.hidden) stopAutomaticMovement();
+  if (!me || dead || !input.enabled) stopAutomaticMovement();
   // Automatic movement is only an input convenience. It uses the same
   // collision, speed, prediction, rate limits and server movement validation.
-  if (inp.f || inp.s || inp.turn || inp.jump) stopAutomaticMovement();
-  if (S.followId) {
-    const ent = S.ents.get(S.followId);
-    const dx = ent ? ent.pos.x - local.pred.x : 0;
-    const dz = ent ? ent.pos.z - local.pred.z : 0;
-    const distance = Math.hypot(dx, dz);
-    if (!ent || ent.dead || !ent.placed || distance > 45) stopAutomaticMovement();
-    else if (distance > 2.8) {
-      local.yaw = Math.atan2(dx, dz);
-      inp.f = Math.min(1, (distance - 2.8) / 1.4);
-      inp.steering = false;
-    }
-  } else if (S.autoRun) inp.f = 1;
+  if (inp.f || inp.s || inp.turn || inp.jump || inp.steering) stopAutomaticMovement();
+  // Following is server-driven; do not send duplicate movement steps.
+  if (!S.followId && S.autoRun) inp.f = 1;
+  if(document.hidden){inp.f=0;inp.s=0;inp.turn=0;inp.jump=false;}
   if (inp.lookX || inp.lookY) cam.look(inp.lookX, inp.lookY);
   if (inp.wheel) cam.zoom(inp.wheel);
   if (!dead) {
@@ -1254,7 +1270,7 @@ function stepLocal(inp, now, dt) {
       local.yaw += d;
       cam.yaw += d;
     }
-    if (inp.f > 0 && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
+    if ((inp.f > 0 || S.followId) && !inp.steering && !inp.orbiting && !input.lmb) cam.trail(local.yaw, dt);
   }
   local.yaw = wrap(local.yaw);
   cam.yaw = wrap(cam.yaw);
@@ -1273,7 +1289,7 @@ function stepLocal(inp, now, dt) {
     const yaw = Math.round(local.yaw * 10000) / 10000;
     const airborne = local.pred.jy > 0 || local.pred.vy > 0;
     const turned = Math.abs(wrap(yaw - local.sentYaw)) > 0.01 && now - local.yawSentAt > 90;
-    if (f || st || jump || airborne || turned) {
+    if (!S.followId && (f || st || jump || airborne || turned)) {
       const cmd = { seq: ++local.seq, f, s: st, yaw, j: jump ? 1 : 0 };
       stepMove(local.pred, cmd, local.speedMul);
       local.pending.push(cmd);
@@ -1415,12 +1431,13 @@ function updatePlates(now) {
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
     const screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
+    const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
       const calm = ent.meta.neu && !(row.f & 8);
-      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
-      label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
+      cls = ent.dead ? (lootable?'corpse lootable':'corpse') : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
+      label = ent.dead ? `${ent.meta.n} · ${lootable?"Loot":"remains"}` : `${ent.meta.n}${ent.meta.el ? " ◆" : ""}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
       else if (!ent.dead && calm) label += ' · neutral';
     } else if (k === 'c') cls = 'comp';
@@ -1428,6 +1445,7 @@ function updatePlates(now) {
     ui.placePlate(ent, screen, {
       cls,
       label,
+      lootable,
       selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
       owned: k === 'c' && ent.meta.o === S.myId,
       hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
@@ -1612,6 +1630,7 @@ window.__attune = {
       drawn: S.drawn,
       quality,
       target: S.target,
+      followId:S.followId,
       inspected: S.inspect?.id || 0,
       pos: me ? { x: me.pos.x, y: me.pos.y, z: me.pos.z } : null,
       yaw: local.yaw,

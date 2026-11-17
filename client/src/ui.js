@@ -11,6 +11,7 @@ import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
+import { LootPanel } from './loot-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -273,7 +274,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
-    this.radio=new RadioPanel(root);
+    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -337,6 +338,9 @@ export class UI {
         e.preventDefault();
         const text = this.chat.value.trim();
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
+        const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
+        if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
           const message=(command[2]||'').trim();
@@ -410,6 +414,7 @@ export class UI {
     this.tooltip = h('div', 'tooltip');
     this.tooltip.hidden = true;
     root.append(this.tooltip);
+    this.loot=new LootPanel(this);
 
 
     // Build panel
@@ -554,7 +559,7 @@ export class UI {
     this.settingsPanel.append(sc, h('h2', null, 'Settings'),
       qualityLabel, this.qualitySelect, applyQuality,
       h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
-      plateLabel);
+      plateLabel,this.loot.settings(),this.radio.settings());
     root.append(this.settingsPanel);
 
     // Help panel
@@ -574,14 +579,15 @@ export class UI {
       ['Both buttons', 'Run forward'],
       ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
+      ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
-      ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
+      ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
-      ['F', 'Interact with what is in front of you'],
+      ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
@@ -597,19 +603,6 @@ export class UI {
     const table = h('div', 'keys');
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
     this.help.append(table);
-    const forget = h('button', 'danger', 'Abandon this character and create a new one');
-    forget.addEventListener('click', () => {
-      if (forget.dataset.armed) this.a.forget();
-      else {
-        forget.dataset.armed = '1';
-        forget.textContent = 'Click again to confirm — this cannot be undone from this browser';
-      }
-    });
-    this.forgetBtn = forget;
-    this.help.append(forget);
-    this.recoveryBtn = h('button', 'menubtn', 'Copy guest recovery key');
-    this.recoveryBtn.addEventListener('click', () => this.a.copyRecoveryKey());
-    this.help.append(this.recoveryBtn);
     root.append(this.help);
 
     // Death overlay
@@ -628,8 +621,6 @@ export class UI {
   setAccountLinked(linked) {
     this.signoutBtn.hidden = !linked;
     this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
-    this.forgetBtn.hidden = !!linked;
-    this.recoveryBtn.hidden = !!linked;
   }
 
   /** Build the class-specific action bars once the class is known. */
@@ -772,6 +763,7 @@ export class UI {
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
@@ -1099,8 +1091,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
@@ -1212,11 +1205,15 @@ export class UI {
     set(f.hp.label, 'text', `${hp} / ${max}`);
   }
 
-  buffChips(el, keys) {
-    const sig = keys.join(',');
+  buffChips(el, keys, barrier=null) {
+    const sig = keys.join(',')+'|'+(barrier?`${barrier.remaining}/${barrier.capacity}/${Math.ceil(barrier.ms/1000)}`:'');
     if (el._sig === sig) return;
     el._sig = sig;
-    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => h('span', `chip ${BUFFS[k][1]}`, BUFFS[k][0])));
+    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
+      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
+      if(k==='shield')chip.title='Damage absorption; finite capacity, not a solid collision wall.';
+      return chip;
+    }));
   }
 
   /**
@@ -1231,6 +1228,7 @@ export class UI {
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
+    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
@@ -1252,7 +1250,7 @@ export class UI {
     this.frameBars(this.player, me.row.h, me.row.m);
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
-    this.buffChips(this.player.buffs, me.row.b || []);
+    this.buffChips(this.player.buffs, me.row.b || [], you.barrier);
     const kit = you.surveyKit;
     set(this.surveyStatus, 'hidden', !kit && you.keeperShield===undefined);
     if (you.keeperShield!==undefined) set(this.surveyStatus,'text','Own barrier: '+you.keeperShield+' · Reversal consumes available protection');
@@ -1391,7 +1389,8 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1423,6 +1422,10 @@ export class UI {
         el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
         el.dataset.npc='archivist';
       }
+      if(ent.meta.k==='e'){
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
+      }
       if(ent.meta.k==='p'){
         el.dataset.playerId=String(ent.id);
         el.tabIndex=0;
@@ -1446,7 +1449,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();
+    this.radio.clear();this.loot.reset();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.
@@ -1478,6 +1481,11 @@ export class UI {
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
     if(ent.meta.k==='p') p.el.setAttribute('aria-label',opts.label+' player');
+    if(ent.meta.k==='e'&&p.el.dataset.lootable!==String(!!opts.lootable)){
+      p.el.dataset.lootable=String(!!opts.lootable);
+      if(opts.lootable){p.el.tabIndex=0;p.el.setAttribute('role','button');p.el.setAttribute('aria-label','Loot '+ent.meta.n);}
+      else{p.el.removeAttribute('tabindex');p.el.removeAttribute('role');p.el.removeAttribute('aria-label');}
+    }
     if (p.actions) {
       set(p.actions, 'hidden', !opts.selected);
       set(p.rename, 'hidden', !opts.owned);

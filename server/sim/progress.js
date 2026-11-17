@@ -5,8 +5,11 @@
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
-import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
+import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
+
+import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
+import { distributeCorpseLoot } from './loot.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -51,9 +54,14 @@ function goalMet(p, goal) {
 
 // Private, server-authored transmission. Keep the existing log and gain toast;
 // radio is an additional presentation event, never a chat channel.
-export function transmit(game,p,source,kind,message) {
+export function transmit(game,p,source,kind,message,dialogueId) {
   game.message(p,kind,message);
-  p.outbox.push({e:'radio',source,m:message});
+  p.outbox.push({e:'radio',source,m:message,...(dialogueId ? {dialogueId} : {})});
+}
+function transmitAuthored(game,p,id) {
+  const d=getRadioDialogue(id);
+  if (!d) throw new Error('Unknown authored radio dialogue: '+id);
+  transmit(game,p,d.source,d.kind,d.transcript,d.id);
 }
 
 /** Advance the directive chain as far as current state allows. */
@@ -72,22 +80,18 @@ export function checkDirective(game, p) {
   }
   if (advanced) {
     game.markDirty(p);
-    const next=directiveFor(c.cls,c.quest.step);
-    transmit(game,p,'kernel','info',next?'Next directive — '+next.title+'. '+next.text:'Directive chain complete. Return to the Sanctum when ready.');
+    transmitAuthored(game,p,directiveDialogueId(c.cls,c.quest.step));
   }
 }
 
 /** Reward everyone who fought the enemy. Small groups are never split. */
 export function onEnemyKilled(game, enemy, creditedIds) {
   const def = ENEMIES[enemy.type];
-  for (const id of creditedIds) {
+  distributeCorpseLoot(game,enemy,creditedIds);
+  for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
-    grantSalvage(game,p,SALVAGE[enemy.type]);
-    for (const drop of def.loot) {
-      if (!p.char.inventory.includes(drop.item) && game.rng() < drop.chance) grantItem(game, p, drop.item);
-    }
     const d = directiveFor(p.cls, p.char.quest.step);
     if (d && d.goal.kill === enemy.type) {
       p.char.quest.progress += 1;
@@ -97,14 +101,14 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   }
 }
 
-function grantSalvage(game,p,id) {
-  if(!Object.hasOwn(MATERIALS,id))return;
+export function grantSalvage(game,p,id,count=1) {
+  if(!Object.hasOwn(MATERIALS,id)||!Number.isSafeInteger(count)||count<1)return false;
   const m=sanitizeMaterials(p.char.materials);
-  if((m[id]||0)>=MATERIAL_CAP)return;
-  m[id]=(m[id]||0)+1;
+  if((m[id]||0)+count>MATERIAL_CAP)return false;
+  m[id]=(m[id]||0)+count;
   p.char.materials=m;
-  game.message(p,'gain','Salvaged: '+MATERIALS[id].name+'.');
-  game.markDirty(p);
+  game.message(p,'gain','Salvaged: '+MATERIALS[id].name+(count>1?' × '+count:'')+'.');
+  game.markDirty(p);return true;
 }
 
 export function craftRecipe(game,p,id) {
@@ -199,7 +203,7 @@ function operateBrine(game,p,obj) {
   if (stage===0) {
     if (type!==route.first) return denied('Start at '+route.firstName+'.');
     p.char.brineStage=1;game.markDirty(p);
-    transmit(game,p,'field','info','Preparation recorded. Continue to '+route.secondName+'.');
+    transmitAuthored(game,p,route.second==='brine_engineering'?'brine.prepare.engineering':'brine.prepare.research');
     return ok;
   }
   if (stage===1 || (stage===2 && !p.brineTrial)) {
@@ -217,7 +221,7 @@ function operateBrine(game,p,obj) {
   }
   p.brineTrial=null;p.char.brineStage=3;
   grantItem(game,p,route.reward);grantXp(game,p,55);game.markDirty(p);
-  transmit(game,p,'field','gain','Brineworks commissioned. A: research fabrication and resource service. B: engineering fabrication and field repair. Approach either station and open Workshop [B].');
+  transmitAuthored(game,p,'brine.commissioned');
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
 }
@@ -245,15 +249,15 @@ export function interact(game, p, objectId) {
     if (!hasLineOfSight(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
     if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
     if (p.char.inventory.includes('phase_damper')) {
-      transmit(game,p,'kestrel','info','The recovered stress-buffering implant is already in your inventory.');
+      transmitAuthored(game,p,'kestrel.implant.present');
       return { ok: true };
     }
     if (!p.char.attunements.includes('resonance') || !p.char.inventory.includes('sinter_laminate')) {
-      transmit(game,p,'kestrel','info','Kestrel log 17: the living strata absorbed mechanical stress without retaining the original waveform. Bring a Sinter Laminate and learn Resonance to read the recovered calibration.');
+      transmitAuthored(game,p,'kestrel.log17');
       return { ok: true };
     }
     if (grantItem(game,p,'phase_damper')) {
-      transmit(game,p,'kestrel','gain','The recorder recognizes your laminate trace and unlocks a stored Kestrel Phase Damper. Your reference sample is not consumed.');
+      transmitAuthored(game,p,'kestrel.implant.unlocked');
       game.events.push({e:'fx',k:'deep_record',s:p.id,o:obj.id});
     }
     return { ok: true };
@@ -261,34 +265,34 @@ export function interact(game, p, objectId) {
   if (obj.type === 'sinter_sampler') {
     // Alternative source of the existing unique item; no repeatable XP or new save state.
     if (p.char.inventory.includes('sinter_laminate')) {
-      transmit(game,p,'field','info', 'The interferometer identifies the same mineral-biological composite already in your inventory.');
+      transmitAuthored(game,p,'sinter.sample.present');
       return { ok: true };
     }
     if (!p.char.attunements.includes('resonance')) {
-      transmit(game,p,'field','info', 'A maintenance note identifies the pale strata as living filters. The interference pattern requires Resonance attunement.');
+      transmitAuthored(game,p,'sinter.maintenance');
       return { ok: true };
     }
     if (inCombat(game, p)) return { ok: false, reason: 'The interferometer cannot resolve a sample while you are in combat.' };
     let mode;
     if (p.cls === 'vanguard') {
       if (p.stats.glyph === 'glyph_resonant_aegis' && p.buffs.some(b => b.k === 'ward' && b.until > game.time)) mode = 'kinetic';
-      else transmit(game,p,'field','info', 'Inscribe Resonant Aegis, activate Kinetic Ward beside the probe, then inspect it again. The ward isolates the mineral pattern.');
+      else transmitAuthored(game,p,'sinter.instruction.vanguard');
     } else if (p.cls === 'symbiotech') {
       if (p.stats.glyph === 'glyph_shared_pulse' && p.companion?.mode === 'triage' && dist(p.companion, obj) <= 5 &&
           p.buffs.some(b => b.k === 'hot' && b.src === p.id && b.until > game.time)) mode = 'symbiotic';
-      else transmit(game,p,'field','info', 'Inscribe Shared Pulse, bring your Mender in Triage, cast Mending Graft on yourself, then inspect the probe again. Its culture traces the pattern.');
+      else transmitAuthored(game,p,'sinter.instruction.symbiotech');
     } else if (p.cls === 'surveyor') {
       const rig=p.surveyKit?.rig;
       if(p.stats.glyph==='glyph_faultline' && rig && rig.until>game.time && dist(rig,obj)<=4)mode='survey';
-      else transmit(game,p,'field','info','Inscribe Faultline and deploy your Field Rig within 4m of the probe. Inspect again while the rig is active.');
+      else transmitAuthored(game,p,'sinter.instruction.surveyor');
     } else if (p.cls === 'keeper') {
       if(p.stats.glyph==='glyph_hinge' && p.buffs.some(b=>b.k==='shield'&&b.keeper&&b.src===p.id&&b.v>0&&b.until>game.time))mode='hinge';
-      else transmit(game,p,'field','info','Inscribe Hinge, project your own Hinge Field and inspect while the barrier remains active.');
+      else transmitAuthored(game,p,'sinter.instruction.keeper');
     }
     if (!mode) return { ok: true };
     if (grantItem(game, p, 'sinter_laminate')) {
       game.events.push({ e: 'fx', k: 'sinter_sample', s: p.id, o: obj.id, mode });
-      transmit(game,p,'field','info', 'A stable interference trace separates a loose laminate from the collector. The grazers and their predators incorporate the same mineral layers.');
+      transmitAuthored(game,p,'sinter.sample.recovered');
     }
     return { ok: true };
   }
@@ -302,7 +306,8 @@ export function interact(game, p, objectId) {
     p.char.survey = branch;
     game.message(p,'info',SURVEY[branch].field);
     game.message(p,'info','Return to Archivist Venn to report your findings.');
-    p.outbox.push({e:'radio',source:'field',m:SURVEY[branch].field+' Return to Archivist Venn to report your findings.'});
+    const d=getRadioDialogue('brine.evidence.'+branch);
+    p.outbox.push({e:'radio',source:d.source,m:d.transcript,dialogueId:d.id});
     game.markDirty(p);
     return { ok: true };
   }

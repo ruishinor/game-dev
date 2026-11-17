@@ -4,6 +4,7 @@ import { makeChar, makeGame, run, place, enemyOf, isolate } from './helpers.js';
 import { useAbility, startAttack, dealDamage, applyHeal, getBuff } from '../server/sim/combat.js';
 import { petCommand } from '../server/sim/companion.js';
 import { equipItem, unequipSlot, interact, grantItem, grantXp, craftRecipe } from '../server/sim/progress.js';
+import { openLoot,takeLoot } from '../server/sim/loot.js';
 import { ABILITIES, ENEMIES, CLASSES, DIRECTIVES } from '../shared/content.js';
 import { stepMove, resolveCollisions, COLLIDERS, WORLD, ZONES, RUN_SPEED, MOVE_DT, PLAYER_RADIUS } from '../shared/world.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
@@ -668,9 +669,13 @@ test('progression: the directive chain hands out the build pieces in order', () 
   assert.deepEqual(p.char.attunements, ['resonance'], 'attuning twice does nothing');
   assert.ok(equipItem(game, p, 'glyph_shared_pulse').ok);
   assert.equal(p.char.quest.step, 6);
-  dealDamage(game, p, enemyOf(game, 'warden'), 9999, 'test');
+  const warden=enemyOf(game,'warden');
+  dealDamage(game, p, warden, 9999, 'test');
   assert.equal(p.char.quest.step, DIRECTIVES.length);
   assert.ok(p.char.inventory.includes('glyph_carapace'));
+  assert.ok(!p.char.inventory.includes('wardstone_shard'));
+  place(p,warden.x,warden.z);assert.ok(openLoot(game,p,warden.id,warden.lootGeneration).ok);
+  assert.ok(takeLoot(game,p,warden.id,warden.lootGeneration,'wardstone_shard').ok);
   assert.ok(p.char.inventory.includes('wardstone_shard'));
 });
 

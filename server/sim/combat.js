@@ -102,11 +102,15 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
         }
       }
     }
+    // Round incoming health damage once, before consuming finite barrier points.
+    // A live barrier can absorb the entire hit, including sub-point modifiers.
+    amt = Math.max(1, Math.round(amt));
     const shield = getBuff(dst, 'shield');
-    if (shield && shield.v > 0) {
+    if (shield && shield.until > game.time && shield.v > 0) {
       absorbed = Math.min(shield.v, amt);
       shield.v -= absorbed;
       amt -= absorbed;
+      if (shield.v <= 0) dst.buffs = dst.buffs.filter(b=>b!==shield);
     }
   }
 

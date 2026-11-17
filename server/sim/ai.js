@@ -23,6 +23,7 @@ export function resetEnemy(game, e) {
   e.specialAt = {};
   e.deadAt = 0;
   e.respawnAt = 0;
+  e.lootByPlayer=null;
   e.wanderAt = e.route ? game.time : game.time + 2000 + game.rng() * 5000;
   e.routeIndex = 1;
   e.wander = null;

@@ -37,3 +37,14 @@ test('Relay leaves stronger shields intact and respects cover',()=>{
  assert.ok(useAbility(game,p,'lattice_relay').ok);assert.equal(getBuff(ally,'shield'),null);
  assert.equal(getBuff(p,'shield').v,24);
 });
+
+test('Hinge blocks actual damage, reports authoritative capacity, breaks on overflow and cannot absorb after expiry',()=>{
+ const {game,p,e}=fixture();p.res=100;assert.ok(useAbility(game,p,'hinge_field').ok);const hp=p.hp;
+ assert.equal(dealDamage(game,e,p,6,'test',{flat:true}),0);assert.equal(p.hp,hp);assert.equal(game.privateState(p).barrier.remaining,34);
+ assert.equal(dealDamage(game,e,p,40,'test',{flat:true}),6);assert.equal(p.hp,hp-6);assert.equal(game.privateState(p).barrier,null);assert.equal(getBuff(p,'shield'),null);assert.ok(!game.buildRows().find(row=>row.i===p.id).b.includes('shield'));
+ game.time+=10000;p.res=100;assert.ok(useAbility(game,p,'hinge_field').ok);game.time+=9000;const before=p.hp;assert.equal(dealDamage(game,e,p,6,'test',{flat:true}),6);assert.equal(p.hp,before-6);assert.equal(game.privateState(p).barrier,null);
+});
+test('Relay absorbs for every eligible ally and stops at finite capacity',()=>{
+ const {game,p,e}=fixture();const ally=game.addPlayer(makeChar('vanguard'));place(ally,2,25);p.res=100;assert.ok(useAbility(game,p,'lattice_relay').ok);const hp=ally.hp;
+ assert.equal(game.privateState(ally).barrier.remaining,24);assert.equal(dealDamage(game,e,ally,8,'test',{flat:true}),0);assert.equal(ally.hp,hp);assert.equal(game.privateState(ally).barrier.remaining,16);assert.equal(dealDamage(game,e,ally,20,'test',{flat:true}),4);assert.equal(ally.hp,hp-4);
+});
