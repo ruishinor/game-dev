@@ -9,7 +9,7 @@ export function build({variant='research',reservoirs=2}={}){
  // Layered carrier, shaped frame and discrete padded wearer-contact surfaces.
  box('frame',[0,0,-.068],[.286,.408,.095],{bevel:.027});box('fabric',[0,0,-.018],[.26,.378,.048],{bevel:.021});
  for(const x of [-.086,.086]){box('fabric',[x,.082,.009],[.092,.176,.038],{bevel:.020});box('fabric',[x,-.107,.007],[.093,.142,.035],{bevel:.018});box('frame',[x,0,-.044],[.024,.415,.036]);for(const y of [-.188,.185]){box('steel',[x,y,.011],[.045,.032,.016]);box('black',[x,y,.022],[.026,.015,.012]);}}
- box('black',[0,-.169,.009],[.135,.063,.031],{bevel:.011});box('fabric',[0,.193,.008],[.14,.035,.035]);
+ box('black',[0,-.169,.009],[.069,.063,.031],{bevel:.011});box('fabric',[0,.193,.008],[.14,.035,.035]);
  // Rear housing has segmented, replaceable armor rather than one slab.
  box('frame',[0,.012,-.122],[.306,.405,.087],{bevel:.023});box('ochre',[0,.13,-.172],[.255,.147,.038],{bevel:.017});
  box('ceramic',[0,-.027,-.179],[.247,.154,.049],{bevel:.018});box('frame',[0,-.147,-.174],[.24,.075,.050],{bevel:.012});

@@ -1,32 +1,49 @@
 import { kit } from './geometry.mjs';
-// Complete ground-centred fallbacks or tabletop add-ons for existing sanctum desk.
+// Ground-centred station or locally grounded tabletop module.
 export function build({kind='research',base=true}={}){
  if(!['research','engineering'].includes(kind)||typeof base!=='boolean')throw Error('invalid workstation configuration');
  const k=kit(),{box,rod,ring}=k,oy=base?.94:0;
- const add=(material,x,y,z,w,h,d,opts)=>box(material,[x,y+oy,z],[w,h,d],opts);
- const pole=(material,a,b,r,opts)=>rod(material,[a[0],a[1]+oy,a[2]],[b[0],b[1]+oy,b[2]],r,opts);
+ const add=(m,x,y,z,w,h,d,o={})=>box(m,[x,y+oy,z],[w,h,d],o);
+ const pole=(m,a,b,r,o)=>rod(m,[a[0],a[1]+oy,a[2]],[b[0],b[1]+oy,b[2]],r,o);
+ const cable=(p,r=.014)=>{for(let i=1;i<p.length;i++)pole('black',p[i-1],p[i],r,{sides:8});};
  if(base){
-  box('frame',[0,.885,0],[2.10,.11,.87],{bevel:.025});box('ceramic',[0,.946,0],[2.02,.022,.82],{bevel:.008});
-  for(const x of [-.91,.91])for(const z of [-.33,.33]){box('steel',[x,.42,z],[.10,.84,.10]);box('black',[x,.035,z],[.17,.07,.16]);}
-  box('frame',[0,.28,-.29],[1.71,.09,.10]);box('ochre',[0,.79,.40],[1.8,.07,.05]);
-  for(const x of [-.70,.70]){box('frame',[x,.67,-.11],[.32,.27,.53]);box('steel',[x,.67,.164],[.29,.20,.025]);box('black',[x,.68,.185],[.13,.025,.018]);}
+  box('frame',[0,.883,0],[2.10,.105,.87]);box('steel',[0,.936,0],[2.03,.012,.82]);
+  for(const x of [-.89,.89]){
+   box('frame',[x,.43,0],[.15,.82,.70]);box('ochre',[x,.43,.365],[.13,.67,.034]);
+   for(const z of [-.28,.28]){box('steel',[x,.025,z],[.24,.05,.20]);box('black',[x,.08,z],[.17,.065,.15]);}
+  }
+  box('frame',[0,.27,-.31],[1.69,.17,.12]);box('steel',[0,.68,-.31],[1.69,.12,.09]);
+  for(const x of [-.57,.57]){
+   box('frame',[x,.58,-.065],[.48,.37,.55]);box('ochre',[x,.58,.216],[.43,.32,.031]);
+   for(const y of [.51,.65]){box('frame',[x,y,.239],[.34,.026,.018]);box('steel',[x,y+.012,.257],[.20,.018,.02]);}
+   for(const y of [.44,.72])for(const dx of [-.18,.18])rod('steel',[x+dx,y,.238],[x+dx,y,.248],.011,{sides:8});
+  }
+  for(const x of [-.68,.68])rod('steel',[x,.33,-.30],[Math.sign(x)*.88,.79,-.30],.025,{sides:8});
+  box('black',[0,.84,.426],[1.7,.027,.027]);for(let i=0;i<8;i++)box('ochre',[-.77+i*.22,.84,.445],[.12,.026,.01],{angle:.20});
  }
- add('frame',0,.065,-.12,1.45,.13,.56);add('ceramic',0,.141,-.12,1.38,.022,.51);
- // Upright industrial display anchored to two posts; faces the operator (+Z).
- for(const x of [-.44,.44])pole('steel',[x,.16,-.28],[x,.44,-.28],.028,{sides:8});
- add('frame',0,.46,-.28,1.10,.38,.075,{bevel:.025});add('screen',0,.46,-.231,1.022,.304,.018,{bevel:.015});
- for(let i=0;i<7;i++)add('cyan',-.39+i*.105,.415+.025*(i%3),-.219,.035,.065+.023*(i%3),.005);
- for(const y of [.55,.575])add('steel',.23,y,-.218,.32,.008,.005);
- if(kind==='research'){
-  add('black',-.22,.167,.12,.48,.035,.29);add('screen',-.22,.19,.12,.43,.012,.24);
-  ring('cyan',[-.22,oy+.212,.12],.089,.006,{axis:[0,1,0],sides:24});
-  for(const x of [.17,.29,.41]){pole('frame',[x,.155,.14],[x,.192,.14],.038);pole(x===.29?'green':'amber',[x,.193,.14],[x,.345,.14],.026,{sides:10});pole('steel',[x,.346,.14],[x,.371,.14],.037);}
-  add('ochre',.62,.188,.03,.16,.052,.17);add('black',.62,.221,.03,.12,.014,.13);
+ add('frame',0,.069,-.26,1.75,.138,.29);add('ochre',0,.142,-.26,1.65,.012,.25);
+ for(const x of [-.70,.70]){add('steel',x,.24,-.31,.07,.31,.12);add('frame',x,.414,-.31,.15,.068,.16);}
+ add('frame',0,.436,-.31,1.38,.37,.115);add('black',0,.436,-.244,1.29,.31,.021);add('screen',-.12,.45,-.229,1.02,.244,.009);
+ for(let i=0;i<8;i++){const h=.022+(i%4)*.012;add('cyan',-.55+i*.075,.397+h/2,-.222,.025,h,.004);}
+ for(const y of [.465,.493,.521])add('steel',-.18,y,-.222,.30,.006,.004);
+ for(let i=0;i<4;i++){add('frame',.54,.332+i*.064,-.227,.11,.043,.018);add(i===0?'amber':'black',.54,.332+i*.064,-.215,.065,.018,.006);}
+ for(const x of [-.60,.60])for(const y of [.29,.58])pole('steel',[x,y,-.238],[x,y,-.225],.010,{sides:8});
+ if(kind==='engineering'){
+  add('frame',-.39,.055,.108,.61,.11,.40);add('steel',-.39,.12,.108,.49,.021,.32);
+  for(const x of [-.57,-.20]){add('frame',x,.19,.108,.13,.12,.29);add('steel',x,.261,.108,.139,.025,.25);for(let i=0;i<5;i++)add('black',x,.279,-.005+i*.052,.112,.009,.013);}
+  pole('steel',[-.69,.16,.108],[-.10,.16,.108],.021,{sides:16});ring('steel',[-.70,oy+.16,.108],.059,.012,{axis:[1,0,0],sides:20});
+  add('frame',.30,.09,.09,.45,.18,.38);add('ochre',.30,.191,.09,.40,.027,.32);add('black',.30,.213,.09,.22,.013,.19);add('screen',.30,.222,.09,.19,.007,.16);
+  for(let i=0;i<5;i++)add('frame',.49,.055+i*.025,.285,.046,.009,.012);
+  for(const x of [.61,.73]){pole('copper',[x,.026,.13],[x,.22,.13],.023,{sides:16});pole('steel',[x,.21,.13],[x,.25,.13],.030,{sides:12});}
+  cable([[.30,.05,-.10],[.30,.045,-.19],[.54,.045,-.22],[.54,.11,-.25]]);
  }else{
-  add('steel',-.30,.19,.12,.37,.06,.25);for(const x of [-.43,-.17]){add('frame',x,.26,.12,.085,.11,.23);add('steel',x,.324,.12,.10,.023,.18);}
-  pole('steel',[-.47,.24,.12],[-.11,.24,.12],.018,{sides:8});pole('frame',[-.51,.24,.05],[-.51,.24,.20],.012,{sides:8});
-  add('ochre',.28,.24,.10,.34,.16,.32);add('frame',.28,.33,.10,.25,.035,.24);add('screen',.28,.354,.10,.18,.014,.15);
-  for(const x of [.49,.60])pole('copper',[x,.155,.11],[x,.29,.11],.021,{sides:8});
+  add('frame',-.39,.054,.08,.60,.108,.38);add('steel',-.39,.117,.08,.53,.016,.32);add('screen',-.39,.132,.08,.40,.010,.25);
+  ring('cyan',[-.39,oy+.144,.08],.092,.004,{axis:[0,1,0],sides:24});
+  for(let i=0;i<3;i++){const x=.13+i*.18;pole('frame',[x,.03,.09],[x,.075,.09],.062,{sides:16});pole(i===1?'green':'amber',[x,.075,.09],[x,.28,.09],.037,{sides:18});for(const y of [.075,.28])pole('steel',[x,y,.09],[x,y+.025,.09],.052,{sides:16});for(const z of [.04,.14])pole('frame',[x,.08,z],[x,.29,z],.008,{sides:8});}
+  add('ochre',.68,.055,.09,.16,.11,.22);add('frame',.68,.12,.09,.13,.021,.18);add('screen',.68,.134,.09,.10,.007,.14);
+  cable([[.15,.04,-.10],[.25,.04,-.19],[.69,.04,-.17],[.69,.11,-.24]]);
  }
+ for(const x of [-.81,.81])for(const z of [-.37,-.15])pole('steel',[x,.145,z],[x,.154,z],.009,{sides:8});
+ for(const x of [-.82,.82])add('black',x,.03,.31,.11,.06,.085);
  return k.parts;
 }

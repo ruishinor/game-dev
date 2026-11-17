@@ -13,3 +13,10 @@ Simulated roundtable:
 - research_tabletop_module: 1192 triangles, 9 material batches, 121996 bytes.
 - engineering_workstation: 1260 triangles, 8 material batches, 127584 bytes.
 - engineering_tabletop_module: 756 triangles, 7 material batches, 78428 bytes.
+
+## Visual revision v2
+Rebuilt complete stations and tabletop modules with structural pedestal frames, replaceable service cabinets, reinforced working deck, diagnostic console, physical fixture or specimen racks, connectors and cables. Embedded PBR material maps with repeated metre UVs. Art: repair/research equipment rather than furniture. Technical: retained mounting height, tabletop origin and operator orientation. Adversarial: first recipe rejected invalid bevel dimensions; corrected and validated all four GLBs against bounds and 9000-triangle cap, deterministic byte equality. Retrospective: neutral preview only, no actual texture lighting or final art approval. Donor integration pending.
+- research_workstation: 3832 triangles, 12 embedded maps, 525636 bytes.
+- research_tabletop_module: 2516 triangles, 12 embedded maps, 399216 bytes.
+- engineering_workstation: 3672 triangles, 15 embedded maps, 547916 bytes.
+- engineering_tabletop_module: 2356 triangles, 15 embedded maps, 421500 bytes.

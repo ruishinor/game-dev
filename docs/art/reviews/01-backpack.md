@@ -22,3 +22,5 @@ Owner accepted the concept/technical direction, not visual fidelity. Rebuilt all
 - backpack_kinetic: 3596 triangles, 21 embedded maps, 616824 bytes.
 - backpack_biotech: 3312 triangles, 18 embedded maps, 551832 bytes.
 - backpack_utility: 3292 triangles, 18 embedded maps, 548272 bytes.
+
+Retrospective correction: narrowed lumbar pad to remove overlap with lower contact pads; regenerated all four variants and repeated structural checks.

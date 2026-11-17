@@ -349,25 +349,25 @@
     {
       "path": "backpack_biotech.glb",
       "bytes": 551832,
-      "gitBlob": "7f75c06f2bb6173455541955fd58aa4791f54072",
+      "gitBlob": "889c0184fedda24faa6851c21481e34c484fac1b",
       "source": "original"
     },
     {
       "path": "backpack_kinetic.glb",
       "bytes": 616824,
-      "gitBlob": "3b73a792ec849e4baac6660e21f3768153c52712",
+      "gitBlob": "b77beaa18d9285f2c221933f25fc95b41129993b",
       "source": "original"
     },
     {
       "path": "backpack_research.glb",
       "bytes": 556808,
-      "gitBlob": "0637e33dd496646b3da40595cacc61ca459ef19f",
+      "gitBlob": "a691c0153fa268b6abe8ff17b681861806b7f3ba",
       "source": "original"
     },
     {
       "path": "backpack_utility.glb",
       "bytes": 548272,
-      "gitBlob": "fe94e86778b97d089d79284b2841df8671b14e59",
+      "gitBlob": "b71baf7f3b4151a6035639a47664d672e8f34ea8",
       "source": "original"
     },
     {
@@ -450,14 +450,14 @@
     },
     {
       "path": "engineering_tabletop_module.glb",
-      "bytes": 78428,
-      "gitBlob": "ad09b510eaf5a1429a1afa6b03d972175009ba29",
+      "bytes": 421500,
+      "gitBlob": "df897e7031a25f3f31e22dc55a4c28171aec58d6",
       "source": "original"
     },
     {
       "path": "engineering_workstation.glb",
-      "bytes": 127584,
-      "gitBlob": "44e884493547a891668ba1669c8aaa93ad10b5b3",
+      "bytes": 547916,
+      "gitBlob": "d65ff72c1ceaa61a3af617cc4537506b236be205",
       "source": "original"
     },
     {
@@ -630,14 +630,14 @@
     },
     {
       "path": "research_tabletop_module.glb",
-      "bytes": 121996,
-      "gitBlob": "c20241751f3cd02727868c741daf9e759707194f",
+      "bytes": 399216,
+      "gitBlob": "aae3b68b5a2d2fc368bd1d0750c662afdd937916",
       "source": "original"
     },
     {
       "path": "research_workstation.glb",
-      "bytes": 170368,
-      "gitBlob": "dad1bd70aad6ca3e02dea0fc26f5ceb2578ea525",
+      "bytes": 525636,
+      "gitBlob": "ab08d963a117e5ad4ec37a486c3cba61756d7331",
       "source": "original"
     },
     {
