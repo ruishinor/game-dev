@@ -29,7 +29,7 @@ export class RadioQueue{
 export class RadioPanel{
  constructor(root){
   this.queue=new RadioQueue();this.token=0;this.utterance=null;this.playing=false;this.open=false;
-  this.recorded=new RecordedRadioPlayback();this.volume=.8;this.waveFrame=null;
+  this.recorded=new RecordedRadioPlayback();this.volume=1;this.waveFrame=null;
   try{this.enabled=localStorage.getItem('attunement.radioVoice')!=='0';this.volume=normalizeVolume(localStorage.getItem('attunement.radioVolume'));}catch{this.enabled=true;}
   this.el=h('aside','radio-panel');this.el.hidden=true;this.el.setAttribute('aria-label','Radio transmission');
   this.el.setAttribute('role','region');root.append(this.el);

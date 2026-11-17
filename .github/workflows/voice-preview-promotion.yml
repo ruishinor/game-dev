@@ -1,0 +1,81 @@
+name: Private reviewed voice promotion
+on:
+  pull_request:
+    paths:
+      - 'tools/voice/approved-preview-decisions.json'
+      - '.github/workflows/voice-preview-promotion.yml'
+permissions: {}
+concurrency:
+  group: private-radio-promotion
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/prerecorded-radio-foundation' && github.event.pull_request.base.ref == 'preview/playtest-brineworks'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: neural-voice-auditions-unreviewed
+          run-id: 44164367403
+          github-token: ${{ github.token }}
+          path: voice-auditions
+      - run: |
+          python -m pip install numpy==2.4.6
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python tools/voice/promote.py voice-auditions tools/voice/approved-preview-decisions.json --private-playtest --apply
+          npm ci
+          npm test
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/radio-audio.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-private-radio-assets
+          path: |
+            client/assets/voice/*.mp3
+            client/src/radio-assets.js
+          if-no-files-found: error
+          retention-days: 7
+  checkpoint:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: reviewed-private-radio-assets
+          path: client
+      - name: Checkpoint reviewed binary assets only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git add -- client/src/radio-assets.js client/assets/voice/brine.evidence.signal.mp3 client/assets/voice/kernel.directive.relay.mp3 client/assets/voice/kestrel.log17.mp3 client/assets/voice/sinter.instruction.vanguard.mp3
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 5
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(voice): integrate four exact owner-reviewed private radio recordings'
+          gh auth setup-git
+          git push origin HEAD:refs/heads/feat/prerecorded-radio-foundation

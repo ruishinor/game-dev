@@ -14,7 +14,7 @@ test('recorded assets resolve only from matching authored events and reviewed ma
  assert.equal(radioAssetFor(event,{[entry.id]:{...asset,transcript:'changed'}}),null);
  assert.equal(radioAssetFor(event,{[entry.id]:{...asset,envelope:[-1]}}).envelope,null);
  assert.equal(envelopeAt(asset.envelope,.05),.7);assert.equal(envelopeAt(asset.envelope,1),0);
- assert.equal(normalizeVolume(null),.8);assert.equal(normalizeVolume('0'),0);assert.equal(normalizeVolume(2),1);assert.equal(normalizeVolume('invalid'),.8);
+ assert.equal(normalizeVolume(null),1);assert.equal(normalizeVolume('0'),0);assert.equal(normalizeVolume(2),1);assert.equal(normalizeVolume('invalid'),1);
 });
 function fixture(){
  const instances=[],states=[],timers=new Map();let sequence=0;

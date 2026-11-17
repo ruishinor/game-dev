@@ -30,6 +30,7 @@ def main():
     p.add_argument('auditions',type=pathlib.Path)
     p.add_argument('decisions',type=pathlib.Path)
     p.add_argument('--apply',action='store_true',help='write reviewed game assets; otherwise dry run')
+    p.add_argument('--private-playtest',action='store_true',help='permit explicitly scoped private preview assets; never public clearance')
     args=p.parse_args()
     source=args.auditions.resolve()
     provenance=json.loads((source/'manifest.json').read_text(encoding='utf-8'))
@@ -53,6 +54,8 @@ def main():
         seen.add(id)
         if d.get('decision')!='accepted' or not str(d.get('reviewer','')).strip() or not str(d.get('listeningNotes','')).strip() or not str(d.get('rightsNotes','')).strip():
             raise ValueError('Explicit listening and rights acceptance required: '+id)
+        scope=d.get('distributionScope')
+        if scope!='release-cleared' and not (scope=='private-playtest' and args.private_playtest): raise ValueError('Explicit distribution scope required: '+id)
         if id not in entries: raise ValueError('Unknown dialogue: '+id)
         matches=[c for c in provenance['clips'] if c['id']==id and c['voice']==voice and c['deliverySha256']==digest]
         if len(matches)!=1: raise ValueError('Missing/ambiguous reviewed take: '+id)
@@ -68,7 +71,7 @@ def main():
         reviewed[id]={'transcript':c['transcript'],'sha256':digest,'envelope':envelope,
                       'provenance':{'model':provenance['model'],'revision':provenance['revision'],'modelSha256':provenance['modelSha256'],
                       'voice':voice,'voiceSha256':provenance['voiceSha256'][voice],
-                      'spokenText':c['spokenText'],'reviewer':d['reviewer'],'listeningNotes':d['listeningNotes'],'rightsNotes':d['rightsNotes']}}
+                      'spokenText':c['spokenText'],'reviewer':d['reviewer'],'listeningNotes':d['listeningNotes'],'rightsNotes':d['rightsNotes'],'distributionScope':scope}}
         copies[id]=data
     print('Validated',len(copies),'reviewed takes;',sum(map(len,copies.values())),'delivery bytes')
     target=ROOT/'client/assets/voice'
@@ -81,6 +84,8 @@ def main():
             if old_path.is_symlink(): raise ValueError('Unsafe existing asset: '+id)
             data=old_path.read_bytes()
         if sha(data)!=c['sha256']: raise ValueError('Existing asset mismatch: '+id)
+    if not args.private_playtest and any(c.get('provenance',{}).get('distributionScope')!='release-cleared' for c in reviewed.values()):
+        raise ValueError('Existing private-only or undocumented assets block release promotion')
     if not args.apply: return
     target.mkdir(parents=True,exist_ok=True)
     if target.is_symlink(): raise ValueError('Unsafe delivery directory')

@@ -12,7 +12,7 @@ export function radioAssetFor(event,manifest=APPROVED_RADIO_ASSETS){
  return {url:'/client/assets/voice/'+entry.id+'.mp3?v='+asset.sha256.slice(0,16),
    envelope:Array.isArray(envelope)&&envelope.length<=6000&&envelope.every(v=>Number.isFinite(v)&&v>=0&&v<=1)?envelope:null};
 }
-export function normalizeVolume(value,fallback=.8){
+export function normalizeVolume(value,fallback=1){
  if(value===null||value===''||typeof value==='boolean')return fallback;
  const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):fallback;
 }

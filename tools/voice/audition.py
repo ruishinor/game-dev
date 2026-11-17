@@ -41,7 +41,9 @@ def main():
     parser.add_argument('--out', type=pathlib.Path, default=ROOT / 'voice-auditions')
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--all', action='store_true', help='render all 26 lines with provisional casting; still unapproved')
+    parser.add_argument('--remaining', action='store_true', help='render only the 22 unauditioned lines using selected cast')
     args = parser.parse_args()
+    if args.all and args.remaining: parser.error('Choose --all or --remaining')
     if args.offline:
         os.environ['HF_HUB_OFFLINE'] = '1'
         os.environ['TRANSFORMERS_OFFLINE'] = '1'
@@ -58,7 +60,8 @@ def main():
     model = KModel(repo_id=REPO, config=str(config), model=str(weights)).to('cpu').eval()
     pipeline = KPipeline(lang_code='a', repo_id=REPO, model=model, device='cpu')
     entries = catalog()
-    cases = {k: ['am_michael' if d['voiceProfile']=='VOICE-001' else 'af_heart'] for k,d in entries.items()} if args.all else CASES
+    cases = {k: ['am_michael' if d['voiceProfile']=='VOICE-001' else 'af_heart'] for k,d in entries.items()} if args.all or args.remaining else CASES
+    if args.remaining: cases = {k:v for k,v in cases.items() if k not in CASES}
     voice_files = {v: fetch('voices/'+v+'.pt') for v in sorted({v for vs in cases.values() for v in vs})}
     packs = {v: torch.load(str(p), map_location='cpu', weights_only=True) for v,p in voice_files.items()}
     out = args.out.resolve()
