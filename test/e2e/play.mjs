@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
+import { CORPSE_MS } from '../../server/sim/game.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
@@ -404,11 +405,15 @@ try {
     teleport('Lumen', 0, 7.5);
     await settle(A, 0, 7.5);
     await settle(B, 0, 7.5);
-    corpse.respawnAt = Math.max(game.time + 4500, corpse.deadAt + 4200);
-    note(`accelerated Mire Skitter ${corpse.id} respawn after normal corpse expiry`);
+    const remainsA = (await state(A)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
+    const remainsB = (await state(B)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
+    // Shorten only this harness sequence; production remains persist for 12s.
+    corpse.deadAt = game.time - CORPSE_MS + 1200;
+    corpse.respawnAt = game.time + 4500;
+    note(`accelerated corpse expiry for Mire Skitter ${corpse.id}; production holds for ${CORPSE_MS / 1000}s`);
     const vanishedA = await until(A, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'A removes expired enemy');
     const vanishedB = await until(B, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'B removes expired enemy');
-    check('6/11. expired enemy disappears in both browser sessions', vanishedA && vanishedB);
+    check('6/11. remains persist as 3D models, then disappear from both clients', remainsA && remainsB && vanishedA && vanishedB);
     const returned = (id) => {
       const ent = window.__attune.state().ents.find((e) => e.id === id);
       return !!ent && ent.model === 'glb' && !ent.dead && ent.row?.h > 0;
