@@ -20,7 +20,7 @@ The owner asked to pause after tasks 1–2 below.
 | 2 | GPU particle + shader VFX engine | **Done** — `client/src/vfx/{textures,engine,combat}.js`, `test/vfx-engine.test.js` |
 | 3 | Rework every combat event onto the engine | **Done** — all 20 ability frames captured in `docs/evidence/vfx/after/` and reviewed; Surge dome, Controlled Blast and enemy melee fans tuned |
 | 4 | Character distinctive equipment upgrade | **Done (first pass)** — `client/src/gear-kit.js`, `client/src/gear-recipes.js`, `test/gear-kit.test.js`, `tools/gear-capture.mjs`; evidence `docs/evidence/gear/{before,after}/` |
-| 5 | Environmental artefacts (Listening Stone etc.) | Not started |
+| 5 | Environmental artefacts (Listening Stone etc.) | **Listening Stone done** — `client/src/listening-stone.js`, `tools/env-capture.mjs`, evidence `docs/evidence/env/{before,after}/`; other kit props (crates, generators, terminals) not started |
 | 6 | Full review, full after-capture, docs | Partial (this file, review 16) |
 
 ## What exists

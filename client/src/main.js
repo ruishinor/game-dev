@@ -1278,6 +1278,8 @@ function updateEntities(dt, t, now) {
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
       self: ent.id === S.myId,
+      // Presentation only: how close the local player stands to an object.
+      near: ent.meta.k === 'o' && S.ents.get(S.myId) ? Math.hypot(S.ents.get(S.myId).pos.x - x, S.ents.get(S.myId).pos.z - z) : undefined,
       fwd: ent.fwd,
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });

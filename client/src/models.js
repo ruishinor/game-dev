@@ -3,6 +3,7 @@
 // `st` carries presentation state: speed, t, dead, attack, cast, hit, air…
 
 import * as THREE from '/vendor/three/three.module.js';
+import { makeListeningStone } from './listening-stone.js';
 
 const std = (color, o = {}) =>
   new THREE.MeshStandardMaterial({
@@ -572,7 +573,7 @@ export const MODEL_FACTORIES = {
   skitter: makeSkitter,
   sentinel: makeSentinel,
   warden: makeWarden,
-  obelisk: makeObelisk,
+  obelisk: makeListeningStone, // makeObelisk is kept as the minimal original
   archivist: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
   brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
