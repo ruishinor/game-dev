@@ -442,6 +442,81 @@ test('security: clients cannot act for others, forge state, or crash the server 
   }
 });
 
+test('accounts: ownership, guest recovery, roster deletion and sign-in survive restart', async () => {
+  const file = tmpFile();
+  let srv = await startServer({ port: 0, dataFile: file });
+  const guest = new Client(srv.port);
+  const owner = new Client(srv.port);
+  const password = 'Example-LocalPassword-2026!';
+  let sessionToken;
+  try {
+    const eve = await guest.create('Eve', 'symbiotech');
+    assert.equal(eve.t, 'welcome');
+    await owner.open();
+    owner.send({ t: 'account_register', handle: 'EveningPlayer', password });
+    const ready = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready'), 8000, 'new account roster');
+    assert.equal(ready.chars.length, 0);
+    sessionToken = ready.token;
+    assert.match(sessionToken, /^[0-9a-f]{64}$/);
+
+    owner.send({ t: 'account_claim_character', token: eve.token });
+    const linked = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready' && m.chars.some((c) => c.name === 'Eve')), 3000, 'legacy character linked');
+    const eveId = linked.chars[0].id;
+    await guest.until(() => guest.closed !== null, 3000, 'old bearer disconnected');
+    assert.equal(srv.store.authenticate(eve.token), null, 'old guest token revoked');
+    owner.send({ t: 'account_select', id: eveId });
+    const welcome = await owner.until(() => owner.msgs.find((m) => m.t === 'welcome' && m.charId === eveId), 3000, 'owned Eve enters world');
+    assert.ok(welcome.id > 0);
+
+    owner.send({ t: 'account_leave' });
+    const rosterBefore = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    // The new roster is emitted when leaving the active character.
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > rosterBefore, 3000, 'character menu');
+    owner.send({ t: 'account_create_character', name: 'Rhea', cls: 'vanguard' });
+    const created = await owner.until(() => owner.msgs.some((m) => m.t === 'welcome' && m.charId !== eveId), 3000, 'second character');
+    assert.ok(created);
+    const rheaId = srv.store.byName.get('rhea').id;
+    owner.send({ t: 'account_leave' });
+    const beforeLeave = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > beforeLeave, 3000, 'return to roster');
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'WrongName' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_fail' && /not authorised/.test(m.reason)), 3000, 'unauthorized deletion refused');
+    assert.ok(srv.store.chars.has(rheaId));
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'Rhea' });
+    await owner.until(() => !srv.store.chars.has(rheaId), 3000, 'authorized deletion');
+    assert.equal(srv.store.byName.has('rhea'), false);
+
+    owner.send({ t: 'account_logout' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_logged_out'), 3000, 'logout acknowledgement');
+    assert.equal(srv.store.authenticateAccount(sessionToken), null, 'session revoked on logout');
+  } finally {
+    guest.close();
+    owner.close();
+    await srv.close();
+  }
+
+  const disk = fs.readFileSync(file, 'utf8');
+  assert.ok(!disk.includes(password), 'plaintext password never written to disk');
+  assert.ok(!disk.includes(sessionToken), 'account bearer token never written to disk');
+  srv = await startServer({ port: 0, dataFile: file });
+  const returning = new Client(srv.port);
+  const outsider = new Client(srv.port);
+  try {
+    await returning.open();
+    returning.send({ t: 'account_login', handle: 'EveningPlayer', password });
+    const ready = await returning.until(() => returning.msgs.find((m) => m.t === 'account_ready'), 8000, 'account login after restart');
+    assert.deepEqual(ready.chars.map((c) => c.name), ['Eve']);
+    const other = await outsider.create('OtherPlayer', 'vanguard');
+    assert.equal(other.t, 'welcome');
+    returning.send({ t: 'account_select', id: srv.store.byName.get('otherplayer').id });
+    await returning.until(() => returning.msgs.some((m) => m.t === 'account_fail' && /does not belong/.test(m.reason)), 3000, 'cannot select another owner character');
+  } finally {
+    returning.close();
+    outsider.close();
+    await srv.close();
+  }
+});
+
 test('names: validated and unique', async () => {
   const srv = await startServer({ port: 0, dataFile: null });
   try {
