@@ -3,3 +3,6 @@ data/
 *.log
 test/e2e/out/
 .asset-cache/
+# Browser-suite screenshots (CI uploads these as artifacts)
+art-evidence/
+preview-evidence/
