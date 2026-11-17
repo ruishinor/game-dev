@@ -280,6 +280,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  fx.clearRoot(ent.id);
   scene.remove(ent.holder);
   if (ent.model.dispose) ent.model.dispose();
   else {
@@ -887,6 +888,7 @@ function updateEntities(dt, t, now) {
     // The low preset also stops drawing characters far across the valley.
     ent.inView = frustum.intersectsSphere(cullSphere) && (quality > 0 || ent.id === S.myId || camera.position.distanceToSquared(cullSphere.center) < 80 * 80);
     ent.holder.visible = ent.inView;
+    if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
     ent.model.update(dt, {
       t,
       speed: ent.speed,
