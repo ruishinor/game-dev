@@ -18,6 +18,53 @@
         <h1>Attunement</h1>
         <p class="tagline">The Verdigris Reach — where old machines, living things and stranger forces share one valley.</p>
         <p id="resuming" hidden>Returning to your character…</p>
+        <section id="account-auth" aria-label="Account access">
+          <h2>Account access</h2>
+          <p class="hint">Account names and passwords are separate from character names. Guest characters do not have passwords. Create an account with a new password, then link your existing guest.</p>
+          <form id="account-form" autocomplete="on">
+            <label for="account-handle">Account name</label>
+            <input id="account-handle" name="username" maxlength="24" autocomplete="username" placeholder="3–24 letters or digits" />
+            <label for="account-password">Password</label>
+            <input id="account-password" name="password" type="password" minlength="12" maxlength="128" autocomplete="current-password" />
+            <div class="account-buttons">
+              <button id="account-signin" type="submit" class="primary">Sign in</button>
+              <button id="account-register" type="button">Create account</button>
+            </div>
+          </form>
+          <p id="account-error" role="alert"></p>
+          <p class="hint">Passwords are not recoverable by email in this prototype. Use a unique password and keep a secure backup.</p>
+        </section>
+        <section id="character-roster" hidden aria-label="Your characters">
+          <div class="roster-head"><h2 id="roster-title">Your characters</h2><button id="account-signout" type="button">Sign out</button></div>
+          <div id="roster-list"></div>
+          <p id="roster-error" role="alert"></p>
+          <div class="legacy-link">
+            <button type="button" id="link-legacy" hidden>Link this browser's existing character</button>
+            <label for="recovery-token">Import a guest character using its recovery key</label>
+            <div class="account-buttons">
+              <input id="recovery-token" type="password" autocomplete="off" placeholder="64-character recovery key" maxlength="64" />
+              <button type="button" id="import-legacy">Import</button>
+            </div>
+            <p class="hint">Linking transfers ownership to this account. The previous guest recovery key will no longer work.</p>
+          </div>
+        </section>
+        <div id="guest-note">
+          <h2>Guest access</h2>
+          <div id="saved-guest" hidden>
+            <p class="hint">This browser has a saved guest character. Return to it, or create/sign in to an account above and link it.</p>
+            <div class="account-buttons">
+              <button id="resume-saved-guest" type="button" class="primary">Return to saved guest</button>
+              <button id="copy-saved-guest" type="button">Copy recovery key</button>
+            </div>
+          </div>
+          <label for="guest-resume-key">Already have a guest recovery key?</label>
+          <div class="account-buttons">
+            <input id="guest-resume-key" type="password" autocomplete="off" placeholder="64-character recovery key" maxlength="64" />
+            <button id="resume-guest-key" type="button">Resume guest</button>
+          </div>
+          <p class="hint">To keep the same character in other browsers, link it to an account. A recovery key is private and cannot be reconstructed from a character name.</p>
+          <p id="guest-error" role="alert"></p>
+        </div>
         <form id="login-form" autocomplete="off">
           <label for="name">Character name</label>
           <input id="name" name="name" maxlength="16" required spellcheck="false" placeholder="3–16 letters" />

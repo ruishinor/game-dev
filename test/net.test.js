@@ -199,6 +199,19 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await a.until(() => a.ent(wb.id) && b.ent(wa.id), 3000, 'mutual visibility');
     assert.ok(a.sheet && a.sheet.name === 'Brakka');
 
+    // Focused live-party and companion identity checks in the existing
+    // two-player integration test. Neither changes XP or encounter rules.
+    b.send({ t: 'pet_rename', name: 'Tender' });
+    await a.until(() => a.meta.get(wb.comp)?.n === 'Tender', 3000, 'companion name seen by ally');
+    assert.equal(srv.game.players.get(wb.id).char.petName, 'Tender');
+    b.send({ t: 'party_invite', id: wa.id });
+    await a.until(() => a.snap?.y?.party?.invite?.name === 'Lumen', 3000, 'party invitation');
+    a.send({ t: 'party_answer', accept: true });
+    await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'party formed');
+    assert.equal(a.snap.y.party.members.length, 2);
+    a.send({ t: 'party_leave' });
+    await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
+
     // Movement: A walks forward; B observes A's authoritative position change.
     const startZ = b.ent(wa.id).z;
     let seq = 0;
@@ -207,6 +220,7 @@ test('multiplayer: two clients share one world, see each other, fight the same e
       await new Promise((r) => setTimeout(r, 50));
     }
     await b.until(() => b.ent(wa.id).z > startZ + 5, 3000, 'B sees A move');
+    await a.until(() => a.snap?.y?.ack === seq, 3000, 'movement input acknowledgements');
     assert.equal(a.snap.y.ack, seq, 'inputs acknowledged');
 
     // Shared combat: move both next to the same skitter (server-side teleport
@@ -438,6 +452,87 @@ test('security: clients cannot act for others, forge state, or crash the server 
     a.close();
     b.close();
     junk.close();
+    await srv.close();
+  }
+});
+
+test('accounts: ownership, guest recovery, roster deletion and sign-in survive restart', async () => {
+  const file = tmpFile();
+  let srv = await startServer({ port: 0, dataFile: file });
+  const guest = new Client(srv.port);
+  const owner = new Client(srv.port);
+  const parallel = new Client(srv.port);
+  const password = 'Example-LocalPassword-2026!';
+  let sessionToken;
+  try {
+    const eve = await guest.create('Eve', 'symbiotech');
+    assert.equal(eve.t, 'welcome');
+    await owner.open();
+    owner.send({ t: 'account_register', handle: 'EveningPlayer', password });
+    const ready = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready'), 8000, 'new account roster');
+    assert.equal(ready.chars.length, 0);
+    sessionToken = ready.token;
+    assert.match(sessionToken, /^[0-9a-f]{64}$/);
+
+    owner.send({ t: 'account_claim_character', token: eve.token });
+    const linked = await owner.until(() => owner.msgs.find((m) => m.t === 'account_ready' && m.chars.some((c) => c.name === 'Eve')), 3000, 'legacy character linked');
+    const eveId = linked.chars[0].id;
+    await guest.until(() => guest.closed !== null, 3000, 'old bearer disconnected');
+    assert.equal(srv.store.authenticate(eve.token), null, 'old guest token revoked');
+    owner.send({ t: 'account_select', id: eveId });
+    const welcome = await owner.until(() => owner.msgs.find((m) => m.t === 'welcome' && m.charId === eveId), 3000, 'owned Eve enters world');
+    assert.ok(welcome.id > 0);
+
+    const rosterBefore = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
+    // The new roster is emitted when leaving the active character.
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > rosterBefore, 3000, 'character menu');
+    owner.send({ t: 'account_create_character', name: 'Rhea', cls: 'vanguard' });
+    const created = await owner.until(() => owner.msgs.some((m) => m.t === 'welcome' && m.charId !== eveId), 3000, 'second character');
+    assert.ok(created);
+    const rheaId = srv.store.byName.get('rhea').id;
+    const beforeLeave = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
+    await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > beforeLeave, 3000, 'return to roster');
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'WrongName' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_fail' && /not authorised/.test(m.reason)), 3000, 'unauthorized deletion refused');
+    assert.ok(srv.store.chars.has(rheaId));
+    owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'Rhea' });
+    await owner.until(() => !srv.store.chars.has(rheaId), 3000, 'authorized deletion');
+    assert.equal(srv.store.byName.has('rhea'), false);
+
+    await parallel.open();
+    parallel.send({ t: 'account_resume', token: sessionToken });
+    await parallel.until(() => parallel.msgs.some((m) => m.t === 'account_ready'), 3000, 'second socket using the session');
+    owner.send({ t: 'account_logout' });
+    await owner.until(() => owner.msgs.some((m) => m.t === 'account_logged_out'), 3000, 'logout acknowledgement');
+    assert.equal(srv.store.authenticateAccount(sessionToken), null, 'session revoked on logout');
+    await parallel.until(() => parallel.closed !== null, 3000, 'revoked open socket disconnected');
+  } finally {
+    guest.close();
+    owner.close();
+    parallel.close();
+    await srv.close();
+  }
+
+  const disk = fs.readFileSync(file, 'utf8');
+  assert.ok(!disk.includes(password), 'plaintext password never written to disk');
+  assert.ok(!disk.includes(sessionToken), 'account bearer token never written to disk');
+  srv = await startServer({ port: 0, dataFile: file });
+  const returning = new Client(srv.port);
+  const outsider = new Client(srv.port);
+  try {
+    await returning.open();
+    returning.send({ t: 'account_login', handle: 'EveningPlayer', password });
+    const ready = await returning.until(() => returning.msgs.find((m) => m.t === 'account_ready'), 8000, 'account login after restart');
+    assert.deepEqual(ready.chars.map((c) => c.name), ['Eve']);
+    const other = await outsider.create('OtherPlayer', 'vanguard');
+    assert.equal(other.t, 'welcome');
+    returning.send({ t: 'account_select', id: srv.store.byName.get('otherplayer').id });
+    await returning.until(() => returning.msgs.some((m) => m.t === 'account_fail' && /does not belong/.test(m.reason)), 3000, 'cannot select another owner character');
+  } finally {
+    returning.close();
+    outsider.close();
     await srv.close();
   }
 });

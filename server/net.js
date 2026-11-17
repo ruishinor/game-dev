@@ -5,6 +5,8 @@
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand } from './sim/companion.js';
 import { equipItem, unequipSlot, interact } from './sim/progress.js';
+import { inviteParty, answerParty, leaveParty } from './sim/party.js';
+import { renameCompanion } from './sim/companion.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -31,6 +33,9 @@ export class NetServer {
     this.conns = new Set();
     /** character id -> connection currently controlling it */
     this.sessions = new Map();
+    // Bounded, per-remote-address admission control for expensive password
+    // verification. Client-supplied proxy headers are never trusted.
+    this.accountAttempts = new Map();
     game.onCharChanged = () => store.markDirty();
     wss.on('connection', (ws) => this.onConnection(ws));
   }
@@ -44,6 +49,10 @@ export class NetServer {
       ws,
       player: null,
       char: null,
+      account: null,
+      accountToken: null,
+      authPending: false,
+      remote: ws._socket?.remoteAddress || 'unknown',
       known: new Map(),
       tokens: RATE_BURST,
       lastRefill: Date.now(),
@@ -77,6 +86,7 @@ export class NetServer {
     this.game.removePlayer(conn.player.id);
     if (this.sessions.get(conn.char.id) === conn) this.sessions.delete(conn.char.id);
     conn.player = null;
+    conn.char = null;
     this.store.markDirty();
   }
 
@@ -97,6 +107,7 @@ export class NetServer {
       t: 'welcome',
       v: PROTOCOL_VERSION,
       id: conn.player.id,
+      charId: char.id,
       comp: conn.player.companion ? conn.player.companion.id : 0,
       time: this.game.time,
       x: conn.player.x,
@@ -126,7 +137,8 @@ export class NetServer {
     }
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.t !== 'string') return this.strike(conn);
 
-    if (!conn.player) return this.onAuthMessage(conn, msg);
+    if (!this.validAccountSession(conn)) return;
+    if (!conn.player) return conn.account ? this.onAccountMessage(conn, msg) : this.onAuthMessage(conn, msg);
     try {
       this.onGameMessage(conn, conn.player, msg);
     } catch (err) {
@@ -134,15 +146,90 @@ export class NetServer {
     }
   }
 
+  /** Revoked/evicted account sessions must not retain access on an open socket. */
+  validAccountSession(conn) {
+    if (!conn.account || this.store.authenticateAccount(conn.accountToken) === conn.account) return true;
+    this.detach(conn);
+    conn.account = null;
+    conn.accountToken = null;
+    send(conn.ws, { t: 'account_fail', reason: 'The account session expired. Sign in again.' });
+    conn.ws.close(4000, 'account session expired');
+    return false;
+  }
+
   strike(conn) {
     conn.strikes += 10;
     if (conn.strikes > MAX_STRIKES) conn.ws.close(4002, 'malformed traffic');
   }
 
+  /** Limit password guesses and scrypt work even across new connections. */
+  allowAccountAttempt(remote) {
+    const now = Date.now();
+    const current = this.accountAttempts.get(remote);
+    const item = !current || now - current.start > 60000 ? { start: now, count: 0 } : current;
+    item.count++;
+    this.accountAttempts.set(remote, item);
+    if (this.accountAttempts.size > 512) {
+      for (const [key, v] of this.accountAttempts) if (now - v.start > 60000) this.accountAttempts.delete(key);
+      // A burst of distinct active addresses must not grow this table forever.
+      while (this.accountAttempts.size > 512) this.accountAttempts.delete(this.accountAttempts.keys().next().value);
+    }
+    return item.count <= 12;
+  }
+
+  sendRoster(conn, token) {
+    const msg = { t: 'account_ready', handle: conn.account.handle, chars: this.store.listCharacters(conn.account) };
+    if (token) msg.token = token;
+    send(conn.ws, msg);
+  }
+
+  async accountAuth(conn, msg) {
+    if (conn.authPending) return this.strike(conn);
+    if (!this.allowAccountAttempt(conn.remote)) {
+      send(conn.ws, { t: 'account_fail', reason: 'Too many attempts. Try again later.' });
+      return;
+    }
+    conn.authPending = true;
+    try {
+      const result = msg.t === 'account_register'
+        ? await this.store.registerAccount(msg.handle, msg.password)
+        : await this.store.loginAccount(msg.handle, msg.password);
+      if (conn.ws.readyState !== 1) return;
+      if (result.error) {
+        send(conn.ws, { t: 'account_fail', reason: result.error });
+        if (++conn.authFails >= 5) conn.ws.close(4000, 'too many attempts');
+        return;
+      }
+      clearTimeout(conn.authTimer);
+      conn.account = result.account;
+      conn.accountToken = result.token;
+      this.sendRoster(conn, result.token);
+    } catch (err) {
+      console.error('[net] account auth failed internally', err);
+      send(conn.ws, { t: 'account_fail', reason: 'Account authentication failed.' });
+    } finally {
+      conn.authPending = false;
+    }
+  }
+
   onAuthMessage(conn, msg) {
-    if (msg.t === 'resume') {
+    if (conn.authPending) return this.strike(conn);
+    if (msg.t === 'account_register' || msg.t === 'account_login') {
+      void this.accountAuth(conn, msg);
+    } else if (msg.t === 'account_resume') {
+      const account = this.store.authenticateAccount(msg.token);
+      if (!account) {
+        send(conn.ws, { t: 'account_fail', reason: 'The account session expired. Sign in again.' });
+        if (++conn.authFails >= 5) conn.ws.close(4000, 'too many attempts');
+        return;
+      }
+      conn.account = account;
+      conn.accountToken = msg.token;
+      clearTimeout(conn.authTimer);
+      this.sendRoster(conn);
+    } else if (msg.t === 'resume') {
       const char = this.store.authenticate(msg.token);
-      if (!char) {
+      if (!char || char.accountId) {
         send(conn.ws, { t: 'auth_fail', reason: 'That character could not be found.' });
         if (++conn.authFails >= 5) conn.ws.close(4000, 'too many attempts');
         return;
@@ -159,6 +246,54 @@ export class NetServer {
     } else {
       this.strike(conn);
     }
+  }
+
+  onAccountMessage(conn, msg) {
+    const account = conn.account;
+    if (msg.t === 'account_select') {
+      const char = typeof msg.id === 'string' ? this.store.chars.get(msg.id) : null;
+      if (!char || char.accountId !== account.id) {
+        send(conn.ws, { t: 'account_fail', reason: 'That character does not belong to this account.' });
+        return;
+      }
+      this.enter(conn, char, null);
+    } else if (msg.t === 'account_create_character') {
+      const res = this.store.createForAccount(account, msg.name, msg.cls, msg.look);
+      if (res.error) send(conn.ws, { t: 'create_fail', reason: res.error });
+      else this.enter(conn, res.char, null);
+    } else if (msg.t === 'account_claim_character') {
+      const res = this.store.claimLegacy(account, msg.token);
+      if (res.error) {
+        send(conn.ws, { t: 'account_fail', reason: res.error });
+        return;
+      }
+      const existing = this.sessions.get(res.char.id);
+      if (existing && existing !== conn) {
+        this.detach(existing);
+        existing.ws.close(4001, 'character linked to account');
+      }
+      this.sendRoster(conn);
+    } else if (msg.t === 'account_delete_character') {
+      const res = this.store.deleteOwned(account, msg.id, msg.confirmName);
+      if (res.error) {
+        send(conn.ws, { t: 'account_fail', reason: res.error });
+        return;
+      }
+      const existing = this.sessions.get(res.char.id);
+      if (existing && existing !== conn) {
+        this.detach(existing);
+        existing.ws.close(4001, 'character deleted');
+      }
+      this.sendRoster(conn);
+    } else if (msg.t === 'account_logout') {
+      this.store.revokeAccountSession(account, conn.accountToken);
+      conn.account = null;
+      conn.accountToken = null;
+      send(conn.ws, { t: 'account_logged_out' });
+      conn.ws.close(1000, 'signed out');
+    } else if (msg.t === 'ping' && isNum(msg.c)) {
+      send(conn.ws, { t: 'pong', c: msg.c });
+    } else this.strike(conn);
   }
 
   onGameMessage(conn, p, msg) {
@@ -201,6 +336,20 @@ export class NetServer {
       case 'pet':
         reply(petCommand(game, p, msg.c));
         break;
+      case 'pet_rename':
+        reply(renameCompanion(game, p, msg.name));
+        break;
+      case 'party_invite':
+        if (!isId(msg.id)) return this.strike(conn);
+        reply(inviteParty(game, p, msg.id));
+        break;
+      case 'party_answer':
+        if (typeof msg.accept !== 'boolean') return this.strike(conn);
+        reply(answerParty(game, p, msg.accept));
+        break;
+      case 'party_leave':
+        reply(leaveParty(game, p));
+        break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;
@@ -213,6 +362,20 @@ export class NetServer {
         break;
       case 'respawn':
         game.respawn(p);
+        break;
+      case 'account_leave':
+        if (!conn.account) return reply({ ok: false, reason: 'Link this character to an account first.' });
+        this.detach(conn);
+        this.sendRoster(conn);
+        break;
+      case 'account_logout':
+        if (!conn.account) return reply({ ok: false, reason: 'No account is signed in.' });
+        this.detach(conn);
+        this.store.revokeAccountSession(conn.account, conn.accountToken);
+        conn.account = null;
+        conn.accountToken = null;
+        send(conn.ws, { t: 'account_logged_out' });
+        conn.ws.close(1000, 'signed out');
         break;
       case 'chat': {
         if (typeof msg.m !== 'string') return this.strike(conn);
@@ -241,8 +404,9 @@ export class NetServer {
     const evJson = JSON.stringify(game.events);
     const liveIds = new Set(rows.map((row) => row.i));
     for (const conn of this.conns) {
+      if (conn.ws.readyState !== 1 || !this.validAccountSession(conn)) continue;
       const p = conn.player;
-      if (!p || conn.ws.readyState !== 1) continue;
+      if (!p) continue;
       // Skip a snapshot rather than queue without bound for a stalled client.
       if (conn.ws.bufferedAmount > 512 * 1024) continue;
       // Clients discard entities omitted from a snapshot (e.g. expired corpses).

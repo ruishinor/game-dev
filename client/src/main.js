@@ -118,7 +118,26 @@ const local = {
 const net = new Net({
   onWelcome,
   onSnapshot,
-  onAuthFail: (reason) => showLogin(reason ? `${reason} Create a new character below.` : ''),
+  onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
+  onAccountReady: showRoster,
+  onAccountFail: (reason) => {
+    const el = net.accountLogged && !$('character-roster').hidden ? $('roster-error') : $('account-error');
+    el.textContent = reason;
+    if (!net.accountToken && /session expired/i.test(reason)) {
+      clearWorld();
+      S.myId = 0;
+      input.enabled = false;
+      $('status').hidden = true;
+      showAccountLogin(reason);
+    }
+  },
+  onAccountLoggedOut: () => {
+    clearWorld();
+    S.myId = 0;
+    input.enabled = false;
+    $('hud').hidden = true;
+    showAccountLogin('Signed out.');
+  },
   onCreateFail: (reason) => {
     $('login-error').textContent = reason;
     $('enter').disabled = false;
@@ -138,6 +157,16 @@ const net = new Net({
 const ui = new UI({
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
+  petRename: (name) => net.send({ t: 'pet_rename', name }),
+  partyInvite: (id) => net.send({ t: 'party_invite', id }),
+  partyAnswer: (accept) => net.send({ t: 'party_answer', accept }),
+  partyLeave: () => net.send({ t: 'party_leave' }),
+  quality: (preset) => {
+    if (!['0', '1', '2'].includes(preset)) return;
+    const next = new URL(location.href);
+    next.searchParams.set('q', preset);
+    location.assign(next.toString());
+  },
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   inspectCompanion: (id, point) => {
     S.inspect = S.inspect?.id === id ? null : { id, x: point.x, y: point.y };
@@ -148,6 +177,9 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m) => net.send({ t: 'chat', m }),
+  characters: () => openCharacterMenu(),
+  signOut: () => net.signOut(),
+  copyRecoveryKey: () => copyGuestRecoveryKey(),
   forget: () => {
     saveToken(null);
     location.reload();
@@ -221,24 +253,157 @@ function buildLogin() {
   });
 }
 
-function showLogin(message) {
+function showAccountLogin(message = '') {
   $('login').hidden = false;
-  $('login-form').hidden = false;
+  $('hud').hidden = true;
+  $('account-auth').hidden = false;
+  $('character-roster').hidden = true;
+  $('guest-note').hidden = false;
+  $('saved-guest').hidden = !net.token;
+  // Do not offer to overwrite the local guest key with a new character.
+  $('login-form').hidden = !!net.token;
   $('resuming').hidden = true;
-  $('login-error').textContent = message || '';
+  $('account-error').textContent = message;
+  $('login-error').textContent = '';
+  $('enter').textContent = 'Enter as guest';
   $('enter').disabled = false;
 }
 
+function showRoster(m) {
+  input.enabled = false;
+  $('login').hidden = false;
+  $('hud').hidden = true;
+  $('resuming').hidden = true;
+  $('account-auth').hidden = true;
+  $('guest-note').hidden = true;
+  $('character-roster').hidden = false;
+  $('login-form').hidden = false;
+  $('enter').textContent = 'Create character';
+  $('enter').disabled = false;
+  $('roster-error').textContent = '';
+  $('login-error').textContent = '';
+  $('roster-title').textContent = `${m.handle}'s characters`;
+  $('link-legacy').hidden = !net.token;
+
+  const rows = $('roster-list');
+  rows.replaceChildren();
+  if (!m.chars.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'No characters yet. Create one below or link a previous guest character.';
+    rows.append(empty);
+  }
+  for (const c of m.chars) {
+    const row = document.createElement('div');
+    row.className = 'roster-row';
+    const info = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = c.name;
+    const detail = document.createElement('div');
+    detail.className = 'muted';
+    detail.textContent = `Level ${c.level} · ${CLASSES[c.cls]?.name || c.cls}`;
+    info.append(name, detail);
+    const actions = document.createElement('div');
+    actions.className = 'roster-actions';
+    const play = document.createElement('button');
+    play.textContent = 'Play';
+    play.addEventListener('click', () => net.selectCharacter(c.id));
+    const remove = document.createElement('button');
+    remove.className = 'remove';
+    remove.textContent = 'Delete';
+    remove.title = 'Permanent. Requires a second click.';
+    remove.addEventListener('click', () => {
+      if (remove.dataset.confirm === '1') net.deleteCharacter(c.id, c.name);
+      else {
+        remove.dataset.confirm = '1';
+        remove.textContent = 'Confirm delete';
+      }
+    });
+    actions.append(play, remove);
+    row.append(info, actions);
+    rows.append(row);
+  }
+}
+
+function buildAccountUI() {
+  $('account-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('account-error').textContent = '';
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, false);
+  });
+  $('account-register').addEventListener('click', () => {
+    $('account-error').textContent = '';
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
+  });
+  $('account-signout').addEventListener('click', () => net.signOut());
+  $('resume-saved-guest').addEventListener('click', () => {
+    if (net.token) net.resumeGuest(net.token);
+  });
+  $('copy-saved-guest').addEventListener('click', async () => {
+    if (!net.token) return;
+    try {
+      await navigator.clipboard.writeText(net.token);
+      $('guest-error').textContent = 'Recovery key copied. Keep it private.';
+    } catch {
+      window.prompt('Copy your private guest recovery key:', net.token);
+    }
+  });
+  $('resume-guest-key').addEventListener('click', () => {
+    const token = $('guest-resume-key').value.trim();
+    if (net.token && token !== net.token) {
+      $('guest-error').textContent = 'A guest is already saved here. Back up its recovery key first and use another browser slot for the imported guest.';
+      return;
+    }
+    if (!net.resumeGuest(token)) $('guest-error').textContent = 'Enter a valid 64-character recovery key.';
+    else { $('guest-resume-key').value = ''; $('guest-error').textContent = ''; }
+  });
+  $('link-legacy').addEventListener('click', () => {
+    if (net.token) net.claimLegacy(net.token);
+  });
+  $('import-legacy').addEventListener('click', () => {
+    const token = $('recovery-token').value.trim();
+    if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
+    else $('recovery-token').value = '';
+  });
+}
+
+function openCharacterMenu() {
+  net.leaveWorld();
+  clearWorld();
+  S.myId = 0;
+  input.enabled = false;
+  $('hud').hidden = true;
+  if (net.accountLogged) {
+    $('login').hidden = false;
+    $('account-auth').hidden = true;
+    $('login-form').hidden = true;
+    $('character-roster').hidden = true;
+    $('resuming').hidden = false;
+    $('resuming').textContent = 'Loading your characters…';
+  } else showAccountLogin('Your guest is saved. Return to it below, or create an account and link it.');
+}
+
+async function copyGuestRecoveryKey() {
+  if (!net.token) return ui.error('This character is already linked or has no guest key.');
+  try {
+    await navigator.clipboard.writeText(net.token);
+    ui.toast('Recovery key copied. Keep it private.', 'gain');
+  } catch {
+    window.prompt('Copy your private recovery key. Anyone with it can access this guest character:', net.token);
+  }
+}
+
 buildLogin();
-$('enter').textContent = 'Enter the Reach';
+buildAccountUI();
+$('enter').textContent = 'Enter as guest';
 $('enter').disabled = false;
-if (net.token) {
+if (net.accountToken || net.token) {
   $('login-form').hidden = true;
+  $('account-auth').hidden = true;
+  $('guest-note').hidden = true;
   $('resuming').hidden = false;
   net.connect();
-} else {
-  showLogin('');
-}
+} else showAccountLogin('');
 
 // --- entities ----------------------------------------------------------------
 
@@ -280,6 +445,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  fx.clearRoot(ent.id);
   scene.remove(ent.holder);
   if (ent.model.dispose) ent.model.dispose();
   else {
@@ -319,6 +485,7 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   $('login').hidden = true;
   $('hud').hidden = false;
+  ui.setAccountLinked(net.accountLogged);
   input.enabled = true;
   canvas.focus();
   if (!onWelcome.greeted) {
@@ -422,9 +589,19 @@ function onEvent(e) {
       }
       if (s) {
         s.attack = 1;
+        // A strike needs to face its victim even if the server's movement
+        // yaw has not yet changed. This is presentation-only, for a brief
+        // stationary attack pose; it never changes server aiming or damage.
+        if (d && (s.meta.k === 'p' || s.meta.k === 'e')) {
+          s.faceTo = d.id;
+          s.faceUntil = now + 500;
+        }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
       }
+      // Melee already has a burst above. Make bolt impacts readable too,
+      // without doubling particles or changing combat damage.
+      if (d && e.k === 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
       break;
@@ -669,7 +846,7 @@ input.onAction = (code, e) => {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
-      const mode = ['triage', 'guard', 'assist'][i];
+      const mode = ['triage', 'guard', 'assist', 'follow'][i];
       if (mode && def.companion) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
@@ -699,6 +876,18 @@ input.onAction = (code, e) => {
     case 'KeyC':
     case 'KeyB':
       ui.toggleBuild();
+      break;
+    case 'KeyI':
+      ui.toggleInventory();
+      break;
+    case 'KeyP':
+      ui.toggleParty();
+      break;
+    case 'KeyO':
+      ui.toggleSettings();
+      break;
+    case 'KeyM':
+      ui.toggleMenu();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -856,7 +1045,14 @@ function updateEntities(dt, t, now) {
     ent.jy = j;
     ent.placed = true;
     ent.holder.position.set(x, y, z);
-    ent.holder.rotation.y = yaw;
+    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5
+      ? S.ents.get(ent.faceTo) : null;
+    const faceYaw = facingTarget && facingTarget.placed
+      ? Math.atan2(facingTarget.pos.x - x, facingTarget.pos.z - z) : yaw;
+    // Smooth presentation yaw separately from the authoritative movement yaw.
+    ent.displayYaw = ent.displayYaw === undefined ? faceYaw
+      : lerpAngle(ent.displayYaw, faceYaw, Math.min(1, dt * 13));
+    ent.holder.rotation.y = ent.displayYaw;
     ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);
     ent.head.set(x, y + ent.model.height * (ent.model.hover ? 0.6 : 1) + 0.3, z);
     ent.attack = Math.max(0, ent.attack - dt * 3.2);
@@ -870,6 +1066,7 @@ function updateEntities(dt, t, now) {
     // The low preset also stops drawing characters far across the valley.
     ent.inView = frustum.intersectsSphere(cullSphere) && (quality > 0 || ent.id === S.myId || camera.position.distanceToSquared(cullSphere.center) < 80 * 80);
     ent.holder.visible = ent.inView;
+    if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
     ent.model.update(dt, {
       t,
       speed: ent.speed,

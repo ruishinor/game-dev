@@ -9,6 +9,7 @@ import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { checkDirective } from './progress.js';
+import { partyState, removePartyPlayer } from './party.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
 export const CORPSE_MS = 12000;
@@ -27,6 +28,8 @@ export class Game {
     this.enemies = [];
     this.companions = [];
     this.objects = [];
+    this.parties = new Map();
+    this.nextPartyId = 1;
     this.events = [];
     /** Called with a character record whenever persistent state changes. */
     this.onCharChanged = () => {};
@@ -94,6 +97,8 @@ export class Game {
       sheetDirty: true,
       metaVer: 1,
       companion: null,
+      partyId: 0,
+      partyInvite: null,
     };
     this.players.set(p.id, p);
     this.ents.set(p.id, p);
@@ -104,7 +109,7 @@ export class Game {
         id: this.nextId++,
         kind: 'companion',
         type: def.companion,
-        name: cdef.name,
+        name: char.petName || cdef.name,
         owner: p.id,
         x: p.x + 1.5,
         z: p.z - 1.5,
@@ -130,6 +135,7 @@ export class Game {
     const p = this.players.get(id);
     if (!p) return;
     this.syncChar(p);
+    removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
     if (p.companion) {
       this.companions = this.companions.filter((c) => c !== p.companion);
@@ -144,7 +150,10 @@ export class Game {
   syncChar(p) {
     p.char.pos = { x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
-    if (p.companion) p.char.petMode = p.companion.mode;
+    if (p.companion) {
+      p.char.petMode = p.companion.mode;
+      p.char.petName = p.companion.name;
+    }
   }
 
   markDirty(p) {
@@ -315,6 +324,7 @@ export class Game {
       auto: p.autoOn ? 1 : 0,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
+      party: partyState(this, p),
     };
     if (p.dead) y.dead = Math.max(0, Math.round(RESPAWN_DELAY_MS - (this.time - p.deadAt)));
     return y;

@@ -4,6 +4,7 @@
 
 const slot = new URLSearchParams(location.search).get('slot') || '1';
 const TOKEN_KEY = `attunement.token.${slot.replace(/[^\w-]/g, '').slice(0, 16) || '1'}`;
+const ACCOUNT_KEY = 'attunement.account.session';
 
 export function loadToken() {
   try {
@@ -22,6 +23,19 @@ export function saveToken(t) {
   }
 }
 
+export function loadAccountToken() {
+  try {
+    const t = localStorage.getItem(ACCOUNT_KEY);
+    return t && /^[0-9a-f]{64}$/.test(t) ? t : null;
+  } catch { return null; }
+}
+export function saveAccountToken(token) {
+  try {
+    if (token) localStorage.setItem(ACCOUNT_KEY, token);
+    else localStorage.removeItem(ACCOUNT_KEY);
+  } catch { /* Private-window storage can be disabled. */ }
+}
+
 export class Net {
   /**
    * @param {object} h handlers: onWelcome, onSnapshot, onAuthFail,
@@ -31,6 +45,13 @@ export class Net {
     this.h = h;
     this.ws = null;
     this.token = loadToken();
+    this.accountToken = loadAccountToken();
+    this.accountLogged = false;
+    this.pendingAccount = null;
+    this.pendingClaim = false;
+    this.pendingGuest = null;
+    this.logoutPending = false;
+    this.activeCharacterId = null;
     this.pendingCreate = null;
     this.entered = false;
     this.closedForGood = false;
@@ -49,14 +70,19 @@ export class Net {
   /** Open a socket and authenticate with the token or a pending creation. */
   connect() {
     clearTimeout(this.retry);
-    if (this.closedForGood) return;
+    if (this.closedForGood || this.ws) return;
     const ws = new WebSocket(this.url());
     this.ws = ws;
     ws.onopen = () => {
-      if (this.pendingCreate) this.send({ t: 'create', ...this.pendingCreate });
+      if (this.ws !== ws) return;
+      if (this.pendingGuest) this.send({ t: 'resume', token: this.pendingGuest });
+      else if (this.pendingAccount) this.send(this.pendingAccount);
+      else if (this.accountToken) this.send({ t: 'account_resume', token: this.accountToken });
+      else if (this.pendingCreate) this.send({ t: 'create', ...this.pendingCreate });
       else if (this.token) this.send({ t: 'resume', token: this.token });
     };
     ws.onmessage = (ev) => {
+      if (this.ws !== ws) return;
       let m;
       try {
         m = JSON.parse(ev.data);
@@ -68,18 +94,56 @@ export class Net {
           this.h.onSnapshot(m);
           break;
         case 'welcome':
-          if (m.token) {
-            this.token = m.token;
-            saveToken(m.token);
+          this.activeCharacterId = this.accountLogged ? (m.charId || null) : null;
+          if (m.token || this.pendingGuest) {
+            this.token = m.token || this.pendingGuest;
+            saveToken(this.token);
           }
+          this.pendingGuest = null;
           this.pendingCreate = null;
           this.entered = true;
           this.h.onStatus(null);
           this.h.onWelcome(m);
           break;
+        case 'account_ready':
+          if (m.token) {
+            this.accountToken = m.token;
+            saveAccountToken(m.token);
+          }
+          this.accountLogged = true;
+          this.pendingAccount = null;
+          this.entered = false;
+          this.h.onStatus(null);
+          if (this.pendingClaim) {
+            this.pendingClaim = false;
+            this.token = null;
+            saveToken(null);
+          }
+          if (this.activeCharacterId) this.send({ t: 'account_select', id: this.activeCharacterId });
+          else this.h.onAccountReady(m);
+          break;
+        case 'account_fail':
+          this.pendingAccount = null;
+          this.pendingClaim = false;
+          if (/session expired/i.test(m.reason || '')) {
+            this.accountToken = null;
+            this.accountLogged = false;
+            this.activeCharacterId = null;
+            this.entered = false;
+            saveAccountToken(null);
+          }
+          this.h.onAccountFail(m.reason);
+          break;
+        case 'account_logged_out':
+          this.finishSignOut();
+          break;
         case 'auth_fail':
-          this.token = null;
-          saveToken(null);
+          // A mistyped recovery key must not erase a different valid saved guest.
+          if (!this.pendingGuest || this.pendingGuest === this.token) {
+            this.token = null;
+            saveToken(null);
+          }
+          this.pendingGuest = null;
           this.entered = false;
           this.h.onAuthFail(m.reason);
           break;
@@ -97,12 +161,16 @@ export class Net {
     ws.onclose = (ev) => {
       if (this.ws !== ws) return;
       this.ws = null;
+      if (this.logoutPending) {
+        this.finishSignOut();
+        return;
+      }
       if (ev.code === 4001) {
         this.closedForGood = true;
         this.h.onReplaced();
         return;
       }
-      if (this.entered || this.pendingCreate) {
+      if (this.entered || this.pendingCreate || this.accountToken) {
         const why = ev.code === 4002 ? 'Disconnected for sending too much traffic.' : ev.code === 4003 ? 'The world is full.' : 'Connection lost.';
         this.h.onStatus(`${why} Reconnecting…`);
         this.retry = setTimeout(() => this.connect(), 2000);
@@ -112,9 +180,76 @@ export class Net {
   }
 
   create(name, cls, look) {
+    if (this.accountLogged) {
+      this.send({ t: 'account_create_character', name, cls, look });
+      return;
+    }
     this.pendingCreate = { name, cls, look };
     if (this.ws && this.ws.readyState === 1) this.send({ t: 'create', name, cls, look });
     else if (!this.ws) this.connect();
+  }
+
+  resumeGuest(token) {
+    if (this.accountLogged || !/^[0-9a-f]{64}$/.test(token || '')) return false;
+    this.pendingAccount = null;
+    this.pendingCreate = null;
+    this.pendingGuest = token;
+    const old = this.ws;
+    this.ws = null;
+    if (old) old.close(1000, 'guest recovery');
+    this.connect();
+    return true;
+  }
+
+  accountAuth(handle, password, register = false) {
+    this.pendingGuest = null;
+    this.pendingAccount = { t: register ? 'account_register' : 'account_login', handle, password };
+    if (this.ws && this.ws.readyState === 1) this.send(this.pendingAccount);
+    else this.connect();
+  }
+
+  selectCharacter(id) { this.send({ t: 'account_select', id }); }
+  deleteCharacter(id, confirmName) { this.send({ t: 'account_delete_character', id, confirmName }); }
+  claimLegacy(token) {
+    if (!this.accountLogged || !/^[0-9a-f]{64}$/.test(token)) return false;
+    this.pendingClaim = token === this.token;
+    this.send({ t: 'account_claim_character', token });
+    return true;
+  }
+
+  leaveWorld() {
+    this.activeCharacterId = null;
+    this.entered = false;
+    if (this.accountLogged) this.send({ t: 'account_leave' });
+    else {
+      const ws = this.ws;
+      this.ws = null;
+      if (ws) ws.close(1000, 'character selection');
+    }
+  }
+
+  signOut() {
+    if (this.accountLogged && this.ws?.readyState === 1) {
+      // Let the server revoke the bearer session before closing the socket.
+      this.logoutPending = true;
+      this.send({ t: 'account_logout' });
+      return;
+    }
+    this.finishSignOut();
+  }
+
+  finishSignOut() {
+    this.logoutPending = false;
+    this.accountLogged = false;
+    this.entered = false;
+    this.activeCharacterId = null;
+    this.pendingAccount = null;
+    this.accountToken = null;
+    saveAccountToken(null);
+    const ws = this.ws;
+    this.ws = null;
+    if (ws) ws.close(1000, 'signed out');
+    this.h.onAccountLoggedOut();
   }
 
   send(obj) {

@@ -4,7 +4,7 @@
 //   guard  — bonds to one ally: regeneration + damage reduction
 //   assist — harries the owner's target and makes it take more damage
 
-import { COMPANIONS, GLYPH } from '../../shared/content.js';
+import { COMPANIONS, GLYPH, validCompanionName } from '../../shared/content.js';
 import { dist } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage } from './combat.js';
 
@@ -97,6 +97,13 @@ export function tickCompanion(game, c, dt) {
     return;
   }
 
+  if (c.mode === 'follow') {
+    c.act = 'idle';
+    c.actTarget = 0;
+    followOwner(c, owner, def, step);
+    return;
+  }
+
   if (c.mode === 'assist') {
     const t = game.ents.get(owner.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || dist(t, owner) > def.leash) {
@@ -158,6 +165,19 @@ export function tickCompanion(game, c, dt) {
  * Change the companion's mode at its owner's request. `guard` bonds to the
  * owner's friendly target when valid, otherwise to the owner.
  */
+/** Rename only the owner's companion. Metadata propagates to every client. */
+export function renameCompanion(game, p, name) {
+  if (!p.companion) return { ok: false, reason: 'You have no companion.' };
+  if (!validCompanionName(name)) return { ok: false, reason: 'Companion names must be 3–18 letters with internal spaces or hyphens.' };
+  if (p.dead || game.time < p.combatUntil) return { ok: false, reason: 'Rename your companion outside combat.' };
+  if (p.companion.name === name) return { ok: true };
+  p.companion.name = name;
+  p.companion.metaVer += 1;
+  p.char.petName = name;
+  game.markDirty(p);
+  return { ok: true };
+}
+
 export function petCommand(game, p, cmd) {
   const c = p.companion;
   if (!c) return { ok: false, reason: 'You have no companion.' };

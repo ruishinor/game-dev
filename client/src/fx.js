@@ -10,6 +10,17 @@ const RING = new THREE.RingGeometry(0.86, 1, 48);
 const DISC = new THREE.CircleGeometry(1, 48);
 const UP = new THREE.Vector3(0, 1, 0);
 
+// Shared, bent organic filaments placed around a rooted enemy's feet.
+// Built once; individual enemies only receive a small instance group.
+const ROOT_VINES = Array.from({ length: 4 }, (_, i) => {
+  const angle = i * Math.PI / 2;
+  const pt = (r, y, a) => new THREE.Vector3(Math.sin(angle + a) * r, y, Math.cos(angle + a) * r);
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+    pt(0.98, 0.045, -0.32), pt(0.7, 0.16, -0.09),
+    pt(0.46, 0.47, 0.22), pt(0.59, 0.83, 0.55),
+  ]), 12, 0.045, 6, false);
+});
+
 const additive = (color, opacity = 1) =>
   new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
 
@@ -17,11 +28,38 @@ export class Fx {
   constructor(scene) {
     this.scene = scene;
     this.items = [];
+    this.roots = new Map();
+    this.rootMaterial = new THREE.MeshStandardMaterial({ color: 0x377b48, emissive: 0x234326, emissiveIntensity: 0.65, roughness: 0.88 });
   }
 
   add(obj, life, tick) {
     this.scene.add(obj);
     this.items.push({ obj, life, age: 0, tick });
+  }
+
+  /** Reflect authoritative Rooted buff state for its entire lifetime. */
+  setRooted(id, x, z, radius, active) {
+    let g = this.roots.get(id);
+    if (!active) {
+      if (g) this.clearRoot(id);
+      return;
+    }
+    if (!g) {
+      g = new THREE.Group();
+      for (const geometry of ROOT_VINES) g.add(new THREE.Mesh(geometry, this.rootMaterial));
+      this.scene.add(g);
+      this.roots.set(id, g);
+    }
+    const size = Math.max(0.8, radius * 1.5);
+    g.scale.setScalar(size);
+    g.position.set(x, groundHeight(x, z) + 0.04, z);
+  }
+
+  clearRoot(id) {
+    const g = this.roots.get(id);
+    if (!g) return;
+    this.scene.remove(g);
+    this.roots.delete(id);
   }
 
   /** A fast projectile between two moving points (functions returning Vector3). */
