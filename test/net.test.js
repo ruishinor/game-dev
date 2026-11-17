@@ -468,16 +468,16 @@ test('accounts: ownership, guest recovery, roster deletion and sign-in survive r
     const welcome = await owner.until(() => owner.msgs.find((m) => m.t === 'welcome' && m.charId === eveId), 3000, 'owned Eve enters world');
     assert.ok(welcome.id > 0);
 
-    owner.send({ t: 'account_leave' });
     const rosterBefore = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
     // The new roster is emitted when leaving the active character.
     await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > rosterBefore, 3000, 'character menu');
     owner.send({ t: 'account_create_character', name: 'Rhea', cls: 'vanguard' });
     const created = await owner.until(() => owner.msgs.some((m) => m.t === 'welcome' && m.charId !== eveId), 3000, 'second character');
     assert.ok(created);
     const rheaId = srv.store.byName.get('rhea').id;
-    owner.send({ t: 'account_leave' });
     const beforeLeave = owner.msgs.filter((m) => m.t === 'account_ready').length;
+    owner.send({ t: 'account_leave' });
     await owner.until(() => owner.msgs.filter((m) => m.t === 'account_ready').length > beforeLeave, 3000, 'return to roster');
     owner.send({ t: 'account_delete_character', id: rheaId, confirmName: 'WrongName' });
     await owner.until(() => owner.msgs.some((m) => m.t === 'account_fail' && /not authorised/.test(m.reason)), 3000, 'unauthorized deletion refused');
