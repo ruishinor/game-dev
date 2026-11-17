@@ -199,6 +199,19 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await a.until(() => a.ent(wb.id) && b.ent(wa.id), 3000, 'mutual visibility');
     assert.ok(a.sheet && a.sheet.name === 'Brakka');
 
+    // Focused live-party and companion identity checks in the existing
+    // two-player integration test. Neither changes XP or encounter rules.
+    b.send({ t: 'pet_rename', name: 'Tender' });
+    await a.until(() => a.meta.get(wb.comp)?.n === 'Tender', 3000, 'companion name seen by ally');
+    assert.equal(srv.game.players.get(wb.id).char.petName, 'Tender');
+    b.send({ t: 'party_invite', id: wa.id });
+    await a.until(() => a.snap?.y?.party?.invite?.name === 'Lumen', 3000, 'party invitation');
+    a.send({ t: 'party_answer', accept: true });
+    await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'party formed');
+    assert.equal(a.snap.y.party.members.length, 2);
+    a.send({ t: 'party_leave' });
+    await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
+
     // Movement: A walks forward; B observes A's authoritative position change.
     const startZ = b.ent(wa.id).z;
     let seq = 0;
