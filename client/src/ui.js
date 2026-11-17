@@ -832,7 +832,7 @@ export class UI {
     // Top-down with north (-Z) up and east (+X) to the right.
     const X = (x) => x * k;
     const Z = (z) => z * k;
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497' };
+    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();

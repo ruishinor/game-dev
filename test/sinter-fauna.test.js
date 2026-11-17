@@ -8,7 +8,7 @@ import { dist, resolveCollisions, ZONES } from '../shared/world.js';
 
 test('Sinter circuits move continuously, stay in the biome and avoid colliders', () => {
   const game = makeGame();
-  const fauna = game.enemies.filter(e => e.route);
+  const fauna = game.enemies.filter(e => e.type === 'sinter_grazer' || e.type === 'faultstalker');
   assert.equal(fauna.length, 4);
   const initial = fauna.map(e => ({ x:e.x, z:e.z }));
   const visited = fauna.map(() => new Set());

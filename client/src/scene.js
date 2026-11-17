@@ -2,7 +2,7 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32 } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
@@ -75,6 +75,7 @@ function groundColor(x, z, out) {
   blend(ZONES.sanctum, 15, 0x4d6670, 0x5f7c86);
   blend(ZONES.survey, 20, 0x645043, 0x9b7962);
   blend(ZONES.sinter, 19, 0x827769, 0xbab09a);
+  blend(ZONES.deep, 19, 0x484b48, 0x78796e);
   const edge = smooth((Math.hypot(x, z) - (WORLD.radius - 12)) / 9);
   if (edge > 0) out.lerp(tmpB.setHex(0x2c2b36).lerp(tmpA.setHex(0x45434f), n), edge);
   return out;
@@ -236,7 +237,78 @@ function jitteredRock(seed) {
 }
 const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
+// A roofed laboratory rather than a surface ruin. Floor, ducts and
+// lights share a bounded static kit; the walkable height stays authoritative.
+function buildDeepArchitecture(scene) {
+  const g = new THREE.Group();
+  g.name = 'kestrel:architecture';
+  const concrete = mat(0x585950, { rough: 0.94 });
+  const steel = mat(0x3b4647, { metal: 0.52, rough: 0.6 });
+  const plate = mat(0x626660, { metal: 0.18, rough: 0.79 });
+  const seam = mat(0x222c2c, { rough: 0.85 });
+  const ochre = mat(0x927447, { rough: 0.8, metal: 0.18 });
+  const ceiling = scaled(G.box, concrete, DEEP.hw * 2, DEEP.roofTop - DEEP.roofBottom, DEEP.hd * 2,
+    DEEP.x, (DEEP.roofBottom + DEEP.roofTop) / 2, DEEP.z, true);
+  ceiling.name = 'kestrel:roof';
+  g.add(ceiling);
+  // Long industrial slabs and recessed seams: no holes in the walkable deck.
+  g.add(scaled(G.box, plate, 13.2, 0.065, 11.8, DEEP.x, DEEP.floor + 0.035, DEEP.z, false));
+  for (let x = -63; x <= -51; x += 2) {
+    g.add(scaled(G.box, seam, 0.045, 0.02, 11.5, x, DEEP.floor + 0.08, DEEP.z, false));
+    g.add(scaled(G.box, steel, 0.28, 0.31, 12.5, x, DEEP.roofBottom - 0.16, DEEP.z));
+  }
+  for (const side of [-1,1]) {
+    const z = DEEP.z + side * 5.65;
+    g.add(scaled(G.box, ochre, 12.7, 0.015, 0.12, DEEP.x, DEEP.floor + 0.08, z, false));
+    // Wall-hugging insulated pipes stay outside usable floor space.
+    for (let i=0; i<2; i++) {
+      const pipe = scaled(G.cyl8, i ? steel : ochre, 0.14, 12.5, 0.14, DEEP.x, DEEP.floor + 3.25 + i * 0.35, DEEP.z + side * 6.0);
+      pipe.rotation.z = Math.PI / 2;
+      g.add(pipe);
+    }
+    g.add(scaled(G.box, steel, 12, 0.14, 0.28, DEEP.x, DEEP.roofBottom - 0.42, DEEP.z + side * 3.7));
+    for (const x of [-61,-55]) {
+      g.add(scaled(G.box, glow(0xd5d4a2), 2.6, 0.035, 0.16, x, DEEP.roofBottom - 0.5, DEEP.z + side * 3.7, false));
+    }
+  }
+  // Open portal fascia, no doorway collision across the aisle.
+  g.add(scaled(G.box, ochre, 0.16, 0.42, 12.7, DEEP.x + DEEP.hw - 0.1, DEEP.roofBottom - 0.18, DEEP.z));
+  const lamp = new THREE.PointLight(0xffddb2, 75, 13, 2);
+  lamp.position.set(DEEP.x, DEEP.roofBottom - 0.92, DEEP.z);
+  lamp.name = 'kestrel:worklight';
+  g.add(lamp);
+  scene.add(g);
+}
+
 const procedural = {
+  deep_wall(p) {
+    const g = new THREE.Group();
+    const concrete = mat(0x525750, { rough: 0.94 });
+    const rail = mat(0x333e40, { metal: 0.38, rough: 0.75 });
+    const longX = p.hw > p.hd;
+    g.add(scaled(G.box, concrete, p.hw * 2, p.h, p.hd * 2, 0, p.h / 2, 0));
+    for (const along of [-0.65,0,0.65]) {
+      g.add(scaled(G.box, rail, longX ? 0.22 : p.hw * 2 + 0.12, p.h, longX ? p.hd * 2 + 0.12 : 0.22,
+        longX ? along * p.hw : 0, p.h / 2, longX ? 0 : along * p.hd));
+    }
+    return g;
+  },
+  deep_vessel(p) {
+    const g = new THREE.Group();
+    g.name = 'kestrel:vessel:' + p.seed;
+    const shell = mat(0x78817a, { metal: 0.38, rough: 0.67 });
+    const clamp = mat(0x353e3c, { metal: 0.55, rough: 0.57 });
+    const window = mat(0x718b7a, { metal: 0.05, rough: 0.35, emissive: 0x162b21 });
+    g.add(scaled(G.cyl8, clamp, 2.0, 0.24, 2.0, 0, 0.12, 0));
+    g.add(scaled(G.cyl8, shell, 1.8, p.h - 0.5, 1.8, 0, p.h / 2, 0));
+    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 1.98, 0.18, 1.98, 0, y, 0));
+    g.add(scaled(G.cyl8, clamp, 1.1, 0.2, 1.1, 0, p.h-0.1, 0));
+    for (const side of [-1,1]) g.add(scaled(G.box, clamp, 0.13, p.h-0.64, 0.14, side*0.62, p.h/2, 0.64));
+    g.add(scaled(G.box, clamp, 0.72, 0.91, 0.15, 0, p.h*0.58, 0.8));
+    g.add(scaled(G.box, window, 0.52, 0.65, 0.045, 0, p.h*0.58, 0.89, false));
+    for(let i=0;i<3;i++) g.add(scaled(G.box, shell, 0.43, 0.035, 0.015, 0, p.h*0.58-0.18+i*0.18, 0.922, false));
+    return g;
+  },
   // Wind-cut, laminated mineral fins: broad bases, fractured edges, no emission.
   sinter_ridge(p) {
     const g = new THREE.Group();
@@ -906,7 +978,7 @@ function buildVegetation(c, detail) {
     const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18)) return null;
+    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18) || inRange(x, z, ZONES.deep, 20)) return null;
     return [x, z];
   };
   const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
@@ -996,7 +1068,7 @@ function buildProceduralDecor(scene) {
     const r = Math.sqrt(rnd()) * (WORLD.radius - 8);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18)) continue;
+    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17) || inRange(x, z, ZONES.sinter, 18) || inRange(x, z, ZONES.deep, 20)) continue;
     const s = 0.7 + rnd() * 1.4;
     dummy.position.set(x, groundHeight(x, z) + 0.22 * s, z);
     dummy.rotation.set((rnd() - 0.5) * 0.4, rnd() * 6, (rnd() - 0.5) * 0.4);
@@ -1130,7 +1202,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' || p.type.startsWith('sinter_') ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' || p.type.startsWith('sinter_') || p.type.startsWith('deep_') ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
@@ -1158,6 +1230,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     }
   }
 
+  buildDeepArchitecture(scene);
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);
   anim.push(buildParticlesAndLights(scene));

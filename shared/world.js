@@ -25,7 +25,18 @@ export const ZONES = {
   obelisk: { x: -57, z: -38, r: 8, name: 'The Listening Stone' },
   survey: { x: 43, z: -33, r: 17, name: 'Brineworks Cut' },
   sinter: { x: 6, z: 58, r: 16, name: 'Sinter Flats' },
+  deep: { x: -54, z: -8, r: 18, name: 'Kestrel Deep' },
 };
+
+// One walkable heightfield: the covered research deck is below grade,
+// not an independent stacked map. The roof is not a walkable surface.
+export const DEEP = {
+  floor: -6.2, x: -57, z: -8, hw: 7, hd: 6.5,
+  roofBottom: -0.45, roofTop: 0.55,
+};
+export function deepRoofAt(x, z, pad = 0) {
+  return Math.abs(x - DEEP.x) <= DEEP.hw + pad && Math.abs(z - DEEP.z) <= DEEP.hd + pad;
+}
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -75,6 +86,12 @@ export function groundHeight(x, z) {
     const k = smooth(1 - (d - a.r) / a.f);
     h = h * (1 - k) + a.h * k;
   }
+  // Buried chamber and continuous east approach. Smooth compact blend
+  // preserves the rest of the terrain; floor is flat under the entire roof.
+  const deepX = smooth(1 - (Math.abs(x - ZONES.deep.x) - 10) / 9);
+  const deepZ = smooth(1 - (Math.abs(z - ZONES.deep.z) - 8) / 5);
+  const deepBlend = deepX * deepZ;
+  h = h * (1 - deepBlend) + DEEP.floor * deepBlend;
   // Basin walls rise steeply toward the world edge.
   const r = Math.hypot(x, z);
   const edge = r - (WORLD.radius - 9);
@@ -157,7 +174,7 @@ function buildProps() {
   const blocked = (x, z, pad) => {
     if (Math.hypot(x, z) > WORLD.radius - 12) return true;
     for (const k of Object.keys(ZONES)) {
-      if (k === 'survey' || k === 'sinter') continue; // preserve the legacy scatter sequence
+      if (k === 'survey' || k === 'sinter' || k === 'deep') continue; // preserve the legacy scatter sequence
       const zn = ZONES[k];
       if (Math.hypot(x - zn.x, z - zn.z) < zn.r + pad) return true;
     }
@@ -180,7 +197,7 @@ function buildProps() {
   // Replace only old scatter within the cut; keep the original world layout elsewhere.
   const survey = ZONES.survey;
   const sinter = ZONES.sinter;
-  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => [survey, sinter].every(zn => Math.hypot(p.x - zn.x, p.z - zn.z) >= zn.r + 2)));
+  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => [survey, sinter].every(zn => Math.hypot(p.x - zn.x, p.z - zn.z) >= zn.r + 2) && !(Math.abs(p.x - ZONES.deep.x) < 21 && Math.abs(p.z - ZONES.deep.z) < 15)));
   retained.push(
     { type: 'survey_pump', x: 43, z: -39, hw: 2.15, hd: 1.45, h: 4.8 },
     { type: 'survey_tower', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
@@ -198,6 +215,15 @@ function buildProps() {
     { type: 'sinter_ridge', x: 1, z: 69, hw: 2.1, hd: 1.2, h: 1.6, seed: 745 },
     { type: 'sinter_ridge', x: 12, z: 69, hw: 2.0, hd: 1.0, h: 2.1, seed: 746 },
     { type: 'sinter_colony', x: 9, z: 64, hw: 1.5, hd: 1.25, h: 1.8, seed: 747 },
+  );
+  // Roof footprint and structural wall colliders share the same dimensions.
+  // Only the eastern portal is open; interior vessels do not block the aisle.
+  retained.push(
+    { type: 'deep_wall', x: DEEP.x, z: DEEP.z - DEEP.hd, hw: DEEP.hw, hd: 0.42, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_wall', x: DEEP.x, z: DEEP.z + DEEP.hd, hw: DEEP.hw, hd: 0.42, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_wall', x: DEEP.x - DEEP.hw, z: DEEP.z, hw: 0.42, hd: DEEP.hd, h: DEEP.roofBottom - DEEP.floor },
+    { type: 'deep_vessel', x: -61.1, z: -12, r: 1.05, h: 2.9, seed: 1701 },
+    { type: 'deep_vessel', x: -61.1, z: -4, r: 1.05, h: 2.55, seed: 1702 },
   );
   return retained;
 }
