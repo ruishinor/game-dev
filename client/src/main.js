@@ -872,7 +872,7 @@ function onEvent(e) {
       break;
     }
     case 'radio':
-      ui.radio.receive(e.source,e.m);break;
+      ui.radio.receive(e.source,e.m,e.dialogueId);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':

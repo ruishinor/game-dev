@@ -1,5 +1,6 @@
 // Local presentation of private authored transmissions. No remote speech
 // service, microphone, uploaded recording, or game-authority changes.
+import { getRadioDialogue } from '../../shared/dialogue.js';
 export const RADIO_SOURCES=Object.freeze({
  kernel:{name:'KERNEL',channel:'Directive uplink',colour:'#91c9dc',portrait:'operator'},
  field:{name:'Field Archive',channel:'Brineworks / Sinter service channel',colour:'#e4b478',portrait:'technician'},
@@ -15,10 +16,11 @@ const portraits={
 };
 export class RadioQueue{
  constructor(limit=4){this.limit=limit;this.pending=[];this.current=null;}
- push(source,message){
+ push(source,message,dialogueId){
    if(!Object.hasOwn(RADIO_SOURCES,source)||typeof message!=='string'||!message.trim()||message.length>1200)return false;
    if(this.current?.source===source&&this.current.message===message||this.pending.some(p=>p.source===source&&p.message===message))return false;
-   this.pending.push({source,message});if(this.pending.length>this.limit)this.pending.shift();return true;
+   const authored=getRadioDialogue(dialogueId);
+   this.pending.push({source,message,...(authored?.source===source&&authored.transcript===message?{dialogueId:authored.id}:{})});if(this.pending.length>this.limit)this.pending.shift();return true;
  }
  next(){this.current=this.pending.shift()||null;return this.current;}
  clear(){this.current=null;this.pending=[];}
@@ -30,8 +32,8 @@ export class RadioPanel{
   this.el=h('aside','radio-panel');this.el.hidden=true;this.el.setAttribute('aria-label','Radio transmission');
   this.el.setAttribute('role','region');root.append(this.el);
  }
- receive(source,message){
-  if(!this.queue.push(source,message))return false;
+ receive(source,message,dialogueId){
+  if(!this.queue.push(source,message,dialogueId))return false;
   // Explicit field interactions must not sit behind earlier directive chatter.
   // The interrupted message remains in the regular log; queued directives remain.
   if(this.open&&source!=='kernel'){const active=this.queue.pending.pop();this.queue.pending.unshift(active);this.next();}
