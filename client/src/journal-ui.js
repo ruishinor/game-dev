@@ -63,13 +63,32 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   return card;
 }
 
-// Categories organize actual equipment, not additional gameplay slots.
-// Glyphs and devices are gear; implants have a dedicated tab.
+// The planned slot layout is UI-only. Only the three existing server
+// slots may ever produce an equip/unequip request.
+const present = (key, label, col, row, slot = null) => ({key,label,col,row,slot});
 const LOADOUT_TABS = [
-  {id:'gear',name:'Gear',slots:['device','glyph']},
-  {id:'implants',name:'Implants',slots:['implant']},
-  {id:'weapons',name:'Weapons',slots:[]},
-  {id:'social',name:'Social clothing',slots:[]},
+  {id:'character',name:'Character',slots:[]},
+  {id:'gear',name:'Gear',slots:[
+    present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
+    present('arms','Arms',1,2),present('chest','Chest',2,2),present('hands','Hands',3,2),
+    present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
+    present('device','Device',1,4,'device'),present('utility','Utility',2,4),present('glyph','Glyph',3,4,'glyph'),
+  ]},
+  {id:'implants',name:'Implants',slots:[
+    present('eyes','Eyes',1,1),present('brain','Brain',2,1),present('ear','Ear',3,1),
+    present('left-arm','Left arm',1,2),present('torso','Torso',2,2),present('right-arm','Right arm',3,2),
+    present('left-hand','Left hand',1,3),present('implant','Implant',2,3,'implant'),present('right-hand','Right hand',3,3),
+    present('left-leg','Left leg',1,4),present('spine','Spine',2,4),present('right-leg','Right leg',3,4),
+  ]},
+  {id:'weapons',name:'Weapons',slots:[
+    present('right-hand','Right hand',1,1),present('left-hand','Left hand',3,1),
+    present('ranged','Ranged',2,2),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
+  ]},
+  {id:'social',name:'Social clothing',slots:[
+    present('back','Back',1,1),present('head','Head',2,1),present('face','Face',3,1),
+    present('arms','Arms',1,2),present('torso','Torso',2,2),present('hands','Hands',3,2),
+    present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
+  ]},
 ];
 export function renderLoadout(ui,body,stats) {
   const s=ui.sheet;
@@ -86,61 +105,104 @@ export function renderLoadout(ui,body,stats) {
     btn.addEventListener('click',()=>{
       if(ui.loadoutTab===t.id)return;
       ui.loadoutTab=t.id;
-      ui.loadoutSelection=null;
+      ui.loadoutSelection=ui.loadoutSlot=null;
       ui.renderBuild();
     });
     tabs.append(btn);
   }
   doll.append(tabs);
-  const portrait=h('div','doll-portrait');
-  const data=ui.a.portrait({k:'p',c:s.cls,a:s.look});
-  if(data){const img=h('img','doll-image');img.src=data;img.alt='Current character appearance';portrait.append(img);}
-  else portrait.append(h('div','doll-fallback','Appearance preview unavailable'));
   const column=h('section','pcol loadout-column');
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
-  let emptySlot=null;
-  const select=(id,slot=null)=>{
-    ui.loadoutSelection=id;
-    emptySlot=slot;
+  const buttons=new Map();
+  const actualSlots=tab.id==='character'?['device','implant','glyph']:tab.slots.map(t=>t.slot).filter(Boolean);
+  const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
+  const renderDetail=()=>{
     detail.replaceChildren();
+    const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
+    const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
     if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc));
-    else detail.append(h('div','muted',emptySlot?'No '+SLOT_NAMES[emptySlot]+' installed.':'Select a slot or item.'));
+    else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
+    else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
+    else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
+    for(const [key,btn] of buttons){
+      const selected=key===ui.loadoutSlot;
+      btn.classList.toggle('selected',selected);
+      btn.setAttribute('aria-pressed',String(selected));
+    }
   };
-  const slots=h('div','doll-slots');
-  for(const slot of tab.slots){
-    const id=s.equipped[slot];
-    const btn=h('button','doll-slot'+(id?' installed':''));
-    btn.append(id?itemArt(id):h('span','empty-slot-symbol','+'),h('span','slot-caption',SLOT_NAMES[slot]));
-    btn.title=id?ITEMS[id].name:'Empty '+SLOT_NAMES[slot]+' slot';
-    btn.addEventListener('click',()=>select(id||null,id?null:slot));
-    slots.append(btn);
-  }
-  doll.append(portrait);
-  if(tab.slots.length)doll.append(slots);
-  if(tab.slots.length){
-    column.append(h('h3',null,'Loadout'),list,h('h3',null,'Details'),detail);
+  const selectItem=id=>{
+    ui.loadoutSelection=id;
+    ui.loadoutSlot=tab.slots.find(t=>t.slot===ITEMS[id]?.slot)?.key||null;
+    renderDetail();
+  };
+  if(tab.id==='character'){
+    const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
+    const portrait=h('div','doll-portrait');
+    const data=ui.a.portrait({k:'p',c:s.cls,a:s.look});
+    if(data){const img=h('img','doll-image');img.src=data;img.alt='Current character appearance';portrait.append(img);}
+    else portrait.append(h('div','doll-fallback','Appearance preview unavailable'));
+    doll.append(portrait,h('div','appearance-caption',look?.name||'Current appearance'));
+  }else{
+    const grid=h('div','equipment-slot-grid');
+    grid.setAttribute('aria-label',tab.name+' equipment slots');
+    const rows=Math.max(...tab.slots.map(t=>t.row));
+    grid.style.setProperty('--slot-rows',rows);
     for(const slot of tab.slots){
+      const id=slot.slot?s.equipped[slot.slot]:null;
+      const state=!slot.slot?'reserved':id?'installed':'empty';
+      const btn=h('button','doll-slot '+state);
+      btn.type='button';
+      btn.dataset.slot=slot.key;
+      btn.dataset.state=state;
+      btn.style.gridColumn=String(slot.col);
+      btn.style.gridRow=String(slot.row);
+      const status=state==='reserved'?'Reserved':state==='empty'?'Empty':ITEMS[id].name;
+      btn.setAttribute('aria-label',slot.label+': '+status);
+      btn.title=slot.label+' · '+status;
+      btn.append(id?itemArt(id):h('span','slot-state-icon',state==='reserved'?'—':'+'),h('span','slot-caption',slot.label));
+      btn.addEventListener('click',()=>{
+        ui.loadoutSlot=slot.key;
+        ui.loadoutSelection=null;
+        renderDetail();
+      });
+      buttons.set(slot.key,btn);
+      grid.append(btn);
+    }
+    const legend=h('div','slot-legend');
+    legend.append(h('span','legend-installed','Installed'),h('span','legend-empty','Empty'),h('span','legend-reserved','Reserved'));
+    doll.append(grid,legend);
+  }
+  column.append(h('h3',null,'Loadout'),list,h('h3',null,'Details'),detail);
+  if(actualSlots.length){
+    for(const slot of actualSlots){
       const id=s.equipped[slot];
-      if(id)list.append(equipmentCard(ui,id,true,select));
+      if(id)list.append(equipmentCard(ui,id,true,selectItem));
       else {const card=h('div','card slotcard empty');card.append(h('div','kicker',SLOT_NAMES[slot]),h('div','muted','Not installed'));list.append(card);}
     }
-    const spare=s.inventory.filter(id=>ITEMS[id]&&tab.slots.includes(ITEMS[id].slot)&&s.equipped[ITEMS[id].slot]!==id);
-    if(spare.length){list.append(h('h3',null,'Available equipment'));for(const id of spare)list.append(equipmentCard(ui,id,false,select));}
-    if(!s.inventory.includes(ui.loadoutSelection)||!tab.slots.includes(ITEMS[ui.loadoutSelection]?.slot))
-      ui.loadoutSelection=tab.slots.map(slot=>s.equipped[slot]).find(Boolean)||spare[0]||null;
-    select(ui.loadoutSelection);
-  }else if(tab.id==='social'){
-    const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
-    column.append(h('h3',null,'Current appearance'));
-    const card=h('div','card');
-    card.append(h('div','iname',look?.name||'Class appearance'),h('p','idesc',look?.blurb||'Current class look.'),h('div','muted','Social clothing is not yet equippable.'));
-    column.append(card);
+    const spare=s.inventory.filter(id=>ITEMS[id]&&actualSlots.includes(ITEMS[id].slot)&&s.equipped[ITEMS[id].slot]!==id);
+    if(tab.id!=='character'&&spare.length){list.append(h('h3',null,'Available equipment'));for(const id of spare)list.append(equipmentCard(ui,id,false,selectItem));}
+    if(!tab.slots.some(t=>t.key===ui.loadoutSlot))ui.loadoutSlot=null;
+    if(!allowed(ui.loadoutSelection))ui.loadoutSelection=null;
+    if(!ui.loadoutSlot&&!ui.loadoutSelection){
+      const first=actualSlots.find(slot=>s.equipped[slot]);
+      if(first)ui.loadoutSelection=s.equipped[first];
+      if(tab.id!=='character')ui.loadoutSlot=tab.slots.find(t=>t.slot===(first||actualSlots[0]))?.key||null;
+    }
   }else{
-    column.append(h('h3',null,'Weapons'),h('div','card empty','Weapon equipment is not yet available. There are no weapon slots in the current game.'));
+    ui.loadoutSelection=null;
+    if(!tab.slots.some(t=>t.key===ui.loadoutSlot))ui.loadoutSlot=tab.slots[0]?.key||null;
+    list.append(h('div','card empty',tab.id==='social'?'Social clothing is not yet equippable.':'Weapon equipment is not yet available.'));
+    if(tab.id==='social'){
+      const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
+      const card=h('div','card');
+      card.append(h('div','kicker','Current appearance'),h('div','iname',look?.name||'Class appearance'),h('p','idesc',look?.blurb||'Current class look.'));
+      list.append(card);
+    }
   }
   body.append(stats,doll,column);
+  renderDetail();
 }
 
 export function renderInventory(ui) {

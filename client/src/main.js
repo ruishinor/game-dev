@@ -166,6 +166,8 @@ const ui = new UI({
   petRename: (name) => net.send({ t: 'pet_rename', name }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
+  isFollowing: (id) => S.followId===id,
+  stopFollowing: (id) => { if(S.followId===id)stopAutomaticMovement(); },
   whisper: (id, m) => net.send({ t: 'whisper', id, m }),
   partyAnswer: (accept) => net.send({ t: 'party_answer', accept }),
   partyLeave: () => net.send({ t: 'party_leave' }),
@@ -839,8 +841,9 @@ input.onClick = (button, x, y) => {
     else S.inspect = null;
   } else {
     S.inspect = null;
-    const ent = pick(x, y, ['e', 'o']);
+    const ent = pick(x, y, ['e', 'o', 'p']);
     if (!ent) return;
+    if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
     if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
     else {
       setTarget(ent.id);

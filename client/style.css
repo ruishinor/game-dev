@@ -371,3 +371,24 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .codex-search { width:100%; background:#0d2029; color:var(--ink); border:1px solid #335b66; border-radius:4px; padding:8px 10px; font:inherit; font-size:13px; }
 .codex-results-count { color:var(--muted); font-size:11px; padding:3px 2px; }
 .codex-entry small { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* Slot-driven journal: square inserts, reserved states and a dedicated portrait. */
+.doll-tabs { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.doll-tabs button { font-size:10px; padding:6px 2px; overflow-wrap:anywhere; }
+.appearance-caption { text-align:center; color:var(--muted); font-size:11px; padding:8px; }
+.equipment-slot-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(var(--slot-rows),auto); gap:6px; padding:10px; align-content:start; background:repeating-linear-gradient(0deg,transparent 0 18px,#49889614 19px 20px); }
+.equipment-slot-grid .doll-slot { position:relative; aspect-ratio:1; height:auto; width:100%; padding:4px; gap:4px; overflow:hidden; }
+.equipment-slot-grid .slot-caption { font-size:11px; text-wrap:balance; line-height:1.15; }
+.equipment-slot-grid .slot-state-icon { font-size:19px; line-height:1; color:#7799a4; }
+.equipment-slot-grid .doll-slot.reserved { background:#10232b; border:1px dashed #45606b; color:#829ba7; }
+.equipment-slot-grid .doll-slot.reserved .slot-caption { color:#9bb1bb; }
+.equipment-slot-grid .doll-slot.empty { background:#0d1b23; border:1px solid #527382; }
+.equipment-slot-grid .doll-slot.installed { background:#153440; border:1px solid #80c4d6; }
+.equipment-slot-grid .doll-slot.selected { outline:2px solid var(--cyan); outline-offset:-2px; background:#244956; }
+.slot-legend { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; padding:5px 6px 10px; font-size:10px; color:var(--muted); }
+.slot-legend span::before { content:''; display:inline-block; width:8px; height:8px; border:1px solid #80c4d6; margin-right:4px; vertical-align:0; }
+.slot-legend .legend-installed::before { background:#78c0cd; }
+.slot-legend .legend-empty::before { background:#0d1b23; }
+.slot-legend .legend-reserved::before { border:1px dashed #8aa1ad; background:transparent; }
+.plate.player { pointer-events:auto; cursor:pointer; }
+.frame.target[tabindex="0"],.party-member[tabindex="0"] { cursor:context-menu; }

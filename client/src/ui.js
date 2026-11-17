@@ -198,14 +198,12 @@ export class UI {
     this.playerContext = h('div', 'player-context');
     this.playerContext.hidden = true;
     root.append(this.playerContext);
-    this.target.el.addEventListener('contextmenu', (e) => {
-      const ent = this.currentTarget;
-      if (ent?.meta.k !== 'p' || ent.id === this.selfId) return;
-      e.preventDefault();
-      this.openPlayerContext(ent, e.clientX, e.clientY);
-    });
+    this.bindPlayerContext(this.target.el, () => this.currentTarget?.id);
     document.addEventListener('pointerdown', (e) => {
-      if (!this.playerContext.contains(e.target)) this.playerContext.hidden = true;
+      if (!this.playerContext.contains(e.target)) this.closePlayerContext();
+    });
+    this.playerContext.addEventListener('keydown', e => {
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.closePlayerContext(true);}
     });
 
     const side = h('div', 'side');
@@ -328,7 +326,8 @@ export class UI {
     root.append(this.inventoryPanel);
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
-    this.loadoutTab = 'gear';
+    this.loadoutTab = 'character';
+    this.loadoutSlot = null;
 
     this.codexPanel = h('div','panel codex-window');
     this.codexPanel.hidden = true;
@@ -425,7 +424,7 @@ export class UI {
       ['Left-drag', 'Look around without turning'],
       ['Both buttons', 'Run forward'],
       ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
-      ['Right-click player frame', 'Invite, follow or whisper to that player. Follow stops with manual movement or Esc.'],
+      ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
@@ -620,7 +619,8 @@ export class UI {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.inventoryPanel.hidden = this.codexPanel.hidden = true;
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
-    this.menuItems.hidden = this.tooltip.hidden = this.playerContext.hidden = true;
+    this.menuItems.hidden = this.tooltip.hidden = true;
+    this.closePlayerContext();
     this.closeCompanionDetails();
   }
 
@@ -685,7 +685,11 @@ export class UI {
     }
     if (data.members.length) {
       this.partyBody.append(h('h3', null, `Members (${data.members.length} / ${data.cap})`));
-      for (const m of data.members) this.partyBody.append(h('div', 'party-member', `${m.name} · L${m.level} ${CLASSES[m.cls]?.name || m.cls}`));
+      for (const m of data.members) {
+        const row=h('div','party-member',`${m.name} · L${m.level} ${CLASSES[m.cls]?.name || m.cls}`);
+        if(m.id!==st.me.id){row.tabIndex=0;this.bindPlayerContext(row,()=>m.id);}
+        this.partyBody.append(row);
+      }
       const leave = h('button', null, 'Leave party');
       leave.addEventListener('click', () => this.a.partyLeave());
       this.partyBody.append(leave);
@@ -696,6 +700,8 @@ export class UI {
       for (const ent of nearby) {
         if (members.has(ent.id)) continue;
         const row = h('div', 'party-member');
+        row.tabIndex=0;
+        this.bindPlayerContext(row,()=>ent.id);
         row.append(h('span', null, ent.meta.n));
         const invite = h('button', null, 'Invite');
         invite.addEventListener('click', () => this.a.partyInvite(ent.id));
@@ -718,24 +724,69 @@ export class UI {
     this.chat.blur();
   }
 
-  openPlayerContext(ent, x, y) {
-    this.playerContext.replaceChildren(h('div', 'context-title', ent.meta.n));
-    const action = (label, cb) => {
-      const btn = h('button', null, label);
-      btn.addEventListener('click', () => { this.playerContext.hidden = true; cb(); });
+  // All player surfaces use the same live-entity resolution and menu.
+  bindPlayerContext(el, getId) {
+    const open=(x,y)=>{
+      const ent=this.liveEntities?.get(getId());
+      if(!ent||ent.meta.k!=='p'||ent.id===this.selfId)return false;
+      this.openPlayerContext(ent,x,y,el);
+      return true;
+    };
+    el.addEventListener('contextmenu', e=>{
+      if(open(e.clientX,e.clientY)){e.preventDefault();e.stopPropagation();}
+    });
+    el.addEventListener('keydown', e=>{
+      if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
+        const r=el.getBoundingClientRect();
+        if(open(r.left+12,r.bottom)){e.preventDefault();e.stopPropagation();}
+      }
+    });
+  }
+
+  closePlayerContext(restoreFocus=false) {
+    if(this.playerContext.contains(document.activeElement))document.activeElement.blur();
+    this.playerContext.hidden=true;
+    const anchor=this.contextAnchor;
+    this.contextAnchor=null;
+    this.contextPlayerId=0;
+    if(restoreFocus&&anchor?.isConnected&&anchor.tabIndex>=0)anchor.focus();
+  }
+
+  openPlayerContext(ent, x, y, anchor=null) {
+    ent=this.liveEntities?.get(ent?.id);
+    if(!ent||ent.meta.k!=='p'||ent.id===this.selfId)return;
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    const id=ent.id;
+    this.contextPlayerId=id;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',ent.meta.n));
+    const action=(label,cb)=>{
+      const btn=h('button',null,label);
+      btn.type='button';
+      btn.addEventListener('click',()=>{
+        this.closePlayerContext();
+        const current=this.liveEntities?.get(id);
+        if(current?.meta.k==='p'&&id!==this.selfId)cb(current);
+        else this.error('That player is unavailable.');
+      });
       this.playerContext.append(btn);
     };
-    action('Invite to party', () => this.a.partyInvite(ent.id));
-    action('Follow', () => this.a.followPlayer(ent.id));
-    action('Whisper', () => {
-      this.whisperTarget = { id: ent.id, name: ent.meta.n };
-      this.chat.placeholder = `Whisper to ${ent.meta.n}`;
+    action('Invite to party',()=>this.a.partyInvite(id));
+    if(this.a.isFollowing(id))action('Stop following',()=>this.a.stopFollowing(id));
+    else action('Follow',()=>this.a.followPlayer(id));
+    action('Whisper',current=>{
+      // A draft for a different recipient must never be silently redirected.
+      this.chat.value='';
+      this.whisperTarget={id,name:current.meta.n};
+      this.chat.placeholder='Whisper to '+current.meta.n;
       this.chat.focus();
     });
-    this.playerContext.hidden = false;
-    const w = this.playerContext.offsetWidth, hgt = this.playerContext.offsetHeight;
-    this.playerContext.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, x))}px`;
-    this.playerContext.style.top = `${Math.max(8, Math.min(window.innerHeight - hgt - 8, y))}px`;
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=`${Math.max(8,Math.min(window.innerWidth-w-8,x))}px`;
+    this.playerContext.style.top=`${Math.max(8,Math.min(window.innerHeight-hgt-8,y))}px`;
+    this.playerContext.querySelector('button')?.focus({preventScroll:true});
   }
 
   openCompanionDetails(ent, kind) {
@@ -764,7 +815,7 @@ export class UI {
   closePanels() {
     const any = !this.panel.hidden || !this.inventoryPanel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.inventoryPanel.hidden = this.codexPanel.hidden = true;
-    this.playerContext.hidden = true;
+    this.closePlayerContext();
     this.menuItems.hidden = true;
     this.panel.hidden = true;
     this.partyPanel.hidden = true;
@@ -879,6 +930,8 @@ export class UI {
     const { me, you, target } = st;
     this.currentTarget = target;
     this.selfId = me?.id;
+    this.liveEntities = st.ents;
+    if(this.contextPlayerId&&!st.ents.has(this.contextPlayerId))this.closePlayerContext();
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
@@ -902,6 +955,7 @@ export class UI {
     if (target) {
       const hostile = target.meta.k === 'e';
       set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : 'friendly'}`);
+      this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
@@ -984,7 +1038,8 @@ export class UI {
         row = unitFrame('ally');
         row.el.setAttribute('role', 'button');
         row.el.addEventListener('click', () => this.a.target(ent.id));
-        row.el.addEventListener('contextmenu', (e) => { e.preventDefault(); this.openPlayerContext(ent, e.clientX, e.clientY); });
+        row.el.tabIndex=0;
+        this.bindPlayerContext(row.el,()=>ent.id);
         this.party.append(row.el);
         this.partyRows.set(ent.id, row);
       }
@@ -1038,6 +1093,13 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
+      if(ent.meta.k==='p'){
+        el.dataset.playerId=String(ent.id);
+        el.tabIndex=0;
+        el.setAttribute('role','button');
+        el.addEventListener('click',()=>{if(this.liveEntities?.get(ent.id)?.meta.k==='p')this.a.target(ent.id);});
+        this.bindPlayerContext(el,()=>ent.id);
+      }
       this.overlay.append(el);
       p = { el, name, hp, fill, actions, rename };
       this.plates.set(ent.id, p);
@@ -1057,12 +1119,14 @@ export class UI {
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     this.inventorySelection = this.loadoutSelection = null;
-    this.loadoutTab = 'gear';
+    this.loadoutTab = 'character';
+    this.loadoutSlot = null;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
-    this.playerContext.hidden = true;
+    this.closePlayerContext();
+    this.liveEntities=null;
     this.resetChatTarget();
   }
 
@@ -1077,6 +1141,7 @@ export class UI {
     p.el.style.transform = `translate(-50%, -100%) translate(${screen.x.toFixed(1)}px, ${screen.y.toFixed(1)}px)`;
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
+    if(ent.meta.k==='p') p.el.setAttribute('aria-label',opts.label+' player');
     if (p.actions) {
       set(p.actions, 'hidden', !opts.selected);
       set(p.rename, 'hidden', !opts.owned);

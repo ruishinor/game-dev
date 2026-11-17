@@ -319,6 +319,25 @@ try {
   await B.page.click('.frame.ally');
   sb = await state(B);
   check('11. healer targets the ally from the party frame', sb.target === sa.myId);
+  // Context actions must work on the ally and selected-player frames without
+  // changing the friendly target needed for the existing healing sequence.
+  const checkMenu = async selector => {
+    await B.page.locator(selector).click({button:'right'});
+    const opened=await until(B,()=>{const m=document.querySelector('.player-context');return !m.hidden&&/Invite to party/.test(m.textContent)&&/Follow/.test(m.textContent)&&/Whisper/.test(m.textContent);},null,3000,'player context menu');
+    await B.page.keyboard.press('Escape');
+    return opened&&await B.page.locator('.player-context').isHidden();
+  };
+  const allyMenu=await checkMenu('.frame.ally');
+  const targetMenu=await checkMenu('.frame.target');
+  // Check the world nameplate's real hit-test configuration and handler,
+  // without depending on its position within a moving camera's field of view.
+  const plateMenu=await B.page.locator('.plate.player[data-player-id="'+sa.myId+'"]').evaluate(el=>{
+    const event=new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:100,clientY:100});
+    el.dispatchEvent(event);
+    return event.defaultPrevented&&getComputedStyle(el).pointerEvents==='auto'&&!document.querySelector('.player-context').hidden;
+  });
+  await B.page.keyboard.press('Escape');
+  check('11. player context menu opens from both frames and the nameplate; Escape closes',allyMenu&&targetMenu&&plateMenu&&(await state(B)).target===sa.myId);
   const pA = serverPlayer('Brakka');
   pA.hp = Math.min(pA.hp, 120);
   note('set Brakka to 120 health so healing is measurable');
@@ -462,6 +481,18 @@ try {
 
   // Requirement gate: the implant is not offered yet; after the device it is.
   await B.page.keyboard.press('KeyC');
+  const portraitTab=await B.page.locator('.doll-tabs [data-tab="character"]').getAttribute('aria-pressed')==='true';
+  let slotTabs=portraitTab;
+  for(const tab of ['gear','implants','weapons','social']){
+    await B.page.locator('.doll-tabs [data-tab="'+tab+'"]').click();
+    const reserved=B.page.locator('.equipment-slot-grid .doll-slot.reserved').first();
+    const box=await reserved.boundingBox();
+    await reserved.click();
+    const selected=await reserved.getAttribute('aria-pressed')==='true';
+    const detail=await B.page.locator('.loadout-detail').innerText();
+    slotTabs=slotTabs&&!!box&&Math.abs(box.width-box.height)<2&&selected&&/Reserved slot/.test(detail);
+  }
+  check('9. five character tabs show real square selectable slots and reserved details',slotTabs);
   await equipVia(B, 'Sporeglass Focus');
   await until(B, () => window.__attune.state().sheet.equipped.device === 'sporeglass_focus', null, 4000, 'device equipped');
   sb = await state(B);
