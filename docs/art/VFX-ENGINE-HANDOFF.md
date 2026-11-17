@@ -79,11 +79,13 @@ Stone (golden circuit rings), CHR-008 Suture Diver, EQP-001 reservoir family.
   - 4 professions × 3 views of the gear, before and after
   - the Listening Stone far, near and close, before and after
   - the rig frames
-- Integrated two-player e2e (`npm run e2e`) on the final head: **71/72**. The single
-  failure, `9. five character tabs show real square selectable slots and reserved
-  details` (character panel UI), **fails identically on the untouched base
-  `7a9c5d7`** (71/72, run in a separate worktree). It is a pre-existing failure,
-  not investigated here.
+- Integrated two-player e2e (`npm run e2e`): **72/72** after fixing check 9.
+  Check 9 (`five character tabs show real square selectable slots and reserved
+  details`) had failed since it was added in `99e7df1`, including on the base
+  `7a9c5d7`. Root cause: the test matched `/Reserved slot/` against
+  `innerText`, which returns *rendered* text, and the `.kicker` style uppercases
+  it to `RESERVED SLOT`. The UI was correct. The match is now case-insensitive,
+  and the check reports which condition failed on which tab.
 - **Use Node 24, as CI does.** Under Node 22 the `art-originals` byte-reproducibility
   test fails because of V8 `Math` precision. This was already the case before this work.
 
@@ -113,8 +115,7 @@ Stone (golden circuit rings), CHR-008 Suture Diver, EQP-001 reservoir family.
 4. Character bodies: helmets and face plates per profession, and cloth layers
    over the mannequin.
 5. Decide whether to keep the authored `LiveCasts` line layer alongside the engine.
-6. Investigate the pre-existing e2e check 9, then open a PR into
-   `preview/playtest-brineworks` (the PR template, if one exists, is a layout to follow).
+6. Open a PR into `preview/playtest-brineworks` (if the repository has a PR template, follow its layout).
 
 ## How to resume
 
