@@ -135,7 +135,7 @@ try {
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && e.c !== 'obelisk').map((e) => e.c);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && e.k !== 'o').map((e) => e.c);
   check('14. every character, companion and enemy is drawn from the GLB assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
   const aByB = await drawn(B, sa.myId);

@@ -5,6 +5,7 @@
 import { ENEMIES, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist } from '../../shared/world.js';
+import { SURVEY, surveyState } from '../../shared/survey.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -137,7 +138,29 @@ export function interact(game, p, objectId) {
     checkDirective(game, p);
     return { ok: true };
   }
+  const branch = Object.keys(SURVEY).find(key => SURVEY[key].type === obj.type);
+  if (branch) {
+    const current = surveyState(p.char.survey);
+    if (current) {
+      game.message(p, 'info', current.endsWith('_done') ? 'Your investigation has already been reported.' : 'You have chosen your evidence. Report to Venn.');
+      return { ok: true };
+    }
+    p.char.survey = branch;
+    game.message(p, 'info', SURVEY[branch].field);
+    game.message(p, 'info', 'Return to Archivist Venn to report your findings.');
+    game.markDirty(p);
+    return { ok: true };
+  }
   if (obj.type === 'archivist') {
+    const current = surveyState(p.char.survey);
+    if (current && !current.endsWith('_done')) {
+      p.char.survey = current + '_done'; // mark complete before granting XP
+      p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: SURVEY[current].report });
+      game.message(p, 'gain', 'Investigation complete: ' + SURVEY[current].title + '.');
+      grantXp(game, p, 35);
+      game.markDirty(p);
+      return { ok: true };
+    }
     const line = ARCHIVIST_LINES[Math.min(p.char.quest.step, ARCHIVIST_LINES.length - 1)];
     p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: line });
     return { ok: true };

@@ -72,6 +72,7 @@ function groundColor(x, z, out) {
   blend(ZONES.vault, 19, 0x34334f, 0x4a4870);
   blend(ZONES.obelisk, 9, 0x223f5c, 0x2f5a78);
   blend(ZONES.sanctum, 15, 0x4d6670, 0x5f7c86);
+  blend(ZONES.survey, 20, 0x645043, 0x9b7962);
   const edge = smooth((Math.hypot(x, z) - (WORLD.radius - 12)) / 9);
   if (edge > 0) out.lerp(tmpB.setHex(0x2c2b36).lerp(tmpA.setHex(0x45434f), n), edge);
   return out;
@@ -234,6 +235,31 @@ function jitteredRock(seed) {
 const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
 const procedural = {
+  survey_pump(p) {
+    const g = new THREE.Group();
+    const base = mat(0x494a43, { rough: 0.91 });
+    const steel = mat(0x727b78, { rough: 0.57, metal: 0.55 });
+    const paint = mat(0x82704f, { rough: 0.82, metal: 0.24 });
+    const dark = mat(0x2b3333, { rough: 0.75, metal: 0.4 });
+    const add = (geo, material, ...args) => g.add(scaled(geo, material, ...args));
+    add(G.box, base, 4.1, 0.45, 2.8, 0, 0.23, 0);
+    add(G.box, dark, 3.1, 0.42, 1.9, 0, 0.65, 0);
+    const tank = new THREE.CylinderGeometry(0.72, 0.72, 2.1, 20);
+    const pipe = new THREE.CylinderGeometry(0.16, 0.16, 1.6, 12);
+    for (const side of [-1, 1]) {
+      add(tank, paint, 1, 1, 1, side * 0.96, 1.95, 0);
+      for (const y of [1.05, 2.72]) add(G.cyl8, steel, 0.77, 0.16, 0.77, side * 0.96, y, 0);
+      add(pipe, steel, 1, 1, 1, side * 1.72, 1.28, 0.7);
+      add(G.box, dark, 0.23, 1.28, 0.19, side * 1.84, 1.12, -0.75);
+    }
+    add(G.box, dark, 3.45, 0.28, 0.55, 0, 3.03, 0);
+    add(G.box, steel, 1.18, 0.82, 0.66, 0, 2.23, 0.52);
+    for (let i = 0; i < 5; i++) add(G.box, dark, 0.84, 0.043, 0.03, 0, 1.96 + i * 0.11, 0.87);
+    add(G.box, paint, 0.36, 1.25, 0.34, 0, 3.76, 0);
+    add(G.box, steel, 0.83, 0.18, 0.68, 0, 4.46, 0);
+    add(G.box, glow(0xe1bc6b), 0.12, 0.055, 0.025, 0.36, 2.55, 0.87, false);
+    return g;
+  },
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -841,7 +867,7 @@ function buildVegetation(c, detail) {
     const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7)) return null;
+    if (inRange(x, z, sf, 24) || inRange(x, z, ZONES.vault, 17) || inRange(x, z, ZONES.relay, 15) || inRange(x, z, ZONES.obelisk, 7) || inRange(x, z, ZONES.survey, 17)) return null;
     return [x, z];
   };
   const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
@@ -931,7 +957,7 @@ function buildProceduralDecor(scene) {
     const r = Math.sqrt(rnd()) * (WORLD.radius - 8);
     const x = Math.sin(a) * r;
     const z = Math.cos(a) * r;
-    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15) continue;
+    if (Math.hypot(x, z) < 15 || Math.hypot(x - ZONES.vault.x, z - ZONES.vault.z) < 15 || inRange(x, z, ZONES.survey, 17)) continue;
     const s = 0.7 + rnd() * 1.4;
     dummy.position.set(x, groundHeight(x, z) + 0.22 * s, z);
     dummy.rotation.set((rnd() - 0.5) * 0.4, rnd() * 6, (rnd() - 0.5) * 0.4);
