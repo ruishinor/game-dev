@@ -11,3 +11,5 @@ Simulated roundtable:
 - Retrospective: kept visual support separate from authoritative healing and buff rules. No WebGL or animation-fit evidence.
 
 Executed: 168 sampled frame validations; max 7 objects, deterministic replay, invalid inputs and expiration.
+## Visual revision v2
+Reworked restorative treatment into anchored fields and guided channels; two reciprocal curved conduits for bonding, single directional conduit for transfer, and low-opacity structured stabilization surface. Motion traces follow the exact quadratic curve used in mesh geometry, including vertical and oblique source/target arrangements. Art: differentiated operational topology rather than generic parallel beams. Technical: stable tube resources, no per-frame mesh regeneration; shares field shader. UX: static cues remain in reduced motion, no health or status claims. Adversarial: 672 finite deterministic samples (max 15 objects), including radius extremes and short/vertical links; actual Three and browser checks staged. Retrospective: current geometry is still diagrammatic, not cinematic or final reference fidelity; review actual render separately. No live gameplay changes.

@@ -62,11 +62,11 @@ const glyphs=await fetch(BASE+'glyphs/manifest.json').then(r=>r.json());
 for(const g of glyphs){const f=document.createElement('figure'),im=document.createElement('img'),c=document.createElement('figcaption');im.src=BASE+'glyphs/'+g.file;im.alt=g.id;c.textContent=g.id;f.append(im,c);$('glyphs').append(f);}
 // Keep stable item IDs; content changes invalidate old artwork decisions.
 // Bump this revision when procedural effect/Mender visual source changes.
-const effectRevision='artfx-v1',aegisRevision='aegis-field-v3',kineticRevision='kinetic-v2';
+const effectRevision='artfx-v1',aegisRevision='aegis-field-v3',kineticRevision='kinetic-v2',restorativeRevision='restorative-v2';
 const hashes=new Map(manifest.files.map(f=>[f.path,f.gitBlob]));
 const flat=new Map([['material:atlas',{label:'Industrial material atlas',images:Object.entries(atlas.files)}],...glyphs.map(g=>['glyph:'+g.id,{label:g.label||g.id,images:[[g.label||g.id,'glyphs/'+g.file]]}])]);
 const reviewIds=[...ids,...flat.keys()];
-const reviewItems=reviewIds.map(id=>({id,revision:models.has(id)?hashes.get(models.get(id).file):id==='mender:visual'?effectRevision+':'+hashes.get('mender_carapace.glb'):fx.has(id)?(id.startsWith('aegis:')?aegisRevision:id.startsWith('kinetic:')?kineticRevision:effectRevision):id==='material:atlas'?Object.values(atlas.files).map(file=>hashes.get(file)).join(':'):hashes.get(flat.get(id).images[0][1])}));
+const reviewItems=reviewIds.map(id=>({id,revision:models.has(id)?hashes.get(models.get(id).file):id==='mender:visual'?effectRevision+':'+hashes.get('mender_carapace.glb'):fx.has(id)?(id.startsWith('aegis:')?aegisRevision:id.startsWith('kinetic:')?kineticRevision:id.startsWith('restorative:')?restorativeRevision:effectRevision):id==='material:atlas'?Object.values(atlas.files).map(file=>hashes.get(file)).join(':'):hashes.get(flat.get(id).images[0][1])}));
 let storage;try{storage=window.localStorage;}catch{storage={getItem(){throw Error('storage unavailable');},setItem(){throw Error('storage unavailable');}};}
 const review=createReviewStore(reviewItems,storage);
 const radios=[...document.querySelectorAll('input[name="review-decision"]')];
