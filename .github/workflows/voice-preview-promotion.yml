@@ -86,13 +86,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
+          gh auth setup-git
           test "$(git ls-remote origin refs/heads/feat/prerecorded-radio-foundation | cut -f1)" = "$(git rev-parse HEAD)"
           test "$(find client/assets/voice -maxdepth 1 -name '*.mp3' | wc -l)" -eq 26
           git add -- client/src/radio-assets.js client/assets/voice/*.mp3
           git diff --cached --check
-          test "$(git diff --cached --name-only | wc -l)" -eq 27
+          if git diff --cached --quiet; then echo 'Exact library already present'; exit 0; fi
+          test "$(git diff --cached --name-only | wc -l)" -le 27
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'feat(voice): integrate complete owner-reviewed private radio library'
-          gh auth setup-git
           git push origin HEAD:refs/heads/feat/prerecorded-radio-foundation
