@@ -156,6 +156,35 @@ function archivistKit(ctx) {
   ctx.attach('pelvis', place(face, -0.207, 0.98, 0.02, 0, 0, 1.2));
 }
 
+/** Field survey rig: twin sealed cartridges, asymmetric receiver and protected visor. */
+function surveyRig(ctx) {
+  const steel = std({ color: 0x687779, metalness: 0.65, roughness: 0.55 });
+  const rubber = std({ color: 0x252a2a, roughness: 0.94 });
+  const ochre = std({ color: 0x9b713d, roughness: 0.72 });
+  const glass = std({ color: 0x2a4549, metalness: 0.55, roughness: 0.24 });
+  const status = glow(0xe1bc6b);
+  const pack = new THREE.Group();
+  const add = (g, m, ...at) => pack.add(place(new THREE.Mesh(g, m), ...at));
+  add(box(0.24, 0.32, 0.075), rubber, 0, 1.30, -0.18);
+  for (const side of [-1, 1]) {
+    add(new THREE.CylinderGeometry(0.052, 0.052, 0.31, 20), steel, side * 0.073, 1.32, -0.255);
+    for (const y of [1.20, 1.44]) {
+      add(new THREE.CylinderGeometry(0.057, 0.057, 0.028, 20), rubber, side * 0.073, y, -0.255);
+    }
+    add(box(0.115, 0.035, 0.104), ochre, side * 0.073, 1.47, -0.255);
+  }
+  add(box(0.13, 0.105, 0.045), steel, 0, 1.31, -0.326);
+  for (let i = 0; i < 3; i++) add(box(0.094, 0.009, 0.005), rubber, 0, 1.287 + i * 0.021, -0.351);
+  add(box(0.045, 0.065, 0.045), ochre, -0.12, 1.49, -0.245);
+  add(new THREE.CylinderGeometry(0.005, 0.008, 0.18, 8), steel, -0.12, 1.60, -0.245, 0, 0, 0.12);
+  pack.add(strap([[0.09, 1.42, -0.25], [0.14, 1.47, -0.10], [0.12, 1.46, 0.035], [0.09, 1.37, 0.13]], rubber, 0.014));
+  ctx.attach('spine_03', pack);
+  ctx.attach('Head', place(new THREE.Mesh(box(0.133, 0.039, 0.028), rubber), 0, 1.698, 0.117));
+  ctx.attach('Head', place(new THREE.Mesh(box(0.117, 0.022, 0.009), glass), 0, 1.70, 0.135));
+  ctx.attach('Head', place(new THREE.Mesh(box(0.014, 0.008, 0.006), status), -0.045, 1.70, 0.141));
+  ctx.attach('pelvis', place(new THREE.Mesh(box(0.10, 0.15, 0.06), ochre), 0.185, 0.94, -0.02));
+}
+
 // --- looks -------------------------------------------------------------------
 
 export const LOOK_DEFS = {
@@ -204,6 +233,22 @@ export const LOOK_DEFS = {
     },
     gear: [cultureTank],
     accent: 0x7dffc4,
+  },
+  brine_surveyor: {
+    body: 'humanoid_f',
+    scale: 1.0,
+    parts: { body: { color: 0x64716e, roughness: 0.72 }, joints: { color: 0x252d2c, roughness: 0.88 } },
+    shells: {
+      coat: { color: 0x777b70, roughness: 0.88, map: 'look_coat_panels' },
+      upperarms: { color: 0x9b713d, roughness: 0.84 },
+      forearms: { color: 0x444b48, roughness: 0.60, metalness: 0.32 },
+      thighs: { color: 0x454b46, roughness: 0.9 },
+      shins: { color: 0x343b3b, roughness: 0.75, metalness: 0.2 },
+      shoes: { color: 0x303534, roughness: 0.88 },
+      hood: { color: 0x8e653a, roughness: 0.82 },
+    },
+    gear: [surveyRig],
+    accent: 0xe1bc6b,
   },
   archivist: {
     body: 'humanoid_f',

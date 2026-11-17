@@ -343,6 +343,7 @@ export class Game {
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      survey: c.survey ?? null,
       stats: p.stats,
     };
   }

@@ -23,6 +23,7 @@ export const ZONES = {
   relay: { x: 44, z: 20, r: 19, name: 'Derelict Relay' },
   vault: { x: 6, z: -58, r: 17, name: 'Resonance Vault' },
   obelisk: { x: -57, z: -38, r: 8, name: 'The Listening Stone' },
+  survey: { x: 43, z: -33, r: 17, name: 'Brineworks Cut' },
 };
 
 export function mulberry32(seed) {
@@ -47,6 +48,7 @@ const FLAT_AREAS = [
   { x: ZONES.vault.x, z: ZONES.vault.z, r: 17, f: 9, h: -0.6 },
   { x: ZONES.relay.x, z: ZONES.relay.z, r: 15, f: 9, h: 0.8 },
   { x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 6, f: 6, h: 0.2 },
+  { x: ZONES.survey.x, z: ZONES.survey.z, r: 10, f: 8, h: -1.8 },
 ];
 
 /** Terrain height at a world position. Purely presentational for the server. */
@@ -59,6 +61,9 @@ export function groundHeight(x, z) {
   const sx = x - ZONES.sporefield.x;
   const sz = z - ZONES.sporefield.z;
   h -= 1.6 * smooth(1 - Math.hypot(sx, sz) / 26);
+  // A shallow excavated basin with an eroded rim, localized to the new site.
+  const brineR = Math.hypot(x - ZONES.survey.x, z - ZONES.survey.z);
+  h += 1.15 * smooth(1 - Math.abs(brineR - 17) / 5);
   for (const a of FLAT_AREAS) {
     const d = Math.hypot(x - a.x, z - a.z);
     const k = smooth(1 - (d - a.r) / a.f);
@@ -146,11 +151,13 @@ function buildProps() {
   const blocked = (x, z, pad) => {
     if (Math.hypot(x, z) > WORLD.radius - 12) return true;
     for (const k of Object.keys(ZONES)) {
+      if (k === 'survey') continue; // preserve the legacy scatter sequence
       const zn = ZONES[k];
       if (Math.hypot(x - zn.x, z - zn.z) < zn.r + pad) return true;
     }
     return false;
   };
+  const scatterStart = props.length;
   let placed = 0;
   let guard = 0;
   while (placed < 46 && guard++ < 2000) {
@@ -164,7 +171,18 @@ function buildProps() {
     else add({ type: 'conduit', x, z, r: 0.5 * s, h: 6 * s, s, seed: Math.floor(rnd() * 1e6) });
     placed++;
   }
-  return props;
+  // Replace only old scatter within the cut; keep the original world layout elsewhere.
+  const survey = ZONES.survey;
+  const retained = props.slice(0, scatterStart).concat(props.slice(scatterStart).filter(p => Math.hypot(p.x - survey.x, p.z - survey.z) >= survey.r + 2));
+  retained.push(
+    { type: 'survey_pump', x: 43, z: -39, hw: 2.15, hd: 1.45, h: 4.8 },
+    { type: 'survey_tower', x: 51, z: -32, hw: 2.15, hd: 1.45, h: 4.8 },
+    { type: 'wall', x: 43, z: -43, hw: 5, hd: 0.6, h: 2.8 },
+    { type: 'wall', x: 53, z: -37, hw: 0.6, hd: 3.5, h: 2.4 },
+    { type: 'crate', x: 38, z: -39, hw: 0.9, hd: 0.8, h: 1.2 },
+    { type: 'crate', x: 49, z: -39, hw: 0.8, hd: 0.7, h: 1.1 },
+  );
+  return retained;
 }
 
 export const PROPS = buildProps();
@@ -174,6 +192,8 @@ export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undef
 export const OBJECTS = [
   { key: 'obelisk', type: 'obelisk', name: 'The Listening Stone', x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 1.0 },
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
+  { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },
+  { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.map((o) => ({ x: o.x, z: o.z, r: o.r })));

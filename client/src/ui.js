@@ -7,6 +7,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { surveyHint } from '../../shared/survey.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -232,7 +233,10 @@ export class UI {
     this.trackerText = h('div', 'text');
     this.trackerProgress = h('div', 'progress');
     this.tracker.append(h('div', 'kicker', 'Directive'), this.trackerTitle, this.trackerText, this.trackerProgress);
-    side.append(this.minimap, this.zoneLabel, this.tracker);
+    this.surveyTracker = h('div', 'tracker');
+    this.surveyText = h('div', 'text');
+    this.surveyTracker.append(h('div', 'kicker', 'Field investigation · choose one'), this.surveyText);
+    side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
     root.append(side);
 
     this.errors = h('div', 'errors');
@@ -979,6 +983,7 @@ export class UI {
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
 
+    set(this.surveyText, 'text', surveyHint(sheet.survey));
     const q = sheet.quest;
     const d = DIRECTIVES[q.step];
     if (d) {
@@ -1212,7 +1217,7 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('survey_') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1325,7 +1330,7 @@ export class UI {
     // Top-down with north (-Z) up and east (+X) to the right.
     const X = (x) => x * k;
     const Z = (z) => z * k;
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff' };
+    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e' };
     for (const key of Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();

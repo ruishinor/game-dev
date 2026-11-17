@@ -59,7 +59,10 @@ export const LOOKS = {
     { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
     { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
   ],
-  symbiotech: [{ id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' }],
+  symbiotech: [
+    { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
+    { id: 'brine_surveyor', name: 'Brine Surveyor', blurb: 'Independent field technician with a sealed survey rig and insulated sampling equipment. Same abilities; different appearance.' },
+  ],
 };
 export const defaultLook = (cls) => LOOKS[cls][0].id;
 export const validLook = (cls, look) => typeof look === 'string' && Object.hasOwn(LOOKS, cls) && LOOKS[cls].some((l) => l.id === look);
