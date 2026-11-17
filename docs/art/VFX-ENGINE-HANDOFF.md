@@ -64,7 +64,11 @@ The owner asked to pause after tasks 1–2 below.
   rendered all Vanguard effects with no page errors → `docs/evidence/vfx/engine-wip/`.
   After those frames, sphere shells were made less opaque, because they hid the
   character; this tuning has **not** been re-captured yet.
-- Integrated e2e (`npm run e2e`): see the result at the end of this file.
+- Integrated two-player e2e (`npm run e2e`, software GL) on this head: **71/72**.
+  The single failure is `9. five character tabs show real square selectable slots
+  and reserved details` (character-panel UI). The **same check fails identically on
+  the untouched base `7a9c5d7`** (71/72, run in a separate worktree the same day),
+  so it is pre-existing and unrelated to effects. Its cause has not been investigated.
 
 **Note: run the tests under Node 24, as CI does.** Under Node 22,
 `art-originals` byte-reproducibility fails (`backpack_research.glb differs`)
