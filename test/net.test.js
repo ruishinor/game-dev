@@ -7,6 +7,8 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { startServer } from '../server/index.js';
 import { CharacterStore } from '../server/store.js';
+import { RESPAWN_DELAY_MS } from '../server/sim/game.js';
+import { dealDamage } from '../server/sim/combat.js';
 
 const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'attune-')), 'characters.json');
 
@@ -339,7 +341,10 @@ test('two-player recovery: either session can respawn independently and remain v
       await new Promise((resolve) => setTimeout(resolve, 100));
       assert.equal(player.dead, true, 'early respawn request respects the delay');
 
-      await victim.until(() => victim.snap?.y?.dead === 0, 5000, 'respawn delay elapsed');
+      // A rounded network countdown can reach zero a fraction of a tick
+      // before the authoritative delay elapses; wait on server time.
+      await victim.until(() => game.time >= player.deadAt + RESPAWN_DELAY_MS + 100, 5000, 'respawn delay elapsed');
+      assert.equal(victim.snap.y.dead, 0, 'client countdown has finished');
       victim.send({ t: 'respawn' });
       await victim.until(() => !(victim.me()?.f & 1) && victim.me()?.h === victim.me()?.m, 3000, 'player recovered at full health');
       await watcher.until(() => !(watcher.ent(id)?.f & 1) && watcher.ent(id)?.h === watcher.ent(id)?.m, 3000, 'ally sees recovery');
