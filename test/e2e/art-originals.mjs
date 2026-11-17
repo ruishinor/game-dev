@@ -14,7 +14,7 @@ try{
  console.log('Graphics:',await describeGraphics(page));
  await fs.mkdir('art-evidence',{recursive:true});
  for(const id of ids){const result=await page.evaluate(async id=>{await window.__artPreview.select(id);return {ready:window.__artPreview.ready,triangles:window.__artPreview.triangles,error:window.__artPreview.error};},id);assert.ok(result.ready&&result.triangles>0&&!result.error,id+': '+JSON.stringify(result));if(['backpack_research','mender:visual','aegis:base','aegis:span','colony_mature','research_workstation','engineering_workstation'].includes(id))await page.locator('#view').screenshot({path:'art-evidence/'+id.replace(':','_')+'.png'});}
- await page.evaluate(()=>window.__artPreview.select('backpack_research'));await page.locator('#view').screenshot({path:'art-evidence/backpack_research_rear.png'});await page.locator('#yaw').fill('34');await page.locator('#yaw').dispatchEvent('input');await page.locator('#view').screenshot({path:'art-evidence/backpack_research_wearer.png'});
+ await page.evaluate(()=>window.__artPreview.select('backpack_research'));await page.locator('#view').screenshot({path:'art-evidence/backpack_research_rear.png'});await page.locator('#yaw').evaluate(e=>{e.value='34';e.dispatchEvent(new Event('input'));});await page.locator('#view').screenshot({path:'art-evidence/backpack_research_wearer.png'});
  assert.equal(await page.evaluate(()=>window.__artPreview.reviewIds.length),65);
  await page.evaluate(()=>window.__artPreview.select('backpack_research'));
  await page.locator('input[name="review-decision"][value="modify"]').check();

@@ -17,6 +17,6 @@ export function fieldMaterial(THREE,o){
  'float wave=exp(-pow((vUv.y-fract(phase*.42))*13.0,2.0))*motion;',
  'float opacity=clamp(.055+lines*.40+edge*.50+rim*.23+wave*.17,0.0,.90)*alpha;',
  'gl_FragColor=vec4(tint*(.70+lines*.35+edge*.25),opacity);',
- '}'].join('\\n').replaceAll('\\\\n','\\n')
+ '}'].join(String.fromCharCode(10))
  });
 }
