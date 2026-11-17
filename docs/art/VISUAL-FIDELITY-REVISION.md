@@ -24,3 +24,5 @@ These are still stylized procedural models, not high-fidelity reproductions. Cur
 - Span: curved surface and aligned perimeter, including elevation changes, with shader robustness correction and motion accessibility. Browser verification pending at commit.
 
 Remaining visual maturity is intermediate; no final art acceptance inferred from hosted tests.
+
+Span perimeter refinement: use two continuous tubes rather than 32 individual beam draws; shader and perimeter remain aligned. This reduces object and draw-call overhead without changing gameplay. Requires hosted validation at updated head.

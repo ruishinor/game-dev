@@ -17,3 +17,5 @@ Replaced flat Aegis body surfaces (base, Hinge, Span, Lattice) with an additive 
 
 ## Visual revision v3
 Span now has a shallow bowed field, an upward crown, and a continuous segmented perimeter derived from the same surface function, including sloped anchors. Vertical fallback retained. Shader wave avoids undefined negative-base GLSL pow. Reduced motion omits the traveling signal. Added exact geometry/edge alignment tests and a bounded sampler sweep (840 frames, maximum 40 objects). Browser verification pending at commit. No changes to combat semantics.
+
+Retrospective: reduced curved-span perimeter from 32 independent beam meshes to two sampled tube meshes along the identical curve. Maximum Span sample is 10 visual objects (210 samples, including vertical fallback, extreme size, and reduced motion). The actual GPU frame cost remains unmeasured. Added tube path tests.

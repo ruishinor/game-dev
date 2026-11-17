@@ -30,12 +30,14 @@ test('Span curves between sloped endpoints with matching perimeter and bounded g
  const frame=sample(1),field=frame.find(o=>o.id==='spanPanel'),p=(u,v)=>spanPoint(a,b,field.height,field.bow,u,v);
  assert.equal(field.type,'span');assert.deepEqual(p(0,0),[1,2.12,3]);assert.ok(Math.abs(p(1,0)[1]-3.12)<1e-12);
  assert.ok(Math.hypot(p(.5,0)[0]-2.5,p(.5,0)[2]-1)>.1);
- assert.deepEqual(frame.find(o=>o.id==='upper7').b,p(.5,1));
- assert.ok(frame.length<=64);
+ const edge=frame.find(o=>o.id==='upper');assert.deepEqual([edge.a,edge.b,edge.height,edge.bow,edge.edge],[a,b,field.height,field.bow,1]);
+ assert.ok(frame.length<=10);
  const effect=createArtEffect(THREE,sample);effect.update(1);
  const mesh=effect.group.children.find(m=>m.material.isShaderMaterial),positions=mesh.geometry.attributes.position;
  assert.equal(positions.count,119);assert.equal(mesh.geometry.index.count,576);
  for(let i=0;i<positions.count;i++){const expected=p((i%17)/16,Math.floor(i/17)/6);assert.ok(new THREE.Vector3().fromBufferAttribute(positions,i).distanceTo(new THREE.Vector3(...expected))<1e-5);}
+ const tubes=effect.group.children.filter(m=>m.geometry.type==='TubeGeometry');assert.equal(tubes.length,2);
+ for(const tube of tubes){const path=tube.geometry.parameters.path;const mid=path.getPoint(.5);assert.ok([p(.5,0),p(.5,1)].some(q=>mid.distanceTo(new THREE.Vector3(...q))<1e-5));}
  const count=effect.allocated;effect.update(1.5);assert.equal(effect.allocated,count);effect.dispose();
  assert.ok(!aegisSampler({variant:'span',anchor:[0,3,0]})(1).some(o=>o.type==='span'));
 });

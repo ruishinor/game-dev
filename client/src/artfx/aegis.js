@@ -30,7 +30,7 @@ export function aegisSampler({variant='base',center=[0,0,0],anchor=null,yaw=0,ra
     const p=(u,v)=>spanPoint(c,b,height,bow,u,v);
     emit('spanPanel','span',{a:c,b,height,bow,surface:'field',motion:!reducedMotion},VIOLET,.70);
     // The shader mesh and perimeter use the same curve, including sloped anchor heights.
-    for(let i=0;i<16;i++){const u=i/16,v=(i+1)/16;beam('lower'+i,p(u,0),p(v,0),VIOLET,.48);beam('upper'+i,p(u,1),p(v,1),VIOLET,.64);}
+    for(const edge of [0,1])emit(edge?'upper':'lower','spanEdge',{a:c,b,height,bow,edge},VIOLET,edge?.64:.48);
     ring('source',c,radius*.45,up,VIOLET);ring('target',b,radius*.45,up,VIOLET);
     for(const [id,u] of [['source',0],['target',1]]){beam(id+'Post',p(u,0),p(u,1),VIOLET,.54);ring(id+'Node',p(u,1),.13,norm,VIOLET,.67);}
     if(!reducedMotion)emit('spanSignal','point',{at:p(time.p,1),radius:.046},BLUE,.75);
