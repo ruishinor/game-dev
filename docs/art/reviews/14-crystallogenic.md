@@ -13,3 +13,9 @@ Simulated roundtable:
 - colony_mature: 3444 triangles, 5 material batches, 334896 bytes.
 - colony_wall: 2158 triangles, 5 material batches, 211444 bytes.
 - colony_pipe: 1408 triangles, 4 material batches, 138576 bytes.
+
+## Revision after preview inspection
+The first mature render read as tall mineral spikes on separate rounded bases. Revised three non-pipe variants with more uneven height and outward lean, broader basal lobes and flattened inter-node membrane clusters. Pipe geometry is unchanged. The second neutral preview was generated and the same structural checks repeated. The result remains an opaque faceted prototype; richer perforated membranes, translucency and material integration remain later work.
+- colony_ground: 2734 triangles, 266736 bytes.
+- colony_mature: 4380 triangles, 424756 bytes.
+- colony_wall: 2734 triangles, 266740 bytes.

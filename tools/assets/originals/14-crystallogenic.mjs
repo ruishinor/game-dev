@@ -23,16 +23,16 @@ export function build({variant='ground',seed=417,density=8}={}){
    const a=TAU*i/density+(r()-.5)*.43,d=(.16+r()*.38)*n,x=Math.cos(a)*d,z=Math.sin(a)*d*.75;
    const y=.07*n,base=[x,y,z];nodes.push(base);
    const s=(.095+r()*.073)*n;
-   orb('dermal',base,[s,.065*n,s*.72],{sides:9,rows:5});
+   orb('dermal',base,[s*1.25,.075*n,s*.80],{sides:9,rows:5});
    orb('membrane',[x*.94,.115*n,z*.94],[s*.52,.045*n,s*.45],{sides:8,rows:5});
-   const h=(.17+r()*.66)*n,l=(r()-.2)*.29*n;
+   const h=(i%3===0?.47+r()*.42:.11+r()*.37)*n,l=(.12+r()*.34)*n;
    crystal(i%3?'crystal':'crystalDark',[x,.10*n,z],[x+Math.cos(a)*l,.10*n+h,z+Math.sin(a)*l],(.038+r()*.067)*n,{r2:(.020+r()*.043)*n,sides:5+i%2,tip:(.07+r()*.12)*n});
    if(i%3===0){const x2=x+.075*n,z2=z-.04*n;crystal('crystalDark',[x2,.082*n,z2],[x2-.07*n,.22*n+r()*.14*n,z2+.08*n],.035*n,{r2:.023*n,sides:5,tip:.07*n});}
    // Branching substrate connecting visible nodules without spanning empty air.
    const middle=[x*.43,.045*n,z*.43];rod('dermal',[0,.04*n,0],middle,.045*n,{sides:7});rod('membrane',middle,[x,.06*n,z],.028*n,{sides:7});
    if(i%4===0)rod('violet',[x*.50,.078*n,z*.50],[x*.86,.103*n,z*.86],.007*n,{sides:5});
   }
-  for(let i=0;i<nodes.length;i++){const a=nodes[i],b=nodes[(i+1)%nodes.length];const mid=[(a[0]+b[0])*.39,.04*n,(a[2]+b[2])*.39];rod('dermal',[a[0],.04*n,a[2]],mid,.022*n,{sides:6});rod('dermal',mid,[b[0],.04*n,b[2]],.022*n,{sides:6});}
+  for(let i=0;i<nodes.length;i++){const a=nodes[i],b=nodes[(i+1)%nodes.length];const mid=[(a[0]+b[0])*.45,.07*n,(a[2]+b[2])*.45];orb('membrane',mid,[Math.max(.075*n,Math.abs(a[0]-b[0])*.46),.048*n,Math.max(.075*n,Math.abs(a[2]-b[2])*.46)],{sides:9,rows:5});rod('dermal',[a[0],.04*n,a[2]],mid,.022*n,{sides:6});rod('dermal',mid,[b[0],.04*n,b[2]],.022*n,{sides:6});}
  }
  if(variant==='wall'){
   const rot=([x,y,z])=>[x,-z,y];
