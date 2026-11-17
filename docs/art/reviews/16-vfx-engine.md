@@ -69,3 +69,50 @@ Retrospective:
   engineered structure rather than clutter, so they are kept.
 - Remaining risk: several large casts overlapping in a group fight. This has
   not been captured.
+
+## Coverage pass: no effect left on the original look
+
+Brief: every effect without a new-engine version kept its original look, so close
+those gaps and keep up with the rest of the integrated line.
+
+**Audit** (every `fx.*`, `authored()` and status path in `main.js` at quality ≥ 1):
+- Inside `onEvent`, every event and `fx` kind already had a recipe. The fallback
+  only fires for kinds that are not yet known.
+- The real gaps were outside the event switch:
+
+| Gap | Fix |
+|---|---|
+| Statuses: `ward`, `hot`, `bond`, `corrode` and `sap` were invisible; `root` showed only static legacy vines | `StatusVfx` (`client/src/vfx/status.js`) draws each status for exactly as long as the server's buff list reports it. Each has a distinct shape (see `status.js`). |
+| Enemy wind-ups (`tele`) only filled a cast bar | Energy converges on the caster for the real channel time, with a hazard sigil and a release flare |
+| Item and material gains (`loot` events and gain messages) had no visual | Gold acquisition motes and a sigil, deduplicated |
+| Player defeat had no visual | Grey dust, a guttering shell and fading embers |
+| Sinter ecology kinds (`alarm`, `guard`, `molt`, `repel`, `pounce`) from `feat/attunement-asset-production` | Dormant recipes |
+
+**Engine:** persistent auras owned by the caller (cap 48). They follow an
+entity and are torn down at quality 0.
+
+**Guard:** a coverage test scans `server/sim` for every emitted `fx` kind,
+adds every enemy special from `shared/content.js`, and fails if any lacks a
+recipe. A new server effect therefore cannot silently fall back to the
+original look.
+
+**Adversarial:**
+- Status handles are released when the buff ends, or when the entity dies,
+  leaves view or is removed, or quality drops to 0. This is tested.
+- Wind-ups are bounded by the server's channel time (capped at 8 s).
+- Acquisition is deduplicated across the paired `loot` event and gain message.
+- Every new path is presentation only.
+
+**Retrospective — not merging `feat/attunement-asset-production`:** a trial
+merge conflicted in `ai.js` (line-of-sight semantics), `ui.js` (target status
+and neutral logic), `scene.js` and tests. Those are gameplay reconciliations
+that the preview integrator has always handled in dedicated commits, so the
+merge was aborted. Its effect kinds were covered instead.
+
+**Browser:**
+- 22 frames in `docs/evidence/vfx/after/`, including a real Sentinel wind-up
+  followed by Arc Pulse, and the status layer on hostiles.
+- Seen in passing, outside this scope: preview's radio panel overlaps the top
+  of the HUD during play.
+
+No final art approval.
