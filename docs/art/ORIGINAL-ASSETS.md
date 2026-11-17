@@ -22,3 +22,5 @@ Run the normal local server and open `/client/art-preview.html`. Select any of t
 ## Artistic review
 
 Each of 45 3D/effect entries, 19 glyphs and the material atlas can be reviewed independently (65 items). Decisions are mutually exclusive: Unreviewed, Accepted, Modify, Not accepted. Optional notes and decisions are saved in browser localStorage; use JSON export to share or back them up. Decisions do not modify the game or technical validation. Changes in model/glyph/atlas file hashes invalidate previous local decisions; bump the explicit procedural effect revision when changing VFX or the Mender visual source. No server-side sharing or import is provided.
+
+Owner conditional acceptance and further visual work: [Visual fidelity revision](VISUAL-FIDELITY-REVISION.md).
