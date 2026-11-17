@@ -9,7 +9,7 @@ const check=args.includes('--check'),files=generateOriginals(),problems=[];
 if(!check)fs.mkdirSync(dir,{recursive:true});
 for(const [rel,buf] of files){
  const dest=path.join(dir,rel);
- if(check){if(!fs.existsSync(dest)||!fs.readFileSync(dest).equals(buf))problems.push(rel);}
+ if(check){if(!fs.existsSync(dest))problems.push(rel);else{const raw=fs.readFileSync(dest);const actual=/\.(json|svg)$/i.test(rel)?Buffer.from(raw.toString('utf8').replace(/\r\n/g,'\n'),'utf8'):raw;if(!actual.equals(buf))problems.push(rel);}}
  else {fs.mkdirSync(path.dirname(dest),{recursive:true});fs.writeFileSync(dest,buf);}
 }
 if(fs.existsSync(dir))for(const rel of fs.readdirSync(dir,{recursive:true}).map(x=>x.split(path.sep).join('/'))){if(fs.statSync(path.join(dir,rel)).isFile()&&!files.has(rel))problems.push('unlisted:'+rel);}

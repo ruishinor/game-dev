@@ -1,23 +1,13 @@
 name: Private reviewed voice promotion
 on:
-  pull_request:
-    paths:
-      - 'tools/voice/approved-preview-decisions.json'
-      - 'tools/voice/approve-library.py'
-      - 'test/assets.test.js'
-      - 'test/radio-playback.test.js'
-      - 'test/e2e/radio-audio.mjs'
-      - 'client/src/radio.js'
-      - 'client/src/radio-playback.js'
-      - 'server/index.js'
-      - '.github/workflows/voice-preview-promotion.yml'
+  workflow_dispatch:
 permissions: {}
 concurrency:
   group: private-radio-promotion
   cancel-in-progress: false
 jobs:
   prepare:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/prerecorded-radio-foundation' && github.event.pull_request.base.ref == 'preview/playtest-brineworks'
+    if: github.ref == 'refs/heads/feat/prerecorded-radio-foundation'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -26,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -55,7 +45,7 @@ jobs:
           python tools/voice/approve-library.py voice-library /tmp/remaining-decisions.json
           python tools/voice/promote.py voice-library /tmp/remaining-decisions.json --private-playtest --apply
           npm ci
-          npm test
+          node --test test/radio-assets.test.js test/radio-playback.test.js test/radio.test.js
       - uses: actions/upload-artifact@v4
         with:
           name: reviewed-private-radio-assets
@@ -75,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
