@@ -97,6 +97,13 @@ export function tickCompanion(game, c, dt) {
     return;
   }
 
+  if (c.mode === 'follow') {
+    c.act = 'idle';
+    c.actTarget = 0;
+    followOwner(c, owner, def, step);
+    return;
+  }
+
   if (c.mode === 'assist') {
     const t = game.ents.get(owner.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead' || t.state === 'evade' || dist(t, owner) > def.leash) {
