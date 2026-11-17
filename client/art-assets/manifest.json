@@ -462,14 +462,14 @@
     },
     {
       "path": "glyph_gauntlet_left.glb",
-      "bytes": 117276,
-      "gitBlob": "878a28cf1fe7f2769d93c99a5f2b5f705ea08a81",
+      "bytes": 506512,
+      "gitBlob": "6d37adf9c2f3c2ac7f9106bed512259f77648536",
       "source": "original"
     },
     {
       "path": "glyph_gauntlet_right.glb",
-      "bytes": 117284,
-      "gitBlob": "1c66b41e00982b758a271397f6d8d7605e692104",
+      "bytes": 506516,
+      "gitBlob": "2a9365334aac5d4319062770eaf0a06204618eb9",
       "source": "original"
     },
     {
