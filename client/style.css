@@ -75,7 +75,7 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .inspect-sub { color: var(--green); margin: 2px 0 5px; }
 .inspect-action { color: var(--muted); }
 .inspect-close { position: absolute; right: 5px; top: 5px; width: 25px; height: 25px; padding: 0; font-size: 17px; }
-.inspect-commands { display: flex; gap: 5px; margin-top: 7px; }
+.inspect-commands { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 7px; }
 .inspect-commands button { flex: 1; min-width: 0; padding: 4px 2px; font-size: 11px; }
 .inspect-commands button.active { color: var(--green); border-color: var(--green); }
 .rename-row { display: flex; gap: 5px; margin-top: 9px; }
