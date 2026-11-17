@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
+import { clearCombatSpot } from '../cover-setup.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
@@ -306,10 +307,11 @@ try {
   // --------------------------------------------- 4/5/6. targeting + combat
   const skitters = game.enemies.filter((e) => e.type === 'skitter');
   const fightAt = async (sk) => {
-    teleport('Brakka', sk.x + 1.5, sk.z + 3);
-    teleport('Lumen', sk.x + 7, sk.z + 9);
-    await settle(A, sk.x + 1.5, sk.z + 3);
-    await settle(B, sk.x + 7, sk.z + 9);
+    const a=clearCombatSpot(sk,1.5,3), b=clearCombatSpot(sk,5.5,6);
+    teleport('Brakka', a.x,a.z);
+    teleport('Lumen', b.x,b.z);
+    await settle(A,a.x,a.z);
+    await settle(B,b.x,b.z);
   };
   let sk = skitters[0];
   await fightAt(sk);
@@ -345,8 +347,9 @@ try {
   sk.maxHp=sk.hp=Math.max(sk.maxHp,300);
   note('initial Skitter fixture health raised to 300 for timing-sensitive observer checks');
   const hpBefore = sk.hp;
-  teleport('Brakka', sk.x + 1.5, sk.z + 2.5);
-  await settle(A, sk.x + 1.5, sk.z + 2.5);
+  const attackSpot=clearCombatSpot(sk,1.5,2.5);
+  teleport('Brakka',attackSpot.x,attackSpot.z);
+  await settle(A,attackSpot.x,attackSpot.z);
   await A.page.keyboard.press('Digit1');
   const hit = await until(A, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
