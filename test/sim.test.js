@@ -177,6 +177,31 @@ test('combat: player defeat, respawn delay and recovery at the Sanctum', () => {
   assert.ok(Math.hypot(p.x - WORLD.spawn.x, p.z - WORLD.spawn.z) < 0.01);
 });
 
+test('combat: Sanctum rejects damage and enemies disengage on entry', () => {
+  const { game, p, e } = duel();
+  // Verify that a direct/late damage event cannot bypass the safe-zone rule.
+  place(p, WORLD.spawn.x, WORLD.spawn.z);
+  const hp = p.hp;
+  const charge = p.res;
+  assert.equal(dealDamage(game, e, p, 9999, 'late_area_damage'), 0);
+  assert.equal(p.hp, hp);
+  assert.equal(p.res, charge);
+  assert.ok(!game.events.some((ev) => ev.e === 'dmg' && ev.d === p.id));
+
+  // Enemy threat and any pending casts must drop when a fighting player
+  // crosses the boundary; the player must not take another hit inside.
+  place(p, e.x, e.z + 3);
+  dealDamage(game, p, e, 1, 'test_engage');
+  run(game, 100);
+  assert.equal(e.state, 'combat');
+  place(p, WORLD.spawn.x, WORLD.spawn.z);
+  const safeHp = p.hp;
+  run(game, 1000);
+  assert.equal(e.threat.has(p.id), false);
+  assert.equal(e.state === 'evade' || e.state === 'idle', true);
+  assert.ok(p.hp >= safeHp, 'Sanctum may heal but must not damage the player');
+});
+
 test('combat: enemies leash, evade and heal to full', () => {
   const { game, p, e } = duel();
   place(p, e.x, e.z + 14);
