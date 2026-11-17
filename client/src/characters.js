@@ -12,6 +12,8 @@ import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { createGearKit } from './gear-kit.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
+import { FRAMES, RACES, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
+import { createAppearanceKit } from './appearance-render.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
@@ -50,14 +52,96 @@ function throttle(state, dt, interval) {
 
 let kit = null;
 export const gearKit = () => (kit ??= createGearKit(THREE, { shared }));
+let appearanceKit = null;
+const appearance = () => (appearanceKit ??= createAppearanceKit(THREE, { shared }));
+
+// Arm reach differs by frame (hand_l x: 0.739 masculine, 0.645 feminine). Gear
+// authored for one frame is remapped along the arm for the other.
+const HAND_X = { m: 0.739, f: 0.645 };
+const SHOULDER_X = 0.17;
+const armBone = (bone) => /^(upperarm|lowerarm|hand)_/.test(bone);
+export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) - SHOULDER_X) * k);
+
+/**
+ * Skull ellipsoid in the instance's model space, from the rest-pose skinned
+ * vertices weighted to Head (measured once per body; the bones are at rest
+ * while a character is being built).
+ */
+function measureSkull(inst) {
+  let body = null;
+  inst.traverse((o) => {
+    if (!body && o.isSkinnedMesh && !o.name.startsWith('shell_') && o.material?.name === 'body') body = o;
+  });
+  const hi = body?.skeleton.bones.findIndex((b) => b.name === 'Head') ?? -1;
+  if (!body || hi < 0 || typeof body.applyBoneTransform !== 'function') return null;
+  inst.updateMatrixWorld(true);
+  body.skeleton.update();
+  const toInst = inst.matrixWorld.clone().invert().multiply(body.matrixWorld);
+  const P = body.geometry.getAttribute('position');
+  const I = body.geometry.getAttribute('skinIndex');
+  const W = body.geometry.getAttribute('skinWeight');
+  const v = new THREE.Vector3();
+  const mn = [Infinity, Infinity, Infinity];
+  const mx = [-Infinity, -Infinity, -Infinity];
+  let n = 0;
+  for (let i = 0; i < P.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (I.getComponent(i, k) === hi) w += W.getComponent(i, k);
+    if (w < 0.9) continue;
+    v.fromBufferAttribute(P, i);
+    body.applyBoneTransform(i, v);
+    v.applyMatrix4(toInst);
+    ['x', 'y', 'z'].forEach((a, j) => {
+      mn[j] = Math.min(mn[j], v[a]);
+      mx[j] = Math.max(mx[j], v[a]);
+    });
+    n++;
+  }
+  if (n < 20) return null;
+  const c = mn.map((x, j) => (x + mx[j]) / 2);
+  // Radial map: the furthest head vertex in each direction bin from the centre,
+  // so hair and the face mask follow the real skull rather than an ellipsoid.
+  const nb = 36;
+  const nt = 18;
+  const radial = new Float32Array(nb * nt);
+  for (let i = 0; i < P.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (I.getComponent(i, k) === hi) w += W.getComponent(i, k);
+    if (w < 0.5) continue;
+    v.fromBufferAttribute(P, i);
+    body.applyBoneTransform(i, v);
+    v.applyMatrix4(toInst);
+    const dx = v.x - c[0];
+    const dy = v.y - c[1];
+    const dz = v.z - c[2];
+    const d = Math.hypot(dx, dy, dz);
+    if (d < 1e-4) continue;
+    const a = Math.min(nb - 1, Math.floor((Math.atan2(dx, dz) / (Math.PI * 2) + 0.5) * nb));
+    const t = Math.min(nt - 1, Math.floor((Math.acos(Math.max(-1, Math.min(1, dy / d))) / Math.PI) * nt));
+    radial[a + t * nb] = Math.max(radial[a + t * nb], d);
+  }
+  // Fill empty bins from the ring above/below (lower neck bins may stay empty -> ellipsoid).
+  for (let t = 0; t < nt; t++) for (let a = 0; a < nb; a++) {
+    if (radial[a + t * nb]) continue;
+    const nbrs = [radial[((a + 1) % nb) + t * nb], radial[((a + nb - 1) % nb) + t * nb], t > 0 ? radial[a + (t - 1) * nb] : 0].filter(Boolean);
+    if (nbrs.length) radial[a + t * nb] = Math.max(...nbrs);
+  }
+  return { c, r: mn.map((x, j) => (mx[j] - x) / 2), radial, nb, nt };
+}
+const skulls = new Map();
 
 export function makeHumanoid(assets, lookId, opts = {}) {
   const def = LOOK_DEFS[lookId];
-  const inst = def && assets.instance(def.body);
+  if (!def) return null;
+  // Appearance (frame, race, hair) is chosen per character; the look is the outfit.
+  const ap = normalizeAppearance(opts.appearance, lookId);
+  const lookFrame = defaultAppearance(lookId).frame;
+  const body = FRAMES[ap.frame].body;
+  const inst = assets.instance(body);
   if (!inst) return null;
   const clips = assets.clips('humanoid_m');
   const group = new THREE.Group();
-  inst.scale.setScalar(def.scale || 1);
+  inst.scale.setScalar(ap.frame === lookFrame ? def.scale || 1 : ap.frame === 'm' ? 1.03 : 0.97);
   group.add(inst);
 
   const mats = [];
@@ -91,32 +175,89 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   for (const o of hidden) o.parent.remove(o);
   // A look that names a shell the body does not have would silently lose that
   // piece of clothing; make it loud (automated checks fail on console errors).
-  for (const name of Object.keys(def.shells)) if (!shellMats[name]) console.error(`[models] look ${lookId}: shell "${name}" is not in ${def.body}`);
+  for (const name of Object.keys(def.shells)) if (!shellMats[name]) console.error(`[models] look ${lookId}: shell "${name}" is not in ${body}`);
+
+  // Skin by race. Mirekin carry mottled skin and a faint vein glow.
+  const race = RACES[ap.race];
+  const skinHex = race.skins[ap.skin];
+  const skinMat = appearance().skinMaterial(ap);
+  for (const m of mats) {
+    if (m.name === 'body') {
+      if (ap.race === 'mirekin') {
+        m.color.set(0xffffff);
+        m.map = skinMat.map;
+        m.emissiveMap = skinMat.emissiveMap;
+        m.emissive.copy(skinMat.emissive);
+        m.emissiveIntensity = skinMat.emissiveIntensity;
+      } else {
+        // Veyran keep the crimson body texture where the look has one.
+        if (!(ap.race === 'veyran' && m.map)) m.map = null;
+        m.color.set(m.map ? 0xffffff : skinHex);
+      }
+      m.roughness = ap.race === 'veyran' ? 0.5 : 0.62;
+    } else if (m.name === 'joints') m.color.set(skinHex).multiplyScalar(0.62);
+  }
+  // Head coverings: a helmet hides hair except what falls below its rim; a
+  // hood is lowered (hidden, with a collar) when the character wears hair.
+  const helmet = !!def.shells.helmet;
+  const lowerHood = !!shellMats.hood && ap.hair !== 'none' && !helmet;
+  if (lowerHood) inst.traverse((o) => { if (o.name === 'shell_hood') o.visible = false; });
 
   // Gear is positioned in bind pose, then handed to a bone.
   group.updateMatrixWorld(true);
+  const armK = HAND_X[ap.frame] / HAND_X[lookFrame];
+  const remap = armRemap(armK);
+  const attachRaw = (boneName, obj) => {
+    const bone = inst.getObjectByName(boneName);
+    if (!bone) return;
+    inst.add(obj);
+    obj.updateMatrixWorld(true);
+    bone.attach(obj);
+  };
   const ctx = {
     glows: [],
     coils: [],
     fluid: null,
     shellMaterial: (n) => shellMats[n] || mats[0],
     attach(boneName, obj) {
-      const bone = inst.getObjectByName(boneName);
-      if (!bone) return;
-      inst.add(obj);
-      obj.updateMatrixWorld(true);
-      bone.attach(obj);
+      // Legacy gear is authored for the look's own frame: move it along the arm.
+      if (armK !== 1 && armBone(boneName)) {
+        if (obj.isGroup) for (const ch of obj.children) ch.position.x = remap(ch.position.x);
+        else obj.position.x = remap(obj.position.x);
+      }
+      attachRaw(boneName, obj);
     },
+    // For parts already built for this frame (merged gear, head features).
+    withoutArmRemap: { attach: (boneName, obj) => attachRaw(boneName, obj) },
   };
   for (const build of def.gear || []) build(ctx);
   // Signature equipment (shared static meshes + per-character animated parts).
   let gearUpdate = null;
   if (SIGNATURE_GEAR[lookId]) {
     try {
-      gearUpdate = gearKit().instantiate(lookId, SIGNATURE_GEAR[lookId], ctx);
+      // Merged gear is remapped along the arms inside the kit (variant per armK).
+      gearUpdate = gearKit().instantiate(lookId, SIGNATURE_GEAR[lookId], ctx.withoutArmRemap, { armK });
     } catch (err) {
       console.warn(`[models] signature gear for ${lookId} unavailable`, err);
     }
+  }
+
+  // Head, face and hair, fitted to this body's measured skull.
+  try {
+    if (!skulls.has(body)) skulls.set(body, measureSkull(inst));
+    const skull = skulls.get(body);
+    if (skull) appearance().setHead(ap.frame, skull);
+    appearance().apply(ap, ctx.withoutArmRemap, { covered: helmet ? 'helmet' : null });
+    if (lowerHood) {
+      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.03, 8, 20), shellMats.hood);
+      collar.position.set(0, 1.5, -0.01);
+      collar.rotation.x = Math.PI / 2 - 0.25;
+      collar.scale.set(1.15, 1, 0.9);
+      collar.castShadow = true;
+      ctx.attach('neck_01', collar);
+    }
+  } catch (err) {
+    console.warn(`[models] appearance for ${lookId} unavailable`, err);
   }
 
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
@@ -425,7 +566,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: HB.npcIdle } : {});
+    if (look) model = makeHumanoid(assets, look, { appearance: meta.ap, ...(meta.c === 'archivist' ? { idle: HB.npcIdle } : {}) });
     else if (meta.c === 'mender') model = makeMender(assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {

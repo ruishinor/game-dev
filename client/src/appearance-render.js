@@ -34,6 +34,29 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+/**
+ * Head surface radius along unit direction n from the skull centre. Uses the
+ * measured radial map (head.radial, nb azimuth x nt polar bins of the maximum
+ * vertex distance) when present, else the ellipsoid.
+ */
+export function surfaceRadius(head, n) {
+  const ell = 1 / Math.hypot(n.x / head.r[0], n.y / head.r[1], n.z / head.r[2]);
+  const m = head.radial;
+  if (!m) return ell;
+  const { nb, nt } = head;
+  const az = (Math.atan2(n.x, n.z) / (Math.PI * 2) + 0.5) * nb - 0.5;
+  const po = (Math.acos(Math.max(-1, Math.min(1, n.y))) / Math.PI) * nt - 0.5;
+  const a0 = Math.floor(az);
+  const p0 = Math.max(0, Math.min(nt - 1, Math.floor(po)));
+  const p1 = Math.min(nt - 1, p0 + 1);
+  const fa = az - a0;
+  const fp = Math.max(0, Math.min(1, po - p0));
+  const at = (a, p) => m[((a % nb) + nb) % nb + p * nb] || ell;
+  const top = at(a0, p0) * (1 - fa) + at(a0 + 1, p0) * fa;
+  const bot = at(a0, p1) * (1 - fa) + at(a0 + 1, p1) * fa;
+  return top * (1 - fp) + bot * fp;
+}
+
 const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -57,13 +80,12 @@ function scalp(THREE, head, keep, lift, segs = [40, 26]) {
   const uv = g.getAttribute('uv');
   const n = new THREE.Vector3();
   const [cx, cy, cz] = head.c;
-  const [rx, ry, rz] = head.r;
   const ok = new Uint8Array(p.count);
   for (let i = 0; i < p.count; i++) {
     n.fromBufferAttribute(p, i);
     ok[i] = keep(n) ? 1 : 0;
-    const l = lift(n);
-    p.setXYZ(i, cx + n.x * (rx + l), cy + n.y * (ry + l), cz + n.z * (rz + l));
+    const R = surfaceRadius(head, n) + lift(n);
+    p.setXYZ(i, cx + n.x * R, cy + n.y * R, cz + n.z * R);
     // strands run crown -> tips: u wraps the head, v follows latitude
     uv.setXY(i, (Math.atan2(n.x, n.z) / TAU + 0.5) * 4, 1 - Math.acos(Math.max(-1, Math.min(1, n.y))) / Math.PI);
   }
@@ -143,9 +165,10 @@ export function hairGeometry(THREE, frame, style, head = HEAD[frame]) {
   } else if (style === 'locs') {
     parts.push(scalp(THREE, head, capKeep, (n) => 0.011 + 0.005 * smooth(0.3, 1, n.y)));
     for (let i = 0; i < 16; i++) {
-      const a = Math.PI * (0.25 + 1.5 * (i / 15)) + (r() - 0.5) * 0.15; // around the back half
-      const nx = Math.sin(a + Math.PI);
-      const nz = Math.cos(a + Math.PI);
+      // Around the back and sides only (a = PI is straight back; the face stays clear).
+      const a = Math.PI * (0.42 + 1.16 * (i / 15)) + (r() - 0.5) * 0.12;
+      const nx = Math.sin(a);
+      const nz = Math.cos(a);
       const root = [cx + nx * rx * 0.95, cy + ry * (0.15 + r() * 0.3), cz + nz * rz * 0.95];
       const len = 0.17 + r() * 0.08;
       const out = 0.03 + r() * 0.02;
@@ -218,11 +241,15 @@ export function faceGeometry(THREE, frame, head = HEAD[frame]) {
   const g = new THREE.SphereGeometry(1, 28, 20, Math.PI / 2 - 1.05, 2.1, 0.62, 1.42);
   const p = g.getAttribute('position');
   const uv = g.getAttribute('uv');
+  const n = new THREE.Vector3();
+  void rx; void ry; void rz;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i);
     const y = p.getY(i);
     const z = p.getZ(i);
-    p.setXYZ(i, cx + x * (rx + 0.0025), cy + y * (ry + 0.0025), cz + z * (rz + 0.0025));
+    n.set(x, y, z);
+    const R = surfaceRadius(head, n) + 0.0025;
+    p.setXYZ(i, cx + x * R, cy + y * R, cz + z * R);
     // Map the mask so u spans the face left->right and v forehead->chin.
     uv.setXY(i, 0.5 - Math.atan2(x, z) / 2.1, uv.getY(i));
   }
@@ -575,7 +602,8 @@ export function createAppearanceKit(THREE, { shared = (x) => x } = {}) {
   function setHead(frame, h) {
     const ok = h && [...h.c, ...h.r].every(Number.isFinite) && h.r.every((x) => x > 0.04 && x < 0.2);
     if (!ok || !Object.hasOwn(HEAD, frame) || built.has(frame)) return false;
-    heads[frame] = { c: [...h.c], r: [...h.r] };
+    const radial = h.radial && h.radial.length === h.nb * h.nt && [...h.radial].every((x) => x === 0 || (x > 0.03 && x < 0.25)) ? Float32Array.from(h.radial) : null;
+    heads[frame] = { c: [...h.c], r: [...h.r], ...(radial ? { radial, nb: h.nb, nt: h.nt } : {}) };
     return true;
   }
 

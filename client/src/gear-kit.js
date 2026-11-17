@@ -305,8 +305,12 @@ export function createGearKit(THREE, { shared = (x) => x } = {}) {
    * with b.add(bone, geometry, material, [x,y,z], [rx,ry,rz], [sx,sy,sz]) and
    * declares animated parts with b.fluid(...) / b.segments(...) / b.core(...).
    */
-  function build(lookId, recipe) {
-    if (lookCache.has(lookId)) return lookCache.get(lookId);
+  function build(lookId, recipe, variant = {}) {
+    const armK = Number.isFinite(variant.armK) && variant.armK > 0.5 && variant.armK < 2 ? variant.armK : 1;
+    const cacheKey = armK === 1 ? lookId : `${lookId}@${armK.toFixed(3)}`;
+    if (lookCache.has(cacheKey)) return lookCache.get(cacheKey);
+    // Gear authored for one frame, moved along the arm for the other (shoulder at x ~0.17).
+    const armX = (bone, x) => (armK !== 1 && /^(upperarm|lowerarm|hand)_/.test(bone) ? Math.sign(x) * (0.17 + (Math.abs(x) - 0.17) * armK) : x);
     const buckets = new Map();
     const dynamic = [];
     const m4 = new THREE.Matrix4();
@@ -327,7 +331,8 @@ export function createGearKit(THREE, { shared = (x) => x } = {}) {
       add(bone, geo, material, at, rot, scale) {
         const key = `${bone}|${material.name}`;
         if (!buckets.has(key)) buckets.set(key, { bone, material, list: [] });
-        buckets.get(key).list.push(place(geo, at, rot, scale));
+        const p = at ? [armX(bone, at[0]), at[1], at[2]] : at;
+        buckets.get(key).list.push(place(geo, p, rot, scale));
       },
       /** A fluid column (inside a reservoir) driven by the owner's state. */
       fluid(bone, r, h, at, rot, opts) {
@@ -375,7 +380,7 @@ export function createGearKit(THREE, { shared = (x) => x } = {}) {
       statics.push({ bone, material, geometry: g });
     }
     const built = { statics, dynamic };
-    lookCache.set(lookId, built);
+    lookCache.set(cacheKey, built);
     return built;
   }
 
@@ -383,8 +388,8 @@ export function createGearKit(THREE, { shared = (x) => x } = {}) {
    * Attach a look's gear to a character via ctx.attach(bone, object).
    * Returns an updater (st) => void for the animated parts, or null.
    */
-  function instantiate(lookId, recipe, ctx) {
-    const built = build(lookId, recipe);
+  function instantiate(lookId, recipe, ctx, variant = {}) {
+    const built = build(lookId, recipe, variant);
     for (const s of built.statics) {
       const mesh = new THREE.Mesh(s.geometry, s.material);
       mesh.castShadow = true;
