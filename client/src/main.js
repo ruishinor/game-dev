@@ -956,7 +956,12 @@ function followPlayer(id) {
   stopAutomaticMovement();
   S.followId = id;
 }
-input.onReset = stopAutomaticMovement;
+// A visible second browser may follow while the leader has keyboard focus.
+// Hidden tabs, logout and disconnect still cancel automatic movement.
+input.onReset = () => {
+  S.autoRun = false;
+  if (document.hidden || !input.enabled) S.followId = 0;
+};
 
 function stepLocal(inp, now, dt) {
   const me = S.ents.get(S.myId);

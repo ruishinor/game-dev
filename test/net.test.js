@@ -212,6 +212,19 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     a.send({ t: 'party_leave' });
     await b.until(() => b.snap?.y?.party?.members?.length === 0, 3000, 'party dissolved');
 
+    // The third socket must not receive a private whisper. Remove it before
+    // the existing two-player combat scenario.
+    const observer = new Client(srv.port);
+    try {
+      const wc = await observer.create('Witness', 'vanguard');
+      await observer.until(() => observer.ent(wa.id) && observer.ent(wc.id));
+      a.send({ t: 'whisper', id: wb.id, m: 'Private greeting' });
+      await b.until(() => b.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)), 3000, 'whisper received');
+      await a.until(() => a.events.some(e => e.k === 'whisper' && /Private greeting/.test(e.m)));
+      await observer.until(() => observer.snap?.time >= b.snap.time);
+      assert.ok(!observer.events.some(e => /Private greeting/.test(e.m || '')), 'whisper is not broadcast');
+    } finally { observer.close(); }
+
     // Movement: A walks forward; B observes A's authoritative position change.
     const startZ = b.ent(wa.id).z;
     let seq = 0;
