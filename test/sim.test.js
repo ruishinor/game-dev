@@ -414,7 +414,7 @@ test('companion bond: protects the chosen ally, and releases when the host dies'
   assert.equal(comp.host, 0);
 });
 
-test('companion harry: attacks the owner target and corrodes it', () => {
+test('companion attack and follow: attacks the target, then disengages on command', () => {
   const { game, p, e } = duel('symbiotech');
   place(p, e.x, e.z + 14);
   assert.ok(petCommand(game, p, 'assist').ok);
@@ -423,6 +423,11 @@ test('companion harry: attacks the owner target and corrodes it', () => {
   assert.ok(ev.some((x) => x.e === 'dmg' && x.s === p.companion.id && x.d === e.id));
   assert.ok(getBuff(e, 'corrode'));
   assert.ok(e.threat.has(p.id), 'companion damage is credited to its owner');
+  assert.ok(petCommand(game, p, 'follow').ok);
+  const following = [];
+  run(game, 2000, following);
+  assert.equal(p.companion.act, 'idle');
+  assert.ok(!following.some((x) => x.e === 'dmg' && x.s === p.companion.id), 'Follow prevents automatic attacks even with a hostile target selected');
   game.setTarget(p, 0);
   run(game, 300);
   assert.equal(p.companion.act, 'idle');
