@@ -327,6 +327,9 @@ const ui = new UI({
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
+  lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
+  lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
+  lootClose:()=>net.send({t:'loot_close'}),
   craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
@@ -1025,12 +1028,18 @@ function toScreen(v) {
 }
 
 /** Entity under a screen point, nearest to the camera first. */
-function pick(x, y, kinds) {
+function pick(x, y, kinds, allowLoot=false) {
   let best = null;
   let bestDist = Infinity;
   for (const ent of S.ents.values()) {
     if (!kinds.includes(ent.meta.k) || ent.id === S.myId || !ent.placed) continue;
-    if (ent.meta.k === 'e' && ent.dead) continue;
+    if(ent.meta.k==='e'&&ent.dead){
+      if(!allowLoot||!ui.loot.canLoot(ent.id))continue;
+      const body=toScreen(ent.pos);if(!body)continue;
+      const radius=Math.max(25,Math.min(58,ent.model.radius*36));
+      if(Math.hypot(x-body.x,y-body.y)<=radius){const d=camera.position.distanceToSquared(ent.holder.position);if(d<bestDist){bestDist=d;best=ent;}}
+      continue;
+    }
     const top = toScreen(ent.head);
     if (!top) continue;
     proj.set(ent.pos.x, ent.pos.y - ent.model.hover * 0.2, ent.pos.z);
@@ -1055,7 +1064,7 @@ function nearestObject() {
   let best = null;
   let bestD = INTERACT_RANGE;
   for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'o') continue;
+    if(ent.meta.k!=='o'&&!(ent.meta.k==='e'&&ent.dead&&ui.loot.canLoot(ent.id)))continue;
     const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
     if (d < bestD) {
       bestD = d;
@@ -1091,7 +1100,8 @@ function nextEnemy() {
 
 input.onClick = (button, x, y) => {
   if (button === 0) {
-    const ent = pick(x, y, ['e', 'p', 'c', 'o']);
+    const ent = pick(x, y, ['e', 'p', 'c', 'o'],true);
+    if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
     } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
@@ -1099,8 +1109,9 @@ input.onClick = (button, x, y) => {
     else S.inspect = null;
   } else {
     S.inspect = null;
-    const ent = pick(x, y, ['e', 'o', 'p']);
+    const ent = pick(x, y, ['e', 'o', 'p'],true);
     if (!ent) return;
+    if(ent.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
     if (ent.meta.k === 'o') {
       if(ent.meta.c==='archivist')ui.openNpc(ent);
@@ -1183,7 +1194,8 @@ input.onAction = (code, e) => {
       break;
     case 'KeyF': {
       const o = nearestObject();
-      if (o) net.send({ t: 'act', id: o.id });
+      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
     }
@@ -1419,12 +1431,13 @@ function updatePlates(now) {
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
     const screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
+    const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
     let label = ent.meta.n;
     let cls = 'player';
     if (k === 'e') {
       const calm = ent.meta.neu && !(row.f & 8);
-      cls = ent.dead ? 'corpse' : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
-      label = ent.dead ? `${ent.meta.n} · remains` : `${ent.meta.n}${ent.meta.el ? ' ◆' : ''}`;
+      cls = ent.dead ? (lootable?'corpse lootable':'corpse') : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
+      label = ent.dead ? `${ent.meta.n} · ${lootable?"Loot":"remains"}` : `${ent.meta.n}${ent.meta.el ? " ◆" : ""}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
       else if (!ent.dead && calm) label += ' · neutral';
     } else if (k === 'c') cls = 'comp';
@@ -1432,6 +1445,7 @@ function updatePlates(now) {
     ui.placePlate(ent, screen, {
       cls,
       label,
+      lootable,
       selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
       owned: k === 'c' && ent.meta.o === S.myId,
       hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,

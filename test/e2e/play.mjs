@@ -223,6 +223,19 @@ async function followInventoryPlaytest(){
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/unfollow');await B.page.keyboard.press('Enter');
  const stopped=await until(B,()=>!window.__attune.state().followId,null,5000,'unfollow');
  check('/unfollow clears authoritative follow',stopped&&pb.followId===0);
+ // Fixture only: position and kill a deterministic sentinel. Actual collection is through the browser.
+ teleport('FollowFollower',0,8.5);await settle(B,0,8.5);
+ const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;
+ dealDamage(game,pb,corpse,99999,'test');
+ await B.page.waitForFunction(id=>window.__attune.state().you.lootable?.some(x=>x.id===id),corpse.id,{timeout:15000});
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyF');
+ const loot=B.page.locator('.loot-window');await loot.waitFor({state:'visible',timeout:10000});
+ const alloy=loot.locator('[data-loot-id="sentinel_alloy"]');await alloy.hover();
+ check('corpse loot lists material art and hover tooltip',await alloy.locator('[data-art="sentinel_alloy"] svg').count()===1&&await B.page.locator('.tooltip').innerText().then(t=>t.includes('Sentinel alloy')));
+ await alloy.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:10000});
+ check('only selected stack is collected; unchosen equipment remains',await loot.locator('[data-loot-id="adrenal_shunt"]').count()===1&&!pb.char.inventory.includes('adrenal_shunt'));
+ await loot.getByRole('button',{name:'Close loot'}).click();
+ check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
  check('no script errors in focused browser sessions',pageErrors.length===0,pageErrors.slice(0,3).join(' | '));
 }
 

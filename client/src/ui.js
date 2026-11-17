@@ -11,6 +11,7 @@ import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
+import { LootPanel } from './loot-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -413,6 +414,7 @@ export class UI {
     this.tooltip = h('div', 'tooltip');
     this.tooltip.hidden = true;
     root.append(this.tooltip);
+    this.loot=new LootPanel(this);
 
 
     // Build panel
@@ -557,7 +559,7 @@ export class UI {
     this.settingsPanel.append(sc, h('h2', null, 'Settings'),
       qualityLabel, this.qualitySelect, applyQuality,
       h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
-      plateLabel,this.radio.settings());
+      plateLabel,this.loot.settings(),this.radio.settings());
     root.append(this.settingsPanel);
 
     // Help panel
@@ -580,12 +582,12 @@ export class UI {
       ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
-      ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
+      ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
-      ['F', 'Interact with what is in front of you'],
+      ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
@@ -761,6 +763,7 @@ export class UI {
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
@@ -1088,8 +1091,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.loot.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
@@ -1224,6 +1228,7 @@ export class UI {
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
+    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
@@ -1384,7 +1389,8 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1416,6 +1422,10 @@ export class UI {
         el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
         el.dataset.npc='archivist';
       }
+      if(ent.meta.k==='e'){
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
+      }
       if(ent.meta.k==='p'){
         el.dataset.playerId=String(ent.id);
         el.tabIndex=0;
@@ -1439,7 +1449,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();
+    this.radio.clear();this.loot.reset();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.
@@ -1471,6 +1481,11 @@ export class UI {
     set(p.el, 'cls', `plate ${opts.cls}${opts.selected ? ' selected' : ''}`);
     set(p.name, 'text', opts.label);
     if(ent.meta.k==='p') p.el.setAttribute('aria-label',opts.label+' player');
+    if(ent.meta.k==='e'&&p.el.dataset.lootable!==String(!!opts.lootable)){
+      p.el.dataset.lootable=String(!!opts.lootable);
+      if(opts.lootable){p.el.tabIndex=0;p.el.setAttribute('role','button');p.el.setAttribute('aria-label','Loot '+ent.meta.n);}
+      else{p.el.removeAttribute('tabindex');p.el.removeAttribute('role');p.el.removeAttribute('aria-label');}
+    }
     if (p.actions) {
       set(p.actions, 'hidden', !opts.selected);
       set(p.rename, 'hidden', !opts.owned);
