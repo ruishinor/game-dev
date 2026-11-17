@@ -32,12 +32,12 @@ export function build({species='nodules',seed=417,count=4,mature=false}={}){
    for(let j=1;j<=rows;j++){const t=j/rows;for(let i=0;i<n;i++){
     const a=i*TAU/n,rad=s*t*(1+.10*Math.cos(3*a+phase)+.055*Math.sin(5*a));
     const edge=s*(.065*Math.sin(3*a+phase)+.045*Math.cos(5*a))*t*t;
-    vertices.push([p[0]+rad*Math.cos(a),p[1]+s*(layer?-.035+.13*t:.40-.30*t*t)+edge,p[2]+rad*Math.sin(a)*.82]);
+    vertices.push([p[0]+rad*Math.cos(a),p[1]+s*(layer?-.035+.105*t:.40-.27*t*t)+edge,p[2]+rad*Math.sin(a)*.82]);
    }}
   }
   const layer=1+n*rows;
   for(let j=0;j<n;j++){const q=(j+1)%n;triangles.push([0,1+q,1+j],[layer,layer+1+j,layer+1+q]);
-   for(let i=0;i<rows-1;i++){const x=1+i*n+j,y=1+i*n+q;triangles.push([x,y+n,y],[x,x+n,y+n],[x+layer,y+layer,y+n+layer],[x+layer,y+n+layer,x+n+layer]);}
+   for(let i=0;i<rows-1;i++){const x=1+i*n+j,y=1+i*n+q;triangles.push([x,y,y+n],[x,y+n,x+n],[x+layer,y+n+layer,y+layer],[x+layer,x+n+layer,y+n+layer]);}
    const x=1+(rows-1)*n+j,y=1+(rows-1)*n+q;triangles.push([x,y,x+layer],[y,y+layer,x+layer]);
   }
   pushClosed('cap',vertices,triangles);

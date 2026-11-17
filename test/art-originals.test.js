@@ -39,3 +39,20 @@ test('revised industrial models embed decodable material maps',async()=>{
  for(const spec of MODEL_SPECS.filter(x=>['01','13'].includes(x.packageId))){const b=read(spec.file),size=b.readUInt32LE(12),j=JSON.parse(b.subarray(20,20+size).toString()),start=28+size;assert.ok(j.images.length>=12,spec.id);for(const m of j.materials.filter(x=>x.pbrMetallicRoughness.baseColorTexture)){assert.ok(m.normalTexture&&m.occlusionTexture&&m.pbrMetallicRoughness.metallicRoughnessTexture);}
  for(const img of j.images){const v=j.bufferViews[img.bufferView],meta=await sharp(b.subarray(start+v.byteOffset,start+v.byteOffset+v.byteLength)).metadata();assert.equal(meta.width,64);assert.equal(meta.height,64);}}
 });
+
+function closedMesh(parts){
+ for(const p of parts.filter(x=>x.kind==='mesh')){
+  const edges=new Map();let volume=0;
+  for(const t of p.triangles){const [a,b,c]=t.map(i=>p.vertices[i]);volume+=a[0]*(b[1]*c[2]-b[2]*c[1])+a[1]*(b[2]*c[0]-b[0]*c[2])+a[2]*(b[0]*c[1]-b[1]*c[0]);
+   for(let j=0;j<3;j++){const a=t[j],b=t[(j+1)%3],key=a<b?a+':'+b:b+':'+a,e=edges.get(key)||[0,0];e[0]++;e[1]+=a<b?1:-1;edges.set(key,e);}
+  }
+  if([...edges.values()].some(([n,d])=>n!==2||d!==0)||volume<=0)throw Error('inconsistent closed mesh: '+p.material+' volume '+volume);
+ }
+}
+import { build as menderParts } from '../tools/assets/originals/11-mender.mjs';
+import { build as colonyParts } from '../tools/assets/originals/14-crystallogenic.mjs';
+import { build as floraParts } from '../tools/assets/originals/15-flora.mjs';
+test('closed custom meshes have consistent outward winding and paired edges',()=>{
+ const builders={'11':menderParts,'14':colonyParts,'15':floraParts};
+ for(const spec of MODEL_SPECS.filter(s=>builders[s.packageId]))closedMesh(builders[spec.packageId](spec.args));
+});

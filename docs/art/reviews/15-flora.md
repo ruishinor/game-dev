@@ -20,3 +20,5 @@ Rebuilt nodules with gently tapered curved stems, individually curved closed pet
 - adaptive_nodules_mature: 4120 triangles, 12 embedded maps, 550752 bytes.
 - resonant_fungi_small: 3296 triangles, 15 embedded maps, 510128 bytes.
 - resonant_fungi_mature: 5636 triangles, 15 embedded maps, 734772 bytes.
+
+Retrospective correction: software preview exposed inverted cap ring faces. Aligned top/bottom ring winding with central faces and increased rim thickness. Added a regression check for paired directed edges and positive enclosed volume across every custom Mender, colony and flora mesh. Corrected cap preview inspected; no claim of final fidelity.
