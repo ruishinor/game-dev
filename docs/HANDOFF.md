@@ -1,5 +1,7 @@
 # Attunement — handoff
 
+> **Standing review requirement (2026-11-18):** Read [AGENTS.md](../AGENTS.md) before planning, implementation, review and handoff. Apply its server-authority, minimum-disclosure, repository-hygiene and publication gate to all relevant work.
+
 Work stopped early (usage limit) partway through the first vertical slice.
 This file states exactly what exists, what was verified, and what remains.
 
