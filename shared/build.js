@@ -104,7 +104,7 @@ export function tryUnequip(char, slot) {
   const equipped = { ...char.equipped, [slot]: null };
   const res = validateLoadout(char, equipped);
   if (!res.ok) {
-    return { ok: false, reason: `Cannot remove ${ITEMS[char.equipped[slot]].name}: ${res.reason}` };
+    return { ok: false, reason: `Cannot remove ${ITEMS[char.equipped[slot]].name}: ${res.reason}`, item: res.item };
   }
   return { ok: true, equipped };
 }
