@@ -635,7 +635,9 @@ export class UI {
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
       const kind = status ? status.label : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
-      set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
+      const form=target.meta.form&&!target.dead&&!(target.row.f&1)?
+        [target.meta.form,target.row.mineral?'calcified':null,target.row.scar?'scarred':null].filter(Boolean).join(' / '):'';
+      set(this.target.sub, 'text', [lvl, kind, form].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
       set(this.target.hp.wrap, 'hidden', !hasHp);

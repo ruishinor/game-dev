@@ -38,6 +38,17 @@ export function deepRoofAt(x, z, pad = 0) {
   return Math.abs(x - DEEP.x) <= DEEP.hw + pad && Math.abs(z - DEEP.z) <= DEEP.hd + pad;
 }
 
+// Low-profile ecological landmarks; no new colliders or walkable level.
+export const SINTER_SITES = {
+  nursery: {x:1.6,z:59.4,r:2.8},
+  mineral: {x:9.1,z:59.2,r:2.9},
+};
+export function sinterSiteAt(p) {
+  for(const [id,site] of Object.entries(SINTER_SITES))
+    if(Math.hypot(p.x-site.x,p.z-site.z)<=site.r)return id;
+  return null;
+}
+
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function rand() {

@@ -1,6 +1,6 @@
 // Bounded server-side wildlife encounters. No player threat, loot, XP,
 // progression or persistent state is owned by this module.
-import {dist,ZONES,resolveCollisions} from '../../shared/world.js';
+import {dist,ZONES,resolveCollisions,sinterSiteAt} from '../../shared/world.js';
 const center=ZONES.sinter;
 const local=e=>dist(e,center)<center.r-.8;
 const free=e=>e&&e.state==='idle'&&e.threat.size===0&&local(e);
@@ -53,7 +53,12 @@ export function tickWildPredator(game,e,dt){
  e.ecologyMode=e.wildPhase;turn(e,prey);
  const d=dist(e,prey);
  // The guard must be between prey and predator and actually nearby.
- const guard=game.enemies.find(o=>o.form==='shieldback'&&o!==prey&&free(o)&&dist(o,prey)<3.3&&dist(o,e)<2.5&&(o.x-e.x)*(prey.x-e.x)+(o.z-e.z)*(prey.z-e.z)>0);
+ const guard=game.enemies.find(o=>{
+  if(o.form!=='shieldback'||o===prey||!free(o)||dist(o,prey)>=3.3||dist(o,e)>=2.5||d<.001)return false;
+  const dx=(prey.x-e.x)/d,dz=(prey.z-e.z)/d;
+  const ox=o.x-e.x,oz=o.z-e.z,along=ox*dx+oz*dz;
+  return along>0&&along<d&&Math.abs(ox*dz-oz*dx)<1.2;
+ });
  if(guard&&(e.wildPhase==='circle'||e.wildPhase==='lunge')){
   guard.ecologyMode='brace';game.events.push({e:'fx',k:'sinter_repel',s:guard.id,d:e.id});withdraw(game,e,prey);return true;
  }
@@ -74,7 +79,7 @@ export function tickWildPredator(game,e,dt){
    // Nonlethal actual grazer HP damage; no player kill/credit path.
    const amount=Math.min(18,Math.max(0,prey.hp-Math.ceil(prey.maxHp*.35)));
    if(amount>0){
-    prey.hp-=amount;prey.wildWound+=amount;prey.wildHealAt=game.time+6000;
+    prey.hp-=amount;prey.wildWound+=amount;prey.wildHealAt=game.time+6000;prey.scarred=true;
     game.events.push({e:'dmg',s:e.id,d:prey.id,a:amount,ab:'wild_bite',k:'melee'});
    }
    withdraw(game,e,prey);
@@ -86,7 +91,7 @@ export function tickWildPredator(game,e,dt){
 export function tickWildHerd(game,e,dt){
  if(!e.form||!free(e))return false;
  if(e.wildWound>0&&game.time>=e.wildHealAt){
-  const n=Math.min(e.wildWound,Math.max(0,e.maxHp-e.hp),dt*4);e.hp+=n;e.wildWound-=n;
+  const n=Math.min(e.wildWound,Math.max(0,e.maxHp-e.hp),dt*(sinterSiteAt(e)==='nursery'?6:4));e.hp+=n;e.wildWound-=n;
   if(e.hp>=e.maxHp)e.wildWound=0;
  }
  const predator=game.enemies.find(o=>o.type==='faultstalker'&&free(o)&&o.wildPrey&&o.wildPhase!=='withdraw');

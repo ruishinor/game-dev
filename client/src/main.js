@@ -1096,6 +1096,7 @@ function updateEntities(dt, t, now) {
       casting,
       ecology: row?.ec,
       grown: !!row?.grown,
+      mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
       fwd: ent.fwd,

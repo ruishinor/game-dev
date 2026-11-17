@@ -2,7 +2,7 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, deepLineClear } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, deepLineClear, sinterSiteAt } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
@@ -29,6 +29,7 @@ export function resetEnemy(game, e) {
   e.ecologyMode = 'travel';
   e.routeLaps = 0;
   e.grown = false;
+  e.mineralDose=0;e.calcified=false;e.scarred=false;
   e.alarmUntil = 0;
   e.alarmFrom = null;
   e.alarmKind = null;
@@ -211,7 +212,17 @@ export function tickEnemy(game, e, dt) {
     // Authored migration circuits run in real simulation time.
     if (e.route) {
       if (game.time < e.wanderAt) {
-        if(e.form)e.ecologyMode='forage';
+        if(e.form){
+          const site=sinterSiteAt(e);
+          e.ecologyMode=site==='nursery'?'rest':'forage';
+          if(site==='mineral'){
+            e.mineralDose+=dt;
+            if(e.form==='adult'&&e.grown&&!e.calcified&&e.mineralDose>=14){
+              e.calcified=true;
+              game.events.push({e:'fx',k:'sinter_molt',s:e.id});
+            }
+          }
+        }
         if(e.type==='faultstalker')e.ecologyMode='watch';
         return;
       }
@@ -243,7 +254,12 @@ export function tickEnemy(game, e, dt) {
             if(!e.grown&&e.routeLaps>=2){e.grown=true;game.events.push({e:'fx',k:'sinter_molt',s:e.id});}
           }
           // Distinct feeding intervals, long circuits, no per-frame random roll.
-          if(e.routeIndex%3===0)e.wanderAt=game.time+(e.form==='juvenile'?1600:e.form==='shieldback'?4200:2700);
+          if(e.routeIndex%3===0){
+            const site=sinterSiteAt(e);
+            const pause=e.form==='juvenile'?1600:e.form==='shieldback'?4200:2700;
+            // Long sheltered rest; adapted adults process deposits faster.
+            e.wanderAt=game.time+pause+(site==='nursery'?1000:site==='mineral'&&!e.calcified?1700:0);
+          }
         }else if(stalking&&e.routeIndex%3===0)e.wanderAt=game.time+2000;
       }
       return;

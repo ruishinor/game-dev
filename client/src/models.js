@@ -625,6 +625,22 @@ function makeSinterFauna(predator, form = 'adult') {
   const molt = new THREE.Group();
   molt.name='fauna:mineral-growth';
   molt.visible=false;torso.add(molt);
+  const deposits=new THREE.Group(),scars=new THREE.Group();
+  deposits.name='fauna:calcified';scars.name='fauna:scar';
+  deposits.visible=scars.visible=false;torso.add(deposits,scars);
+  if(!predator){
+    for(let i=0;i<4;i++){
+      const z=-.48+i*.24;
+      for(const side of [-1,1]){
+        const rib=part(SHELL_GEO,edge,.08,.17,.21,side*.33,.30,z);
+        rib.rotation.z=-side*.38;deposits.add(rib);
+      }
+    }
+    for(let i=0;i<3;i++){
+      const scar=part(SPH,membrane,.028,.028,.19,.27,.35-i*.025,-.15+i*.075);
+      scar.rotation.y=.58;scars.add(scar);
+    }
+  }
   // Layered carapace seams, flexible lateral gills and newly deposited
   // mineral ridges; not a rescaled rock on legs.
   for(let i=0;i<5;i++)for(const side of [-1,1]){
@@ -705,6 +721,8 @@ function makeSinterFauna(predator, form = 'adult') {
       const stride = Math.min(1, st.speed / (predator ? 3.4 : 1.7));
       phase += dt * st.speed * (juvenile?5.0:shieldback?3.15:3.8);
       molt.visible=!!st.grown&&!predator;
+      deposits.visible=!!st.mineral&&!predator;
+      scars.visible=!!st.scar&&!predator;
       for(const {leg,knee,ankle,side,i} of legs){
         const q=phase+i*Math.PI+(side>0?Math.PI:0),swing=Math.sin(q);
         leg.rotation.x=swing*stride*.39;
@@ -714,7 +732,7 @@ function makeSinterFauna(predator, form = 'adult') {
       const brace=st.ecology==='brace',watch=st.ecology==='watch'||st.ecology==='crouch'||st.ecology==='circle';
       const lunge=st.ecology==='lunge';
       torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055-(brace?0.09:watch?0.07:0);
-      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='rest'?0.38:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
       head.rotation.y=watch?Math.sin(st.t*1.5)*0.28:0;
       const bite=st.dead?0:Math.max(0,st.attack||0);
       jawRig.rotation.x=.08+(st.casting?.35:bite*.50);
