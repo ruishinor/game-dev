@@ -214,8 +214,13 @@ export class UI {
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     const helpBtn = h('button', 'menubtn', 'Help [H]');
     helpBtn.addEventListener('click', () => this.toggleHelp());
+    this.charactersBtn = h('button', 'menubtn', 'Characters');
+    this.charactersBtn.addEventListener('click', () => this.a.characters());
+    this.signoutBtn = h('button', 'menubtn', 'Sign out');
+    this.signoutBtn.hidden = true;
+    this.signoutBtn.addEventListener('click', () => this.a.signOut());
     this.netLabel = h('div', 'net');
-    menu.append(this.buildBtn, helpBtn, this.netLabel);
+    menu.append(this.buildBtn, helpBtn, this.charactersBtn, this.signoutBtn, this.netLabel);
     root.append(menu);
 
     this.tooltip = h('div', 'tooltip');
@@ -272,7 +277,11 @@ export class UI {
         forget.textContent = 'Click again to confirm — this cannot be undone from this browser';
       }
     });
+    this.forgetBtn = forget;
     this.help.append(forget);
+    this.recoveryBtn = h('button', 'menubtn', 'Copy guest recovery key');
+    this.recoveryBtn.addEventListener('click', () => this.a.copyRecoveryKey());
+    this.help.append(this.recoveryBtn);
     root.append(this.help);
 
     // Death overlay
@@ -286,6 +295,13 @@ export class UI {
     this.interact = h('div', 'interact');
     this.interact.hidden = true;
     root.append(this.interact);
+  }
+
+  setAccountLinked(linked) {
+    this.signoutBtn.hidden = !linked;
+    this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
+    this.forgetBtn.hidden = !!linked;
+    this.recoveryBtn.hidden = !!linked;
   }
 
   /** Build the class-specific action bars once the class is known. */
