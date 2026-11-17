@@ -1,0 +1,8 @@
+# Playable preview expansion — 2026-11-17
+
+Starting checkpoint: 11aa19c206b3457b7d69361054034d4338132a4c (both hosted workflows succeeded). Do not repeat the fifteen-package first fidelity pass; the owner has NOT accepted artistic fidelity. Existing art authoring prototypes are still isolated. The 1–218 reference archive is incomplete (see REFERENCE-ARCHIVE-STATUS.md).
+
+## Batch 1 — Brine Surveyor
+Additional Symbiotech cosmetic appearance, not a new combat class. Existing default looks, skills, abilities, equipment rules and save identifiers retained. Reuses the production female rig and coat texture; new twin cartridge assembly, asymmetric aerial, visor and utility pouch. No new external resources. The selection flows from existing LOOKS data; added to the model contact sheet and a focused content test.
+
+Simulated review: art direction — subdued industrial sampling equipment and readable silhouette instead of a palette swap alone; rigging — attachments follow known spine/head/pelvis bone names but clipping during animations is unverified; UX — expose cosmetic-only description, retain original selection; adversarial — no new combat advantage or non-class look; retrospective — choose a bounded playable addition rather than promoting unapproved authoring GLBs. Runtime screenshot, actual fit and frame cost not established at commit; no artistic acceptance.
