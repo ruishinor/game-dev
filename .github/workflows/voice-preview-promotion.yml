@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'tools/voice/approved-preview-decisions.json'
+      - 'test/assets.test.js'
+      - 'test/radio-playback.test.js'
+      - 'test/e2e/radio-audio.mjs'
       - '.github/workflows/voice-preview-promotion.yml'
 permissions: {}
 concurrency:

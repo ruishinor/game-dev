@@ -7,7 +7,7 @@ const event={dialogueId:entry.id,source:entry.source,message:entry.transcript};
 const asset={transcript:entry.transcript,sha256:'a'.repeat(64),envelope:[0,.7,1]};
 const manifest={[entry.id]:asset};
 test('recorded assets resolve only from matching authored events and reviewed manifest',()=>{
- assert.equal(radioAssetFor(event),null);
+ assert.equal(radioAssetFor(event,{}),null);
  assert.deepEqual(radioAssetFor(event,manifest),{url:'/client/assets/voice/kestrel.log17.mp3?v='+'a'.repeat(16),envelope:[0,.7,1]});
  for(const e of [{...event,message:'other'},{...event,source:'field'},{...event,dialogueId:'../../outside'},{...event,dialogueId:'__proto__'}])assert.equal(radioAssetFor(e,manifest),null);
  assert.equal(radioAssetFor(event,{[entry.id]:{...asset,sha256:'https://example.org'}}),null);

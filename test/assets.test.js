@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import validator from 'gltf-validator';
 import { LOOKS } from '../shared/content.js';
+import { APPROVED_RADIO_ASSETS } from '../client/src/radio-assets.js';
 import { HUMANOID_BASE, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS } from '../client/src/anim-tables.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,6 +28,16 @@ test('assets: every manifest entry is on disk with the recorded size and hash, a
     assert.equal(buf.length, a.bytes, `${id}: size differs from the manifest (rebuild with npm run assets:build)`);
     assert.equal(crypto.createHash('sha256').update(buf).digest('hex').slice(0, 12), a.hash, `${id}: content hash differs from the manifest`);
     listed.add(a.url);
+  }
+  // Reviewed audio has a separate authored manifest and provenance gate.
+  // Account for exact listed paths and full hashes, never exempt a directory.
+  for (const [id,a] of Object.entries(APPROVED_RADIO_ASSETS)) {
+    assert.match(id,/^[a-z0-9]+(?:\.[a-z0-9]+)+$/);
+    const rel='voice/'+id+'.mp3';
+    assert.ok(!listed.has(rel),`${rel}: duplicate asset path`);
+    const buf=fs.readFileSync(path.join(DIR,rel));
+    assert.equal(crypto.createHash('sha256').update(buf).digest('hex'),a.sha256,`${rel}: voice hash mismatch`);
+    listed.add(rel);
   }
   const onDisk = fs.readdirSync(DIR, { recursive: true }).filter((f) => fs.statSync(path.join(DIR, f)).isFile()).map((f) => f.split(path.sep).join('/'));
   assert.deepEqual(onDisk.filter((f) => !listed.has(f)), [], 'files under client/assets/ that the manifest does not describe');
