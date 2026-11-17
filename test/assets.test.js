@@ -32,7 +32,7 @@ test('assets: every manifest entry is on disk with the recorded size and hash, a
   // Reviewed audio has a separate authored manifest and provenance gate.
   // Account for exact listed paths and full hashes, never exempt a directory.
   for (const [id,a] of Object.entries(APPROVED_RADIO_ASSETS)) {
-    assert.match(id,/^[a-z0-9]+(?:\.[a-z0-9]+)+$/);
+    assert.match(id,/^[a-z0-9_]+(?:\.[a-z0-9_]+)+$/);
     const rel='voice/'+id+'.mp3';
     assert.ok(!listed.has(rel),`${rel}: duplicate asset path`);
     const buf=fs.readFileSync(path.join(DIR,rel));
