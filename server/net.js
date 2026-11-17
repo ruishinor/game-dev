@@ -135,12 +135,24 @@ export class NetServer {
     }
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.t !== 'string') return this.strike(conn);
 
+    if (!this.validAccountSession(conn)) return;
     if (!conn.player) return conn.account ? this.onAccountMessage(conn, msg) : this.onAuthMessage(conn, msg);
     try {
       this.onGameMessage(conn, conn.player, msg);
     } catch (err) {
       console.error('[net] error handling message', msg.t, err);
     }
+  }
+
+  /** Revoked/evicted account sessions must not retain access on an open socket. */
+  validAccountSession(conn) {
+    if (!conn.account || this.store.authenticateAccount(conn.accountToken) === conn.account) return true;
+    this.detach(conn);
+    conn.account = null;
+    conn.accountToken = null;
+    send(conn.ws, { t: 'account_fail', reason: 'The account session expired. Sign in again.' });
+    conn.ws.close(4000, 'account session expired');
+    return false;
   }
 
   strike(conn) {
@@ -376,8 +388,9 @@ export class NetServer {
     const evJson = JSON.stringify(game.events);
     const liveIds = new Set(rows.map((row) => row.i));
     for (const conn of this.conns) {
+      if (conn.ws.readyState !== 1 || !this.validAccountSession(conn)) continue;
       const p = conn.player;
-      if (!p || conn.ws.readyState !== 1) continue;
+      if (!p) continue;
       // Skip a snapshot rather than queue without bound for a stalled client.
       if (conn.ws.bufferedAmount > 512 * 1024) continue;
       // Clients discard entities omitted from a snapshot (e.g. expired corpses).
