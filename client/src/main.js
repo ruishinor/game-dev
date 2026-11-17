@@ -12,6 +12,7 @@ import { createModel, CHARACTER_BUNDLES } from './characters.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
 import { LiveAegis } from './live-aegis.js';
+import { LiveCasts } from './live-casts.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
@@ -61,6 +62,13 @@ scene.environmentIntensity = 0.85;
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
 const fx = new Fx(scene);
 const liveAegis = new LiveAegis(THREE);
+const liveCasts = new LiveCasts(THREE,scene);
+const pointOf = ent=>[ent.pos.x,ent.pos.y-ent.model.hover+.08,ent.pos.z];
+const toward = (a,b)=>{const d=b.map((v,i)=>v-a[i]);return Math.hypot(...d)>0.01?d:[0,1,0];};
+function authored(name,family,options,now){
+  if(quality===0)return false;
+  return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},now);
+}
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
@@ -528,6 +536,7 @@ function clearWorld() {
   stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
+  liveCasts.clear();
   ui.clearPlates();
 }
 
@@ -628,7 +637,7 @@ function onSnapshot(m) {
 
 const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
-const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
+const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
 function nameOf(ent) {
   if (!ent) return 'Something';
@@ -667,6 +676,10 @@ function onEvent(e) {
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
+          const a=pointOf(s),b=pointOf(d);
+          authored(e.ab,'kinetic',{variant:e.ab==='phase_needle'||e.ab==='resonant_reversal'?'resonance':'impact',center:[b[0],b[1]+.7,b[2]],direction:toward(a,b),radius:Math.min(2,d.model.radius+.45),duration:.85},now);
+        }
       }
       // Melee already has a burst above. Make bolt impacts readable too,
       // without doubling particles or changing combat damage.
@@ -689,6 +702,8 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (s && d) {
         if (s.meta.k === 'c') s.castAnim = 1;
+        if(s.placed&&d.placed&&Math.hypot(s.pos.x-d.pos.x,s.pos.z-d.pos.z)>.2)
+          authored('mender-transfer','restorative',{variant:'transfer',source:pointOf(s),target:pointOf(d),radius:.8,duration:.8},now);
         fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 500, 0.06);
         fx.burst(d.chest, 0x7dffc4, 4, 0.7);
       }
@@ -699,18 +714,21 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
-      if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
+      if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2},now);fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
+      else if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
       else if (e.ab === 'fault_scan' && d) {
+        if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9},now);}
         fx.beam(chestOf(s), chestOf(d), 0x85cde9, 480, 0.035);
         fx.ring(d.pos.x, d.pos.z, 1.8, 0x85cde9, 600, d.pos.y);
       } else if (e.ab === 'field_rig') fx.ring(s.pos.x, s.pos.z, 4, 0x85cde9, 550, s.pos.y);
       else if (e.ab === 'mending_graft') {
         s.castAnim = 1;
         if (d && d !== s) fx.beam(chestOf(s), chestOf(d), 0x7dffc4, 480, 0.07);
-        if (d) fx.burst(d.chest, 0x7dffc4, 10, 1.1);
+        if (d) {fx.burst(d.chest, 0x7dffc4, 10, 1.1);if(d.placed)authored('mending-graft','restorative',{variant:'restore',target:pointOf(d),radius:1.0,duration:1.5},now);}
       } else if (e.ab === 'kinetic_ward') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, 2.2, 0xffb45c, 500, s.pos.y);
+        if(s.placed)authored('kinetic-ward','kinetic',{variant:'charge',center:[s.pos.x,s.pos.y+1,s.pos.z],direction:[Math.sin(s.yaw),0,Math.cos(s.yaw)],radius:1.1,duration:1.2},now);
       } else if (e.ab === 'spore_snare' && d) fx.ring(d.pos.x, d.pos.z, 2, 0x9dffb0, 700, d.pos.y);
       break;
     }
@@ -719,6 +737,7 @@ function onEvent(e) {
       if (e.k === 'survey_blast') {
         fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
         fx.pillar(e.x, e.z, 0xf0b56b, 450);
+        authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1},now);
         break;
       }
       if (e.k === 'arc_pulse' || e.k === 'seismic_slam') {
@@ -728,11 +747,14 @@ function onEvent(e) {
       }
       if (!s) break;
       if (s.model.trigger && (e.k === 'discharge' || e.k === 'aegis' || e.k === 'surge' || e.k === 'attune')) s.model.trigger('ability', e.k);
-      if (e.k === 'discharge') {
+      if(e.k==='lattice_relay'){fx.ring(s.pos.x,s.pos.z,e.r,0x7fd0ff,650,s.pos.y);if(s.placed)authored('lattice-relay','aegis',{variant:'lattice',center:pointOf(s),radius:1.5,yaw:s.yaw,duration:1.2},now);}
+      else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6},now);fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
+      else if (e.k === 'discharge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
         fx.burst(s.chest, 0xffb45c, 14, 2.4);
+        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1},now);
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
@@ -742,6 +764,7 @@ function onEvent(e) {
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
         fx.ring(s.pos.x, s.pos.z, e.r * 0.5, 0xd8ffe9, 500, s.pos.y - s.model.hover);
         fx.burst(s.chest, 0x7dffc4, 16, 2.6);
+        if(s.placed)authored('overgrowth-surge','restorative',{variant:'restore',target:pointOf(s),radius:Math.min(8,e.r),duration:1.6},now);
       } else if (e.k === 'resonance_burst') {
         fx.ring(s.pos.x, s.pos.z, 20, 0xb48cff, 800, s.pos.y);
         fx.burst(s.chest, 0xb48cff, 14, 3);
@@ -1346,6 +1369,7 @@ function frame(now) {
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
   fx.update(dt);
+  liveCasts.update(now);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;
