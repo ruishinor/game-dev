@@ -334,15 +334,15 @@ try {
   const companionSelected = await until(B, () => {
     const s = window.__attune.state();
     const actions = document.querySelector('.plate.comp.selected .companion-actions');
-    return s.inspected === s.compId && actions && !actions.hidden && document.querySelector('.companion-dialog').hidden;
+    return s.inspected === s.compId && actions && !actions.hidden && document.querySelector('.companion-dialog').hidden && document.querySelector('.codex-window').hidden;
   }, null, 3000, 'companion selection reveals icons without opening a panel');
   await B.page.click('.frame.pet .companion-info');
   const companionInfo = await until(B, () => {
-    const dialog = document.querySelector('.companion-dialog');
-    return !dialog.hidden && /Codex/.test(dialog.textContent) && dialog.querySelector('.rename-row').hidden;
+    const dialog = document.querySelector('.codex-window');
+    return !dialog.hidden && /Mender Symbiote/.test(dialog.textContent);
   }, null, 3000, 'explicit Codex entry');
-  await B.page.click('.inspect-close');
-  const companionDismissed = await until(B, () => document.querySelector('.companion-dialog').hidden, null, 3000, 'companion Codex closed');
+  await B.page.click('.codex-close');
+  const companionDismissed = await until(B, () => document.querySelector('.codex-window').hidden, null, 3000, 'companion Codex closed');
   check('8. companion selection stays unobtrusive; explicit Codex opens and closes', companionSelected && companionInfo && companionDismissed);
 
   await B.page.keyboard.down('Shift');

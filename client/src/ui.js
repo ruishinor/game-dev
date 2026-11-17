@@ -5,6 +5,8 @@
 import { ABILITIES, CLASSES, COMPANIONS, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { ENTRIES } from './journal.js';
+import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -290,7 +292,9 @@ export class UI {
     this.signoutBtn = h('button', 'menubtn', 'Sign out');
     this.signoutBtn.hidden = true;
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
-    this.menuItems.append(this.inventoryBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
+    this.codexBtn = h('button', 'menubtn', 'Codex [J]');
+    this.codexBtn.addEventListener('click', () => this.toggleCodex());
+    this.menuItems.append(this.inventoryBtn, this.codexBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -309,8 +313,34 @@ export class UI {
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.toggleBuild(false));
     this.panelBody = h('div', 'panel-body');
-    this.panel.append(close, this.panelBody);
+    this.panel.append(h('div','journal-brand','ATTUNEMENT'), h('h2','journal-title','Character & Loadout'), close, this.panelBody);
     root.append(this.panel);
+
+    this.inventoryPanel = h('div','panel inventory-window');
+    this.inventoryPanel.hidden = true;
+    this.inventoryPanel.setAttribute('role','dialog');
+    this.inventoryPanel.setAttribute('aria-label','Inventory');
+    const invClose = h('button','close','×');
+    invClose.setAttribute('aria-label','Close inventory');
+    invClose.addEventListener('click',()=>this.toggleInventory(false));
+    this.inventoryBody = h('div','inventory-body');
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),invClose,this.inventoryBody);
+    root.append(this.inventoryPanel);
+    this.inventoryFilter = 'all';
+    this.inventorySelection = this.loadoutSelection = null;
+
+    this.codexPanel = h('div','panel codex-window');
+    this.codexPanel.hidden = true;
+    this.codexPanel.setAttribute('role','dialog');
+    this.codexPanel.setAttribute('aria-label','Codex');
+    const codexClose = h('button','close codex-close','×');
+    codexClose.setAttribute('aria-label','Close Codex');
+    codexClose.addEventListener('click',()=>this.toggleCodex(false));
+    this.codexContent = h('div','codex-layout');
+    this.codexPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Codex'),codexClose,this.codexContent);
+    root.append(this.codexPanel);
+    this.codexGroup = 'Creatures';
+    this.codexSelection = 'skitter';
 
     this.partyPanel = h('div', 'panel party-panel');
     this.partyPanel.hidden = true;
@@ -387,7 +417,8 @@ export class UI {
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
-      ['C / I', 'Build / Inventory'],
+      ['C / I', 'Character & Loadout / Inventory'],
+      ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
       ['M', 'Open the corner menu'],
@@ -567,47 +598,53 @@ export class UI {
     this.menuItems.hidden = !(force ?? this.menuItems.hidden);
   }
 
+  hideJournalPanels() {
+    this.panel.hidden = this.inventoryPanel.hidden = this.codexPanel.hidden = true;
+    this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
+    this.menuItems.hidden = this.tooltip.hidden = this.playerContext.hidden = true;
+    this.closeCompanionDetails();
+  }
+
   toggleBuild(force) {
-    this.menuItems.hidden = true;
-    const wasInventory = this.panel.classList.contains('inventory-only');
-    this.panel.classList.remove('inventory-only');
-    const open = force ?? (wasInventory || this.panel.hidden);
+    const open = force ?? this.panel.hidden;
+    this.hideJournalPanels();
     this.panel.hidden = !open;
     if (open) {
-      this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
       this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
   }
 
   toggleInventory(force) {
-    this.menuItems.hidden = true;
-    const wasInventory = this.panel.classList.contains('inventory-only');
-    const open = force ?? (!wasInventory || this.panel.hidden);
-    this.panel.hidden = !open;
-    this.panel.classList.toggle('inventory-only', open);
-    this.panel.setAttribute('aria-label', open ? 'Inventory' : 'Character build');
-    if (open) {
-      this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
-      this.renderBuild();
+    const open = force ?? this.inventoryPanel.hidden;
+    this.hideJournalPanels();
+    this.inventoryPanel.hidden = !open;
+    if (open) renderInventory(this);
+  }
+
+  toggleCodex(force, id = null) {
+    const open = force ?? this.codexPanel.hidden;
+    this.hideJournalPanels();
+    this.codexPanel.hidden = !open;
+    if (!open) return;
+    if (id) {
+      const entry = ENTRIES.find(e => e.id === id);
+      if (entry) { this.codexGroup = entry.group; this.codexSelection = id; }
     }
+    renderCodex(this, ICONS);
   }
 
   toggleParty(force) {
-    this.menuItems.hidden = true;
     const open = force ?? this.partyPanel.hidden;
+    this.hideJournalPanels();
     this.partyPanel.hidden = !open;
-    if (open) {
-      this.panel.hidden = this.help.hidden = this.settingsPanel.hidden = true;
-      this.partySignature = '';
-    }
+    if (open) this.partySignature = '';
   }
 
   toggleSettings(force) {
-    this.menuItems.hidden = true;
     const open = force ?? this.settingsPanel.hidden;
+    this.hideJournalPanels();
     this.settingsPanel.hidden = !open;
-    if (open) this.panel.hidden = this.help.hidden = this.partyPanel.hidden = true;
   }
 
   renderParty(st) {
@@ -648,10 +685,9 @@ export class UI {
   }
 
   toggleHelp(force) {
-    this.menuItems.hidden = true;
     const open = force ?? this.help.hidden;
+    this.hideJournalPanels();
     this.help.hidden = !open;
-    if (open) this.panel.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
   }
 
   resetChatTarget() {
@@ -683,28 +719,18 @@ export class UI {
 
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
-    if (kind === 'rename' && ent.id !== this.companionId) return;
-    this.panel.hidden = this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = this.menuItems.hidden = true;
-    this.tooltip.hidden = true;
+    if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
+    if (ent.id !== this.companionId) return;
+    this.hideJournalPanels();
     this.dialogCompanionId = ent.id;
-    const def = COMPANIONS[ent.meta.c];
-    const renaming = kind === 'rename';
-    this.inspectName.textContent = renaming ? 'Rename companion' : (def?.name || 'Companion');
-    this.inspectSub.textContent = renaming ? '3–18 letters, spaces or hyphens. Outside combat.' : 'Codex · Companion';
-    this.codexBody.replaceChildren();
-    this.renameRow.hidden = !renaming;
-    this.codexBody.hidden = renaming;
-    if (renaming) {
-      this.renameInput.value = ent.meta.n;
-    } else {
-      this.codexBody.append(
-        h('p', null, 'A bioengineered symbiote bonded to a Conductor. It supports its owner and allies according to the selected companion command.'),
-        h('p', 'muted', 'Companion commands and their effects are explained on the companion hotbar.'),
-      );
-    }
+    this.inspectName.textContent = 'Rename companion';
+    this.inspectSub.textContent = '3–18 letters, spaces or hyphens. Outside combat.';
+    this.renameRow.hidden = false;
+    this.codexBody.hidden = true;
+    this.renameInput.value = ent.meta.n;
     this.inspectBox.hidden = false;
-    if (renaming) { this.renameInput.focus(); this.renameInput.select(); }
-    else this.inspectClose.focus();
+    this.renameInput.focus();
+    this.renameInput.select();
   }
 
   closeCompanionDetails() {
@@ -715,7 +741,8 @@ export class UI {
 
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.panel.hidden || !this.inventoryPanel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.inventoryPanel.hidden = this.codexPanel.hidden = true;
     this.playerContext.hidden = true;
     this.menuItems.hidden = true;
     this.panel.hidden = true;
@@ -734,6 +761,7 @@ export class UI {
     this.setClass(sheet.cls);
     if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
     if (!this.panel.hidden) this.renderBuild();
+    if (!this.inventoryPanel.hidden) renderInventory(this);
 
     const q = sheet.quest;
     const d = DIRECTIVES[q.step];
@@ -806,57 +834,7 @@ export class UI {
     }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
 
-    // Column 2: what is installed.
-    const c2 = h('section', 'pcol');
-    c2.append(h('h2', null, 'Loadout'));
-    for (const slot of SLOTS) {
-      const id = s.equipped[slot];
-      const card = h('div', `card slotcard${id ? '' : ' empty'}`);
-      card.append(h('div', 'kicker', SLOT_NAMES[slot]));
-      if (id) {
-        card.append(h('div', 'iname', ITEMS[id].name), h('div', 'idesc', ITEMS[id].desc));
-        const res = tryUnequip(s, slot);
-        const btn = h('button', null, 'Remove');
-        btn.disabled = !res.ok || !!this.buildLock;
-        btn.addEventListener('click', () => this.a.unequip(slot));
-        card.append(btn);
-        if (!res.ok) {
-          card.append(h('div', 'why', res.reason));
-          if (res.item && res.item !== id && ITEMS[res.item]) card.append(h('div', 'why-next', `Remove or replace ${ITEMS[res.item].name} first, or preserve its requirements with different equipment.`));
-        }
-      } else {
-        card.append(h('div', 'muted', slot === 'device' ? 'Devices lend you skill.' : slot === 'implant' ? 'Implants demand skill and reshape your power.' : 'A glyph rewrites how one power behaves.'));
-      }
-      c2.append(card);
-    }
-
-    // Column 3: what you carry.
-    const c3 = h('section', 'pcol wide');
-    c3.append(h('h2', null, 'Inventory'));
-    const spare = s.inventory.filter((id) => s.equipped[ITEMS[id].slot] !== id);
-    if (!s.inventory.length) c3.append(h('div', 'muted', 'Empty. Follow your directive — the Reach provides.'));
-    else if (!spare.length) c3.append(h('div', 'muted', 'Everything you own is installed.'));
-    for (const id of spare) {
-      const item = ITEMS[id];
-      const card = h('div', 'card');
-      card.append(h('div', 'kicker', SLOT_NAMES[item.slot]), h('div', 'iname', item.name), h('div', 'idesc', item.desc));
-      for (const r of describeRequirements(s, id)) {
-        const line = h('div', `req ${r.met ? 'met' : 'unmet'}`, `${r.met ? '✓' : '✗'} ${r.text}`);
-        if (r.detail) {
-          line.title = r.detail;
-          line.setAttribute('aria-label', `${r.text}. ${r.detail}`);
-        }
-        card.append(line);
-      }
-      const res = tryEquip(s, id);
-      const btn = h('button', res.ok ? 'primary' : '', s.equipped[item.slot] ? 'Swap in' : 'Equip');
-      btn.disabled = !res.ok || !!this.buildLock;
-      btn.addEventListener('click', () => this.a.equip(id));
-      card.append(btn);
-      if (!res.ok) card.append(h('div', 'why', res.reason));
-      c3.append(card);
-    }
-    body.append(c1, c2, c3);
+    renderLoadout(this, body, c1);
   }
 
   // --- per-frame ------------------------------------------------------------
@@ -889,6 +867,7 @@ export class UI {
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
+      if (!this.inventoryPanel.hidden) renderInventory(this);
     }
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
@@ -1055,7 +1034,8 @@ export class UI {
 
   clearPlates() {
     for (const id of [...this.plates.keys()]) this.removePlate(id);
-    this.closeCompanionDetails();
+    this.closePanels();
+    this.inventorySelection = this.loadoutSelection = null;
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
