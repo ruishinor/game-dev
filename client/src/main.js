@@ -17,6 +17,7 @@ import { LiveCasts } from './live-casts.js';
 import { createVfx } from './vfx/engine.js';
 import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
+import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
@@ -83,10 +84,21 @@ let fxClock = 0;
 // lightweight Fx primitives. Flash lights exist only when starting at quality 2.
 let vfx = null;
 let cvfx = null;
+let svfx = null;
+// Items and materials reach the player through both a 'loot' event and a gain
+// message; show one acquisition effect for the pair.
+let acquiredAt = -1e9;
+function acquired() {
+  const me = S.ents.get(S.myId);
+  if (!rich() || !me?.placed || fxClock - acquiredAt < 400) return;
+  acquiredAt = fxClock;
+  cvfx.acquire(me);
+}
 try {
   const startQ = new URLSearchParams(location.search).get('q');
   vfx = createVfx(THREE, scene, { textures: buildTextures(THREE), groundHeight, quality: /^[01]$/.test(startQ || '') ? Number(startQ) : 2, reducedMotion: motionPreference.matches });
   cvfx = new CombatVfx(vfx);
+  svfx = new StatusVfx(cvfx);
 } catch (err) {
   console.warn('Effect engine unavailable; using basic effects.', err);
 }
@@ -583,6 +595,7 @@ function addEntity(meta) {
 
 function removeEntity(ent) {
   fx.clearRoot(ent.id);
+  svfx?.remove(ent.id);
   liveAegis.remove(ent.id);
   scene.remove(ent.holder);
   dropRig(ent);
@@ -604,6 +617,7 @@ function clearWorld() {
   liveAegis.clear();
   liveCasts.clear();
   vfx?.clear();
+  svfx?.clear();
   ui.clearPlates();
 }
 
@@ -912,6 +926,7 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
@@ -952,8 +967,14 @@ function onEvent(e) {
       if (e.k === 'err') ui.error(e.m);
       else {
         ui.log(e.m, e.k);
-        if (e.k === 'gain') ui.toast(e.m, 'gain');
+        if (e.k === 'gain') {
+          ui.toast(e.m, 'gain');
+          acquired();
+        }
       }
+      break;
+    case 'loot':
+      acquired();
       break;
     case 'xp': {
       const me = S.ents.get(S.myId);
@@ -1358,6 +1379,9 @@ function updateEntities(dt, t, now) {
     ent.holder.visible = ent.inView;
     if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
     liveAegis.sync(ent, motionPreference.matches || quality === 0, t);
+    // Persistent statuses (ward, regeneration, bond, corrode, sap, root) while the server reports them.
+    if (svfx && rich() && ent.placed && ent.inView && !ent.dead) svfx.sync(ent, row?.b, dt * vfxTime);
+    else svfx?.remove(ent.id);
     if (ent.rigModel) animateRig(ent, t);
     ent.model.update(dt, {
       t,
@@ -1456,6 +1480,7 @@ function setQuality(q) {
   scene.environment = q >= 1 ? environment : null;
   world.ambient.intensity = world.ambientBase * (q >= 1 ? 1 : 1.5);
   lowSpec(scene, q === 0);
+  if (q === 0) svfx?.clear();
   vfx?.setQuality(q);
   renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
   resize();

@@ -14,6 +14,7 @@ import { CELL } from './textures.js';
 export const MAX_ITEMS = 40;
 export const CAPACITY = { add: 1800, alpha: 420 };
 export const MAX_AREAS = 16;
+export const MAX_AURAS = 48;
 const STRIDE = 30;
 const TAU = Math.PI * 2;
 
@@ -685,6 +686,51 @@ export function createVfx(THREE, scene, options = {}) {
     return a;
   }
 
+  /**
+   * A persistent fresnel shell that follows `at` (a function) for as long as
+   * the caller keeps it — a status that lasts while a buff is present.
+   * Returns { alive, dispose(), set({alpha}) } or null. At most MAX_AURAS.
+   */
+  const auras = new Set();
+  function aura(o) {
+    if (disposed || quality <= 0 || auras.size >= MAX_AURAS || typeof o.at !== 'function') return null;
+    const c = point(o.at);
+    if (!c || !finitePos(o.radius, 8)) return null;
+    const kind = o.kind === 'dome' ? 'dome' : 'sphere';
+    const u = { noise: { value: T.noise }, color: { value: col(o.color ?? 0xffffff) }, alpha: { value: 0 }, t: { value: 0 }, hex: { value: o.hex ?? 0 }, flow: { value: reduced ? 0 : o.flow ?? 0.5 }, vfade: { value: 0 }, streak: { value: o.streak ?? 0.5 } };
+    const mesh = new THREE.Mesh(kind === 'dome' ? shared.dome : shared.sphere, material(SHELL_VS, SHELL_FS, u));
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 4;
+    mesh.scale.setScalar(o.radius);
+    root.add(mesh);
+    let target = o.alpha ?? 0.3;
+    let age = 0;
+    const a = {
+      get alive() {
+        return auras.has(a) && !disposed;
+      },
+      set(p) {
+        if (Number.isFinite(p?.alpha)) target = Math.max(0, Math.min(1, p.alpha));
+      },
+      tick(dt) {
+        age += dt;
+        const at = point(o.at);
+        if (at) mesh.position.set(...at);
+        u.t.value = age;
+        // fade in, then a slow breath (none in reduced motion)
+        u.alpha.value = target * Math.min(1, age / 0.25) * (reduced ? 1 : 0.85 + 0.15 * Math.sin(age * (o.pulse ?? 2.4)));
+      },
+      dispose() {
+        if (!auras.delete(a)) return;
+        root.remove(mesh);
+        mesh.material.dispose();
+      },
+    };
+    auras.add(a);
+    a.tick(0);
+    return a;
+  }
+
   // Flash lights ------------------------------------------------------------------
   const lights = [];
   if ((options.lights ?? true) && quality >= 2) {
@@ -744,6 +790,7 @@ export function createVfx(THREE, scene, options = {}) {
       }
     }
     for (const a of areas) a.tick(dt);
+    for (const a of auras) a.tick(dt);
     stepPool(pools.add, dt);
     stepPool(pools.alpha, dt);
   }
@@ -763,6 +810,7 @@ export function createVfx(THREE, scene, options = {}) {
     if (q <= 0) {
       clear();
       for (const a of [...areas]) a.dispose();
+      for (const a of [...auras]) a.dispose();
     }
   }
 
@@ -770,6 +818,7 @@ export function createVfx(THREE, scene, options = {}) {
     if (disposed) return;
     clear();
     for (const a of [...areas]) a.dispose();
+    for (const a of [...auras]) a.dispose();
     disposed = true;
     for (const p of Object.values(pools)) {
       p.geo.dispose();
@@ -783,13 +832,13 @@ export function createVfx(THREE, scene, options = {}) {
   }
 
   return {
-    root, burst, sigil, area, shock, scorch, telegraph, beam, arc, shell, flash, emitter, update, clear, dispose, setQuality,
+    root, burst, sigil, area, aura, shock, scorch, telegraph, beam, arc, shell, flash, emitter, update, clear, dispose, setQuality,
     rand,
     get quality() { return quality; },
     get reducedMotion() { return reduced; },
     set reducedMotion(v) { reduced = !!v; },
     stats() {
-      return { ...stats, areas: areas.size, items: items.length, particles: pools.add.live + pools.alpha.live, lights: lights.length };
+      return { ...stats, areas: areas.size, auras: auras.size, items: items.length, particles: pools.add.live + pools.alpha.live, lights: lights.length };
     },
   };
 }

@@ -198,3 +198,73 @@ test('vfx: persistent areas are capped, re-placed, torn down at quality 0 and sa
   assert.ok(handles.every((h) => !h || !h.alive));
   assert.equal(v.area({ at: [0, 0, 0], radius: 2 }), null);
 });
+
+test('vfx: auras follow their owner, are capped, and are torn down at quality 0', async () => {
+  const { MAX_AURAS } = await import('../client/src/vfx/engine.js');
+  const { v } = make();
+  const pos = { x: 0, y: 1, z: 0 };
+  const handles = [];
+  for (let i = 0; i < MAX_AURAS + 3; i++) handles.push(v.aura({ at: () => pos, radius: 1, color: 0xff9a3c }));
+  assert.equal(handles.filter(Boolean).length, MAX_AURAS);
+  assert.equal(v.aura({ at: [0, 0, 0], radius: 1 }), null, 'needs a function to follow');
+  pos.x = 5;
+  v.update(0.1);
+  assert.ok(v.root.children.some((m) => m.position?.x === 5));
+  handles[0].dispose();
+  handles[0].dispose();
+  assert.equal(handles[0].alive, false);
+  v.setQuality(0);
+  assert.equal(v.stats().auras, 0);
+});
+
+test('status vfx: statuses appear and disappear exactly with the server buff list', async () => {
+  const { StatusVfx, STATUS_KINDS } = await import('../client/src/vfx/status.js');
+  const { v } = make();
+  const c = new CombatVfx(v);
+  const sv = new StatusVfx(c);
+  const ent = entity(3, 2, 2, 'e', 'skitter');
+  sv.sync(ent, [...STATUS_KINDS, 'shield', 'unknown'], 0.6);
+  v.update(0.05);
+  assert.equal(sv.tracked, 1);
+  assert.ok(v.stats().auras >= 2, 'ward and bond shells');
+  assert.ok(v.stats().areas >= 1, 'root ground sigil');
+  assert.ok(v.stats().particles > 0);
+  sv.sync(ent, ['hot'], 0.1);
+  assert.equal(v.stats().auras, 0, 'ended statuses release their shells');
+  assert.equal(v.stats().areas, 0);
+  sv.sync(ent, [], 0.1);
+  assert.equal(sv.tracked, 0);
+  sv.sync(ent, ['ward'], 0.1);
+  sv.sync(entity(4, 5, 5), 'not-an-array', 0.1);
+  sv.clear();
+  assert.equal(v.stats().auras, 0);
+  assert.equal(sv.tracked, 0);
+});
+
+test('combat vfx: wind-up, acquisition, player defeat and Sinter ecology recipes play and expire', () => {
+  const { v } = make();
+  const c = new CombatVfx(v);
+  const enemy = entity(9, 4, 4, 'e', 'warden');
+  const me = entity(1, 0, 0, 'p', 'surveyor');
+  c.windup(enemy, 1500);
+  c.acquire(me);
+  c.die(me);
+  for (const k of ['sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce']) assert.equal(c.area({ e: 'fx', k, s: 9, d: 1 }, enemy, null, me), true, k);
+  run(v, 0.5);
+  assert.ok(v.stats().items > 0 && v.stats().particles > 0);
+  run(v, 9);
+  assert.equal(v.stats().items, 0);
+  assert.equal(v.stats().particles, 0);
+});
+
+test('coverage: every effect kind the server emits and every enemy special has an engine recipe', async () => {
+  const fs = await import('node:fs');
+  const { ENEMIES } = await import('../shared/content.js');
+  const { AREA_KINDS } = await import('../client/src/vfx/combat.js');
+  const src = fs.readdirSync('server/sim').filter((f) => f.endsWith('.js')).map((f) => fs.readFileSync(`server/sim/${f}`, 'utf8')).join('\n');
+  const kinds = new Set([...src.matchAll(/e:\s*'fx'\s*,\s*k:\s*'([a-z_]+)'/g)].map((m) => m[1]));
+  for (const def of Object.values(ENEMIES)) for (const sp of def.specials || []) kinds.add(sp.id);
+  assert.ok(kinds.size >= 15, `found ${kinds.size} kinds`);
+  const missing = [...kinds].filter((k) => !AREA_KINDS.has(k));
+  assert.deepEqual(missing, [], 'add a recipe in client/src/vfx/combat.js (areaRecipe + AREA_KINDS)');
+});

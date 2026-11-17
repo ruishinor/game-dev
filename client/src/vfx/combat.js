@@ -23,8 +23,10 @@ export const PALETTE = {
   gold: 0xffd27a,
 };
 
-const AREA_KINDS = new Set([
+export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
+  // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
+  'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -258,6 +260,35 @@ export class CombatVfx {
       }
       return;
     }
+    if (e.k.startsWith('sinter_') && e.k !== 'sinter_sample') {
+      if (!s?.placed) return;
+      const f = this.feet(s)();
+      const r = this.radiusOf(s);
+      if (e.k === 'sinter_alarm') {
+        // herd alarm: a dusty ochre call that ripples outward
+        v.shock({ at: f, radius: 2.4 + r, color: 0xcbb67a, life: 0.7, width: 0.07 });
+        this.dust(f, r * 0.9, 8, 0x9a8a68);
+        v.burst({ at: s.chest, count: 6, cell: CELL.diamond, color: 0xf0e0a8, color2: 0xcbb67a, size: [0.06, 0.1], life: [0.5, 0.8], speed: [1, 2], dir: [0, 1, 0], spread: 0.7, drag: 2 });
+      } else if (e.k === 'sinter_guard') {
+        // a shieldback braces: mineral plates flare as a hex shell
+        v.shell({ at: s.chest, radius: r + 0.5, color: 0xd98f52, kind: 'sphere', hex: 1, life: 0.7, from: 1.2, to: 1, alpha: 0.45 });
+        v.shock({ at: f, radius: r + 1.2, color: 0xd98f52, life: 0.5 });
+      } else if (e.k === 'sinter_molt') {
+        // growth molt: shed mineral flakes and a dust skirt
+        v.burst({ at: s.chest, shape: 'sphere', radius: r * 0.7, count: 18, blend: 'alpha', cell: CELL.shard, color: 0xb8a888, color2: 0x7a6a58, size: [0.08, 0.15], life: [0.8, 1.3], speed: [0.6, 1.6], dir: [0, 1, 0], spread: 1.2, gravity: 9, spin: [-6, 6] });
+        this.dust(f, r, 10, 0x9eae83);
+      } else if (e.k === 'sinter_repel' && d?.placed) {
+        // the guard drives a predator off: a heavy sweep and a push of grit
+        v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: r + 1, color: 0xd98f52, sweep: 2.2, tilt: 0.3, life: 0.35, alpha: 0.8 });
+        this.sparks(d.chest, 0xd98f52, 1.1, [d.pos.x - s.pos.x, 0.3, d.pos.z - s.pos.z]);
+      } else if (e.k === 'sinter_pounce' && d?.placed) {
+        // the predator lunges: a low streak along the line and a dust kick-off
+        v.burst({ at: s.chest, shape: 'line', to: d.chest, count: 14, cell: CELL.streak, color: 0xffb070, color2: 0xa05030, size: [0.06, 0.1], life: [0.2, 0.35], speed: 0.4, stretch: 0.05 });
+        this.dust(f, r * 0.6, 8, 0x8a7a6a);
+        v.arc({ at: d.chest, yaw: this.yawTo(s, d), radius: 1.2, color: PALETTE.hostile, sweep: 1.6, tilt: 0.8, life: 0.25, alpha: 0.6 });
+      }
+      return;
+    }
     if (e.k === 'carapace_imprint') {
       if (!s?.placed) return;
       v.shell({ at: s.chest, radius: 0.9, color: 0x97b6a1, kind: 'sphere', hex: 1, life: 0.6, from: 1.3, to: 0.95, alpha: 0.4 });
@@ -381,11 +412,52 @@ export class CombatVfx {
     this.v.burst({ at: s.chest, shape: 'line', to: d.chest, count: 8, cell: CELL.glow, color: hot(PALETTE.restore, 0.4), color2: PALETTE.teal, size: [0.05, 0.1], life: [0.3, 0.5], speed: 0.2, attract: d.chest, pull: 6 });
   }
 
+  /**
+   * Enemy wind-up for the server's real channel time: energy drawn in toward
+   * the caster, a hazard sigil underfoot and a flare on release.
+   */
+  windup(ent, ms) {
+    const v = this.v;
+    const life = Math.min(8, Math.max(0.2, (ms || 1000) / 1000));
+    const r = this.radiusOf(ent);
+    v.sigil({ at: this.feet(ent), radius: r + 0.8, style: 'hazard', color: PALETTE.hostile, life, spin: 1.2, grow: 0.3, alpha: 0.6 });
+    let acc = 0;
+    v.emitter({
+      life,
+      tick: (k, t, it, dt) => {
+        acc += dt || 0;
+        if (acc < 0.08) return;
+        acc = 0;
+        v.burst({ at: ent.chest, shape: 'sphere', radius: r + 1.2, count: 2 + Math.round(k * 4), cell: [CELL.glow, CELL.ember], color: hot(PALETTE.hostile, 0.4), color2: PALETTE.hostile, size: [0.06, 0.12], life: [0.3, 0.45], speed: 0.1, attract: ent.chest, pull: 9, stretch: 0.03 });
+        if (k >= 0.999) {
+          v.burst({ at: ent.chest, count: 1, exact: true, cell: CELL.flare, color: 0xffe0c0, color2: PALETTE.hostile, size: r + 1.4, sizeEnd: 0.3, life: 0.2, speed: 0 });
+          v.flash({ at: ent.chest, color: PALETTE.hostileHot, intensity: 10, life: 0.25 });
+        }
+      },
+    });
+    v.shell({ at: () => ent.chest, radius: r + 0.4, color: PALETTE.hostile, kind: 'sphere', life, from: 1.4, to: 0.6, growPart: 1, holdUntil: 0.9, alpha: 0.25, streak: 1 });
+  }
+
+  /** An item reaches the player: gold motes rise into a brief sigil. */
+  acquire(ent) {
+    const f = this.feet(ent)();
+    this.v.sigil({ at: f, radius: 1.1, style: 'kinetic', color: PALETTE.gold, life: 1, spin: 2, alpha: 0.7 });
+    this.v.burst({ at: f, shape: 'disc', radius: 0.5, ground: true, lift: 0.2, count: 14, cell: [CELL.diamond, CELL.flare], color: 0xfff0c0, color2: PALETTE.gold, size: [0.06, 0.12], sizeEnd: 0.02, life: [0.7, 1.1], speed: [1.2, 2.2], dir: [0, 1, 0], spread: 0.25, swirl: 3, attract: ent.chest, pull: 1.2 });
+  }
+
   telegraph(x, y, z, r, ms) {
     this.v.telegraph({ at: [x, y, z], radius: r, ms });
   }
 
   die(ent) {
+    if (ent.meta?.k === 'p') {
+      // a player falls: grey dust, a guttering shell and fading embers
+      const f = this.feet(ent)();
+      this.dust(f, 0.6, 10, 0x6a6460);
+      this.v.shell({ at: f, radius: 0.7, height: 2.2, color: 0x8a96a0, kind: 'wall', life: 0.9, from: 1, to: 0.6, alpha: 0.35 });
+      this.v.burst({ at: ent.chest, count: 10, cell: CELL.ember, color: 0xffc8a0, color2: 0x404040, size: [0.05, 0.08], life: [0.6, 1], speed: [0.3, 0.9], dir: [0, 1, 0], spread: 1, drag: 1 });
+      return;
+    }
     if (ent.meta?.k !== 'e') return;
     const at = ent.chest.clone();
     this.v.burst({ at, shape: 'sphere', radius: 0.4, count: 12, blend: 'alpha', cell: CELL.smoke, color: 0x4a4048, color2: 0x2a2428, size: [0.5, 0.8], sizeEnd: [1.2, 1.8], life: [0.9, 1.4], speed: [0.3, 1], dir: [0, 1, 0], spread: 1.2, alpha: 0.5, drag: 1 });
