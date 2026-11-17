@@ -13,6 +13,7 @@ import { CELL } from './textures.js';
 
 export const MAX_ITEMS = 40;
 export const CAPACITY = { add: 1800, alpha: 420 };
+export const MAX_AREAS = 16;
 const STRIDE = 30;
 const TAU = Math.PI * 2;
 
@@ -630,6 +631,60 @@ export function createVfx(THREE, scene, options = {}) {
     });
   }
 
+  /**
+   * A persistent ground sigil the caller owns (e.g. a deployed device's real
+   * radius). Returns { set(at, radius), dispose() } or null. At most
+   * MAX_AREAS exist; the caller must dispose it when the device goes away.
+   */
+  const areas = new Set();
+  function area(o) {
+    if (disposed || quality <= 0 || areas.size >= MAX_AREAS) return null;
+    const c = point(o.at);
+    if (!c || !finitePos(o.radius, 60)) return null;
+    const u = { sigil: { value: T.sigil(o.style || 'survey') }, color: { value: col(o.color ?? 0xffffff) }, alpha: { value: o.alpha ?? 0.6 }, spinA: { value: 0 }, spinB: { value: 0 }, prog: { value: 1.06 }, hot: { value: 0 } };
+    let mesh = null;
+    let key = '';
+    const a = {
+      t: 0,
+      get alive() {
+        return areas.has(a) && !disposed;
+      },
+      set(at, radius) {
+        if (!areas.has(a)) return;
+        const p = point(at);
+        if (!p || !finitePos(radius, 60)) return;
+        const k = `${p.map((v) => v.toFixed(2)).join(',')}|${radius.toFixed(2)}`;
+        if (k === key) return;
+        key = k;
+        if (mesh) {
+          root.remove(mesh);
+          mesh.geometry.dispose();
+        }
+        mesh = decalMesh(p, radius, mat, o.lift ?? 0.06);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 3;
+        root.add(mesh);
+      },
+      dispose() {
+        if (!areas.delete(a)) return;
+        if (mesh) {
+          root.remove(mesh);
+          mesh.geometry.dispose();
+        }
+        mat.dispose();
+      },
+      tick(dt) {
+        a.t += dt;
+        u.spinA.value = reduced ? 0 : a.t * (o.spin ?? 0.25);
+        u.spinB.value = reduced ? 0 : -a.t * (o.spin ?? 0.25) * 1.6;
+      },
+    };
+    const mat = material(DECAL_VS, SIGIL_FS, u);
+    areas.add(a);
+    a.set(c, o.radius);
+    return a;
+  }
+
   // Flash lights ------------------------------------------------------------------
   const lights = [];
   if ((options.lights ?? true) && quality >= 2) {
@@ -688,6 +743,7 @@ export function createVfx(THREE, scene, options = {}) {
         items.splice(i--, 1);
       }
     }
+    for (const a of areas) a.tick(dt);
     stepPool(pools.add, dt);
     stepPool(pools.alpha, dt);
   }
@@ -704,12 +760,16 @@ export function createVfx(THREE, scene, options = {}) {
   function setQuality(q) {
     quality = q;
     if (q < 2) for (const s of lights) s.l.intensity = 0;
-    if (q <= 0) clear();
+    if (q <= 0) {
+      clear();
+      for (const a of [...areas]) a.dispose();
+    }
   }
 
   function dispose() {
     if (disposed) return;
     clear();
+    for (const a of [...areas]) a.dispose();
     disposed = true;
     for (const p of Object.values(pools)) {
       p.geo.dispose();
@@ -723,13 +783,13 @@ export function createVfx(THREE, scene, options = {}) {
   }
 
   return {
-    root, burst, sigil, shock, scorch, telegraph, beam, arc, shell, flash, emitter, update, clear, dispose, setQuality,
+    root, burst, sigil, area, shock, scorch, telegraph, beam, arc, shell, flash, emitter, update, clear, dispose, setQuality,
     rand,
     get quality() { return quality; },
     get reducedMotion() { return reduced; },
     set reducedMotion(v) { reduced = !!v; },
     stats() {
-      return { ...stats, items: items.length, particles: pools.add.live + pools.alpha.live, lights: lights.length };
+      return { ...stats, areas: areas.size, items: items.length, particles: pools.add.live + pools.alpha.live, lights: lights.length };
     },
   };
 }

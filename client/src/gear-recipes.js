@@ -193,3 +193,37 @@ export const SIGNATURE_GEAR = {
   aegis_keeper: keeperResonance,
   brine_surveyor: surveyorField,
 };
+
+// --- Brine Surveyor deployable: Field Rig (world object, not worn) ----------------
+// Built around its own origin on the ground; the 'root' bone means "the rig group".
+
+export function fieldRigDevice(b) {
+  const { prim, M } = b;
+  const ochre = M.paint('survey-ochre', { base: '#9b713d', metal: '#bdb6a6', hazard: true, stencil: 'BS-3', seed: 41 });
+  const olive = M.paint('survey-olive', { base: '#59604f', metal: '#b7b9ae', seed: 42 });
+  const cyan = M.lamp(0x6fd6ff);
+  const R = 'root';
+  // tripod with feet
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + 0.3;
+    const fx = Math.sin(a) * 0.48;
+    const fz = Math.cos(a) * 0.48;
+    b.add(R, prim.cyl(0.02, 0.62, 8), M.darkSteel(), [fx * 0.55, 0.3, fz * 0.55], [Math.cos(a) * 0.6, 0, -Math.sin(a) * 0.6]);
+    b.add(R, prim.block(0.1, 0.03, 0.1, 0.01), M.rubber(), [fx, 0.015, fz]);
+  }
+  // service deck and the central power column
+  b.add(R, prim.lathe([[0, 0], [0.3, 0], [0.32, 0.03], [0.3, 0.07], [0.12, 0.09], [0, 0.09]], 20), olive, [0, 0.52, 0]);
+  reservoir(b, R, [0, 0.82, 0], { r: 0.06, h: 0.42, cap: M.darkSteel(), fluid: 0x6fd6ff, kind: 4, cage: true, fill: 0.95, fillMin: 0.3 });
+  for (const s of [-1, 1]) {
+    b.add(R, prim.lathe([[0, 0], [0.05, 0], [0.056, 0.015], [0.056, 0.36], [0.05, 0.375], [0.02, 0.39], [0, 0.39]], 16), ochre, [s * 0.17, 0.6, 0.02]);
+    for (let i = 0; i < 4; i++) b.add(R, prim.cyl(0.06, 0.016, 16), M.rubber(), [s * 0.17, 0.66 + i * 0.075, 0.02]);
+  }
+  b.segments(R, 5, 0.03, 0.03, 0.012, [0, 0.62, 0.2], [0, 0, 0], 0x6fd6ff);
+  b.add(R, prim.block(0.1, 0.2, 0.03, 0.008), olive, [0, 0.7, 0.19]);
+  // emitter head: dish, coil and antenna
+  b.add(R, prim.cyl(0.02, 0.22, 8), M.steel(), [0, 1.17, 0]);
+  b.add(R, prim.lathe([[0, 0], [0.16, 0.04], [0.18, 0.07], [0.16, 0.06], [0, 0.02]], 24), M.steel(), [0, 1.27, 0]);
+  b.add(R, prim.torus(0.07, 0.012, 18), M.brass(), [0, 1.33, 0], [Math.PI / 2, 0, 0]);
+  b.add(R, prim.block(0.05, 0.05, 0.05, 0.01), cyan, [0, 1.36, 0]);
+  b.add(R, prim.cyl(0.006, 0.42, 6), M.steel(), [0.12, 1.45, -0.05], [0, 0, -0.12]);
+}

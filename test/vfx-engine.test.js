@@ -167,3 +167,28 @@ test('combat vfx: every ability, area event and common event plays and fully exp
   assert.equal(v.stats().items, 0);
   assert.equal(v.stats().particles, 0);
 });
+
+test('vfx: persistent areas are capped, re-placed, torn down at quality 0 and safe after dispose', async () => {
+  const { MAX_AREAS } = await import('../client/src/vfx/engine.js');
+  const { v } = make();
+  const handles = [];
+  for (let i = 0; i < MAX_AREAS + 5; i++) handles.push(v.area({ at: [i, ground(i, 0), 0], radius: 4 }));
+  assert.equal(handles.filter(Boolean).length, MAX_AREAS);
+  assert.equal(v.stats().areas, MAX_AREAS);
+  const a = handles[0];
+  const before = a ? v.root.children.length : 0;
+  a.set([5, ground(5, 5), 5], 4);
+  a.set([5, ground(5, 5), 5], 4); // unchanged: no rebuild
+  a.set([NaN, 0, 0], 4); // invalid: ignored
+  assert.equal(v.root.children.length, before);
+  run(v, 1);
+  a.dispose();
+  a.dispose();
+  assert.equal(a.alive, false);
+  a.set([1, 1, 1], 2); // after dispose: ignored, nothing re-added
+  assert.equal(v.stats().areas, MAX_AREAS - 1);
+  v.setQuality(0);
+  assert.equal(v.stats().areas, 0);
+  assert.ok(handles.every((h) => !h || !h.alive));
+  assert.equal(v.area({ at: [0, 0, 0], radius: 2 }), null);
+});

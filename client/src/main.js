@@ -7,8 +7,9 @@ import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js'
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
-import { Assets } from './assets.js';
-import { createModel, CHARACTER_BUNDLES } from './characters.js';
+import { Assets, disposeInstance, shared } from './assets.js';
+import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
 import { LiveAegis } from './live-aegis.js';
@@ -108,39 +109,81 @@ pressureZone.position.set(BRINE_TRIAL.exclusion.x,groundHeight(BRINE_TRIAL.exclu
 pressureZone.visible=false;scene.add(pressureZone);
 
 // Snapshot-driven stationary survey equipment, independent of its owner's model.
+// Module-level resources are reused by every rig: flagged shared so that
+// disposing one rig's instance never frees them.
 const rigParts = {
-  base: new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8),
-  body: new THREE.BoxGeometry(0.32, 0.52, 0.29),
-  mast: new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8),
-  lamp: new THREE.BoxGeometry(0.21, 0.05, 0.03),
-  area: new THREE.RingGeometry(0.985, 1, 48),
+  base: shared(new THREE.CylinderGeometry(0.32, 0.40, 0.15, 8)),
+  body: shared(new THREE.BoxGeometry(0.32, 0.52, 0.29)),
+  mast: shared(new THREE.CylinderGeometry(0.025, 0.04, 0.55, 8)),
+  lamp: shared(new THREE.BoxGeometry(0.21, 0.05, 0.03)),
+  area: shared(new THREE.RingGeometry(0.985, 1, 48)),
 };
-const rigMetal = new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 });
-const rigDark = new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 });
-const rigLight = new THREE.MeshBasicMaterial({ color: 0x85cde9 });
-const rigArea = new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+const rigMetal = shared(new THREE.MeshStandardMaterial({ color: 0x77786e, roughness: 0.65, metalness: 0.45 }));
+const rigDark = shared(new THREE.MeshStandardMaterial({ color: 0x303b40, roughness: 0.8 }));
+const rigLight = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9 }));
+const rigArea = shared(new THREE.MeshBasicMaterial({ color: 0x85cde9, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }));
+function dropRig(ent) {
+  if (ent.rigModel) {
+    scene.remove(ent.rigModel);
+    disposeInstance(ent.rigModel);
+  }
+  ent.rigModel = null;
+  ent.rigArea?.dispose();
+  ent.rigArea = null;
+}
 function syncRig(ent) {
   const r = ent.row?.rig;
   if (!r) {
-    if (ent.rigModel) scene.remove(ent.rigModel);
-    ent.rigModel = null;
+    dropRig(ent);
     return;
   }
   if (!ent.rigModel) {
     const g = new THREE.Group();
     const part = (geo, mat, x, y, z) => { const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x,y,z); g.add(mesh); return mesh; };
-    part(rigParts.base, rigDark, 0, 0.075, 0);
-    part(rigParts.body, rigMetal, 0, 0.38, 0);
-    part(rigParts.mast, rigDark, 0.11, 0.88, 0);
-    part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    // Detailed deployable from the shared gear kit; the original blocks remain the fallback.
+    try {
+      g.userData.update = gearKit().instantiate('field_rig', fieldRigDevice, { attach: (_bone, obj) => g.add(obj) });
+    } catch (err) {
+      console.warn('Field rig model unavailable; using basic model.', err);
+    }
+    if (!g.children.length) {
+      part(rigParts.base, rigDark, 0, 0.075, 0);
+      part(rigParts.body, rigMetal, 0, 0.38, 0);
+      part(rigParts.mast, rigDark, 0.11, 0.88, 0);
+      part(rigParts.lamp, rigLight, 0, 0.55, 0.16);
+    }
+    g.userData.arcAt = 0;
     const area = part(rigParts.area, rigArea, 0, 0.12, 0);
     area.rotation.x = -Math.PI / 2;
     g.userData.area = area;
     scene.add(g);
     ent.rigModel = g;
   }
-  ent.rigModel.position.set(r.x, groundHeight(r.x,r.z), r.z);
+  const gy = groundHeight(r.x, r.z);
+  ent.rigModel.position.set(r.x, gy, r.z);
   ent.rigModel.userData.area.scale.setScalar(r.r);
+  // The survey sigil marks the rig's real recharge radius (quality >= 1).
+  if (rich()) {
+    if (!ent.rigArea?.alive) ent.rigArea = vfx.area({ at: [r.x, gy, r.z], radius: r.r, style: 'survey', color: 0x5fd0ff, alpha: 0.45, spin: 0.2 });
+    else ent.rigArea.set([r.x, gy, r.z], r.r);
+  } else if (ent.rigArea) {
+    ent.rigArea.dispose();
+    ent.rigArea = null;
+  }
+}
+
+/** Per frame: animate deployed rigs and show recharge arcs to an owner in range. */
+function animateRig(ent, t) {
+  const g = ent.rigModel;
+  const r = ent.row?.rig;
+  if (!g || !r) return;
+  g.userData.update?.({ t, combat: true });
+  if (!rich() || !ent.placed || ent.dead || fxClock - g.userData.arcAt < 750) return;
+  if (Math.hypot(ent.pos.x - r.x, ent.pos.z - r.z) > r.r) return;
+  g.userData.arcAt = fxClock;
+  const top = [r.x, g.position.y + 1.36, r.z];
+  vfx.beam({ from: top, to: ent.chest, color: 0x6fd6ff, width: 0.05, life: 0.35, jitter: 0.18, grow: 0.4, taper: 1 });
+  vfx.burst({ at: ent.chest, count: 4, cell: 13, color: 0xd8f6ff, color2: 0x6fd6ff, size: 0.08, life: 0.35, speed: [0.3, 1], drag: 2 });
 }
 
 function resize() {
@@ -542,7 +585,7 @@ function removeEntity(ent) {
   fx.clearRoot(ent.id);
   liveAegis.remove(ent.id);
   scene.remove(ent.holder);
-  if (ent.rigModel) scene.remove(ent.rigModel);
+  dropRig(ent);
   if (ent.model.dispose) ent.model.dispose();
   else {
     ent.holder.traverse((o) => {
@@ -1264,6 +1307,7 @@ function updateEntities(dt, t, now) {
     ent.holder.visible = ent.inView;
     if (ent.meta.k === 'e') fx.setRooted(ent.id, x, z, ent.model.radius, ent.inView && !ent.dead && !!row?.b?.includes('root'));
     liveAegis.sync(ent, motionPreference.matches || quality === 0, t);
+    if (ent.rigModel) animateRig(ent, t);
     ent.model.update(dt, {
       t,
       speed: ent.speed,

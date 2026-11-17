@@ -66,3 +66,20 @@ test('gear: wearers share static geometry and materials; animated parts are per 
   kit.dispose();
   assert.equal(kit.looks, 0);
 });
+
+test('gear: deployable field rig stands on its own origin within budget', async () => {
+  const { fieldRigDevice } = await import('../client/src/gear-recipes.js');
+  const kit = createGearKit(THREE, { shared });
+  const built = kit.build('field_rig', fieldRigDevice);
+  let triangles = 0;
+  for (const part of [...built.statics, ...built.dynamic]) {
+    assert.equal(part.bone, 'root');
+    const p = part.geometry.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      assert.ok(Math.abs(p.getX(i)) < 0.7 && Math.abs(p.getZ(i)) < 0.7 && p.getY(i) > -0.05 && p.getY(i) < 1.8, 'rig vertex out of bounds');
+    }
+    triangles += tris(part.geometry);
+  }
+  assert.ok(triangles < 6000, `${triangles}`);
+  assert.ok(built.statics.length + built.dynamic.length <= 12);
+});

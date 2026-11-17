@@ -49,7 +49,7 @@ function throttle(state, dt, interval) {
 // --- humanoids ---------------------------------------------------------------
 
 let kit = null;
-const gearKit = () => (kit ??= createGearKit(THREE, { shared }));
+export const gearKit = () => (kit ??= createGearKit(THREE, { shared }));
 
 export function makeHumanoid(assets, lookId, opts = {}) {
   const def = LOOK_DEFS[lookId];
