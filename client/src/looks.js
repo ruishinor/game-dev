@@ -133,6 +133,15 @@ function cultureTank(ctx) {
   ctx.attach('pelvis', place(satchel, 0.19, 0.93, 0.0));
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), teal);
   ctx.attach('pelvis', place(lamp, 0.24, 0.95, 0.01));
+  // A small industrial lower-face respirator breaks up the exposed
+  // mannequin silhouette without hiding the eyes or adding fantasy trim.
+  const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
+  const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
+  ctx.attach('Head', place(mask, 0, 1.635, 0.143, -0.12));
+  for (const side of [-1, 1]) {
+    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
+    ctx.attach('Head', place(port, side * 0.085, 1.632, 0.153, Math.PI / 2));
+  }
 }
 
 /** Archivist: a slate held at the hip that she gestures over, and a gold collar. */
