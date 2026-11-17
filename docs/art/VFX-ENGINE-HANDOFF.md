@@ -23,6 +23,35 @@ Stone (golden circuit rings), CHR-008 Suture Diver, EQP-001 reservoir family.
 | 5 | Environment and gadgets | **Done**: the Listening Stone (`client/src/listening-stone.js`) and the Surveyor field rig, evidence in `docs/evidence/env/` (review 18). **Not done**: containers, generators, pipes, towers and terminals |
 | 6 | Reviews, tests, docs | **Done** for this pass (reviews 16–18, this file) |
 
+## Update: full effect coverage (2026-11-17, later)
+
+- **No effect is left on the original look at quality ≥ 1.** New in this pass:
+  - status visuals (`client/src/vfx/status.js`): ward, regeneration, bond,
+    corrode, sap and root;
+  - enemy wind-ups;
+  - item and material acquisition;
+  - player defeat;
+  - dormant Sinter ecology recipes.
+- **Coverage test** (`test/vfx-engine.test.js`, last test): adding a server
+  `fx` kind or an enemy special without a recipe fails `npm test`. To fix,
+  add a branch in `CombatVfx.areaRecipe` and add the kind to `AREA_KINDS`.
+- **`feat/attunement-asset-production` was deliberately not merged** here. Its
+  conflicts are gameplay reconciliations for the preview integrator (AI line
+  of sight, target status). Its effect kinds already have recipes and
+  activate once it lands.
+- **Scratchpad material** is now in the repo:
+  - `tools/dev/` (diagnostics);
+  - `docs/evidence/review-sheets/` (review composites);
+  - `docs/evidence/test-logs/` (the logs behind every stated result).
+- **Verification at handoff** (head `5766a61`, Node 24):
+  - `npm test`: 159/159.
+  - `node test/e2e/play.mjs`: **72/72** (`docs/evidence/test-logs/e2e-cov.log`).
+  - `node test/e2e/preview-expansion.mjs`: still running at handoff, so its
+    result is **not recorded**. Re-run it before merging.
+- **PR #12:** still open. Merge when the CI `playable` job is green. Its last
+  CI rerun was cancelled after about 12 minutes; the timeout is in
+  `.github/workflows/preview-expansion.yml`.
+
 ## What exists
 
 **Effects** (`client/src/vfx/`), presentation only:

@@ -36,6 +36,17 @@ pushed. This file is the plan of record for the rest of the work.
 3. If it fails, read the log, then fix or report.
 4. Merge only when it is green.
 
+## Update at second handoff
+
+- This branch now merges `charlie/confident-wright-b2bh7j` at `5766a61`, so it
+  has the full effect coverage pass:
+  - status visuals, enemy wind-ups, acquisition and defeat;
+  - a coverage test;
+  - `tools/dev/`, review sheets and test logs.
+- `npm test`: 166/166 on this branch.
+- The appearance work itself is unchanged since the first handoff. The plan
+  and known issues below still apply in order.
+
 ## Goal (owner request)
 
 On an isolated branch:

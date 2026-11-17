@@ -113,6 +113,26 @@ try {
     clearInterval(keep);
     await c.ctx.close();
   }
+  // Hostile wind-up: stand beside a Sentinel and photograph the moment its
+  // real server-side channel (a 'tele' event) begins. Observation only.
+  if (!only || 'hostile-windup'.includes(only)) {
+    const sentinel = game.enemies.find((e) => e.type === 'sentinel' && e.state !== 'dead');
+    if (sentinel) {
+      const c = await join('Fxwatch', 'keeper');
+      const keep = setInterval(() => { if (!c.p.dead) c.p.hp = c.p.maxHp; }, 100);
+      await stage(c, sentinel, 7);
+      ready(c.p, sentinel);
+      useAbility(game, c.p, 'phase_needle'); // draw its attention through a real attack
+      // The AI sets e.cast for the length of a special's wind-up.
+      let seen = null;
+      for (let i = 0; i < 200 && !(seen = sentinel.cast); i++) await sleep(100);
+      if (seen) await shot(c, 'hostile-windup', 150);
+      else console.log('  ! no Sentinel wind-up observed');
+      await shot(c, 'hostile-statuses', 1500);
+      clearInterval(keep);
+      await c.ctx.close();
+    }
+  }
 } catch (err) {
   failed = true;
   console.error(err);

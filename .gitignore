@@ -6,3 +6,4 @@ test/e2e/out/
 # Browser-suite screenshots (CI uploads these as artifacts)
 art-evidence/
 preview-evidence/
+tools/dev/out/
