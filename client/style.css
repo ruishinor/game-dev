@@ -412,3 +412,23 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .chat-options { position:absolute; bottom:100%; left:0; display:flex; flex-direction:column; gap:4px; min-width:128px; background:#101c23; border:1px solid var(--edge); padding:5px; border-radius:5px; z-index:10; }
 .chat-options button { text-align:left; font-size:12px; padding:6px 8px; }
 .chat-options button[aria-pressed="true"] { border-color:var(--cyan); }
+
+/* Inventory is a persistent, independent window. Only its surfaces fade. */
+.panel.inventory-window {
+  --inventory-alpha:1;
+  background:linear-gradient(145deg,rgba(16,31,40,var(--inventory-alpha)),rgba(7,16,22,var(--inventory-alpha)));
+  box-shadow:0 0 0 2px rgba(9,17,22,calc(var(--inventory-alpha)*.75)),inset 0 0 0 1px rgba(20,42,51,var(--inventory-alpha)),0 12px 35px rgba(0,0,0,calc(var(--inventory-alpha)*.48));
+}
+.inventory-window .inventory-opacity {
+  position:absolute;right:46px;top:8px;width:30px;height:30px;
+  padding:6px;display:grid;place-items:center;color:var(--cyan);
+}
+.inventory-opacity svg { width:100%;height:100%; }
+.inventory-window .item-cell { background:rgba(16,35,45,calc(var(--inventory-alpha)*.76)); }
+.inventory-window .item-cell.vacant { background:rgba(12,27,35,calc(var(--inventory-alpha)*.6)); }
+.inventory-window .inventory-detail { background:rgba(20,34,44,calc(var(--inventory-alpha)*.76)); }
+#hud.inventory-front .inventory-window { z-index:32; }
+/* Keep the inventory and main journal simultaneously usable on desktop. */
+@media(min-width:1100px) {
+  #hud.inventory-open .panel:not(.inventory-window) { left:calc((100% - 382px)/2);max-width:calc(100vw - 420px); }
+}

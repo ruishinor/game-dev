@@ -528,7 +528,17 @@ try {
     const labels=[...inv.querySelectorAll('button.item-cell')].map(e=>e.getAttribute('aria-label'));
     return !inv.hidden && labels.includes('Myelin Lattice') && !labels.includes('Sporeglass Focus');
   }, null, 3000, 'equipped device excluded from inventory');
-  check('9. inventory lists carried items, not installed devices', carriedOnly);
+  const buildStillOpen=await B.page.locator('.panel.build').isVisible();
+  await B.page.keyboard.press('KeyJ');
+  const codexWithInventory=await B.page.locator('.codex-window').isVisible()&&await B.page.locator('.inventory-window').isVisible();
+  await B.page.keyboard.press('Escape');
+  const inventoryAfterEscape=await B.page.locator('.inventory-window').isVisible();
+  const opacity= B.page.locator('.inventory-opacity');
+  await opacity.click();
+  const changedOpacity=await B.page.locator('.inventory-window').evaluate(el=>el.style.getPropertyValue('--inventory-alpha')==='0.8'&&localStorage.getItem('attunement.inventoryOpacity')==='80');
+  await B.page.locator('.inventory-window .close').click();
+  const independentClose=await B.page.locator('.inventory-window').isHidden();
+  check('9. inventory excludes installed devices, stays open across panels, and has independent opacity/close controls',carriedOnly&&buildStillOpen&&codexWithInventory&&inventoryAfterEscape&&changedOpacity&&independentClose);
   await B.page.keyboard.press('KeyC');
   await equipVia(B, 'Myelin Lattice');
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');

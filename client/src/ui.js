@@ -392,9 +392,32 @@ export class UI {
     const invClose = h('button','close','×');
     invClose.setAttribute('aria-label','Close inventory');
     invClose.addEventListener('click',()=>this.toggleInventory(false));
+    // Cycle the window's surface transparency without fading readable content.
+    this.inventoryOpacityButton = h('button','inventory-opacity');
+    this.inventoryOpacityButton.type='button';
+    this.inventoryOpacityButton.innerHTML=svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>');
+    this.inventoryOpacity=100;
+    try {
+      const saved=Number(localStorage.getItem('attunement.inventoryOpacity'));
+      if([100,80,60,40].includes(saved))this.inventoryOpacity=saved;
+    }catch{}
+    this.inventoryOpacityButton.addEventListener('click',()=>{
+      const levels=[100,80,60,40];
+      this.setInventoryOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
+    });
+    this.inventoryOpacityButton.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' ')e.stopPropagation();
+    });
     this.inventoryBody = h('div','inventory-body');
-    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),invClose,this.inventoryBody);
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,this.inventoryBody);
     root.append(this.inventoryPanel);
+    this.setInventoryOpacity(this.inventoryOpacity);
+    // On smaller screens, either overlapping window can be brought forward
+    // by clicking its visible area. Large screens use side-by-side positioning.
+    root.addEventListener('pointerdown',e=>{
+      const panel=e.target.closest('.panel');
+      if(panel)root.classList.toggle('inventory-front',panel===this.inventoryPanel);
+    });
     this.inventoryFilter = 'all';
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
@@ -505,7 +528,8 @@ export class UI {
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
-      ['C / I', 'Character & Loadout / Inventory'],
+      ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
+      ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
@@ -691,7 +715,8 @@ export class UI {
 
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.inventoryPanel.hidden = this.codexPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = true;
+    this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = true;
     this.closePlayerContext();
@@ -708,10 +733,23 @@ export class UI {
     }
   }
 
+  setInventoryOpacity(value) {
+    if(![100,80,60,40].includes(value))return;
+    this.inventoryOpacity=value;
+    this.inventoryPanel.style.setProperty('--inventory-alpha',String(value/100));
+    this.inventoryOpacityButton.title='Inventory opacity: '+value+'% · click to cycle';
+    this.inventoryOpacityButton.setAttribute('aria-label',this.inventoryOpacityButton.title);
+    try{localStorage.setItem('attunement.inventoryOpacity',String(value));}catch{}
+  }
+
   toggleInventory(force) {
     const open = force ?? this.inventoryPanel.hidden;
-    this.hideJournalPanels();
+    this.menuItems.hidden=true;
+    if(this.tipFor&&this.inventoryPanel.contains(this.tipFor))this.tooltip.hidden=true;
+    if(!open&&this.inventoryPanel.contains(document.activeElement))document.activeElement.blur();
     this.inventoryPanel.hidden = !open;
+    this.root.classList.toggle('inventory-open',open);
+    this.root.classList.toggle('inventory-front',open);
     if (open) renderInventory(this);
   }
 
@@ -916,10 +954,11 @@ export class UI {
     this.dialogCompanionId = 0;
   }
 
-  /** Close any open panel. Returns true if something was closed. */
+  /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.panel.hidden || !this.inventoryPanel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.inventoryPanel.hidden = this.codexPanel.hidden = true;
+    const any = !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = true;
+    this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
     this.menuItems.hidden = true;
     this.panel.hidden = true;
@@ -1223,6 +1262,8 @@ export class UI {
   clearPlates() {
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
+    // Do not carry an old character's visible inventory into a world reset.
+    this.toggleInventory(false);
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
