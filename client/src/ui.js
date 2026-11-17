@@ -627,7 +627,7 @@ export class UI {
     }
 
     // Contextual companion inspection, anchored to the interaction point.
-    const inspected = st.inspect?.entity;
+    const inspected = st.inspect && st.ents.get(st.inspect.id);
     set(this.inspectBox, 'hidden', !inspected || inspected.meta.k !== 'c');
     if (inspected && inspected.meta.k === 'c') {
       const owner = st.ents.get(inspected.meta.o);
