@@ -214,6 +214,7 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 
 /* --- world-anchored overlay --- */
 .plate { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; will-change: transform; }
+.hide-nameplates .plate { display: none !important; }
 .pname { font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
 .plate.enemy .pname { color: #ff9a8c; }
 .plate.corpse .pname { color: #a5b2af; font-size: 10px; font-weight: 400; }
