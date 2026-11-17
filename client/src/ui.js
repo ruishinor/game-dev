@@ -234,8 +234,13 @@ export class UI {
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
     const helpBtn = h('button', 'menubtn', 'Help [H]');
     helpBtn.addEventListener('click', () => this.toggleHelp());
+    this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn.addEventListener('click', () => this.toggleMenu());
+    this.menuItems = h('div', 'menu-items');
+    this.menuItems.hidden = true;
+    this.menuItems.append(this.inventoryBtn, this.partyBtn, this.settingsBtn, helpBtn);
     this.netLabel = h('div', 'net');
-    menu.append(this.buildBtn, this.inventoryBtn, this.partyBtn, this.settingsBtn, helpBtn, this.netLabel);
+    menu.append(this.buildBtn, this.menuBtn, this.netLabel, this.menuItems);
     root.append(menu);
 
     this.tooltip = h('div', 'tooltip');
@@ -330,6 +335,7 @@ export class UI {
       ['C / I', 'Build / Inventory'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
+      ['M', 'Open the corner menu'],
       ['Enter', 'Chat'],
     ];
     const table = h('div', 'keys');
@@ -489,7 +495,12 @@ export class UI {
 
   // --- panels ---------------------------------------------------------------
 
+  toggleMenu(force) {
+    this.menuItems.hidden = !(force ?? this.menuItems.hidden);
+  }
+
   toggleBuild(force) {
+    this.menuItems.hidden = true;
     const wasInventory = this.panel.classList.contains('inventory-only');
     this.panel.classList.remove('inventory-only');
     const open = force ?? (wasInventory || this.panel.hidden);
@@ -502,6 +513,7 @@ export class UI {
   }
 
   toggleInventory(force) {
+    this.menuItems.hidden = true;
     const wasInventory = this.panel.classList.contains('inventory-only');
     const open = force ?? (!wasInventory || this.panel.hidden);
     this.panel.hidden = !open;
@@ -514,6 +526,7 @@ export class UI {
   }
 
   toggleParty(force) {
+    this.menuItems.hidden = true;
     const open = force ?? this.partyPanel.hidden;
     this.partyPanel.hidden = !open;
     if (open) {
@@ -523,6 +536,7 @@ export class UI {
   }
 
   toggleSettings(force) {
+    this.menuItems.hidden = true;
     const open = force ?? this.settingsPanel.hidden;
     this.settingsPanel.hidden = !open;
     if (open) this.panel.hidden = this.help.hidden = this.partyPanel.hidden = true;
@@ -566,6 +580,7 @@ export class UI {
   }
 
   toggleHelp(force) {
+    this.menuItems.hidden = true;
     const open = force ?? this.help.hidden;
     this.help.hidden = !open;
     if (open) this.panel.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
@@ -573,7 +588,8 @@ export class UI {
 
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden;
+    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden;
+    this.menuItems.hidden = true;
     this.panel.hidden = true;
     this.partyPanel.hidden = true;
     this.settingsPanel.hidden = true;
