@@ -228,9 +228,9 @@ test('multiplayer: two clients share one world, see each other, fight the same e
 
     // Explicit stop/resume is authoritative; a legacy right-click request still engages.
     a.send({ t: 'atk', on: 0 });
-    await a.until(() => a.snap?.y?.auto === 0, 3000, 'auto-attack disengaged');
+    await a.until(() => !pa.autoOn && a.snap?.y?.auto === 0, 3000, 'auto-attack disengaged');
     a.send({ t: 'atk', on: 1 });
-    await a.until(() => a.snap?.y?.auto === 1, 3000, 'auto-attack re-engaged');
+    await a.until(() => pa.autoOn && a.snap?.y?.auto === 1, 3000, 'auto-attack re-engaged');
     assert.ok(a.snap.y.autoCd >= 0, 'auto-attack timer exposed');
 
     // Cross-player support: B heals A; A observes it. Companion triage too.
