@@ -719,6 +719,9 @@ input.onAction = (code, e) => {
     case 'KeyO':
       ui.toggleSettings();
       break;
+    case 'KeyM':
+      ui.toggleMenu();
+      break;
     case 'KeyH':
       ui.toggleHelp();
       break;
