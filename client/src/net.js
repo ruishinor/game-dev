@@ -49,6 +49,7 @@ export class Net {
     this.accountLogged = false;
     this.pendingAccount = null;
     this.pendingClaim = false;
+    this.pendingGuest = null;
     this.logoutPending = false;
     this.activeCharacterId = null;
     this.pendingCreate = null;
@@ -73,12 +74,15 @@ export class Net {
     const ws = new WebSocket(this.url());
     this.ws = ws;
     ws.onopen = () => {
-      if (this.pendingAccount) this.send(this.pendingAccount);
+      if (this.ws !== ws) return;
+      if (this.pendingGuest) this.send({ t: 'resume', token: this.pendingGuest });
+      else if (this.pendingAccount) this.send(this.pendingAccount);
       else if (this.accountToken) this.send({ t: 'account_resume', token: this.accountToken });
       else if (this.pendingCreate) this.send({ t: 'create', ...this.pendingCreate });
       else if (this.token) this.send({ t: 'resume', token: this.token });
     };
     ws.onmessage = (ev) => {
+      if (this.ws !== ws) return;
       let m;
       try {
         m = JSON.parse(ev.data);
@@ -91,10 +95,11 @@ export class Net {
           break;
         case 'welcome':
           this.activeCharacterId = this.accountLogged ? (m.charId || null) : null;
-          if (m.token) {
-            this.token = m.token;
-            saveToken(m.token);
+          if (m.token || this.pendingGuest) {
+            this.token = m.token || this.pendingGuest;
+            saveToken(this.token);
           }
+          this.pendingGuest = null;
           this.pendingCreate = null;
           this.entered = true;
           this.h.onStatus(null);
@@ -124,6 +129,7 @@ export class Net {
             this.accountToken = null;
             this.accountLogged = false;
             this.activeCharacterId = null;
+            this.entered = false;
             saveAccountToken(null);
           }
           this.h.onAccountFail(m.reason);
@@ -132,8 +138,12 @@ export class Net {
           this.finishSignOut();
           break;
         case 'auth_fail':
-          this.token = null;
-          saveToken(null);
+          // A mistyped recovery key must not erase a different valid saved guest.
+          if (!this.pendingGuest || this.pendingGuest === this.token) {
+            this.token = null;
+            saveToken(null);
+          }
+          this.pendingGuest = null;
           this.entered = false;
           this.h.onAuthFail(m.reason);
           break;
@@ -179,7 +189,20 @@ export class Net {
     else if (!this.ws) this.connect();
   }
 
+  resumeGuest(token) {
+    if (this.accountLogged || !/^[0-9a-f]{64}$/.test(token || '')) return false;
+    this.pendingAccount = null;
+    this.pendingCreate = null;
+    this.pendingGuest = token;
+    const old = this.ws;
+    this.ws = null;
+    if (old) old.close(1000, 'guest recovery');
+    this.connect();
+    return true;
+  }
+
   accountAuth(handle, password, register = false) {
+    this.pendingGuest = null;
     this.pendingAccount = { t: register ? 'account_register' : 'account_login', handle, password };
     if (this.ws && this.ws.readyState === 1) this.send(this.pendingAccount);
     else this.connect();
