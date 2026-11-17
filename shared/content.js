@@ -255,7 +255,7 @@ const grazerCircuits = {
   adult: [[-1,47],[1,50],[3,56],[5,63],[7,67],[8,60],[7,51],[3,45]],
   shieldback: [[7,46],[9,51],[10,58],[7,64],[5,69],[3,61],[0,56],[0,50]],
 };
-const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+const stalkerCircuit = [[17,58],[19,56],[18,51],[15,47],[11,46],[9,49],[10,57],[12,59],[18,60]];
 const patrol = (type, circuit, dx = 0, dz = 0) => ({
   type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
   route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),

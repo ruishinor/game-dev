@@ -542,6 +542,32 @@ function makeSurveyTerminal(ledger) {
   return { group, height: ledger ? 1.65 : 2.0, radius: 0.8, hover: 0, update() {} };
 }
 
+// Small shared deterministic surface texture: sediment veins and pores,
+// sampled through each carapace plate's UVs. No external downloads,
+// randomness, extra materials per entity, or per-frame texture generation.
+let sinterTexture;
+function mineralTexture(){
+  if(sinterTexture)return sinterTexture;
+  const n=64,data=new Uint8Array(n*n*4);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const i=(y*n+x)*4;
+    const band=Math.sin(y*0.61+Math.sin(x*0.35)*1.8);
+    const grain=Math.sin(x*19.27+y*73.13)*43758.54;
+    const noise=grain-Math.floor(grain);
+    const value=Math.round(196+band*19+(noise-0.5)*44);
+    data[i]=value;data[i+1]=value;data[i+2]=value;data[i+3]=255;
+  }
+  sinterTexture=new THREE.DataTexture(data,n,n,THREE.RGBAFormat);
+  sinterTexture.colorSpace=THREE.SRGBColorSpace;
+  sinterTexture.wrapS=sinterTexture.wrapT=THREE.RepeatWrapping;
+  sinterTexture.magFilter=THREE.LinearFilter;
+  sinterTexture.minFilter=THREE.LinearMipmapLinearFilter;
+  sinterTexture.generateMipmaps=true;
+  sinterTexture.needsUpdate=true;
+  sinterTexture.name='sinter:mineral-strata';
+  return sinterTexture;
+}
+const SHELL_GEO=new THREE.IcosahedronGeometry(1,1);
 // Different body plans, shared primitive geometry; per-instance materials.
 function makeSinterFauna(predator, form = 'adult') {
   const group = new THREE.Group(), rig = new THREE.Group();
@@ -554,16 +580,20 @@ function makeSinterFauna(predator, form = 'adult') {
   const membrane = std(predator ? 0x7c4f3d : 0x666d4c,{rough:0.74,metal:0.02});
   const edge = std(predator ? 0xc1a47d : 0xb9aa85,{rough:0.55,metal:0.08});
   const sensory = std(predator ? 0x9c582d : 0x777959, { rough: 0.45 });
+  shell.map=facet.map=mineralTexture();
+  membrane.flatShading=false;
   const y = predator ? 1.12 : 0.61;
   const torso = pivot(0, y, 0);
+  rig.name=predator?'fauna:stalker-rig':'fauna:grazer-'+form;
   rig.add(torso);
   torso.add(part(SPH, dark, predator ? 0.45 : 0.49, predator ? 0.43 : 0.29, 0.76));
   for (let i = 0; i < 5; i++) {
-    const plate = part(ICO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
+    const plate = part(SHELL_GEO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
     plate.rotation.z = (i % 2 ? 1 : -1) * 0.14;
     torso.add(plate);
   }
   const molt = new THREE.Group();
+  molt.name='fauna:mineral-growth';
   molt.visible=false;torso.add(molt);
   // Layered carapace seams, flexible lateral gills and newly deposited
   // mineral ridges; not a rescaled rock on legs.
@@ -636,8 +666,10 @@ function makeSinterFauna(predator, form = 'adult') {
       phase += dt * st.speed * (juvenile?5.0:shieldback?3.15:3.8);
       molt.visible=!!st.grown&&!predator;
       for (const {leg, side, i} of legs) leg.rotation.x = Math.sin(phase + i * Math.PI + (side > 0 ? Math.PI : 0)) * stride * 0.48;
-      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055;
-      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? 0.02 : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='defend'?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      const brace=st.ecology==='brace',watch=st.ecology==='watch';
+      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055-(brace?0.09:watch?0.07:0);
+      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      head.rotation.y=watch?Math.sin(st.t*1.5)*0.28:0;
       fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
       rig.rotation.z = fallen * 1.22;
       rig.position.y = fallen * 0.16;

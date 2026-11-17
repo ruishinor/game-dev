@@ -275,7 +275,7 @@ export class Game {
         f: (e.state === 'dead' ? 1 : 0) | (e.state === 'evade' ? 2 : 0) | (e.cast ? 4 : 0) | (e.state === 'combat' ? 8 : 0),
         t: e.target,
         b: e.buffs.map((b) => b.k),
-        ...(e.form ? { ec: e.ecologyMode, grown: e.grown ? 1 : 0 } : {}),
+        ...(e.form ? { ec: e.ecologyMode, grown: e.grown ? 1 : 0 } : e.type==='faultstalker' ? {ec:e.ecologyMode} : {}),
       });
     }
     for (const c of this.companions) {

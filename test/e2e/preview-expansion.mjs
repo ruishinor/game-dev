@@ -100,6 +100,32 @@ try {
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Different forms and real material binding on all three rendered creatures.
+  await page.waitForFunction(()=>{
+    const forms=window.__attune.state().ents.filter(e=>e.c==='sinter_grazer').map(e=>e.form).sort();
+    return forms.join(',')==='adult,juvenile,shieldback';
+  });
+  assert.ok(await page.evaluate(()=>{
+    const scene=window.__attune.gfx.scene;
+    return ['juvenile','adult','shieldback'].every(form=>{
+      const rig=scene.getObjectByName('fauna:grazer-'+form);
+      let textured=0;
+      rig?.traverse(n=>{if(n.isMesh&&n.material?.map?.name==='sinter:mineral-strata')textured++;});
+      return textured>=5;
+    });
+  }));
+  // Controlled placement for an art evidence capture; ecology movement,
+  // convergence, alarm and maturation are independently tested in Node.
+  const herd=server.game.enemies.filter(e=>e.form);
+  const spots=[[3,51],[5.5,51.5],[8,51]];
+  for(const [i,g] of herd.entries()){
+    g.x=spots[i][0];g.z=spots[i][1];g.grown=true;
+    g.wanderAt=server.game.time+30000;g.alarmUntil=0;g.wildAlarmAt=server.game.time+30000;
+  }
+  await moveTo(5.5,45);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:0.17,dist:7,face:0}));
+  await page.waitForFunction(()=>window.__attune.state().ents.filter(e=>e.c==='sinter_grazer').every(e=>e.row?.grown===1));
+  await capture('preview-evidence/05-grazer-life-stages.png');
   await moveTo(-39,-8);
   await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.16,dist:10,face:-Math.PI/2}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Kestrel Deep'));

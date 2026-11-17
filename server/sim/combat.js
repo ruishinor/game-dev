@@ -127,8 +127,8 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
       // A damaged grazer calls locally. Only the mature shieldback defends;
       // other unengaged herd members flee. No XP/loot/aggro on observation.
       if(dst.form && amt>0 && !actor.dead && !inSanctum(actor)){
-        if(dst.alarmUntil<=game.time){
-          dst.alarmUntil=game.time+4500;
+        if(dst.callUntil<=game.time){
+          dst.callUntil=game.time+4500;
           game.events.push({e:'fx',k:'sinter_alarm',s:dst.id});
         }
         for(const o of game.enemies){
@@ -141,6 +141,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
           }else if(o.threat.size===0){
             o.alarmUntil=game.time+4500;
             o.alarmFrom={x:actor.x,z:actor.z};
+            o.alarmKind='player';
           }
         }
       }

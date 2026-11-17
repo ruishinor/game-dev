@@ -30,6 +30,9 @@ export function resetEnemy(game, e) {
   e.grown = false;
   e.alarmUntil = 0;
   e.alarmFrom = null;
+  e.alarmKind = null;
+  e.wildAlarmAt = 0;
+  e.callUntil = 0;
   e.wander = null;
   e.steerUntil = 0;
   e.steerSign = 1;
@@ -174,9 +177,25 @@ export function tickEnemy(game, e, dt) {
       startEvade(game, e);
       return;
     }
+    // Wildlife reacts to a nearby living, unengaged predator without
+    // granting combat threat, damage or XP. A cooldown preserves migration.
+    if(e.form&&e.alarmUntil<=game.time&&game.time>=e.wildAlarmAt){
+      const stalker=game.enemies.find(o=>o.type==='faultstalker'&&o.state==='idle'&&dist(e,o)<4.8);
+      if(stalker){
+        e.wildAlarmAt=game.time+22000;
+        e.alarmUntil=game.time+(e.form==='shieldback'?1700:2800);
+        e.alarmFrom={x:stalker.x,z:stalker.z};
+        e.alarmKind='predator';
+      }
+    }
     // A nearby threat causes non-defending, unengaged herd members to
-    // scatter temporarily. Selection and proximity alone never trigger it.
+    // scatter temporarily. Selection and player proximity never trigger it.
     if (e.form && e.alarmUntil > game.time && e.alarmFrom) {
+      if(e.form==='shieldback'&&e.alarmKind==='predator'){
+        e.ecologyMode='brace';
+        e.yaw=Math.atan2(e.alarmFrom.x-e.x,e.alarmFrom.z-e.z);
+        return;
+      }
       e.ecologyMode = 'scatter';
       const dx=e.x-e.alarmFrom.x, dz=e.z-e.alarmFrom.z;
       const len=Math.hypot(dx,dz)||1;
@@ -187,12 +206,18 @@ export function tickEnemy(game, e, dt) {
     }
     // Authored migration circuits run in real simulation time.
     if (e.route) {
-      if (game.time < e.wanderAt) { if(e.form)e.ecologyMode='forage'; return; }
+      if (game.time < e.wanderAt) {
+        if(e.form)e.ecologyMode='forage';
+        if(e.type==='faultstalker')e.ecologyMode='watch';
+        return;
+      }
       const waypoint = e.route[e.routeIndex];
       const ox = e.x, oz = e.z;
       const pace = e.form === 'juvenile' ? 0.61 : e.form === 'shieldback' ? 0.38 : 0.47;
       if(e.form)e.ecologyMode='travel';
-      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? pace : 0.56) * dt, def.radius, 0);
+      const stalking=e.type==='faultstalker';
+      if(stalking)e.ecologyMode='stalk';
+      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? pace : stalking ? (e.routeIndex%3===0?0.37:0.56) : 0.56) * dt, def.radius, 0);
       if(e.form){
         // Soft local spacing, with collision re-resolution. No global
         // flocking or RNG consumption; it affects only the three grazers.
@@ -215,7 +240,7 @@ export function tickEnemy(game, e, dt) {
           }
           // Distinct feeding intervals, long circuits, no per-frame random roll.
           if(e.routeIndex%3===0)e.wanderAt=game.time+(e.form==='juvenile'?1600:e.form==='shieldback'?4200:2700);
-        }
+        }else if(stalking&&e.routeIndex%3===0)e.wanderAt=game.time+2000;
       }
       return;
     }
@@ -252,6 +277,7 @@ export function tickEnemy(game, e, dt) {
   }
   e.target = target.id;
   if(e.form)e.ecologyMode=e.form==='shieldback'?'defend':'retaliate';
+  if(e.type==='faultstalker')e.ecologyMode='hunt';
 
   // Encounter scaling: tougher for every extra player who joins the fight.
   if (def.perPlayer) {
