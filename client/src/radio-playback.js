@@ -31,7 +31,7 @@ export class RecordedRadioPlayback{
    if(this.timer!==null){this.cancel(this.timer);this.timer=null;}
    const a=this.audio;this.audio=null;
    if(!a)return;
-   a.onplaying=a.onwaiting=a.onended=a.onerror=null;
+   a.onplaying=a.onwaiting=a.onended=a.onerror=a.ontimeupdate=null;
    try{a.pause();a.removeAttribute('src');a.load();}catch{}
  }
  setVolume(v){if(this.audio)this.audio.volume=normalizeVolume(v);}
@@ -44,14 +44,18 @@ export class RecordedRadioPlayback{
    const clearTimer=()=>{if(this.timer!==null){this.cancel(this.timer);this.timer=null;}};
    const finish=state=>{if(!current())return;this.stop();onState(state);};
    const wait=()=>{if(!current())return;clearTimer();this.timer=this.schedule(()=>finish('error'),15000);};
-   a.onplaying=()=>{if(!current())return;clearTimer();onState('playing');};
-   a.onwaiting=()=>{if(!current())return;onState('loading');wait();};
+   let state='loading', lastTime=0;
+   const playing=()=>{if(!current())return;clearTimer();if(state!=='playing'){state='playing';onState(state);}};
+   a.onplaying=playing;
+   a.onwaiting=()=>{if(!current()||a.ended)return;if(state!=='loading'){state='loading';onState(state);}wait();};
+   // Recover from media event ordering differences and use actual advancing audio time.
+   a.ontimeupdate=()=>{if(!current())return;if(a.ended){finish('ended');return;}if(a.currentTime>lastTime+.001&&!a.paused)playing();lastTime=a.currentTime;};
    a.onended=()=>finish('ended');
    a.onerror=()=>finish('error');
    try{
      a.preload='auto';a.volume=normalizeVolume(volume);a.src=asset.url;
      onState('loading');wait();
-     Promise.resolve(a.play()).catch(e=>finish(e?.name==='NotAllowedError'?'blocked':'error'));
+     Promise.resolve(a.play()).then(()=>{if(current()&&!a.paused&&!a.ended)playing();},e=>finish(e?.name==='NotAllowedError'?'blocked':'error'));
    }catch(e){finish(e?.name==='NotAllowedError'?'blocked':'error');}
  }
 }

@@ -37,3 +37,5 @@ test('missing/decode error, autoplay denial and stalled media retain the transcr
  f.start();const timeout=[...f.timers.values()][0];timeout();assert.equal(f.states.at(-1),'error');assert.equal(f.player.audio,null);
  f.start();f.player.stop();assert.equal(f.player.audio,null);assert.equal(f.timers.size,0);
 });
+
+test('advancing media clock restores playback state after a waiting event',()=>{const f=fixture();f.start();const a=f.instances[0];a.currentTime=.25;a.paused=false;a.ontimeupdate();a.onwaiting();a.currentTime=.6;a.ontimeupdate();assert.deepEqual(f.states,['loading','playing','loading','playing']);assert.equal(f.timers.size,0);a.ended=true;a.ontimeupdate();assert.equal(f.states.at(-1),'ended');assert.equal(f.player.audio,null);});

@@ -26,7 +26,7 @@ export class RadioQueue{
 export class RadioPanel{
  constructor(root,{tracker=null,portrait=()=>null}={}){
   this.root=root;this.tracker=tracker;this.portrait=portrait;
-  this.queue=new RadioQueue();this.token=0;this.utterance=null;this.playing=false;this.open=false;
+  this.queue=new RadioQueue();this.token=0;this.playing=false;this.open=false;
   this.recorded=new RecordedRadioPlayback();this.volume=1;this.waveFrame=null;
   this.prefs=radioPrefs(null);try{let raw;try{raw=JSON.parse(localStorage.getItem('attunement.radioPrefs'));}catch{}this.prefs=radioPrefs(raw,localStorage.getItem('attunement.radioVoice'));this.volume=normalizeVolume(localStorage.getItem('attunement.radioVolume'));}catch{}
   this.el=h('aside','radio-panel');this.el.hidden=true;this.el.setAttribute('aria-label','Radio transmission');
@@ -52,7 +52,7 @@ export class RadioPanel{
   else if(!this.open)this.next();else this.updateCount();return true;
  }
  updateCount(){if(this.count)this.count.textContent=this.queue.pending.length?this.queue.pending.length+' queued':'';}
- stop(){this.token++;this.recorded.stop();this.stopWave();if(this.utterance){try{globalThis.speechSynthesis?.cancel();}catch{}}this.utterance=null;this.playing=false;this.el.dataset.playing='false';delete this.el.dataset.recorded;}
+ stop(){this.token++;this.recorded.stop();this.stopWave();this.playing=false;this.el.dataset.playing='false';delete this.el.dataset.recorded;}
  stopWave(){if(this.waveFrame!==null){cancelAnimationFrame(this.waveFrame);this.waveFrame=null;}for(const bar of this.bars??[])bar.style.removeProperty('--level');}
  startWave(asset,token){
   this.stopWave();if(!asset.envelope||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
@@ -77,7 +77,7 @@ export class RadioPanel{
   this.lockButton=button('Lock transmission position','',()=>{this.prefs.locked=!this.prefs.locked;this.savePrefs();this.applyPrefs();});
   this.opacityButton=button('Cycle transmission background opacity','',()=>{this.prefs.opacity=RADIO_OPACITIES[(RADIO_OPACITIES.indexOf(this.prefs.opacity)+1)%RADIO_OPACITIES.length];this.savePrefs();this.applyPrefs();});
   const volume=h('input','radio-volume');volume.type='range';volume.min='0';volume.max='1';volume.step='.05';volume.value=String(this.volume);volume.setAttribute('aria-label','Dialogue volume');volume.title='Dialogue volume';
-  volume.addEventListener('input',()=>{this.volume=normalizeVolume(volume.value);this.recorded.setVolume(this.volume);if(this.utterance){this.stop();this.status.textContent='Volume changed · replay voice';}try{localStorage.setItem('attunement.radioVolume',String(this.volume));}catch{}});
+  volume.addEventListener('input',()=>{this.volume=normalizeVolume(volume.value);this.recorded.setVolume(this.volume);try{localStorage.setItem('attunement.radioVolume',String(this.volume));}catch{}});
   footer.append(this.status,this.replay,this.quickMode,this.lockButton,this.opacityButton,volume);this.el.append(header,grid,footer);this.applyPrefs();this.updateCount();this.place();
  }
  play(){
@@ -88,17 +88,6 @@ export class RadioPanel{
     this.status.textContent=({loading:'Acquiring recording',playing:'Playing recording',ended:'Playback complete',blocked:'Select Play voice to listen',error:'Recording unavailable · transcript'})[state];
     if(this.playing)this.startWave(asset,token);else this.stopWave();
   });return;}
-  const synth=globalThis.speechSynthesis,Voice=globalThis.SpeechSynthesisUtterance;
-  // Local voices only: do not send dialogue to an OS/browser cloud provider.
-  const voices=synth?.getVoices?.().filter(v=>v.localService&&/^en(?:-|$)/i.test(v.lang))||[];
-  if(!Voice||!voices.length){this.status.textContent='Local voice unavailable · transcript';return;}
-  try{
-    const u=new Voice(event.message);u.voice=voices[event.source==='kestrel'?Math.min(1,voices.length-1):0];u.lang=u.voice.lang;u.rate=.94;u.volume=this.volume;u.pitch=event.source==='kernel'?.86:1;
-    u.onstart=()=>{if(token!==this.token)return;this.playing=true;this.el.dataset.playing='true';this.status.textContent='Playing local voice';};
-    const done=()=>{if(token!==this.token)return;this.utterance=null;this.playing=false;this.el.dataset.playing='false';};
-    u.onend=()=>{done();if(token===this.token)this.status.textContent='Playback complete';};
-    u.onerror=()=>{done();if(token===this.token)this.status.textContent='Voice unavailable · transcript';};
-    this.utterance=u;this.status.textContent='Starting local voice';synth.speak(u);
-  }catch{this.status.textContent='Voice unavailable · transcript';}
+  this.status.textContent='Recording not yet available · transcript';
  }
 }

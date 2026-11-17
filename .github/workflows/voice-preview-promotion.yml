@@ -7,6 +7,8 @@ on:
       - 'test/radio-playback.test.js'
       - 'test/e2e/radio-audio.mjs'
       - 'client/src/radio.js'
+      - 'client/src/radio-playback.js'
+      - 'test/radio-playback.test.js'
       - 'server/index.js'
       - '.github/workflows/voice-preview-promotion.yml'
 permissions: {}
