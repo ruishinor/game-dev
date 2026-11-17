@@ -291,7 +291,7 @@ export class UI {
       if(!chatRow.contains(e.target))this.setChatOptions(false);
     });
     this.chat.addEventListener('input',()=>{
-      const match=/^\\/([pv])\\s+/i.exec(this.chat.value);
+      const match=/^\/([pv])\s+/i.exec(this.chat.value);
       if(!match)return;
       const rest=this.chat.value.slice(match[0].length);
       this.selectChatChannel(match[1].toLowerCase()==='p'?'party':'vicinity');
@@ -302,7 +302,7 @@ export class UI {
       if (e.key === 'Enter') {
         e.preventDefault();
         const text = this.chat.value.trim();
-        const command=/^\\/([pv])(?:\\s+(.*))?$/i.exec(text);
+        const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
           const message=(command[2]||'').trim();
