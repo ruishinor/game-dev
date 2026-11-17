@@ -16,3 +16,11 @@ Executed checks: finite positions, unit normals, accessor ranges, GLB header and
 - capacitor_coil: 1368 triangles, 4 material batches, 134832 bytes; bounds -0.060, -0.076, -0.076 to 0.060, 0.097, 0.076 m.
 - capacitor_knee: 124 triangles, 4 material batches, 15268 bytes; bounds -0.063, -0.065, -0.017 to 0.063, 0.065, 0.047 m.
 - capacitor_visor: 112 triangles, 3 material batches, 13456 bytes; bounds -0.075, -0.017, -0.028 to 0.075, 0.017, 0.019 m.
+
+## Visual revision v2
+Five original rigid modules retain mount axes/IDs; layered service rails, insulated coil collars, fasteners, shoulder and knee rail geometry and segmented visor added. Embedded PBR maps and true chamfers. Art: prioritize believable hardware with restrained lights. Modeling: keep open annulus and separate joints. UX: retain module function; tiny details may disappear at gameplay distance. Adversarial: structural, extent, budget and deterministic bytes checked, no rig fit proof. Retrospective: this remains a stylized refinement, not concept-art fidelity; textured WebGL review pending.
+- capacitor_spine: 1464 triangles, 18 maps.
+- capacitor_shoulder: 636 triangles, 15 maps.
+- capacitor_coil: 2120 triangles, 12 maps.
+- capacitor_knee: 412 triangles, 15 maps.
+- capacitor_visor: 352 triangles, 9 maps.

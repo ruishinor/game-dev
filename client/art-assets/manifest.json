@@ -372,32 +372,32 @@
     },
     {
       "path": "capacitor_coil.glb",
-      "bytes": 134832,
-      "gitBlob": "ebddb522e87903bdaac361d55163040887e63933",
+      "bytes": 358760,
+      "gitBlob": "0782d2a9bb4be0fa0294701f098b64c7f52784a9",
       "source": "original"
     },
     {
       "path": "capacitor_knee.glb",
-      "bytes": 15268,
-      "gitBlob": "9247df176696d8c01da77e0501314e7e9db82465",
+      "bytes": 232380,
+      "gitBlob": "4654ccbc41853e21c5b26b7548b2489d5c5c9292",
       "source": "original"
     },
     {
       "path": "capacitor_shoulder.glb",
-      "bytes": 20360,
-      "gitBlob": "5d7068c60977ad5e6b830f09700b3b566c0383cf",
+      "bytes": 254756,
+      "gitBlob": "15498d7de1701fa4dae65772fe4955ddc3a035c9",
       "source": "original"
     },
     {
       "path": "capacitor_spine.glb",
-      "bytes": 65720,
-      "gitBlob": "b89a0f55459f5c809b8f3760ff987571b00cf54b",
+      "bytes": 372776,
+      "gitBlob": "c272b0f4c98df0a6b6a2afe265c3b5b2df24647f",
       "source": "original"
     },
     {
       "path": "capacitor_visor.glb",
-      "bytes": 13456,
-      "gitBlob": "24c98629e7a60fe3a9b769f9b369d00c4d9ed4ff",
+      "bytes": 150512,
+      "gitBlob": "dcd69d802a0354afdf2d171113de808ed41683b8",
       "source": "original"
     },
     {
