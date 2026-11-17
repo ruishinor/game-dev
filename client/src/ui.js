@@ -601,19 +601,6 @@ export class UI {
     const table = h('div', 'keys');
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
     this.help.append(table);
-    const forget = h('button', 'danger', 'Abandon this character and create a new one');
-    forget.addEventListener('click', () => {
-      if (forget.dataset.armed) this.a.forget();
-      else {
-        forget.dataset.armed = '1';
-        forget.textContent = 'Click again to confirm — this cannot be undone from this browser';
-      }
-    });
-    this.forgetBtn = forget;
-    this.help.append(forget);
-    this.recoveryBtn = h('button', 'menubtn', 'Copy guest recovery key');
-    this.recoveryBtn.addEventListener('click', () => this.a.copyRecoveryKey());
-    this.help.append(this.recoveryBtn);
     root.append(this.help);
 
     // Death overlay
@@ -632,8 +619,6 @@ export class UI {
   setAccountLinked(linked) {
     this.signoutBtn.hidden = !linked;
     this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
-    this.forgetBtn.hidden = !!linked;
-    this.recoveryBtn.hidden = !!linked;
   }
 
   /** Build the class-specific action bars once the class is known. */
@@ -1216,11 +1201,15 @@ export class UI {
     set(f.hp.label, 'text', `${hp} / ${max}`);
   }
 
-  buffChips(el, keys) {
-    const sig = keys.join(',');
+  buffChips(el, keys, barrier=null) {
+    const sig = keys.join(',')+'|'+(barrier?`${barrier.remaining}/${barrier.capacity}/${Math.ceil(barrier.ms/1000)}`:'');
     if (el._sig === sig) return;
     el._sig = sig;
-    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => h('span', `chip ${BUFFS[k][1]}`, BUFFS[k][0])));
+    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
+      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
+      if(k==='shield')chip.title='Damage absorption; finite capacity, not a solid collision wall.';
+      return chip;
+    }));
   }
 
   /**
@@ -1256,7 +1245,7 @@ export class UI {
     this.frameBars(this.player, me.row.h, me.row.m);
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
-    this.buffChips(this.player.buffs, me.row.b || []);
+    this.buffChips(this.player.buffs, me.row.b || [], you.barrier);
     const kit = you.surveyKit;
     set(this.surveyStatus, 'hidden', !kit && you.keeperShield===undefined);
     if (you.keeperShield!==undefined) set(this.surveyStatus,'text','Own barrier: '+you.keeperShield+' · Reversal consumes available protection');

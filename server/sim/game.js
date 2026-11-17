@@ -359,8 +359,10 @@ export class Game {
       const rem = p.cds[k] - this.time;
       if (rem > 0) cds[k] = Math.round(rem);
     }
+    const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       ack: p.lastSeq,
+      barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,
       x: p.x,
       z: p.z,

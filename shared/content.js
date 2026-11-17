@@ -94,9 +94,9 @@ export const SURVEYOR = Object.freeze({ markMs: 9000, extendedMarkMs: 14000, rig
 
 export const ABILITIES = {
   phase_needle:{name:'Phase Needle',type:'hostile',range:24,cd:2200,dmg:16,desc:'Project a focused resonance strike and recover 12 Coherence.'},
-  hinge_field:{name:'Hinge Field',type:'friendly',range:20,cd:6000,cost:30,dur:9000,desc:'Project a 40-point barrier onto an ally or yourself for 9 seconds. Cover blocks projection.'},
+  hinge_field:{name:'Hinge Field',type:'friendly',range:20,cd:6000,cost:30,dur:9000,desc:'Project a 40-point damage-absorption barrier onto an ally or yourself for 9 seconds. It is not a solid wall. Cover blocks projection.'},
   resonant_reversal:{name:'Resonant Reversal',type:'hostile',range:22,cd:5000,cost:15,desc:'Consume your own remaining Hinge or Relay barrier. Inflict 12 plus 65% of its remaining capacity as damage.'},
-  lattice_relay:{name:'Lattice Relay',type:'self',cd:12000,cost:40,radius:8,dur:8000,desc:'Project 24-point barriers onto yourself and unobstructed allies within 8m for 8s. Does not replace a stronger barrier.'},
+  lattice_relay:{name:'Lattice Relay',type:'self',cd:12000,cost:40,radius:8,dur:8000,desc:'Project 24-point damage-absorption barriers onto yourself and unobstructed allies within 8m for 8s. Does not replace a stronger barrier.'},
   fault_scan: { name: 'Fault Scan', type: 'hostile', range: 30, cd: 4000, desc: 'Analyze one hostile target for 9s and recover 30 Power Cells. Does not deal damage or engage auto-attack.' },
   core_bore: { name: 'Core Bore', type: 'hostile', range: 24, cd: 2500, cost: 30, dmg: 30, desc: 'Fire a focused boring pulse into your own scanned target. Consumes its scan and 30 Power Cells.' },
   field_rig: { name: 'Field Rig', type: 'self', cd: 16000, desc: 'Deploy a stationary power rig at your feet for 12s. Recover 8 Power Cells per second within 4m. Cannot deploy in the Sanctum.' },

@@ -335,10 +335,6 @@ const ui = new UI({
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
-  forget: () => {
-    saveToken(null);
-    location.reload();
-  },
 });
 
 // --- login -------------------------------------------------------------------
@@ -415,6 +411,8 @@ function showAccountLogin(message = '') {
   $('character-roster').hidden = true;
   $('guest-note').hidden = false;
   $('saved-guest').hidden = !net.token;
+  $('abandon-saved-guest').dataset.armed='';
+  $('abandon-saved-guest').textContent='Abandon saved guest character';
   // Do not offer to overwrite the local guest key with a new character.
   $('login-form').hidden = !!net.token;
   $('resuming').hidden = true;
@@ -502,6 +500,12 @@ function buildAccountUI() {
     } catch {
       window.prompt('Copy your private guest recovery key:', net.token);
     }
+  });
+  $('abandon-saved-guest').addEventListener('click',()=>{
+    if(!net.token||net.accountLogged)return;
+    const btn=$('abandon-saved-guest');
+    if(!btn.dataset.armed){btn.dataset.armed='1';btn.textContent='Confirm · forget local guest key';return;}
+    saveToken(null);location.reload();
   });
   $('resume-guest-key').addEventListener('click', () => {
     const token = $('guest-resume-key').value.trim();
@@ -749,10 +753,11 @@ function onEvent(e) {
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
       if (d) {
-        d.hit = 1;
-        if (d.model.trigger) d.model.trigger('hit');
-        const cls = e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
-        ui.floatText(toScreen(d.head), e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
+        if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
+        // A fully absorbed attack is a shield impact, not a body hit.
+        const blocked=e.a===0&&e.sh>0;
+        const cls = blocked?'shield':e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
+        ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (rich() && d.placed) cvfx.hit(d, s, e);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
         else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
@@ -776,7 +781,7 @@ function onEvent(e) {
       }
       // Melee already has a burst above. Make bolt impacts readable too,
       // without doubling particles or changing combat damage.
-      if (d && e.k === 'bolt') fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
+      if (d && e.k === 'bolt' && e.a>0) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} hits ${d.meta.n} for ${e.a}.`, 'out');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} hits you for ${e.a}${e.sh ? ` (${e.sh} absorbed)` : ''}.`, 'in');
       break;
