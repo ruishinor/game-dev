@@ -377,6 +377,7 @@ export class NetServer {
         send(conn.ws, { t: 'account_logged_out' });
         conn.ws.close(1000, 'signed out');
         break;
+      case 'whisper':
       case 'chat': {
         if (typeof msg.m !== 'string') return this.strike(conn);
         const now = Date.now();
@@ -385,7 +386,13 @@ export class NetServer {
         const text = msg.m.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, CHAT_MAX_LEN);
         if (!text) return;
         conn.lastChat = now;
-        game.events.push({ e: 'chat', id: p.id, n: p.name, m: text });
+        if (msg.t === 'whisper') {
+          if (!isId(msg.id)) return this.strike(conn);
+          const other = game.players.get(msg.id);
+          if (!other || other.id === p.id) return game.message(p, 'err', 'That player is unavailable.');
+          game.message(other, 'whisper', `From ${p.name}: ${text}`);
+          game.message(p, 'whisper', `To ${other.name}: ${text}`);
+        } else game.events.push({ e: 'chat', id: p.id, n: p.name, m: text });
         break;
       }
       case 'ping':

@@ -23,6 +23,7 @@ export class Input {
     this.enabled = false;
     /** (code, event) for non-movement key presses. */
     this.onAction = () => {};
+    this.onReset = () => {};
     /** (button, clientX, clientY) for clicks that were not drags. */
     this.onClick = () => {};
 
@@ -137,6 +138,7 @@ export class Input {
   }
 
   reset() {
+    this.onReset();
     this.keys.clear();
     this.lmb = false;
     this.rmb = false;

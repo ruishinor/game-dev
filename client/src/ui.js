@@ -20,6 +20,7 @@ const ICONS = {
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
   follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
+  stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
 
 const BUFFS = {
@@ -40,7 +41,7 @@ const GLYPH_NOTES = {
 };
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
-const PET_KEYS = ['triage', 'guard', 'assist', 'follow'];
+const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SKILL_INFO = {
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
   biotech: 'Conductor primary skill: increases Power by 2 percentage points per point above 10 and meets Biotech equipment requirements.',
@@ -192,6 +193,18 @@ export class UI {
 
     this.party = h('div', 'party');
     root.append(this.party);
+    this.playerContext = h('div', 'player-context');
+    this.playerContext.hidden = true;
+    root.append(this.playerContext);
+    this.target.el.addEventListener('contextmenu', (e) => {
+      const ent = this.currentTarget;
+      if (ent?.meta.k !== 'p' || ent.id === this.selfId) return;
+      e.preventDefault();
+      this.openPlayerContext(ent, e.clientX, e.clientY);
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (!this.playerContext.contains(e.target)) this.playerContext.hidden = true;
+    });
 
     const side = h('div', 'side');
     this.minimap = document.createElement('canvas');
@@ -221,17 +234,19 @@ export class UI {
     this.chat.className = 'chat';
     this.chat.maxLength = 140;
     this.chat.placeholder = 'Press Enter to talk';
+    this.whisperTarget = null;
     this.chat.setAttribute('aria-label', 'Chat message');
     this.chat.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
         const text = this.chat.value.trim();
-        if (text) this.a.chat(text);
-        this.chat.value = '';
-        this.chat.blur();
+        if (text) {
+          if (this.whisperTarget) this.a.whisper(this.whisperTarget.id, text);
+          else this.a.chat(text);
+        }
+        this.resetChatTarget();
       } else if (e.key === 'Escape') {
-        this.chat.value = '';
-        this.chat.blur();
+        this.resetChatTarget();
       }
     });
     logWrap.append(this.logEl, this.chat);
@@ -247,7 +262,9 @@ export class UI {
     this.autoControl.append(this.autoButton, this.autoStatus);
     this.actionBar = h('div', 'actionbar');
     this.xp = bar('xp');
-    bars.append(this.petBar, this.autoControl, this.actionBar, this.xp.wrap);
+    this.moveStatus = h('div', 'move-status');
+    this.moveStatus.hidden = true;
+    bars.append(this.petBar, this.moveStatus, this.autoControl, this.actionBar, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -273,9 +290,9 @@ export class UI {
     this.signoutBtn = h('button', 'menubtn', 'Sign out');
     this.signoutBtn.hidden = true;
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
-    this.menuItems.append(this.inventoryBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn, helpBtn);
+    this.menuItems.append(this.inventoryBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
     this.netLabel = h('div', 'net');
-    menu.append(this.buildBtn, this.menuBtn, this.netLabel, this.menuItems);
+    menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
 
     this.tooltip = h('div', 'tooltip');
@@ -359,19 +376,22 @@ export class UI {
       ['Right-drag', 'Steer: turn the camera and your character'],
       ['Left-drag', 'Look around without turning'],
       ['Both buttons', 'Run forward'],
+      ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
+      ['Right-click player frame', 'Invite, follow or whisper to that player. Follow stops with manual movement or Esc.'],
       ['Wheel', 'Zoom'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 4', 'Abilities'],
-      ['Shift + 1 – 4', 'Companion: Triage / Bond / Attack / Follow'],
+      ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Build / Inventory'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
       ['M', 'Open the corner menu'],
+      ['H', 'Help and command reference'],
       ['Enter', 'Chat'],
     ];
     const table = h('div', 'keys');
@@ -634,6 +654,33 @@ export class UI {
     if (open) this.panel.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
   }
 
+  resetChatTarget() {
+    this.whisperTarget = null;
+    this.chat.value = '';
+    this.chat.placeholder = 'Press Enter to talk';
+    this.chat.blur();
+  }
+
+  openPlayerContext(ent, x, y) {
+    this.playerContext.replaceChildren(h('div', 'context-title', ent.meta.n));
+    const action = (label, cb) => {
+      const btn = h('button', null, label);
+      btn.addEventListener('click', () => { this.playerContext.hidden = true; cb(); });
+      this.playerContext.append(btn);
+    };
+    action('Invite to party', () => this.a.partyInvite(ent.id));
+    action('Follow', () => this.a.followPlayer(ent.id));
+    action('Whisper', () => {
+      this.whisperTarget = { id: ent.id, name: ent.meta.n };
+      this.chat.placeholder = `Whisper to ${ent.meta.n}`;
+      this.chat.focus();
+    });
+    this.playerContext.hidden = false;
+    const w = this.playerContext.offsetWidth, hgt = this.playerContext.offsetHeight;
+    this.playerContext.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, x))}px`;
+    this.playerContext.style.top = `${Math.max(8, Math.min(window.innerHeight - hgt - 8, y))}px`;
+  }
+
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'rename' && ent.id !== this.companionId) return;
@@ -668,7 +715,8 @@ export class UI {
 
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId;
+    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.playerContext.hidden = true;
     this.menuItems.hidden = true;
     this.panel.hidden = true;
     this.partyPanel.hidden = true;
@@ -830,6 +878,10 @@ export class UI {
    */
   update(st) {
     const { me, you, target } = st;
+    this.currentTarget = target;
+    this.selfId = me?.id;
+    set(this.moveStatus, 'hidden', !st.movement);
+    set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
     const def = CLASSES[this.sheet.cls];
 
@@ -885,7 +937,7 @@ export class UI {
       set(this.petName, 'text', st.comp.meta.n);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
-      const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
+      const act = c.a === 'idle' && c.md === 'stay' ? 'Holding position' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
       set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
       for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
@@ -932,6 +984,7 @@ export class UI {
         row = unitFrame('ally');
         row.el.setAttribute('role', 'button');
         row.el.addEventListener('click', () => this.a.target(ent.id));
+        row.el.addEventListener('contextmenu', (e) => { e.preventDefault(); this.openPlayerContext(ent, e.clientX, e.clientY); });
         this.party.append(row.el);
         this.partyRows.set(ent.id, row);
       }
@@ -1006,6 +1059,8 @@ export class UI {
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
+    this.playerContext.hidden = true;
+    this.resetChatTarget();
   }
 
   /** Position a nameplate at screen coordinates, or hide it. */

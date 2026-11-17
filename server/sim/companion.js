@@ -49,6 +49,12 @@ export function tickCompanion(game, c, dt) {
   const step = def.speed * dt;
 
   if (dist(c, owner) > def.leash && c.mode !== 'guard') {
+    if (c.mode === 'stay') {
+      c.mode = 'follow';
+      owner.char.petMode = 'follow';
+      game.onCharChanged(owner.char);
+      game.message(owner, 'info', 'Your symbiote returns: its tether limit was reached.');
+    }
     c.x = owner.x + 1.2;
     c.z = owner.z - 1.2;
   }
@@ -94,6 +100,12 @@ export function tickCompanion(game, c, dt) {
       c.nextRegen = game.time + 1000;
       applyHeal(game, owner, host, def.guard.regen, 'bond', c.id);
     }
+    return;
+  }
+
+  if (c.mode === 'stay') {
+    c.act = 'idle';
+    c.actTarget = 0;
     return;
   }
 

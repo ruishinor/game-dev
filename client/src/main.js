@@ -87,6 +87,8 @@ const S = {
   sheet: null,
   target: 0,
   inspect: null,
+  followId: 0,
+  autoRun: false,
   targetSentAt: 0,
   timeOffset: null,
   zone: '',
@@ -143,6 +145,7 @@ const net = new Net({
     $('enter').disabled = false;
   },
   onStatus: (text) => {
+    if (text) stopAutomaticMovement();
     $('status').hidden = !text;
     $('status').textContent = text || '';
     if (text) input.reset();
@@ -159,6 +162,8 @@ const ui = new UI({
   pet: (c) => net.send({ t: 'pet', c }),
   petRename: (name) => net.send({ t: 'pet_rename', name }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
+  followPlayer: (id) => followPlayer(id),
+  whisper: (id, m) => net.send({ t: 'whisper', id, m }),
   partyAnswer: (accept) => net.send({ t: 'party_answer', accept }),
   partyLeave: () => net.send({ t: 'party_leave' }),
   quality: (preset) => {
@@ -460,6 +465,7 @@ function removeEntity(ent) {
 }
 
 function clearWorld() {
+  stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   ui.clearPlates();
 }
@@ -841,17 +847,24 @@ input.onClick = (button, x, y) => {
 };
 
 input.onAction = (code, e) => {
-  const digit = /^Digit([1-4])$/.exec(code);
+  const digit = /^Digit([1-5])$/.exec(code);
   if (digit && S.sheet) {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
-      const mode = ['triage', 'guard', 'assist', 'follow'][i];
+      const mode = ['triage', 'guard', 'assist', 'follow', 'stay'][i];
       if (mode && def.companion) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
   }
   switch (code) {
+    case 'NumLock':
+      e.preventDefault();
+      if (S.ents.get(S.myId)?.dead) break;
+      const enableRun = !S.autoRun;
+      stopAutomaticMovement();
+      S.autoRun = enableRun;
+      break;
     case 'Tab':
       e.preventDefault();
       nextEnemy();
@@ -860,6 +873,7 @@ input.onAction = (code, e) => {
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
       break;
     case 'Escape':
+      stopAutomaticMovement();
       if (!ui.closePanels() && S.target) setTarget(0);
       break;
     case 'F1':
@@ -931,9 +945,38 @@ function sampleRemote(ent, rt) {
   return buf[buf.length - 1];
 }
 
+function stopAutomaticMovement() {
+  S.autoRun = false;
+  S.followId = 0;
+}
+function followPlayer(id) {
+  const ent = S.ents.get(id);
+  const me = S.ents.get(S.myId);
+  if (!me || me.dead || !ent || ent.id === S.myId || ent.meta.k !== 'p' || ent.dead) return ui.error('Select a living player to follow.');
+  stopAutomaticMovement();
+  S.followId = id;
+}
+input.onReset = stopAutomaticMovement;
+
 function stepLocal(inp, now, dt) {
   const me = S.ents.get(S.myId);
   const dead = !!(me && me.dead);
+  if (!me || dead || !input.enabled || document.hidden) stopAutomaticMovement();
+  // Automatic movement is only an input convenience. It uses the same
+  // collision, speed, prediction, rate limits and server movement validation.
+  if (inp.f || inp.s || inp.turn || inp.jump) stopAutomaticMovement();
+  if (S.followId) {
+    const ent = S.ents.get(S.followId);
+    const dx = ent ? ent.pos.x - local.pred.x : 0;
+    const dz = ent ? ent.pos.z - local.pred.z : 0;
+    const distance = Math.hypot(dx, dz);
+    if (!ent || ent.dead || !ent.placed || distance > 45) stopAutomaticMovement();
+    else if (distance > 2.8) {
+      local.yaw = Math.atan2(dx, dz);
+      inp.f = Math.min(1, (distance - 2.8) / 1.4);
+      inp.steering = false;
+    }
+  } else if (S.autoRun) inp.f = 1;
   if (inp.lookX || inp.lookY) cam.look(inp.lookX, inp.lookY);
   if (inp.wheel) cam.zoom(inp.wheel);
   if (!dead) {
@@ -1239,6 +1282,7 @@ function frame(now) {
       ents: S.ents,
       comp: S.compId ? S.ents.get(S.compId) : null,
       inspect: S.inspect,
+      movement: S.followId ? `Following ${S.ents.get(S.followId)?.meta.n || 'player'} · Esc to stop` : S.autoRun ? 'Auto-run · Num Lock to stop' : '',
       now,
       cd: (id) => Math.max(0, (S.cdReady[id] || 0) - now),
       gcd: () => Math.max(0, S.gcdReady - now),

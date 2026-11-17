@@ -163,6 +163,7 @@ export const COMPANIONS = {
       guard: { name: 'Bond', desc: 'Bonds to your friendly target (or you): steady regeneration and 20% less damage taken.' },
       assist: { name: 'Attack', desc: 'Attacks your target. Its sting makes the target take 12% more damage.' },
       follow: { name: 'Follow', desc: 'Stays near you without automatically attacking, healing or bonding.' },
+      stay: { name: 'Stay', desc: 'Holds position without engaging. Returns to you if you move beyond its tether.' },
     },
   },
 };

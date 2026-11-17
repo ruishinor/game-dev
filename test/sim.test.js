@@ -428,6 +428,11 @@ test('companion attack and follow: attacks the target, then disengages on comman
   run(game, 2000, following);
   assert.equal(p.companion.act, 'idle');
   assert.ok(!following.some((x) => x.e === 'dmg' && x.s === p.companion.id), 'Follow prevents automatic attacks even with a hostile target selected');
+  assert.ok(petCommand(game, p, 'stay').ok);
+  const held = [p.companion.x, p.companion.z];
+  place(p, p.x + 4, p.z);
+  run(game, 1000);
+  assert.deepEqual([p.companion.x, p.companion.z], held, 'Stay holds position inside the tether');
   game.setTarget(p, 0);
   run(game, 300);
   assert.equal(p.companion.act, 'idle');
