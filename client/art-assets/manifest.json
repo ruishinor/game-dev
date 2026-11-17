@@ -474,44 +474,44 @@
     },
     {
       "path": "glyphs/aegis.svg",
-      "bytes": 338,
-      "gitBlob": "8228d0565c5099178a798b283b5dd5dbfc65eb38",
+      "bytes": 378,
+      "gitBlob": "c12d16c7e664115679c64e5a01ffdca8425ce922",
       "source": "original"
     },
     {
       "path": "glyphs/anchor.svg",
-      "bytes": 596,
-      "gitBlob": "6839103ea7c3b4b8aeac177eb168d428f57d466c",
+      "bytes": 598,
+      "gitBlob": "5a9f321a0ce64a511990a4363debffa3e256fe29",
       "source": "original"
     },
     {
       "path": "glyphs/bond.svg",
-      "bytes": 331,
-      "gitBlob": "3fd673fa7ebadd5bf2e157a85780d966bbd5ed1b",
+      "bytes": 397,
+      "gitBlob": "bdb100600ddabf1747b2b3dce4144902a3a77146",
       "source": "original"
     },
     {
       "path": "glyphs/conduit.svg",
-      "bytes": 386,
-      "gitBlob": "87e36cb37f11904e59d67c7670c558b3ca2fa311",
+      "bytes": 388,
+      "gitBlob": "f37905c2fc4193697353ede631602f36475e26fd",
       "source": "original"
     },
     {
       "path": "glyphs/divide.svg",
-      "bytes": 416,
-      "gitBlob": "494b079000ff5a02c62e90ee11811aeadd6bdc03",
+      "bytes": 418,
+      "gitBlob": "d6c2a3e906f637d825df338fcf6d3851bb342325",
       "source": "original"
     },
     {
       "path": "glyphs/hinge.svg",
-      "bytes": 517,
-      "gitBlob": "8f72a8cf8c78ff8a4a484ebf9420b4fbbd6d71e6",
+      "bytes": 519,
+      "gitBlob": "23b441bb8386670cf5936da65ded13cc9c1d127c",
       "source": "original"
     },
     {
       "path": "glyphs/lattice.svg",
-      "bytes": 410,
-      "gitBlob": "5e05049bf9f69da1f8dd3c78b313118941ab4b9d",
+      "bytes": 412,
+      "gitBlob": "b50a38f5d120c68f0c7f1fd24adb2a9d4c2dfd99",
       "source": "original"
     },
     {
@@ -522,80 +522,80 @@
     },
     {
       "path": "glyphs/network.svg",
-      "bytes": 466,
-      "gitBlob": "1d18983746ffd40a75e37330d98053b745775eeb",
+      "bytes": 468,
+      "gitBlob": "5be6c75726c7fbf90c2b997ba068eb9b953e5f80",
       "source": "original"
     },
     {
       "path": "glyphs/persist.svg",
-      "bytes": 718,
-      "gitBlob": "7b12e950266ef9f823e908ab20b112b48703a058",
+      "bytes": 535,
+      "gitBlob": "c98644157e8509c6b0a2111511658ab9c7485ce7",
       "source": "original"
     },
     {
       "path": "glyphs/phase.svg",
-      "bytes": 699,
-      "gitBlob": "41f23947501c58c4c2ff938c685d3e3c431b030b",
+      "bytes": 733,
+      "gitBlob": "fb2675cd2307c096a3bc306be5990ff0f8c62e23",
       "source": "original"
     },
     {
       "path": "glyphs/relay.svg",
-      "bytes": 429,
-      "gitBlob": "722e2c3b20b1510072daa89fd70f13de2b23c2d4",
+      "bytes": 431,
+      "gitBlob": "be14118d40a95cdc7e4a9b29d0e69f539736ceb9",
       "source": "original"
     },
     {
       "path": "glyphs/reroute.svg",
-      "bytes": 418,
-      "gitBlob": "9faaf4f28465dcf4b47f8b47c1ad0015ff1bbf00",
+      "bytes": 420,
+      "gitBlob": "0800555733e9d2622ad1f6e81d5716e04ffd2d09",
       "source": "original"
     },
     {
       "path": "glyphs/resonate.svg",
-      "bytes": 475,
-      "gitBlob": "f5174e8fcd1440731da9b9adc2ee13b3683e4d5a",
+      "bytes": 477,
+      "gitBlob": "24a7c516b5d0f1e298268bf323fb26a54bd7fce0",
       "source": "original"
     },
     {
       "path": "glyphs/span.svg",
-      "bytes": 511,
-      "gitBlob": "b3f4325b067f0961c92b93887865e02115f76488",
+      "bytes": 385,
+      "gitBlob": "a6d769ffbb64c1b6ed7fc5f361bec0b2bc92eb31",
       "source": "original"
     },
     {
       "path": "glyphs/sprite.svg",
-      "bytes": 8106,
-      "gitBlob": "e03a6da113087ce38f9a54f35be2fc11340e8e97",
+      "bytes": 7933,
+      "gitBlob": "00ce10be86c6ca4cdaa56d5002b98d245acb41bc",
       "source": "original"
     },
     {
       "path": "glyphs/stabilize.svg",
-      "bytes": 355,
-      "gitBlob": "0b6e974fa3564299c539df2d1fac651c32c72580",
+      "bytes": 357,
+      "gitBlob": "cfb8955cde36cde60dbedbf2596959b5e040034a",
       "source": "original"
     },
     {
       "path": "glyphs/unmended.svg",
-      "bytes": 339,
-      "gitBlob": "8587f4bee0d41c6ea0dfdd38b0d2ba45532fd509",
+      "bytes": 341,
+      "gitBlob": "36c296af3a01e72d98b20411766a986f61057bdd",
       "source": "original"
     },
     {
       "path": "glyphs/unseen.svg",
-      "bytes": 342,
-      "gitBlob": "67ca701ed5e2cde78dc10c5b1e41685f80b2c3e1",
+      "bytes": 344,
+      "gitBlob": "1888003f033ff9039d206771d2c6c402be0442fc",
       "source": "original"
     },
     {
       "path": "glyphs/unstrike.svg",
-      "bytes": 341,
-      "gitBlob": "b10c6ad3d781691cfb60ccde9df5783ef36eff3f",
+      "bytes": 311,
+      "gitBlob": "026f4de405f5dee097dcb7780dc1bbe49494488d",
       "source": "original"
     },
     {
       "path": "glyphs/unwall.svg",
-      "bytes": 371,
-      "gitBlob": "ed0d6b05c373113fc17991cf03d576c0fd7a650d",
+      "bytes": 373,
+      "gitBlob": "066b3be617c4f0ac1097c2477d0c6db33c45e096",
       "source": "original"
     },
     {

@@ -9,3 +9,6 @@ Simulated roundtable:
 - UX: distinguish by geometry, not only colour. Use labels/tooltips; small-icon legibility still needs real HUD testing.
 - Adversarial: validated all coordinates and circle extents, unique IDs and shape data, lookup rejection, generated sprite membership. Counterglyph slash is an icon convention, not a gameplay disable action.
 - Retrospective: chose a compact vector vocabulary instead of ornate runes; lower information density than the concept boards. Neutral sampled-line preview is not final accessibility or visual acceptance.
+
+## Visual revision v2
+Retained all 19 identifiers, labels and geometry-led visual language. Increased stroke weight modestly and used bevel joins; revised Aegis, Span, Persist, Phase, Bond and Unstrike motifs to clarify structure and differentiation. Art: industrial diagram rather than ornamental rune. UX: avoid colour-only information and unnecessary micro-detail. Runtime: same vector/sprite contract. Adversarial: checked shape bounds, unchanged IDs and previous Git blob hashes before calculating updated ones. Retrospective: no claim of HUD-scale readability without real raster/browser comparison. Original neutral preview remains a historical baseline, not current artwork.
