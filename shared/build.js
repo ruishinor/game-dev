@@ -119,7 +119,14 @@ export function describeRequirements(char, itemId) {
     const skills = computeSkills(char.cls, char.level, { ...char.equipped, [item.slot]: itemId });
     if (item.req.skills) {
       for (const k of Object.keys(item.req.skills)) {
-        out.push({ text: `${SKILL_NAMES[k]} ${item.req.skills[k]} (yours: ${skills[k] || 0})`, met: (skills[k] || 0) >= item.req.skills[k] });
+        const base = CLASSES[char.cls].skills[k] + (CLASSES[char.cls].primary === k ? char.level - 1 : 0);
+        const effective = skills[k] || 0;
+        const bonus = effective - base;
+        const breakdown = bonus ? `${base} base + ${bonus} equipment` : `${base} base`;
+        out.push({
+          text: `${SKILL_NAMES[k]} ${item.req.skills[k]} (after equipping: ${effective} = ${breakdown})`,
+          met: effective >= item.req.skills[k],
+        });
       }
     }
     if (item.req.attune) {
