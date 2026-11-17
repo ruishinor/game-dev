@@ -14,3 +14,7 @@ The original generator is dependency-free apart from Node's standard library. Th
 
 ## Integration gate
 Visual quality is faceted low-poly rather than concept-art fidelity. Bone placement and animated clipping, actual effects/telegraphs, materials, target devices, meshopt optimization and gameplay integration are not established by structural passes. Merge into a production release only after those tests and an art review. No game balance, server authority or progression changes made here.
+
+## Browser inspection
+
+Run the normal local server and open `/client/art-preview.html`. Select any of the 31 GLBs, the articulated Mender, or 13 effect variants. The page supports manual yaw, pitch, phase and reduced-motion review. The atlas and glyphs appear below the viewport. `node test/e2e/art-originals.mjs` runs a browser smoke check after Chromium installation; a separate Actions workflow also invokes it. Rendering smoke checks are not art approval or hardware profiling.
