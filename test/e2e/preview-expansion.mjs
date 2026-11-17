@@ -130,6 +130,12 @@ try {
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
   assert.equal(p.char.xp,beforeSampleXp);
   await capture('preview-evidence/04c-strata-interferometer.png');
+  // Setup relocation, then verify the actual underground renderer and camera pose.
+  await moveTo(-57,-8);
+  await page.waitForFunction(()=>document.querySelector('.zone-label')?.textContent.includes('Kestrel Deep'));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:7,face:-Math.PI/2}));
+  assert.ok(await page.evaluate(()=>{const scene=window.__attune.gfx.scene;return !!scene.getObjectByName('kestrel:roof')&&!!scene.getObjectByName('kestrel:worklight');}));
+  await capture('preview-evidence/04d-kestrel-deep.png');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});

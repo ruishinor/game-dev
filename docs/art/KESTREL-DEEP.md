@@ -1,0 +1,13 @@
+# Kestrel Deep — buried industrial research biome
+
+Phase 1: a westward descending access road and covered laboratory, centred around (-57,-8). The abandoned subsurface Kestrel facility investigated the coupling between mechanical stress and living mineral membranes. This is a local setting detail, not a definitive origin of Resonance.
+
+The existing single-heightfield simulation cannot support overlapping traversable floors. A continuous excavation descends to -6.2m; a physical roof with 5.75m nominal headroom, three collider-aligned reinforced walls and open eastern portal creates a genuinely covered lower room. The roof is not a second traversable surface. Ceiling collision is camera-only because the room admits the maximum existing player jump plus character height. The same shared planar collision contract remains authoritative; no new movement protocol or saved floor/zone identifier. The approach, walls and roof are available with and without GLB kits. No new asset downloads or altered production manifest. Tangential decorative ground cover is suppressed locally; original seeded props outside the excavation are retained.
+
+Art: exposed conduits, recessed deck joints, ochre safety stripes, sealed mineral vessels and one local non-shadow work light. Low-poly original geometry; atmospheric fidelity and target device frame cost remain unverified. No new gameplay rewards or threat in this foundational commit. Follow-up may add a patrolling custodian and a contextual research console.
+
+Simulated multidisciplinary review: level design — preserve continuous entry and escape; technical — shared floor and wall dimensions, camera roof gate, explicit no stacked topology; art — structural bulk instead of another open ruin; adversarial — geometry, approach movement, colliders, ceiling camera, jump and previous patrol regressions; retrospective — prove a roofed playable room before adding enemies, interaction or procedural dungeon architecture. Known limitation: existing combat/range systems do not reproduce actual wall line-of-sight; no claim of full 3D traversal or occlusion.
+
+
+## Combined-preview reconciliation
+The consolidated branch already implements conservative horizontal collision-footprint line of sight; Kestrel's solid wall and vessel footprints therefore obstruct attacks while its open portal remains visible. No vertical or roof-based combat occlusion is claimed. Brineworks deck infrastructure, all professions, and Sinter sampling are retained. Added integrated cover and browser geometry checks; captured location uses fixture teleport, not a human traversal. The lab remains a foundational environment rather than promising unimplemented encounters or rewards.

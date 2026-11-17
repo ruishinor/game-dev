@@ -1,6 +1,6 @@
 // Third-person orbit camera with terrain and obstacle avoidance.
 
-import { COLLIDERS, groundHeight } from '../../shared/world.js';
+import { COLLIDERS, groundHeight, DEEP, deepRoofAt } from '../../shared/world.js';
 
 const MIN_DIST = 2.5;
 const MAX_DIST = 24;
@@ -17,6 +17,7 @@ const BLOCKERS = COLLIDERS.filter((c) => !SEE_THROUGH.has(c.type) && (c.hw !== u
 
 function blocked(x, y, z) {
   if (y < groundHeight(x, z) + 0.3) return true;
+  if (deepRoofAt(x, z, 0.18) && y > DEEP.roofBottom - 0.25 && y < DEEP.roofTop + 0.25) return true;
   for (let i = 0; i < BLOCKERS.length; i++) {
     const c = BLOCKERS[i];
     if (y > c.top) continue;
