@@ -50,6 +50,11 @@ async function openPlayer(slot, name, cls, look) {
   page.on('console', (m) => {
     if (m.type() === 'error') pageErrors.push(`${name}: ${m.text()}`);
   });
+  // A console 404 lacks the failing URL. Report the actual request so a
+  // missing gameplay asset cannot be mistaken for a harmless favicon.
+  page.on('response', (response) => {
+    if (response.status() >= 400) pageErrors.push(`${name}: HTTP ${response.status()} ${response.url()}`);
+  });
   await page.goto(`${base}/?${QUERY}&slot=${slot}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
@@ -213,11 +218,20 @@ try {
   let sk = skitters[0];
   await fightAt(sk);
 
-  // Click-to-target on the enemy's on-screen position.
+  // Tab favours enemies ahead of the camera; it does not promise the nearest
+  // enemy in all directions. Verify selection and that cycling reaches sk.
   await A.page.keyboard.press('Tab');
-  await until(A, (id) => window.__attune.state().target === id, sk.id, 3000, 'tab target');
+  await until(A, () => window.__attune.state().target !== 0, null, 3000, 'tab target');
   sa = await state(A);
-  check('4. Tab selects the nearest enemy', sa.target === sk.id);
+  const tabEnt = sa.ents.find((ent) => ent.id === sa.target);
+  const tabDistance = tabEnt ? Math.hypot(tabEnt.x - sa.pos.x, tabEnt.z - sa.pos.z) : Infinity;
+  check('4. Tab selects a living nearby enemy', !!tabEnt && tabEnt.k === 'e' && !tabEnt.dead && tabDistance <= 50, `target ${sa.target}, distance ${tabDistance.toFixed(1)}m`);
+  let reachedSkitter = sa.target === sk.id;
+  for (let i = 0; i < 10 && !reachedSkitter; i++) {
+    await A.page.keyboard.press('Tab');
+    reachedSkitter = (await state(A)).target === sk.id;
+  }
+  check('4. Tab cycling can reach the intended enemy', reachedSkitter, `skitter id ${sk.id}`);
   await A.page.keyboard.press('Escape');
   await sleep(200);
   // Face the enemy so it is on screen, then click it.
@@ -356,6 +370,31 @@ try {
   sa = await state(A);
   sb = await state(B);
   check('9. the directive rewards each class its Device', sa.sheet.inventory.includes('servo_harness') && sb.sheet.inventory.includes('sporeglass_focus'), `A: ${sa.sheet.inventory}, B: ${sb.sheet.inventory}`);
+
+  // End-to-end verification of the invisible-attack regression: an enemy
+  // must disappear from *both* actual browsers after corpse expiry, then
+  // return under the same ID with a live GLB model. No server restart.
+  const corpse = skitters[3];
+  if (corpse.state === 'dead') {
+    teleport('Brakka', 0, 7.5);
+    teleport('Lumen', 0, 7.5);
+    await settle(A, 0, 7.5);
+    await settle(B, 0, 7.5);
+    corpse.respawnAt = Math.max(game.time + 4500, corpse.deadAt + 4200);
+    note(`accelerated Mire Skitter ${corpse.id} respawn after normal corpse expiry`);
+    const vanishedA = await until(A, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'A removes expired enemy');
+    const vanishedB = await until(B, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'B removes expired enemy');
+    check('6/11. expired enemy disappears in both browser sessions', vanishedA && vanishedB);
+    const returned = (id) => {
+      const ent = window.__attune.state().ents.find((e) => e.id === id);
+      return !!ent && ent.model === 'glb' && !ent.dead && ent.row?.h > 0;
+    };
+    const revivedA = await until(A, returned, corpse.id, 6000, 'A rebuilds respawned enemy model');
+    const revivedB = await until(B, returned, corpse.id, 6000, 'B rebuilds respawned enemy model');
+    check('6/11. enemy respawns visibly in both browsers without a restart', vanishedA && vanishedB && revivedA && revivedB, `enemy id ${corpse.id}, renderer GLB`);
+  } else {
+    check('6/11. enemy respawns visibly in both browsers without a restart', false, 'the selected skitter was never defeated');
+  }
 
   // ------------------------------------------------ 9. build modification
   teleport('Brakka', 3, 9);
