@@ -426,14 +426,14 @@
     },
     {
       "path": "cranial_interface_left.glb",
-      "bytes": 72616,
-      "gitBlob": "f7f95d6c981c719a417668bf688bce4476f3b047",
+      "bytes": 364160,
+      "gitBlob": "f1cc2c7f701246a94b008dab9b7f73847261dd64",
       "source": "original"
     },
     {
       "path": "cranial_interface_right.glb",
-      "bytes": 72624,
-      "gitBlob": "877e0d300c3fdc8c1e3670c5873441e3c66ce1a5",
+      "bytes": 364172,
+      "gitBlob": "cc7e92896ef068f33aa2026aa2422b490251e08f",
       "source": "original"
     },
     {

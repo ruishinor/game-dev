@@ -18,3 +18,8 @@ Executed checks: GLB structure, accessor ranges, finite positions and unit norma
 The neutral inspection showed a disconnected lower rail and a mirrored ring orientation that changed fore/aft placement. Added explicit bridges from the rail to both endpoints and held the ring orientation constant across mirrored X sides. Regenerated, structurally checked and compared mirrored bounds; still requires real head fit.
 - cranial_interface_right: 728 triangles, 72624 bytes.
 - cranial_interface_left: 728 triangles, 72616 bytes.
+
+## Visual revision v2
+Kept low-profile partial rail and temple origin; smoothed contacts, added insulated lead, soft-contact pads, recessed indicators and a ceramic service cover. Embedded material maps and minimized brightness. Simulated review: art—recognizable wearable interface without head-enclosing bulk; modeling—mirrored bounds checked, skin fit unknown; runtime—small static geometry; UX—details primarily inspectable up close; adversarial—repeat bytes and structural checks; retrospective—avoid detail density that cannot be read at normal camera distance. Actual fit and artistic acceptance pending.
+- cranial_interface_right: 2176 triangles, 12 maps.
+- cranial_interface_left: 2176 triangles, 12 maps.
