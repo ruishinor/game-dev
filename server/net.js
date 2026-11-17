@@ -197,6 +197,7 @@ export class NetServer {
   }
 
   onAuthMessage(conn, msg) {
+    if (conn.authPending) return this.strike(conn);
     if (msg.t === 'account_register' || msg.t === 'account_login') {
       void this.accountAuth(conn, msg);
     } else if (msg.t === 'account_resume') {
