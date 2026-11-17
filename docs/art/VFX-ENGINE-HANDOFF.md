@@ -46,8 +46,9 @@ Stone (golden circuit rings), CHR-008 Suture Diver, EQP-001 reservoir family.
 - **Verification at handoff** (head `5766a61`, Node 24):
   - `npm test`: 159/159.
   - `node test/e2e/play.mjs`: **72/72** (`docs/evidence/test-logs/e2e-cov.log`).
-  - `node test/e2e/preview-expansion.mjs`: still running at handoff, so its
-    result is **not recorded**. Re-run it before merging.
+  - `node test/e2e/preview-expansion.mjs`: **pass**
+    (`docs/evidence/test-logs/pex-cov.log`). This is the suite CI's
+    `playable` job runs.
 - **PR #12:** still open. Merge when the CI `playable` job is green. Its last
   CI rerun was cancelled after about 12 minutes; the timeout is in
   `.github/workflows/preview-expansion.yml`.
