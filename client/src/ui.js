@@ -111,8 +111,12 @@ export class UI {
     this.pet.append(this.petName, this.petAct);
     this.pet.setAttribute('role', 'button');
     this.pet.setAttribute('tabindex', '0');
-    this.pet.title = 'Click to inspect your companion (F2)';
-    const inspectPet = () => { if (this.companionId) this.a.target(this.companionId); };
+    this.pet.title = 'Inspect your companion (F2)';
+    const inspectPet = () => {
+      if (!this.companionId) return;
+      const r = this.pet.getBoundingClientRect();
+      this.a.inspectCompanion(this.companionId, { x: r.right + 10, y: r.top });
+    };
     this.pet.addEventListener('click', inspectPet);
     this.pet.addEventListener('keydown', (e) => {
       if (e.code === 'Enter' || e.code === 'Space') {
@@ -125,6 +129,22 @@ export class UI {
     left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
+
+    // Compact, dismissible inspector beside the selected companion or its frame.
+    // Unlike a combat target, inspection does not change server targeting.
+    this.inspectBox = h('div', 'companion-inspector');
+    this.inspectBox.hidden = true;
+    this.inspectBox.setAttribute('role', 'dialog');
+    this.inspectBox.setAttribute('aria-label', 'Companion details');
+    this.inspectClose = h('button', 'inspect-close', '×');
+    this.inspectClose.setAttribute('aria-label', 'Close companion details');
+    this.inspectClose.addEventListener('click', () => this.a.closeInspect());
+    this.inspectName = h('div', 'inspect-name');
+    this.inspectSub = h('div', 'inspect-sub');
+    this.inspectAction = h('div', 'inspect-action');
+    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction);
+    root.append(this.inspectBox);
+    this.inspectAt = null;
 
     this.party = h('div', 'party');
     root.append(this.party);
@@ -233,7 +253,7 @@ export class UI {
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
-      ['F1 / F2', 'Target yourself / inspect your companion (Esc clears target)'],
+      ['F1 / F2', 'Target yourself / inspect companion (Esc closes)'],
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 3', 'Companion: Triage / Bond / Harry'],
       ['F', 'Interact with what is in front of you'],
@@ -416,10 +436,11 @@ export class UI {
 
   /** Close any open panel. Returns true if something was closed. */
   closePanels() {
-    const any = !this.panel.hidden || !this.help.hidden;
+    const any = !this.panel.hidden || !this.help.hidden || !this.inspectBox.hidden;
     this.panel.hidden = true;
     this.help.hidden = true;
     this.tooltip.hidden = true;
+    if (!this.inspectBox.hidden) this.a.closeInspect();
     return any;
   }
 
@@ -527,7 +548,14 @@ export class UI {
       const item = ITEMS[id];
       const card = h('div', 'card');
       card.append(h('div', 'kicker', SLOT_NAMES[item.slot]), h('div', 'iname', item.name), h('div', 'idesc', item.desc));
-      for (const r of describeRequirements(s, id)) card.append(h('div', `req ${r.met ? 'met' : 'unmet'}`, `${r.met ? '✓' : '✗'} Requires ${r.text}`));
+      for (const r of describeRequirements(s, id)) {
+        const line = h('div', `req ${r.met ? 'met' : 'unmet'}`, `${r.met ? '✓' : '✗'} ${r.text}`);
+        if (r.detail) {
+          line.title = r.detail;
+          line.setAttribute('aria-label', `${r.text}. ${r.detail}`);
+        }
+        card.append(line);
+      }
       const res = tryEquip(s, id);
       const btn = h('button', res.ok ? 'primary' : '', s.equipped[item.slot] ? 'Swap in' : 'Equip');
       btn.disabled = !res.ok || !!this.buildLock;
@@ -584,15 +612,7 @@ export class UI {
       const owner = companion ? st.ents.get(target.meta.o) : null;
       const kind = hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
       set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
-      set(this.target.details, 'hidden', !companion);
-      if (companion) {
-        const cdef = COMPANIONS[target.meta.c];
-        const mode = cdef?.modes[target.row.md];
-        const actingOn = st.ents.get(target.row.t);
-        const activity = ACT_TEXT[target.row.a] || target.row.a;
-        const who = actingOn ? ` ${actingOn.id === me.id ? 'you' : actingOn.meta.n}` : '';
-        set(this.target.details, 'text', [`Mode: ${mode?.name || target.row.md}`, mode?.desc || '', `Activity: ${activity}${who}`, 'No separate HP or energy pool in the current companion system.'].filter(Boolean).join('\n'));
-      }
+      set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
       set(this.target.hp.wrap, 'hidden', !hasHp);
       if (hasHp) this.frameBars(this.target, target.row.h, target.row.m);
@@ -606,6 +626,29 @@ export class UI {
       }
     }
 
+    // Contextual companion inspection, anchored to the interaction point.
+    const inspected = st.inspect?.entity;
+    set(this.inspectBox, 'hidden', !inspected || inspected.meta.k !== 'c');
+    if (inspected && inspected.meta.k === 'c') {
+      const owner = st.ents.get(inspected.meta.o);
+      const c = inspected.row;
+      const mode = COMPANIONS[inspected.meta.c]?.modes[c.md];
+      const who = st.ents.get(c.t);
+      const action = c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : ACT_TEXT[c.a] || c.a;
+      set(this.inspectName, 'text', inspected.meta.n);
+      set(this.inspectSub, 'text', `${owner?.meta.n || 'Unknown owner'} · ${mode?.name || c.md}`);
+      set(this.inspectAction, 'text', who && c.a !== 'idle' ? `${action} ${who.meta.n}` : action);
+      if (st.inspect !== this.inspectAt) {
+        const { x, y } = st.inspect;
+        const w = this.inspectBox.offsetWidth || 250;
+        const h = this.inspectBox.offsetHeight || 90;
+        const left = x + w + 12 > window.innerWidth ? x - w - 12 : x;
+        this.inspectBox.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, left))}px`;
+        this.inspectBox.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y))}px`;
+        this.inspectAt = st.inspect;
+      }
+    } else this.inspectAt = null;
+
     // Companion frame
     this.companionId = st.comp?.id || 0;
     if (st.comp) {
@@ -616,7 +659,7 @@ export class UI {
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
       set(this.petAct, 'text', whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act);
-      set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${target?.id === st.comp.id ? ' selected' : ''}`);
+      set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
       for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
     }
 
