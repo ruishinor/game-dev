@@ -142,6 +142,16 @@ export class UI {
     this.inspectName = h('div', 'inspect-name');
     this.inspectSub = h('div', 'inspect-sub');
     this.inspectAction = h('div', 'inspect-action');
+    this.inspectCommands = h('div', 'inspect-commands');
+    this.inspectCommandButtons = [];
+    for (const mode of PET_KEYS) {
+      const name = COMPANIONS.mender.modes[mode].name;
+      const btn = h('button', null, name);
+      btn.title = COMPANIONS.mender.modes[mode].desc;
+      btn.addEventListener('click', () => this.a.pet(mode));
+      this.inspectCommands.append(btn);
+      this.inspectCommandButtons.push({ mode, btn });
+    }
     this.renameRow = h('div', 'rename-row');
     this.renameInput = h('input');
     this.renameInput.maxLength = 18;
@@ -156,7 +166,7 @@ export class UI {
       if (e.key === 'Enter') { e.preventDefault(); rename.click(); }
     });
     this.renameRow.append(this.renameInput, rename);
-    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction, this.renameRow);
+    this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.inspectAction, this.inspectCommands, this.renameRow);
     root.append(this.inspectBox);
     this.inspectAt = null;
 
@@ -793,7 +803,10 @@ export class UI {
       set(this.inspectName, 'text', inspected.meta.n);
       set(this.inspectSub, 'text', `${owner?.meta.n || 'Unknown owner'} · ${mode?.name || c.md}`);
       set(this.inspectAction, 'text', who && c.a !== 'idle' ? `${action} ${who.meta.n}` : action);
-      set(this.renameRow, 'hidden', inspected.meta.o !== me.id);
+      const ownCompanion = inspected.meta.o === me.id;
+      set(this.renameRow, 'hidden', !ownCompanion);
+      set(this.inspectCommands, 'hidden', !ownCompanion);
+      for (const entry of this.inspectCommandButtons) entry.btn.classList.toggle('active', entry.mode === c.md);
       if (st.inspect !== this.inspectAt) {
         this.renameInput.value = inspected.meta.n;
         const { x, y } = st.inspect;
