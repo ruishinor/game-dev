@@ -7,6 +7,8 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { RECIPES } from '../../shared/crafting.js';
+import { renderWorkshop } from './workshop-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -368,7 +370,9 @@ export class UI {
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
     this.codexBtn = h('button', 'menubtn', 'Codex [J]');
     this.codexBtn.addEventListener('click', () => this.toggleCodex());
-    this.menuItems.append(this.inventoryBtn, this.codexBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
+    this.workshopBtn=h('button','menubtn','Build [B]');
+    this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -458,6 +462,21 @@ export class UI {
     this.codexGroup = 'Creatures';
     this.codexSelection = 'skitter';
 
+    this.workshopPanel=h('div','panel workshop-window');
+    this.workshopPanel.hidden=true;
+    this.workshopPanel.setAttribute('role','dialog');
+    this.workshopPanel.setAttribute('aria-label','Build Planner and Workshop');
+    const workshopClose=h('button','close','×');
+    workshopClose.setAttribute('aria-label','Close Build');
+    workshopClose.addEventListener('click',()=>this.toggleWorkshop(false));
+    this.workshopBody=h('div','workshop-body');
+    this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
+    root.append(this.workshopPanel);
+    this.workshopTab='planner';
+    this.recipeId=null;
+    this.plannedLoadout=null;
+    this.atSanctum=false;
+
     this.partyPanel = h('div', 'panel party-panel');
     this.partyPanel.hidden = true;
     this.partyPanel.setAttribute('role', 'dialog');
@@ -534,6 +553,7 @@ export class UI {
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
+      ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
       ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['P', 'Party: invite, accept, leave'],
@@ -720,7 +740,7 @@ export class UI {
 
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
@@ -737,6 +757,15 @@ export class UI {
       this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
+  }
+
+  toggleWorkshop(force,recipeId=null) {
+    const open=force??this.workshopPanel.hidden;
+    this.hideJournalPanels();
+    this.workshopPanel.hidden=!open;
+    if(!open)return;
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    renderWorkshop(this);
   }
 
   setInventoryOpacity(value) {
@@ -967,6 +996,8 @@ export class UI {
     const info=h('button',null,'Info · Codex');
     info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
     this.playerContext.append(info);
+    const recipe=Object.entries(RECIPES).find(([,r])=>r.target===id&&r.kind==='upgrade');
+    if(recipe){const upgrade=h('button',null,'Upgrade · Workshop');upgrade.addEventListener('click',()=>{this.closePlayerContext();this.toggleWorkshop(true,recipe[0]);});this.playerContext.append(upgrade);}
     this.playerContext.hidden=false;
     const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
     this.playerContext.style.left=Math.max(8,Math.min(window.innerWidth-w-8,x))+'px';
@@ -992,7 +1023,8 @@ export class UI {
     talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
     const info=h('button',null,'Info · Codex');
     info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
-    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info);
+    const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
     content.append(details);panel.append(close,content);panel.hidden=false;
   }
 
@@ -1024,8 +1056,8 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.codexPanel.hidden = this.npcPanel.hidden = true;
+    const any = !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
@@ -1047,6 +1079,7 @@ export class UI {
     if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
+    if(!this.workshopPanel.hidden)renderWorkshop(this);
 
     const q = sheet.quest;
     const d = DIRECTIVES[q.step];
@@ -1151,11 +1184,14 @@ export class UI {
     const def = CLASSES[this.sheet.cls];
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
+    const workshopChanged=!!you.safe!==this.atSanctum||lock!==this.buildLock;
+    this.atSanctum=!!you.safe;
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
       if (!this.inventoryPanel.hidden) renderInventory(this);
     }
+    if(workshopChanged&&!this.workshopPanel.hidden)renderWorkshop(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
@@ -1343,6 +1379,7 @@ export class UI {
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
+    this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;

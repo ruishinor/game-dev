@@ -550,6 +550,12 @@ try {
   await B.page.locator('.inventory-window .close').click();
   const independentClose=await B.page.locator('.inventory-window').isHidden();
   check('9. inventory excludes installed devices, stays open across panels, and has independent opacity/close controls',carriedOnly&&buildStillOpen&&codexWithInventory&&inventoryAfterEscape&&changedOpacity&&independentClose);
+  await B.page.keyboard.press('KeyB');
+  const planner=await B.page.locator('.workshop-window').isVisible()&&await B.page.locator('.planner-slot select').count()===3;
+  await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
+  const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
+  await B.page.keyboard.press('Escape');
+  check('9. Build opens independent planning and fabrication interfaces',planner&&fabrication);
   await B.page.keyboard.press('KeyC');
   await equipVia(B, 'Myelin Lattice');
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');

@@ -447,3 +447,35 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .npc-options button { margin:4px 6px 0 0; }
 .npc-dialogue { font-size:13px;line-height:1.5; }
 @media(max-width:520px){.npc-content{flex-wrap:wrap;}.npc-portrait{width:110px;}}
+
+/* Build planning and deterministic fabrication share the journal visual language. */
+.panel.workshop-window{width:min(820px,94vw);padding:38px 14px 14px;border-radius:5px;background:linear-gradient(145deg,#101f28fa,#071016fa);border-color:#315761;}
+.workshop-tabs{display:flex;gap:5px;margin-bottom:10px;}
+.workshop-tabs button{flex:1;font-size:13px;}
+.workshop-tabs button.active,.recipe-entry.active{border-color:#72bdcf;background:#244956;color:#d4f5ff;}
+.workshop-layout{display:grid;grid-template-columns:minmax(190px,1fr) minmax(240px,1.2fr);gap:10px;align-items:start;}
+.workshop-layout.fabrication{grid-template-columns:minmax(145px,.7fr) minmax(245px,1.5fr);}
+.workshop-section{background:#0d2029;border:1px solid #315761;border-radius:4px;padding:12px;min-width:0;}
+.workshop-section h3{font-size:13px;color:#8ddbea;text-transform:uppercase;margin:0 0 10px;}
+.workshop-section h2{font-size:17px;margin:6px 0 10px;}
+.workshop-section p{font-size:12px;line-height:1.45;margin:6px 0 10px;}
+.planner-slot{display:block;font-size:11px;color:#9bd0df;margin:8px 0 4px;}
+.planner-slot select{display:block;width:100%;margin-top:4px;color:var(--ink);background:#102934;border:1px solid #416d7a;border-radius:4px;padding:7px;font:inherit;font-size:12px;}
+.planner-effect{color:#a5c8d2;min-height:22px;}
+.comparison-head,.comparison-line{display:grid;grid-template-columns:1fr 66px 66px;gap:5px;font-size:12px;padding:7px 0;border-bottom:1px solid #294653;}
+.comparison-head{color:#83aeba;font-size:10px;text-transform:uppercase;}
+.comparison-line span:not(:first-child),.comparison-head span:not(:first-child){text-align:right;}
+.comparison-line .changed{color:#96e2ee;font-weight:600;}
+.workshop-recipes{display:flex;flex-direction:column;gap:5px;max-height:65vh;overflow:auto;}
+.recipe-entry{text-align:left;font-size:12px;padding:8px 7px;background:#112731;}
+.recipe-entry small{display:block;color:var(--muted);font-size:10px;margin-top:4px;}
+.recipe-parts{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.recipe-part,.recipe-result{border:1px solid #315761;background:#10232c;padding:8px;border-radius:4px;}
+.recipe-result{margin:7px 0 12px;}
+.workshop-row{display:flex;justify-content:space-between;gap:7px;padding:5px 0;font-size:12px;}
+.workshop-row span:last-child{white-space:nowrap;}
+.workshop-section .met{color:var(--green);}
+.workshop-section .unmet{color:var(--red);}
+.materials-list{display:flex;flex-direction:column;gap:5px;margin-top:8px;min-height:130px;}
+.material-row{display:flex;justify-content:space-between;gap:10px;text-align:left;font-size:12px;}
+@media(max-width:720px){.workshop-layout,.workshop-layout.fabrication{grid-template-columns:1fr;}.workshop-recipes{max-height:180px;}.recipe-parts{grid-template-columns:1fr;}}

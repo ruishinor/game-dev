@@ -2,6 +2,7 @@
 // No invented loot, faction membership, weapon slots or progression.
 import { ITEMS, SLOT_NAMES, ENEMIES, COMPANIONS, CLASSES, ABILITIES } from '../../shared/content.js';
 import { WORLD, ZONES } from '../../shared/world.js';
+import { MATERIALS, RECIPES } from '../../shared/crafting.js';
 
 const locations = {
   sanctum: 'A protected enclave within the Reach. Travellers recover here; the Archivist provides guidance.',
@@ -10,7 +11,7 @@ const locations = {
   vault: 'The monolith ring to the north. The Vault Warden guards this site.',
   obelisk: 'A rock hollow to the north-west. Interact with the Listening Stone to gain Resonance.',
 };
-export const GROUPS = ['Locations', 'Items & Gear', 'Weapons', 'Creatures', 'Factions', 'Lore', 'Skills & Abilities'];
+export const GROUPS = ['Locations', 'Items & Gear', 'Weapons', 'Creatures', 'Factions', 'Lore', 'Skills & Abilities', 'Fabrication'];
 export const ENTRIES = [
   ...Object.entries(ZONES).map(([id, zone]) => ({ id, group: 'Locations', name: zone.name, type: 'Location', desc: locations[id], facts: ['Region: ' + WORLD.name], zone: id })),
   ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: 'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
@@ -18,6 +19,8 @@ export const ENTRIES = [
     ...Object.entries(item.req?.skills || {}).map(([k,v]) => (k === 'kinetics' ? 'Kinetics' : 'Biotech') + ' required: ' + v),
     ...(item.req?.attune ? ['Requires Resonance'] : []),
   ] })),
+  ...Object.entries(MATERIALS).map(([id,m])=>({id,group:'Fabrication',name:m.name,type:'Material',desc:m.desc,facts:['Source: '+m.source]})),
+  ...Object.entries(RECIPES).map(([id,r])=>({id:'recipe_'+id,group:'Fabrication',name:r.name,type:r.discipline+' recipe',desc:'Fabricate at the Lattice Sanctum workshop.',facts:[...Object.entries(r.inputs).map(([key,n])=>n+' × '+MATERIALS[key].name),...(r.target?['Consumes carried '+ITEMS[r.target].name]:[]),'Result: '+(r.output.item?ITEMS[r.output.item].name:MATERIALS[r.output.material].name)]})),
   ...Object.entries(ENEMIES).map(([id, e]) => ({
     id, group: 'Creatures', name: e.name, type: e.elite ? 'Elite hostile' : 'Hostile',
     desc: id === 'skitter' ? 'A hostile creature encountered in the Sporefield. Attacks in melee and can draw nearby skitters into combat.' :

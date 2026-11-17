@@ -3,6 +3,7 @@
 import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
+import { MATERIALS } from '../../shared/crafting.js';
 
 function h(tag, cls, text) {
   const e=document.createElement(tag);
@@ -249,11 +250,25 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
+  }
+  if(ui.inventoryFilter==='materials'){
+    root.append(tabs);
+    const list=h('div','materials-list');
+    for(const [id,material] of Object.entries(MATERIALS)){
+      const quantity=s.materials?.[id]||0;
+      if(!quantity)continue;
+      const button=h('button','material-row');
+      button.append(h('span',null,material.name),h('strong',null,'× '+quantity));
+      button.addEventListener('click',()=>ui.toggleCodex(true,id));
+      list.append(button);
+    }
+    if(!list.children.length)list.append(h('p','muted','No salvage or components carried. Defeat enemies to recover materials.'));
+    root.append(list);return;
   }
   const carried=s.inventory.filter(id=>ITEMS[id]&&s.equipped[ITEMS[id].slot]!==id);
   const items=carried.filter(id=>ui.inventoryFilter==='all'||ITEMS[id].slot===ui.inventoryFilter);

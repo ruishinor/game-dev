@@ -191,6 +191,7 @@ const ui = new UI({
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
+  craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -904,8 +905,10 @@ input.onAction = (code, e) => {
       } else ui.error('You have no companion to inspect.');
       break;
     case 'KeyC':
-    case 'KeyB':
       ui.toggleBuild();
+      break;
+    case 'KeyB':
+      ui.toggleWorkshop();
       break;
     case 'KeyI':
       ui.toggleInventory();
