@@ -11,20 +11,26 @@ export function kineticSampler({variant='charge',center=[0,0,0],direction=[0,0,1
   const emit=(id,type,props,color,opacity)=>f.push({id,type,...props,color,opacity:clamp(opacity)*fade});
   const ring=(id,at,r,normal,color,alpha,arc=Math.PI*2)=>emit(id,'ring',{at,radius:r,normal,arc,tube:.012},color,alpha);
   if(variant==='charge'){
-   const r=radius*(.55+.4*charge);ring('inner',c,r,n,AMBER,.57);ring('outer',c,r*1.2,n,AMBER,.27);
+   const r=radius*(.55+.4*charge);ring('inner',c,r,n,AMBER,.57);ring('outer',c,r*1.2,n,AMBER,.27);ring('innerCore',c,r*.68,n,BLUE,.32);
+   for(let i=0;i<6;i++){const a=i*Math.PI/3,lo=r*.91,hi=r*1.15;emit('tick'+i,'beam',{a:basis(Math.cos(a)*lo,Math.sin(a)*lo),b:basis(Math.cos(a)*hi,Math.sin(a)*hi),radius:.009},AMBER,.25+.42*charge);}
    // A moving indicator, not flicker or a damage calculation.
    if(!reducedMotion)for(let i=0;i<3;i++){const a=i*Math.PI*2/3+t*(1+charge);emit('packet'+i,'point',{at:basis(Math.cos(a)*r,Math.sin(a)*r),radius:.035+charge*.03},AMBER,.8);}
   }else if(variant==='impact'){
    const r=radius*(reducedMotion?.85:.15+.85*p);
    ring('shock',c,r,n,AMBER,.8*(1-p));ring('inner',c,r*.63,n,BLUE,.4*(1-p));
+   ring('compressionFront',basis(0,0,radius*.06),r*.95,n,AMBER,.27*(1-p));
+   if(!reducedMotion)ring('wake',basis(0,0,-radius*.08*p),r*.76,n,BLUE,.21*(1-p));
    if(!reducedMotion)for(let i=0;i<6;i++){const a=i*Math.PI/3,rad=radius*(.30+p*.72);const aa=basis(Math.cos(a)*rad,Math.sin(a)*rad,.06*p),bb=basis(Math.cos(a)*(rad+.12),Math.sin(a)*(rad+.12),.1*p);emit('fragment'+i,'beam',{a:aa,b:bb,radius:.012},AMBER,.66*(1-p));}
   }else if(variant==='resonance'){
    const count=reducedMotion?1:3;
    for(let i=0;i<count;i++){const phase=reducedMotion?.65:clamp(p*1.6-i*.22);ring('pulse'+i,c,radius*(.12+.88*phase),UP,VIOLET,.42*(1-phase)+.08);}
+   ring('sourceDatum',c,radius*.15,UP,BLUE,.45);
+   for(let i=0;i<4;i++){const a=i*Math.PI/2;const h=radius*(reducedMotion?.64:.22+.69*p);const at=add(c,[Math.cos(a)*h,0,Math.sin(a)*h]);emit('sample'+i,'point',{at,radius:.024},VIOLET,.44);}
    if(!reducedMotion)ring('section',c,radius*(.3+.65*p),n,VIOLET,.25,Math.PI);
   }else{
    const base=add(c,scale(n,radius)),r=radius*.4;
-   ring('surveyFoot',base,r,n,BLUE,.54);
+   ring('surveyFoot',base,r,n,BLUE,.54);ring('aperture',basis(0,0,radius*.12),r*.12,n,BLUE,.48);ring('surveyInner',base,r*.84,n,BLUE,.24);
+   for(let i=0;i<4;i++){const a=i*Math.PI/2;emit('footMark'+i,'beam',{a:basis(Math.cos(a)*r*.84,Math.sin(a)*r*.84,radius),b:basis(Math.cos(a)*r*1.12,Math.sin(a)*r*1.12,radius),radius:.009},BLUE,.50);}
    const count=reducedMotion?3:6;
    for(let i=0;i<count;i++){const a=i*Math.PI*2/count,edge=basis(Math.cos(a)*r,Math.sin(a)*r,radius);emit('ray'+i,'beam',{a:c,b:edge,radius:.009},BLUE,.28);}
    if(!reducedMotion){const z=radius*(.18+.75*p);ring('slice',basis(0,0,z),r*z/radius,n,BLUE,.38);}

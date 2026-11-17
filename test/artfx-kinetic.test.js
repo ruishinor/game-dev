@@ -17,3 +17,8 @@ test('kinetic effects allocate stable Three objects and dispose',()=>{
   for(let i=1;i<14;i++)f.update(i/10);assert.equal(f.allocated,count);f.update(3);assert.ok(f.group.children.every(x=>!x.visible));f.dispose();assert.equal(f.allocated,0);
  }
 });
+
+test('kinetic presentation geometry has stable visual markers and bounded pool',()=>{
+ for(const variant of ['charge','impact','resonance','survey'])for(const reducedMotion of [true,false]){const s=kineticSampler({variant,reducedMotion});const a=s(.2),b=s(.8);assert.deepEqual(a.map(x=>x.id),b.map(x=>x.id));assert.ok(a.length<=16);}
+ const normal=kineticSampler({variant:'survey'})(.6),reduced=kineticSampler({variant:'survey',reducedMotion:true})(.6);assert.ok(normal.some(x=>x.id==='slice'));assert.ok(!reduced.some(x=>x.id==='slice'));
+});

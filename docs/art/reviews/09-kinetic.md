@@ -11,3 +11,5 @@ Simulated roundtable:
 - Retrospective: rejected full particle simulation; selected small deterministic shapes that fit mobile-oriented architecture. Actual WebGL appearance still unverified.
 
 Executed: 336 sampled frame validations; max 8 objects; repeat data equality. Actual Three lifecycle tests added, not yet executed here.
+## Visual revision v2
+Charge gains a nested core and six fixed transfer ticks, impact a compression front and fading wake, resonance a datum and sampled points, survey a defined aperture, additional target plane marks and inner perimeter. Art: distinguish measurement, charge and impulse through spatial structure. Technical: reuses stable bounded resources, no shader or simulation dependencies. UX: retains reduced-motion static indicators and direction; no gameplay timing changes. Adversarial: 336 boundary/direction/charge/motion frame checks, max 14 objects, deterministic output; Three lifecycle and actual appearance checked separately by hosted tests. Retrospective: still an abstract engineered effect vocabulary, not cinematic particles, and no gameplay readability acceptance.
