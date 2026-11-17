@@ -644,6 +644,74 @@ function makeSinterSampler() {
     dispose() { for(const m of [ceramic, frame, seal, brass, glass]) m.dispose(); } };
 }
 
+// Kestrel's maintenance chassis: three articulated walking struts support
+// an enclosed rotor pack, an asymmetric inspection arm and a recessed slit.
+function makeQuarantineCustodian() {
+  const group = new THREE.Group(), torso = pivot(0,1.15,0);
+  group.name = 'kestrel:custodian';
+  group.add(torso);
+  const shell = std(0x7b7d6c, {metal:0.42,rough:0.68});
+  const dark = std(0x313c3c, {metal:0.46,rough:0.64});
+  const trim = std(0x9b7443, {metal:0.3,rough:0.75});
+  const sensor = std(0x8e4e35,{emissive:0x55261a,ei:0.6,rough:0.55});
+  torso.add(part(ICO,shell,0.61,0.51,0.55));
+  torso.add(part(CYL,dark,0.72,0.2,0.72,0,-0.39,0));
+  torso.add(part(BOX,dark,0.73,0.23,0.16,0,0.13,0.49));
+  torso.add(part(BOX,sensor,0.53,0.07,0.045,0,0.13,0.59));
+  for(let i=0;i<5;i++) torso.add(part(BOX,dark,0.055,0.25,0.36,-0.35+i*0.175,0.38,-0.16));
+  const arm=pivot(0.48,-0.12,0.12);
+  arm.add(part(BOX,trim,0.18,0.56,0.19,0,-0.23,0));
+  arm.add(part(CYL,dark,0.16,0.33,0.16,0,-0.53,0.12));
+  torso.add(arm);
+  const legs=[];
+  for(const angle of [Math.PI,Math.PI/3,-Math.PI/3]){
+    const hip=pivot(Math.sin(angle)*0.38,0.86,Math.cos(angle)*0.38);
+    hip.rotation.y=angle;
+    const knee=pivot(0,-0.32,0.28);
+    const strut=part(BOX,shell,0.2,0.47,0.19,0,-0.13,0.14);
+    strut.rotation.x=-0.62;
+    knee.add(part(SPH,dark,0.16,0.16,0.16),part(BOX,trim,0.135,0.48,0.16,0,-0.23,0.09),
+      part(BOX,dark,0.24,0.12,0.32,0,-0.47,0.13));
+    hip.add(strut,knee);group.add(hip);legs.push({hip,knee,angle});
+  }
+  const flash=flasher([shell,dark,trim,sensor]);
+  let phase=0,fallen=0;
+  return {group,height:1.82,radius:0.72,hover:0,
+    update(dt,st){
+      const speed=Math.min(1,st.speed/3.6);
+      phase+=dt*st.speed*4.3;
+      legs.forEach(({hip,knee},i)=>{
+        hip.rotation.x=Math.sin(phase+i*2*Math.PI/3)*speed*0.38;
+        knee.rotation.x=Math.max(0,Math.sin(phase+i*2*Math.PI/3))*speed*0.22;
+      });
+      torso.position.y=1.15+Math.sin(phase*3)*speed*0.025;
+      arm.rotation.x=st.casting?-0.9:st.attack>0.2?-0.48:0;
+      fallen+=((st.dead?1:0)-fallen)*Math.min(1,dt*4);
+      torso.rotation.z=fallen*0.95;torso.position.y-=fallen*0.66;
+      flash(st.hit||0);
+    },
+    dispose(){for(const m of [shell,dark,trim,sensor])m.dispose();}
+  };
+}
+function makeKestrelRecorder(){
+  const group=new THREE.Group();
+  group.name='kestrel:recorder';
+  const dark=std(0x374040,{metal:0.5,rough:0.72});
+  const shell=std(0x7a8277,{metal:0.25,rough:0.8});
+  const brass=std(0x967d54,{metal:0.45,rough:0.65});
+  const glass=std(0x789b91,{emissive:0x26473b,ei:0.8,rough:0.38});
+  group.add(part(BOX,dark,1.25,0.18,0.95,0,0.09,0));
+  group.add(part(BOX,shell,0.98,0.84,0.73,0,0.60,0));
+  group.add(part(BOX,dark,1.13,0.17,0.84,0,1.10,0));
+  for(const side of [-1,1])group.add(part(BOX,brass,0.12,0.92,0.76,side*0.50,0.62,0));
+  const panel=part(BOX,dark,0.87,0.14,0.55,0,1.24,0.05);panel.rotation.x=0.14;group.add(panel);
+  const screen=part(BOX,glass,0.75,0.035,0.37,0,1.32,0.05);screen.rotation.x=0.14;group.add(screen);
+  for(let i=0;i<3;i++)group.add(part(BOX,brass,0.16,0.05,0.1,-0.24+i*0.24,1.32,0.30));
+  group.add(part(CYL,dark,0.16,0.64,0.16,-0.39,1.57,-0.28));
+  group.add(part(BOX,brass,0.29,0.16,0.26,-0.39,1.92,-0.28));
+  return {group,height:2.0,radius:0.8,hover:0,update(){},dispose(){for(const m of [dark,shell,brass,glass])m.dispose();}};
+}
+
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
@@ -651,6 +719,8 @@ export const MODEL_FACTORIES = {
   skitter: makeSkitter,
   sinter_grazer: () => makeSinterFauna(false),
   faultstalker: () => makeSinterFauna(true),
+  quarantine_custodian: makeQuarantineCustodian,
+  deep_console: makeKestrelRecorder,
   sentinel: makeSentinel,
   warden: makeWarden,
   obelisk: makeObelisk,

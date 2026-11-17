@@ -176,6 +176,14 @@ export const ENEMIES = {
     attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
     xp: 0, respawn: 24000, loot: [],
   },
+  quarantine_custodian: {
+    name: 'Quarantine Custodian',
+    level: 3, hp: 190, speed: 3.6, radius: 0.72,
+    aggro: 7, social: 0, leash: 17,
+    attack: { range: 3.0, interval: 2300, dmg: 12, kind: 'melee' },
+    specials: [{ id: 'containment_sweep', name: 'Containment Sweep', cd: 10000, first: 3500, windup: 1900, radius: 4.7, dmg: 32, at: 'self' }],
+    xp: 50, respawn: 38000, loot: [],
+  },
   faultstalker: {
     name: 'Faultstalker',
     level: 2, hp: 148, speed: 4.3, radius: 0.85,
@@ -261,12 +269,20 @@ export const SPAWNS = [
   patrol('sinter_grazer', grazerCircuit),
   patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
   patrol('faultstalker', stalkerCircuit),
+  patrol('quarantine_custodian', [[-52,-8],[-54,-5.2],[-57,-5.2],[-57,-10.8],[-54,-10.8]]),
 ];
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
   ...GADGET_ITEMS,
+  phase_damper: {
+    name: 'Kestrel Phase Damper',
+    slot: 'implant',
+    req: { attune: 'resonance' },
+    mods: { hpAdd: 30, dmgMul: 0.9 },
+    desc: 'A stress-buffering neural laminate recovered from Kestrel Deep. +30 maximum health, -10% outgoing damage. Requires Resonance attunement.',
+  },
   sinter_laminate: {
     name: 'Sinter Laminate',
     slot: 'device',

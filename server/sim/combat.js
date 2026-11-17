@@ -2,7 +2,7 @@
 // Every outcome a client sees originates here.
 
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, deepLineClear } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled } from './progress.js';
 
@@ -67,6 +67,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   // Last line of defence for the safe zone, including late telegraphed AoE.
   // Threat cleanup alone is not a damage-authorisation boundary.
   if (dst.kind === 'player' && inSanctum(dst)) return 0;
+  if (src && !deepLineClear(src, dst)) return 0;
 
   let amt = base;
   const actor = actorPlayer(game, src);
@@ -243,7 +244,7 @@ export function tickPlayerCombat(game, p, dt) {
     const t = game.ents.get(p.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
-    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range) {
+    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range && deepLineClear(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
       dealDamage(game, p, t, cdef.auto.dmg, 'auto', { kind: cdef.auto.kind });
       gainCharge(p, 5);
@@ -274,6 +275,7 @@ export function useAbility(game, p, abilityId) {
     target = game.ents.get(p.target);
     if (!target || target.kind !== 'enemy' || target.state === 'dead') return fail('You need an enemy target.');
     if (target.state === 'evade') return fail('Your target is retreating.');
+    if (!deepLineClear(p,target)) return fail('A containment wall blocks the target.');
     if (dist(p, target) - target.radius > ab.range) return fail('Out of range.');
     if (ab.root && ENEMIES[target.type].elite) return fail(`${target.name} is too massive to root.`);
   } else if (ab.type === 'friendly') {

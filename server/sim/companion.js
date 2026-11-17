@@ -5,7 +5,7 @@
 //   assist — harries the owner's target and makes it take more damage
 
 import { COMPANIONS, GLYPH, ENEMIES } from '../../shared/content.js';
-import { dist } from '../../shared/world.js';
+import { dist, deepLineClear } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
 
 function flyToward(c, tx, tz, step) {
@@ -110,7 +110,7 @@ export function tickCompanion(game, c, dt) {
     const d = dist(c, t) - t.radius;
     if (d > def.assist.range * 0.6) hoverNear(c, t, t.radius + def.assist.range * 0.5, step);
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
-    if (d <= def.assist.range && game.time >= c.nextPulse) {
+    if (d <= def.assist.range && game.time >= c.nextPulse && deepLineClear(c,t) && deepLineClear(owner,t)) {
       c.nextPulse = game.time + def.assist.interval;
       dealDamage(game, c, t, def.assist.dmg, 'sting', { kind: 'bolt' });
       if (t.state !== 'dead') addBuff(t, { k: 'corrode', until: game.time + def.assist.corrode.dur, mul: def.assist.corrode.mul });

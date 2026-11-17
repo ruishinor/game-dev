@@ -4,7 +4,7 @@
 
 import { ENEMIES, ITEMS, DIRECTIVES, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist } from '../../shared/world.js';
+import { dist, deepLineClear } from '../../shared/world.js';
 import { SURVEY, surveyState } from '../../shared/survey.js';
 
 const INTERACT_RANGE = 5;
@@ -136,6 +136,23 @@ export function interact(game, p, objectId) {
     game.message(p, 'gain', `The stone answers. You gain Attunement: ${ATTUNEMENT_NAMES.resonance}.`);
     game.markDirty(p);
     checkDirective(game, p);
+    return { ok: true };
+  }
+  if (obj.type === 'deep_console') {
+    if (!deepLineClear(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
+    if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
+    if (p.char.inventory.includes('phase_damper')) {
+      game.message(p,'info','The recovered stress-buffering implant is already in your inventory.');
+      return { ok: true };
+    }
+    if (!p.char.attunements.includes('resonance') || !p.char.inventory.includes('sinter_laminate')) {
+      game.message(p,'info','Kestrel log 17: the living strata absorbed mechanical stress without retaining the original waveform. Bring a Sinter Laminate and learn Resonance to read the recovered calibration.');
+      return { ok: true };
+    }
+    if (grantItem(game,p,'phase_damper')) {
+      game.message(p,'gain','The recorder recognizes your laminate trace and unlocks a stored Kestrel Phase Damper. Your reference sample is not consumed.');
+      game.events.push({e:'fx',k:'deep_record',s:p.id,o:obj.id});
+    }
     return { ok: true };
   }
   if (obj.type === 'sinter_sampler') {

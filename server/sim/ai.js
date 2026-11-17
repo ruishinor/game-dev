@@ -2,7 +2,7 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, deepLineClear } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 
 export function resetEnemy(game, e) {
@@ -101,7 +101,7 @@ function resolveSpecial(game, e) {
   e.cast = null;
   game.events.push({ e: 'fx', k: sp.id, s: e.id, x, z, r: sp.radius });
   for (const p of [...game.players.values()]) {
-    if (p.dead) continue;
+    if (p.dead || !deepLineClear({x,z},p)) continue;
     if (sp.at === 'all') {
       if (e.threat.has(p.id) && dist(e, p) <= sp.radius) dealDamage(game, e, p, sp.dmg, sp.id);
     } else if (Math.hypot(p.x - x, p.z - z) <= sp.radius + p.radius * 0.5) {
@@ -146,7 +146,7 @@ export function tickEnemy(game, e, dt) {
   for (const p of game.players.values()) {
     if (def.aggro <= 0) break;
     if (p.dead || e.threat.has(p.id) || inSanctum(p)) continue;
-    if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash) {
+    if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash && deepLineClear(e,p)) {
       addThreat(e, p.id, 1);
       if (def.social) {
         for (const o of game.enemies) {
@@ -161,7 +161,7 @@ export function tickEnemy(game, e, dt) {
   // Forget players who died, left, or reached safety.
   for (const id of [...e.threat.keys()]) {
     const p = game.players.get(id);
-    if (!p || p.dead || inSanctum(p)) e.threat.delete(id);
+    if (!p || p.dead || inSanctum(p) || (e.type === 'quarantine_custodian' && !deepLineClear(e,p))) e.threat.delete(id);
   }
 
   if (e.threat.size === 0) {

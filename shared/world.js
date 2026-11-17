@@ -238,9 +238,35 @@ export const OBJECTS = [
   { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },
   { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
   { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
+  { key: 'deep_console', type: 'deep_console', name: 'Kestrel Phase Recorder', x: -61.5, z: -8, r: 0.8 },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.map((o) => ({ x: o.x, z: o.z, r: o.r })));
+const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
+
+/** Exact segment/rectangle test limited to the new enclosed research deck.
+ * Old outdoor obstacles retain their existing planar combat semantics.
+ */
+export function deepLineClear(a, b) {
+  for (const c of DEEP_WALLS) {
+    let lo = 0, hi = 1;
+    for (const [origin, delta, min, max] of [
+      [a.x, b.x-a.x, c.x-c.hw, c.x+c.hw],
+      [a.z, b.z-a.z, c.z-c.hd, c.z+c.hd],
+    ]) {
+      if (Math.abs(delta) < 1e-9) {
+        if (origin < min || origin > max) { lo = 1; hi = 0; break; }
+      } else {
+        const t0 = (min-origin)/delta, t1 = (max-origin)/delta;
+        lo = Math.max(lo, Math.min(t0,t1));
+        hi = Math.min(hi, Math.max(t0,t1));
+        if (lo > hi) break;
+      }
+    }
+    if (lo <= hi) return false;
+  }
+  return true;
+}
 
 /**
  * Push a circle of radius `rad` out of all static colliders and keep it inside

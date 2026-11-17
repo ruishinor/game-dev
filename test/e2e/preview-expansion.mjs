@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
-import { useAbility } from '../../server/sim/combat.js';
+import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null });
@@ -100,6 +100,35 @@ try {
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
   await capture('preview-evidence/04b-sinter-flats.png');
+  await moveTo(-39,-8);
+  await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.16,dist:10,face:-Math.PI/2}));
+  await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Kestrel Deep'));
+  await capture('preview-evidence/06-kestrel-approach.png');
+  const custodian=server.game.enemies.find(e=>e.type==='quarantine_custodian');
+  assert.ok(custodian);
+  p.hp=p.maxHp;
+  await moveTo(-53,-8);
+  await page.evaluate(() => window.__attune.view({yaw:-Math.PI/2,pitch:0.18,dist:6,face:-Math.PI/2}));
+  assert.ok(await page.evaluate(() => {
+    const scene=window.__attune.gfx.scene;
+    return ['kestrel:roof','kestrel:vessel:1701','kestrel:custodian','kestrel:recorder'].every(n=>scene.getObjectByName(n));
+  }));
+  await capture('preview-evidence/07-kestrel-interior.png');
+  // A deterministic kill and cleared linger are setup for the recorder
+  // interaction; Node tests independently cover actual encounter rules.
+  // The actual damage API is used from the same room, never a wall bypass.
+  custodian.x=-55;custodian.z=-8;
+  if(custodian.state!=='dead') {
+    custodian.state='combat';
+    dealDamage(server.game,p,custodian,9999,'fixture');
+  }
+  p.combatUntil=0;
+  await moveTo(-59,-8);
+  await page.keyboard.press('f');
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('phase_damper'));
+  assert.ok(p.char.inventory.includes('sinter_laminate'));
+  await capture('preview-evidence/08-kestrel-recorder.png');
+  await moveTo(-39,-8);
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
