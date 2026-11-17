@@ -17,15 +17,20 @@ function noise(u,v,period,seed){let x=u*period,y=v*period,i=Math.floor(x),j=Math
 function surface(u,v,m,i,seed){
  u=fract(u);v=fract(v);
  const n=noise(u,v,5,seed+i*31),grain=noise(u,v,31,seed+i*19+9),pits=noise(u,v,17,seed+i*13+42);
- const abrasion=noise(u,v,9,seed+i*111+19);
- const chipped=(i===1||i===0)&&abrasion>1-m.wear&&grain>.41;
- const cloth=i===4?(Math.sin(u*Math.PI*128)*Math.sin(v*Math.PI*128))*.055:0;
- const ribs=i===5?.04*Math.sin(u*Math.PI*32):0;
- const scuff=i===3?.03*Math.sin((u*5+v*32)*Math.PI*2):0;
- const h=.028*(n-.5)+.018*(grain-.5)+cloth+ribs+scuff-(chipped?.018:0)-(i===6?Math.max(0,.28-pits)*.05:0);
- const c=chipped?[114,115,107]:m.base;
- const tone=(n-.5)*(i===6?35:15)+(grain-.5)*13+(pits-.5)*9+(cloth+ribs+scuff)*70;
- return {h,c:c.map(x=>clamp(x+tone)),occ:clamp(248-Math.max(0,.4-pits)*31),rough:clamp(m.rough+(grain-.5)*24+(chipped?-30:0)),metal:chipped?165:m.metal};
+ const abrasion=noise(u,v,9,seed+i*111+19),micro=noise(u,v,53,seed+i*61+17);
+ // Material-specific structure, not a universal grunge multiplier.
+ const wave=(x,k)=>1-Math.abs(fract(x*k)*2-1);
+ const chipped=(i===1||i===0)&&abrasion>.79&&grain>.52;
+ const cloth=i===4?(wave(u,28)-.5)*(wave(v,28)-.5)*.12:0;
+ const ribs=i===5?.028*(wave(u,12)-.5):0;
+ const brushing=i===3?(wave(v+u/8,32)-.5)*.007:0;
+ const scratch=(i===2||i===3)&&grain>.64&&wave(v+u/8,32)>.92;
+ const pores=i===6?Math.max(0,.30-pits)*.14:0;
+ const molded=i===7?(micro-.5)*.014:0;
+ const h=.016*(n-.5)+.009*(grain-.5)+cloth+ribs+brushing+molded-(chipped?.017:0)-(scratch?.012:0)-pores;
+ const c=chipped?[110,111,107]:m.base;
+ const tone=(n-.5)*(i===6?38:12)+(grain-.5)*(i===6?18:8)+(cloth+ribs+brushing)*90-(pores*50)+(scratch?13:0);
+ return {h,c:c.map(x=>clamp(x+tone)),occ:clamp(250-pores*700-(chipped?10:0)),rough:clamp(m.rough+(grain-.5)*(i===3?12:24)+(chipped?-35:0)+(scratch?-10:0)),metal:chipped?205:m.metal};
 }
 export function build({cell=128,gutter=6,seed=417}={}){
  if(![64,128].includes(cell)||!Number.isInteger(gutter)||gutter<4||gutter>cell/8||!Number.isSafeInteger(seed))throw Error('invalid atlas settings');

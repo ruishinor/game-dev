@@ -9,3 +9,6 @@ Simulated roundtable:
 - UX: avoid relying on material colour for gameplay states; atlas is decorative.
 - Adversarial: no copied third-party textures added; existing free sources remain available through established pipeline. Determinism, pixel dimensions, variation, wrapped gutters and invalid input tested.
 - Retrospective: chose generated material atlas instead of inaccessible external downloads. Poly Haven/Quaternius source assets already in project are not included in these generated files; this deliverable does not claim imported PBR scans or in-game integration.
+
+## Visual revision v2
+Reduced uniform wear and made surface structure material-specific: woven fabric, molded polymer, rubber ribs, directional alloy brushing, sparse scratches, ceramic/paint chips and concrete pores. Preserved dimensions, eight tile IDs, gutter layout and packed map semantics. Art: distinguish surfaces without excessive grunge. Technical: preserve atlas UVs and colour-space contract. Runtime: no growth in texture dimensions. UX: decorative board remains nonsemantic. Adversarial: repeat bytes and gutter matches verified. Retrospective: still procedural 128-pixel tiles, not scanned or baked hero textures; actual PBR sphere/scene comparison remains needed. No live atlas binding added.
