@@ -332,11 +332,12 @@ try {
   await B.page.click('.frame.pet');
   const companionInspected = await until(B, () => {
     const s = window.__attune.state();
-    return s.target === s.compId && /Mode: Triage/.test(document.querySelector('.target-details').textContent) && /Lumen/.test(document.querySelector('.frame.target .sub').textContent);
-  }, null, 3000, 'companion selected and inspected');
-  check('8. clicking companion frame opens live mode and owner details', companionInspected);
-  // Restore the ally target before the existing Bond-to-ally sequence.
-  await B.page.click('.frame.ally');
+    const popup = document.querySelector('.companion-inspector');
+    return s.inspected === s.compId && !popup.hidden && /Lumen · Triage/.test(popup.textContent);
+  }, null, 3000, 'companion inspected beside frame');
+  await B.page.click('.inspect-close');
+  const companionDismissed = await until(B, () => document.querySelector('.companion-inspector').hidden && window.__attune.state().inspected === 0, null, 3000, 'companion inspector closed');
+  check('8. companion inspector opens near the frame and can close', companionInspected && companionDismissed);
 
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit2');
