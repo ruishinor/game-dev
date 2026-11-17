@@ -16,11 +16,12 @@ export function makeMenderVisual(THREE,body){
  const lens=new THREE.Mesh(lensGeo,lensMat);lens.position.set(0,0,.205);lens.scale.set(.045,.045,.019);rig.add(lens);
  const tubeMat=new THREE.MeshStandardMaterial({color:0x70565d,roughness:.76,metalness:.08});
  const tipMat=new THREE.MeshBasicMaterial({color:MODES.triage,toneMapped:false});
- const geometries=[new THREE.CylinderGeometry(.014,.021,.11,7),new THREE.CylinderGeometry(.010,.014,.085,7),new THREE.CylinderGeometry(.003,.010,.066,7),new THREE.SphereGeometry(.009,7,5)];
+ const geometries=[new THREE.CylinderGeometry(.014,.021,.11,12),new THREE.CylinderGeometry(.010,.014,.085,12),new THREE.CylinderGeometry(.003,.010,.066,12),new THREE.SphereGeometry(.009,12,8),new THREE.SphereGeometry(.014,12,8)];
  const tendrils=[];
  for(let i=0;i<4;i++){
   const r=new THREE.Group(),mid=new THREE.Group(),tip=new THREE.Group();r.position.set((i-1.5)*.051,-.207,-.025+(i%2)*.045);r.add(mid);mid.position.y=-.11;mid.add(tip);tip.position.y=-.085;rig.add(r);
   for(const [j,p,len] of [[0,r,.11],[1,mid,.085],[2,tip,.066]]){const m=new THREE.Mesh(geometries[j],tubeMat);m.position.y=-len/2;p.add(m);}
+  for(const [p,s] of [[mid,1],[tip,.72]]){const joint=new THREE.Mesh(geometries[4],tubeMat);joint.scale.setScalar(s);p.add(joint);}
   const dot=new THREE.Mesh(geometries[3],tipMat);dot.position.y=-.066;tip.add(dot);tendrils.push({r,mid,tip});
  }
  let done=false;

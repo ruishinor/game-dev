@@ -13,3 +13,7 @@ Simulated roundtable:
 Executed GLB structure, finite/unit normals, deterministic byte equality and 200 procedural pose checks. 2656 triangles, 10 material batches, 263232 bytes. Hosted Three tests staged.
 
 Cross-package adversarial review: mode lookup now requires an own property; inherited object keys such as `constructor` fall back to triage and are covered by a test. This is presentation input hardening, not a gameplay/security assurance.
+
+## Visual revision v2
+Changed construction technique: closed curved shell-sector meshes with smooth shared normals plus a smooth ellipsoidal core, visible gaps, structural ribs and sensor detail. Four tendril attachment points and the animated lens remain aligned to the existing optional visual rig. Added joint spheres between tapered tendril segments. Organic material maps embedded with industrial maps. Art: curved carapace instead of the toy-like circular frame. Technical: explicit inner/outer shell surfaces; existing unsmoothed mesh compiler output unchanged for legacy recipe (byte equality tested). Adversarial: first build rejected for triangle budget; reduced tessellation, then verified finite/unit normals, deterministic output and budget. Full validation and actual render still pending. Retrospective: neutral previews show front and back, not final appearance. Existing live companion unchanged.
+4404 triangles, 24 maps, 732884 bytes.

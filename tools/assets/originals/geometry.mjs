@@ -26,19 +26,19 @@ const MATERIALS={
 // Every face has independent normals/UVs; intentional faceted art style.
 function compile(parts) {
  const groups=new Map(); const min=[Infinity,Infinity,Infinity], max=[-Infinity,-Infinity,-Infinity];let tris=0;
- function triangle(material,a,b,c,hint) {
+ function triangle(material,a,b,c,hint,normals=null) {
   a=F(a);b=F(b);c=F(c);let n=X(S(b,a),S(c,a));
   if(Math.hypot(...n)<1e-9)throw Error('degenerate triangle');
-  if(hint&&D(n,hint)<0){[b,c]=[c,b];n=M(n,-1);}
+  if(hint&&D(n,hint)<0){[b,c]=[c,b];if(normals)normals=[normals[0],normals[2],normals[1]];n=M(n,-1);}
   n=U(n);if(!MATERIALS[material])throw Error('unknown material '+material);
   let g=groups.get(material);if(!g){g={p:[],n:[],uv:[]};groups.set(material,g);}
-  for(const p of [a,b,c]){if(!p.every(Number.isFinite))throw Error('nonfinite');g.p.push(...p);g.n.push(...n);p.forEach((x,i)=>{min[i]=Math.min(min[i],x);max[i]=Math.max(max[i],x);});}
+  for(const [i,p] of [a,b,c].entries()){if(!p.every(Number.isFinite))throw Error('nonfinite');g.p.push(...p);g.n.push(...(normals?U(normals[i]):n));p.forEach((x,i)=>{min[i]=Math.min(min[i],x);max[i]=Math.max(max[i],x);});}
   // Planar world-space UV per face, scaled in metres; intended for tiling materials.
   let axis=n.map(Math.abs).indexOf(Math.max(...n.map(Math.abs)));let uv=axis===0?[2,1]:axis===1?[0,2]:[0,1];
   for(const p of [a,b,c])g.uv.push(p[uv[0]],p[uv[1]]);
   tris++;
  }
- function convex(p,faces,center,material){for(const f of faces){for(let i=1;i<f.length-1;i++){const a=p[f[0]],b=p[f[i]],c=p[f[i+1]];triangle(material,a,b,c,S(M(V(V(a,b),c),1/3),center));}}}
+ function convex(p,faces,center,material,normalFor=null){for(const f of faces){for(let i=1;i<f.length-1;i++){const a=p[f[0]],b=p[f[i]],c=p[f[i+1]];triangle(material,a,b,c,S(M(V(V(a,b),c),1/3),center),normalFor?[normalFor(a),normalFor(b),normalFor(c)]:null);}}}
  for(const part of parts){
   const {kind,material}=part;const center=part.center||[0,0,0];
   if(kind==='box'){
@@ -64,7 +64,11 @@ function compile(parts) {
    const p=[V(center,[0,ry,0])];for(let j=1;j<rows;j++){let t=Math.PI*j/rows;for(let i=0;i<sides;i++){let a=TAU*i/sides;p.push(V(center,[rx*Math.sin(t)*Math.cos(a),ry*Math.cos(t),rz*Math.sin(t)*Math.sin(a)]));}}
    p.push(V(center,[0,-ry,0]));const faces=[];
    for(let i=0;i<sides;i++){faces.push([0,1+i,1+(i+1)%sides]);for(let j=0;j<rows-2;j++){let k=1+j*sides;faces.push([k+i,k+(i+1)%sides,k+(i+1)%sides+sides,k+i+sides]);}let k=1+(rows-2)*sides;faces.push([p.length-1,k+i,k+(i+1)%sides]);}
-   convex(p,faces,center,material);
+   convex(p,faces,center,material,part.smooth?q=>q.map((x,i)=>(x-center[i])/(part.size[i]*part.size[i])):null);
+  }else if(kind==='mesh'){
+   const {vertices,triangles}=part;if(!Array.isArray(vertices)||!Array.isArray(triangles)||vertices.length>20000||triangles.length>24000||!vertices.every(v=>v.length===3&&v.every(Number.isFinite)))throw Error('bad mesh');
+   const normals=vertices.map(()=>[0,0,0]);for(const ids of triangles){if(ids.length!==3||ids.some(i=>!Number.isInteger(i)||i<0||i>=vertices.length))throw Error('bad mesh index');const [a,b,c]=ids.map(i=>vertices[i]);const n=X(S(b,a),S(c,a));if(Math.hypot(...n)<1e-9)throw Error('degenerate mesh face');for(const i of ids)normals[i]=V(normals[i],n);}
+   for(const ids of triangles){const [a,b,c]=ids.map(i=>vertices[i]);triangle(material,a,b,c,null,part.smooth?ids.map(i=>normals[i]):null);}
   }else if(kind==='ring'){
    const {radius:r,tube:t}=part;const sides=part.sides??20, segments=part.segments??6;const arc=part.arc??TAU;
    if(!(r>t&&t>0&&arc>0&&arc<=TAU&&sides>=3&&segments>=3))throw Error('bad ring');
