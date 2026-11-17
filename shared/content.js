@@ -161,7 +161,8 @@ export const COMPANIONS = {
     modes: {
       triage: { name: 'Triage', desc: 'Roams near you and mends the most injured ally in reach.' },
       guard: { name: 'Bond', desc: 'Bonds to your friendly target (or you): steady regeneration and 20% less damage taken.' },
-      assist: { name: 'Harry', desc: 'Attacks your target. Its sting Corrodes: the target takes 12% more damage from everyone.' },
+      assist: { name: 'Attack', desc: 'Attacks your target. Its sting makes the target take 12% more damage.' },
+      follow: { name: 'Follow', desc: 'Stays near you without automatically attacking, healing or bonding.' },
     },
   },
 };
@@ -240,13 +241,13 @@ export const ITEMS = {
     name: 'Sporeglass Focus',
     slot: 'device',
     skills: { biotech: 3 },
-    desc: 'A lens of living glass grown in the Sporefield. +3 Biotech.',
+    desc: '+3 Biotech. For Conductors: +6 percentage points of Power; unlocks Biotech equipment.',
   },
   servo_harness: {
     name: 'Sentinel Servo Harness',
     slot: 'device',
     skills: { kinetics: 3 },
-    desc: 'Salvaged actuators that amplify every motion. +3 Kinetics.',
+    desc: '+3 Kinetics. For Vanguards: +6 percentage points of Power; unlocks Kinetics equipment.',
   },
   wardstone_shard: {
     name: 'Wardstone Shard',
