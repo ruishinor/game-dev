@@ -335,6 +335,8 @@ try {
     return s.target === s.compId && /Mode: Triage/.test(document.querySelector('.target-details').textContent) && /Lumen/.test(document.querySelector('.frame.target .sub').textContent);
   }, null, 3000, 'companion selected and inspected');
   check('8. clicking companion frame opens live mode and owner details', companionInspected);
+  // Restore the ally target before the existing Bond-to-ally sequence.
+  await B.page.click('.frame.ally');
 
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit2');
