@@ -5,6 +5,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32 } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -261,6 +262,7 @@ const procedural = {
     return g;
   },
   survey_tower(p) { return procedural.survey_pump(p); },
+  survey_workstation(p) { return procedural.console(p); },
   beacon(p, anim) {
     const g = new THREE.Group();
     g.add(scaled(G.cyl8, mat(0x394750, { metal: 0.4, rough: 0.6 }), 1.9, 1.1, 1.9, 0, 0.55, 0));
@@ -1071,7 +1073,11 @@ export function buildWorld(scene, assets = null, opts = {}) {
   vaultLight.position.set(ZONES.vault.x, 6, ZONES.vault.z);
   scene.add(vaultLight);
 
-  let prototypeArt = opts.prototypeArt && assets ? 'loading' : 'disabled';
+  const prototypeStates = Object.create(null);
+  const enablePrototypeArt = !!(opts.prototypeArt && assets);
+  if (enablePrototypeArt) for (const p of PROPS) {
+    if (Object.hasOwn(STATIC_ART, p.type)) prototypeStates[p.type] = 'loading';
+  }
   let fallbacks = 0;
   for (const p of PROPS) {
     let obj;
@@ -1088,31 +1094,30 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - 0.15;
+    obj.position.y += groundHeight(p.x, p.z) - (p.type === 'survey_workstation' ? 0 : 0.15);
     scene.add(obj);
-    if (p.type === 'survey_tower' && prototypeArt === 'loading') {
-      // Draft-preview experiment only. Keep the procedural structure visible until
-      // the complete asset has loaded and its bounds fit the authoritative collider.
+    if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
+      // Keep the complete fallback until the fitted model is ready.
       const fallback = obj;
-      assets.loader.loadAsync('/client/art-assets/resonance_tower_deployed.glb').then(gltf => {
+      fallback.name = 'prototype-fallback:' + p.type;
+      const url = '/client/art-assets/' + STATIC_ART[p.type];
+      assets.loader.loadAsync(url).then(gltf => {
         const root = gltf.scene;
         root.updateMatrixWorld(true);
         const bounds = new THREE.Box3().setFromObject(root);
-        const size = bounds.getSize(new THREE.Vector3());
-        if (bounds.isEmpty() || ![size.x, size.y, size.z].every(n => Number.isFinite(n) && n > 0)) throw new Error('invalid tower bounds');
-        const factor = Math.min((p.hw * 2 - 0.2) / size.x, (p.hd * 2 - 0.2) / size.z, (p.h - 0.2) / size.y);
-        const centre = bounds.getCenter(new THREE.Vector3());
+        const fit = fitStaticArt(bounds, p);
         const fitted = new THREE.Group();
+        fitted.name = 'prototype-art:' + p.type;
         fitted.add(root);
-        fitted.scale.setScalar(factor);
-        fitted.position.set(-centre.x * factor, -bounds.min.y * factor, -centre.z * factor);
+        fitted.scale.setScalar(fit.scale);
+        fitted.position.fromArray(fit.position);
         root.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
         fallback.clear();
         fallback.add(fitted);
-        prototypeArt = 'ready';
+        prototypeStates[p.type] = 'ready';
       }).catch(err => {
-        prototypeArt = 'fallback';
-        console.warn('[scene] prototype tower unavailable; retaining procedural structure:', err.message || err);
+        prototypeStates[p.type] = 'fallback';
+        console.warn('[scene] prototype ' + p.type + ' unavailable; retaining procedural structure:', err.message || err);
       });
     }
   }
@@ -1144,7 +1149,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return prototypeArt; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; } },
     occluders,
     /**
      * @param focus the player's feet

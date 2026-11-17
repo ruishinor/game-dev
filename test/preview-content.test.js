@@ -11,7 +11,7 @@ test('Brine Surveyor is an additional cosmetic option without changing class def
   assert.equal(CLASSES.symbiotech.companion, 'mender');
 });
 
-import { ZONES, OBJECTS, PLAYER_RADIUS, groundHeight, resolveCollisions, zoneAt } from '../shared/world.js';
+import { ZONES, OBJECTS, PROPS, PLAYER_RADIUS, groundHeight, resolveCollisions, zoneAt } from '../shared/world.js';
 import { surveyState, surveyHint } from '../shared/survey.js';
 import { makeGame, makeChar, place } from './helpers.js';
 import { interact } from '../server/sim/progress.js';
@@ -84,4 +84,17 @@ test('Brineworks: survey and new appearance survive a save/reload; old and inval
     fs.writeFileSync(file, JSON.stringify(raw));
     assert.equal(new CharacterStore(file).authenticate(token).survey, null);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test('Brineworks research station has an authoritative collider and a clear southern approach', () => {
+  const stations = PROPS.filter(p => p.type === 'survey_workstation');
+  assert.equal(stations.length, 1);
+  const station = stations[0];
+  const atCentre = resolveCollisions({x: station.x, z: station.z}, PLAYER_RADIUS);
+  assert.ok(Math.abs(atCentre.x-station.x) >= station.hw || Math.abs(atCentre.z-station.z) >= station.hd);
+  for (let z = -34; z >= -37; z -= 0.25) {
+    const p = resolveCollisions({x: station.x, z}, PLAYER_RADIUS);
+    assert.ok(Math.hypot(p.x-station.x,p.z-z) < 1e-6, 'station approach blocked at '+z);
+  }
 });

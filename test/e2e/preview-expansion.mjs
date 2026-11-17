@@ -26,6 +26,12 @@ try {
     return s?.myId && s.sheet?.look === 'brine_surveyor' && s.drawn >= 2 && s.ents.some(e => e.id === s.myId && e.model === 'glb');
   });
   await page.waitForFunction(() => window.__attune.state().world.prototypeArt === 'ready');
+  assert.deepEqual(await page.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'ready'});
+  assert.ok(await page.evaluate(() => ['survey_tower','survey_workstation'].every(type => {
+    const group = window.__attune.gfx.scene.getObjectByName('prototype-art:'+type);
+    let meshes = 0; group?.traverse(node => { if (node.isMesh) meshes++; });
+    return meshes > 0;
+  })));
   await page.screenshot({ path: 'preview-evidence/01-surveyor.png' });
   const p = [...server.game.players.values()].find(x => x.name === 'Brine Tester');
   assert.ok(p);
@@ -46,6 +52,9 @@ try {
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
   await capture('preview-evidence/02-brineworks.png');
+  await moveTo(38, -36.5);
+  await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
+  await capture('preview-evidence/02b-research-station.png');
   await moveTo(39, -30);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
   await page.keyboard.press('f');
@@ -60,5 +69,18 @@ try {
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
   assert.deepEqual(errors, []);
-  console.log('PASS Brine Surveyor GLB, live prototype tower, Brineworks zone, F evidence/report, unchanged directives');
+  await page.close();
+  const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
+  fallbackPage.setDefaultTimeout(90000);
+  await fallbackPage.route('**/research_workstation.glb', route => route.abort());
+  await fallbackPage.goto(url);
+  await fallbackPage.waitForFunction(() => window.__attune?.state().world.prototypeArt === 'fallback');
+  assert.deepEqual(await fallbackPage.evaluate(() => window.__attune.state().world.prototypeAssets), {survey_tower:'ready',survey_workstation:'fallback'});
+  assert.ok(await fallbackPage.evaluate(() => {
+    const scene = window.__attune.gfx.scene;
+    const holder = scene.getObjectByName('prototype-fallback:survey_workstation');
+    return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
+  }));
+  await fallbackPage.close();
+  console.log('PASS Brine Surveyor GLB, two independent static art models, missing-model fallback, Brineworks zone, F evidence/report, unchanged directives');
 } finally { await browser?.close(); await server.close(); }
