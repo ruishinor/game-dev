@@ -508,3 +508,6 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .radio-panel[data-recorded="true"] .radio-wave i{animation:none;transform:scaleY(var(--level,.35))}
 @media(prefers-reduced-motion:reduce){.radio-panel[data-playing="true"] .radio-wave i{animation:none;transform:scaleY(1)}}
 @media(max-width:720px){.radio-panel{width:min(200px,calc(100vw - 16px));max-height:32vh}}
+
+/* Inventory material stacks share the carried-item grid; never behave as equipment. */
+.item-cell .stack-quantity{position:absolute;right:3px;bottom:2px;padding:1px 3px;border-radius:3px;background:#091015e6;color:var(--ink);font-size:11px;font-weight:600;pointer-events:none}.item-cell.material-cell{border-color:#5a746b}

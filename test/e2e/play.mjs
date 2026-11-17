@@ -193,10 +193,44 @@ async function workshopPlaytest(){
   await P.ctx.close();
 }
 
+async function followInventoryPlaytest(){
+ const A=await openPlayer('follow-leader','FollowLeader','vanguard');
+ const B=await openPlayer('follow-follower','FollowFollower','vanguard');
+ const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
+ await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
+ teleport('FollowLeader',0,7.5);teleport('FollowFollower',0,11);
+ await settle(A,0,7.5);await settle(B,0,11);
+ await B.page.bringToFront();
+ pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
+ await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.mire_fibre===5,null,{timeout:15000});
+ await B.page.keyboard.press('KeyI');
+ const inv=B.page.locator('.inventory-window');
+ await inv.getByRole('button',{name:'All',exact:true}).click();
+ const all=await inv.locator('.material-cell').count();
+ const qty=await inv.locator('[data-material="mire_fibre"] .stack-quantity').innerText();
+ await inv.getByRole('button',{name:'Materials',exact:true}).click();
+ check('All and Materials both show actual material stacks and quantity',all===2&&qty==='5'&&await inv.locator('.material-cell').count()===2);
+ await inv.getByRole('button',{name:'Close inventory'}).click();
+ await B.page.locator('#view').focus();
+ await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/follow FollowLeader');await B.page.keyboard.press('Enter');
+ await B.page.waitForFunction(id=>window.__attune.state().followId===id,pa.id,{timeout:15000});
+ const before={x:pb.x,z:pb.z,seq:pb.lastSeq};
+ await A.page.bringToFront();
+ await A.page.evaluate(()=>window.__attune.view({yaw:Math.PI,face:Math.PI}));
+ await hold(A,'KeyW',1100);await sleep(900);
+ check('leader movement drives follower on server even without follower inputs',Math.hypot(pb.x-before.x,pb.z-before.z)>1&&pb.followId===pa.id&&pb.lastSeq===before.seq,JSON.stringify({before,after:{x:pb.x,z:pb.z,seq:pb.lastSeq,follow:pb.followId}}));
+ await B.page.bringToFront();
+ await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/unfollow');await B.page.keyboard.press('Enter');
+ const stopped=await until(B,()=>!window.__attune.state().followId,null,5000,'unfollow');
+ check('/unfollow clears authoritative follow',stopped&&pb.followId===0);
+ check('no script errors in focused browser sessions',pageErrors.length===0,pageErrors.slice(0,3).join(' | '));
+}
+
 let A;
 let B;
 try {
-  if(process.argv.includes('--workshop')) await workshopPlaytest();
+  if(process.argv.includes('--follow-inventory')) await followInventoryPlaytest();
+  else if(process.argv.includes('--workshop')) await workshopPlaytest();
   else {
   // ------------------------------------------------------------- 1. entry
   A = await openPlayer('a', 'Brakka', 'vanguard');
