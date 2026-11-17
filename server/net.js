@@ -105,6 +105,7 @@ export class NetServer {
       t: 'welcome',
       v: PROTOCOL_VERSION,
       id: conn.player.id,
+      charId: char.id,
       comp: conn.player.companion ? conn.player.companion.id : 0,
       time: this.game.time,
       x: conn.player.x,
