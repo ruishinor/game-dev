@@ -8,6 +8,8 @@ import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint } from '../../shared/survey.js';
+import { RECIPES } from '../../shared/crafting.js';
+import { renderWorkshop } from './workshop-ui.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -207,6 +209,11 @@ export class UI {
     this.playerContext.hidden = true;
     root.append(this.playerContext);
     this.bindPlayerContext(this.target.el, () => this.currentTarget?.id);
+    this.npcPanel=h('div','panel npc-panel');
+    this.npcPanel.hidden=true;
+    this.npcPanel.setAttribute('role','dialog');
+    this.npcPanel.setAttribute('aria-label','NPC interaction');
+    root.append(this.npcPanel);
     document.addEventListener('pointerdown', (e) => {
       if (!this.playerContext.contains(e.target)) this.closePlayerContext();
     });
@@ -220,7 +227,7 @@ export class UI {
         this.closePlayerContext(true);
       }else if(['Tab','ArrowUp','ArrowDown','Home','End'].includes(e.key)){
         e.preventDefault();
-        const buttons=[...this.playerContext.querySelectorAll('button')];
+        const buttons=[...this.playerContext.querySelectorAll('button:not(:disabled)')];
         if(!buttons.length)return;
         const i=buttons.indexOf(document.activeElement);
         const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:
@@ -355,7 +362,7 @@ export class UI {
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Build [C]');
+    this.buildBtn = h('button', 'menubtn', 'Character [C]');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -376,7 +383,9 @@ export class UI {
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
     this.codexBtn = h('button', 'menubtn', 'Codex [J]');
     this.codexBtn.addEventListener('click', () => this.toggleCodex());
-    this.menuItems.append(this.inventoryBtn, this.codexBtn, this.partyBtn, this.settingsBtn, this.charactersBtn, this.signoutBtn);
+    this.workshopBtn=h('button','menubtn','Build [B]');
+    this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -390,7 +399,7 @@ export class UI {
     this.panel = h('div', 'panel build');
     this.panel.hidden = true;
     this.panel.setAttribute('role', 'dialog');
-    this.panel.setAttribute('aria-label', 'Character build');
+    this.panel.setAttribute('aria-label', 'Character and loadout');
     const close = h('button', 'close', '×');
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.toggleBuild(false));
@@ -465,6 +474,21 @@ export class UI {
     root.append(this.codexPanel);
     this.codexGroup = 'Creatures';
     this.codexSelection = 'skitter';
+
+    this.workshopPanel=h('div','panel workshop-window');
+    this.workshopPanel.hidden=true;
+    this.workshopPanel.setAttribute('role','dialog');
+    this.workshopPanel.setAttribute('aria-label','Build Planner and Workshop');
+    const workshopClose=h('button','close','×');
+    workshopClose.setAttribute('aria-label','Close Build');
+    workshopClose.addEventListener('click',()=>this.toggleWorkshop(false));
+    this.workshopBody=h('div','workshop-body');
+    this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
+    root.append(this.workshopPanel);
+    this.workshopTab='planner';
+    this.recipeId=null;
+    this.plannedLoadout=null;
+    this.atSanctum=false;
 
     this.partyPanel = h('div', 'panel party-panel');
     this.partyPanel.hidden = true;
@@ -542,6 +566,7 @@ export class UI {
       ['F', 'Interact with what is in front of you'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
+      ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
       ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['P', 'Party: invite, accept, leave'],
@@ -728,7 +753,8 @@ export class UI {
 
   hideJournalPanels() {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.codexPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = true;
@@ -744,6 +770,15 @@ export class UI {
       this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
+  }
+
+  toggleWorkshop(force,recipeId=null) {
+    const open=force??this.workshopPanel.hidden;
+    this.hideJournalPanels();
+    this.workshopPanel.hidden=!open;
+    if(!open)return;
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    renderWorkshop(this);
   }
 
   setInventoryOpacity(value) {
@@ -945,6 +980,71 @@ export class UI {
     this.playerContext.querySelector('button')?.focus({preventScroll:true});
   }
 
+  itemAction(id,action) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return this.error('Item is unavailable.');
+    if(this.buildLock)return this.error('Equipment changes are locked in combat or defeat.');
+    const slot=ITEMS[id].slot, installed=s.equipped[slot]===id;
+    if((action==='remove'&&!installed)||(action==='equip'&&installed))return;
+    const res=action==='remove'?tryUnequip(s,slot):tryEquip(s,id);
+    if(!res.ok)return this.error(res.reason);
+    if(action==='remove')this.a.unequip(slot);
+    else this.a.equip(id);
+  }
+
+  openItemContext(id,x,y,anchor) {
+    const s=this.sheet;
+    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return;
+    const item=ITEMS[id],installed=s.equipped[item.slot]===id,action=installed?'remove':'equip';
+    this.closePlayerContext();
+    this.tooltip.hidden=true;
+    this.contextAnchor=anchor;
+    this.playerContext.replaceChildren(h('div','context-title',item.name));
+    const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+    const equip=h('button',null,installed?'Unequip':s.equipped[item.slot]?'Swap in':'Equip');
+    equip.disabled=!!this.buildLock||!res.ok;
+    equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
+    this.playerContext.append(equip);
+    if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
+    this.playerContext.append(info);
+    const recipe=Object.entries(RECIPES).find(([,r])=>r.target===id&&r.kind==='upgrade');
+    if(recipe){const upgrade=h('button',null,'Upgrade · Workshop');upgrade.addEventListener('click',()=>{this.closePlayerContext();this.toggleWorkshop(true,recipe[0]);});this.playerContext.append(upgrade);}
+    this.playerContext.hidden=false;
+    const w=this.playerContext.offsetWidth,hgt=this.playerContext.offsetHeight;
+    this.playerContext.style.left=Math.max(8,Math.min(window.innerWidth-w-8,x))+'px';
+    this.playerContext.style.top=Math.max(8,Math.min(window.innerHeight-hgt-8,y))+'px';
+    this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  }
+
+  openNpc(ent) {
+    if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
+    this.hideJournalPanels();
+    this.npcId=ent.id;
+    const panel=this.npcPanel;
+    panel.replaceChildren();
+    const close=h('button','close','×');
+    close.setAttribute('aria-label','Close NPC interaction');
+    close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
+    const content=h('div','npc-content');
+    const art=this.a.portrait(ent.meta);
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
+    const details=h('div','npc-options');
+    this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
+    const talk=h('button','primary','Talk');
+    talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
+    const info=h('button',null,'Info · Codex');
+    info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
+    const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
+    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
+    content.append(details);panel.append(close,content);panel.hidden=false;
+  }
+
+  showNpcDialogue(id,message) {
+    if(id===this.npcId&&!this.npcPanel.hidden)this.npcDialogue.textContent=message;
+  }
+
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
@@ -969,8 +1069,9 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.codexPanel.hidden = true;
+    const any = !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
     this.menuItems.hidden = true;
@@ -991,6 +1092,7 @@ export class UI {
     if (grew && this.panel.hidden) this.buildBtn.classList.add('new');
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
+    if(!this.workshopPanel.hidden)renderWorkshop(this);
 
     set(this.surveyText, 'text', brineHint(sheet.survey,sheet.brineStage,null));
     const q = sheet.quest;
@@ -1097,11 +1199,14 @@ export class UI {
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
+    const workshopChanged=!!you.safe!==this.atSanctum||lock!==this.buildLock;
+    this.atSanctum=!!you.safe;
     if (lock !== this.buildLock) {
       this.buildLock = lock;
       if (!this.panel.hidden) this.renderBuild();
       if (!this.inventoryPanel.hidden) renderInventory(this);
     }
+    if(workshopChanged&&!this.workshopPanel.hidden)renderWorkshop(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
@@ -1267,6 +1372,13 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
+      if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
+        el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
+        el.addEventListener('contextmenu',e=>{e.preventDefault();this.openNpc(this.liveEntities?.get(ent.id));});
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
+        el.dataset.npc='archivist';
+      }
       if(ent.meta.k==='p'){
         el.dataset.playerId=String(ent.id);
         el.tabIndex=0;
@@ -1297,12 +1409,14 @@ export class UI {
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
+    this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
     this.closePlayerContext();
     this.liveEntities=null;
+    this.dragItem=null;
     this.chatChannel='vicinity';
     this.resetChatTarget();
   }

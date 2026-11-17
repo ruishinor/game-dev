@@ -1,0 +1,18 @@
+# Workshop and build system — first playable increment
+
+Source direction: docs/Attunement-Game-Concept.md §§3, 6, 7, 11; docs/art/ASSET-PRODUCTION-PLAN.md; original package 13 workstation review and recipe. Anarchy Online inspiration: source/target combinations, skills rather than level-only gates, and equipment-assisted assembly. Reference: https://www.ao-universe.com/guides/classic-ao/gameplay-guides-6/introduction-to-tradeskilling and https://www.ao-universe.com/guides/classic-ao/tradeskill-guides-6/general-crafting-5/implant-creation. Adaptation, not copied content.
+
+Current scope: separate persistent material quantities (cap 99 per kind); credited combat gives one deterministic salvage material per enemy; two processed component recipes, two reversible device conversions and one resonance implant. Existing unique-item ownership and slot validation remain. Device conversions consume the carried target, never an equipped item, and can be reversed without material refund. New variants trade survivability or offense for a specialized benefit; they do not increase base primary-skill bonuses. Existing item IDs, XP thresholds, encounter stats and graphics quality unchanged. The Sanctum is the provisional fabrication location; physical workstation integration is separate, because original art meshes remain prototypes pending fit/visual acceptance.
+
+Review perspectives (simulated, not independent reviewers):
+- Systems design: skill gates use live effective skills; assembling the component while a device is worn and removing it before conversion creates a meaningful dependency sequence. Final threshold allows a level-two specialist to complete conversion. No new skill-point economy, trading or random quality rolls yet.
+- UX: show source components, target item, output, unmet requirements and whether target is installed; existing equipment dependencies cannot be bypassed.
+- Server and persistence: recipe ID only from authenticated client; no client-controlled quantities or outputs; mutation only after validation, no partial consumption, no duplicate unique output, sanitization on load and bounded material counts. No changes to account ownership.
+- Adversarial: rejection for unknown keys, missing skills, remote/dead/in-combat crafting, installed target, replay and full material storage. Weapon/social/reserved anatomical slots still unavailable.
+- Retrospective: keep model-backed anatomy and existing mannequin proportions, do not invent a new race/rig or integrate unapproved prototype art. Explicitly test actual browser interactions and display; structural tests cannot establish visual acceptance or balance.
+
+Future, not implemented by this increment: physical stations from package 13, dedicated profession/tradeskill progression, quality levels, multi-slot anatomical implants, weapon assemblies, component-specific item art, trading and economy, recipe discoveries. Add incrementally against playtest evidence.
+
+## Verification checkpoint
+
+Server increment 94b2dfe passed hosted Node regression (run 44130545204). Integrated PR #8 is still blocked by browser evidence: first run aborted on observer-readiness race; synchronization corrected at 2497917, second run 44130071063 passed mutual visibility and several UI checks but failed time-sensitive movement/combat and downstream directive checks on SwiftShader. This does not prove a live-game defect or acceptance. Keep #8 unmerged until a successful representative playtest. Run the focused new UI path with `npm run e2e -- --workshop` (actual server, one browser, fixture grants only). This reuses the existing harness and pauses repeated world rendering after initial load; it is not a performance or full-playthrough claim. No separate test suite.

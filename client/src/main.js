@@ -234,6 +234,8 @@ const ui = new UI({
   },
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
+  interact: id=>net.send({t:'act',id}),
+  craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -808,6 +810,7 @@ function onEvent(e) {
       break;
     }
     case 'say':
+      ui.showNpcDialogue(e.id,e.m);
       ui.chatLine(e.n, e.m, 'npc');
       ui.toast(`${e.n}: “${e.m}”`, 'npc');
       break;
@@ -902,14 +905,18 @@ input.onClick = (button, x, y) => {
     const ent = pick(x, y, ['e', 'p', 'c', 'o']);
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
+    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {
     S.inspect = null;
     const ent = pick(x, y, ['e', 'o', 'p']);
     if (!ent) return;
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
-    if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
+    if (ent.meta.k === 'o') {
+      if(ent.meta.c==='archivist')ui.openNpc(ent);
+      net.send({ t: 'act', id: ent.id });
+    }
     else {
       setTarget(ent.id);
       net.send({ t: 'atk' });
@@ -959,8 +966,10 @@ input.onAction = (code, e) => {
       } else ui.error('You have no companion to inspect.');
       break;
     case 'KeyC':
-    case 'KeyB':
       ui.toggleBuild();
+      break;
+    case 'KeyB':
+      ui.toggleWorkshop();
       break;
     case 'KeyI':
       ui.toggleInventory();

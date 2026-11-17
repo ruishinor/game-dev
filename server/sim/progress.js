@@ -4,7 +4,8 @@
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist } from '../../shared/world.js';
+import { dist, inSanctum } from '../../shared/world.js';
+import { MATERIALS, MATERIAL_CAP, SALVAGE, RECIPES, sanitizeMaterials, previewRecipe } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage } from '../../shared/survey.js';
 
 const INTERACT_RANGE = 5;
@@ -72,6 +73,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
     const p = game.players.get(id);
     if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
+    grantSalvage(game,p,SALVAGE[enemy.type]);
     for (const drop of def.loot) {
       if (!p.char.inventory.includes(drop.item) && game.rng() < drop.chance) grantItem(game, p, drop.item);
     }
@@ -82,6 +84,32 @@ export function onEnemyKilled(game, enemy, creditedIds) {
     }
     checkDirective(game, p);
   }
+}
+
+function grantSalvage(game,p,id) {
+  if(!Object.hasOwn(MATERIALS,id))return;
+  const m=sanitizeMaterials(p.char.materials);
+  if((m[id]||0)>=MATERIAL_CAP)return;
+  m[id]=(m[id]||0)+1;
+  p.char.materials=m;
+  game.message(p,'gain','Salvaged: '+MATERIALS[id].name+'.');
+  game.markDirty(p);
+}
+
+export function craftRecipe(game,p,id) {
+  if(p.dead)return {ok:false,reason:'You are defeated.'};
+  if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
+  if(!inSanctum(p))return {ok:false,reason:'Return to the Lattice Sanctum workshop.'};
+  const result=previewRecipe(p.char,id);
+  if(!result.ok)return result;
+  // One synchronous transaction, after every requirement has passed.
+  p.char.inventory=result.inventory;
+  p.char.materials=result.materials;
+  const out=RECIPES[id].output;
+  if(out.item)p.outbox.push({e:'loot',item:out.item});
+  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:MATERIALS[out.material].name)+'.');
+  game.markDirty(p);
+  return {ok:true};
 }
 
 function inCombat(game, p) {

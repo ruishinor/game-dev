@@ -4,7 +4,7 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand } from './sim/companion.js';
-import { equipItem, unequipSlot, interact } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, craftRecipe } from './sim/progress.js';
 import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { renameCompanion } from './sim/companion.js';
 
@@ -350,6 +350,9 @@ export class NetServer {
         break;
       case 'party_leave':
         reply(leaveParty(game, p));
+        break;
+      case 'craft':
+        reply(craftRecipe(game,p,msg.recipe));
         break;
       case 'equip':
         reply(equipItem(game, p, msg.item));

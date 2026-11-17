@@ -608,6 +608,14 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     a.send({ t: 'equip', item: 'myelin_lattice' });
     a.send({ t: 'pet', c: 'assist' });
     await a.until(() => a.sheet && a.sheet.equipped.implant === 'myelin_lattice', 3000, 'equip applied');
+    // Exercise the actual authenticated craft command and persisted inventory.
+    p.char.materials={mire_fibre:3,sentinel_alloy:1};
+    srv.game.markDirty(p);
+    p.x=0;p.z=8;
+    a.send({t:'craft',recipe:'matrix',owner:999,output:'wardstone_shard'});
+    await a.until(()=>a.sheet?.materials?.culture_matrix===1,3000,'workshop output');
+    assert.deepEqual(a.sheet.materials,{mire_fibre:1,culture_matrix:1});
+    assert.ok(!a.sheet.inventory.includes('wardstone_shard'));
     p.x = 20;
     p.z = 30;
     p.hp = 77;
@@ -648,6 +656,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     assert.deepEqual(c.sheet.inventory.sort(), ['myelin_lattice', 'sporeglass_focus']);
     assert.equal(c.sheet.equipped.implant, 'myelin_lattice');
     assert.equal(c.sheet.stats.healMul, 1.3);
+    assert.deepEqual(c.sheet.materials,{mire_fibre:1,culture_matrix:1});
     c.close();
   } finally {
     await srv.close();
@@ -722,6 +731,7 @@ test('store: corrupt or tampered files never crash or cross-contaminate characte
   rec.inventory = ['glyph_shared_pulse', 'not_an_item', 'glyph_shared_pulse'];
   rec.equipped = { device: null, implant: 'myelin_lattice', glyph: 'glyph_shared_pulse' };
   rec.attunements = ['resonance', 'godmode'];
+  rec.materials={mire_fibre:1000,sentinel_alloy:-1,culture_matrix:'5',unknown:2};
   data.characters.push({ ...data.characters.find((c) => c.id === other.char.id), id: 'dupe', name: 'OTHER' });
   data.characters.push({ id: 'broken' }, null, 7);
   fs.writeFileSync(file, JSON.stringify(data));
@@ -733,6 +743,7 @@ test('store: corrupt or tampered files never crash or cross-contaminate characte
   assert.deepEqual(loaded.inventory, ['glyph_shared_pulse']);
   assert.deepEqual(loaded.equipped, { device: null, implant: null, glyph: null }, 'invalid loadout cleared');
   assert.deepEqual(loaded.attunements, ['resonance']);
+  assert.deepEqual(loaded.materials,{mire_fibre:99});
   assert.equal(s3.authenticate(other.token).name, 'Other');
   assert.equal(s3.authenticate('f'.repeat(64)), null);
   assert.equal(s3.authenticate({ toString: () => token }), null);
