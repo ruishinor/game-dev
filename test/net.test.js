@@ -7,7 +7,7 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { startServer } from '../server/index.js';
 import { CharacterStore } from '../server/store.js';
-import { RESPAWN_DELAY_MS } from '../server/sim/game.js';
+import { RESPAWN_DELAY_MS, CORPSE_MS } from '../server/sim/game.js';
 import { dealDamage } from '../server/sim/combat.js';
 
 const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'attune-')), 'characters.json');
@@ -292,8 +292,9 @@ test('combat lifecycle: two clients recreate an enemy after corpse expiry and re
     await a.until(() => a.events.some((event) => event.e === 'die' && event.id === e.id), 3000, 'enemy death for A');
     await b.until(() => b.events.some((event) => event.e === 'die' && event.id === e.id), 3000, 'enemy death for B');
 
-    // Keep the real corpse lifetime, but shorten the longer respawn wait.
-    // Both clients must receive an absent snapshot before the enemy returns.
+    // The full corpse duration is covered by the simulation test. Here we
+    // accelerate expiry to keep the network lifecycle check short.
+    e.deadAt = game.time - CORPSE_MS + 900;
     e.respawnAt = game.time + 4500;
     pa.x = 0; pa.z = 0;
     pb.x = 0; pb.z = 0;

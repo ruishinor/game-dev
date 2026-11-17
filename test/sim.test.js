@@ -7,6 +7,7 @@ import { equipItem, unequipSlot, interact, grantItem, grantXp } from '../server/
 import { ABILITIES, ENEMIES, CLASSES, DIRECTIVES } from '../shared/content.js';
 import { stepMove, resolveCollisions, COLLIDERS, WORLD, ZONES, RUN_SPEED, MOVE_DT, PLAYER_RADIUS } from '../shared/world.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
+import { CORPSE_MS } from '../server/sim/game.js';
 
 // ---------------------------------------------------------------- movement
 
@@ -154,7 +155,11 @@ test('combat: enemy fights back, auto-attack runs, kill grants xp and enemy resp
   assert.ok(ev.some((x) => x.e === 'xp' && x.to === p.id && x.a === ENEMIES.skitter.xp));
   assert.equal(p.char.quest.progress, 1, 'directive kill counted');
   place(p, 0, 0);
-  run(game, ENEMIES.skitter.respawn + 200, ev);
+  run(game, Math.max(0, CORPSE_MS - (game.time - e.deadAt) - 100), ev);
+  assert.ok(game.buildRows().some((row) => row.i === e.id), 'remains stay visible until corpse expiry');
+  run(game, 300, ev);
+  assert.ok(!game.buildRows().some((row) => row.i === e.id), 'expired corpse leaves world snapshots');
+  run(game, ENEMIES.skitter.respawn - (game.time - e.deadAt) + 200, ev);
   assert.equal(e.state, 'idle');
   assert.equal(e.hp, e.maxHp);
 });

@@ -11,7 +11,7 @@ import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { checkDirective } from './progress.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
-const CORPSE_MS = 3500;
+export const CORPSE_MS = 12000;
 export const RESPAWN_DELAY_MS = 3000;
 export const COMBAT_LINGER_MS = 6000;
 
