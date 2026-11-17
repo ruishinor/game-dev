@@ -37,7 +37,7 @@ export class RadioPanel{
   this.applyPrefs();
  }
  savePrefs(){try{localStorage.setItem('attunement.radioPrefs',JSON.stringify(this.prefs));}catch{}}
- applyPrefs(){this.el.style.setProperty('--radio-alpha',String(this.prefs.opacity/100));this.el.dataset.locked=String(this.prefs.locked);if(this.modeSelect)this.modeSelect.value=this.prefs.mode;if(this.lockButton){this.lockButton.textContent=this.prefs.locked?'Unlock':'Lock';this.lockButton.setAttribute('aria-label',this.prefs.locked?'Unlock transmission position':'Lock transmission position');}if(this.opacityButton){this.opacityButton.textContent=this.prefs.opacity+'%';this.opacityButton.title='Transmission background opacity: '+this.prefs.opacity+'%';}if(this.replay)this.replay.disabled=this.prefs.mode==='off';if(this.quickMode)this.quickMode.textContent=this.prefs.mode==='off'?'Off':this.prefs.mode==='auto'?'Auto':'Manual';}
+ applyPrefs(){this.el.style.setProperty('--radio-alpha',String(this.prefs.opacity/100));this.el.dataset.locked=String(this.prefs.locked);if(this.modeSelect)this.modeSelect.value=this.prefs.mode;if(this.lockButton){this.lockButton.textContent=this.prefs.locked?'Unlock':'Lock';this.lockButton.setAttribute('aria-label',this.prefs.locked?'Unlock transmission position':'Lock transmission position');}if(this.opacityButton){this.opacityButton.textContent=this.prefs.opacity+'%';this.opacityButton.title='Transmission background opacity: '+this.prefs.opacity+'%';}if(this.replay){this.replay.disabled=this.prefs.mode==='off'||!radioAssetFor(this.queue.current);this.replay.title=this.prefs.mode==='off'?'Voice disabled':this.replay.disabled?'Recording unavailable':'Play voice';}if(this.quickMode)this.quickMode.textContent=this.prefs.mode==='off'?'Off':this.prefs.mode==='auto'?'Auto':'Manual';}
  setMode(mode){if(!VOICE_MODES.includes(mode))return;this.prefs.mode=mode;this.savePrefs();this.applyPrefs();if(mode!=='auto'){this.stop();if(this.status)this.status.textContent=mode==='off'?'Transcript only':'Manual playback';}}
  settings(){const section=h('section','radio-settings');const label=h('label',null,'Dialogue voice');this.modeSelect=h('select');this.modeSelect.setAttribute('aria-label','Dialogue voice');for(const [v,t] of [['auto','Automatic'],['manual','Manual replay only'],['off','No voice (transcript only)']]){const o=h('option',null,t);o.value=v;this.modeSelect.append(o);}this.modeSelect.addEventListener('change',()=>this.setMode(this.modeSelect.value));label.append(this.modeSelect);section.append(label,button('Reset transmission position','Reset transmission position',()=>this.resetPosition()));this.applyPrefs();return section;}
  resetPosition(){this.prefs.pos=null;this.savePrefs();this.place();}
@@ -62,23 +62,28 @@ export class RadioPanel{
    this.waveFrame=requestAnimationFrame(tick);};this.waveFrame=requestAnimationFrame(tick);
  }
  clear(){this.drag=null;this.stop();this.queue.clear();this.open=false;this.el.hidden=true;}
- next(){this.drag=null;this.stop();const event=this.queue.next();if(!event){this.open=false;this.el.hidden=true;return;}this.open=true;this.draw(event);if(this.prefs.mode==='auto')this.play();}
+ next(){this.drag=null;this.stop();const event=this.queue.next();if(!event){this.open=false;this.el.hidden=true;return;}this.open=true;this.draw(event);if(this.prefs.mode==='auto'&&radioAssetFor(event))this.play();}
  draw(event){
   const s=RADIO_SOURCES[event.source];this.el.hidden=false;this.el.replaceChildren();this.el.style.setProperty('--radio-accent',s.colour);this.el.dataset.source=event.source;
   const header=h('div','radio-head');header.append(h('strong',null,'TRANSMISSION'));this.count=h('span','radio-count');header.append(this.count);this.bindDrag(header);
-  const close=h('button',null,'×');close.type='button';close.setAttribute('aria-label','Dismiss transmission');close.addEventListener('click',()=>this.next());header.append(close);
+  const actions=h('div','radio-actions');this.replay=button('Play voice','▶',()=>this.play());
+  const controls=h('div','radio-controls');controls.hidden=true;
+  const gear=button('Transmission controls','⚙',()=>{controls.hidden=!controls.hidden;gear.setAttribute('aria-expanded',String(!controls.hidden));this.place();});gear.setAttribute('aria-expanded','false');
+  const close=button('Dismiss transmission','×',()=>this.next());actions.append(this.replay,gear,close);header.append(actions);
   const grid=h('div','radio-grid'),portrait=h('div','radio-portrait');
   const art=s.portrait?this.portrait(s.portrait):null;if(art){const img=h('img');img.src=art;img.alt=s.name;portrait.append(img);}else{portrait.innerHTML=COMMS;portrait.setAttribute('aria-label','Radio communications');}
   const bars=h('div','radio-wave');bars.setAttribute('aria-hidden','true');for(let i=0;i<18;i++){const b=h('i');b.style.setProperty('--i',String(i));bars.append(b);}portrait.append(bars);this.bars=Array.from(bars.children);
-  const copy=h('div','radio-copy');copy.append(h('strong','radio-name',s.name),h('small','radio-channel',s.channel));const transcript=h('p','radio-transcript',event.message);transcript.setAttribute('aria-live','polite');copy.append(transcript);grid.append(portrait,copy);
-  const footer=h('div','radio-footer');this.status=h('span','radio-status',this.prefs.mode==='off'?'Transcript only':'Transcript ready');this.status.setAttribute('role','status');
-  this.replay=h('button',null,'Play voice');this.replay.type='button';this.replay.addEventListener('click',()=>this.play());
+  const copy=h('div','radio-copy');copy.append(h('strong','radio-name',s.name),h('small','radio-channel',s.channel));const transcript=h('button','radio-transcript',event.message);transcript.type='button';transcript.title='Click to expand or collapse transcript';transcript.setAttribute('aria-expanded','false');transcript.addEventListener('click',()=>{const expanded=transcript.getAttribute('aria-expanded')!=='true';transcript.setAttribute('aria-expanded',String(expanded));this.place();});copy.append(transcript);grid.append(portrait,copy);
+  const footer=h('div','radio-footer');this.status=h('span','radio-status',this.prefs.mode==='off'?'Transcript only':!radioAssetFor(event)?'Recording unavailable':this.prefs.mode==='manual'?'Manual playback':'Ready');this.status.setAttribute('role','status');
   this.quickMode=button('Cycle dialogue voice mode','',()=>this.setMode(VOICE_MODES[(VOICE_MODES.indexOf(this.prefs.mode)+1)%VOICE_MODES.length]));
   this.lockButton=button('Lock transmission position','',()=>{this.prefs.locked=!this.prefs.locked;this.savePrefs();this.applyPrefs();});
   this.opacityButton=button('Cycle transmission background opacity','',()=>{this.prefs.opacity=RADIO_OPACITIES[(RADIO_OPACITIES.indexOf(this.prefs.opacity)+1)%RADIO_OPACITIES.length];this.savePrefs();this.applyPrefs();});
   const volume=h('input','radio-volume');volume.type='range';volume.min='0';volume.max='1';volume.step='.05';volume.value=String(this.volume);volume.setAttribute('aria-label','Dialogue volume');volume.title='Dialogue volume';
-  volume.addEventListener('input',()=>{this.volume=normalizeVolume(volume.value);this.recorded.setVolume(this.volume);try{localStorage.setItem('attunement.radioVolume',String(this.volume));}catch{}});
-  footer.append(this.status,this.replay,this.quickMode,this.lockButton,this.opacityButton,volume);this.el.append(header,grid,footer);this.applyPrefs();this.updateCount();this.place();
+  const volText=h('span','radio-volume-value');const volumeRow=h('div','radio-volume-row');volumeRow.append(volume,volText);
+  const showVolume=()=>{const pct=Math.round(this.volume*100)+'%';volume.style.setProperty('--radio-volume-pct',pct);volume.setAttribute('aria-valuetext',pct);volText.textContent=pct;};showVolume();
+  volume.addEventListener('input',()=>{this.volume=normalizeVolume(volume.value);this.recorded.setVolume(this.volume);showVolume();try{localStorage.setItem('attunement.radioVolume',String(this.volume));}catch{}});
+  const prefs=h('div','radio-pref-actions');prefs.append(this.quickMode,this.lockButton,this.opacityButton);controls.append(h('span','radio-caption','Voice · position · opacity'),prefs);
+  footer.append(this.status,volumeRow);this.el.append(header,grid,footer,controls);this.applyPrefs();this.updateCount();this.place();
  }
  play(){
   const event=this.queue.current;if(!event||this.prefs.mode==='off')return;this.stop();const token=this.token;
@@ -88,6 +93,6 @@ export class RadioPanel{
     this.status.textContent=({loading:'Acquiring recording',playing:'Playing recording',ended:'Playback complete',blocked:'Select Play voice to listen',error:'Recording unavailable · transcript'})[state];
     if(this.playing)this.startWave(asset,token);else this.stopWave();
   });return;}
-  this.status.textContent='Recording not yet available · transcript';
+  this.status.textContent='Recording unavailable · transcript';
  }
 }

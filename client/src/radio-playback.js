@@ -24,7 +24,7 @@ export function envelopeAt(envelope,seconds){
 // One owner. Detach event handlers and release the media element on cancellation,
 // replay, error, completion and world reset. Late promises/events are ignored.
 export class RecordedRadioPlayback{
- constructor({createAudio=()=>new Audio(),schedule=(f,ms)=>setTimeout(f,ms),cancel=clearTimeout,clockSchedule=(f,ms)=>setTimeout(f,ms),clockCancel=clearTimeout}={}){
+ constructor({createAudio=()=>new Audio(),schedule=(f,ms)=>setTimeout(f,ms),cancel=id=>globalThis.clearTimeout(id),clockSchedule=(f,ms)=>setTimeout(f,ms),clockCancel=id=>globalThis.clearTimeout(id)}={}){
    this.createAudio=createAudio;this.schedule=schedule;this.cancel=cancel;this.clockSchedule=clockSchedule;this.clockCancel=clockCancel;this.audio=null;this.timer=null;this.clockTimer=null;
  }
  stop(){

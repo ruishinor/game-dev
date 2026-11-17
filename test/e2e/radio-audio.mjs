@@ -28,9 +28,12 @@ try{
   assert.equal(await show(id),true);
   await page.getByRole('button',{name:'Play voice'}).click();
   await playing();
+  await page.waitForFunction(()=>Number(window.radio.bars[8].style.getPropertyValue('--level'))>0,null,{timeout:3000});
   const info=await page.evaluate(()=>({state:window.radio.el.dataset.recorded,level:window.radio.bars[8].style.getPropertyValue('--level'),volume:window.radio.recorded.audio.volume}));
   assert.equal(info.state,'true');assert.ok(Number(info.level)>0);assert.equal(info.volume,1);
  }
+ const layout=await page.evaluate(()=>{const c=window.radio.el,v=c.querySelector('.radio-volume'),r=c.getBoundingClientRect(),t=v.getBoundingClientRect();return {width:r.width,height:r.height,slider:t.width,cardScroll:c.scrollHeight>c.clientHeight,controlHidden:c.querySelector('.radio-controls').hidden,pct:v.style.getPropertyValue('--radio-volume-pct')};});
+ assert.ok(layout.slider>layout.width*.65&&layout.height<170&&!layout.cardScroll&&layout.controlHidden&&layout.pct==='100%',JSON.stringify(layout));
  await page.locator('input[aria-label="Dialogue volume"]').evaluate(el=>{el.value='.5';el.dispatchEvent(new Event('input',{bubbles:true}));});
  assert.equal(await page.evaluate(()=>window.radio.recorded.audio.volume),.5);
  await page.evaluate(()=>window.radio.clear());
@@ -43,8 +46,8 @@ try{
  assert.match(await page.locator('.radio-transcript').innerText(),/Kestrel log 17/);
  assert.equal(await page.evaluate(()=>window.radio.recorded.audio),null);
  await page.getByRole('combobox',{name:'Dialogue voice'}).selectOption('off');assert.ok(await page.getByRole('button',{name:'Play voice'}).isDisabled());await page.evaluate(()=>window.radio.play());assert.equal(await page.evaluate(()=>window.radio.recorded.audio),null);
- await page.getByRole('button',{name:'Unlock transmission position'}).click();const box=await page.locator('.radio-head').boundingBox();await page.mouse.move(box.x+10,box.y+8);await page.mouse.down();await page.mouse.move(100,150,{steps:5});await page.mouse.up();assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('attunement.radioPrefs')).pos!==null));await page.getByRole('button',{name:'Lock transmission position'}).click();await page.getByRole('button',{name:'Cycle transmission background opacity'}).click();assert.equal(await page.evaluate(()=>window.radio.prefs.opacity),80);
- await page.evaluate(()=>{window.radio.clear();window.radio.setMode('auto');window.radio.receive('kernel','Unrecorded transcript');});assert.equal(await page.evaluate(()=>window.synthCalls),0);assert.match(await page.locator('.radio-status').innerText(),/Recording not yet available/);
+ await page.getByRole('button',{name:'Transmission controls'}).click();await page.getByRole('button',{name:'Unlock transmission position'}).click();const box=await page.locator('.radio-head').boundingBox();await page.mouse.move(box.x+10,box.y+8);await page.mouse.down();await page.mouse.move(100,150,{steps:5});await page.mouse.up();assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('attunement.radioPrefs')).pos!==null));await page.getByRole('button',{name:'Lock transmission position'}).click();await page.getByRole('button',{name:'Cycle transmission background opacity'}).click();assert.equal(await page.evaluate(()=>window.radio.prefs.opacity),80);
+ await page.evaluate(()=>{window.radio.clear();window.radio.setMode('auto');window.radio.receive('kernel','Unrecorded transcript');});assert.equal(await page.evaluate(()=>window.synthCalls),0);assert.match(await page.locator('.radio-status').innerText(),/Recording unavailable/);assert.ok(await page.getByRole('button',{name:'Play voice'}).isDisabled());
  assert.deepEqual(pageErrors,[]);await page.close();
  console.log('26 approved MP3s served; five representative recordings played by Chromium; amplitude, unity default, volume persistence, clear, no synthesis and missing-asset fallback verified');
 }finally{await browser?.close();await server.close();}
