@@ -22,6 +22,7 @@ import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI } from './ui.js';
+import { nearestInteractable } from './interact-target.js';
 import { makePortraits } from './portraits.js';
 
 const INTERP_MS = 110;
@@ -728,6 +729,8 @@ function onSnapshot(m) {
     S.sheet = m.sheet;
     ui.setSheet(m.sheet);
   }
+  // Private loot state must be current before keyboard input, even if rendering lags.
+  ui.loot.sync(y.lootable,y.loot);
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
@@ -1101,19 +1104,7 @@ function pick(x, y, kinds, allowLoot=false) {
 }
 
 function nearestObject() {
-  const me = S.ents.get(S.myId);
-  if (!me) return null;
-  let best = null;
-  let bestD = INTERACT_RANGE;
-  for (const ent of S.ents.values()) {
-    if(ent.meta.k!=='o'&&!(ent.meta.k==='e'&&ent.dead&&ui.loot.canLoot(ent.id)))continue;
-    const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
-    if (d < bestD) {
-      bestD = d;
-      best = ent;
-    }
-  }
-  return best;
+  return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
 function nextEnemy() {

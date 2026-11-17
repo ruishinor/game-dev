@@ -1234,7 +1234,6 @@ export class UI {
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
-    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
