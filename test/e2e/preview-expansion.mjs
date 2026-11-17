@@ -107,7 +107,9 @@ try {
   await page.getByRole('dialog',{name:'Build Planner and Workshop'}).waitFor();
   await page.getByRole('button',{name:'Close Build'}).click();
   await page.locator('#view').focus();
-  await moveTo(6, 58);
+  // Observe from the west, outside the predator's patrol. The earlier
+  // camera setup placed a stationary player inside its aggro radius.
+  await moveTo(-3, 58.4);
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
@@ -124,7 +126,8 @@ try {
   const beforeSampleXp=p.char.xp;
   // Actual ability; fixture only clears earlier cooldown from Brineworks for slow CI.
   p.cds.field_rig=0;p.gcdUntil=0;
-  assert.ok(useAbility(server.game,p,'field_rig').ok);
+  const deployment=useAbility(server.game,p,'field_rig');
+  assert.ok(deployment.ok,JSON.stringify({deployment,dead:p.dead,hp:p.hp,position:{x:p.x,z:p.z},rig:p.surveyKit?.rig,now:server.game.time,combatUntil:p.combatUntil}));
   await page.locator('#view').focus();
   await page.keyboard.press('f');
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
