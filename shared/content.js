@@ -146,6 +146,9 @@ export const ABILITIES = {
   },
 };
 
+export const validCompanionName = (name) =>
+  typeof name === 'string' && /^[A-Za-z][A-Za-z '-]{1,16}[A-Za-z]$/.test(name) && !/[ '-]{2}/.test(name);
+
 export const COMPANIONS = {
   mender: {
     name: 'Mender Symbiote',
