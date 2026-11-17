@@ -24,11 +24,12 @@ export function envelopeAt(envelope,seconds){
 // One owner. Detach event handlers and release the media element on cancellation,
 // replay, error, completion and world reset. Late promises/events are ignored.
 export class RecordedRadioPlayback{
- constructor({createAudio=()=>new Audio(),schedule=(f,ms)=>setTimeout(f,ms),cancel=clearTimeout}={}){
-   this.createAudio=createAudio;this.schedule=schedule;this.cancel=cancel;this.audio=null;this.timer=null;
+ constructor({createAudio=()=>new Audio(),schedule=(f,ms)=>setTimeout(f,ms),cancel=clearTimeout,clockSchedule=(f,ms)=>setTimeout(f,ms),clockCancel=clearTimeout}={}){
+   this.createAudio=createAudio;this.schedule=schedule;this.cancel=cancel;this.clockSchedule=clockSchedule;this.clockCancel=clockCancel;this.audio=null;this.timer=null;this.clockTimer=null;
  }
  stop(){
    if(this.timer!==null){this.cancel(this.timer);this.timer=null;}
+   if(this.clockTimer!==null){this.clockCancel(this.clockTimer);this.clockTimer=null;}
    const a=this.audio;this.audio=null;
    if(!a)return;
    a.onplaying=a.onwaiting=a.onended=a.onerror=a.ontimeupdate=null;
@@ -49,12 +50,21 @@ export class RecordedRadioPlayback{
    a.onplaying=playing;
    a.onwaiting=()=>{if(!current()||a.ended)return;if(state!=='loading'){state='loading';onState(state);}wait();};
    // Recover from media event ordering differences and use actual advancing audio time.
-   a.ontimeupdate=()=>{if(!current())return;if(a.ended){finish('ended');return;}if(a.currentTime>lastTime+.001&&!a.paused)playing();lastTime=a.currentTime;};
+   const syncClock=()=>{if(!current())return;if(a.error){finish('error');return;}
+     const time=a.currentTime;
+     if(a.ended||(lastTime>0&&Number.isFinite(a.duration)&&time>=a.duration-.01&&a.paused)){finish('ended');return;}
+     if(Number.isFinite(time)&&time>lastTime+.001&&!a.paused)playing();if(Number.isFinite(time))lastTime=time;
+   };
+   a.ontimeupdate=syncClock;
+   // Observe the actual media clock even if a browser delays media events.
+   // Only one timer exists per active element; stopping releases it immediately.
+   const monitor=()=>{this.clockTimer=null;if(!current())return;syncClock();if(current())this.clockTimer=this.clockSchedule(monitor,100);};
    a.onended=()=>finish('ended');
    a.onerror=()=>finish('error');
    try{
      a.preload='auto';a.volume=normalizeVolume(volume);a.src=asset.url;
      onState('loading');wait();
+     if(typeof a.addEventListener==='function')this.clockTimer=this.clockSchedule(monitor,100);
      Promise.resolve(a.play()).then(()=>{if(current()&&!a.paused&&!a.ended)playing();},e=>finish(e?.name==='NotAllowedError'?'blocked':'error'));
    }catch(e){finish(e?.name==='NotAllowedError'?'blocked':'error');}
  }

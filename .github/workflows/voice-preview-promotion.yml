@@ -3,12 +3,12 @@ on:
   pull_request:
     paths:
       - 'tools/voice/approved-preview-decisions.json'
+      - 'tools/voice/approve-library.py'
       - 'test/assets.test.js'
       - 'test/radio-playback.test.js'
       - 'test/e2e/radio-audio.mjs'
       - 'client/src/radio.js'
       - 'client/src/radio-playback.js'
-      - 'test/radio-playback.test.js'
       - 'server/index.js'
       - '.github/workflows/voice-preview-promotion.yml'
 permissions: {}
@@ -41,15 +41,21 @@ jobs:
           run-id: 44164367403
           github-token: ${{ github.token }}
           path: voice-auditions
+      - uses: actions/download-artifact@v4
+        with:
+          name: neural-voice-library-unreviewed
+          run-id: 44167225466
+          github-token: ${{ github.token }}
+          path: voice-library
       - run: |
           python -m pip install numpy==2.4.6
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python tools/voice/promote.py voice-auditions tools/voice/approved-preview-decisions.json --private-playtest --apply
+          python tools/voice/approve-library.py voice-library /tmp/remaining-decisions.json
+          python tools/voice/promote.py voice-library /tmp/remaining-decisions.json --private-playtest --apply
           npm ci
           npm test
-      - run: npx playwright install --with-deps chromium
-      - run: node test/e2e/radio-audio.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: reviewed-private-radio-assets
@@ -58,6 +64,8 @@ jobs:
             client/src/radio-assets.js
           if-no-files-found: error
           retention-days: 7
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/radio-audio.mjs
   checkpoint:
     needs: prepare
     runs-on: ubuntu-latest
@@ -78,11 +86,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          git add -- client/src/radio-assets.js client/assets/voice/brine.evidence.signal.mp3 client/assets/voice/kernel.directive.relay.mp3 client/assets/voice/kestrel.log17.mp3 client/assets/voice/sinter.instruction.vanguard.mp3
+          test "$(git ls-remote origin refs/heads/feat/prerecorded-radio-foundation | cut -f1)" = "$(git rev-parse HEAD)"
+          test "$(find client/assets/voice -maxdepth 1 -name '*.mp3' | wc -l)" -eq 26
+          git add -- client/src/radio-assets.js client/assets/voice/*.mp3
           git diff --cached --check
-          test "$(git diff --cached --name-only | wc -l)" -eq 5
+          test "$(git diff --cached --name-only | wc -l)" -eq 27
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'feat(voice): integrate four exact owner-reviewed private radio recordings'
+          git commit -m 'feat(voice): integrate complete owner-reviewed private radio library'
           gh auth setup-git
           git push origin HEAD:refs/heads/feat/prerecorded-radio-foundation
