@@ -761,6 +761,18 @@ function onEvent(e) {
         break;
       }
       if (!s) break;
+      if (e.k === 'sinter_sample') {
+        const o = S.ents.get(e.o);
+        if (o) {
+          const colour = e.mode === 'kinetic' ? 0x8ec4d5 : 0x90c6a1;
+          fx.ring(o.pos.x, o.pos.z, 1.6, colour, 680, o.pos.y);
+          if (!motionPreference.matches && quality > 0) {
+            fx.beam(chestOf(s), () => o.head, colour, 720, 0.085);
+            fx.burst(o.head, colour, 5, 0.65);
+          }
+        }
+        break;
+      }
       if (e.k === 'carapace_imprint') {
         fx.ring(s.pos.x, s.pos.z, 1.3, 0x97b6a1, 430, s.pos.y);
         break;

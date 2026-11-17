@@ -112,6 +112,24 @@ try {
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Unlock is a fixture; deployment and sample collection use real server rules.
+  p.char.inventory.push('glyph_faultline');
+  p.char.attunements.push('resonance');
+  p.char.equipped.glyph='glyph_faultline';
+  server.game.refreshStats(p);
+  server.game.markDirty(p);
+  await moveTo(-3,58.4);
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.equipped.glyph==='glyph_faultline'&&s.ents.some(e=>e.c==='sinter_sampler');});
+  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('sinter:interferometer')));
+  const beforeSampleXp=p.char.xp;
+  // Actual ability; fixture only clears earlier cooldown from Brineworks for slow CI.
+  p.cds.field_rig=0;p.gcdUntil=0;
+  assert.ok(useAbility(server.game,p,'field_rig').ok);
+  await page.locator('#view').focus();
+  await page.keyboard.press('f');
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
+  assert.equal(p.char.xp,beforeSampleXp);
+  await capture('preview-evidence/04c-strata-interferometer.png');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});

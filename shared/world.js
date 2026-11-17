@@ -243,6 +243,7 @@ export const OBJECTS = [
   { key: 'survey_ledger', type: 'survey_ledger', name: 'Shift Ledger', x: 47, z: -32, r: 0.8 },
   { key: 'brine_research', type: 'brine_research', name: 'A · Research Station', x: 38, z: -39, r: 0, embedded: true },
   { key: 'brine_engineering', type: 'brine_engineering', name: 'B · Engineering Station', x: 49, z: -39, r: 0, embedded: true },
+  { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
