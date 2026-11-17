@@ -12,3 +12,7 @@ Review perspectives (simulated, not independent reviewers):
 - Retrospective: keep model-backed anatomy and existing mannequin proportions, do not invent a new race/rig or integrate unapproved prototype art. Explicitly test actual browser interactions and display; structural tests cannot establish visual acceptance or balance.
 
 Future, not implemented by this increment: physical stations from package 13, dedicated profession/tradeskill progression, quality levels, multi-slot anatomical implants, weapon assemblies, component-specific item art, trading and economy, recipe discoveries. Add incrementally against playtest evidence.
+
+## Verification checkpoint
+
+Server increment 94b2dfe passed hosted Node regression (run 44130545204). Integrated PR #8 is still blocked by browser evidence: first run aborted on observer-readiness race; synchronization corrected at 2497917, second run 44130071063 passed mutual visibility and several UI checks but failed time-sensitive movement/combat and downstream directive checks on SwiftShader. This does not prove a live-game defect or acceptance. Keep #8 unmerged until a successful representative playtest. Run the focused new UI path with `npm run e2e -- --workshop` (actual server, one browser, fixture grants only). This reuses the existing harness and pauses repeated world rendering after initial load; it is not a performance or full-playthrough claim. No separate test suite.

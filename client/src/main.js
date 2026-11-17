@@ -855,7 +855,10 @@ input.onClick = (button, x, y) => {
     const ent = pick(x, y, ['e', 'o', 'p']);
     if (!ent) return;
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
-    if (ent.meta.k === 'o') net.send({ t: 'act', id: ent.id });
+    if (ent.meta.k === 'o') {
+      if(ent.meta.c==='archivist')ui.openNpc(ent);
+      net.send({ t: 'act', id: ent.id });
+    }
     else {
       setTarget(ent.id);
       net.send({ t: 'atk' });

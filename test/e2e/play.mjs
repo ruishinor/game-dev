@@ -43,8 +43,8 @@ const browser = await launchBrowser();
 const QUERY = `q=0&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`;
 note(SOFTWARE_GL ? 'software WebGL: each client draws at most 1 frame per second (logic uncapped)' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
-async function openPlayer(slot, name, cls, look) {
-  const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, deviceScaleFactor: 1 });
+async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}) {
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.setDefaultTimeout(90000);
   page.on('pageerror', (e) => pageErrors.push(`${name}: ${e.message}`));
@@ -118,9 +118,83 @@ const settle = async (p, x, z) =>
     return s.pos && Math.hypot(s.pos.x - tx, s.pos.z - tz) < 1.5;
   }, [x, z], 6000, 'client to accept teleport');
 
+// Focused path through the same real client/server harness, without replaying
+// the long combat scenario on every UI change. Fixture only grants earned
+// items/materials and positions the player; the UI performs all mutations.
+async function workshopPlaytest(){
+  const P=await openPlayer('workshop','Mechanic','vanguard',undefined,{width:1200,height:720});
+  const page=P.page;
+  const player=serverPlayer('Mechanic');
+  const {grantItem,grantXp}=await import('../../server/sim/progress.js');
+  grantXp(game,player,100);
+  grantItem(game,player,'servo_harness');
+  grantItem(game,player,'kinetic_capacitor');
+  player.char.materials={sentinel_alloy:3,mire_fibre:1};
+  game.markDirty(player);
+  note('granted test equipment and salvage on server; all installation and fabrication use UI');
+  await page.waitForFunction(()=>window.__attune.state().drawn>=1&&window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:60000});
+  // Rendering once establishes the actual loaded model; pause continuous world
+  // drawing for UI interactions on software-rendered hosted runners.
+  await page.evaluate(()=>window.__attune.pause(true));
+  const npc=game.objects.find(o=>o.type==='archivist');
+  const npcPlate=page.locator('.plate[data-npc="archivist"]');
+  await npcPlate.click({timeout:20000});
+  const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
+  teleport('Mechanic',npc.x,npc.z+3);
+  await settle(P,npc.x,npc.z+3);
+  await page.locator('.npc-panel button').filter({hasText:/^Talk$/}).click();
+  const talk=await until(P,()=>document.querySelector('.npc-dialogue')?.textContent.includes('skitters breed'),null,10000,'NPC dialogue');
+  check('workshop UI: NPC model portrait and authoritative dialogue',npcVisible&&talk);
+  await page.locator('.npc-panel .close').click();
+  await page.keyboard.press('KeyC');
+  await page.locator('.doll-tabs [data-tab="gear"]').click();
+  check('workshop UI: class-specific model-backed anatomy',await page.locator('.equipment-sketch img').count()===1);
+  await page.keyboard.press('KeyI');
+  const source=page.locator('.inventory-window button.item-cell[aria-label="Sentinel Servo Harness"]');
+  const device=page.locator('.equipment-slot-grid [data-slot="device"]');
+  await source.dragTo(device,{timeout:15000});
+  await page.waitForFunction(()=>window.__attune.state().sheet.equipped.device==='servo_harness',null,{timeout:10000});
+  const installed=await device.getAttribute('data-state')==='installed';
+  await device.dragTo(page.locator('.inventory-grid .vacant').first(),{timeout:15000});
+  await page.waitForFunction(()=>!window.__attune.state().sheet.equipped.device,null,{timeout:10000});
+  const returned=await source.isVisible();
+  check('workshop UI: drag inventory to slot and back via server validation',installed&&returned);
+  await source.click({button:'right'});
+  await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
+  await page.waitForFunction(()=>window.__attune.state().sheet.equipped.device==='servo_harness',null,{timeout:10000});
+  await page.keyboard.press('KeyB');
+  await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
+  const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
+  await shot(P,'workshop-01-planner.png');
+  await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
+  await page.locator('.recipe-entry[data-recipe="coupler"]').click();
+  await page.locator('[data-craft="coupler"]').click();
+  await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1,null,{timeout:10000});
+  check('workshop UI: non-mutating planning and skill-gated intermediate fabrication',planned&&player.char.materials.sentinel_alloy===1);
+  await page.keyboard.press('KeyC');
+  await page.locator('.doll-tabs [data-tab="gear"]').click();
+  await device.click({button:'right'});
+  await page.locator('.player-context button').filter({hasText:'Upgrade'}).click();
+  const blocked=await page.locator('[data-craft="calibrate_servo"]').isDisabled();
+  await page.keyboard.press('KeyC');
+  await device.click({button:'right'});
+  await page.locator('.player-context button').filter({hasText:/^Unequip$/}).click();
+  await page.waitForFunction(()=>!window.__attune.state().sheet.equipped.device,null,{timeout:10000});
+  await source.click({button:'right'});
+  await page.locator('.player-context button').filter({hasText:'Upgrade'}).click();
+  await shot(P,'workshop-02-recipe.png');
+  await page.locator('[data-craft="calibrate_servo"]').click();
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('calibrated_servo'),null,{timeout:10000});
+  check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
+  check('workshop UI: no script/resource errors',pageErrors.length===0,pageErrors.slice(0,4).join(' | '));
+  await P.ctx.close();
+}
+
 let A;
 let B;
 try {
+  if(process.argv.includes('--workshop')) await workshopPlaytest();
+  else {
   // ------------------------------------------------------------- 1. entry
   A = await openPlayer('a', 'Brakka', 'vanguard');
   B = await openPlayer('b', 'Lumen', 'symbiotech');
@@ -749,6 +823,7 @@ try {
 
   check('no script errors in either browser', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
   void far;
+  }
 } catch (err) {
   check('script ran to completion', false, err.stack || String(err));
 } finally {

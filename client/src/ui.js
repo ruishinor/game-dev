@@ -219,7 +219,7 @@ export class UI {
         this.closePlayerContext(true);
       }else if(['Tab','ArrowUp','ArrowDown','Home','End'].includes(e.key)){
         e.preventDefault();
-        const buttons=[...this.playerContext.querySelectorAll('button')];
+        const buttons=[...this.playerContext.querySelectorAll('button:not(:disabled)')];
         if(!buttons.length)return;
         const i=buttons.indexOf(document.activeElement);
         const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:
