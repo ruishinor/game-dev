@@ -3,7 +3,18 @@ import assert from 'node:assert/strict';
 import { makeGame, makeChar, place } from './helpers.js';
 import { useAbility, dealDamage, getBuff, repairAegis, addBuff } from '../server/sim/combat.js';
 import { tickCompanion } from '../server/sim/companion.js';
+import { hasLineOfSight, resolveCollisions, inSanctum } from '../shared/world.js';
 
+// Find real clear ground, rather than disabling new cover rules for the old fixture.
+function echoGround(tank,primary,near,far){
+  for(let z=23;z<=39;z+=2)for(let x=-18;x<=18;x+=2){
+    const points=[{x,z},{x,z:z+3.5},{x,z:z-4},{x,z:z+8}];
+    if(points.some(p=>inSanctum(p)||Math.hypot(resolveCollisions(p,.8).x-p.x,resolveCollisions(p,.8).z-p.z)>1e-5))continue;
+    if(![[0,1],[0,2],[1,3]].every(([a,b])=>hasLineOfSight(points[a],points[b])))continue;
+    [tank,primary,near,far].forEach((ent,i)=>place(ent,points[i].x,points[i].z));return;
+  }
+  assert.fail('No clear combat fixture found');
+}
 const make = (g,cls,glyph) => g.addPlayer(makeChar(cls,{inventory:[glyph],attunements:['resonance'],equipped:{device:null,implant:null,glyph}}));
 
 test('Shared Pulse routes its secondary mend into a damaged Aegis, without healing health or renewing duration',()=>{
@@ -44,8 +55,7 @@ test('Carapace reflection relocates only one Rending Echo and consumes the livin
   const g=makeGame(), tank=make(g,'vanguard','glyph_rending_echo'), healer=make(g,'symbiotech','glyph_carapace');
   const [primary,near,far]=g.enemies.filter(e=>e.type==='skitter');
   for(const e of g.enemies) if(![primary,near,far].includes(e)){e.state='dead';e.respawnAt=Infinity;}
-  place(tank,0,35); place(healer,2,35);
-  place(primary,0,38.5); place(near,0,31); place(far,0,43);
+  echoGround(tank,primary,near,far);place(healer,tank.x+2,tank.z);
   addBuff(tank,{k:'bond',src:healer.companion.id,until:300,dr:0.45,reflect:6});
   dealDamage(g,primary,tank,7,'auto',{melee:true,kind:'melee'});
   assert.ok(getBuff(primary,'carapace_imprint'));
@@ -55,7 +65,7 @@ test('Carapace reflection relocates only one Rending Echo and consumes the livin
   assert.equal(near.hp,nh);
   assert.ok(far.hp<fh);
   assert.equal(getBuff(primary,'carapace_imprint'),null);
-  assert.ok(g.events.some(e=>e.e==='fx'&&e.k==='carapace_echo'&&e.z===38.5));
+  assert.ok(g.events.some(e=>e.e==='fx'&&e.k==='carapace_echo'&&e.z===primary.z));
   tank.cds.rending_arc=0; tank.gcdUntil=0;
   const nh2=near.hp,fh2=far.hp;
   assert.ok(useAbility(g,tank,'rending_arc').ok);
@@ -66,7 +76,7 @@ test('Carapace reflection relocates only one Rending Echo and consumes the livin
 test('expired imprint does not relocate Rending Echo',()=>{
   const g=makeGame(), tank=make(g,'vanguard','glyph_rending_echo');
   const [primary,near,far]=g.enemies.filter(e=>e.type==='skitter');
-  place(tank,0,35); place(primary,0,38.5); place(near,0,31); place(far,0,43);
+  echoGround(tank,primary,near,far);
   addBuff(primary,{k:'carapace_imprint',until:0,src:999});
   g.setTarget(tank,primary.id);
   const nh=near.hp,fh=far.hp;

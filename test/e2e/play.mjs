@@ -138,7 +138,9 @@ async function workshopPlaytest(){
   await page.evaluate(()=>window.__attune.pause(true));
   const npc=game.objects.find(o=>o.type==='archivist');
   const npcPlate=page.locator('.plate[data-npc="archivist"]');
-  await npcPlate.click({timeout:20000});
+  // The first synchronous offscreen portrait may compile a new WebGL context.
+  // Retain actual pointer activation; use the same generous timeout as other UI actions.
+  await npcPlate.click({timeout:90000});
   const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   teleport('Mechanic',npc.x,npc.z+3);
   await settle(P,npc.x,npc.z+3);

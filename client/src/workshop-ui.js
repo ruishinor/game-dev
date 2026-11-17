@@ -46,6 +46,7 @@ function planner(ui,body){
   compare('Healing modifier',s.stats.healMul,stats.healMul,pct);
   compare('Charge generation',s.stats.chargeMul,stats.chargeMul,pct);
   compare('Extra Discharge radius',s.stats.dischargeRadius,stats.dischargeRadius,n=>n+'m');
+  compare('Aegis capacity',s.stats.shieldMul,stats.shieldMul,pct);
   right.append(score);
   right.append(h('p',res.ok?(owned.ok?'met':'muted'):'why',!res.ok?'Requirements not met: '+res.reason:!owned.ok?'The proposed build is mechanically compatible, but one or more items are not owned.':'Requirements met with current ownership.'));
   if(!res.ok)right.append(h('p','muted','Statistics above are hypothetical; the build cannot be equipped as shown.'));
@@ -75,11 +76,13 @@ function fabrication(ui,body){
   }
   if(!Object.keys(recipe.inputs).length)source.append(h('p','muted','No additional material required.'));
   const target=h('div','recipe-part');
-  target.append(h('div','kicker','Target'));
-  if(recipe.target){
-    const has=s.inventory.includes(recipe.target),installed=Object.values(s.equipped).includes(recipe.target);
-    target.append(h('div','iname',ITEMS[recipe.target].name),h('p',has&&!installed?'met':'why',installed?'Installed — remove first':has?'Carried · consumed':'Not owned'));
-  }else target.append(h('p','muted','New assembly'));
+  const targets=recipe.targets??(recipe.target?[recipe.target]:[]);
+  target.append(h('div','kicker',recipe.kind==='fusion'?'Consumed equipment':'Target'));
+  for(const item of targets){
+    const has=s.inventory.includes(item),installed=Object.values(s.equipped).includes(item);
+    target.append(h('div','iname',ITEMS[item].name),h('p',has&&!installed?'met':'why',installed?'Installed — remove first':has?'Carried · consumed':'Not owned'));
+  }
+  if(!targets.length)target.append(h('p','muted','New assembly'));
   parts.append(source,target);
   const result=h('div','recipe-result');
   result.append(h('div','kicker','Result'),h('div','iname',output.name+(recipe.output.count?' × '+recipe.output.count:'')),h('p',null,output.summary||output.desc));
@@ -92,7 +95,7 @@ function fabrication(ui,body){
   const preview=previewRecipe(s,id);
   const reason=ui.buildLock?'Unavailable during combat or defeat.':!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'';
   if(reason)detail.append(h('p','why',reason));
-  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':'Fabricate',()=>ui.a.craft(id),'primary');
+  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
   body.append(list,detail);

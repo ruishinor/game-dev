@@ -14,6 +14,7 @@ export const MATERIALS={
 };
 export const SALVAGE={skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'};
 export const RECIPES={
+  aegis_rectifier:{name:'Fuse Aegis Rectifier',discipline:'Engineering',site:'brine_engineering',cls:'vanguard',kind:'fusion',attune:'resonance',requires:{kinetics:13},inputs:{kinetic_coupler:1},targets:['field_vector_array','conductive_membrane'],output:{item:'aegis_rectifier'}},
   coupler:{name:'Assemble kinetic coupler',discipline:'Engineering',requires:{kinetics:13},inputs:{sentinel_alloy:2,mire_fibre:1},output:{material:'kinetic_coupler',count:1}},
   matrix:{name:'Grow culture matrix',discipline:'Research',requires:{biotech:13},inputs:{mire_fibre:2,sentinel_alloy:1},output:{material:'culture_matrix',count:1}},
   calibrate_servo:{name:'Calibrate servo harness',discipline:'Engineering',kind:'upgrade',requires:{kinetics:11},inputs:{kinetic_coupler:1,sentinel_alloy:1},target:'servo_harness',output:{item:'calibrated_servo'}},
@@ -44,9 +45,12 @@ export function previewRecipe(char,id){
   for(const [skill,min] of Object.entries(recipe.requires||{})){
     if((skills[skill]||0)<min)return fail('Requires '+SKILL_NAMES[skill]+' '+min+' (you have '+(skills[skill]||0)+').');
   }
-  if(recipe.target){
-    if(!inventory.includes(recipe.target))return fail('Missing '+ITEMS[recipe.target].name+'.');
-    if(Object.values(char.equipped).includes(recipe.target))return fail('Unequip '+ITEMS[recipe.target].name+' first. Resolve equipment dependencies if required.');
+  if(recipe.cls&&recipe.cls!==char.cls)return fail('This recipe is not available to your profession.');
+  const targets=recipe.targets??(recipe.target?[recipe.target]:[]);
+  if(!Array.isArray(targets)||new Set(targets).size!==targets.length||targets.some(id=>!Object.hasOwn(ITEMS,id)))return fail('Invalid fusion inputs.');
+  for(const target of targets){
+    if(!inventory.includes(target))return fail('Missing '+ITEMS[target].name+'.');
+    if(Object.values(char.equipped).includes(target))return fail('Unequip '+ITEMS[target].name+' first. Resolve equipment dependencies if required.');
   }
   const output=recipe.output;
   if(output.item&&inventory.includes(output.item))return fail('You already own '+ITEMS[output.item].name+'.');
@@ -60,7 +64,7 @@ export function previewRecipe(char,id){
     if(count>MATERIAL_CAP)return fail('Material storage is full for '+MATERIALS[output.material].name+'.');
     materials[output.material]=count;
   }
-  if(recipe.target)inventory.splice(inventory.indexOf(recipe.target),1);
+  for(const target of targets)inventory.splice(inventory.indexOf(target),1);
   if(output.item)inventory.push(output.item);
   return {ok:true,inventory,materials};
 }

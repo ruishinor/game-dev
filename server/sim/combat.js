@@ -446,7 +446,7 @@ export function useAbility(game, p, abilityId) {
         if (dist(p, e) - e.radius <= radius && hasLineOfSight(p,e)) dealDamage(game, p, e, dmg, abilityId);
       }
       if (aegis) {
-        const shield = Math.round(charge * GLYPH.aegis.shieldPct * p.stats.power);
+        const shield = Math.round(charge * GLYPH.aegis.shieldPct * p.stats.power * p.stats.shieldMul);
         for (const ally of game.players.values()) {
           if (ally.dead || dist(p, ally) > radius) continue;
           addBuff(ally, { k: 'shield', until: game.time + GLYPH.aegis.dur, v: shield, cap: shield, src: p.id });

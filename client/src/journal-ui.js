@@ -12,6 +12,11 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  aegis_rectifier:'<path d="m12 2 8 4v6l-8 10-8-10V6zM4 6l8 6 8-6M12 12v10"/><circle cx="12" cy="8" r="2"/>',
+  brine_rescue_lattice:'<path d="M4 5h16v14H4zM12 6v12M6 12h12M4 5l4 4m12-4-4 4M4 19l4-4m12 4-4-4"/>',
+  keeper_resonator:'<path d="M5 4h14v16H5zM7 12l3-5 4 10 3-5"/>',
+  glyph_hinge:'<path d="M4 20V7l8-4 8 4v13M4 20l8-4 8 4M12 3v13"/>',
+
   sporeglass_focus:'<path d="M12 2 20 9 15 21 5 14zM12 2v14l8-7M5 14l7 2 3 5"/>',
   servo_harness:'<path d="M4 5h5v8h6V5h5v14h-5v-3H9v3H4z"/><path d="M9 9h6"/>',
   wardstone_shard:'<path d="m12 2 8 6-3 12-10 2-4-9zM12 2l-1 14 6 4M3 13l8 3 9-8"/>',
