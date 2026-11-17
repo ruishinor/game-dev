@@ -1,0 +1,41 @@
+name: Neural voice auditions
+on:
+  pull_request:
+    paths:
+      - 'tools/voice/**'
+      - '.github/workflows/voice-auditions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audition:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/prerecorded-radio-foundation')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install offline-production tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng ffmpeg
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
+          python -m pip install kokoro==0.9.4 soundfile==0.13.1
+      - name: Render candidate auditions
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
+          HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
+        run: python tools/voice/audition.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neural-voice-auditions-unreviewed
+          path: voice-auditions/
+          if-no-files-found: error
+          retention-days: 7

@@ -3,3 +3,5 @@ data/
 *.log
 test/e2e/out/
 .asset-cache/
+
+voice-auditions/
