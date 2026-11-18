@@ -22,6 +22,7 @@ import { QuestTracker } from './quest-tracker-ui.js';
 import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile } from './npc-interaction.js';
+import { placePartyMarker } from './minimap-party.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -1836,8 +1837,9 @@ export class UI {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
     }
+    const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
-      if (ent.id === st.me.id || ent.meta.k === 'c') continue;
+      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
@@ -1846,6 +1848,7 @@ export class UI {
       g.fill();
     }
     const partyLabels = [];
+    const placed = [{ x: X(st.me.pos.x), z: Z(st.me.pos.z) }];
     let number = 0;
     for (const member of st.party) {
       if (member.id === st.me.id) continue;
@@ -1853,11 +1856,20 @@ export class UI {
       const ent = st.ents.get(member.id);
       if (ent?.meta.k !== 'p') continue;
       const x = X(ent.pos.x), z = Z(ent.pos.z);
-      const scale = Math.min(1, (R - 9) / Math.hypot(x, z));
+      const marker = placePartyMarker(x, z, R - 9, placed);
+      placed.push(marker);
       const dx = ent.pos.x - st.me.pos.x, dz = ent.pos.z - st.me.pos.z;
       partyLabels.push(`${number} ${member.name}, ${Math.round(Math.hypot(dx, dz))} metres${ent.dead ? ', defeated' : ''}`);
+      if (Math.hypot(marker.x - x, marker.z - z) > 6.5) {
+        g.beginPath();
+        g.moveTo(x, z);
+        g.lineTo(marker.x, marker.z);
+        g.strokeStyle = '#8dbac5';
+        g.lineWidth = 1;
+        g.stroke();
+      }
       g.beginPath();
-      g.arc(x * scale, z * scale, 6.5, 0, Math.PI * 2);
+      g.arc(marker.x, marker.z, 6.5, 0, Math.PI * 2);
       g.fillStyle = ent.dead ? '#43332c' : '#123a46';
       g.fill();
       g.strokeStyle = '#a8e8f6';
@@ -1866,7 +1878,7 @@ export class UI {
       g.fillStyle = '#fff';
       g.font = 'bold 9px sans-serif';
       g.textAlign = 'center';
-      g.fillText(ent.dead ? '×' : String(number), x * scale, z * scale + 3);
+      g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
     }
     const mapLabel = ['World minimap', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);

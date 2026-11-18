@@ -4,7 +4,7 @@ import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { itemArt, itemTooltip } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
-import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities, productionTime, previewProduction, productionRisk } from '../../shared/crafting.js';
+import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities, productionTime, previewProduction, productionRisk, missingRecipeKnowledge } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import {recoveryRank} from '../../shared/recovery.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
@@ -108,12 +108,12 @@ function fabrication(ui,body){
     option.value = label;
     discipline.append(option);
   }
-  const filter = ui.recipeFilter ??= { query: '', discipline: 'All disciplines', materials: false, prioritize: false };
+  const filter = ui.recipeFilter ??= { query: '', discipline: 'All disciplines', materials: false, prioritize: false, learned: false };
   search.value = filter.query;
   discipline.value = filter.discipline;
   const controls = h('div', 'recipe-filters');
   controls.append(search, discipline);
-  for (const [key, label] of [['materials', 'Materials on hand'], ['prioritize', 'Craftable first']]) {
+  for (const [key, label] of [['materials', 'Materials on hand'], ['prioritize', 'Craftable first'], ['learned', 'Learned recipes']]) {
     const wrapper = h('label'), input = h('input');
     input.type = 'checkbox';
     input.checked = filter[key];
@@ -122,25 +122,29 @@ function fabrication(ui,body){
     controls.append(wrapper);
   }
   const site = ui.workshopSite ?? (ui.atSanctum ? 'sanctum' : null);
+  const detail=h('section','workshop-section recipe-detail');
   const buttons = [];
   for(const [key,r] of entries){
     const b=btn(r.name,()=>{ui.recipeId=key;ui.productionQuantity=null;renderWorkshop(ui);},'recipe-entry'+(key===id?' active':''));
     b.dataset.recipe=key;
-    const craftable = !ui.buildLock && canFabricateAt(r, site) && previewRecipe(s, key).ok;
+    const known = !missingRecipeKnowledge(s, r);
+    const craftable = known && !ui.buildLock && canFabricateAt(r, site) && previewRecipe(s, key).ok;
     const hasMaterials = Object.entries(r.inputs).every(([input, required]) => (s.materials?.[input] || 0) >= required);
     b.classList.toggle('recipe-unavailable', !craftable);
     const copy=h('div','recipe-entry-copy');
     copy.append(h('strong',null,r.name),h('small',null,r.discipline));
     b.replaceChildren(itemArt(outputId(r)),copy);
-    buttons.push({ b, craftable, hasMaterials, discipline: r.discipline, text: `${r.name} ${recipeOutput(r).name}`.toLowerCase() });
+    buttons.push({ b, craftable, hasMaterials, known, discipline: r.discipline, text: `${r.name} ${recipeOutput(r).name}`.toLowerCase() });
   }
   function applyFilters() {
     const query = filter.query.trim().toLowerCase();
     const shown = buttons.filter(row => row.text.includes(query)
       && (discipline.selectedIndex === 0 || row.discipline === filter.discipline)
+      && (!filter.learned || row.known)
       && (!filter.materials || row.hasMaterials));
     if (filter.prioritize) shown.sort((a, b) => Number(b.craftable) - Number(a.craftable));
     list.replaceChildren(...shown.map(row => row.b));
+    detail.hidden = !shown.some(row => row.b.dataset.recipe === id);
     if (!shown.length) list.append(h('p', 'muted', 'No recipes match these filters.'));
   }
   search.addEventListener('input', () => { filter.query = search.value; applyFilters(); });
@@ -153,7 +157,6 @@ function fabrication(ui,body){
   });
   discipline.addEventListener('change', () => { filter.discipline = discipline.value; applyFilters(); });
   applyFilters();
-  const detail=h('section','workshop-section recipe-detail');
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
   if (quantities.length > 1) {
     const label = h('label', 'production-quantity', 'Quantity');
@@ -210,7 +213,8 @@ function fabrication(ui,body){
   const names={sanctum:'Lattice Sanctum',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
   detail.append(row('Fabrication site',site?names[site]:'Outside workshop',siteOk));
   const preview=previewProduction(s,id,quantity);
-  const reason=ui.buildLock?'Unavailable during combat or defeat.':!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'';
+  const knowledge = missingRecipeKnowledge(s, recipe);
+  const reason=ui.buildLock?'Unavailable during combat or defeat.':knowledge || (!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'');
   if(reason)detail.append(h('p','why',reason));
   const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,quantity,s.inventoryRev),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;

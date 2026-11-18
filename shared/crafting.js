@@ -5,6 +5,7 @@ import { ITEMS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
 import { computeSkills } from './build.js';
 import { GOODS,GOODS_CAP,sanitizeGoods } from './goods.js';
 import {recoveryRank} from './recovery.js';
+import { surveyState } from './survey.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
@@ -107,9 +108,21 @@ export function productionRisk(id) {
   return null;
 }
 
+export function missingRecipeKnowledge(char, recipe) {
+  if (recipe.recoveryRank && recoveryRank(char.recoverySamples) < recipe.recoveryRank) {
+    return `Requires Field Recovery rank ${recipe.recoveryRank}.`;
+  }
+  if (recipe.site?.startsWith('brine_') && (char.brineStage !== 3 || !surveyState(char.survey)?.endsWith('_done'))) {
+    return 'Commission Brineworks to learn this recipe.';
+  }
+  return null;
+}
+
 export function previewProduction(char, id, quantity) {
   if (!Object.hasOwn(RECIPES, id)) return { ok: false, reason: 'Unknown recipe.' };
   const recipe = RECIPES[id];
+  const knowledge = missingRecipeKnowledge(char, recipe);
+  if (knowledge) return { ok: false, reason: knowledge };
   if (!productionQuantities(recipe).includes(quantity)) return { ok: false, reason: 'This quantity is unavailable.' };
   const cycles = quantity / (recipe.output.count || 1);
   let next = char;

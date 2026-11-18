@@ -4,7 +4,7 @@ import {makeChar,place} from './helpers.js';
 import {interact,craftRecipe} from '../server/sim/progress.js';
 import {recoverField} from '../server/sim/recovery.js';
 import {recoveryRank} from '../shared/recovery.js';
-import {previewRecipe} from '../shared/crafting.js';
+import {previewRecipe,previewProduction} from '../shared/crafting.js';
 import {CharacterStore} from '../server/store.js';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 function fixture(){
@@ -29,8 +29,10 @@ test('nonlethal recovery is range, ownership, combat, cooldown and capacity gate
 test('rank unlock lets every class fabricate an alternate utility recipe at an authorized workshop',()=>{
  const {g,p}=fixture();p.char.materials={sinter_flake:3,sentinel_alloy:1};p.char.recoverySamples=2;
  place(p,0,0);assert.equal(previewRecipe(p.char,'recovery_maintenance').ok,false);
+ assert.match(previewProduction(p.char,'recovery_maintenance',2).reason,/Field Recovery rank 2/);
  assert.equal(craftRecipe(g,p,'recovery_maintenance',p.utilityRev).ok,false);
  p.char.recoverySamples=3;assert.ok(previewRecipe(p.char,'recovery_maintenance').ok);
+ assert.ok(previewProduction(p.char,'recovery_maintenance',2).ok);
  const rev=p.utilityRev;assert.ok(craftRecipe(g,p,'recovery_maintenance',rev).ok);
  assert.deepEqual(p.char.materials,{sinter_flake:1});assert.equal(p.char.goods.field_maintenance_kit,2);
  assert.equal(craftRecipe(g,p,'recovery_maintenance',rev).ok,false);
