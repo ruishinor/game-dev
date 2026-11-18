@@ -6,6 +6,7 @@ import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { inventoryView } from './inventory-view.js';
+import { refinedItemMotif } from './item-artwork.js';
 
 function h(tag, cls, text) {
   const e=document.createElement(tag);
@@ -53,7 +54,7 @@ export function itemArt(id) {
   const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':Object.hasOwn(GOODS,id)?'junk':'');
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
-  e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(art[id]||art[slot]||art.glyph)+'</svg>';
+  e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
   return e;
 }
 function requirements(s,id) {

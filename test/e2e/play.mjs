@@ -136,19 +136,27 @@ async function workshopPlaytest(){
   await page.waitForFunction(()=>window.__attune.state().drawn>=1&&window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:60000});
   // Rendering once establishes the actual loaded model; pause continuous world
   // drawing for UI interactions on software-rendered hosted runners.
-  await page.evaluate(()=>window.__attune.pause(true));
   const npc=game.objects.find(o=>o.type==='archivist');
   const npcPlate=page.locator('.plate[data-npc="archivist"]');
-  // The first synchronous offscreen portrait may compile a new WebGL context.
-  // Retain actual pointer activation; use the same generous timeout as other UI actions.
-  await npcPlate.click({timeout:90000});
-  const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   teleport('Mechanic',npc.x,npc.z+3);
   await settle(P,npc.x,npc.z+3);
-  await page.locator('.npc-panel button').filter({hasText:/^Talk$/}).click();
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,face:Math.PI,dist:7}));
+  await npcPlate.click({timeout:90000});
+  const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   const talk=await until(P,()=>document.querySelector('.npc-dialogue')?.textContent.includes('skitters breed'),null,10000,'NPC dialogue');
-  check('workshop UI: NPC model portrait and authoritative dialogue',npcVisible&&talk);
-  await page.locator('.npc-panel .close').click();
+  const bounds=await page.locator('.npc-panel').boundingBox();
+  check('workshop UI: compact NPC bust and authoritative dialogue',npcVisible&&talk&&!!bounds&&bounds.width<=350&&bounds.height<=280);
+  await shot(P,'npc-01-dialogue.png');
+  teleport('Mechanic',npc.x+8,npc.z+3);
+  await page.locator('.npc-panel').waitFor({state:'hidden',timeout:10000});
+  check('NPC conversation closes when the player leaves range',await page.locator('.npc-panel').isHidden());
+  teleport('Mechanic',npc.x,npc.z+3);
+  await settle(P,npc.x,npc.z+3);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.locator('.npc-panel').waitFor({state:'visible',timeout:10000});
+  await page.keyboard.press('Escape');
+  check('NPC keyboard interaction opens and Escape dismisses',await page.locator('.npc-panel').isHidden());
+  await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
   check('workshop UI: class-specific model-backed anatomy',await page.locator('.equipment-sketch img').count()===1);
