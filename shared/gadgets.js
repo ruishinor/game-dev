@@ -20,7 +20,7 @@ export const GADGET_ITEMS = {
     summary:'Resonant Aegis: 35% greater shield capacity · −2m Discharge radius',
     desc:'A conductive membrane grown across collapsed vector vanes. Reverses the projection geometry, concentrating instead of dispersing charge. Requires Resonance. Shields from Resonant Aegis are 35% stronger, but Discharge reaches 2m less. Does not strengthen Keeper fields.',
   },
-  field_vector_array: {
+  field_vector_array: {rarity:'Uncommon',
     name: 'Field Vector Array',
     slot: 'device',
     cls: 'vanguard',
@@ -28,7 +28,7 @@ export const GADGET_ITEMS = {
     desc: 'Recovered projection vanes redistribute kinetic flux. Discharge and Resonant Aegis reach 2m further, but Charge generation is 20% lower.',
     summary: '+2m Discharge / Aegis radius; -20% Charge generation.',
   },
-  conductive_membrane: {
+  conductive_membrane: {rarity:'Common',
     name: 'Conductive Membrane',
     slot: 'device',
     skills: { kinetics: 2, biotech: 2 },

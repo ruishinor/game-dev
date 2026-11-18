@@ -52,6 +52,8 @@ const art={
   glyph_resonant_aegis:'<path d="m12 3 9 5v8l-9 5-9-5V8zM12 7v10M7 12h10"/>',
   glyph_rending_echo:'<path d="M3 18C8 9 13 5 21 5M7 21C12 12 16 9 22 9M2 11c3-5 7-7 12-8"/>',
   location:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/>',
+  chest:'<path d="m3 6 5-3 4 3 4-3 5 3-2 14H5Z" fill="#59696c"/><path d="M5 10h14M6 15h12M12 6v14" stroke="#b8bbab"/>',
+  blueprint:'<path d="M4 3h16v18H4Z" fill="#375565"/><path d="M7 7h10M7 10h10M7 14h4m3 0h3M7 17h10" stroke="#a7d8df"/>',
   glyph:'<path d="M12 2 22 12 12 22 2 12zM12 6l5 6-5 6-5-6z"/>',
   device:'<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM2 9h3m14 0h3M2 15h3m14 0h3"/>',
   implant:'<path d="M12 3 19 7v10l-7 4-7-4V7zM12 7v10M8 12h8"/>',
@@ -75,10 +77,10 @@ export function itemTooltip(sheet, id, { owned, required } = {}) {
   const item = ITEMS[id], material = MATERIALS[id], goods = GOODS[id];
   const def = item || material || goods;
   if (!def) return [];
-  const category = item ? SLOT_NAMES[item.slot] : material ? 'Material' : goods.rarity ? `${goods.rarity} relic` : goods.category;
+  const category = item ? SLOT_NAMES[item.slot] : material ? 'Material' : goods.category==='blueprint'?`${goods.rarity} blueprint`:goods.rarity ? `${goods.rarity} relic` : goods.category;
   const out = [
     h('div', 'tip-title', def.name),
-    h('div', 'tip-meta', category + (def.ql ? ' · QL ' + def.ql : '')),
+    h('div', 'tip-meta', category + (def.ql ? ' · QL ' + def.ql : '') + (item?.rarity?' · '+item.rarity:'')),
     h('div', 'tip-body', def.desc),
   ];
   if (owned !== undefined) out.push(h('div', 'tip-meta', required === undefined ? `Owned ${owned}` : `Owned ${owned} · Required ${required}`));
@@ -160,7 +162,7 @@ const LOADOUT_TABS = [
   {id:'character',name:'Character',slots:[]},
   {id:'gear',name:'Gear',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
-    present('arms','Arms',1,2),present('chest','Chest',2,2),present('hands','Hands',3,2),
+    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Hands',3,2),
     present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
     present('device','Device',1,4,'device'),present('utility','Utility',2,4),
   ]},
@@ -208,7 +210,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
@@ -315,7 +317,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.dataset.seenGroup=id;
@@ -344,6 +346,7 @@ export function renderInventory(ui) {
     const item=ITEMS[id];
     const btn=h('button','item-cell'+(ui.inventorySelection===id?' active':''));
     btn.append(itemArt(id));
+    if(item.rarity)btn.dataset.rarity=item.rarity;
     btn.title=item.name;btn.setAttribute('aria-label',item.name);
     bindItem(ui,btn,id);
     btn.addEventListener('click',()=>{ui.acknowledgeItem(id);ui.inventorySelection=id;renderInventory(ui);if(!ui.panel.hidden)ui.renderBuild();});
@@ -380,7 +383,8 @@ export function renderCodex(ui,abilityIcons) {
   const nav=h('nav','codex-nav');
   const query=(ui.codexQuery||'').trim().toLowerCase();
   const terms=query.split(/\s+/).filter(Boolean);
-  const matches=ENTRIES.filter(entry=>terms.every(term=>[entry.name,entry.group,entry.type,entry.desc,...entry.facts].join(' ').toLowerCase().includes(term)));
+  const visibleEntries=ENTRIES.filter(entry=>!entry.blueprint||ui.sheet?.goods?.[entry.blueprint]===1);
+  const matches=visibleEntries.filter(entry=>terms.every(term=>[entry.name,entry.group,entry.type,entry.desc,...entry.facts].join(' ').toLowerCase().includes(term)));
   if(query){
     nav.append(h('div','codex-results-count',matches.length+' result'+(matches.length===1?'':'s')));
     for(const entry of matches){
@@ -392,11 +396,11 @@ export function renderCodex(ui,abilityIcons) {
   }else for(const group of GROUPS){
     const btn=h('button','codex-category'+(ui.codexGroup===group?' active':''),group);
     btn.setAttribute('aria-expanded',String(ui.codexGroup===group));
-    btn.addEventListener('click',()=>{ui.codexGroup=group;ui.codexSelection=ENTRIES.find(e=>e.group===group)?.id||null;renderCodex(ui,abilityIcons);});
+    btn.addEventListener('click',()=>{ui.codexGroup=group;ui.codexSelection=visibleEntries.find(e=>e.group===group)?.id||null;renderCodex(ui,abilityIcons);});
     nav.append(btn);
     if(ui.codexGroup===group){
       const entries=h('div','codex-entries');
-      for(const entry of ENTRIES.filter(e=>e.group===group)){
+      for(const entry of visibleEntries.filter(e=>e.group===group)){
         const link=h('button','codex-entry'+(ui.codexSelection===entry.id?' active':''),entry.name);
         link.addEventListener('click',()=>{ui.codexSelection=entry.id;renderCodex(ui,abilityIcons);});
         entries.append(link);
@@ -405,7 +409,7 @@ export function renderCodex(ui,abilityIcons) {
       nav.append(entries);
     }
   }
-  const entry=(query?matches:ENTRIES).find(e=>e.id===ui.codexSelection&&e.group===ui.codexGroup);
+  const entry=(query?matches:visibleEntries).find(e=>e.id===ui.codexSelection&&e.group===ui.codexGroup);
   const copy=h('section','codex-copy'),imagePane=h('section','codex-image-pane');
   if(entry){
     copy.append(h('div','kicker',entry.type),h('h2',null,entry.name),h('p',null,entry.desc));

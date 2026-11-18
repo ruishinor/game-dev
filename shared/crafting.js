@@ -18,6 +18,9 @@ export const MATERIALS={
 };
 export const RECIPES={
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  field_chest:{name:'Assemble field composite vest',discipline:'Engineering',inputs:{mire_fibre:2,sentinel_alloy:2},output:{item:'field_chest'}},
+  reinforced_chest:{name:'Reinforce relay vest',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_relay_vest',inputs:{sentinel_alloy:3,mire_fibre:2},target:'field_chest',output:{item:'reinforced_chest'}},
+  resonant_chest:{name:'Line vest with resonance',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_resonant_vest',site:'brine_engineering',attune:'resonance',inputs:{resonance_fragment:1,kinetic_coupler:1},target:'reinforced_chest',output:{item:'resonant_chest'}},
   tune_emitter:{name:'Tune field pulse emitter',discipline:'Engineering',kind:'upgrade',inputs:{mire_fibre:2,sentinel_alloy:3},target:'field_emitter',output:{item:'tuned_emitter'}},
   dense_pulse_core:{name:'Rebuild Dense Pulse Core',discipline:'Engineering',site:'brine_engineering',kind:'upgrade',attune:'resonance',requires:{kinetics:13},inputs:{kinetic_coupler:2,resonance_fragment:1},target:'tuned_emitter',output:{item:'dense_pulse_core'}},
   longpoint_emitter:{name:'Rebuild Longpoint Emitter',discipline:'Engineering',site:'brine_engineering',kind:'upgrade',attune:'resonance',requires:{instrumentation:13},inputs:{resonance_fragment:1,sentinel_alloy:4,mire_fibre:2},target:'tuned_emitter',output:{item:'longpoint_emitter'}},
@@ -49,6 +52,7 @@ export function previewRecipe(char,id){
   const fail=reason=>({ok:false,reason});
   if(typeof id!=='string'||!Object.hasOwn(RECIPES,id))return fail('Unknown recipe.');
   const recipe=RECIPES[id];
+  if(recipe.blueprint&&sanitizeGoods(char.goods)[recipe.blueprint]!==1)return fail('Recover the required blueprint first.');
   if(recipe.recoveryRank&&recoveryRank(char.recoverySamples)<recipe.recoveryRank)return fail('Requires Field Recovery rank '+recipe.recoveryRank+'.');
   const inventory=[...char.inventory];
   const materials=sanitizeMaterials(char.materials);
@@ -109,6 +113,7 @@ export function productionRisk(id) {
 }
 
 export function missingRecipeKnowledge(char, recipe) {
+  if (recipe.blueprint && sanitizeGoods(char.goods)[recipe.blueprint] !== 1) return 'Recover the required blueprint first.';
   if (recipe.recoveryRank && recoveryRank(char.recoverySamples) < recipe.recoveryRank) {
     return `Requires Field Recovery rank ${recipe.recoveryRank}.`;
   }

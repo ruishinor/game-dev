@@ -2,7 +2,7 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop} from './loot-tables.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
@@ -19,7 +19,7 @@ export function distributeCorpseLoot(game,e,credited){
  for(const id of new Set(credited)){
   const p=game.players.get(id);if(!p||dist(p,e)>CREDIT_RANGE)continue;
   const entries=[],material=SALVAGE[e.type],goods=TRADE_SALVAGE[e.type];
-  // Keep the existing salvage yield and equipment probabilities.
+  // Preserve starter material recovery; equipment and blueprints roll independently.
   // A corpse without salvage or another successful reward remains empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
   for(const drop of itemDrops(e.type))if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
@@ -28,6 +28,8 @@ export function distributeCorpseLoot(game,e,credited){
   if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
   const relic=relicDrop(e.type,game.relicRng);
   if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
+  const print=blueprintDrop(e.type,game.blueprintRng);
+  if(print&&(p.char.goods?.[print]||0)<goodsCap(print))entries.push({id:print,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
  }
 }

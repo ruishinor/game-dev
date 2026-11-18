@@ -1,6 +1,8 @@
 // Public presentation and bounded stack representation. No acquisition
 // probabilities, prices, or mutable authority belong in this module.
 export const GOODS = Object.freeze({
+  blueprint_relay_vest:Object.freeze({name:'Blueprint: Reinforced Relay Vest',category:'blueprint',rarity:'Rare',cap:1,desc:'Retained engineering knowledge. Recover this blueprint to learn its recipe. It cannot be traded or consumed.'}),
+  blueprint_resonant_vest:Object.freeze({name:'Blueprint: Resonance-Lined Vest',category:'blueprint',rarity:'Very rare',cap:1,desc:'Retained advanced engineering knowledge. Recover this blueprint to learn its recipe. It cannot be traded or consumed.'}),
   vault_memory_foil:Object.freeze({name:'Vault Memory Foil',category:'relic',rarity:'Rare',cap:1,desc:'An etched memory surface from an obsolete containment apparatus. Retain it as an archival specimen; it has no combat modifier or trade value.'}),
   vault_witness_seal:Object.freeze({name:'Lattice Witness Seal',category:'relic',rarity:'Very rare',cap:1,desc:'A finely laminated seal bearing a witness mark that survived a containment event. A personal archival distinction, not a power upgrade or currency.'}),
   spent_contact: Object.freeze({name:'Spent contact assembly',category:'junk',desc:'A heat-damaged electrical contact. Unfit for field fabrication; recoverable as scrap.'}),

@@ -67,7 +67,7 @@ export class LootPanel{
    const btn=button('Loot '+def.name,'',()=>this.ui.a.lootTake(s.id,s.generation,entry.id));
    btn.className='loot-entry';btn.dataset.lootId=entry.id;if(def.rarity)btn.dataset.rarity=def.rarity;
    const picture=h('span','loot-slot');picture.append(entry.kind==='credits'?h('span','item-art','Cr'):itemArt(entry.id));if(entry.quantity>1)picture.append(h('span','stack-quantity',String(entry.quantity)));
-   const copy=h('span','loot-copy');copy.append(h('strong',null,def.name),h('small',null,entry.kind==='material'?'Material · × '+entry.quantity:entry.kind==='goods'?(def.rarity?def.rarity+' relic':def.category==='utility'?'Utility':'Junk')+' · × '+entry.quantity:entry.kind==='credits'?'Currency · '+entry.quantity:'Equipment'));
+   const copy=h('span','loot-copy');copy.append(h('strong',null,def.name),h('small',null,entry.kind==='material'?'Material · × '+entry.quantity:entry.kind==='goods'?(def.category==='blueprint'?def.rarity+' blueprint':def.rarity?def.rarity+' relic':def.category==='utility'?'Utility':'Junk')+' · × '+entry.quantity:entry.kind==='credits'?'Currency · '+entry.quantity:(def.rarity?def.rarity+' equipment':'Equipment')));
    btn.append(picture,copy);ui.hover(btn,()=>[h('div','tip-title',def.name),h('div','tip-body',def.desc||def.summary||'Recoverable item')]);list.append(btn);
   }
   const footer=h('div','loot-footer'),takeAll=button('Take all loot','Take all',()=>this.takeAll());

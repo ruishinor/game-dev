@@ -1,4 +1,4 @@
-// Server-only reward definitions. Existing calibrated rolls are preserved.
+// Server-only reward definitions. Equipment is never a guaranteed corpse award.
 // Do not import this module from browser-served code.
 const freezeDrops = drops => Object.freeze(drops.map(d => Object.freeze(d)));
 export const ENEMY_ITEM_DROPS = Object.freeze({
@@ -11,7 +11,7 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
     { item: 'field_vector_array', chance: 0.30 },
     { item: 'conductive_membrane', chance: 0.40 },
   ]),
-  warden: freezeDrops([{ item: 'wardstone_shard', chance: 1 }]),
+  warden: freezeDrops([{ item: 'wardstone_shard', chance: 0.12 }]),
 });
 export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'});
 // Generic playtest salvage; deliberately independent of equipment RNG.
@@ -30,4 +30,11 @@ export function relicDrop(type,rng){
  if(type!=='warden')return null;
  const n=rng();if(!Number.isFinite(n)||n<0||n>=1)return null;
  return n<.005?'vault_witness_seal':n<.08?'vault_memory_foil':null;
+}
+
+// Independent blueprint rolls do not advance the equipment or relic RNG.
+export function blueprintDrop(type,rng){
+ if(type!=='sentinel'&&type!=='warden')return null;
+ const n=rng();if(!Number.isFinite(n)||n<0||n>=1)return null;
+ return type==='sentinel'?(n<.04?'blueprint_relay_vest':null):(n<.008?'blueprint_resonant_vest':null);
 }

@@ -88,8 +88,8 @@ function planner(ui,body){
 }
 function fabrication(ui,body){
   const s=ui.sheet;
-  const entries=Object.entries(RECIPES);
-  const id=Object.hasOwn(RECIPES,ui.recipeId)?ui.recipeId:entries[0][0];
+  const entries=Object.entries(RECIPES).filter(([,r])=>!r.blueprint||s.goods?.[r.blueprint]===1);
+  const id=entries.some(([key])=>key===ui.recipeId)?ui.recipeId:entries[0][0];
   ui.recipeId=id;
   const recipe=RECIPES[id],output=recipeOutput(recipe);
   const quantities = productionQuantities(recipe);
@@ -220,7 +220,7 @@ function fabrication(ui,body){
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
   const catalogue = h('div', 'recipe-catalogue');
-  catalogue.append(controls,list);
+  catalogue.append(controls,h('p','muted','Recover rare blueprints to discover additional fabrication recipes.'),list);
   body.append(catalogue,detail);
 }
 
