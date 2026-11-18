@@ -102,6 +102,8 @@ test('http: serves the client, blocks traversal and unknown paths', async () => 
     assert.equal(publicContent.status, 200);
     assert.doesNotMatch(await publicContent.text(), /(?:\bloot:\s*\[|SENTINEL_GADGET_DROPS)/);
     assert.equal((await fetch(base + '/server/sim/loot-tables.js')).status, 404);
+    assert.equal((await fetch(base + '/server/sim/disposal.js')).status, 404);
+    assert.equal((await fetch(base + '/server/sim/production.js')).status, 404);
     assert.equal((await fetch(base + '/shared/..%2fserver/sim/loot-tables.js')).status, 404);
     const publicGadgets=await (await fetch(base + '/shared/gadgets.js')).text();
     assert.doesNotMatch(publicGadgets,/SENTINEL_GADGET_DROPS/);
@@ -299,6 +301,13 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await new Promise((r) => setTimeout(r, 1100));
     b.send({ t: 'use', a: 'mending_graft' });
     await a.until(() => a.events.some((e) => e.e === 'heal' && e.s === wb.id && e.d === wa.id && e.ab === 'mending_graft'), 3000, 'A sees the graft');
+    assert.ok(!a.events.some(e => e.e === 'heal' && e.s === wb.comp && e.d === wa.id));
+    b.send({ t: 'pet', c: 'guard' });
+    await b.until(() => b.events.some(e => e.k === 'err' && /party member/.test(e.m)), 3000, 'unrelated bond rejected');
+    b.send({ t: 'party_invite', id: wa.id });
+    await a.until(() => a.snap?.y?.party?.invite?.name === 'Lumen', 3000, 'combat party invitation');
+    a.send({ t: 'party_answer', accept: true });
+    await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'combat party rejoined');
     await a.until(() => a.events.some((e) => e.e === 'heal' && e.s === wb.comp && e.d === wa.id && e.ab === 'triage'), 5000, "A is mended by B's symbiote");
     const comp = a.ent(wb.comp);
     assert.equal(comp.md, 'triage');
@@ -625,8 +634,11 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
     p.x=0;p.z=8;
-    a.send({t:'craft',recipe:'matrix',owner:999,output:'wardstone_shard'});
-    await a.until(()=>a.sheet?.materials?.culture_matrix===1,3000,'workshop output');
+    await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
+    a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
+    await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');
+    assert.equal(a.sheet.materials.culture_matrix, undefined);
+    await a.until(()=>a.sheet?.materials?.culture_matrix===1,4000,'workshop output');
     assert.deepEqual(a.sheet.materials,{mire_fibre:1,culture_matrix:1});
     assert.ok(!a.sheet.inventory.includes('wardstone_shard'));
     p.x = 20;

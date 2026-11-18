@@ -19,3 +19,12 @@ export const TRADE_SALVAGE = Object.freeze({skitter:'mire_husk',sentinel:'spent_
 export function itemDrops(type) {
   return Object.hasOwn(ENEMY_ITEM_DROPS,type) ? ENEMY_ITEM_DROPS[type] : [];
 }
+
+// One independent exclusive archival-relic roll per eligible Vault Warden
+// recipient. Playtest probabilities are not part of browser presentation.
+// Never draw from or advance the existing gear/simulation RNG sequence.
+export function relicDrop(type,rng){
+ if(type!=='warden')return null;
+ const n=rng();if(!Number.isFinite(n)||n<0||n>=1)return null;
+ return n<.005?'vault_witness_seal':n<.08?'vault_memory_foil':null;
+}

@@ -4,9 +4,12 @@
 import { ITEMS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
 import { computeSkills } from './build.js';
 import { GOODS,GOODS_CAP,sanitizeGoods } from './goods.js';
+import {recoveryRank} from './recovery.js';
+import { surveyState } from './survey.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
+  sinter_flake:{name:'Loose sinter flake',desc:'Conductive surface shedding recovered without disturbing living mineral colonies or grazers.',source:'Loose deposits at Sinter Flats'},
   mire_fibre:{name:'Mire fibre',desc:'Conductive organic strands harvested from Mire Skitters.',source:'Mire Skitter'},
   sentinel_alloy:{name:'Sentinel alloy',desc:'Recoverable actuator alloy and contact assemblies.',source:'Rogue Sentinel'},
   resonance_fragment:{name:'Resonance fragment',desc:'An inert fragment recovered from the Vault Warden.',source:'Vault Warden'},
@@ -21,6 +24,7 @@ export const RECIPES={
   survey_strider_link:{name:'Assemble Survey Strider Link',discipline:'Engineering',site:'brine_engineering',cls:'surveyor',attune:'resonance',requires:{instrumentation:13},inputs:{sentinel_alloy:4,mire_fibre:2,resonance_fragment:1},output:{item:'survey_strider_link'}},
   coupler:{name:'Assemble kinetic coupler',discipline:'Engineering',requires:{kinetics:13},inputs:{sentinel_alloy:2,mire_fibre:1},output:{material:'kinetic_coupler',count:1}},
   field_maintenance_kit:{name:'Assemble field maintenance kits',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{goods:'field_maintenance_kit',count:2}},
+  recovery_maintenance:{name:'Recondition maintenance cassettes',discipline:'Engineering',recoveryRank:2,inputs:{sinter_flake:2,sentinel_alloy:1},output:{goods:'field_maintenance_kit',count:2}},
   matrix:{name:'Grow culture matrix',discipline:'Research',requires:{biotech:13},inputs:{mire_fibre:2,sentinel_alloy:1},output:{material:'culture_matrix',count:1}},
   calibrate_servo:{name:'Calibrate servo harness',discipline:'Engineering',kind:'upgrade',requires:{kinetics:11},inputs:{kinetic_coupler:1,sentinel_alloy:1},target:'servo_harness',output:{item:'calibrated_servo'}},
   cultivate_focus:{name:'Cultivate Sporeglass focus',discipline:'Research',kind:'upgrade',requires:{biotech:11},inputs:{culture_matrix:1,mire_fibre:1},target:'sporeglass_focus',output:{item:'cultured_focus'}},
@@ -45,6 +49,7 @@ export function previewRecipe(char,id){
   const fail=reason=>({ok:false,reason});
   if(typeof id!=='string'||!Object.hasOwn(RECIPES,id))return fail('Unknown recipe.');
   const recipe=RECIPES[id];
+  if(recipe.recoveryRank&&recoveryRank(char.recoverySamples)<recipe.recoveryRank)return fail('Requires Field Recovery rank '+recipe.recoveryRank+'.');
   const inventory=[...char.inventory];
   const materials=sanitizeMaterials(char.materials);
   const skills=computeSkills(char.cls,char.level,char.equipped);
@@ -83,3 +88,48 @@ export function previewRecipe(char,id){
 }
 
 export function canFabricateAt(recipe,site){return !!recipe && (site==='sanctum' ? !recipe.site : recipe.site ? recipe.site===site : (site==='brine_engineering'&&recipe.discipline==='Engineering')||(site==='brine_research'&&recipe.discipline==='Research'));}
+
+export function productionQuantities(recipe) {
+  const units = recipe.output.count || 1;
+  return recipe.output.item ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
+}
+
+export function productionTime(recipe) {
+  if (recipe.kind === 'fusion') return 2600;
+  if (recipe.kind === 'upgrade') return 1900;
+  if (recipe.discipline === 'Research') return 1450;
+  return 1100;
+}
+
+// The consequence is part of the player-facing recipe quote.
+export function productionRisk(id) {
+  if (id === 'dense_pulse_core') return 'kinetic_coupler';
+  if (id === 'longpoint_emitter') return 'sentinel_alloy';
+  return null;
+}
+
+export function missingRecipeKnowledge(char, recipe) {
+  if (recipe.recoveryRank && recoveryRank(char.recoverySamples) < recipe.recoveryRank) {
+    return `Requires Field Recovery rank ${recipe.recoveryRank}.`;
+  }
+  if (recipe.site?.startsWith('brine_') && (char.brineStage !== 3 || !surveyState(char.survey)?.endsWith('_done'))) {
+    return 'Commission Brineworks to learn this recipe.';
+  }
+  return null;
+}
+
+export function previewProduction(char, id, quantity) {
+  if (!Object.hasOwn(RECIPES, id)) return { ok: false, reason: 'Unknown recipe.' };
+  const recipe = RECIPES[id];
+  const knowledge = missingRecipeKnowledge(char, recipe);
+  if (knowledge) return { ok: false, reason: knowledge };
+  if (!productionQuantities(recipe).includes(quantity)) return { ok: false, reason: 'This quantity is unavailable.' };
+  const cycles = quantity / (recipe.output.count || 1);
+  let next = char;
+  for (let i = 0; i < cycles; i++) {
+    const step = previewRecipe(next, id);
+    if (!step.ok) return step;
+    next = { ...next, ...step };
+  }
+  return { ok: true, cycles };
+}

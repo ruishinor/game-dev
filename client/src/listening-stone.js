@@ -268,8 +268,12 @@ export function makeListeningStone() {
   const pv = new THREE.Vector3();
   const sv = new THREE.Vector3();
   let wake = 0;
+  let ringTime = null;
+  let orbitTime = null;
+  let medallionAngle = null;
   return {
     group,
+    worldLight: lamp,
     height: 7.0,
     radius: 1.0,
     hover: 0,
@@ -280,18 +284,24 @@ export function makeListeningStone() {
       const want = Math.min(1, Math.max(0, (12 - near) / 9));
       wake += (want - wake) * Math.min(1, (dt || 0) * 1.5);
       const k = wake + (st?.cast || 0);
+      // Integrate angular speed. Multiplying the whole elapsed time by the
+      // wake impulse made a late interaction jump much faster than an early one.
+      const motion = k / (1 + 0.18 * k);
+      ringTime = (ringTime ?? t) + dt * (1 + motion * 2);
+      orbitTime = (orbitTime ?? t) + dt * (1 + motion);
+      medallionAngle = (medallionAngle ?? t * 0.15) + dt * (0.15 + motion * 0.4);
       stoneMat.emissiveIntensity = 0.35 + 0.15 * Math.sin(t * 0.9) + k * 0.9;
       if (stoneMat.emissiveMap) stoneMat.emissiveMap.offset.y = Math.sin(t * 0.15) * 0.01 * (1 + k);
       gold.emissiveIntensity = 0.2 + k * 0.6;
       discMat.opacity = 0.55 + 0.35 * k;
-      disc.rotation.z = -t * (0.15 + k * 0.4);
+      disc.rotation.z = -medallionAngle;
       ringMat.opacity = 0.25 + 0.45 * k;
-      rings.forEach((m, i) => (m.rotation.z = t * (i % 2 ? -1 : 1) * (0.04 + 0.03 * i) * (1 + k * 2)));
-      arcs.forEach((p, i) => (p.rotation.z = t * (0.12 + i * 0.07) * (i % 2 ? -1 : 1) * (1 + k)));
+      rings.forEach((m, i) => (m.rotation.z = ringTime * (i % 2 ? -1 : 1) * (0.04 + 0.03 * i)));
+      arcs.forEach((p, i) => (p.rotation.z = orbitTime * (0.12 + i * 0.07) * (i % 2 ? -1 : 1)));
       arcMat.opacity = 0.35 + 0.45 * k;
       lamp.intensity = 8 + 16 * k;
       rocks.forEach((o, i) => {
-        const a = o.a + t * o.w * (1 + k);
+        const a = o.a + orbitTime * o.w;
         pv.set(Math.cos(a) * o.R, o.y + Math.sin(t * 0.6 + o.ph) * 0.25 + k * 0.3, Math.sin(a) * o.R);
         e.set(t * o.spin * 0.3, t * o.spin * 0.2, o.ph);
         q.setFromEuler(e);
@@ -301,7 +311,7 @@ export function makeListeningStone() {
       debris.instanceMatrix.needsUpdate = true;
       for (let i = 0; i < MOTES; i++) {
         const m = motes[i];
-        m.y += (dt || 0) * m.v * (1 + k);
+        m.y += dt * m.v * (1 + motion);
         if (m.y > 6.5) m.y = 0;
         const a = m.a + t * 0.2;
         motePos[i * 3] = Math.cos(a) * m.R;

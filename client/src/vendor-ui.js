@@ -1,6 +1,6 @@
 // The panel presents only the current scoped server quote. No pricing math
 // or balance mutation is accepted as authority from the browser.
-import {itemArt} from './journal-ui.js';
+import {itemArt,itemTooltip} from './journal-ui.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const button=(label,fn)=>{const el=h('button',null,label);el.type='button';el.addEventListener('click',fn);return el;};
 export class VendorPanel{
@@ -11,6 +11,7 @@ export class VendorPanel{
   ui.root.append(this.el);
  }
  dismiss(send=true){
+  if(this.el.contains(this.ui.tipFor))this.ui.tooltip.hidden=true;
   if(this.el.contains(document.activeElement))document.getElementById('view')?.focus({preventScroll:true});
   if(this.state){this.suppressed=this.state.ticket;if(send)this.ui.a.vendorClose();}
   this.state=null;this.pending=null;this.signature='';this.el.hidden=true;
@@ -34,6 +35,7 @@ export class VendorPanel{
  }
  draw(){
   const s=this.state;if(!s)return;const focus=this.el.contains(document.activeElement)?document.activeElement?.dataset.focus:null;
+  if(this.el.contains(this.ui.tipFor))this.ui.tooltip.hidden=true;
   this.el.hidden=false;this.el.replaceChildren();
   const close=button('×',()=>this.dismiss());close.className='close';close.setAttribute('aria-label','Close vendor');
   this.el.append(h('div','kicker','LATTICE SANCTUM · SUPPLY'),h('h2',null,s.name),close,h('div','vendor-balance',s.credits+' credits'));
@@ -46,7 +48,12 @@ export class VendorPanel{
   for(const row of s[this.tab]||[]){
    const item=h('div','vendor-row'),copy=h('div','vendor-copy');
    copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(this.tab==='sell'?' · × '+row.quantity:'')));
-   item.append(itemArt(row.id),copy);
+   const artwork = itemArt(row.id);
+   item.append(artwork,copy);
+   copy.tabIndex=0;
+   copy.dataset.focus=this.tab+'-info-'+row.id;
+   this.ui.hover(copy,()=>itemTooltip(this.ui.sheet,row.id));
+   this.ui.hover(artwork,()=>itemTooltip(this.ui.sheet,row.id));
    const controls=h('div','vendor-actions');
    const make=(label,id,qty,disabled)=>{const b=button(label,()=>this.trade(this.tab,id,qty));b.dataset.focus=this.tab+'-'+id+'-'+qty;b.disabled=!!this.pending||disabled;controls.append(b);};
    if(this.tab==='buy'){make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);}
@@ -59,6 +66,6 @@ export class VendorPanel{
   this.el.append(list);
   if(this.tab==='sell'){const all=button('Sell all junk',()=>this.trade('sell_junk','',1));all.dataset.focus='sell-all';all.disabled=!s.sell.length||!!this.pending;this.el.append(all);}
   this.el.append(h('p','muted','Only trade salvage can be sold here. Buyback is available during this visit. Only equipment marked repairable is affected by condition.'));
-  if(focus)[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focus)?.focus({preventScroll:true});
+  if(focus)[...this.el.querySelectorAll('[data-focus]')].find(b=>b.dataset.focus===focus)?.focus({preventScroll:true});
  }
 }

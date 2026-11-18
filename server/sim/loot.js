@@ -2,8 +2,8 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE} from './loot-tables.js';
-import {GOODS,GOODS_CAP} from '../../shared/goods.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop} from './loot-tables.js';
+import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
 import {dist,hasLineOfSight} from '../../shared/world.js';
 import {CORPSE_MS} from './game.js';
@@ -22,7 +22,9 @@ export function distributeCorpseLoot(game,e,credited){
   // A corpse without salvage and with no successful item roll is empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
   for(const drop of itemDrops(e.type))if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
-  if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<GOODS_CAP)entries.push({id:goods,kind:'goods',quantity:1});
+  if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<goodsCap(goods))entries.push({id:goods,kind:'goods',quantity:1});
+  const relic=relicDrop(e.type,game.relicRng);
+  if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
  }
 }

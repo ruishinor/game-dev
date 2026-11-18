@@ -4,7 +4,7 @@ import { CLASSES, ITEMS, SURVEYOR, directiveFor } from '../shared/content.js';
 import { useAbility, dealDamage } from '../server/sim/combat.js';
 import { petCommand } from '../server/sim/companion.js';
 import { equipItem } from '../server/sim/progress.js';
-import { makeChar, makeGame, place, enemyOf, isolate } from './helpers.js';
+import { makeChar, makeGame, place, enemyOf, isolate, finishInscription } from './helpers.js';
 
 function fixture(over = {}) {
   const game = makeGame();
@@ -104,6 +104,7 @@ test('rig expiry and death remove deployables; safe-zone deployment denied; glyp
   assert.equal(p.surveyKit.rig,null);
   advance(game,5000); p.combatUntil=0;
   assert.ok(equipItem(game,p,'glyph_wideband').ok);
+  finishInscription(game,p);
   assert.ok(useAbility(game,p,'fault_scan').ok);
   assert.equal(p.surveyKit.mark.until-game.time,14000);
   advance(game,1000);
