@@ -3,6 +3,7 @@
 import {surveyState,brineStage} from '../../shared/survey.js';
 import {dist,hasLineOfSight} from '../../shared/world.js';
 import {MATERIALS,MATERIAL_CAP,sanitizeMaterials} from '../../shared/crafting.js';
+import {riftQuestEntries} from './rift-journal.js';
 const states=new Set(['briefed','strata_first','recorder_first','strata_ready','recorder_ready','strata_done','recorder_done']);
 export function sanitizeTraceState(raw){return typeof raw==='string'&&states.has(raw)?raw:null;}
 const eligible=c=>c.level>=3&&c.attunements.includes('resonance')&&surveyState(c.survey)?.endsWith('_done')&&brineStage(c.brineStage)===3;
@@ -19,10 +20,11 @@ const lines={
  recorder_done:'Reported the recorder-first interpretation to Archivist Venn. The instrument timing was the key evidence.'
 };
 export function fieldQuestProjection(char){
- const s=sanitizeTraceState(char.traceState);if(!s)return {};
+ const entries=riftQuestEntries(char);
+ const s=sanitizeTraceState(char.traceState);if(!s)return entries.length?{fieldQuests:entries}:{};
  const done=s.endsWith('_done'),readings=s==='briefed'?0:s.endsWith('_first')?1:2;
  const rewards=[TRACE_REWARD_XP+' XP',readings===2?'1 × '+MATERIALS[traceMaterial(s)].name:'Research allotment (revealed after both readings)'];
- return {fieldQuests:[{id:'field:residual_traces',title:TITLE,group:'Field research',status:done?'completed':'active',text:lines[s],progress:readings+' / 2 readings',rewards}]};
+ return {fieldQuests:[...entries,{id:'field:residual_traces',title:TITLE,group:'Field research',status:done?'completed':'active',text:lines[s],progress:readings+' / 2 readings',rewards}]};
 }
 const speak=(p,obj,m)=>p.outbox.push({e:'say',id:obj.id,n:obj.name,m});
 function set(game,p,state){p.char.traceState=state;game.markDirty(p);}

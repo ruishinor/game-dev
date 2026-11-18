@@ -297,7 +297,7 @@ export function interact(game, p, objectId) {
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
-  if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj);
+  if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
       game.message(p, 'info', 'The stone hums in recognition. You are already attuned.');
