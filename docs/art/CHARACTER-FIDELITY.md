@@ -53,6 +53,12 @@ inspect up close.
     looks at the target.
   - Expressions from presentation state: combat, cast, attack, hit and
     death (eyes closed), plus talking NPC jaw movement.
+- **Gloves and NPC faces**: armoured, laboratory and field looks wear
+  gloves (`gloves: true` uses the look's `joints` part). Archivist Venn and
+  the Quartermaster have pinned faces.
+- **Face LOD**: eyes, lashes and teeth are drawn only within 12 m of the
+  camera. Each character's identity shape is baked into its own geometry
+  once, so the GPU evaluates only expression morphs.
 - **Appearance**: deterministic from the character name, so every client draws
   the same face without server data. The name sets skin tone, hair and eye
   colour, hair style, brow density, stubble, age and identity weights. Looks
@@ -70,9 +76,16 @@ targets the build uses.
 
 - `npm run assets:build -- humanoid_m humanoid_f skin_albedo skin_normal skin_orm skin_masks eye_albedo lash_alpha` regenerates the outputs.
 - `node tools/dev/face-capture.mjs <dir>` renders matched in-game close-ups
-  (front, three-quarter, side) and a gameplay-distance shot for every look.
-  It uses SwiftShader software rendering, so the images are evidence of
-  appearance only, not performance.
+  (front, three-quarter, side) and a gameplay-distance shot.
+  - It covers every player look and the Archivist and Quartermaster NPCs.
+  - It works on this branch and on the mannequin baseline (Head-bone
+    framing), so before/after shots match.
+  - `?facelod=0` keeps the eyes, lashes and teeth drawn at any distance.
+  - New review evidence is git-ignored (`/docs/evidence/`), per the
+    publication rules. Generate it locally.
+  - It uses SwiftShader software rendering, so the images are evidence of
+    appearance only, not performance.
+- `node test/e2e/play.mjs`: 72/72 locally, the same as the baseline line.
 - `node tools/dev/glb-view.mjs <glb> <prefix> [clip]` renders an isolated
   turntable view.
 
@@ -86,3 +99,6 @@ targets the build uses.
 - There are no established races in the lore or code. Individual variation
   is human only. Adding races is an owner decision.
 - No hardware GPU timing has been measured.
+- The skin maps use about 70 MB of GPU memory (three 2048 maps, mipmapped),
+  shared by every character. Halving the mask map is the first saving if the
+  780M budget is tight.

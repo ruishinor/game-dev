@@ -1496,7 +1496,7 @@ function updateEntities(dt, t, now) {
     }
     ent.model.update(dt, {
       lookAt,
-      faceDetail: ent.inView && camD < 16,
+      faceDetail: ent.inView && (camD < 12 || fullFaceDetail),
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
@@ -1625,6 +1625,8 @@ function setQuality(q) {
 // add &qlock=1 to also stop it adapting to the frame rate (for captures).
 const wantQ = params.get('q');
 const qualityLocked = params.get('qlock') === '1';
+// ?facelod=0 keeps eyes, lashes and teeth drawn at any distance (close-up captures).
+const fullFaceDetail = params.get('facelod') === '0';
 if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
 
 const drawGap = Number(params.get('rfps')) > 0 ? 1000 / Number(params.get('rfps')) - 2 : 0;

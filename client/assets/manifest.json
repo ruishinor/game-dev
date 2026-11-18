@@ -118,11 +118,11 @@
   "humanoid_f": {
    "kind": "humanoid",
    "url": "humanoid_f.glb",
-   "bytes": 1434072,
-   "rawBytes": 11659868,
-   "hash": "3e289378c549",
-   "tris": 60328,
-   "sourceTris": 60328,
+   "bytes": 1162220,
+   "rawBytes": 9784832,
+   "hash": "19337313dfbf",
+   "tris": 38398,
+   "sourceTris": 38398,
    "clips": {},
    "shells": {
     "helmet": 396,
@@ -222,11 +222,11 @@
   "humanoid_m": {
    "kind": "humanoid",
    "url": "humanoid_m.glb",
-   "bytes": 2049996,
-   "rawBytes": 18233336,
-   "hash": "7f8db96b4303",
-   "tris": 59984,
-   "sourceTris": 59984,
+   "bytes": 1783708,
+   "rawBytes": 16378024,
+   "hash": "fd20c5269798",
+   "tris": 38390,
+   "sourceTris": 38390,
    "clips": {
     "Consume": 1.333,
     "Hit_Knockback": 0.833,

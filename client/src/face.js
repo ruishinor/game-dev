@@ -225,10 +225,9 @@ export function hairMaterial(ap) {
       .replace(
         'void main() {',
         `varying vec3 vHairP; varying vec3 vHairF; varying vec2 vHairL;
-float hHash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-float hNoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(hHash(i), hHash(i + vec3(1,0,0)), f.x), mix(hHash(i + vec3(0,1,0)), hHash(i + vec3(1,1,0)), f.x), f.y),
-             mix(mix(hHash(i + vec3(0,0,1)), hHash(i + vec3(1,0,1)), f.x), mix(hHash(i + vec3(0,1,1)), hHash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float hHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hNoise(vec2 x){ vec2 i = floor(x); vec2 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hHash(i), hHash(i + vec2(1.0, 0.0)), f.x), mix(hHash(i + vec2(0.0, 1.0)), hHash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {`,
       )
       .replace(
@@ -236,12 +235,14 @@ void main() {`,
         `#include <map_fragment>
 	vec3 fl = normalize( vHairF + 1e-5 );
 	float along = dot( vHairP, fl );
-	vec3 across = vHairP - fl * along;
+	// Coordinate across the strands: a fixed axis made perpendicular to the comb direction.
+	vec3 ax = normalize( cross( fl, vec3( 0.31, 0.83, 0.47 ) ) + 1e-5 );
+	vec2 sp = vec2( dot( vHairP, ax ) * 1300.0, along * 30.0 );
+	float strand = hNoise( sp );
 	float h = vHairL.x;
-	float strand = hNoise( across * 1400.0 + fl * along * 40.0 ) * 0.7 + hNoise( across * 420.0 + fl * along * 14.0 ) * 0.3;
-	float keep = strand - ( 0.18 + 0.72 * h * h ) - ( 1.0 - vHairL.y ) * 0.6;
+	float keep = strand - ( 0.16 + 0.74 * h * h ) - ( 1.0 - vHairL.y ) * 0.6;
 	if ( keep < 0.0 ) discard;
-	float clump = hNoise( across * 160.0 + fl * along * 6.0 );
+	float clump = hNoise( sp * vec2( 0.11, 0.2 ) + 17.0 );
 	diffuseColor.rgb *= mix( 0.42, 1.08, h ) * ( 0.82 + 0.3 * clump ) * ( 0.9 + 0.2 * strand );`,
       )
       .replace(
@@ -250,7 +251,7 @@ void main() {`,
 	roughnessFactor = mix( 0.62, 0.42, h );`,
       );
   };
-  m.customProgramCacheKey = () => 'attune-hair-v1';
+  m.customProgramCacheKey = () => 'attune-hair-v2';
   return m;
 }
 
@@ -259,6 +260,67 @@ export function lashMaterial(assets, ap) {
   const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(ap.hair).multiplyScalar(0.6), alphaMap: tex, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.6, metalness: 0 });
   m.name = 'lashes';
   return m;
+}
+
+// --- identity bake -------------------------------------------------------------
+
+/**
+ * Fold a character's constant identity morphs into its own copy of the
+ * geometry and drop them from the morph set, so the vertex shader only
+ * evaluates the expressions that actually animate (or none, for hair).
+ */
+function bakeIdentity(mesh, weights, keep) {
+  const g0 = mesh.geometry;
+  const dict = mesh.morphTargetDictionary;
+  const mp = g0.morphAttributes.position;
+  if (!dict || !mp) return;
+  const g = g0.clone();
+  g.userData = {};
+  const pos = new THREE.Float32BufferAttribute(g0.attributes.position.count * 3, 3);
+  const nrm = g0.attributes.normal ? new THREE.Float32BufferAttribute(g0.attributes.normal.count * 3, 3) : null;
+  const src = g0.attributes.position;
+  const srcN = g0.attributes.normal;
+  for (let i = 0; i < src.count; i++) {
+    pos.setXYZ(i, src.getX(i), src.getY(i), src.getZ(i));
+    if (nrm) nrm.setXYZ(i, srcN.getX(i), srcN.getY(i), srcN.getZ(i));
+  }
+  const mn = g0.morphAttributes.normal;
+  const kept = [];
+  for (const [name, idx] of Object.entries(dict)) {
+    if (keep(name)) {
+      kept.push([name, idx]);
+      continue;
+    }
+    const w = weights[name] || 0;
+    if (!w) continue;
+    const d = mp[idx];
+    for (let i = 0; i < d.count; i++) pos.setXYZ(i, pos.getX(i) + d.getX(i) * w, pos.getY(i) + d.getY(i) * w, pos.getZ(i) + d.getZ(i) * w);
+    if (nrm && mn?.[idx]) {
+      const dn = mn[idx];
+      for (let i = 0; i < dn.count; i++) nrm.setXYZ(i, nrm.getX(i) + dn.getX(i) * w, nrm.getY(i) + dn.getY(i) * w, nrm.getZ(i) + dn.getZ(i) * w);
+    }
+  }
+  if (nrm) for (let i = 0; i < nrm.count; i++) {
+    const x = nrm.getX(i), y = nrm.getY(i), z = nrm.getZ(i);
+    const l = Math.hypot(x, y, z) || 1;
+    nrm.setXYZ(i, x / l, y / l, z / l);
+  }
+  g.setAttribute('position', pos);
+  if (nrm) g.setAttribute('normal', nrm);
+  kept.sort((a, b) => a[1] - b[1]);
+  g.morphAttributes = {};
+  if (kept.length) {
+    g.morphAttributes.position = kept.map(([, i]) => mp[i]);
+    if (mn) g.morphAttributes.normal = kept.map(([, i]) => mn[i]);
+  }
+  g.morphTargetsRelative = g0.morphTargetsRelative;
+  mesh.geometry = g;
+  mesh.morphTargetDictionary = Object.fromEntries(kept.map(([name], k) => [name, k]));
+  mesh.morphTargetInfluences = kept.map(() => 0);
+  if (!kept.length) {
+    mesh.morphTargetDictionary = undefined;
+    mesh.morphTargetInfluences = undefined;
+  }
 }
 
 // --- rig ---------------------------------------------------------------------
@@ -273,7 +335,7 @@ const FWD = new THREE.Vector3(0, 0, 1);
  * Dress the face meshes of a humanoid instance and return a controller.
  * opts.faceless: draw the head with the body suit (looks without a face).
  */
-export function setupFace(inst, ap, assets, { faceless = false, hideHead = false, suitMaterial = null, hood = false } = {}) {
+export function setupFace(inst, ap, assets, { faceless = false, hideHead = false, suitMaterial = null, hood = false, gloveMaterial = null } = {}) {
   // Under a hood, longer styles would push through the cloth.
   const hairStyle = hood && ap.hairStyle !== 'shaved' ? 'buzz' : ap.hairStyle;
   const nodes = {};
@@ -296,11 +358,15 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
     if (o.morphTargetInfluences) morphMeshes.push(o);
     o.visible = !hideHead;
   }
-  for (const o of nodes.hands || []) o.material = faceless && suitMaterial ? suitMaterial : skin;
+  for (const o of nodes.hands || []) o.material = faceless && suitMaterial ? suitMaterial : gloveMaterial || skin;
   let eyeMat = null;
   for (const o of nodes.eyes || []) {
-    if (o.material.name === 'cornea') o.material = corneaMaterial();
-    else {
+    if (o.material.name === 'cornea') {
+      // The eyeball's clear coat already carries the wet highlight; a fully
+      // transparent cornea shell would only add overdraw.
+      o.visible = false;
+      continue;
+    } else {
       o.geometry.computeBoundingBox();
       o.material = eyeMat ??= eyeMaterial(assets, ap, o.geometry.boundingBox.getCenter(new THREE.Vector3()).y);
     }
@@ -315,8 +381,10 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
     for (const o of list) {
       o.material = hairMat;
       o.visible = !faceless && !hideHead && part === `hair_${hairStyle}`;
-      o.castShadow = o.visible;
+      // The head already shadows the scalp; alpha-tested layers in the shadow pass cost more than they add.
+      o.castShadow = false;
       o.frustumCulled = false;
+      o.userData.hairLayers = true;
       if (o.visible && o.morphTargetInfluences) morphMeshes.push(o);
     }
   }
@@ -331,6 +399,18 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
     o.receiveShadow = true;
     o.frustumCulled = false;
   }
+  // Identity weights are kept inside the range the build verified keeps the
+  // lids and cheeks clear of the eyeballs (extras.ranges).
+  const ranges = morphMeshes[0]?.userData?.ranges || {};
+  const idWeights = {};
+  for (const name of [...ID_MORPHS, 'age']) {
+    const r = ranges[name] || [-1, 1];
+    idWeights[name] = Math.max(r[0] * 0.9, Math.min(r[1] * 0.9, ap.morph?.[name] || 0));
+  }
+  const isExpression = (name) => !ID_MORPHS.includes(name) && name !== 'age';
+  for (const o of morphMeshes) bakeIdentity(o, idWeights, (name) => isExpression(name) && !o.userData.hairLayers);
+  // Hair has no expressions left; it stops being a morph mesh.
+  for (let i = morphMeshes.length - 1; i >= 0; i--) if (!morphMeshes[i].morphTargetInfluences) morphMeshes.splice(i, 1);
   // Morph weights by name (each mesh has its own dictionary).
   const set = (name, w) => {
     for (const o of morphMeshes) {
@@ -338,13 +418,7 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
       if (i !== undefined) o.morphTargetInfluences[i] = w;
     }
   };
-  // Identity weights are kept inside the range the build verified keeps the
-  // lids and cheeks clear of the eyeballs (extras.ranges).
-  const ranges = morphMeshes[0]?.userData?.ranges || {};
-  for (const name of [...ID_MORPHS, 'age']) {
-    const r = ranges[name] || [-1, 1];
-    set(name, Math.max(r[0] * 0.9, Math.min(r[1] * 0.9, ap.morph?.[name] || 0)));
-  }
+
   // Identity morphs reshape the sockets; move the eyeballs with them.
   const shift = morphMeshes[0]?.userData?.eyeShift || morphMeshes[0]?.parent?.userData?.eyeShift || null;
 
@@ -393,9 +467,16 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
   for (const n of exprNames) S.expr[n] = 0;
   let mood = { smile: (r() - 0.3) * 0.25 };
 
+  // Small parts that only matter up close (eyes, lashes, teeth).
+  const detail = [...(nodes.eyes || []), ...(nodes.lashes || []), ...(nodes.teeth || [])].filter((o) => o.visible);
+  let detailShown = true;
   function update(dt, st = {}) {
     if (!morphMeshes.length) return;
     const near = st.faceDetail !== false;
+    if (near !== detailShown) {
+      detailShown = near;
+      for (const o of detail) o.visible = near;
+    }
     // --- blinking: natural interval, occasional double blink, closed when dead
     S.blinkIn -= dt;
     if (S.blinkT < 0 && S.blinkIn <= 0) {

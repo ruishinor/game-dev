@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { HUMANOIDS, KITS, SHELLS, TEXTURES, FACE_TEXTURES } from '../../assets/recipe.mjs';
 import { CACHE, LEDGER, fetchAll } from './fetch.mjs';
-import { readGltf, mergePieces, hueShift, attachEmissive, optimise, writeGlb, rawSize, triangleCount } from './lib/gltf.mjs';
+import { readGltf, mergePieces, hueShift, attachEmissive, optimise, writeGlb, rawSize, triangleCount, simplifySelected } from './lib/gltf.mjs';
 import { addRetargetedClips, trimClips, checkRestPose, clipDurations, buildBody } from './lib/humanoid.mjs';
 import { LOOK_TEXTURES, renderLookTexture } from './lib/paint.mjs';
 import { MakeHuman } from './lib/makehuman.mjs';
@@ -70,6 +70,8 @@ async function buildHumanoid(spec) {
   let mh = null;
   if (spec.makehuman) mh = new MakeHuman(path.join(CACHE, 'makehuman'));
   const body = spec.makehuman ? replaceWithMakeHuman(doc, mh, spec.makehuman, SHELLS) : buildBody(doc, SHELLS);
+  // Mostly hidden surfaces lose detail; the face, hands and hair keep theirs.
+  if (spec.makehuman?.simplify) body.simplified = await simplifySelected(doc, spec.makehuman.simplify);
   const scene = doc.getRoot().getDefaultScene() || doc.getRoot().listScenes()[0];
   const tris = scene.listChildren().reduce((n, c) => n + triangleCount(c), 0);
   const clips = clipDurations(doc);

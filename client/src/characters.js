@@ -118,7 +118,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
     mats.push(faceSuit);
   }
-  const face = setupFace(inst, ap, assets, { faceless: !!def.faceless, hideHead: helmet || !!def.faceless, suitMaterial: faceSuit, hood: !!def.shells.hood });
+  const gloves = def.gloves ? mats.find((m) => m.name === 'joints') || null : null;
+  const face = setupFace(inst, ap, assets, { faceless: !!def.faceless, hideHead: helmet || !!def.faceless, suitMaterial: faceSuit, hood: !!def.shells.hood, gloveMaterial: gloves });
   if (face) mats.push(...face.materials.filter((m) => m.emissive));
   // A look that names a shell the body does not have would silently lose that
   // piece of clothing; make it loud (automated checks fail on console errors).
@@ -361,7 +362,6 @@ export function makeCreature(assets, type) {
     },
     dispose() {
       anim.dispose();
-      face?.dispose();
       disposeInstance(group);
     },
   };
@@ -461,7 +461,6 @@ export function makeMender(assets) {
     },
     dispose() {
       anim.dispose();
-      face?.dispose();
       disposeInstance(group);
     },
   };

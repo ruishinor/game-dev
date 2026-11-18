@@ -60,10 +60,16 @@ export const HUMANOIDS = [
     // Body, head and face: a fitted CC0 MakeHuman body (tools/assets/lib/mh-humanoid.mjs).
     makehuman: {
       crown: 1.8,
+      // Seams to the head and hands are locked so the surfaces stay closed.
+      simplify: [
+        { node: /^body$/, material: /^body$/, ratio: 0.45, lockBorder: true },
+        { node: /^body$/, material: /^joints$/, ratio: 0.22, lockBorder: true },
+        { node: /^shell_(?!mannequin_head|helmet)/, ratio: 0.32, error: 0.006 },
+      ],
       hair: [
-        { name: 'buzz', layers: 3, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
-        { name: 'crop', layers: 9, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
-        { name: 'swept', layers: 12, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
+        { name: 'buzz', layers: 2, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
+        { name: 'crop', layers: 6, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
+        { name: 'swept', layers: 8, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
       ],
       macro: { gender: 1, age: 0.5, muscle: 0.68, weight: 0.5, height: 0.5, proportions: 0.85 },
       targets: [['torso/torso-vshape-incr.target', 0.55], ['torso/torso-muscle-pectoral-incr.target', 0.35], ['torso/torso-muscle-dorsi-incr.target', 0.3], ['neck/neck-scale-horiz-incr.target', 0.55], ['neck/neck-scale-depth-incr.target', 0.4]],
@@ -82,10 +88,16 @@ export const HUMANOIDS = [
     keep: [],
     makehuman: {
       crown: 1.775,
+      // Seams to the head and hands are locked so the surfaces stay closed.
+      simplify: [
+        { node: /^body$/, material: /^body$/, ratio: 0.45, lockBorder: true },
+        { node: /^body$/, material: /^joints$/, ratio: 0.22, lockBorder: true },
+        { node: /^shell_(?!mannequin_head|helmet)/, ratio: 0.32, error: 0.006 },
+      ],
       hair: [
-        { name: 'buzz', layers: 3, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
-        { name: 'crop', layers: 9, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
-        { name: 'swept', layers: 12, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
+        { name: 'buzz', layers: 2, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
+        { name: 'crop', layers: 6, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
+        { name: 'swept', layers: 8, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
       ],
       macro: { gender: 0, age: 0.5, muscle: 0.55, weight: 0.45, height: 0.5, proportions: 0.85 },
       targets: [['neck/neck-scale-horiz-incr.target', 0.2]],
