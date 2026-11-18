@@ -305,6 +305,7 @@ try {
     }
     return true;
   }));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('kestrel:service-pipes')?.children.length===5));
   await capture('preview-evidence/07-kestrel-interior.png');
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.

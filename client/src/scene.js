@@ -5,6 +5,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { buildDeepServicePipes } from './service-pipes.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 
 const matCache = new Map();
@@ -292,17 +293,13 @@ function buildDeepArchitecture(scene) {
   for (const side of [-1,1]) {
     const z = DEEP.z + side * 5.65;
     g.add(scaled(G.box, ochre, 12.7, 0.015, 0.12, DEEP.x, DEEP.floor + 0.08, z, false));
-    // Wall-hugging insulated pipes stay outside usable floor space.
-    for (let i=0; i<2; i++) {
-      const pipe = scaled(G.cyl8, i ? steel : ochre, 0.14, 12.5, 0.14, DEEP.x, DEEP.floor + 3.25 + i * 0.35, DEEP.z + side * 6.0);
-      pipe.rotation.z = Math.PI / 2;
-      g.add(pipe);
-    }
+
     g.add(scaled(G.box, steel, 12, 0.14, 0.28, DEEP.x, DEEP.roofBottom - 0.42, DEEP.z + side * 3.7));
     for (const x of [-61,-55]) {
       g.add(scaled(G.box, glow(0xd5d4a2), 2.6, 0.035, 0.16, x, DEEP.roofBottom - 0.5, DEEP.z + side * 3.7, false));
     }
   }
+  g.add(buildDeepServicePipes(THREE,DEEP).group);
   // Open portal fascia, no doorway collision across the aisle.
   g.add(scaled(G.box, ochre, 0.16, 0.42, 12.7, DEEP.x + DEEP.hw - 0.1, DEEP.roofBottom - 0.18, DEEP.z));
   const lamp = new THREE.PointLight(0xffddb2, 75, 13, 2);
