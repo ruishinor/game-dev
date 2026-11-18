@@ -1056,17 +1056,22 @@ export class UI {
     close.setAttribute('aria-label','Close NPC interaction');
     close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
     const content=h('div','npc-content');
+    const identity=h('div','npc-identity');
     const art=this.a.portrait(ent.meta);
-    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
-    const details=h('div','npc-options');
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt='';identity.append(img);}
+    const heading=h('div','npc-heading');
+    heading.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'));
+    identity.append(heading);
     this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
+    this.npcDialogue.setAttribute('aria-live','polite');
     const talk=h('button','primary','Talk');
     talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
     const info=h('button',null,'Info · Codex');
     info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
     const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
-    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
-    content.append(details);panel.append(close,content);panel.hidden=false;
+    const actions=h('div','npc-actions');
+    actions.append(talk,info,workshop);
+    content.append(identity,this.npcDialogue,actions);panel.append(close,content);panel.hidden=false;
   }
 
   showNpcDialogue(id,message) {
