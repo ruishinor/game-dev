@@ -1,0 +1,32 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {makeGame,makeChar,place} from './helpers.js';
+import {equipItem,unequipSlot} from '../server/sim/progress.js';
+import {openVendor,tradeVendor,vendorState} from '../server/sim/vendor.js';
+import {equipmentVisuals} from '../shared/equipment-visuals.js';
+import {createTorsoLayers} from '../client/src/torso-layers.js';
+import {characterPortraitMeta,portraitCacheKey} from '../client/src/portrait-identity.js';
+test('purchased social clothes are owned, separate and stat-neutral',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{credits:20,inventory:['field_chest'],equipped:{chest:'field_chest'}}));
+ const npc=g.objects.find(x=>x.type==='quartermaster');place(p,npc.x,npc.z+2);assert.ok(openVendor(g,p,npc.id).ok);
+ const req=(id)=>({op:'buy',id,qty:1,ticket:p.vendor.ticket,rev:p.vendor.rev});
+ const order=req('social_service_coat');assert.ok(vendorState(g,p).buy.some(x=>x.id===order.id&&x.cosmetic));
+ assert.ok(tradeVendor(g,p,order).ok);assert.equal(p.char.credits,12);assert.equal(tradeVendor(g,p,order).ok,false);
+ const stats=p.stats,buff={k:'shield',v:10,until:g.time+1000};p.buffs.push(buff);
+ assert.ok(equipItem(g,p,order.id).ok);assert.equal(p.stats,stats);assert.ok(p.buffs.includes(buff));
+ assert.equal(p.char.equipped.chest,'field_chest');assert.deepEqual(equipmentVisuals(p.char.equipped),{cv:'field',sv:'service'});
+ assert.equal(g.buildRows().find(r=>r.i===p.id).sv,'service');
+ assert.equal(equipItem(g,p,'social_relay_coat').ok,false);
+ assert.ok(unequipSlot(g,p,'social_torso').ok);assert.deepEqual(equipmentVisuals(p.char.equipped),{cv:'field'});
+ assert.ok(p.buffs.includes(buff));assert.deepEqual(equipmentVisuals({chest:'constructor',social_torso:'__proto__'}),{});
+});
+test('existing torso shells swap by visual identity and restore without changing rig geometry',()=>{
+ const geom=new THREE.BoxGeometry(),base=new THREE.MeshStandardMaterial(),original=new THREE.Mesh(geom,base),coat=new THREE.Mesh(geom,base);
+ coat.visible=false;const layers=createTorsoLayers(THREE,{texture:()=>null},[{mesh:original,shell:'chest',original:base,originalVisible:true},{mesh:coat,shell:'coat',original:base,originalVisible:false}]);
+ layers.apply('reinforced');assert.ok(original.visible&&!coat.visible);const armor=original.material;
+ layers.apply('reinforced','service');assert.ok(coat.visible&&!original.visible);assert.notEqual(coat.material,base);
+ layers.apply('reinforced');assert.equal(original.material,armor);layers.dispose();assert.equal(original.material,base);assert.equal(coat.visible,false);
+ geom.dispose();base.dispose();
+ const meta=characterPortraitMeta({name:'Test',cls:'vanguard',look:'vanguard_plate',equipped:{chest:'field_chest'}});
+ assert.notEqual(portraitCacheKey(meta,'portrait',true),portraitCacheKey({...meta,sv:'service'},'portrait',true));
+});

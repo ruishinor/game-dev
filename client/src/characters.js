@@ -10,6 +10,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
+import {createTorsoLayers} from './torso-layers.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
 import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
@@ -84,7 +85,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
 
   const mats = [];
   const shellMats = {};
-  const hidden = [];
+  const hidden = [],torsoShells=[];
   // Face meshes (head, hands, eyes, lashes) are dressed by face.js.
   const faceNode = (o) => {
     for (let n = o; n && n !== inst; n = n.parent) if (/^(head|hands|eyes|lashes|teeth|hair_[a-z]+)(_\d+)?$/.test(n.name)) return n.name.replace(/_\d+$/, '');
@@ -102,24 +103,25 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     const name = shell ? o.name : o.material.name;
     // Faceless looks wear the mannequin's smooth head, shaded like the body.
     const spec = shell ? (shell === 'mannequin_head' && (def.faceless || veyran) ? def.parts.body : shell === 'hood' && hoodDown ? null : def.shells[shell]) : def.parts[name] || {};
-    if (!spec) {
-      hidden.push(o);
-      return;
-    }
-    const m = new THREE.MeshStandardMaterial({ color: spec.color ?? 0x888888, roughness: spec.roughness ?? 0.7, metalness: spec.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
+    const torso=shell==='chest'||shell==='coat';
+    if (!spec&&!torso) {hidden.push(o);return;}
+    const shade=spec??{};
+    const m = new THREE.MeshStandardMaterial({ color: shade.color ?? 0x888888, roughness: shade.roughness ?? 0.7, metalness: shade.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
     m.name = name;
-    if (spec.map) m.map = assets.texture(spec.map);
-    if (spec.emissiveMap) {
-      m.emissiveMap = assets.texture(spec.emissiveMap);
-      m.emissive.set(spec.emissive ?? 0xffffff);
+    if (shade.map) m.map = assets.texture(shade.map);
+    if (shade.emissiveMap) {
+      m.emissiveMap = assets.texture(shade.emissiveMap);
+      m.emissive.set(shade.emissive ?? 0xffffff);
     }
     o.material = m;
     o.castShadow = true;
     // Bind-pose bounds do not cover every pose; visibility is decided per entity.
     o.frustumCulled = false;
     mats.push(m);
-    if (shell) shellMats[shell] = m;
+    if (shell&&spec) shellMats[shell] = m;
+    if(torso){o.visible=!!spec;torsoShells.push({mesh:o,shell,original:m,originalVisible:!!spec});}
   });
+  const torsoLayers=createTorsoLayers(THREE,assets,torsoShells);
   for (const o of hidden) o.parent.remove(o);
   // A face for bodies that have one. Looks may pin an appearance (NPCs) or
   // hide the face (helmets, faceless characters); players get a stable face
@@ -210,6 +212,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     hover: 0,
     accent: def.accent,
     update(dt, st) {
+      torsoLayers.apply(st.cv,st.sv);
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -257,6 +260,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       anim.dispose();
       face?.dispose();
+      torsoLayers.dispose();
       disposeInstance(group);
     },
   };

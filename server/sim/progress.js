@@ -193,6 +193,10 @@ export function unequipSlot(game, p, slot) {
 }
 
 function applyLoadout(game, p, equipped, itemName, playEquip = true) {
+  // Cosmetic-only changes never refresh stats, clear shields or trigger directives.
+  if(SLOTS.every(slot=>slot==='social_torso'||(p.char.equipped[slot]??null)===(equipped[slot]??null))){
+    p.char.equipped=equipped;game.markDirty(p);return;
+  }
   const before = equipmentAttributes(p.char, p.stats);
   p.char.equipped = equipped;
   game.refreshStats(p);

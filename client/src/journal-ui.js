@@ -53,6 +53,8 @@ const art={
   glyph_resonant_aegis:'<path d="m12 3 9 5v8l-9 5-9-5V8zM12 7v10M7 12h10"/>',
   glyph_rending_echo:'<path d="M3 18C8 9 13 5 21 5M7 21C12 12 16 9 22 9M2 11c3-5 7-7 12-8"/>',
   location:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/>',
+  social_service_coat:'<path d="m6 3 6 4 6-4 4 5-4 4-1 10H7L6 12 2 8Z" fill="#a49779"/><path d="m9 4 3 5 3-5M12 9v13M7 14h4m2 0h4" stroke="#ded1aa"/>',
+  social_relay_coat:'<path d="m5 4 7 3 7-3 3 5-4 3 1 10H5l1-10-4-3Z" fill="#335b5f"/><path d="M9 6v15M15 6v15M6 13h3m6 0h3M8 16h8" stroke="#b7c4ad"/>',
   field_chest:'<path d="m3 5 5-2 4 3 4-3 5 2-2 16H5Z" fill="#536265"/><path d="M6 10h12m-12 5h12M12 6v15" stroke="#b6b8a0"/>',
   reinforced_chest:'<path d="m2 5 5-3 5 3 5-3 5 3-2 17H4Z" fill="#617078"/><path d="M5 8h14v5H5ZM6 15h12v5H6Z" fill="#35494e" stroke="#bac6bb"/><path d="M12 5v16" stroke="#d1ab70"/>',
   resonant_chest:'<path d="m3 5 5-3 4 3 4-3 5 3-2 17H5Z" fill="#56626e"/><path d="m6 8 6 3 6-3v9l-6 4-6-4Z" fill="#273e49" stroke="#d5b4e2"/><path d="M12 7v13m-5-5h10" stroke="#98e0d5"/>',
@@ -185,7 +187,7 @@ const LOADOUT_TABS = [
   ]},
   {id:'social',name:'Social clothing',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('face','Face',3,1),
-    present('arms','Arms',1,2),present('torso','Torso',2,2),present('hands','Hands',3,2),
+    present('arms','Arms',1,2),present('torso','Torso',2,2,'social_torso'),present('hands','Hands',3,2),
     present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
   ]},
 ];
@@ -200,7 +202,7 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
-    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon',social:'social_torso'}[t.id];
     if(slotFor)btn.dataset.seenGroup=slotFor;
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
@@ -216,14 +218,19 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[]),...(s.equipped.social_torso?['social_torso']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
     const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
-    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+    if(item){detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+      if(item.slot==='social_torso'||item.slot==='chest'){
+        const preview=ui.a.portrait(characterPortraitMeta({...s,equipped:{...s.equipped,[item.slot]:id}}));
+        if(preview){const img=h('img','doll-image');img.src=preview;img.alt='Selected torso appearance preview';detail.append(img);}
+      }
+    }
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
@@ -323,7 +330,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['social_torso','Social'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.dataset.seenGroup=id;

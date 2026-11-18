@@ -91,9 +91,9 @@ function sanitize(raw) {
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };
-    for(const slot of ['weapon','chest'])if(raw.equipped[slot])eq[slot]=raw.equipped[slot];
+    for(const slot of ['weapon','chest','social_torso'])if(raw.equipped[slot])eq[slot]=raw.equipped[slot];
     c.equipped = resolveLoadout(c, eq).equipped;
-    for(const slot of ['weapon','chest'])if(!c.equipped[slot])delete c.equipped[slot];
+    for(const slot of ['weapon','chest','social_torso'])if(!c.equipped[slot])delete c.equipped[slot];
   }
   return c;
 }

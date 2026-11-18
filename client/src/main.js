@@ -1646,6 +1646,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
+      cv:row?.cv,sv:row?.sv,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
