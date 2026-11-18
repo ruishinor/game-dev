@@ -98,7 +98,13 @@ test('http: serves the client, blocks traversal and unknown paths', async () => 
     assert.match(index.headers.get('content-type'), /text\/html/);
     assert.equal(index.headers.get('x-content-type-options'), 'nosniff');
     assert.ok(index.headers.get('content-security-policy'));
-    assert.equal((await fetch(base + '/shared/content.js')).status, 200);
+    const publicContent = await fetch(base + '/shared/content.js');
+    assert.equal(publicContent.status, 200);
+    assert.doesNotMatch(await publicContent.text(), /(?:\bloot:\s*\[|SENTINEL_GADGET_DROPS)/);
+    assert.equal((await fetch(base + '/server/sim/loot-tables.js')).status, 404);
+    assert.equal((await fetch(base + '/shared/..%2fserver/sim/loot-tables.js')).status, 404);
+    const publicGadgets=await (await fetch(base + '/shared/gadgets.js')).text();
+    assert.doesNotMatch(publicGadgets,/SENTINEL_GADGET_DROPS/);
     assert.equal((await fetch(base + '/vendor/three/three.module.js')).status, 200);
     for (const bad of ['/server/index.js', '/package.json', '/client/%2e%2e/package.json', '/shared/..%2fserver/store.js', '/vendor/three/three.cjs', '/data/characters.json', '/client/../data/characters.json']) {
       assert.equal((await fetch(base + bad)).status, 404, bad);

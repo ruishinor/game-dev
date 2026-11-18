@@ -158,6 +158,8 @@ try {
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
+  assert.ok(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg path[fill="#203d40"]').count());
+  await capture('preview-evidence/06b-refined-item-artwork.png');
   assert.equal(await workshop.locator('[data-craft="aegis_rectifier"]').isDisabled(),true);
   await capture('preview-evidence/06b-workshop-tutorial.png');
   await workshop.getByRole('button',{name:'Next',exact:true}).click();
@@ -365,7 +367,7 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  await keeper.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector'));
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);

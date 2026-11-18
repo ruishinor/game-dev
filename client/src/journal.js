@@ -31,7 +31,7 @@ export const ENTRIES = [
       'Attack: ' + (e.attack.kind === 'bolt' ? 'Ranged' : 'Melee') + ' · ' + e.attack.range + 'm',
       'Experience: ' + e.xp,
       ...((e.specials || []).map(s => s.name + ' · ' + s.windup / 1000 + 's wind-up')),
-      ...(e.loot.length ? e.loot.map(l => ITEMS[l.item].name + ' · ' + Math.round(l.chance * 100) + '% drop chance') : ['No item drops defined']),
+      'Recovery: inspect eligible remains for personal salvage.',
     ],
   })),
   ...Object.entries(COMPANIONS).map(([id,c])=>({id,group:'Creatures',name:c.name,type:'Companion',
