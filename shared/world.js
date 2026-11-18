@@ -314,6 +314,29 @@ export const OBJECTS = [
   { key: 'quartermaster', type: 'quartermaster', name: 'Sanctum Quartermaster', x: -5.6, z: -1.8, r: 0.5 },
 ];
 
+// A small additive site outside established zones. Never delete or relocate
+// existing props to make room. Ordered candidates keep placement deterministic.
+function findRiftSite(){
+  const preferred=[[30,46],[30,50],[34,48],[28,44],[32,52],[34,44]];
+  for(let z=40;z<=66;z+=2)for(let x=22;x<=58;x+=2)preferred.push([x,z]);
+  for(const [x,z] of preferred){
+    if(Math.hypot(x,z)>WORLD.radius-16)continue;
+    if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+8.6))continue;
+    if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<8.6+(o.r??Math.hypot(o.hw??0,o.hd??0))))continue;
+    const h=groundHeight(x,z),samples=[h];
+    for(let i=0;i<20;i++){const a=i*Math.PI/10;for(const rad of [2.2,6.2])samples.push(groundHeight(x+Math.cos(a)*rad,z+Math.sin(a)*rad));}
+    if(Math.max(...samples)-Math.min(...samples)>1.55)continue;
+    return Object.freeze({x,z,r:8.5,hazard:5.5});
+  }
+  return null;
+}
+export const RIFT_SITE=findRiftSite();
+if(RIFT_SITE){
+  const {x,z}=RIFT_SITE;
+  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
+    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65});
+}
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
 
@@ -445,5 +468,6 @@ export function zoneAt(x, z) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;
   }
+  if(RIFT_SITE&&Math.hypot(x-RIFT_SITE.x,z-RIFT_SITE.z)<RIFT_SITE.r)return 'The Phase Scar';
   return WORLD.name;
 }

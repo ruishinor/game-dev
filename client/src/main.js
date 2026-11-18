@@ -895,6 +895,14 @@ function onEvent(e) {
       if (!handled) fx = legacyFx;
       // Rich recipes supersede the ecology fallback only when handled.
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+        if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
+          const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
+          fx.ring(e.x,e.z,e.r,colour,850);
+          if(!motionPreference.matches&&quality>0)fx.pillar(e.x,e.z,colour,650);
+        }
+        break;
+      }
       if (e.k === 'survey_blast') {
         fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
         fx.pillar(e.x, e.z, 0xf0b56b, 450);
@@ -1476,6 +1484,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
+      riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),

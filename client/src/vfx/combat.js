@@ -27,6 +27,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -235,6 +236,16 @@ export class CombatVfx {
 
   areaRecipe(e, s, o, d) {
     const v = this.v;
+    if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+      if(!Number.isFinite(e.x)||!Number.isFinite(e.z)||!Number.isFinite(e.r))return;
+      const f=[e.x,groundHeightOr(e,s),e.z],pulse=e.k==='rift_pulse',closing=e.k==='rift_stabilize'||e.k==='rift_collapse';
+      const colour=pulse?0xd98e75:closing?0x8fc5b8:0xada7d3;
+      v.shock({at:f,radius:e.r,color:colour,life:pulse?.7:1.2,width:pulse?.14:.08});
+      v.shell({at:f,radius:pulse?e.r:2.15,height:pulse?1.15:4.1,kind:'wall',color:colour,life:pulse?.65:1.1,from:closing?1:.26,to:closing?.22:1,alpha:.45,streak:1.2});
+      v.burst({at:[f[0],f[1]+1.9,f[2]],shape:'sphere',radius:1.2,count:pulse?26:18,cell:[CELL.shard,CELL.streak],color:hot(colour,.36),color2:colour,size:[.06,.18],sizeEnd:.025,life:[.55,1.2],speed:[.9,2.7],gravity:pulse?2:0,spin:[-3,3]});
+      if(pulse)v.flash({at:[f[0],f[1]+1.2,f[2]],color:colour,intensity:7,life:.25});
+      return;
+    }
     if (e.k === 'fault_shear' || e.k === 'containment_sweep') {
       // Kestrel/Sinter hostile specials: a fracture line field or a sweeping containment band.
       const f = [e.x, e.y, e.z];
