@@ -449,6 +449,8 @@ try {
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
+  assert.equal(await keeper.getByRole('button',{name:'Phase Transposition',exact:true}).count(),1);
+  assert.ok(await keeper.getByRole('button',{name:'Phase Transposition',exact:true}).isVisible());
   tank.res=100;
   // Fixture invokes the actual authoritative ability; extend only for slow screenshot capture.
   assert.ok(useAbility(server.game,tank,'hinge_field').ok);
