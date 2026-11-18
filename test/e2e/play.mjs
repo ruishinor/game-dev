@@ -368,6 +368,10 @@ async function followInventoryPlaytest(){
  const scrap=loot.locator('[data-loot-id="spent_contact"]');
  await scrap.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.goods?.spent_contact===1,null,{timeout:10000});
  check('selected trade salvage enters a separate authoritative stack',pb.char.goods.spent_contact===1&&!pb.char.inventory.includes('spent_contact')&&await loot.locator('[data-loot-id="spent_contact"]').count()===0);
+ const creditBefore=pb.char.credits??0;
+ const credits=loot.getByRole('button',{name:'Loot Credits',exact:true});
+ await credits.click();await B.page.waitForFunction(n=>window.__attune.state().sheet.credits===n,creditBefore+1,{timeout:10000});
+ check('personal corpse credits reach wallet without taking equipment',pb.char.credits===creditBefore+1&&!pb.char.inventory.includes('adrenal_shunt'));
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
