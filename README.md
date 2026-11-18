@@ -87,7 +87,7 @@ The visual asset ledger records CC0 donors, creators and checksums. See the [vis
 ## Documents
 
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — current state, verification, known issues, next steps
-- [`docs/VISUAL_REVIEW.md`](docs/VISUAL_REVIEW.md) — visual assessment against the classic Anarchy Online benchmark
+- [`docs/art/VISUAL-FIDELITY-REVISION.md`](docs/art/VISUAL-FIDELITY-REVISION.md) — visual fidelity targets and asset review evidence
 - [`docs/ASSETS.md`](docs/ASSETS.md) — asset credits, licences and pipeline
 - [`docs/ENGINEERING_EXTRACTION.md`](docs/ENGINEERING_EXTRACTION.md) — techniques taken from open-source WoW browser clients
 - [`docs/Attunement-Game-Concept.md`](docs/Attunement-Game-Concept.md) — design brief
