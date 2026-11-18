@@ -2,7 +2,8 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop} from './loot-tables.js';
+import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
 import {dist,hasLineOfSight} from '../../shared/world.js';
@@ -19,10 +20,12 @@ export function distributeCorpseLoot(game,e,credited){
   const p=game.players.get(id);if(!p||dist(p,e)>CREDIT_RANGE)continue;
   const entries=[],material=SALVAGE[e.type],goods=TRADE_SALVAGE[e.type];
   // Keep the existing salvage yield and equipment probabilities.
-  // A corpse without salvage and with no successful item roll is empty.
+  // A corpse without salvage or another successful reward remains empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
   for(const drop of itemDrops(e.type))if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
   if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<goodsCap(goods))entries.push({id:goods,kind:'goods',quantity:1});
+  const credits=creditDrop(e.type);
+  if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
   const relic=relicDrop(e.type,game.relicRng);
   if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
@@ -54,6 +57,15 @@ export function openLoot(game,p,id,generation,auto=false){
  p.lootTarget={id,generation};
  return auto?takeLoot(game,p,id,generation,null):{ok:true};
 }
+// Only a server-created personal corpse entry can reach this grant path.
+function collectCredits(game,p,quantity){
+ if(!Number.isSafeInteger(quantity)||quantity<1)return false;
+ const balance=walletAfter(sanitizeCredits(p.char.credits),quantity);
+ if(balance===null)return false;
+ p.char.credits=balance;game.markDirty(p);
+ game.message(p,'gain','Recovered '+quantity+' credit'+(quantity===1?'':'s')+'.');
+ return true;
+}
 export function takeLoot(game,p,id,generation,item){
  const e=game.ents.get(id),entries=available(game,p,e,generation);
  if(!entries||p.lootTarget?.id!==id||p.lootTarget?.generation!==generation)return fail('Loot is no longer available.');
@@ -61,9 +73,9 @@ export function takeLoot(game,p,id,generation,item){
  if(!selected.length)return fail('That loot has already been collected or is unavailable.');
  let taken=0;
  for(const entry of selected){
-  const ok=entry.kind==='material'?grantSalvage(game,p,entry.id,entry.quantity):entry.kind==='goods'?grantGoods(game,p,entry.id,entry.quantity):entry.kind==='item'?grantItem(game,p,entry.id):false;
+  const ok=entry.kind==='material'?grantSalvage(game,p,entry.id,entry.quantity):entry.kind==='goods'?grantGoods(game,p,entry.id,entry.quantity):entry.kind==='item'?grantItem(game,p,entry.id):entry.kind==='credits'?collectCredits(game,p,entry.quantity):false;
   if(ok){entries.splice(entries.indexOf(entry),1);taken++;}
  }
  if(!entries.length){e.lootByPlayer.delete(p.id);clearLoot(p);}
- return taken?{ok:true}:fail('Cannot collect this loot: already owned or stack storage full.');
+ return taken?{ok:true}:fail('Cannot collect this loot: already owned, storage full or wallet full.');
 }

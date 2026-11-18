@@ -16,6 +16,9 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
 export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'});
 // Generic playtest salvage; deliberately independent of equipment RNG.
 export const TRADE_SALVAGE = Object.freeze({skitter:'mire_husk',sentinel:'spent_contact'});
+// Public playtest tuning: a small fixed salvage credit alongside trade goods.
+// No extra random roll or change to the existing equipment distribution.
+export const creditDrop=type=>type==='sentinel'?1:0;
 export function itemDrops(type) {
   return Object.hasOwn(ENEMY_ITEM_DROPS,type) ? ENEMY_ITEM_DROPS[type] : [];
 }

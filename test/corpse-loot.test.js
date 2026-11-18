@@ -3,6 +3,7 @@ import {makeGame,makeChar,place,enemyOf,isolate} from './helpers.js';
 import {dealDamage} from '../server/sim/combat.js';
 import {openLoot,takeLoot,lootState,tickLoot,clearLoot} from '../server/sim/loot.js';
 import {CORPSE_MS} from '../server/sim/game.js';
+import {CREDIT_CAP} from '../server/sim/wallet.js';
 function fixture(){
  const g=makeGame(),e=enemyOf(g,'sentinel');isolate(g,e);
  const a=g.addPlayer(makeChar('vanguard')),b=g.addPlayer(makeChar('vanguard')),stranger=g.addPlayer(makeChar('vanguard'));
@@ -14,12 +15,12 @@ test('personal loot is rolled once, held on corpse, selected individually, and n
  const {g,e,a,b,stranger,gen}=fixture();assert.equal(a.char.inventory.length,0);assert.equal(b.char.inventory.length,0);
  assert.ok(!a.char.materials?.sentinel_alloy);assert.equal(lootState(g,stranger).lootable.length,0);
  assert.equal(openLoot(g,stranger,e.id,gen).ok,false);assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);
- assert.ok(openLoot(g,a,e.id,gen).ok);assert.equal(lootState(g,a).loot.entries.length,5);
+ assert.ok(openLoot(g,a,e.id,gen).ok);assert.equal(lootState(g,a).loot.entries.length,6);
  assert.ok(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok);assert.deepEqual(a.char.inventory,['adrenal_shunt']);
- assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);assert.equal(lootState(g,a).loot.entries.length,4);
+ assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);assert.equal(lootState(g,a).loot.entries.length,5);
  clearLoot(a);assert.equal(lootState(g,a).loot,null);assert.equal(a.char.materials?.sentinel_alloy||0,0);
- assert.ok(openLoot(g,a,e.id,gen,true).ok);assert.equal(a.char.materials.sentinel_alloy,1);assert.equal(a.char.goods.spent_contact,1);assert.ok(!b.char.goods?.spent_contact);assert.equal(lootState(g,a).loot,null);
- assert.ok(openLoot(g,b,e.id,gen).ok);assert.equal(lootState(g,b).loot.entries.length,5);
+ assert.ok(openLoot(g,a,e.id,gen,true).ok);assert.equal(a.char.materials.sentinel_alloy,1);assert.equal(a.char.goods.spent_contact,1);assert.equal(a.char.credits,1);assert.equal(b.char.credits??0,0);assert.ok(!b.char.goods?.spent_contact);assert.equal(lootState(g,a).loot,null);
+ assert.ok(openLoot(g,b,e.id,gen).ok);assert.equal(lootState(g,b).loot.entries.length,6);
 });
 test('loot rejects range, stale generation, death, expiry and leaves uncollected entries',()=>{
  const {g,e,a,gen}=fixture();assert.ok(openLoot(g,a,e.id,gen).ok);
@@ -31,4 +32,25 @@ test('empty corpses stay unlootable; failed material-cap claims do not consume a
  const {g,e,a,gen}=fixture();a.char.materials={sentinel_alloy:99};assert.ok(openLoot(g,a,e.id,gen).ok);
  assert.equal(takeLoot(g,a,e.id,gen,'sentinel_alloy').ok,false);assert.ok(lootState(g,a).loot.entries.some(x=>x.id==='sentinel_alloy'));
  const h=makeGame(),p=h.addPlayer(makeChar('vanguard')),f=enemyOf(h,'faultstalker');isolate(h,f);place(p,f.x,f.z);h.rng=()=>.99;dealDamage(h,p,f,99999,'test');assert.equal(lootState(h,p).lootable.length,0);
+});
+
+test('credits are individual, spendable wallet value and cannot be forged, replayed or overflowed',()=>{
+ const {g,e,a,b,stranger,gen}=fixture();
+ assert.equal(a.char.credits??0,0);
+ assert.equal(takeLoot(g,a,e.id,gen,'credits').ok,false);
+ assert.equal(openLoot(g,stranger,e.id,gen).ok,false);
+ assert.ok(openLoot(g,a,e.id,gen).ok);
+ assert.deepEqual(lootState(g,a).loot.entries.find(x=>x.kind==='credits'),{id:'credits',kind:'credits',quantity:1});
+ a.char.credits=CREDIT_CAP;
+ assert.equal(takeLoot(g,a,e.id,gen,'credits').ok,false);
+ assert.ok(lootState(g,a).loot.entries.some(x=>x.kind==='credits'));
+ a.char.credits=CREDIT_CAP-1;
+ assert.ok(takeLoot(g,a,e.id,gen,'credits').ok);assert.equal(a.char.credits,CREDIT_CAP);
+ assert.equal(takeLoot(g,a,e.id,gen,'credits').ok,false);
+ assert.equal(b.char.credits??0,0);
+ assert.ok(openLoot(g,b,e.id,gen,true).ok);assert.equal(b.char.credits,1);
+ assert.equal(stranger.char.credits??0,0);
+ assert.equal(g.sheet(a).credits,CREDIT_CAP);
+ assert.ok(g.buildRows().every(row=>!Object.hasOwn(row,'credits')));
+ assert.ok(!Object.hasOwn(g.metaFor(a),'credits'));
 });
