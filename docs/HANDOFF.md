@@ -10,7 +10,7 @@ Read [AGENTS.md](../AGENTS.md) for the standing server-authority, minimum-disclo
 
 ## Verification
 
-Run `npm test` for simulation, networking and asset contracts, and `npm run e2e` for two independent Chromium contexts. The latter compares both clients' observed enemy health with the server value and checks creation and persistence. Use `npm run capture` for matched scripted views and `npm run profile` to measure the active browser renderer. Compare against the applicable branch and commit, since the default branch is an earlier slice.
+Run `npm test` for simulation, networking and asset contracts, and `npm run e2e` for two independent Chromium contexts. The latter compares both clients' observed enemy health with the server value and checks creation and persistence. Use `npm run capture` for matched scripted views and `npm run profile` to measure the active browser renderer. Compare against the applicable branch and commit. `main` is the consolidated integration line; the earlier default and playtest branches are retained for history.
 
 The [rendering extraction matrix](art/MMO-RENDERING-EXTRACTION.md) records the reference implementations, decisions and risks. The [art review records](art/reviews/) document the original asset work. New screenshots used to evaluate this branch remain separate from historical reference captures.
 
