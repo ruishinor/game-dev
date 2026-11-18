@@ -268,3 +268,10 @@ test('coverage: every effect kind the server emits and every enemy special has a
   const missing = [...kinds].filter((k) => !AREA_KINDS.has(k));
   assert.deepEqual(missing, [], 'add a recipe in client/src/vfx/combat.js (areaRecipe + AREA_KINDS)');
 });
+
+test('phase transposition emits bounded transfer effects and expires',()=>{
+ const {v}=make(),combat=new CombatVfx(v);
+ combat.cast('phase_transposition',entity(1,0,0,'p','keeper'),entity(2,4,2));
+ v.update(.01);assert.ok(v.stats().items>=4);assert.ok(v.stats().particles>0);
+ run(v,3);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);
+});

@@ -162,6 +162,7 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 /* --- action bars --- */
 .bars { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; width: 300px; }
 .actionbar, .petbar { display: flex; gap: 8px; }
+.actionbar { max-width: min(342px, calc(100vw - 16px)); flex-wrap: wrap; justify-content: center; }
 .petbar { margin-bottom: 8px; }
 .auto-control { width: 100%; display: flex; align-items: center; gap: 8px; justify-content: center; margin: 0 0 7px; padding: 4px 6px; border-radius: 7px; background: rgba(8, 14, 18, 0.82); border: 1px solid rgba(111, 230, 255, 0.18); }
 .auto-control.engaged { border-color: rgba(125, 255, 196, 0.55); }

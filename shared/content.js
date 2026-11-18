@@ -53,7 +53,7 @@ export const CLASSES = {
     baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
     skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
     auto:{range:22,interval:2000,dmg:6,kind:'bolt'},
-    abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay'],companion:null,
+    abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition'],companion:null,
   },
   surveyor: {
     id: 'surveyor', name: 'Brine Surveyor', role: 'Field Engineer / Ranged Control',
@@ -97,6 +97,7 @@ export const ABILITIES = {
   hinge_field:{name:'Hinge Field',type:'friendly',range:20,cd:6000,cost:30,dur:9000,desc:'Project a 40-point damage-absorption barrier onto an ally or yourself for 9 seconds. It is not a solid wall. Cover blocks projection.'},
   resonant_reversal:{name:'Resonant Reversal',type:'hostile',range:22,cd:5000,cost:15,desc:'Consume your own remaining Hinge or Relay barrier. Inflict 12 plus 65% of its remaining capacity as damage.'},
   lattice_relay:{name:'Lattice Relay',type:'self',cd:12000,cost:40,radius:8,dur:8000,desc:'Project 24-point damage-absorption barriers onto yourself and unobstructed allies within 8m for 8s. Does not replace a stronger barrier.'},
+  phase_transposition:{name:'Phase Transposition',type:'friendly',range:18,cd:8000,cost:10,desc:'Requires Resonance attunement. Transfer your own active Hinge or Relay barrier to an unshielded ally within 18m. Remaining capacity and expiry are preserved. Cover blocks transfer.'},
   fault_scan: { name: 'Fault Scan', type: 'hostile', range: 30, cd: 4000, desc: 'Analyze one hostile target for 9s and recover 30 Power Cells. Does not deal damage or engage auto-attack.' },
   core_bore: { name: 'Core Bore', type: 'hostile', range: 24, cd: 2500, cost: 30, dmg: 30, desc: 'Fire a focused boring pulse into your own scanned target. Consumes its scan and 30 Power Cells.' },
   field_rig: { name: 'Field Rig', type: 'self', cd: 16000, desc: 'Deploy a stationary power rig at your feet for 12s. Recover 8 Power Cells per second within 4m. Cannot deploy in the Sanctum.' },
@@ -313,6 +314,8 @@ export const SPAWNS = [
 export const ITEMS = {
   field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
   tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
+  dense_pulse_core:{name:'Dense Pulse Core',slot:'weapon',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
+  longpoint_emitter:{name:'Longpoint Emitter',slot:'weapon',ql:5,repairable:true,autoBonus:2,autoReachBonus:4,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +2 base auto-attack damage · +4m ranged auto-attack reach at full condition',desc:'An instrument-grade phase lens trades damage for precision at distance. Adds up to 4m reach to ranged auto-attacks only, scaled by condition; melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
   keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
   keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},

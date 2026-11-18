@@ -857,6 +857,14 @@ function onEvent(e) {
       if (s.model.trigger) s.model.trigger('ability', e.ab);
       if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
       if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
+      else if (e.ab === 'phase_transposition' && d) {
+        s.castAnim=1;
+        if (!rich()) {
+          fx.beam(chestOf(s),chestOf(d),0x9adfff,650,0.12);
+          fx.ring(s.pos.x,s.pos.z,1.6,0x7fd0ff,550,s.pos.y);
+          fx.ring(d.pos.x,d.pos.z,1.6,0x7fd0ff,750,d.pos.y);
+        }
+      }
       else if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
       else if (e.ab === 'fault_scan' && d) {
         if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9});}
@@ -1177,7 +1185,7 @@ input.onClick = (button, x, y) => {
 };
 
 input.onAction = (code, e) => {
-  const digit = /^Digit([1-5])$/.exec(code);
+  const digit = /^Digit([1-9])$/.exec(code);
   if (digit && S.sheet) {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];

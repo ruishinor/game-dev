@@ -4,7 +4,9 @@
 
 import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
+import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
@@ -24,6 +26,7 @@ const ICONS = {
   hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
   resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
   lattice_relay:svg('<path d="m12 3 9 9-9 9-9-9zM3 12h18M12 3v18"/><circle cx="12" cy="12" r="3"/>'),
+  phase_transposition:svg('<path d="M2 8l5-3 5 3v4c0 4-5 7-5 7s-5-3-5-7zM14 5h6m-3-3 3 3-3 3M14 14l4-2 4 2v3c0 3-4 5-4 5s-4-2-4-5z"/>'),
   fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
   core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
   field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
@@ -605,7 +608,7 @@ export class UI {
       ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
-      ['1 – 4', 'Abilities'],
+      ['1 – 9', 'Available abilities'],
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
       ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['Shift + F', 'Inspect loot manually even when auto-loot is enabled'],
@@ -721,6 +724,9 @@ export class UI {
     const out = [h('div', 'tip-title', ab.name), h('div', 'tip-meta', bits.join(' · ')), h('div', 'tip-body', ab.desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.ability === id) out.push(h('div', 'tip-glyph', note.text));
+    if (id==='overgrowth_surge' && this.sheet?.equipped.device===BLOOM_RELAY.device) {
+      out[2]=h('div','tip-body','Bloom Relay: the restorative bloom originates around you instead of the Mender, healing allies within '+BLOOM_RELAY.radius+'m. The Mender is still required.');
+    }
     return out;
   }
 
@@ -1214,7 +1220,7 @@ export class UI {
 
     // Mark abilities and commands the equipped glyph alters.
     const note = GLYPH_NOTES[sheet.equipped.glyph];
-    for (const b of this.abilityButtons) b.pip.hidden = !(note && note.ability === b.id);
+    for (const b of this.abilityButtons) b.pip.hidden = !((note && note.ability === b.id) || (b.id==='overgrowth_surge' && sheet.equipped.device===BLOOM_RELAY.device));
     for (const b of this.petButtons) b.pip.hidden = !(note && note.pet === b.mode);
   }
 
@@ -1390,12 +1396,15 @@ export class UI {
     const autoTarget = target?.meta.k === 'e' && !target.dead;
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
-    const reach = def.auto.range;
+    const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
+    const reach=Number(effectiveReach.toFixed(2));
+    const autoTitle=`${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    if(this.autoButton.title!==autoTitle)this.autoButton.title=autoTitle;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
     set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     set(this.autoStatus, 'text', autoText);
 
     // Action bar
@@ -1415,11 +1424,13 @@ export class UI {
         if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
       }
       if(b.id==='resonant_reversal' && !(you.keeperShield>0))usable=false;
+      if(b.id==='phase_transposition' && (!(you.keeperShield>0)||!this.sheet?.attunements?.includes('resonance')||!target||target.meta.k!=='p'||target.id===me.id||target.dead||target.row.b?.includes('shield')))usable=false;
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;
         else if (st.dist(target) > ab.range || obstructed) ranged = false;
       } else if (ab.type === 'friendly' && target && target.meta.k === 'p' && target.id !== me.id && st.dist(target) > ab.range) ranged = false;
+      if(b.id==='phase_transposition' && obstructed)ranged=false;
       b.el.classList.toggle('unusable', !usable);
       b.el.classList.toggle('far', usable && !ranged);
     }

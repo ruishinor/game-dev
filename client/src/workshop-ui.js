@@ -1,7 +1,7 @@
 // Build planning never changes equipped state. Workshop commits only a
 // recipe ID; the authoritative server revalidates skill, materials and location.
-import { ITEMS, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
-import { weaponBonus } from '../../shared/condition.js';
+import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { itemArt } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
@@ -76,6 +76,7 @@ function planner(ui,body){
   compare('Extra Discharge radius',s.stats.dischargeRadius,stats.dischargeRadius,n=>n+'m');
   compare('Aegis capacity',s.stats.shieldMul,stats.shieldMul,pct);
   compare('Weapon auto-attack bonus',weaponBonus(s),weaponBonus(hypothetical),n=>n.toFixed(1));
+  compare('Auto-attack reach',weaponReach(s),weaponReach(hypothetical),n=>Number(n.toFixed(2))+'m');
   right.append(score);
   right.append(h('p',res.ok?(owned.ok?'met':'muted'):'why',!res.ok?'Requirements not met: '+res.reason:!owned.ok?'The proposed build is mechanically compatible, but one or more items are not owned.':'Requirements met with current ownership.'));
   if(!res.ok)right.append(h('p','muted','Statistics above are hypothetical; the build cannot be equipped as shown.'));
@@ -116,6 +117,8 @@ function fabrication(ui,body){
   const result=h('div','recipe-result');
   result.append(h('div','kicker','Result'),visual(recipe.output.item||recipe.output.material,output.name+(recipe.output.count?' × '+recipe.output.count:''),output.summary||output.desc));
   detail.append(parts,result,h('h3',null,'Requirements'));
+  if(recipe.cls)detail.append(row('Profession',CLASSES[recipe.cls].name,s.cls===recipe.cls));
+  if(recipe.kind==='fusion')detail.append(h('p','why','Permanent fusion: all listed equipment and materials are consumed. This cannot be reversed.'));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
   const site=ui.workshopSite??(ui.atSanctum?'sanctum':null),siteOk=canFabricateAt(recipe,site);
