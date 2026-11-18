@@ -5,7 +5,7 @@ import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shar
 import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
-import { weaponBonus } from '../../shared/condition.js';
+import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { wearEquippedWeapon } from './condition.js';
 
 // --- buffs -----------------------------------------------------------------
@@ -298,7 +298,7 @@ export function tickPlayerCombat(game, p, dt) {
     const t = game.ents.get(p.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
-    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range && hasLineOfSight(p,t)) {
+    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
       dealDamage(game, p, t, cdef.auto.dmg+weaponBonus(p.char), 'auto', { kind: cdef.auto.kind });
       gainCharge(p, 5);
