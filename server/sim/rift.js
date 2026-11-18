@@ -3,6 +3,7 @@
 import { RIFT_SITE,dist,hasLineOfSight } from '../../shared/world.js';
 import { dealDamage } from './combat.js';
 import {sanitizeRiftCalibration} from './rift-journal.js';
+import {recordFieldReceipt} from './field-receipts.js';
 const OPEN_MS=4000,ACTIVE_MS=22000,WARN_MS=2300,REST_MS=4600,STABLE_MS=15000,COOL_MS=28000;
 const deny=reason=>({ok:false,reason});const ok={ok:true};
 export function createRift(game){
@@ -32,7 +33,7 @@ export function interactRift(game,p,obj,{grantSalvage}={}){
    if(!grantSalvage?.(game,p,'resonance_fragment',1)){
     p.char.riftCalibration='recorded';return deny('Unable to recover sample. Clear room in your material storage.');
    }
-   game.markDirty(p);
+   recordFieldReceipt(p.char,'calibration',true);game.markDirty(p);
    game.message(p,'gain','Phase Scar calibration complete. Resonance sample recovered.');return ok;
   }
   game.message(p,'info',state==='completed'?'Calibration sample already recovered. You may assist further calibrations.':'Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;

@@ -9,6 +9,7 @@ import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
+import {characterPortraitMeta} from './portrait-identity.js';
 
 function h(tag, cls, text) {
   const e=document.createElement(tag);
@@ -241,7 +242,7 @@ export function renderLoadout(ui,body,stats) {
   if(tab.id==='character'){
     const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
     const portrait=h('div','doll-portrait');
-    const data=ui.a.portrait({k:'p',c:s.cls,a:s.look});
+    const data=ui.a.portrait(characterPortraitMeta(s));
     if(data){const img=h('img','doll-image');img.src=data;img.alt='Current character appearance';portrait.append(img);}
     else portrait.append(h('div','doll-fallback','Appearance preview unavailable'));
     doll.append(portrait,h('div','appearance-caption',look?.name||'Current appearance'));
@@ -251,7 +252,7 @@ export function renderLoadout(ui,body,stats) {
     // Front orthographic render from the actual class/look model.
     const sketch=h('div','equipment-sketch');
     sketch.setAttribute('aria-hidden','true');
-    const blueprint=ui.a.portrait({k:'p',c:s.cls,a:s.look},'sketch');
+    const blueprint=ui.a.portrait(characterPortraitMeta(s),'sketch');
     if(blueprint){const img=h('img');img.src=blueprint;img.alt='';sketch.append(img);}
     grid.append(sketch);
     for(const slot of tab.slots){

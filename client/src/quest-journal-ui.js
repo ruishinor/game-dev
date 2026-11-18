@@ -29,7 +29,12 @@ export class QuestJournal{
   if(q.rewards?.length){
    const list=h('ul');for(const reward of q.rewards)list.append(h('li',null,reward));rewards.append(list);
   }else rewards.append(h('p','muted','Reward details not recorded.'));
-  if(q.status==='completed')rewards.append(h('p','muted','Listed rewards, not a historical record of grants.'));
+  if(q.status==='completed'){
+   if(q.received?.length){
+    rewards.append(h('h4',null,'Received at completion'));
+    const received=h('ul');for(const reward of q.received)received.append(h('li',null,reward));rewards.append(received);
+   }else rewards.append(h('p','muted','Listed rewards, not a historical record of grants.'));
+  }
   else if(this.ui.sheet?.level>=MAX_LEVEL&&q.rewards?.some(r=>/^\d+ XP$/.test(r)))rewards.append(h('p','muted','XP is not awarded at the current level cap.'));
   details.append(rewards);
  }

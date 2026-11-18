@@ -50,7 +50,7 @@ const serialDraw = SOFTWARE_GL && integrated;
 note(serialDraw ? 'software WebGL: draw each integrated client separately at entry and capture; frame logic stays active'
   : SOFTWARE_GL ? 'software WebGL: cap draws to 1 per second' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
-async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}, { lock = false } = {}) {
+async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}, { lock = false, appearance } = {}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.setDefaultTimeout(90000);
@@ -68,6 +68,9 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
+  if(appearance){
+    for(const [group,value] of Object.entries(appearance))await page.click(`#ap-${group} [data-value="${value}"]`);
+  }
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
   if (integrated) await finishInitialDraw(page);
@@ -309,9 +312,17 @@ async function workshopPlaytest(){
 
 async function followInventoryPlaytest(){
  const A=await openPlayer('follow-leader','FollowLeader','vanguard');
- const B=await openPlayer('follow-follower','FollowFollower','vanguard');
+ const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3}});
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
  await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
+ const portraitImages=[];
+ for(const session of [A,B]){
+  await session.page.bringToFront();await session.page.locator('#view').focus();await session.page.keyboard.press('KeyC');
+  const portrait=session.page.locator('.doll-image');await portrait.waitFor({state:'visible',timeout:20000});
+  portraitImages.push(await portrait.getAttribute('src'));
+  await session.page.locator('#view').focus();await session.page.keyboard.press('Escape');
+ }
+ check('same outfit, different selected appearance produces distinct character portraits',pb.char.appearance==='f.mirekin.2.crop.3'&&portraitImages.every(src=>src?.startsWith('data:image/png'))&&portraitImages[0]!==portraitImages[1]);
  await teleport(A,0,7.5);await teleport(B,0,11);
  await settle(A,0,7.5);await settle(B,0,11);
  await B.page.bringToFront();

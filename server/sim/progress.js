@@ -17,6 +17,8 @@ import { sanitizeCondition } from '../../shared/condition.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
+import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
+import {recordFieldReceipt} from './field-receipts.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -24,10 +26,12 @@ const INSCRIPTION_MS = 1800;
 
 export function grantXp(game, p, amount) {
   const c = p.char;
-  if (amount <= 0) return;
-  if (c.level >= MAX_LEVEL) return;
+  if (amount <= 0 || c.level >= MAX_LEVEL) return 0;
+  // Only XP actually applied toward progression is credited, including at the cap.
+  const remaining = XP_TO_NEXT.slice(c.level, MAX_LEVEL).reduce((sum,need)=>sum+need,0)-c.xp;
+  const credited = Math.max(0,Math.min(amount,remaining));
   c.xp += amount;
-  p.outbox.push({ e: 'xp', a: amount });
+  if(credited>0)p.outbox.push({ e: 'xp', a: credited });
   while (c.level < MAX_LEVEL && c.xp >= XP_TO_NEXT[c.level]) {
     c.xp -= XP_TO_NEXT[c.level];
     c.level += 1;
@@ -39,6 +43,7 @@ export function grantXp(game, p, amount) {
   }
   if (c.level >= MAX_LEVEL) c.xp = 0;
   game.markDirty(p);
+  return credited;
 }
 
 export function grantItem(game, p, itemId) {
@@ -83,8 +88,12 @@ export function checkDirective(game, p) {
     advanced = true;
     game.message(p, 'gain', `Directive complete: ${d.title}.`);
     p.outbox.push({ e: 'directive', title: d.title });
-    if (d.reward.classItem) grantItem(game, p, d.reward.classItem[c.cls]);
-    if (d.reward.xp) grantXp(game, p, d.reward.xp);
+    const itemId=d.reward.classItem?.[c.cls];
+    const item=itemId&&grantItem(game,p,itemId)?itemId:null;
+    const xp=d.reward.xp?grantXp(game,p,d.reward.xp):0;
+    // Completion, rewards and receipt are one synchronous server transition.
+    // Earlier completions without recorded receipts are not reconstructed.
+    c.directiveReceipts=[...sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step-1),{id:d.id,xp,item}];
   }
   if (advanced) {
     game.markDirty(p);
@@ -284,7 +293,9 @@ function operateBrine(game,p,obj) {
     return ok;
   }
   p.brineTrial=null;p.char.brineStage=3;
-  grantItem(game,p,route.reward);grantXp(game,p,BRINE_REWARD_XP.commissioning);game.markDirty(p);
+  const item=grantItem(game,p,route.reward)?route.reward:null;
+  const xp=grantXp(game,p,BRINE_REWARD_XP.commissioning);
+  recordFieldReceipt(p.char,'commissioning',{xp,item});game.markDirty(p);
   transmitAuthored(game,p,'brine.commissioned');
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
@@ -387,8 +398,8 @@ export function interact(game, p, objectId) {
       p.char.survey = current + '_done'; // mark complete before granting XP
       p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: SURVEY[current].report });
       game.message(p, 'gain', 'Evidence reported: ' + SURVEY[current].title + '. Return to Brineworks to commission the site.');
-      grantXp(game, p, BRINE_REWARD_XP.investigation);
-      game.markDirty(p);
+      const xp=grantXp(game, p, BRINE_REWARD_XP.investigation);
+      recordFieldReceipt(p.char,'investigation',{xp});game.markDirty(p);
       return { ok: true };
     }
     if (p.cls === 'surveyor' && p.char.quest.step === 0) {
