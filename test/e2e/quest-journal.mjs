@@ -51,6 +51,28 @@ try{
  await page.getByRole('button',{name:'Expand quest tracker'}).click();
  await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
  await page.locator('.workshop-window').waitFor({state:'visible'});
+ const layoutPanel=page.locator('.workshop-window');
+ const beforeLayout=await layoutPanel.boundingBox();
+ const moveButton=layoutPanel.getByRole('button',{name:'Move',exact:true});
+ const moveBox=await moveButton.boundingBox();
+ await page.mouse.move(moveBox.x+moveBox.width/2,moveBox.y+moveBox.height/2);
+ await page.mouse.down();await page.mouse.move(moveBox.x+moveBox.width/2+50,moveBox.y+moveBox.height/2+20,{steps:5});await page.mouse.up();
+ assert.ok((await layoutPanel.boundingBox()).x>beforeLayout.x+10);
+ const resizeButton=layoutPanel.getByRole('button',{name:'Resize',exact:true});
+ const beforeResize=await layoutPanel.boundingBox();
+ await resizeButton.focus();await page.keyboard.press('ArrowLeft');
+ assert.ok((await layoutPanel.boundingBox()).width<beforeResize.width);
+ await layoutPanel.getByRole('button',{name:'Opacity 100%',exact:true}).click();
+ assert.equal(await layoutPanel.evaluate(el=>el.style.getPropertyValue('--window-alpha')),'0.8');
+ await layoutPanel.getByRole('button',{name:'Lock layout',exact:true}).click();
+ assert.ok(await moveButton.isDisabled()&&await resizeButton.isDisabled());
+ const savedLayout=await page.evaluate(()=>JSON.parse(localStorage.getItem('attunement.window.workshop')));
+ assert.equal(savedLayout.locked,true);assert.equal(savedLayout.opacity,80);assert.ok(savedLayout.rect);
+ await page.locator('#view').focus();await page.keyboard.press('Escape');
+ await page.locator('#view').focus();await page.keyboard.press('KeyB');await layoutPanel.waitFor({state:'visible'});
+ assert.ok(await layoutPanel.getByRole('button',{name:'Unlock layout',exact:true}).isVisible());
+ await layoutPanel.getByRole('button',{name:'Reset layout',exact:true}).click();
+ assert.equal(await layoutPanel.getAttribute('data-window-custom'),null);
  await page.locator('#view').focus();await page.keyboard.press('Escape');
  await page.screenshot({path:'quest-evidence/02-tracker.png'});
  // Eligible setup only. Venn, both field instruments and the final report

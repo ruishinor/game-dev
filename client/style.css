@@ -473,7 +473,16 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 @media(max-width:720px){.panel.npc-panel,#hud.inventory-open .panel.npc-panel{left:50%;bottom:clamp(132px,25vh,190px);transform:translateX(-50%);width:min(320px,calc(100vw - 20px));}}
 
 /* Build planning and deterministic fabrication share the journal visual language. */
-.panel.workshop-window{width:min(820px,94vw);padding:38px 14px 14px;border-radius:5px;background:linear-gradient(145deg,#101f28fa,#071016fa);border-color:#315761;}
+ .panel.workshop-window{width:min(820px,94vw);padding:38px 14px 14px;border-radius:5px;background:linear-gradient(145deg,rgba(16,31,40,var(--window-alpha,1)),rgba(7,16,22,var(--window-alpha,1)));border-color:#315761;}
+.panel.managed-window{display:flex;flex-direction:column;overflow:hidden;container-type:inline-size;}
+.panel.managed-window[data-window-custom="true"]:not(.producing){left:var(--window-x);top:var(--window-y);width:var(--window-w);height:var(--window-h);max-height:none;transform:none;right:auto;bottom:auto;}
+.window-controls{display:flex;flex-wrap:wrap;gap:5px;padding:0 0 8px;flex:none;}
+.window-controls button{font-size:11px;padding:4px 7px;}
+.window-controls button:first-child,.window-controls button:nth-child(2){touch-action:none;cursor:grab;}
+.window-controls button:disabled{cursor:not-allowed;}
+.managed-window .workshop-body{min-height:0;overflow:auto;}
+.managed-window.producing .window-controls{display:none;}
+@container (max-width:560px){.workshop-layout,.workshop-layout.fabrication{grid-template-columns:1fr;}.workshop-recipes{max-height:180px;}.recipe-parts{grid-template-columns:1fr;}.workshop-row span:last-child{white-space:normal;}}
 #hud .workshop-window.producing { width: min(362px, calc(100vw - 24px)); top: auto; left: auto; right: 14px; bottom: 108px; transform: none; padding-top: 35px; }
 .workshop-window.producing progress { display: block; width: 100%; height: 9px; margin-bottom: 8px; accent-color: var(--cyan); }
 .workshop-window.producing h3, .workshop-window.producing p { margin: 0 0 8px; }
