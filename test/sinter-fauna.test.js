@@ -4,6 +4,7 @@ import { makeGame, makeChar, place, run } from './helpers.js';
 import { dealDamage } from '../server/sim/combat.js';
 import { petCommand } from '../server/sim/companion.js';
 import { ENEMIES, SPAWNS } from '../shared/content.js';
+import { itemDrops } from '../server/sim/loot-tables.js';
 import { dist, resolveCollisions, ZONES } from '../shared/world.js';
 
 test('Sinter circuits move continuously, stay in the biome and avoid colliders', () => {
@@ -75,7 +76,7 @@ test('faultstalker independently initiates combat and telegraphs a hostile shear
   run(game,3100,ev);
   assert.equal(e.state,'combat');
   assert.ok(ev.some(x=>x.e==='tele' && x.k==='fault_shear' && x.g===1));
-  assert.equal(ENEMIES.faultstalker.loot[0].item,'sinter_laminate');
+  assert.equal(itemDrops('faultstalker')[0].item,'sinter_laminate');
   assert.equal(SPAWNS.filter(s=>s.type==='sinter_grazer').length,3);
 });
 
