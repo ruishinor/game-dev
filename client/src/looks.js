@@ -263,8 +263,14 @@ export const LOOK_DEFS = {
   },
 };
 
+// Reuse the existing humanoid/rig; distinct utilitarian service colours.
+LOOK_DEFS.quartermaster={
+ ...LOOK_DEFS.archivist,body:'humanoid_m',scale:1.02,
+ shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x6c6a53,roughness:.9,map:'look_coat_panels'},upperarms:{color:0x4b5149,roughness:.85},forearms:{color:0x333d3d,roughness:.85},hood:{color:0x4b5149,roughness:.85}},
+ accent:0xc5ae73,gear:[],
+};
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist' };
+export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;

@@ -8,6 +8,7 @@ import { equipItem, unequipSlot, interact, craftRecipe } from './sim/progress.js
 import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { renameCompanion } from './sim/companion.js';
 import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
+import { tradeVendor,closeVendor } from './sim/vendor.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -371,6 +372,11 @@ export class NetServer {
       case 'loot_take':
         if(!isId(msg.id)||!isId(msg.generation)||!(msg.item===null||typeof msg.item==='string'&&msg.item.length<=80))return this.strike(conn);
         reply(takeLoot(game,p,msg.id,msg.generation,msg.item));break;
+      case 'vendor_trade':
+        if(typeof msg.ticket!=='string'||msg.ticket.length!==36||!isId(msg.rev)||!isId(msg.qty)||msg.qty<1||msg.qty>99||typeof msg.id!=='string'||msg.id.length>80||!['buy','sell','sell_junk','buyback'].includes(msg.op))return this.strike(conn);
+        reply(tradeVendor(game,p,msg));break;
+      case 'vendor_close':
+        closeVendor(p);break;
       case 'loot_close':
         clearLoot(p);break;
       case 'act':

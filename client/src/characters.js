@@ -425,7 +425,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: HB.npcIdle } : {});
+    if (look) model = makeHumanoid(assets, look, ['archivist','quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {});
     else if (meta.c === 'mender') model = makeMender(assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {

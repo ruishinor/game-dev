@@ -2,7 +2,7 @@
 // Data only. Rules live in shared/build.js (loadouts) and server/sim (combat).
 
 import { ZONES } from './world.js';
-import { GADGET_ITEMS, SENTINEL_GADGET_DROPS } from './gadgets.js';
+import { GADGET_ITEMS } from './gadgets.js';
 
 export const GCD_MS = 1000;
 export const MAX_LEVEL = 5;
@@ -208,7 +208,7 @@ export const ENEMIES = {
     level: 1, hp: 85, speed: 3.1, radius: 0.62,
     neutral: true, aggro: 0, social: 0, leash: 19,
     attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
-    xp: 0, respawn: 24000, loot: [],
+    xp: 0, respawn: 24000,
   },
   quarantine_custodian: {
     name: 'Quarantine Custodian',
@@ -216,7 +216,7 @@ export const ENEMIES = {
     aggro: 7, social: 0, leash: 17,
     attack: { range: 3.0, interval: 2300, dmg: 12, kind: 'melee' },
     specials: [{ id: 'containment_sweep', name: 'Containment Sweep', cd: 10000, first: 3500, windup: 1900, radius: 4.7, dmg: 32, at: 'self' }],
-    xp: 50, respawn: 38000, loot: [],
+    xp: 50, respawn: 38000,
   },
   faultstalker: {
     name: 'Faultstalker',
@@ -225,7 +225,6 @@ export const ENEMIES = {
     attack: { range: 3.0, interval: 1900, dmg: 10, kind: 'melee' },
     specials: [{ id: 'fault_shear', name: 'Fault Shear', cd: 10500, first: 2800, windup: 1800, radius: 4.1, dmg: 28, at: 'target' }],
     xp: 46, respawn: 31000,
-    loot: [{ item: 'sinter_laminate', chance: 0.45 }],
   },
   skitter: {
     name: 'Mire Skitter',
@@ -239,7 +238,6 @@ export const ENEMIES = {
     attack: { range: 2.4, interval: 1800, dmg: 6, kind: 'melee' },
     xp: 22,
     respawn: 18000,
-    loot: [],
   },
   sentinel: {
     name: 'Rogue Sentinel',
@@ -254,7 +252,6 @@ export const ENEMIES = {
     specials: [{ id: 'arc_pulse', name: 'Arc Pulse', cd: 9000, first: 4000, windup: 1600, radius: 4.5, dmg: 24, at: 'target' }],
     xp: 42,
     respawn: 28000,
-    loot: [{ item: 'adrenal_shunt', chance: 0.35 }, ...SENTINEL_GADGET_DROPS],
   },
   warden: {
     name: 'Vault Warden',
@@ -275,7 +272,6 @@ export const ENEMIES = {
     ],
     xp: 180,
     respawn: 60000,
-    loot: [{ item: 'wardstone_shard', chance: 1 }],
   },
 };
 
