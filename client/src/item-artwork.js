@@ -3,6 +3,8 @@
 const motifs=Object.freeze({
   field_emitter:'<path d="M3 8h5l3-3h7l3 3v4l-5 3h-4l-2 6H6l2-8H3Z" fill="#566968"/><path d="M11 8h7v4h-7Z" fill="#233b3c"/><path d="M12 10h5m-8 4 3 1m-5 4h3" stroke="#c7b482"/><path d="M3 8v5" stroke="#88c8c1"/>',
   tuned_emitter:'<path d="M2 8h5l4-4h8l3 4v5l-5 3h-4l-2 5H6l2-7H2Z" fill="#667878"/><path d="M10 7h9v6h-9Z" fill="#20383f"/><path d="M12 9h5m-5 2h5M7 17h4" stroke="#dec390"/><path d="M2 9v4m18-6 2 2" stroke="#b4fff0" stroke-width="2"/><path d="m9 5 1 9m8-10 1 4" stroke="#a8b5b0"/>',
+  dense_pulse_core:'<path d="M5 4h14l3 5-3 11H5L2 9Z" fill="#626e6c" stroke="#b4bcb1"/><path d="M7 5v13m10-13v13M4 10h16" stroke="#a7a99a"/><path d="m12 6-4 7h5l-1 5 5-8h-5Z" fill="#c99b61" stroke="#f3d6a4"/>',
+  longpoint_emitter:'<path d="M3 16 17 3l4 3-2 8-12 7H3Z" fill="#4c666a" stroke="#b5c2b5"/><path d="m7 14 9-8 2 2-9 8Z" fill="#66b7b5" stroke="#c4efdc"/><path d="m3 18 4-1m9-5 3 2m-5 1 2 2" stroke="#d5b785"/>',
   brine_phase_filter:'<path d="M3 7 9 3h9l3 4v10l-5 4H7l-4-4Z" fill="#50615e"/><path d="M3 7h13l5-4M16 7v14" stroke="#a9b4a2"/><path d="M6 10h7v8H6Z" fill="#292f2e"/><path d="M8 11v5m3-5v5" stroke="#d4bb79"/><path d="M18 9v8" stroke="#a2b2af"/>',
   survey_calibrator:'<path d="M5 5h13l3 5v9l-4 3H5l-2-4V8Z" fill="#6c7465"/><path d="M6 8h10v7H6Z" fill="#203a3a"/><path d="m7 12 2-2 2 4 2-3 2 1" stroke="#afd0bd"/><path d="M17 5v-3m2 0h-4M7 18h3m3 0h3" stroke="#d2bd8a"/>',
   survey_induction:'<path d="M4 7 8 3h8l4 4v10l-4 4H8l-4-4Z" fill="#485b60"/><path d="M2 9h4m12 0h4M2 15h4m12 0h4" stroke="#a0b5a9"/><path d="m8 5 8 2v10l-8 2Z" fill="#182d33"/><path d="m9 8 6 2-6 2 6 2-6 2" stroke="#d7aa6f"/>',

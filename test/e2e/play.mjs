@@ -255,6 +255,7 @@ async function workshopPlaytest(){
   await page.keyboard.press('KeyB');
   await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
+  check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
   await shot(P,'workshop-01-planner.png');
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await page.locator('.recipe-entry[data-recipe="coupler"]').click();

@@ -196,6 +196,14 @@ export class CombatVfx {
       v.sigil({ at: f, radius: 2, style: 'restorative', color: PALETTE.spore, life: 1.4, spin: -0.8, alpha: 0.75 });
       v.burst({ at: [f[0], f[1] + 0.4, f[2]], shape: 'disc', radius: 1.4, count: 10, blend: 'alpha', cell: CELL.smoke, color: 0x9ccc60, color2: 0x50703a, size: [0.6, 1], sizeEnd: [1.4, 2], life: [1, 1.6], speed: [0.1, 0.4], alpha: 0.4, spin: [-0.4, 0.4] });
       v.burst({ at: [f[0], f[1] + 0.3, f[2]], shape: 'disc', radius: 1.6, count: 24, cell: CELL.spore, color: hot(PALETTE.spore, 0.3), color2: PALETTE.spore, size: [0.06, 0.14], life: [1, 1.8], speed: [0.1, 0.5], dir: [0, 1, 0], spread: 1.2, drag: 0.6, swirl: 1 });
+    } else if (ab === 'phase_transposition' && d && d!==s) {
+      v.shell({at:s.chest,radius:1.15,color:PALETTE.aegis,kind:'sphere',hex:.8,life:.48,from:1.2,to:.25});
+      v.beam({from:s.chest,to:d.chest,color:PALETTE.aegis,width:.17,life:.65,grow:.55,flow:7,taper:1});
+      v.burst({at:s.chest,shape:'sphere',radius:.7,count:18,cell:CELL.hex,color:hot(PALETTE.aegis,.4),color2:PALETTE.resonance,size:[.12,.22],sizeEnd:.03,life:[.45,.8],speed:[.5,1.4],attract:d.chest,pull:16,spin:[-2,2]});
+      v.sigil({at:this.feet(s),radius:1.4,style:'resonance',color:PALETTE.resonance,life:.65,spin:-1.4});
+      v.sigil({at:this.feet(d),radius:1.7,style:'resonance',color:PALETTE.aegis,life:1.15,spin:1.2});
+      v.shell({at:this.feet(d),radius:1.7,kind:'dome',hex:1,color:PALETTE.aegis,life:1.1,holdUntil:.5,alpha:.55});
+      v.flash({at:d.chest,color:PALETTE.aegis,intensity:8,life:.35});
     } else if (ab === 'hinge_field' && d) {
       v.shell({ at: this.feet(d), radius: 1.7, color: PALETTE.aegis, kind: 'dome', hex: 1, life: 1.1, holdUntil: 0.5, alpha: 0.6 });
       v.sigil({ at: this.feet(d), radius: 1.9, style: 'resonance', color: PALETTE.aegis, life: 1.3, spin: 0.9 });

@@ -399,6 +399,24 @@ try {
   await page.evaluate(()=>window.__attune.view({yaw:-2.65,pitch:0.16,dist:3.4,face:-2.65}));
   await capture('preview-evidence/08a-kestrel-vessel-vfx.png');
   await moveTo(-39,-8);
+  // Fixture grants only requirements and materials; actual fabrication uses UI.
+  p.char.level=4;p.char.inventory.push('tuned_emitter');
+  p.char.materials={...p.char.materials,resonance_fragment:1,sentinel_alloy:4,mire_fibre:2};
+  server.game.refreshStats(p);server.game.markDirty(p);
+  for(const foe of server.game.enemies)if(foe.threat.has(p.id))resetEnemy(server.game,foe);
+  p.combatUntil=0;
+  await moveTo(49,-36.5);
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.you.workshop==='brine_engineering'&&s.sheet.inventory.includes('tuned_emitter')&&s.sheet.level===4;});
+  if(await page.getByRole('button',{name:'Dismiss transmission'}).isVisible())await page.getByRole('button',{name:'Dismiss transmission'}).click();
+  if(await page.getByRole('button',{name:'Close field record'}).isVisible())await page.getByRole('button',{name:'Close field record'}).click();
+  await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
+  await workshop.locator('[data-recipe="longpoint_emitter"]').click();
+  await workshop.locator('[data-craft="longpoint_emitter"]').click();
+  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('longpoint_emitter'));
+  assert.ok(!p.char.inventory.includes('tuned_emitter'));
+  assert.equal(p.char.materials.resonance_fragment,undefined);
+  await capture('preview-evidence/10-longpoint-fabricated.png');
+  await workshop.getByRole('button',{name:'Close Build'}).click();
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
@@ -422,6 +440,39 @@ try {
   await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
   {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
   await bio.screenshot({path:'preview-evidence/09a-mender-carapace.png'});
+  // Commissioned access and prior recovered equipment are fixtures.
+  const conductor=[...server.game.players.values()].find(x=>x.name==='Carapace Tester');
+  assert.ok(conductor);
+  conductor.char.level=4;conductor.char.brineStage=3;conductor.char.survey='signal_done';
+  conductor.char.attunements=['resonance'];
+  conductor.char.inventory.push('conductive_membrane','sinter_laminate');
+  conductor.char.materials={culture_matrix:1,resonance_fragment:1};
+  server.game.refreshStats(conductor);server.game.markDirty(conductor);
+  conductor.x=38;conductor.z=-36.5;conductor.companion.x=39.5;conductor.companion.z=-38;
+  await bio.waitForFunction(()=>{const s=window.__attune.state();return s.you.workshop==='brine_research'&&s.sheet.inventory.includes('conductive_membrane')&&s.sheet.level===4;});
+  await bio.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
+  const bioWorkshop=bio.getByRole('dialog',{name:'Build Planner and Workshop'});
+  await bioWorkshop.locator('[data-recipe="bloom_relay"]').click();
+  assert.ok(await bioWorkshop.locator('[data-craft="bloom_relay"]').isEnabled());
+  await bioWorkshop.locator('[data-craft="bloom_relay"]').click();
+  await bio.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('bloom_relay'));
+  assert.ok(!conductor.char.inventory.includes('conductive_membrane')&&!conductor.char.inventory.includes('sinter_laminate'));
+  assert.deepEqual(conductor.char.materials,{});
+  await bio.screenshot({path:'preview-evidence/11-bloom-relay-fabricated.png'});
+  await bioWorkshop.getByRole('button',{name:'Close Build'}).click();
+  await bio.locator('#view').focus();
+  await bio.keyboard.press('KeyI');
+  await bio.locator('.inventory-window button.item-cell[aria-label="Bloom Relay"]').click({button:'right'});
+  await bio.locator('.player-context button').filter({hasText:/^Equip$/}).click();
+  await bio.waitForFunction(()=>window.__attune.state().sheet.equipped.device==='bloom_relay');
+  await bio.getByRole('button',{name:'Close inventory'}).click();
+  conductor.x=0;conductor.z=7.5;conductor.companion.x=8;conductor.companion.z=7.5;
+  conductor.res=100;conductor.gcdUntil=0;
+  await bio.waitForFunction(()=>Math.hypot(window.__attune.state().pos.x,window.__attune.state().pos.z-7.5)<1.5);
+  await bio.locator('#view').focus();
+  await bio.getByRole('button',{name:'Overgrowth Surge',exact:true}).click();
+  await bio.waitForFunction(()=>window.__attune.state().you.cds.overgrowth_surge>0);
+  await bio.screenshot({path:'preview-evidence/12-bloom-relay-surge.png'});
   assert.deepEqual(bioErrors,[]);await bio.close();
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
@@ -449,6 +500,8 @@ try {
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
+  assert.equal(await keeper.getByRole('button',{name:'Phase Transposition',exact:true}).count(),1);
+  assert.ok(await keeper.getByRole('button',{name:'Phase Transposition',exact:true}).isVisible());
   tank.res=100;
   // Fixture invokes the actual authoritative ability; extend only for slow screenshot capture.
   assert.ok(useAbility(server.game,tank,'hinge_field').ok);

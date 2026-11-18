@@ -28,7 +28,7 @@ See the [handoff](docs/HANDOFF.md) for verification and known limits.
 | Click / Tab | Select a target / next enemy |
 | Right-click | Attack an enemy, or use an object |
 | F1 / Esc | Target yourself / clear the target |
-| 1 – 4 | Abilities |
+| 1 – 9 | Available abilities (class dependent) |
 | Shift + 1 – 5 | Companion: Triage / Bond / Attack / Follow / Stay |
 | F | Interact |
 | V | Reset the camera behind you |

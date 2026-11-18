@@ -48,3 +48,26 @@ test('Relay absorbs for every eligible ally and stops at finite capacity',()=>{
  const {game,p,e}=fixture();const ally=game.addPlayer(makeChar('vanguard'));place(ally,2,25);p.res=100;assert.ok(useAbility(game,p,'lattice_relay').ok);const hp=ally.hp;
  assert.equal(game.privateState(ally).barrier.remaining,24);assert.equal(dealDamage(game,e,ally,8,'test',{flat:true}),0);assert.equal(ally.hp,hp);assert.equal(game.privateState(ally).barrier.remaining,16);assert.equal(dealDamage(game,e,ally,20,'test',{flat:true}),4);assert.equal(ally.hp,hp-4);
 });
+
+test('Phase Transposition moves finite barrier without refreshing or duplicating it',()=>{
+ const {game,p,e}=fixture({attunements:['resonance']});const ally=game.addPlayer(makeChar('vanguard'));place(ally,2,25);p.res=100;
+ assert.equal(CLASSES.keeper.abilities[4],'phase_transposition');
+ assert.ok(useAbility(game,p,'hinge_field').ok);const shield=getBuff(p,'shield');shield.v=17;const copy={...shield};
+ game.time+=1000;game.setTarget(p,ally.id);
+ assert.ok(useAbility(game,p,'phase_transposition').ok);assert.equal(p.res,60);
+ assert.equal(getBuff(p,'shield'),null);assert.deepEqual(getBuff(ally,'shield'),copy);
+ assert.equal(game.privateState(ally).barrier.remaining,17);
+ assert.equal(useAbility(game,p,'phase_transposition').ok,false);assert.equal(p.res,60);
+ const hp=ally.hp;assert.equal(dealDamage(game,e,ally,20,'test',{flat:true}),3);assert.equal(ally.hp,hp-3);
+});
+test('Transposition rejects unavailable, foreign, expired, depleted and occupied barriers without spending',()=>{
+ const {game,p}=fixture();const ally=game.addPlayer(makeChar('vanguard'));place(ally,2,25);p.res=100;game.setTarget(p,ally.id);
+ const reject=()=>{const before=JSON.stringify({res:p.res,cds:p.cds,gcd:p.gcdUntil,buffs:p.buffs,ally:ally.buffs,events:game.events.length});assert.equal(useAbility(game,p,'phase_transposition').ok,false);assert.equal(JSON.stringify({res:p.res,cds:p.cds,gcd:p.gcdUntil,buffs:p.buffs,ally:ally.buffs,events:game.events.length}),before);};
+ reject();p.char.attunements=['resonance'];reject();
+ const shield={k:'shield',src:p.id,keeper:true,v:20,cap:40,until:game.time+9000};
+ for(const bad of [{src:999},{v:0},{until:game.time}]){addBuff(p,{...shield,...bad});reject();}
+ addBuff(p,shield);addBuff(ally,{...shield,src:ally.id});reject();ally.buffs=[];
+ game.setTarget(p,p.id);reject();game.setTarget(p,ally.id);place(ally,30,25);reject();
+ place(p,46,-41);place(ally,46,-45);reject();
+ assert.equal(useAbility(game,ally,'phase_transposition').ok,false);
+});
