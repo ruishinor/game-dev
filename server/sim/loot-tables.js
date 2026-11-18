@@ -33,8 +33,9 @@ export function relicDrop(type,rng){
 }
 
 // Independent blueprint rolls do not advance the equipment or relic RNG.
-export function blueprintDrop(type,rng){
+export function blueprintDrop(type,rng,annex=false){
  if(type!=='sentinel'&&type!=='warden')return null;
  const n=rng();if(!Number.isFinite(n)||n<0||n>=1)return null;
+ if(type==='sentinel'&&annex)return n<.025?'blueprint_relay_carbine':n<.065?'blueprint_relay_vest':null;
  return type==='sentinel'?(n<.04?'blueprint_relay_vest':null):(n<.008?'blueprint_resonant_vest':null);
 }

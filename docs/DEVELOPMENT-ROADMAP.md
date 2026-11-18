@@ -109,3 +109,7 @@ The implementation audit is a pinned historical snapshot; this roadmap is the li
 ### Integration checkpoint: equipment and Phase Annex (2026-11-18)
 
 The stacked candidates add independent chest equipment, retained rare-tier blueprint knowledge, random equipment loot, cosmetic coats, licensed assembled weapon carry meshes, and a disconnected shared hostile encounter reached through personal Phase Scar calibration. They are not a claim of completed production or art acceptance. The Phase Annex is a shared bounded deck in the existing simulation, not a private instance; it has a permanent return route outside combat and reconnect recovery at the Sanctum. Dedicated weapon attack animation and full asset visual review remain open. Merge only after applicable hosted checks pass.
+
+### Modular weapon fabrication
+
+Field housing, dormant pulse cell, phase lens, calibrated pulse module and extended relay frame are independently counted components. The known sidearm recipe and discovered Annex carbine blueprint consume inputs at completion through existing authoritative Workshop production. The new ranged weapons preserve condition, quality level, equip restrictions and class ability semantics. Initial balance values are playtest tuning, not final economy. The carbine reuses the Longpoint donor silhouette and the sidearm the tuned emitter silhouette; visible mesh-level part customization is not implemented.

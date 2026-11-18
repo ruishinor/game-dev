@@ -18,6 +18,14 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  patrol_sidearm:'<path d="M3 6h16l2 3-3 3h-7l-2 8H5l2-8H3Z" fill="#527578" stroke="#adc9ca"/><path d="M7 8h11m-8 6-2 4" stroke="#d5c28b"/>',
+  relay_carbine:'<path d="M2 8h7l2-2h9v2h2v3H10l-2 6H5l1-6H2Z" fill="#5e7484" stroke="#acd4ec"/><path d="M12 8h6M9 12l3 4h3" stroke="#c7b9e6"/>',
+  pulse_housing:'<path d="M4 5h15l2 4-2 5H9l-2 5H4v-7Z" fill="#586e78"/><path d="M7 8h10v3H7Z" stroke="#bfd2cb"/>',
+  phase_lens:'<ellipse cx="12" cy="12" rx="7" ry="9" fill="#527d87" stroke="#a6ddec"/><path d="M8 6q8 5 8 12M8 18q8-5 8-12" stroke="#c3e5e8"/>',
+  pulse_cell:'<path d="M7 3h10v3h2v15H5V6h2Z" fill="#425a5c"/><path d="m12 7-3 7h3l-1 4 5-8h-3Z" fill="#d7cf8b" stroke="#d7cf8b"/>',
+  pulse_module:'<rect x="3" y="6" width="18" height="12" rx="2" fill="#4c596b"/><circle cx="11" cy="12" r="4" fill="#6f9faa"/><path d="M4 9h3m-3 6h3m9-6h4m-4 6h4" stroke="#d5be90"/>',
+  relay_frame:'<path d="M2 7h19v5h-7l-3 7H7l3-7H2Z" fill="#5a666e" stroke="#a9bcba"/><path d="M3 9h16m-8 4-2 4" stroke="#ddbb87"/>',
+  blueprint_relay_carbine:'<path d="M4 3h16v18H4Z" fill="#375565"/><path d="M6 9h12v3H9l-1 3H6Z" stroke="#a7d8df"/><path d="M7 18h8m1 0h1M6 6h8" stroke="#d9c388"/>',
   vault_memory_foil:'<path d="M4 4 18 3l3 4-1 13-13 1-3-4Z" fill="#4e6265" stroke="#bac7bd"/><path d="M7 6h9l2 2v10H7Z" fill="#293b42" stroke="#a6c3b6"/><path d="m8 15 3-5 3 5 3-7M8 8h3m3 9h3" stroke="#e1c688"/><path d="M5 12h2m12-1h2" stroke="#a0c8c4"/>',
   vault_witness_seal:'<path d="m12 2 8.5 5v10L12 22l-8.5-5V7Z" fill="#515361" stroke="#e3d0a2"/><path d="m12 5 5.7 3.5v7L12 19l-5.7-3.5v-7Z" fill="#292c42" stroke="#b8a3de"/><path d="M7.5 12q4.5-6 9 0-4.5 6-9 0Z" stroke="#e6d9ae" fill="#77668e"/><circle cx="12" cy="12" r="1.8" fill="#e4d8a6"/><path d="M12 2v3m0 14v3" stroke="#efdea7"/>',
   sinter_flake:'<path d="M4 14 7 6 15 3 21 9 18 17 9 21Z" fill="#7c8069" stroke="#c2c4a2"/><path d="m7 6 2 15 6-18 3 14M4 14l5 1 12-6" stroke="#d4c8a0"/><path d="m10 10 4-4 3 4-3 4Z" fill="#a7bb9b"/>',

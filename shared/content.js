@@ -320,6 +320,8 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  patrol_sidearm:{name:'Patrol Arc Sidearm',slot:'weapon',attackKind:'bolt',rarity:'Uncommon',ql:2,repairable:true,autoBonus:3,summary:'QL 2 · +3 base ranged auto-attack damage at full condition',desc:'A modular pulse tool assembled from a fabricated field housing and calibrated pulse module. For ranged professions; condition scales its added damage.'},
+  relay_carbine:{name:'Relay Arc Carbine',slot:'weapon',attackKind:'bolt',rarity:'Rare',ql:5,repairable:true,autoBonus:4,autoReachBonus:2,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +4 base ranged auto-attack damage · +2m reach at full condition',desc:'A two-handed field instrument made from modular components and a recovered Annex blueprint. Requires Resonance and Instrumentation 13. Condition scales the added damage and reach.'},
   social_service_coat:{name:'Sanctum Service Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A sand-grey service coat worn by supply crews and civilian technicians. Overrides the visible torso layer without removing combat equipment.'},
   social_relay_coat:{name:'Relay Technician Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A weathered, dark teal technician coat. Overrides the visible torso layer without changing combat equipment.'},
   field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
