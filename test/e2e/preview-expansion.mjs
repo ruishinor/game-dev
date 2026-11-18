@@ -74,6 +74,7 @@ try {
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
   await moveTo(49, -36.5);
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('brineworks-site-markings');return g?.children.length===2&&g.children.every(m=>m.material.map?.image?.data?.length===512*128*4)}));
   await capture('preview-evidence/02c-engineering-station.png');
   assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);

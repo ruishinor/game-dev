@@ -5,6 +5,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { buildSiteMarkings } from './site-markings.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 
 const matCache = new Map();
@@ -1332,6 +1333,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   flat(43, -35.8, 0.53, 4.0, joint);
   for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
   scene.add(serviceDeck);
+  scene.add(buildSiteMarkings(THREE,deckY).group);
 
   buildSinterHabitat(scene);
   if (kits) buildVegetation(c, detail);
