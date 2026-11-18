@@ -63,6 +63,16 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: 
 .lookcard { text-align: left; padding: 8px 12px; display: block; }
 .lookcard strong { display: block; font-size: 14px; }
 .lookcard p { margin: 4px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.appearance { border: 1px solid rgba(120, 160, 170, 0.25); border-radius: 6px; padding: 6px 10px 8px; margin: 10px 0 0; }
+.ap-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.ap-name { width: 52px; font-size: 12px; color: var(--muted); flex: none; }
+.ap-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-choices button { padding: 4px 10px; font-size: 12px; }
+.ap-choices button[aria-pressed='true'] { border-color: var(--cyan); background: rgba(31, 111, 120, 0.45); box-shadow: 0 0 0 1px var(--cyan) inset; }
+.ap-swatches button { width: 24px; height: 24px; padding: 0; border-radius: 50%; }
+.ap-swatches button[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--cyan); }
+.ap-blurb { margin: 0 0 4px 62px; font-size: 12px; line-height: 1.4; color: var(--muted); min-height: 1.4em; }
+.ap-choices button:disabled { opacity: 0.35; cursor: default; }
 .lookcard[aria-pressed='true'] { border-color: var(--cyan); background: rgba(31, 111, 120, 0.45); box-shadow: 0 0 0 1px var(--cyan) inset; }
 #login-error { color: #ffb0a6; min-height: 1.2em; margin: 10px 0 6px; font-size: 13px; }
 #enter { width: 100%; padding: 11px; font-size: 16px; }
