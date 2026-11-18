@@ -631,9 +631,32 @@ export class UI {
       try { localStorage.setItem('attunement.showNameplates', this.nameplatesSetting.checked ? '1' : '0'); } catch {}
     });
     plateLabel.append(this.nameplatesSetting, document.createTextNode(' Show world nameplates'));
+    // Effect comfort: intensity of ability effects and flash limiting. Hostile
+    // telegraphs and other gameplay warnings are always drawn in full.
+    const fxLabel = h('label', null, 'Ability effects');
+    fxLabel.setAttribute('for', 'fx-intensity');
+    this.fxSelect = h('select');
+    this.fxSelect.id = 'fx-intensity';
+    for (const [value, name] of [['1', 'Full'], ['0.6', 'Reduced'], ['0.3', 'Minimal']]) {
+      const opt = h('option', null, name);
+      opt.value = value;
+      this.fxSelect.append(opt);
+    }
+    const fxNow = this.a.fxPrefs?.() || { level: 1, calm: false };
+    this.fxSelect.value = String(fxNow.level);
+    const calmLabel = h('label');
+    this.calmSetting = h('input');
+    this.calmSetting.type = 'checkbox';
+    this.calmSetting.checked = !!fxNow.calm;
+    calmLabel.append(this.calmSetting, document.createTextNode(' Limit bright flashes'));
+    const saveFx = () => this.a.setFxPrefs?.(Number(this.fxSelect.value), this.calmSetting.checked);
+    this.fxSelect.addEventListener('change', saveFx);
+    this.calmSetting.addEventListener('change', saveFx);
     this.settingsPanel.append(sc, h('h2', null, 'Settings'),
       qualityLabel, this.qualitySelect, applyQuality,
       h('p', 'muted', 'Changing graphics reloads the world. The high preset remains available.'),
+      fxLabel, this.fxSelect, calmLabel,
+      h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
     root.append(this.settingsPanel);
 

@@ -16,8 +16,11 @@ export const CAPACITY = { add: 1800, alpha: 420 };
 export const MAX_AREAS = 16;
 export const MAX_AURAS = 48;
 export const MAX_TIMELINES = 24;
+export const MAX_RIBBONS = 24;
 export const shieldEnvelope = (height = 1.9) => Math.max(1.7, height * 1.12);
-const STRIDE = 30;
+// Per-particle floats: see burst(). 30..33 = turbulence amplitude, turbulence
+// scale, ground soft-fade distance, colour mid-point blend.
+const STRIDE = 34;
 const TAU = Math.PI * 2;
 
 // Shader colours are written as given (display sRGB); these shaders skip tone
@@ -200,6 +203,47 @@ void main(){
   float a = k * k * (edge * 1.1 + 0.18) * (0.55 + 0.7 * n) * alpha;
   gl_FragColor = vec4(mix(color, vec3(1.0), edge * k * 0.8), clamp(a, 0.0, 1.0));
 }`;
+// Ribbon: expanded to face the camera across its tangent. rib.x = along
+// (0 tail .. 1 head), rib.y = side (-1/1).
+const RIBBON_VS = `
+attribute vec3 tangent3; attribute vec2 rib;
+uniform float width; uniform float taper;
+varying vec2 vR; varying vec3 vW;
+void main(){
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vec3 toCam = normalize(cameraPosition - wp.xyz);
+  vec3 t = tangent3; if (dot(t, t) < 1e-10) t = vec3(0.0, 1.0, 0.0);
+  vec3 side = normalize(cross(normalize(t), toCam) + 1e-6);
+  float w = width * mix(1.0, rib.x, taper) ;
+  wp.xyz += side * rib.y * w;
+  vR = rib; vW = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+const RIBBON_FS = `
+uniform vec3 color; uniform vec3 color2; uniform float alpha; uniform float t; uniform float style; uniform sampler2D noise;
+varying vec2 vR; varying vec3 vW;
+void main(){
+  float a = vR.x; float s = abs(vR.y);
+  float edge = 1.0 - smoothstep(0.0, 1.0, s);
+  float core = pow(1.0 - s, 6.0);
+  float n = texture2D(noise, vec2(a * 2.0 - t * 1.7, vR.y * 0.35 + t * 0.3)).r;
+  vec3 c; float k;
+  if (style < 0.5) {            // energy: hot core, flowing filaments
+    k = edge * (0.45 + 0.75 * n) * pow(a, 0.8);
+    c = mix(color2, color, a) + core * 0.9;
+  } else if (style < 1.5) {     // smoke: soft and wide
+    k = edge * edge * (0.35 + 0.65 * n) * a;
+    c = mix(color2, color, n);
+  } else if (style < 2.5) {     // organic: beaded pulses travelling to the head
+    float bead = 0.55 + 0.45 * sin(a * 38.0 - t * 14.0);
+    k = edge * bead * pow(a, 0.6);
+    c = mix(color2, color, bead) + core * 0.4;
+  } else {                      // lightning: thin white core, coloured glow
+    k = edge * (0.6 + 0.4 * n);
+    c = mix(color2, color, core) + core * 1.4;
+  }
+  gl_FragColor = vec4(c * k * alpha, 1.0);
+}`;
 const SHELL_VS = `
 varying vec3 vN; varying vec3 vV; varying vec2 vUv;
 #ifdef IMPACT_RIPPLE
@@ -265,6 +309,11 @@ export function createVfx(THREE, scene, options = {}) {
     sigil: (s) => textures?.sigils?.[s] || blank,
   };
   const stats = { emitted: 0, dropped: 0, retired: 0 };
+  // Presentation clock for animated fields, and the player's effect
+  // intensity (accessibility): 1 full, 0.6 reduced, 0.3 minimal.
+  let clock = 0;
+  let intensity = 1;
+  let calmFlashes = false;
 
   // Particles ---------------------------------------------------------------------
   function particlePool(capacity, blending) {
@@ -289,7 +338,7 @@ export function createVfx(THREE, scene, options = {}) {
     return { capacity, data: new Float32Array(capacity * STRIDE), live: 0, geo, mat, mesh, a, quad };
   }
   const pools = { add: particlePool(CAPACITY.add, THREE.AdditiveBlending), alpha: particlePool(CAPACITY.alpha, THREE.NormalBlending) };
-  const budget = () => (quality >= 2 ? 1 : quality === 1 ? 0.55 : 0) * (reduced ? 0.45 : 1);
+  const budget = () => (quality >= 2 ? 1 : quality === 1 ? 0.55 : 0) * (reduced ? 0.45 : 1) * (0.35 + 0.65 * intensity);
 
   /**
    * Emit particles. Positions are sampled from a shape around `at`.
@@ -386,6 +435,12 @@ export function createVfx(THREE, scene, options = {}) {
       f[j + 26] = attract ? o.pull ?? 4 : 0;
       f[j + 27] = reduced ? 0 : o.swirl ?? 0;
       f[j + 28] = at[0]; f[j + 29] = at[2];
+      // Curl-noise turbulence (m/s at full strength) and its spatial scale (1/m).
+      f[j + 30] = reduced ? range(rand, o.turb ?? 0) * 0.4 : range(rand, o.turb ?? 0);
+      f[j + 31] = o.turbScale ?? 1.6;
+      // Soft contact: fade within this distance of the ground (0 = off).
+      f[j + 32] = groundHeight ? o.soft ?? (o.blend === 'alpha' ? 0.35 : 0) : 0;
+      f[j + 33] = rand() * 100;
       made++;
     }
     stats.emitted += made;
@@ -415,7 +470,18 @@ export function createVfx(THREE, scene, options = {}) {
         const s = f[j + 27] * dt;
         f[j + 3] += -dz * s; f[j + 5] += dx * s;
       }
-      f[j] += f[j + 3] * dt; f[j + 1] += f[j + 4] * dt; f[j + 2] += f[j + 5] * dt;
+      let tx = 0, ty = 0, tz = 0;
+      if (f[j + 30] > 0) {
+        // Divergence-free swirl: curl of a cheap trigonometric potential,
+        // advected with time so smoke, spores and motes roll instead of drift.
+        const q = f[j + 31], ph = clock * 0.9 + f[j + 33];
+        const X = f[j] * q, Y = f[j + 1] * q, Z = f[j + 2] * q;
+        const a1 = Math.cos(Y + ph), a2 = Math.cos(Z * 1.3 - ph * 0.7), a3 = Math.cos(X * 0.9 + ph * 1.1);
+        const b1 = Math.cos(Z + ph * 0.6), b2 = Math.cos(X * 1.2 - ph), b3 = Math.cos(Y * 1.1 + ph * 0.8);
+        const amp = f[j + 30] * Math.min(1, k * 4);
+        tx = (a1 - b1) * amp; ty = (a2 - b2) * amp; tz = (a3 - b3) * amp;
+      }
+      f[j] += (f[j + 3] + tx) * dt; f[j + 1] += (f[j + 4] + ty) * dt; f[j + 2] += (f[j + 5] + tz) * dt;
       f[j + 6] = age;
       f[j + 18] += f[j + 19] * dt;
       // compact
@@ -428,7 +494,12 @@ export function createVfx(THREE, scene, options = {}) {
       iCol.array[w * 4] = f[o + 10] + (f[o + 13] - f[o + 10]) * ck;
       iCol.array[w * 4 + 1] = f[o + 11] + (f[o + 14] - f[o + 11]) * ck;
       iCol.array[w * 4 + 2] = f[o + 12] + (f[o + 15] - f[o + 12]) * ck;
-      iCol.array[w * 4 + 3] = f[o + 16] * env;
+      let soft = 1;
+      if (f[o + 32] > 0) {
+        const gy = groundHeight(f[o], f[o + 2]);
+        soft = Math.max(0, Math.min(1, (f[o + 1] - gy) / f[o + 32]));
+      }
+      iCol.array[w * 4 + 3] = f[o + 16] * env * soft * intensity;
       iMisc.array[w * 4] = f[o + 8] + (f[o + 9] - f[o + 8]) * k;
       iMisc.array[w * 4 + 1] = f[o + 17];
       iMisc.array[w * 4 + 2] = f[o + 18];
@@ -468,12 +539,18 @@ export function createVfx(THREE, scene, options = {}) {
   function material(vs, fs, uniforms, blending = THREE.AdditiveBlending, extra = {}) {
     return new THREE.ShaderMaterial({ uniforms, vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false, depthTest: true, blending, side: THREE.DoubleSide, ...extra });
   }
-  function track(mesh, life, tick, ownGeometry = false) {
+  function track(mesh, life, tick, ownGeometry = false, warning = false) {
     mesh.frustumCulled = false;
     mesh.renderOrder = 4;
     root.add(mesh);
-    const it = queueItem({ mesh, life, age: 0, tick, ownGeometry });
-    try { tick(0, 0, it); } catch { retire(it); return null; }
+    // Player effect intensity scales every layer except gameplay warnings.
+    const alpha = mesh.material?.uniforms?.alpha;
+    const scaled = warning || !alpha ? tick : (k, t, it2, dt) => {
+      tick(k, t, it2, dt);
+      alpha.value *= intensity;
+    };
+    const it = queueItem({ mesh, life, age: 0, tick: scaled, ownGeometry });
+    try { scaled(0, 0, it); } catch { retire(it); return null; }
     return it;
   }
   function queueItem(it) {
@@ -485,7 +562,12 @@ export function createVfx(THREE, scene, options = {}) {
     if (!items.delete(it)) return;
     stats.retired++;
     if (it.light) it.light.intensity = 0;
+    if (it.onRetire) it.onRetire();
     if (!it.mesh) return;
+    if (it.pooled) {
+      it.mesh.visible = false;
+      return;
+    }
     root.remove(it.mesh);
     it.mesh.material?.dispose();
     if (it.ownGeometry) it.mesh.geometry.dispose();
@@ -572,7 +654,7 @@ export function createVfx(THREE, scene, options = {}) {
       u.fill.value = k;
       u.t.value = t;
       u.alpha.value = Math.min(1, k / 0.06);
-    }, true);
+    }, true, true);
   }
 
   /** A camera-facing energy ribbon between two (possibly moving) points. */
@@ -800,9 +882,191 @@ export function createVfx(THREE, scene, options = {}) {
     L.position.set(...c);
     L.color.setHex(o.color ?? 0xffffff);
     L.distance = o.distance ?? 7;
-    const I = (o.intensity ?? 12) * (reduced ? 0.5 : 1);
+    const I = (o.intensity ?? 12) * (reduced ? 0.5 : 1) * (calmFlashes ? 0.25 : intensity);
     const it = { mesh: null, light: L, life: o.life ?? 0.3, age: 0, tick: (k) => { L.intensity = I * Math.pow(1 - k, 2); } };
     slot.it = queueItem(it);
+    return it;
+  }
+
+  // Ribbons: camera-facing strips through a list of points (trails, tethers,
+  // lightning). Expansion happens in the vertex shader, so a ribbon costs one
+  // draw call and a small dynamic buffer. Pooled; the oldest is recycled.
+  const RIBBON_N = 32;
+  const ribbons = [];
+  function ribbonSlot() {
+    const n = RIBBON_N;
+    const geo = new THREE.BufferGeometry();
+    const P = new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    const Tn = new THREE.BufferAttribute(new Float32Array(n * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    const A = new THREE.BufferAttribute(new Float32Array(n * 2 * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('position', P);
+    geo.setAttribute('tangent3', Tn);
+    geo.setAttribute('rib', A);
+    const idx = [];
+    for (let i = 0; i < n - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+    geo.setIndex(idx);
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
+    const u = { color: { value: col(0xffffff) }, color2: { value: col(0xffffff) }, alpha: { value: 0 }, width: { value: 0.1 }, t: { value: 0 }, noise: { value: T.noise }, style: { value: 0 }, taper: { value: 1 } };
+    const mesh = new THREE.Mesh(geo, material(RIBBON_VS, RIBBON_FS, u));
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 7;
+    mesh.visible = false;
+    mesh.name = 'vfx-ribbon';
+    root.add(mesh);
+    return { mesh, geo, P, Tn, A, u, it: null };
+  }
+  function writeRibbon(slot, pts) {
+    const n = Math.min(RIBBON_N, pts.length);
+    const { P, Tn, A } = slot;
+    for (let i = 0; i < RIBBON_N; i++) {
+      const p = pts[Math.min(i, n - 1)];
+      const a = pts[Math.max(0, Math.min(i, n - 1) - 1)];
+      const b = pts[Math.min(n - 1, Math.min(i, n - 1) + 1)];
+      const tx = b[0] - a[0], ty = b[1] - a[1], tz = b[2] - a[2];
+      const along = n > 1 ? Math.min(i, n - 1) / (n - 1) : 0;
+      for (let s2 = 0; s2 < 2; s2++) {
+        const o = i * 2 + s2;
+        P.array[o * 3] = p[0]; P.array[o * 3 + 1] = p[1]; P.array[o * 3 + 2] = p[2];
+        Tn.array[o * 3] = tx; Tn.array[o * 3 + 1] = ty; Tn.array[o * 3 + 2] = tz;
+        A.array[o * 2] = along; A.array[o * 2 + 1] = s2 ? 1 : -1;
+      }
+    }
+    P.needsUpdate = Tn.needsUpdate = A.needsUpdate = true;
+  }
+  function takeRibbon(taken = []) {
+    let slot = ribbons.find((r) => !items.has(r.it) && !taken.includes(r));
+    if (!slot && ribbons.length < MAX_RIBBONS) ribbons.push((slot = ribbonSlot()));
+    if (!slot) {
+      slot = ribbons.filter((r) => !taken.includes(r)).reduce((a, b) => (a.it.age / a.it.life > b.it.age / b.it.life ? a : b));
+      retire(slot.it);
+    }
+    return slot;
+  }
+
+  /**
+   * A trail behind a moving point: keeps the last `length` seconds of its
+   * path. style: 0 energy (hot core, filament noise), 1 smoke (soft, wide),
+   * 2 organic (beaded, pulsing).
+   */
+  function trail(o) {
+    if (disposed || quality <= 0) return null;
+    const head = typeof o.follow === 'function' ? o.follow : () => o.follow;
+    const first = point(head());
+    if (!first) return null;
+    const slot = takeRibbon();
+    const hist = [];
+    const span = Math.max(0.03, o.length ?? 0.18);
+    const life = Math.max(0.05, o.life ?? 0.5);
+    const fade = Math.max(0.02, o.fade ?? span);
+    slot.u.color.value.copy(col(o.color ?? 0xffffff));
+    slot.u.color2.value.copy(col(o.color2 ?? o.color ?? 0xffffff));
+    slot.u.width.value = (o.width ?? 0.12) * (reduced ? 0.8 : 1);
+    slot.u.style.value = o.style ?? 0;
+    slot.u.taper.value = o.taper ?? 1;
+    const peak = (o.alpha ?? 0.9) * intensity;
+    slot.mesh.visible = true;
+    let ended = 0;
+    const it = {
+      mesh: slot.mesh,
+      life: life + fade,
+      age: 0,
+      pooled: true,
+      tick: (k, age) => {
+        const live = age <= life;
+        const p = live ? point(head()) : null;
+        if (p) hist.push([p[0], p[1], p[2], age]);
+        else if (!ended) ended = age;
+        while (hist.length > 2 && age - hist[0][3] > span) hist.shift();
+        while (hist.length > RIBBON_N) hist.shift();
+        if (hist.length < 2) { slot.u.alpha.value = 0; return; }
+        writeRibbon(slot, hist);
+        slot.u.t.value = age;
+        const out = ended ? Math.max(0, 1 - (age - ended) / fade) : 1;
+        slot.u.alpha.value = peak * out * Math.min(1, age / 0.04);
+      },
+    };
+    slot.it = queueItem(it);
+    return it;
+  }
+
+  /**
+   * Branching lightning between two points, re-struck every `rate` seconds.
+   * Branches fork off the main channel and fade; all of it is ribbons.
+   */
+  function lightning(o) {
+    if (disposed || quality <= 0) return null;
+    const a0 = point(o.from), b0 = point(o.to);
+    if (!a0 || !b0) return null;
+    const branches = quality >= 2 && !reduced ? o.branches ?? 2 : 0;
+    const slots = [takeRibbon()];
+    for (let i = 0; i < branches; i++) slots.push(takeRibbon(slots));
+    const life = Math.max(0.05, o.life ?? 0.35);
+    const rate = reduced ? 0.12 : o.rate ?? 0.05;
+    const jag = o.jag ?? 0.12;
+    const width = o.width ?? 0.06;
+    let next = 0;
+    const strike = () => {
+      const a = point(o.from) || a0, b = point(o.to) || b0;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      // Midpoint displacement, then forks from random points along it.
+      let pts = [a, b];
+      let amp = jag * len;
+      for (let lvl = 0; lvl < 4; lvl++) {
+        const nxt = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p = pts[i], q = pts[i + 1];
+          nxt.push(p, [(p[0] + q[0]) / 2 + (rand() - 0.5) * amp, (p[1] + q[1]) / 2 + (rand() - 0.5) * amp, (p[2] + q[2]) / 2 + (rand() - 0.5) * amp]);
+        }
+        nxt.push(pts[pts.length - 1]);
+        pts = nxt;
+        amp *= 0.5;
+      }
+      writeRibbon(slots[0], pts);
+      for (let s2 = 1; s2 < slots.length; s2++) {
+        const start = pts[2 + Math.floor(rand() * (pts.length - 6))];
+        const dir = [b[0] - a[0], b[1] - a[1], b[2] - a[2]].map((x) => x / (len || 1));
+        const bl = len * (0.2 + rand() * 0.25);
+        const end = [start[0] + (dir[0] + (rand() - 0.5) * 1.4) * bl, start[1] + (dir[1] + (rand() - 0.5) * 1.4) * bl, start[2] + (dir[2] + (rand() - 0.5) * 1.4) * bl];
+        const br = [start];
+        for (let i = 1; i <= 6; i++) {
+          const k = i / 6;
+          br.push([start[0] + (end[0] - start[0]) * k + (rand() - 0.5) * jag * bl, start[1] + (end[1] - start[1]) * k + (rand() - 0.5) * jag * bl, start[2] + (end[2] - start[2]) * k + (rand() - 0.5) * jag * bl]);
+        }
+        writeRibbon(slots[s2], br);
+      }
+    };
+    const peak = (o.alpha ?? 1) * intensity;
+    for (const [i, slot] of slots.entries()) {
+      slot.u.color.value.copy(col(o.color ?? 0xbfe6ff));
+      slot.u.color2.value.copy(col(o.color2 ?? o.color ?? 0x6fb0ff));
+      slot.u.width.value = width * (i ? 0.55 : 1);
+      slot.u.style.value = 3;
+      slot.u.taper.value = i ? 1 : 0.15;
+      slot.mesh.visible = true;
+    }
+    const it = {
+      mesh: null,
+      life,
+      age: 0,
+      tick: (k, age) => {
+        if (age >= next) {
+          strike();
+          next = age + rate;
+        }
+        const flick = reduced || calmFlashes ? 0.8 : 0.65 + 0.35 * rand();
+        slots.forEach((slot, i) => {
+          slot.u.t.value = age;
+          slot.u.alpha.value = peak * flick * Math.pow(1 - k, 0.6) * (i ? 0.6 : 1);
+        });
+      },
+      onRetire: () => slots.forEach((slot) => { slot.u.alpha.value = 0; slot.mesh.visible = false; if (slot.it === it) slot.it = null; }),
+    };
+    // The ribbons are owned by this item; claim them so they are not reused mid-strike.
+    for (const slot of slots) {
+      if (slot.it && slot.it !== it) retire(slot.it);
+    }
+    queueItem(it);
+    for (const slot of slots) slot.it = it;
     return it;
   }
 
@@ -849,6 +1113,7 @@ export function createVfx(THREE, scene, options = {}) {
     if (disposed) return;
     if (!Number.isFinite(dt) || dt < 0) dt = 0;
     dt = Math.min(dt, 0.1);
+    clock += dt;
     // Emitters can create layers and evict the oldest item while ticking.
     for (const it of [...items]) {
       if (!items.has(it)) continue;
@@ -879,6 +1144,12 @@ export function createVfx(THREE, scene, options = {}) {
     }
   }
 
+  /** Player effect intensity (accessibility): 1 full .. 0.3 minimal; calm limits flashes. */
+  function setIntensity(level, calm = calmFlashes) {
+    intensity = Math.max(0.3, Math.min(1, Number(level) || 1));
+    calmFlashes = !!calm;
+  }
+
   function setQuality(q) {
     quality = q;
     if (q < 2) for (const s of lights) retire(s.it);
@@ -902,18 +1173,24 @@ export function createVfx(THREE, scene, options = {}) {
     }
     for (const g of Object.values(shared)) g.dispose();
     for (const g of arcGeos.values()) g.dispose();
+    for (const r of ribbons) {
+      r.geo.dispose();
+      r.mesh.material.dispose();
+    }
     blank?.dispose();
     root.removeFromParent();
   }
 
   return {
-    root, burst, sigil, area, aura, shock, scorch, telegraph, beam, arc, shell, flash, emitter, play, update, clear, dispose, setQuality,
+    root, burst, sigil, area, aura, shock, scorch, telegraph, beam, arc, shell, flash, emitter, trail, lightning, play, update, clear, dispose, setQuality, setIntensity,
     rand,
+    get intensity() { return intensity; },
+    get calmFlashes() { return calmFlashes; },
     get quality() { return quality; },
     get reducedMotion() { return reduced; },
     set reducedMotion(v) { reduced = !!v; },
     stats() {
-      return { ...stats, areas: areas.size, auras: auras.size, timelines: timelines.size, items: items.size, particles: pools.add.live + pools.alpha.live, lights: lights.length };
+      return { ...stats, areas: areas.size, auras: auras.size, timelines: timelines.size, items: items.size, particles: pools.add.live + pools.alpha.live, lights: lights.length, ribbons: ribbons.length };
     },
   };
 }
