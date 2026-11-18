@@ -19,6 +19,16 @@ const MAX_INPUTS_PER_MSG = 16;
 const CHAT_INTERVAL_MS = 800;
 const CHAT_MAX_LEN = 140;
 const VICINITY_CHAT_RANGE = 45; // world metres, independent of camera visibility
+const SNAPSHOT_BACKPRESSURE=512*1024;
+const STALL_LIMIT_MS=5000;
+const PRIVATE_EVENT_LIMIT=256;
+const VISUAL_EVENT_LIMIT=64;
+const VISUAL_EVENT_TTL_MS=500;
+// Retain only recent action cues. Never replay telegraphs or persistent effects.
+const replayable=e=>e.e==='hit'||e.e==='cast';
+function recentVisual(events,now){
+ return events.filter(x=>now-x.time<=VISUAL_EVENT_TTL_MS).slice(-VISUAL_EVENT_LIMIT);
+}
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isId = (v) => Number.isInteger(v) && v >= 0 && v < 2 ** 31;
@@ -56,6 +66,8 @@ export class NetServer {
       authPending: false,
       remote: ws._socket?.remoteAddress || 'unknown',
       known: new Map(),
+      pendingVisual: [],
+      stalledSince: null,
       tokens: RATE_BURST,
       lastRefill: Date.now(),
       strikes: 0,
@@ -89,6 +101,8 @@ export class NetServer {
     if (this.sessions.get(conn.char.id) === conn) this.sessions.delete(conn.char.id);
     conn.player = null;
     conn.char = null;
+    conn.pendingVisual=[];
+    conn.stalledSince=null;
     this.store.markDirty();
   }
 
@@ -104,6 +118,8 @@ export class NetServer {
     conn.char = char;
     conn.player = this.game.addPlayer(char);
     conn.known.clear();
+    conn.pendingVisual=[];
+    conn.stalledSince=null;
     this.sessions.set(char.id, conn);
     const msg = {
       t: 'welcome',
@@ -447,8 +463,15 @@ export class NetServer {
       if (conn.ws.readyState !== 1 || !this.validAccountSession(conn)) continue;
       const p = conn.player;
       if (!p) continue;
-      // Skip a snapshot rather than queue without bound for a stalled client.
-      if (conn.ws.bufferedAmount > 512 * 1024) continue;
+      // Replaceable position snapshots may be skipped; private messages are retained.
+      if(p.outbox.length>PRIVATE_EVENT_LIMIT){conn.ws.terminate();continue;}
+      if(conn.ws.bufferedAmount>SNAPSHOT_BACKPRESSURE){
+        conn.stalledSince??=game.time;
+        if(game.time-conn.stalledSince>STALL_LIMIT_MS){conn.ws.terminate();continue;}
+        conn.pendingVisual=recentVisual([...(conn.pendingVisual||[]),...game.events.filter(replayable).map(event=>({time:game.time,event}))],game.time);
+        continue;
+      }
+      conn.stalledSince=null;
       // Clients discard entities omitted from a snapshot (e.g. expired corpses).
       // Forget those IDs here as well: an enemy respawning under the same ID
       // must arrive with metadata so its model can be recreated.
@@ -461,17 +484,26 @@ export class NetServer {
           meta.push(game.metaFor(ent));
         }
       }
-      let out = `{"t":"s","time":${Math.round(game.time)},"ents":${rowsJson},"ev":${evJson},"y":${JSON.stringify(game.privateState(p))}`;
+      const delayed=recentVisual(conn.pendingVisual||[],game.time).map(x=>x.event).filter(e=>(!e.s||liveIds.has(e.s))&&(!e.d||liveIds.has(e.d)));
+      const deliveredEvents=delayed.length?JSON.stringify([...delayed,...game.events]):evJson;
+      let out = `{"t":"s","time":${Math.round(game.time)},"ents":${rowsJson},"ev":${deliveredEvents},"y":${JSON.stringify(game.privateState(p))}`;
       if (meta.length) out += `,"meta":${JSON.stringify(meta)}`;
       if (p.outbox.length) out += `,"pv":${JSON.stringify(p.outbox)}`;
       if (p.sheetDirty) {
         out += `,"sheet":${JSON.stringify(game.sheet(p))}`;
-        p.sheetDirty = false;
       }
       out += '}';
-      conn.ws.send(out);
+      try{
+        conn.ws.send(out,error=>{if(error)conn.ws.terminate();});
+      }catch{
+        conn.ws.terminate();continue;
+      }
+      // Socket accepted the payload, not an application-level acknowledgement.
+      p.sheetDirty=false;
+      p.outbox=[];
+      conn.pendingVisual=[];
     }
-    game.endTick();
+    game.endTick({preservePrivate:true});
   }
 
   /** Drop connections that stopped answering pings. */
