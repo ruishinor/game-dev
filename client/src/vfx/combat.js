@@ -27,7 +27,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','field_maintenance',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -413,6 +413,9 @@ export class CombatVfx {
     } else if (e.k === 'spawn') {
       v.shock({ at: f, radius: 1.6, color: 0xff70d0, life: 0.6 });
       this.dust(f, 0.6, 6, 0x6a5a6a);
+    } else if (e.k === 'field_maintenance') {
+      v.sigil({at:f,radius:1.15,style:'kinetic',color:0xd6b788,life:1.15,spin:.3});
+      v.burst({at:s.chest,shape:'sphere',radius:.2,count:9,cell:CELL.ember,color:0xe9d1a1,color2:0xa6bdad,size:[.035,.06],life:[.28,.55],speed:[.3,.8],gravity:1});
     } else if (e.k === 'equip') {
       v.sigil({ at: f, radius: 1.4, style: 'kinetic', color: PALETTE.gold, life: 1.2, spin: 1.5 });
       this.rising(f, 0.5, [CELL.flare, CELL.ember], PALETTE.gold, 14, 2);

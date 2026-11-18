@@ -16,6 +16,7 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  field_maintenance_kit:'<path d="M4 6 8 3h10l3 4v12l-4 2H7l-3-3Z" fill="#54645c" stroke="#b4bcaa"/><path d="M4 7h13l4-1M17 7v14" stroke="#a3a99b"/><rect x="6.5" y="9" width="8" height="8" rx="1" fill="#263c3b"/><path d="m8 14 4-4 2 2-4 4H8Z" fill="#d7b580" stroke="#f2dbad"/><path d="M7 19h8M19 10v5" stroke="#bdc3ad"/>',
   spent_contact:'<path d="M4 5h13l3 4v10H4z" fill="#65747a"/><path d="M7 8h3v8H7m6-8h3v5h-3" stroke="#c1a36b"/><path d="m12 4-1 6 4 2-3 7" stroke="#28343a"/>',
   mire_husk:'<path d="M4 17 7 7l6-4 7 4-2 7-8 7z" fill="#63745f"/><path d="m7 7 6 5 7-5m-7 5-3 9M5 14l6 2m4-2 3-2" stroke="#a5b28a"/>',
   mire_fibre:'<path d="M3 19C6 7 17 20 21 5M3 15C7 2 17 17 20 3M5 22C9 12 18 23 22 10" stroke="#9bac78" stroke-width="2.5"/>',
@@ -52,7 +53,7 @@ const art={
   implant:'<path d="M12 3 19 7v10l-7 4-7-4V7zM12 7v10M8 12h8"/>',
 };
 export function itemArt(id) {
-  const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':Object.hasOwn(GOODS,id)?'junk':'');
+  const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':Object.hasOwn(GOODS,id)?GOODS[id].category:'');
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
   e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
@@ -279,7 +280,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     const unseen=[...(ui.unseenItems||[])].filter(item=>id==='all'||ITEMS[item]?.slot===id);
@@ -299,7 +300,7 @@ export function renderInventory(ui) {
       btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
       btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
       btn.addEventListener('click',()=>ui.toggleCodex(true,id));
-      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body',(kind==='material'?'Material':'Junk')+' · quantity '+quantity)]);
+      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body',(kind==='material'?'Material':material.category==='utility'?'Utility':'Junk')+' · quantity '+quantity)]);
       grid.append(btn);continue;
     }
     const item=ITEMS[id];
@@ -315,10 +316,17 @@ export function renderInventory(ui) {
   // A cell is an equipment item or one material stack, not storage capacity.
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
   const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
-  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' trade stacks · '+view.goodsUnits+' trade units';
+  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' goods stacks · '+view.goodsUnits+' goods units';
   const wallet=h('div','inventory-wallet','Credits: '+String(Number.isSafeInteger(s.credits)&&s.credits>=0?s.credits:0));
   wallet.setAttribute('aria-label','Credit balance');
   root.append(wallet,tabs,count,grid);
+  if((ui.inventoryFilter==='all'||ui.inventoryFilter==='utility')&&s.goods?.field_maintenance_kit>0){
+    const weapon=s.equipped?.weapon,condition=conditionOf(s,weapon),kit=h('section','inventory-detail');
+    kit.append(h('strong',null,'Field Maintenance Kit × '+s.goods.field_maintenance_kit),h('p','muted',condition===null?'Equip a repairable weapon first.':ITEMS[weapon].name+' · '+condition+'% condition. Restores up to 25 points outside combat.'));
+    const use=h('button','primary','Use Field Maintenance Kit');use.type='button';
+    use.disabled=!!ui.buildLock||condition===null||condition===100||!Number.isSafeInteger(s.utilityRev);
+    use.addEventListener('click',()=>ui.a.useUtility('field_maintenance_kit',weapon,s.utilityRev));kit.append(use);root.append(kit);
+  }
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'?'No weapons carried. Purchase or fabricate a starter emitter.':ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
     const card=equipmentCard(ui,ui.inventorySelection,false,null,true);

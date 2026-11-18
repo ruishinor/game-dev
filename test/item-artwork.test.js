@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ITEMS } from '../shared/content.js';
 import { MATERIALS } from '../shared/crafting.js';
+import { GOODS } from '../shared/goods.js';
 import { itemArt } from '../client/src/journal-ui.js';
 import { REFINED_ART_IDS, refinedItemMotif } from '../client/src/item-artwork.js';
 test('refined motifs target only existing item IDs and remain distinct',()=>{
@@ -20,7 +21,7 @@ test('item-art DOM contract uses static fragments for every current item and mat
   globalThis.document={createElement:()=>({dataset:{}})};
   try{
     const icons=[];
-    for(const id of [...Object.keys(ITEMS),...Object.keys(MATERIALS)]){
+    for(const id of [...Object.keys(ITEMS),...Object.keys(MATERIALS),...Object.keys(GOODS)]){
       const el=itemArt(id);
       assert.equal(el.dataset.art,id);
       assert.ok(el.innerHTML.startsWith('<svg ')&&el.innerHTML.endsWith('</svg>'),id);

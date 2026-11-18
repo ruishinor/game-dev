@@ -9,6 +9,7 @@ import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { renameCompanion } from './sim/companion.js';
 import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
+import { useUtility } from './sim/utility.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -374,8 +375,11 @@ export class NetServer {
         reply(leaveParty(game, p));
         break;
       case 'craft':
-        reply(craftRecipe(game,p,msg.recipe));
+        reply(craftRecipe(game,p,msg.recipe,msg.rev));
         break;
+      case 'use_utility':
+        if(typeof msg.item!=='string'||msg.item.length>80||typeof msg.weapon!=='string'||msg.weapon.length>80||!isId(msg.rev))return this.strike(conn);
+        reply(useUtility(game,p,msg.item,msg.weapon,msg.rev));break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;

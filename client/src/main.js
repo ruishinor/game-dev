@@ -346,7 +346,8 @@ const ui = new UI({
   lootClose:()=>net.send({t:'loot_close'}),
   vendorTrade:quote=>net.send({...quote,t:'vendor_trade'}),
   vendorClose:()=>net.send({t:'vendor_close'}),
-  craft: recipe=>net.send({t:'craft',recipe}),
+  craft: (recipe,rev)=>net.send({t:'craft',recipe,rev}),
+  useUtility: (item,weapon,rev)=>net.send({t:'use_utility',item,weapon,rev}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -978,6 +979,10 @@ function onEvent(e) {
             fx.burst(o.head, colour, 5, 0.65);
           }
         }
+        break;
+      }
+      if (e.k === 'field_maintenance') {
+        if(!handled)fx.ring(s.pos.x,s.pos.z,1.15,0xd6b788,650,s.pos.y);
         break;
       }
       if (e.k === 'carapace_imprint') {

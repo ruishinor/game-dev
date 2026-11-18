@@ -318,3 +318,6 @@ test('coverage: every effect kind the server emits and every enemy special has a
   const missing = [...kinds].filter((k) => !AREA_KINDS.has(k));
   assert.deepEqual(missing, [], 'add a recipe in client/src/vfx/combat.js (areaRecipe + AREA_KINDS)');
 });
+
+ test('field maintenance uses a bounded and expiring engineering effect',()=>{const {v}=make(),c=new CombatVfx(v),s=entity(1,0,0);
+ assert.ok(c.area({e:'fx',k:'field_maintenance',s:1},s));v.update(.1);assert.ok(v.stats().items>0);run(v,2);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);v.dispose();});
