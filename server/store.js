@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
-import { validateLoadout } from '../shared/build.js';
+import { resolveLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
 import { sanitizeGoods } from '../shared/goods.js';
@@ -72,12 +72,9 @@ function sanitize(raw) {
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };
-    // A loadout that no longer validates (content changed) is simply cleared.
-    if (validateLoadout(c, eq).ok) {
-      c.equipped=eq;
-      const extended={...eq,weapon:raw.equipped.weapon};
-      if(raw.equipped.weapon&&validateLoadout(c,extended).ok)c.equipped=extended;
-    }
+    if (raw.equipped.weapon) eq.weapon = raw.equipped.weapon;
+    c.equipped = resolveLoadout(c, eq).equipped;
+    if (!c.equipped.weapon) delete c.equipped.weapon;
   }
   return c;
 }

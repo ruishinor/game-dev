@@ -14,6 +14,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS } from '../../shared/goods.js';
 
 const INTERACT_RANGE = 5;
@@ -147,7 +148,7 @@ export function equipItem(game, p, itemId) {
   if (p.char.equipped[ITEMS[itemId].slot] === itemId) return { ok: false, reason: 'That is already equipped.' };
   const res = tryEquip(p.char, itemId);
   if (!res.ok) return res;
-  applyLoadout(game, p, res.equipped);
+  applyLoadout(game, p, res.equipped, ITEMS[itemId].name);
   game.message(p, 'info', `${ITEMS[itemId].name} equipped.`);
   return { ok: true };
 }
@@ -159,14 +160,21 @@ export function unequipSlot(game, p, slot) {
   const res = tryUnequip(p.char, slot);
   if (!res.ok) return res;
   const name = ITEMS[p.char.equipped[slot]].name;
-  applyLoadout(game, p, res.equipped);
+  applyLoadout(game, p, res.equipped, name);
   game.message(p, 'info', `${name} removed.`);
+  if (res.alsoRemoved.length) {
+    const names = res.alsoRemoved.map(id => ITEMS[id].name).join(', ');
+    game.message(p, 'info', `Returned to inventory because requirements changed: ${names}.`);
+  }
   return { ok: true };
 }
 
-function applyLoadout(game, p, equipped) {
+function applyLoadout(game, p, equipped, itemName) {
+  const before = equipmentAttributes(p.char, p.stats);
   p.char.equipped = equipped;
   game.refreshStats(p);
+  const changes = attributeChanges(before, equipmentAttributes(p.char, p.stats));
+  if (changes.length) p.outbox.push({ e: 'attributes', item: itemName, changes });
   p.buffs = p.buffs.filter((b) => b.k !== 'shield');
   game.events.push({ e: 'fx', k: 'equip', s: p.id });
   game.markDirty(p);

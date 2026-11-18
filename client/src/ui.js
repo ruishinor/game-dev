@@ -4,6 +4,7 @@
 
 import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
+import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { weaponReach } from '../../shared/condition.js';
@@ -378,19 +379,27 @@ export class UI {
     // Bars
     const bars = h('div', 'bars');
     this.petBar = h('div', 'petbar');
-    this.autoControl = h('div', 'auto-control');
-    this.autoButton = h('button', 'auto-toggle', '[R] Auto-attack OFF');
+    this.autoButton = h('button', 'auto-toggle');
+    this.autoButton.type = 'button';
+    this.autoButton.setAttribute('aria-label', 'Auto-attack');
+    this.autoButton.setAttribute('aria-keyshortcuts', 'R');
+    this.autoButton.setAttribute('aria-pressed', 'false');
+    this.autoButton.innerHTML = svg('<path d="m19 4 1 1-3 12-2-3-6 6-2-2 6-6-3-2z"/>');
+    this.autoButton.append(h('kbd', null, 'R'));
+    this.autoIndicator = h('span', 'auto-indicator', '○');
+    this.autoIndicator.setAttribute('aria-hidden', 'true');
+    this.autoButton.append(this.autoIndicator);
     this.autoButton.addEventListener('click', () => this.a.autoAttack());
-    this.autoStatus = h('span', 'auto-status', 'Select an enemy');
-    this.autoControl.append(this.autoButton, this.autoStatus);
     this.actionBar = h('div', 'actionbar');
+    const actions = h('div', 'action-row');
+    actions.append(this.autoButton, this.actionBar);
     this.xp = bar('xp');
     this.moveStatus = h('div', 'move-status');
     this.moveStatus.hidden = true;
     this.surveyStatus = h('div', 'auto-status');
     this.surveyStatus.hidden = true;
     this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.autoControl, this.actionBar, this.xp.wrap);
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -770,6 +779,22 @@ export class UI {
     setTimeout(() => t.remove(), 4600);
   }
 
+  attributeToast(item, changes) {
+    const increase = changes.some(({delta}) => delta > 0);
+    const decrease = changes.some(({delta}) => delta < 0);
+    const heading = increase && decrease ? 'Mixed attribute changes' : increase ? 'Attributes increased' : 'Attributes decreased';
+    const lines = changes.map(({ key, delta }) => {
+      const { name, unit = '' } = ATTRIBUTE_DISPLAY[key];
+      return `${delta > 0 ? '+' : '−'}${Math.abs(delta)}${unit} ${name}`;
+    });
+    const t = h('div', 'toast attribute-toast');
+    t.setAttribute('role', 'status');
+    t.append(h('strong', null, heading), h('div', null, item), h('div', null, lines.join(' · ')));
+    this.toasts.append(t);
+    while (this.toasts.childElementCount > 4) this.toasts.firstElementChild.remove();
+    setTimeout(() => t.remove(), 4600);
+  }
+
   zone(name) {
     set(this.zoneLabel, 'text', name);
     this.banner.textContent = name;
@@ -1061,6 +1086,7 @@ export class UI {
     equip.disabled=!!this.buildLock||!res.ok;
     equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
     this.playerContext.append(equip);
+    if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
     if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
     const info=h('button',null,'Info · Codex');
     info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
@@ -1401,13 +1427,13 @@ export class UI {
     const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
     const reach=Number(effectiveReach.toFixed(2));
     const autoTitle=`${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
-    if(this.autoButton.title!==autoTitle)this.autoButton.title=autoTitle;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
-    set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
-    set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
+    if (this.autoButton.getAttribute('aria-pressed') !== String(engaging)) this.autoButton.setAttribute('aria-pressed', String(engaging));
+    set(this.autoIndicator, 'text', engaging ? '●' : '○');
     const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
-    set(this.autoStatus, 'text', autoText);
+    const title = `${autoText}. ${autoTitle}`;
+    if (this.autoButton.title !== title) this.autoButton.title = title;
 
     // Action bar
     for (const b of this.abilityButtons) {

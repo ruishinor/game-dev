@@ -480,10 +480,13 @@ test('build: implant requires skill that only the device supplies', () => {
   assert.ok(equipItem(game, p, 'myelin_lattice').ok);
   assert.equal(p.stats.healMul, 1.3);
   const u = unequipSlot(game, p, 'device');
-  assert.equal(u.ok, false, 'cannot remove the device the implant depends on');
-  assert.match(u.reason, /Myelin Lattice/);
-  assert.ok(unequipSlot(game, p, 'implant').ok);
-  assert.ok(unequipSlot(game, p, 'device').ok);
+  assert.equal(u.ok, true);
+  assert.equal(p.char.equipped.implant, null);
+  assert.equal(p.char.equipped.device, null);
+  assert.deepEqual(p.char.inventory, ['sporeglass_focus', 'myelin_lattice']);
+  assert.deepEqual(p.outbox.filter(e => e.e === 'attributes').at(-1).changes, [
+    { key: 'biotech', delta: -3 }, { key: 'power', delta: -6 }, { key: 'healMul', delta: -30 },
+  ]);
   assert.equal(p.stats.healMul, 1);
 });
 
@@ -850,7 +853,7 @@ test('stats: deriveStats reflects equipment and the loadout validators agree wit
   let s = deriveStats(c);
   assert.equal(s.chargeMul, 1.5);
   assert.equal(s.dischargeRadius, 2);
-  assert.equal(tryUnequip(c, 'device').ok, false);
+  assert.deepEqual(tryUnequip(c, 'device').alsoRemoved, ['kinetic_capacitor']);
   c.equipped = tryEquip(c, 'adrenal_shunt').equipped; // swap implants
   s = deriveStats(c);
   assert.equal(s.dmgMul, 1.2);

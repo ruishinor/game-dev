@@ -64,50 +64,65 @@ function unmetRequirement(item, skills, attunements) {
   return null;
 }
 
-/**
- * Check a prospective loadout. Every equipped item must be owned, sit in its
- * own slot, match the class and have its requirements met by the skills the
- * *whole* loadout provides. Returns {ok} or {ok:false, reason}.
- */
-export function validateLoadout(char, equipped) {
+// Admit each item from permanent skills and already qualified gear. Nothing
+// in a closed dependency loop can contribute the first qualifying bonus.
+export function resolveLoadout(char, equipped) {
+  const accepted = {};
+  const pending = new Map();
+  const rejected = new Map();
   for (const slot of SLOTS) {
     const id = equipped[slot];
+    if (Object.hasOwn(equipped, slot)) accepted[slot] = null;
     if (!id) continue;
+    const item = Object.hasOwn(ITEMS, id) ? ITEMS[id] : null;
+    if (!item) rejected.set(slot, 'Unknown item.');
+    else if (item.slot !== slot) rejected.set(slot, `${item.name} does not fit that slot.`);
+    else if (!char.inventory.includes(id)) rejected.set(slot, 'You do not own that item.');
+    else if (item.cls && item.cls !== char.cls) rejected.set(slot, `${item.name} cannot be used by your class.`);
+    else pending.set(slot, id);
+  }
+
+  let skills = computeSkills(char.cls, char.level, accepted);
+  while (pending.size) {
+    const previousSize = pending.size;
+    for (const [slot, id] of pending) {
+      if (unmetRequirement(ITEMS[id], skills, char.attunements)) continue;
+      accepted[slot] = id;
+      pending.delete(slot);
+      skills = computeSkills(char.cls, char.level, accepted);
+    }
+    if (pending.size === previousSize) break;
+  }
+  for (const [slot, id] of pending) {
     const item = ITEMS[id];
-    if (!item) return { ok: false, reason: 'Unknown item.' };
-    if (item.slot !== slot) return { ok: false, reason: `${item.name} does not fit that slot.` };
-    if (!char.inventory.includes(id)) return { ok: false, reason: 'You do not own that item.' };
-    if (item.cls && item.cls !== char.cls) return { ok: false, reason: `${item.name} cannot be used by your class.` };
+    rejected.set(slot, `${item.name} ${unmetRequirement(item, skills, char.attunements)}.`);
   }
-  const skills = computeSkills(char.cls, char.level, equipped);
-  for (const slot of SLOTS) {
-    const item = ITEMS[equipped[slot]];
-    if (!item) continue;
-    const unmet = unmetRequirement(item, skills, char.attunements);
-    if (unmet) return { ok: false, reason: `${item.name} ${unmet}.`, item: equipped[slot] };
-  }
+  return { equipped: accepted, rejected };
+}
+
+/** Check ownership, slots and permanent eligibility of a proposed loadout. */
+export function validateLoadout(char, equipped) {
+  const { rejected } = resolveLoadout(char, equipped);
+  for (const [slot, reason] of rejected) return { ok: false, reason, item: equipped[slot] };
   return { ok: true };
 }
 
 /** Result of equipping `itemId` into its slot. */
 export function tryEquip(char, itemId) {
-  const item = ITEMS[itemId];
+  const item = Object.hasOwn(ITEMS, itemId) ? ITEMS[itemId] : null;
   if (!item) return { ok: false, reason: 'Unknown item.' };
   const equipped = { ...char.equipped, [item.slot]: itemId };
   const res = validateLoadout(char, equipped);
   return res.ok ? { ok: true, equipped } : res;
 }
 
-/** Result of emptying `slot`. Fails if another equipped item depends on it. */
+/** Return the selected item and any newly unsupported gear to carried inventory. */
 export function tryUnequip(char, slot) {
   if (!SLOTS.includes(slot)) return { ok: false, reason: 'Unknown slot.' };
   if (!char.equipped[slot]) return { ok: false, reason: 'Nothing is equipped there.' };
-  const equipped = { ...char.equipped, [slot]: null };
-  const res = validateLoadout(char, equipped);
-  if (!res.ok) {
-    return { ok: false, reason: `Cannot remove ${ITEMS[char.equipped[slot]].name}: ${res.reason}`, item: res.item };
-  }
-  return { ok: true, equipped };
+  const remaining = { ...char.equipped, [slot]: null };
+  const { equipped, rejected } = resolveLoadout(char, remaining);
+  return { ok: true, equipped, alsoRemoved: [...rejected.keys()].map(key => remaining[key]) };
 }
 
 /** Human-readable requirement lines for UI: [{text, met}]. */
@@ -117,7 +132,8 @@ export function describeRequirements(char, itemId) {
   if (!item) return out;
   if (item.cls) out.push({ text: `Class: ${CLASSES[item.cls].name}`, met: item.cls === char.cls });
   if (item.req) {
-    const skills = computeSkills(char.cls, char.level, { ...char.equipped, [item.slot]: itemId });
+    const supporting = resolveLoadout(char, { ...char.equipped, [item.slot]: null }).equipped;
+    const skills = computeSkills(char.cls, char.level, supporting);
     if (item.req.skills) {
       for (const k of Object.keys(item.req.skills)) {
         const base = CLASSES[char.cls].skills[k] + (CLASSES[char.cls].primary === k ? char.level - 1 : 0);
@@ -126,7 +142,7 @@ export function describeRequirements(char, itemId) {
         const breakdown = bonus ? `${base} base + ${bonus} equipment = ${effective}` : `${base} base`;
         out.push({
           text: `${SKILL_NAMES[k]} ${effective} / ${item.req.skills[k]}`,
-          detail: `After equipping: ${breakdown}. Minimum ${item.req.skills[k]} required.`,
+          detail: `Qualifying skills: ${breakdown}. Minimum ${item.req.skills[k]} required.`,
           met: effective >= item.req.skills[k],
         });
       }

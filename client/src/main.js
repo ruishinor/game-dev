@@ -1084,6 +1084,9 @@ function onEvent(e) {
     case 'loot':
       acquired();
       break;
+    case 'attributes':
+      ui.attributeToast(e.item, e.changes);
+      break;
     case 'xp': {
       const me = S.ents.get(S.myId);
       if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');

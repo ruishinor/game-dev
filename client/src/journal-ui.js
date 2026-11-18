@@ -102,7 +102,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   card.append(h('div',showDescription?'idesc':'item-summary',showDescription?item.desc:(item.summary||item.desc)));
   const condition=conditionOf(s,id);
   if(condition!==null)card.append(h('div','item-summary','QL '+item.ql+' · Condition '+condition+'%'));
-  if(!equipped)card.append(...requirements(s,id));
+  card.append(...requirements(s,id));
   const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
   const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':s.equipped[item.slot]?'Swap in':'Equip');
   btn.disabled=!res.ok||!!ui.buildLock;
@@ -113,6 +113,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   });
   card.append(btn);
   if(!res.ok)card.append(h('div','why',res.reason));
+  if(res.alsoRemoved?.length)card.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
   if(onSelect)card.addEventListener('click',()=>onSelect(id));
   card.tabIndex=0;
   bindItem(ui,card,id);
@@ -182,7 +183,7 @@ export function renderLoadout(ui,body,stats) {
     const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
-    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc));
+    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));

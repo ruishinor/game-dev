@@ -550,7 +550,7 @@ try {
     return e && e.row.h < e.row.m;
   }, sk.id, 3000, 'enemy damaged');
   check('4/5. ability 1 damages the enemy (server-side health)', hit && sk.hp < hpBefore, `server hp ${hpBefore} → ${Math.ceil(sk.hp)}`);
-  const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && /ON/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack ON in HUD');
+  const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && document.querySelector('.auto-toggle')?.getAttribute('aria-pressed') === 'true', null, 3000, 'auto-attack ON in HUD');
   // Submit the refusal attempt while the cooldown is still active, before
   // waiting on a separate browser's animation or screenshot.
   sa = await state(A);
@@ -569,7 +569,7 @@ try {
   }, sk.id, 3000, 'enemy hit reaction');
   check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker ${JSON.stringify(swingSelf)}, observer ${JSON.stringify(await drawn(B,sa.myId))}`);
   await A.page.keyboard.press('KeyR');
-  const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && /OFF/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack OFF in HUD');
+  const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && document.querySelector('.auto-toggle')?.getAttribute('aria-pressed') === 'false', null, 3000, 'auto-attack OFF in HUD');
   await A.page.keyboard.press('KeyR');
   const autoResumed = await until(A, () => window.__attune.state().you.auto === 1, null, 3000, 'auto-attack resumed');
   check('5. R and the HUD expose server-authoritative auto-attack state', autoStarted && autoStopped && autoResumed);
@@ -882,8 +882,10 @@ try {
   sb = await state(B);
   check('9. installing the Implant changes derived stats (+30% healing)', sb.sheet.stats.healMul === 1.3);
   await B.page.locator('.doll-tabs [data-tab="gear"]').click();
-  const removeDisabled = await B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' }).locator('button').isDisabled();
-  check('9. the Device cannot be removed while the Implant depends on it (UI explains why)', removeDisabled);
+  const focusCard = B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' });
+  check('9. removal previews which dependent equipment returns to inventory',
+    await focusCard.getByRole('button', { name: 'Remove' }).isEnabled() &&
+    await focusCard.getByText('Also removes Myelin Lattice.').isVisible());
   await B.page.keyboard.press('Escape');
 
   await equipVia(A, 'Sentinel Servo Harness');
