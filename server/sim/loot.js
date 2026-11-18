@@ -48,6 +48,7 @@ export function lootState(game,p){
 export function openLoot(game,p,id,generation,auto=false){
  const e=game.ents.get(id),entries=available(game,p,e,generation);
  if(!entries)return fail('No accessible loot on these remains.');
+ p.vendor=null;
  p.lootTarget={id,generation};
  return auto?takeLoot(game,p,id,generation,null):{ok:true};
 }

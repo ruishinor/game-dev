@@ -7,6 +7,7 @@ import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
+import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
@@ -103,6 +104,7 @@ export class Game {
       followId: 0,
       followAcc: 0,
       lootTarget:null,
+      vendor:null,
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
@@ -294,6 +296,7 @@ export class Game {
       tickPlayerCombat(this, p, dt);
       tickBrineTrial(this,p);
       tickLoot(this,p);
+      tickVendor(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -372,6 +375,7 @@ export class Game {
     const y = {
       ack: p.lastSeq,
       ...lootState(this,p),
+      vendor:vendorState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,
       x: p.x,

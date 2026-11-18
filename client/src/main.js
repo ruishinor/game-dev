@@ -331,6 +331,8 @@ const ui = new UI({
   lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
   lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
   lootClose:()=>net.send({t:'loot_close'}),
+  vendorTrade:quote=>net.send({...quote,t:'vendor_trade'}),
+  vendorClose:()=>net.send({t:'vendor_close'}),
   craft: recipe=>net.send({t:'craft',recipe}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
@@ -731,6 +733,7 @@ function onSnapshot(m) {
   }
   // Private loot state must be current before keyboard input, even if rendering lags.
   ui.loot.sync(y.lootable,y.loot);
+  ui.vendor.sync(y.vendor);
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
@@ -1137,7 +1140,8 @@ input.onClick = (button, x, y) => {
     if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    } else if(ent?.meta.k==='o'&&ent.meta.c==='quartermaster') {net.send({t:'act',id:ent.id});}
+    else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
     else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {

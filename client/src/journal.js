@@ -39,6 +39,7 @@ export const ENTRIES = [
   ...Object.entries(COMPANIONS).map(([id,c])=>({id,group:'Creatures',name:c.name,type:'Companion',
     desc:'A bioengineered symbiote bonded to a Conductor. Its behavior depends on the selected companion command.',
     meta:{ k:'c', c:id }, facts: Object.values(c.modes).map(m=>m.name+': '+m.desc)})),
+  {id:'quartermaster',group:'Lore',name:'Sanctum Quartermaster',type:'NPC',desc:'A supply clerk at the Lattice Sanctum. Exchanges recovered trade salvage for credits and stocks fabrication materials.',meta:{k:'o',c:'quartermaster'},facts:['Location: Lattice Sanctum','Interaction: Buy and sell salvage']},
   {id:'archivist',group:'Lore',name:'Archivist Venn',type:'NPC',desc:'An archivist at the Lattice Sanctum who guides travellers through their directives.',meta:{k:'o',c:'archivist'},facts:['Location: Lattice Sanctum','Interaction: Talk for current directive guidance']},
   {id:'resonance',group:'Lore',name:'Resonance',type:'Attunement',desc:'Acquired by interacting with the Listening Stone. Resonance unlocks glyphs that depend on it; it does not directly increase Power.',facts:['Source: The Listening Stone']},
   {id:'kinetics',group:'Skills & Abilities',name:'Kinetics',type:'Skill',desc:'The Vanguard primary skill. Each point above 10 contributes two percentage points of Power. It also satisfies Kinetics equipment requirements. It does not modify movement speed.',facts:[]},

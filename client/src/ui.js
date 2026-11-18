@@ -12,6 +12,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
+import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -416,6 +417,7 @@ export class UI {
     this.tooltip.hidden = true;
     root.append(this.tooltip);
     this.loot=new LootPanel(this);
+    this.vendor=new VendorPanel(this);
 
 
     // Build panel
@@ -770,6 +772,7 @@ export class UI {
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.loot.dismiss();
+    this.vendor.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.remove('inventory-front');
@@ -1102,9 +1105,10 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.loot.dismiss();
+    this.vendor.dismiss();
     this.fieldRecordPanel.hidden=true;
     this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
@@ -1426,6 +1430,12 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
+      if(ent.meta.k==='o'&&ent.meta.c==='quartermaster'){
+        const interact=e=>{e.preventDefault();e.stopPropagation();this.a.interact(ent.id);};
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');el.dataset.npc='quartermaster';
+        el.addEventListener('click',interact);el.addEventListener('contextmenu',interact);
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')interact(e);});
+      }
       if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
         el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
         el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
@@ -1460,7 +1470,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();this.loot.reset();
+    this.radio.clear();this.loot.reset();this.vendor.reset();
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.
