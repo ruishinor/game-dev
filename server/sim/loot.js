@@ -1,7 +1,8 @@
 // Personal corpse loot. The server rolls once per eligible death/recipient.
 // Client requests may only collect extant, server-authored entries.
-import {ENEMIES,ITEMS} from '../../shared/content.js';
-import {SALVAGE,MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
+import {ITEMS} from '../../shared/content.js';
+import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
+import {itemDrops,SALVAGE} from './loot-tables.js';
 import {dist,hasLineOfSight} from '../../shared/world.js';
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
@@ -12,14 +13,13 @@ const active=(game,e)=>e?.kind==='enemy'&&e.state==='dead'&&game.time-e.deadAt<=
 export function distributeCorpseLoot(game,e,credited){
  if(!active(game,e)||e.lootByPlayer instanceof Map)return;
  e.lootGeneration=(e.lootGeneration||0)+1;e.lootByPlayer=new Map();
- const def=ENEMIES[e.type];
  for(const id of new Set(credited)){
   const p=game.players.get(id);if(!p||dist(p,e)>CREDIT_RANGE)continue;
   const entries=[],material=SALVAGE[e.type];
   // Keep the existing salvage yield and equipment probabilities.
   // A corpse without salvage and with no successful item roll is empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
-  for(const drop of def.loot)if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
+  for(const drop of itemDrops(e.type))if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
  }
 }

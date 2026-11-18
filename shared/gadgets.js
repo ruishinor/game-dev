@@ -25,7 +25,3 @@ export const GADGET_ITEMS = {
   },
 };
 
-export const SENTINEL_GADGET_DROPS = [
-  { item: 'field_vector_array', chance: 0.30 },
-  { item: 'conductive_membrane', chance: 0.40 },
-];
