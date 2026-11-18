@@ -87,3 +87,5 @@ these bundles — revisit if texture memory becomes a problem).
 ## Runtime weapon carry models
 
 Four assembled meshes from Quaternius' [Sci-Fi Modular Gun Pack](https://quaternius.com/packs/scifimodularguns.html), CC0-1.0, are shipped unchanged in `client/weapon-assets/`. The [weapon source ledger](../assets/weapon-sources.json) pins the exact donor revision, blob hash, bytes and fitted carry length. These small standalone files are outside the generated meshopt pipeline. Attachments are presentation-only: ranged professions use the existing skeletal motions; Vanguard carries the equipment holstered. Dedicated aiming, recoil, muzzle alignment and two-handed grip animation remain future work. No Anarchy Online files are used.
+
+Ranged auto-attack events also carry a validated public weapon-family token. The muzzle, recoil, one-handed firing and two-bone longarm support pose are presentation-only; existing class damage and abilities are retained. The pose is fitted to actual bone lengths, with existing punch/cross/hook clips for unarmed melee. Exact grip placement, finger contact and perceived VFX quality still require in-game visual review.
