@@ -12,6 +12,7 @@ import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
+import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
@@ -66,6 +67,7 @@ export class Game {
       this.enemies.push(e);
       this.ents.set(e.id, e);
     }
+    this.rift=createRift(this);
   }
 
   // --- players -----------------------------------------------------------
@@ -312,6 +314,7 @@ export class Game {
         }
       }
     }
+    tickRift(this);
     for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
   }
@@ -354,7 +357,7 @@ export class Game {
     for (const c of this.companions) {
       rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host });
     }
-    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z });
+    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o) });
     return rows;
   }
 

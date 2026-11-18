@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {RIFT_SITE,PROPS,OBJECTS,ZONES,groundHeight,resolveCollisions,PLAYER_RADIUS,zoneAt} from '../shared/world.js';
+import {makeGame,makeChar,place} from './helpers.js';
+import {interact} from '../server/sim/progress.js';
+import {tickRift,riftRow} from '../server/sim/rift.js';
+import {buildRift,buildRiftControl} from '../client/src/rift-visual.js';
+import {createVfx} from '../client/src/vfx/engine.js';
+import {CombatVfx} from '../client/src/vfx/combat.js';
+const eligible=()=>makeChar('vanguard',{level:3,attunements:['resonance']});
+const at=(p,o)=>place(p,o.x,o.z+1.7);
+test('phase scar is additive, outside named sites, supported and accessible from both regulators',()=>{
+ assert.ok(RIFT_SITE);const {x,z}=RIFT_SITE;assert.equal(zoneAt(x,z),'The Phase Scar');
+ for(const a of Object.values(ZONES))assert.ok(Math.hypot(x-a.x,z-a.z)>=a.r+8.6);
+ for(const o of PROPS)assert.ok(Math.hypot(x-o.x,z-o.z)>=8.6+(o.r??Math.hypot(o.hw??0,o.hd??0)));
+ for(const o of OBJECTS.filter(o=>o.type.startsWith('rift_'))){const q={x:o.x,z:o.z+1.7},v=resolveCollisions({...q},PLAYER_RADIUS);assert.ok(Math.hypot(v.x-q.x,v.z-q.z)<.001);}
+});
+test('opening, telegraphed discharge, shared snapshot and regulator stabilization are server-owned',()=>{
+ const g=makeGame(),p=g.addPlayer(eligible()),b=g.addPlayer(eligible()),other=g.addPlayer(makeChar('vanguard'));
+ const f=g.rift;assert.equal(f.phase,'dormant');at(other,f.indexer);assert.equal(interact(g,other,f.indexer.id).ok,false);
+ assert.equal(interact(g,p,f.indexer.id).ok,false);at(p,f.indexer);p.combatUntil=100;assert.equal(interact(g,p,f.indexer.id).ok,false);p.combatUntil=0;
+ assert.ok(interact(g,p,f.indexer.id).ok);assert.equal(f.phase,'opening');assert.equal(interact(g,p,f.indexer.id).ok,false);
+ at(p,f.regulator);assert.equal(interact(g,p,f.regulator.id).ok,false);
+ const hp=b.hp;place(b,f.core.x,f.core.z+3.6);
+ g.time=f.until;tickRift(g);assert.equal(f.phase,'unstable');assert.ok(g.events.some(e=>e.e==='tele'&&e.id===f.core.id));assert.equal(b.hp,hp);
+ assert.ok(g.buildRows().find(row=>row.i===f.core.id).rw>0);
+ assert.equal(interact(g,p,f.regulator.id).ok,false);
+ g.time=f.pulseAt-1;tickRift(g);assert.equal(b.hp,hp);
+ g.time=f.pulseAt;tickRift(g);assert.equal(b.hp,hp-24);assert.equal(f.pulseAt,0);assert.equal(f.pulses,1);
+ assert.ok(interact(g,p,f.regulator.id).ok);assert.equal(f.phase,'stabilized');assert.deepEqual(riftRow(g,f.core),{rf:'stabilized',rw:0});
+ g.time=f.until;tickRift(g);assert.equal(f.phase,'cooling');g.time=f.until;tickRift(g);assert.equal(f.phase,'dormant');
+});
+test('late tick never discharges without a previously announced warning; unattended cycle closes',()=>{
+ const g=makeGame(),p=g.addPlayer(eligible()),f=g.rift;at(p,f.indexer);assert.ok(interact(g,p,f.indexer.id).ok);
+ place(p,f.core.x,f.core.z+3.6);const hp=p.hp;g.time+=60000;tickRift(g);assert.equal(p.hp,hp);assert.ok(f.pulseAt>g.time);
+ g.time=f.pulseAt;tickRift(g);assert.equal(p.hp,hp-24);
+ g.time=f.until;tickRift(g);assert.equal(f.phase,'cooling');g.time=f.until;tickRift(g);assert.equal(f.phase,'dormant');
+});
+test('rift structure has a bounded membrane and persistent late-join warning with reduced-motion support',()=>{
+ const m=buildRift(THREE,RIFT_SITE,groundHeight),surface=m.group.getObjectByName('rift:interference-membrane'),ring=m.group.getObjectByName('rift:persistent-warning');
+ assert.ok(surface.geometry.attributes.position.count>1000);for(const v of surface.geometry.attributes.position.array)assert.ok(Number.isFinite(v));
+ m.update(.05,{riftPhase:'unstable',riftWarning:1500,reducedMotion:true});assert.equal(surface.material.uniforms.uTime.value,0);assert.equal(ring.visible,true);
+ m.update(.05,{riftPhase:'stabilized',riftWarning:0});assert.equal(ring.visible,false);assert.equal(surface.material.uniforms.uStable.value,1);
+ assert.ok(buildRiftControl(THREE,true).group.children.length>5);m.dispose();
+});
+test('rift transition effects run through the existing bounded engine and expire',()=>{
+ const scene=new THREE.Scene(),v=createVfx(THREE,scene,{groundHeight}),combat=new CombatVfx(v);
+ for(const k of ['rift_open','rift_pulse','rift_stabilize','rift_collapse'])assert.ok(combat.area({e:'fx',k,x:RIFT_SITE.x,y:0,z:RIFT_SITE.z,r:5.5},null,null,null));
+ v.update(.02);assert.ok(v.stats().items>0);for(let i=0;i<300;i++)v.update(1/30);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);
+});

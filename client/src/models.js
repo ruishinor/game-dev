@@ -5,6 +5,8 @@
 import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
+import { buildRift,buildRiftControl } from './rift-visual.js';
+import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 
 const std = (color, o = {}) =>
   new THREE.MeshStandardMaterial({
@@ -873,4 +875,7 @@ export const MODEL_FACTORIES = {
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
   sinter_sampler: makeSinterSampler,
+  phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
+  rift_indexer:()=>buildRiftControl(THREE,false),
+  rift_regulator:()=>buildRiftControl(THREE,true),
 };

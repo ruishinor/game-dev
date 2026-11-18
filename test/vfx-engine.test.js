@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createVfx, point, MAX_ITEMS, CAPACITY } from '../client/src/vfx/engine.js';
+import { createVfx, point, MAX_ITEMS, MAX_TIMELINES, CAPACITY } from '../client/src/vfx/engine.js';
 import { CombatVfx } from '../client/src/vfx/combat.js';
 import { CLASSES } from '../shared/content.js';
 
@@ -129,6 +129,56 @@ test('vfx: dispose removes everything and is idempotent', () => {
   assert.equal(scene.getObjectByName('vfx-engine'), undefined);
   v.update(0.1);
   assert.equal(v.burst({ at: [0, 0, 0], count: 5 }), 0);
+});
+
+test('vfx: timeline stages run once in order and cancellation stops pending stages', () => {
+  const { v } = make();
+  const received = [];
+  const show = (label) => ({ at: 0.1, emit: (value) => received.push(`${label}:${value}`) });
+  const stages = [{ ...show('open'), at: 0 }, show('one'), show('two'), { ...show('close'), at: 0.2 }];
+  const handle = v.play(stages, 'cast');
+  assert.ok(handle.alive);
+  assert.deepEqual(received, ['open:cast']);
+  v.update(0.085);
+  assert.deepEqual(received, ['open:cast']);
+  v.update(0.015);
+  assert.deepEqual(received, ['open:cast', 'one:cast', 'two:cast']);
+  handle.cancel();
+  v.update(0.1);
+  assert.equal(handle.alive, false);
+  assert.equal(received.length, 3);
+  assert.equal(v.play([show('late'), { ...show('early'), at: 0 }]), null);
+  for (let i = 0; i < MAX_TIMELINES; i++) assert.ok(v.play([show('queued')]));
+  assert.equal(v.play([show('overflow')]), null);
+  v.setQuality(0);
+  v.update(0.1);
+  assert.equal(received.length, 3);
+  assert.equal(v.stats().timelines, 0);
+  v.dispose();
+});
+
+test('vfx: emitter eviction during a frame does not retire the replacement or skip its siblings', () => {
+  const { v } = make();
+  let calls = 0;
+  v.emitter({ life: 0.05, tick: () => v.emitter({ life: 1, tick: () => calls += 100 }) });
+  for (let i = 1; i < MAX_ITEMS; i++) v.emitter({ life: 1, tick: () => calls++ });
+  v.update(0.1);
+  assert.equal(calls, MAX_ITEMS - 1);
+  assert.equal(v.stats().items, MAX_ITEMS);
+  v.update(0.1);
+  assert.equal(calls, (MAX_ITEMS - 1) * 2 + 100);
+  v.dispose();
+});
+
+test('vfx: quality changes stop active flashes without reviving pooled lights', () => {
+  const { v } = make();
+  v.flash({ at: [0, 0, 0], life: 1 });
+  v.update(0.1);
+  assert.ok(v.root.children.some((child) => child.isLight && child.intensity > 0));
+  v.setQuality(1);
+  v.update(0.1);
+  assert.ok(v.root.children.filter((child) => child.isLight).every((light) => light.intensity === 0));
+  v.dispose();
 });
 
 test('combat vfx: every ability, area event and common event plays and fully expires', () => {
@@ -267,11 +317,4 @@ test('coverage: every effect kind the server emits and every enemy special has a
   assert.ok(kinds.size >= 15, `found ${kinds.size} kinds`);
   const missing = [...kinds].filter((k) => !AREA_KINDS.has(k));
   assert.deepEqual(missing, [], 'add a recipe in client/src/vfx/combat.js (areaRecipe + AREA_KINDS)');
-});
-
-test('phase transposition emits bounded transfer effects and expires',()=>{
- const {v}=make(),combat=new CombatVfx(v);
- combat.cast('phase_transposition',entity(1,0,0,'p','keeper'),entity(2,4,2));
- v.update(.01);assert.ok(v.stats().items>=4);assert.ok(v.stats().particles>0);
- run(v,3);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);
 });

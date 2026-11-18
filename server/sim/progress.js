@@ -11,6 +11,7 @@ import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECOR
 import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
 import { distributeCorpseLoot } from './loot.js';
 import { openVendor } from './vendor.js';
+import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 
@@ -236,6 +237,7 @@ export function interact(game, p, objectId) {
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj);
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
       game.message(p, 'info', 'The stone hums in recognition. You are already attuned.');
