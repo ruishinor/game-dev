@@ -50,7 +50,7 @@ const serialDraw = SOFTWARE_GL && integrated;
 note(serialDraw ? 'software WebGL: draw each integrated client separately at entry and capture; frame logic stays active'
   : SOFTWARE_GL ? 'software WebGL: cap draws to 1 per second' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
-async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}) {
+async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}, { lock = false } = {}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.setDefaultTimeout(90000);
@@ -63,7 +63,8 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   page.on('response', (response) => {
     if (response.status() >= 400) pageErrors.push(`${name}: HTTP ${response.status()} ${response.url()}`);
   });
-  await page.goto(`${base}/?${QUERY}&slot=${slot}`);
+  // lock: the default player configuration (pointer lock while steering).
+  await page.goto(`${base}/?${lock ? QUERY.replace('nolock=1', 'nolock=0') : QUERY}&slot=${slot}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
@@ -1124,7 +1125,9 @@ try {
   check('8. right-click dismisses the companion and the HUD summons its default', dismissed && resummoned);
 
   // --------------------------------------------- 15. appearance independent of class
-  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker');
+  // This session uses the default input configuration (pointer lock while
+  // steering), which every other session here disables with ?nolock=1.
+  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker', undefined, { lock: true });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
@@ -1132,6 +1135,33 @@ try {
   }, sc.myId, 6000, 'B to see the Red Rucker look');
   check('15. a second Vanguard can wear the Red Rucker look and other sessions see it', cByB && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'red_rucker' && serverPlayer('Rucker').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}`);
   await shot(C, '08-red-rucker.png');
+  // Synthetic absolute moves cannot express relative motion under pointer
+  // lock (Chromium turns them into cancelling warp pairs), so the drag only
+  // engages the lock; the steering deltas are then delivered as locked
+  // mousemove events to the game's own handler.
+  const lockAt = await worldPointer(C.page);
+  await C.page.mouse.move(lockAt.x, lockAt.y);
+  await C.page.mouse.down({ button: 'right' });
+  let lockHeld = false, lockSteered = false, lockFrom = 0, lockTo = 0;
+  try {
+    await C.page.mouse.move(lockAt.x + 40, lockAt.y, { steps: 6 });
+    lockHeld = await until(C, () => document.pointerLockElement === document.querySelector('#view'), null, 4000, 'pointer lock to engage and hold');
+    lockFrom = (await state(C)).camYaw;
+    await C.page.evaluate(() => {
+      for (let i = 0; i < 12; i++) window.dispatchEvent(new MouseEvent('mousemove', { movementX: 20, movementY: 0, buttons: 2 }));
+    });
+    lockSteered = await until(C, (start) => {
+      const s = window.__attune.state();
+      const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+      return Math.abs(wrap(s.camYaw - start)) > 0.3 && Math.abs(wrap(s.camYaw - s.yaw)) < 0.02;
+    }, lockFrom, 4000, 'locked right-drag steering');
+    lockTo = (await state(C)).camYaw;
+  } finally {
+    await C.page.mouse.up({ button: 'right' });
+  }
+  const lockReleased = await until(C, () => !document.pointerLockElement, null, 2000, 'pointer lock release');
+  check('2. default input (pointer lock enabled): lock holds through the drag, steers, and releases on mouse-up', lockHeld && lockSteered && lockReleased,
+    `lock held ${lockHeld}, camera yaw ${lockFrom.toFixed(2)} → ${lockTo.toFixed(2)}, released ${lockReleased}`);
   await C.ctx.close();
   await sleep(300);
 

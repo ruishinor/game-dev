@@ -103,7 +103,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     shellMaterial: (n) => shellMats[n] || mats[0],
     attach(boneName, obj) {
       const bone = inst.getObjectByName(boneName);
-      if (!bone) return;
+      if (!bone) {
+        console.error(`[models] look ${lookId}: bone "${boneName}" is not in ${def.body}; gear not attached`);
+        return;
+      }
       inst.add(obj);
       obj.updateMatrixWorld(true);
       bone.attach(obj);
@@ -210,6 +213,7 @@ export function makeCreature(assets, type) {
     m.color.set(spec.tint);
     m.emissive.set(spec.emissive);
     m.emissiveMap = null;
+    if (spec.metalness !== undefined) m.metalness = spec.metalness; // scales the metalness map
   }
   inst.traverse((o) => {
     if (o.isMesh) o.frustumCulled = false;
