@@ -261,6 +261,9 @@ async function workshopPlaytest(){
   await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
   await page.waitForFunction(()=>window.__attune.state().sheet.equipped.device==='servo_harness',null,{timeout:10000});
   await page.keyboard.press('KeyB');
+  const plannerTab=page.locator('.workshop-tabs [data-tab="planner"]');
+  check('reopened Workshop retains the NPC-selected fabrication tab',await page.locator('.workshop-tabs [data-tab="fabrication"]').getAttribute('aria-pressed')==='true');
+  await plannerTab.click();
   await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
   check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
