@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ITEMS, ENEMIES } from '../shared/content.js';
+import { ITEMS } from '../shared/content.js';
+import { itemDrops } from '../server/sim/loot-tables.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
 import { openLoot,takeLoot } from '../server/sim/loot.js';
 import { useAbility,dealDamage } from '../server/sim/combat.js';
@@ -29,9 +30,9 @@ test('sentinel gadgets are server-awarded unique loot, not guaranteed or global 
   dealDamage(game,unlucky,another,9999,'test');
   assert.ok(openLoot(game,unlucky,another.id,another.lootGeneration,true).ok);
   assert.deepEqual(unlucky.char.inventory, []);
-  assert.deepEqual(ENEMIES.skitter.loot, []);
-  assert.deepEqual(ENEMIES.warden.loot, [{item:'wardstone_shard',chance:1}]);
-  for (const drop of ENEMIES.sentinel.loot) assert.ok(Object.hasOwn(ITEMS,drop.item));
+  assert.deepEqual(itemDrops('skitter'), []);
+  assert.deepEqual(itemDrops('warden'), [{item:'wardstone_shard',chance:1}]);
+  for (const drop of itemDrops('sentinel')) assert.ok(Object.hasOwn(ITEMS,drop.item));
 });
 
 test('gadget sidegrades preserve class, ownership and dependent implant restrictions', () => {
