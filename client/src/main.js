@@ -1182,6 +1182,9 @@ function onEvent(e) {
       ui.attributeToast(e.item, e.changes);
       break;
     case 'ritual': {
+      // Process accepted local starts even when no animation frame sampled
+      // the short-lived authoritative action.
+      if(e.s===S.myId&&e.phase==='begin')ui.dismissWorldActionPanels();
       const actor = S.ents.get(e.s);
       if (!actor?.placed) break;
       const { x, y, z } = actor.pos;
@@ -1199,6 +1202,7 @@ function onEvent(e) {
       break;
     }
     case 'production': {
+      if(e.s===S.myId&&e.phase==='begin'&&e.first===true)ui.dismissWorldActionPanels();
       const actor = S.ents.get(e.s);
       if (!actor?.placed || e.phase === 'stop') break;
       const { x, y, z } = actor.pos;
@@ -1405,6 +1409,8 @@ input.onAction = (code, e) => {
       cam.reset(local.yaw);
       break;
     case 'KeyF': {
+      // An open, visible personal loot session takes priority over world interaction.
+      if(!e.shiftKey&&ui.loot.takeAll())break;
       const o = nearestObject();
       if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id,e.shiftKey===true);
       else if(npcProfile(o))ui.openNpc(o);

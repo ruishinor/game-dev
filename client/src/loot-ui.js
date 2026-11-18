@@ -25,6 +25,12 @@ export class LootPanel{
   return section;
  }
  canLoot(id){return this.available.has(id);}
+ takeAll(){
+  const s=this.snapshot;
+  if(this.el.hidden||!s||key(s)===this.suppressed)return false;
+  this.ui.a.lootTake(s.id,s.generation,null);
+  return true;
+ }
  open(id,manual=false){
   const generation=this.available.get(id);if(generation===undefined)return;
   this.suppressed=null;this.ui.a.lootOpen(id,generation,autoForInteraction(this.auto,manual));
@@ -63,7 +69,9 @@ export class LootPanel{
    const copy=h('span','loot-copy');copy.append(h('strong',null,def.name),h('small',null,entry.kind==='material'?'Material · × '+entry.quantity:entry.kind==='goods'?(def.rarity?def.rarity+' relic':def.category==='utility'?'Utility':'Junk')+' · × '+entry.quantity:'Equipment'));
    btn.append(picture,copy);ui.hover(btn,()=>[h('div','tip-title',def.name),h('div','tip-body',def.desc||def.summary||'Recoverable item')]);list.append(btn);
   }
-  const footer=h('div','loot-footer');footer.append(button('Take all loot','Take all',()=>this.ui.a.lootTake(s.id,s.generation,null)),button('Leave remaining loot','Leave',()=>this.dismiss()));
+  const footer=h('div','loot-footer'),takeAll=button('Take all loot','Take all',()=>this.takeAll());
+  takeAll.setAttribute('aria-keyshortcuts','F');takeAll.title='Take all [F]';
+  footer.append(takeAll,button('Leave remaining loot','Leave',()=>this.dismiss()));
   this.el.append(head,list,footer);
   if(previous){
     const controls=[...this.el.querySelectorAll('button')];

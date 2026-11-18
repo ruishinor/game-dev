@@ -446,7 +446,8 @@ try {
   assert.ok(!p.char.inventory.includes('tuned_emitter'));
   assert.equal(p.char.materials.resonance_fragment,undefined);
   await capture('preview-evidence/10-longpoint-fabricated.png');
-  await workshop.getByRole('button',{name:'Close Build'}).click();
+  await workshop.waitFor({state:'hidden'});
+  await page.locator('.production-status').waitFor({state:'hidden'});
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
@@ -489,7 +490,8 @@ try {
   assert.ok(!conductor.char.inventory.includes('conductive_membrane')&&!conductor.char.inventory.includes('sinter_laminate'));
   assert.deepEqual(conductor.char.materials,{});
   await bio.screenshot({path:'preview-evidence/11-bloom-relay-fabricated.png'});
-  await bioWorkshop.getByRole('button',{name:'Close Build'}).click();
+  await bioWorkshop.waitFor({state:'hidden'});
+  await bio.locator('.production-status').waitFor({state:'hidden'});
   await bio.locator('#view').focus();
   await bio.keyboard.press('KeyI');
   await bio.locator('.inventory-window button.item-cell[aria-label="Bloom Relay"]').click({button:'right'});
