@@ -5,7 +5,7 @@ export class QuestTracker{
  constructor(ui){this.ui=ui;this.entries=[];this.prefs=trackingPrefs();this.storageKey=null;this.el=h('section','quest-tracker-group');
   const head=h('div','quest-tracker-header'),open=h('button',null,'Quests [L]');open.type='button';open.addEventListener('click',()=>ui.toggleQuestJournal(true));
   this.collapse=h('button','quest-collapse');this.collapse.type='button';this.collapse.addEventListener('click',()=>{this.prefs={...this.prefs,collapsed:!this.prefs.collapsed};this.save();this.draw();});
-  head.append(open,this.collapse);this.cards=h('div','quest-tracker-cards');this.other=h('div','quest-tracker-other');this.empty=h('div','muted','No tracked quests.');this.cards.append(ui.tracker,ui.surveyTracker,this.other,this.empty);this.el.append(head,this.cards);this.draw();
+  head.append(open,this.collapse);this.cards=h('div','quest-tracker-cards');this.other=h('div','quest-tracker-other');this.empty=h('div','muted','No tracked quests.');this.cards.append(ui.tracker,ui.surveyTracker,this.other,this.empty);this.el.append(head,this.cards,ui.brineWorkshop);this.draw();
  }
  useCharacter(id){this.storageKey=typeof id==='string'&&id.length<=128?'attunement.questTracking.v1.'+id:null;let saved=null;try{if(this.storageKey)saved=JSON.parse(localStorage.getItem(this.storageKey));}catch{}this.prefs=trackingPrefs(saved);this.entries=[];this.signature='';this.draw();}
  reset(){this.useCharacter(null);}
