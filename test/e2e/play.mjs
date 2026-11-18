@@ -228,6 +228,8 @@ async function followInventoryPlaytest(){
  const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;
  dealDamage(game,pb,corpse,99999,'test');
  await B.page.waitForFunction(id=>{const s=window.__attune.state(),e=s.ents.find(x=>x.id===id);return e?.dead&&Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)<=5&&s.you.lootable?.some(x=>x.id===id);},corpse.id,{timeout:15000});
+ await B.page.waitForFunction(id=>!!window.__attune.gfx.scene.getObjectByName('recovery-cache:'+id),corpse.id);
+ await shot(B,'loot-00-recovery-cache.png');
  await B.page.locator('#view').focus();await B.page.keyboard.press('KeyF');
  const loot=B.page.locator('.loot-window');
  try{await loot.waitFor({state:'visible',timeout:10000});}catch(error){
