@@ -19,6 +19,7 @@ import { QuestTracker } from './quest-tracker-ui.js';
 import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile } from './npc-interaction.js';
+import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -1275,6 +1276,10 @@ export class UI {
     }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
 
+    c1.append(h('h3',null,'Field disciplines'));
+    const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
+    stat('Field Recovery','Rank '+rank,false,'Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');
+    c1.append(h('div','muted',rank===2?'Maintenance cassette reconditioning unlocked.':count+' / '+RECOVERY_MASTERY+' recovered samples'));
     renderLoadout(this, body, c1);
   }
 
@@ -1478,6 +1483,7 @@ export class UI {
 
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
+    else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);

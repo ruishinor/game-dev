@@ -16,6 +16,7 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  sinter_flake:'<path d="M4 14 7 6 15 3 21 9 18 17 9 21Z" fill="#7c8069" stroke="#c2c4a2"/><path d="m7 6 2 15 6-18 3 14M4 14l5 1 12-6" stroke="#d4c8a0"/><path d="m10 10 4-4 3 4-3 4Z" fill="#a7bb9b"/>',
   field_maintenance_kit:'<path d="M4 6 8 3h10l3 4v12l-4 2H7l-3-3Z" fill="#54645c" stroke="#b4bcaa"/><path d="M4 7h13l4-1M17 7v14" stroke="#a3a99b"/><rect x="6.5" y="9" width="8" height="8" rx="1" fill="#263c3b"/><path d="m8 14 4-4 2 2-4 4H8Z" fill="#d7b580" stroke="#f2dbad"/><path d="M7 19h8M19 10v5" stroke="#bdc3ad"/>',
   spent_contact:'<path d="M4 5h13l3 4v10H4z" fill="#65747a"/><path d="M7 8h3v8H7m6-8h3v5h-3" stroke="#c1a36b"/><path d="m12 4-1 6 4 2-3 7" stroke="#28343a"/>',
   mire_husk:'<path d="M4 17 7 7l6-4 7 4-2 7-8 7z" fill="#63745f"/><path d="m7 7 6 5 7-5m-7 5-3 9M5 14l6 2m4-2 3-2" stroke="#a5b28a"/>',

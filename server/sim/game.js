@@ -14,6 +14,8 @@ import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
+import {recoverySamples} from '../../shared/recovery.js';
+import {recoveryRemaining} from './recovery.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
@@ -29,7 +31,8 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now } = {}) {
+    this.wallNow=wallNow;
     this.time = 0;
     this.rng = rng;
     this.nextId = 1;
@@ -387,6 +390,7 @@ export class Game {
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       ...lootState(this,p),
+      recoveryMs:recoveryRemaining(p.char,this.wallNow()),
       vendor:vendorState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,
@@ -438,6 +442,7 @@ export class Game {
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
       ...fieldQuestProjection(c),
+      recoverySamples:recoverySamples(c.recoverySamples),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,

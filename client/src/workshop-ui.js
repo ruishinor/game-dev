@@ -6,6 +6,7 @@ import { itemArt } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
+import {recoveryRank} from '../../shared/recovery.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
@@ -120,6 +121,7 @@ function fabrication(ui,body){
   result.append(h('div','kicker','Result'),visual(outputId(recipe),output.name+(recipe.output.count?' × '+recipe.output.count:''),output.summary||output.desc));
   detail.append(parts,result,h('h3',null,'Requirements'));
   if(recipe.cls)detail.append(row('Profession',CLASSES[recipe.cls].name,s.cls===recipe.cls));
+  if(recipe.recoveryRank)detail.append(row('Field Recovery rank',recoveryRank(s.recoverySamples)+' / '+recipe.recoveryRank,recoveryRank(s.recoverySamples)>=recipe.recoveryRank));
   if(recipe.kind==='fusion')detail.append(h('p','why','Permanent fusion: all listed equipment and materials are consumed. This cannot be reversed.'));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));

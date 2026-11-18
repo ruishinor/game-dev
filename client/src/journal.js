@@ -11,9 +11,13 @@ const locations = {
   relay: 'East of the Sanctum. Rogue Sentinels defend the relay and deploy Arc Pulse.',
   vault: 'The monolith ring to the north. The Vault Warden guards this site.',
   obelisk: 'A rock hollow to the north-west. Interact with the Listening Stone to gain Resonance.',
+  sinter:'Living mineral colonies and migrating grazers. Collect only loose surface shedding at the feeding bed; the Faultstalker guards its territory.',
+  survey:'Brineworks Cut contains abandoned pressure works and research facilities.',
+  deep:'Kestrel Deep contains a buried containment laboratory.',
 };
 export const GROUPS = ['Locations', 'Items & Gear', 'Weapons', 'Creatures', 'Factions', 'Lore', 'Skills & Abilities', 'Fabrication'];
 export const ENTRIES = [
+  {id:'field_recovery',group:'Fabrication',name:'Field Recovery',type:'Field discipline',desc:'Collect loose mineral shedding without harming Sinter wildlife. Travel safely, wait for replenishment, and recondition maintenance cassettes at the Workshop.',facts:['Available to every profession','Rank 2 after three successful recoveries','No combat XP or wildlife loot required']},
   ...Object.entries(ZONES).map(([id, zone]) => ({ id, group: 'Locations', name: zone.name, type: 'Location', desc: locations[id], facts: ['Region: ' + WORLD.name], zone: id })),
   ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: item.slot==='weapon'?'Weapons':'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
     ...(item.ql?['Quality level: '+item.ql,'Repairable: condition scales the weapon bonus']:[]),
@@ -23,7 +27,7 @@ export const ENTRIES = [
   ] })),
   ...Object.entries(GOODS).map(([id,g])=>({id,group:'Items & Gear',name:g.name,type:g.category==='utility'?'Utility consumable':'Trade salvage',desc:g.desc,item:id,facts:['Stackable · not equippable']})),
   ...Object.entries(MATERIALS).map(([id,m])=>({id,group:'Fabrication',name:m.name,type:'Material',desc:m.desc,facts:['Source: '+m.source]})),
-  ...Object.entries(RECIPES).map(([id,r])=>({id:'recipe_'+id,group:'Fabrication',name:r.name,type:r.discipline+' recipe',desc:r.site==='brine_research'?'Fabricate at commissioned Brineworks Research Station A.':r.site==='brine_engineering'?'Fabricate at commissioned Brineworks Engineering Station B.':'Fabricate at Lattice Sanctum or the matching commissioned Brineworks station.',facts:[...(r.cls?['Profession: '+CLASSES[r.cls].name]:[]),...Object.entries(r.requires||{}).map(([key,n])=>SKILL_NAMES[key]+' required: '+n),...(r.attune?['Requires Resonance']:[]),...Object.entries(r.inputs).map(([key,n])=>n+' × '+MATERIALS[key].name),...(r.targets??(r.target?[r.target]:[])).map(item=>'Consumes carried '+ITEMS[item].name),...(r.kind==='fusion'?['Permanent conversion · no reversal']:[]),'Result: '+(r.output.item?ITEMS[r.output.item].name:r.output.goods?GOODS[r.output.goods].name+' × '+r.output.count:MATERIALS[r.output.material].name)]})),
+  ...Object.entries(RECIPES).map(([id,r])=>({id:'recipe_'+id,group:'Fabrication',name:r.name,type:r.discipline+' recipe',desc:r.site==='brine_research'?'Fabricate at commissioned Brineworks Research Station A.':r.site==='brine_engineering'?'Fabricate at commissioned Brineworks Engineering Station B.':'Fabricate at Lattice Sanctum or the matching commissioned Brineworks station.',facts:[...(r.cls?['Profession: '+CLASSES[r.cls].name]:[]),...(r.recoveryRank?['Field Recovery rank '+r.recoveryRank]:[]),...Object.entries(r.requires||{}).map(([key,n])=>SKILL_NAMES[key]+' required: '+n),...(r.attune?['Requires Resonance']:[]),...Object.entries(r.inputs).map(([key,n])=>n+' × '+MATERIALS[key].name),...(r.targets??(r.target?[r.target]:[])).map(item=>'Consumes carried '+ITEMS[item].name),...(r.kind==='fusion'?['Permanent conversion · no reversal']:[]),'Result: '+(r.output.item?ITEMS[r.output.item].name:r.output.goods?GOODS[r.output.goods].name+' × '+r.output.count:MATERIALS[r.output.material].name)]})),
   ...Object.entries(ENEMIES).map(([id, e]) => ({
     id, group: 'Creatures', name: e.name, type: e.elite ? 'Elite hostile' : 'Hostile',
     desc: id === 'skitter' ? 'A hostile creature encountered in the Sporefield. Attacks in melee and can draw nearby skitters into combat.' :
