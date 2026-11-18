@@ -430,7 +430,17 @@ export class UI {
     cancelInscription.type = 'button';
     cancelInscription.addEventListener('click', () => this.a.cancelInscription());
     this.inscription.append(this.inscriptionName, cancelInscription, this.inscriptionProgress);
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, actions, this.xp.wrap);
+    this.productionStatus = h('div', 'production-status');
+    this.productionStatus.hidden = true;
+    this.productionName = h('span', null);
+    this.productionName.setAttribute('role', 'status');
+    this.productionProgress = h('progress');
+    this.productionProgress.setAttribute('aria-label', 'Fabrication progress');
+    const cancelProduction = h('button', null, 'Cancel');
+    cancelProduction.type = 'button';
+    cancelProduction.addEventListener('click', () => this.a.cancelProduction());
+    this.productionStatus.append(this.productionName, cancelProduction, this.productionProgress);
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -929,6 +939,19 @@ export class UI {
       body.append(section);
     }
     if (!body.children.length) body.append(h('p', 'muted', 'You have no acquired companions.'));
+  }
+
+  // Only the owner's authoritative action-start snapshot closes these panels.
+  // Later batch cycles and completion do not change window visibility.
+  dismissWorldActionPanels() {
+    const panels = [this.panel, this.inventoryPanel, this.workshopPanel];
+    const restoreView = panels.some(panel => !panel.hidden && panel.contains(document.activeElement)) ||
+      this.playerContext.contains(document.activeElement);
+    for (const panel of panels) panel.hidden = true;
+    this.root.classList.remove('inventory-front');
+    this.tooltip.hidden = true;
+    this.closePlayerContext();
+    if(restoreView)this.a.focusView();
   }
 
   toggleBuild(force) {
@@ -1504,7 +1527,19 @@ export class UI {
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
     const site=you.workshop??(you.safe?'sanctum':null);
     const workshopChanged=site!==this.workshopSite||lock!==this.buildLock||you.production?.id!==this.production?.id;
+    const productionStarted=!!you.production&&!this.production;
+    const inscriptionStarted=!!you.inscription&&!this.inscriptionActive;
     this.production = you.production;
+    this.inscriptionActive=!!you.inscription;
+    if(productionStarted||inscriptionStarted)this.dismissWorldActionPanels();
+    set(this.productionStatus,'hidden',!this.production);
+    if(this.production){
+      const job=this.production,recipe=RECIPES[job.id];
+      const units=recipe?.output.count||1;
+      set(this.productionName,'text',recipe?recipe.name+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
+      this.productionProgress.max=job.cycles;
+      this.productionProgress.value=job.complete+Math.max(0,Math.min(1,(job.total-job.ms)/job.total));
+    }
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
     set(this.rescueStatus,'hidden',you.rescueReady===undefined);
@@ -1760,6 +1795,9 @@ export class UI {
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.production = null;
+    this.productionStatus.hidden = true;
+    this.inscriptionActive = false;
+    this.inscription.hidden = true;
     this.productionQuantity = 1;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;

@@ -260,7 +260,10 @@ async function workshopPlaytest(){
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await page.locator('.recipe-entry[data-recipe="coupler"]').click();
   await page.locator('[data-craft="coupler"]').click();
+  await page.waitForFunction(()=>document.querySelector('.workshop-window').hidden&&!document.querySelector('.production-status').hidden,null,{timeout:10000});
   await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1,null,{timeout:10000});
+  await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
+  check('workshop closes on accepted production and stays closed after completion',await page.locator('.workshop-window').isHidden());
   check('workshop UI: non-mutating planning and skill-gated intermediate fabrication',planned&&player.char.materials.sentinel_alloy===1);
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
@@ -271,12 +274,15 @@ async function workshopPlaytest(){
   await device.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:/^Unequip$/}).click();
   await page.waitForFunction(()=>!window.__attune.state().sheet.equipped.device,null,{timeout:10000});
+  if(await page.locator('.inventory-window').isHidden())await page.keyboard.press('KeyI');
   await source.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:'Upgrade'}).click();
   await shot(P,'workshop-02-recipe.png');
   await page.locator('[data-craft="calibrate_servo"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('calibrated_servo'),null,{timeout:10000});
   check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
+  await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
+  await page.locator('#view').focus();await page.keyboard.press('KeyB');
   await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
   const detail=page.locator('.recipe-detail');
   check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
@@ -981,7 +987,7 @@ try {
   await equipVia(B, 'Glyph of Shared Pulse');
   const inscribing = await until(B, () => {
     const s = window.__attune.state();
-    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden;
+    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden && document.querySelector('.panel.build').hidden;
   }, null, 3000, 'inscription pending before glyph effect');
   check('9. glyph effects wait for the visible inscription', inscribing);
   await until(B, () => window.__attune.state().sheet.equipped.glyph === 'glyph_shared_pulse', null, 4000, 'glyph equipped');
