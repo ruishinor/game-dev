@@ -5,6 +5,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { intersectsOccluder } from './occlusion.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 import { buildContainmentVessel } from './containment-vessel.js';
 
@@ -61,6 +62,15 @@ const hash = (x, z) => {
 
 const tmpA = new THREE.Color();
 const tmpB = new THREE.Color();
+// Existing Sanctum gate and Sporefield approach share this axis. Decorative
+// path geometry keeps the same heightfield and leaves the center clear.
+const spore = ZONES.sporefield;
+const roadLength = Math.hypot(spore.x, spore.z);
+const roadX = spore.x / roadLength;
+const roadZ = spore.z / roadLength;
+const roadDistance = (x, z) => x * roadX + z * roadZ;
+const roadOffset = (x, z) => Math.abs(x * roadZ - z * roadX);
+
 function groundColor(x, z, out) {
   // Broad, soft variation: the texture supplies the fine detail.
   const n = 0.5 + 0.25 * Math.sin(x * 0.19 + 1.7) * Math.cos(z * 0.23) + 0.25 * Math.sin(x * 0.07 - z * 0.11) + (hash(Math.round(x * 3), Math.round(z * 3)) - 0.5) * 0.12;
@@ -69,7 +79,10 @@ function groundColor(x, z, out) {
     const w = smooth(1 - (Math.hypot(x - zone.x, z - zone.z) - radius * 0.55) / (radius * 0.6));
     if (w > 0) out.lerp(tmpB.setHex(c1).lerp(tmpA.setHex(c2), n), w);
   };
-  blend(ZONES.sporefield, 24, 0x3a2247, 0x5b2f66);
+  blend(ZONES.sporefield, 24, 0x3b303d, 0x665063);
+  const along = roadDistance(x, z);
+  const road = smooth((along - 12) / 4) * smooth((46 - along) / 7) * smooth((2.8 - roadOffset(x, z)) / 1.9);
+  out.lerp(tmpA.setHex(0x847567).lerp(tmpB.setHex(0x514748), n), road * 0.8);
   blend(ZONES.relay, 20, 0x4a443f, 0x625646);
   blend(ZONES.vault, 19, 0x34334f, 0x4a4870);
   blend(ZONES.obelisk, 9, 0x223f5c, 0x2f5a78);
@@ -745,39 +758,26 @@ class Occluders {
 
   update(dt, eye, points) {
     for (const o of this.list) {
-      let hit = false;
-      for (const p of points) {
-        // Sample each sight line, skipping its endpoints. Test all volumes of
-        // the same mesh, but apply one final opacity to its materials.
-        for (let i = 1; i <= 9 && !hit; i++) {
-          const k = 0.04 + (i / 10) * 0.9;
-          const sx = eye.x + (p.x - eye.x) * k;
-          const sz = eye.z + (p.z - eye.z) * k;
-          const sy = eye.y + (p.y - eye.y) * k;
-          for (const v of o.volumes) {
-            const x = sx - v.x;
-            const z = sz - v.z;
-            if (x * x + z * z <= v.r2 && sy > v.y0 && sy < v.y1) { hit = true; break; }
-          }
-        }
-        if (hit) break;
-      }
+      const hit = points.some((point) => o.volumes.some((volume) => intersectsOccluder(eye, point, volume)));
       const target = hit ? 0.08 : 1;
-      if (Math.abs(target - o.alpha) < 0.004) {
-        if (o.alpha === target) continue;
-        o.alpha = target;
-      } else o.alpha += (target - o.alpha) * Math.min(1, dt * 9);
+      if (o.alpha === target) continue;
+      const rate = hit ? 19 : 7;
+      o.alpha += (target - o.alpha) * (1 - Math.exp(-dt * rate));
+      if (Math.abs(target - o.alpha) < 0.005) o.alpha = target;
       if (!o.mats) {
-        // Only now does this object need materials of its own.
-        o.mats = cloneMaterials(o.object);
-        for (const m of o.mats) m.userData.alphaTest = m.alphaTest;
+        // Only occluders that actually fade need private material state.
+        o.mats = cloneMaterials(o.object).map((material) => ({
+          material,
+          opacity: material.opacity,
+          transparent: material.transparent,
+          depthWrite: material.depthWrite,
+        }));
       }
-      for (const m of o.mats) {
-        const solid = o.alpha > 0.995;
-        m.transparent = !solid;
-        m.opacity = o.alpha;
-        m.depthWrite = solid;
-        m.alphaTest = m.userData.alphaTest * o.alpha;
+      const solid = o.alpha === 1;
+      for (const base of o.mats) {
+        base.material.transparent = base.transparent || !solid;
+        base.material.opacity = base.opacity * o.alpha;
+        base.material.depthWrite = solid && base.depthWrite;
       }
     }
   }
@@ -790,8 +790,6 @@ class Occluders {
 // --- kit-built props ---------------------------------------------------------
 
 const TINT = {
-  spore: new THREE.Color(0.86, 0.5, 1.0),
-  sporeLeaf: new THREE.Color(0.62, 0.6, 0.78),
   meadow: new THREE.Color(0.75, 1.0, 0.8),
   dusk: new THREE.Color(0.8, 0.72, 0.95),
 };
@@ -858,16 +856,17 @@ const kit = {
     // One mushroom, grown to tree size: a thin stem inside the collider and a
     // cap well above head height.
     const s = p.s * 10.2;
+    const spread = roadOffset(p.x, p.z) < 6 ? 0.78 : 0.94;
     const ry = rnd() * 6;
-    const obj = c.single('nature', 'Mushroom_Single', at(p.x, p.z, { y: -0.25, ry, rx: (rnd() - 0.5) * 0.12, s: [s, s * 1.05, s] }), { tint: 0xc98be8, emissive: 0x2c0f38 });
+    const obj = c.single('nature', 'Mushroom_Single', at(p.x, p.z, { y: -0.25, ry, rx: (rnd() - 0.5) * 0.12, s: [s * spread, s * 1.05, s * spread] }), { tint: 0xa79cb2, emissive: 0x190f23 });
     const y = groundHeight(p.x, p.z);
-    c.occluders.add(obj, p.x, p.z, 1.75 * p.s, y + 2.9 * p.s, y + 5.4 * p.s); // cap
+    c.occluders.add(obj, p.x, p.z, 1.9 * p.s * spread, y + 2.9 * p.s, y + 5.4 * p.s); // cap
     c.occluders.add(obj, p.x, p.z, 0.55 * p.s, y, y + 3 * p.s); // stem
     // Glowing spore beads under the cap.
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       const a = rnd() * Math.PI * 2;
-      const r = (0.4 + rnd() * 0.9) * p.s;
-      c.beads.push([p.x + Math.sin(a) * r, y + (3.55 - rnd() * 0.35) * p.s, p.z + Math.cos(a) * r, 0.055 * p.s, 0xffa6f2]);
+      const r = (0.35 + rnd() * 0.8) * p.s * spread;
+      c.beads.push([p.x + Math.sin(a) * r, y + (3.55 - rnd() * 0.35) * p.s, p.z + Math.cos(a) * r, 0.035 * p.s, 0xe2b9ea]);
     }
   },
   pod(p, c) {
@@ -961,10 +960,10 @@ function buildSanctum(c) {
     }
   }
   c.cover.add(c.piece('sanctum', 'Platform_X'), at(0, 0, { y: top + 0.02, ground: false }));
-  const inlay = mesh(new THREE.RingGeometry(12.72, 12.95, 72), glow(0x6fe6ff, 0.75), 0, top + 0.03, 0, false);
+  const inlay = mesh(new THREE.RingGeometry(12.76, 12.88, 72), glow(0x9dc7ce, 0.52), 0, top + 0.03, 0, false);
   inlay.rotation.x = -Math.PI / 2;
   scene.add(inlay);
-  const rim = mesh(new THREE.RingGeometry(13.35, 13.5, 72), glow(0x2f8fa8, 0.6), 0, top + 0.03, 0, false);
+  const rim = mesh(new THREE.RingGeometry(13.35, 13.46, 72), glow(0x426f77, 0.5), 0, top + 0.03, 0, false);
   rim.rotation.x = -Math.PI / 2;
   scene.add(rim);
 
@@ -1008,13 +1007,36 @@ function buildSanctum(c) {
     lamp.scale.set(1.6, 0.1, 0.1);
     lamp.position.set(0, 4.6, 0);
     gate.add(lamp);
-    c.occluders.add(gate, x, z, 2.7, groundHeight(x, z), groundHeight(x, z) + 5.2);
+    const ground = groundHeight(x, z);
+    const sidewaysX = -zn.z / d;
+    const sidewaysZ = zn.x / d;
+    for (const side of [-1, 1]) {
+      c.occluders.add(gate, x + sidewaysX * side * 2.05, z + sidewaysZ * side * 2.05, 0.62, ground, ground + 4.25);
+    }
+    c.occluders.add(gate, x, z, 2.7, ground + 4.15, ground + 5.2);
   }
   // Loose kit around the working area (inside existing colliders' footprints
   // or flat on the deck, so nothing solid can be walked through).
   c.cover.add(c.piece('sanctum', 'Prop_Vent_Big'), at(-6.2, 3.4, { y: top + 0.1, ground: false, ry: 0.4 }));
   c.cover.add(c.piece('sanctum', 'Prop_Vent_Big'), at(6.8, 5.2, { y: top + 0.1, ground: false, ry: -0.7 }));
   c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(-4.2, -5.6, { y: top + 0.04, ground: false, ry: 2.1 }));
+
+  // The western threshold transitions from the tiled station to terrain.
+  // Recessed lights sit on the shoulders, outside the line of travel.
+  const deck = c.piece('sanctum', 'Platform_Metal');
+  const marker = c.piece('sanctum', 'Prop_Light_Floor');
+  const steel = new THREE.Color(0x9c9181);
+  const yaw = Math.atan2(roadX, roadZ);
+  for (const distance of [14.2, 16.3, 18.4]) {
+    const x = roadX * distance;
+    const z = roadZ * distance;
+    c.cover.add(deck, at(x, z, { y: 0.07, ry: yaw, s: [0.77, 1, 0.49] }), steel);
+    for (const side of [-1, 1]) {
+      const edgeX = x - roadZ * side * 1.42;
+      const edgeZ = z + roadX * side * 1.42;
+      c.cover.add(marker, at(edgeX, edgeZ, { y: 0.08, ry: yaw + Math.PI / 2, s: 0.42 }), steel);
+    }
+  }
 }
 
 const inRange = (x, z, zone, r) => Math.hypot(x - zone.x, z - zone.z) < r;
@@ -1041,11 +1063,6 @@ function buildVegetation(c, detail) {
       n++;
     }
   };
-  const inSpore = () => {
-    const a = rnd() * Math.PI * 2;
-    const r = Math.sqrt(rnd()) * 23;
-    return [sf.x + Math.sin(a) * r, sf.z + Math.cos(a) * r];
-  };
   const inMeadow = () => {
     const a = rnd() * Math.PI * 2;
     const r = 16 + Math.sqrt(rnd()) * (WORLD.radius - 24);
@@ -1057,13 +1074,31 @@ function buildVegetation(c, detail) {
   const vary = (base, k = 0.25) => base.clone().multiplyScalar(1 - k / 2 + rnd() * k);
   const N = (n) => Math.round(n * detail);
 
-  // The Sporefield: low purple growth, small fungi, a few pale flowers.
-  scatter(N(52), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Plant_7_Big'), at(x, z, { y: -0.03, ry: rnd() * 6, s: 1 + rnd() * 0.9 }), vary(TINT.sporeLeaf)));
-  scatter(N(30), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Mushroom_Common'), at(x, z, { ry: rnd() * 6, s: 0.8 + rnd() * 1.0 }), vary(TINT.spore)));
-  scatter(N(12), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Mushroom_Laetiporus'), at(x, z, { y: 0.1, ry: rnd() * 6, s: 0.9 + rnd() * 0.8 }), vary(TINT.spore)));
-  scatter(N(36), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Grass_Wispy_Tall'), at(x, z, { ry: rnd() * 6, s: 0.35 + rnd() * 0.22 }), vary(TINT.spore)));
-  scatter(N(14), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Fern_1'), at(x, z, { ry: rnd() * 6, s: 0.4 + rnd() * 0.3 }), vary(TINT.sporeLeaf)));
-  scatter(N(16), inSpore, (x, z) => c.cover.add(c.piece('nature', 'Flower_3_Group'), at(x, z, { ry: rnd() * 6, s: 0.45 + rnd() * 0.25 }), vary(TINT.spore, 0.1)));
+  // Colonies occupy distinct patches under the canopy and on the shoulders
+  // of the approach. Taller silhouettes remain away from the playable lane.
+  const patches = [
+    [-28.5, 23, 2.3, 0], [-33.5, 15, 3.2, 1], [-36, 29, 3.2, 0],
+    [-39, 17, 3.0, 1], [-46.5, 21, 3.8, 0], [-44.5, 34, 3.5, 1],
+    [-49.5, 29, 3.6, 0], [-53.5, 20, 3.0, 1],
+  ];
+  const fungi = c.piece('nature', 'Mushroom_Common');
+  const shelves = c.piece('nature', 'Mushroom_Laetiporus');
+  const leaves = c.piece('nature', 'Plant_7_Big');
+  const reeds = c.piece('nature', 'Grass_Wispy_Tall');
+  const gills = new THREE.Color(0xa48796);
+  const foliage = new THREE.Color(0x8e9291);
+  for (const [cx, cz, radius, wet] of patches) {
+    const pick = () => {
+      const a = rnd() * Math.PI * 2;
+      const r = radius * Math.sqrt(rnd());
+      const x = cx + Math.sin(a) * r;
+      const z = cz + Math.cos(a) * r;
+      return roadOffset(x, z) > 2.6 || roadDistance(x, z) > 46 ? [x, z] : null;
+    };
+    scatter(N(5), pick, (x, z) => c.cover.add(wet ? shelves : fungi, at(x, z, { y: 0.02, ry: rnd() * 6, s: 0.68 + rnd() * 0.57 }), vary(gills)));
+    scatter(N(6), pick, (x, z) => c.cover.add(leaves, at(x, z, { y: -0.025, ry: rnd() * 6, s: 0.9 + rnd() * 0.55 }), vary(foliage)));
+    if (wet) scatter(N(4), pick, (x, z) => c.cover.add(reeds, at(x, z, { y: -0.05, ry: rnd() * 6, s: 0.24 + rnd() * 0.18 }), vary(foliage)));
+  }
 
   // The rest of the Reach: short grass, ferns, pebbles, the odd shrub.
   scatter(N(420), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Grass_Common_Short'), at(x, z, { ry: rnd() * 6, s: 0.55 + rnd() * 0.6 }), vary(TINT.meadow, 0.4)));
@@ -1095,7 +1130,7 @@ function buildParticlesAndLights(scene) {
   }
   // Drifting spores over the bog.
   const pts = [];
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 110; i++) {
     const a = rnd() * Math.PI * 2;
     const r = Math.sqrt(rnd()) * 23;
     const x = ZONES.sporefield.x + Math.sin(a) * r;
@@ -1104,10 +1139,10 @@ function buildParticlesAndLights(scene) {
   }
   const sg = new THREE.BufferGeometry();
   sg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  const spores = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffb8f5, size: 0.14, transparent: true, opacity: 0.8, depthWrite: false }));
+  const spores = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xe0c5e3, size: 0.095, transparent: true, opacity: 0.58, depthWrite: false }));
   scene.add(spores);
   // A soft violet glow pooled in the bog, so the Sporefield is not just dark.
-  const bog = new THREE.PointLight(0xc070ff, 60, 46, 1.6);
+  const bog = new THREE.PointLight(0xb194ce, 51, 46, 1.6);
   bog.position.set(ZONES.sporefield.x, 5, ZONES.sporefield.z);
   scene.add(bog);
   return (dt, t) => {

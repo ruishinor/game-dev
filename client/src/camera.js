@@ -77,7 +77,9 @@ export class ThirdPersonCamera {
 
     // March outward from the head; stop short of the first obstruction.
     let allowed = this.want;
-    for (let t = 0.5; t <= this.want; t += 0.25) {
+    const steps = Math.ceil(this.want / 0.25);
+    for (let i = 2; i <= steps; i++) {
+      const t = (i * this.want) / steps;
       if (blocked(px + dx * t, py + dy * t, pz + dz * t)) {
         allowed = Math.max(0.6, t - 0.45);
         break;
@@ -85,7 +87,7 @@ export class ThirdPersonCamera {
     }
     // Pull in instantly (never clip), ease back out.
     if (allowed < this.dist) this.dist = allowed;
-    else this.dist += (allowed - this.dist) * Math.min(1, dt * 5);
+    else this.dist += (allowed - this.dist) * (1 - Math.exp(-dt * 5));
 
     const d = this.dist;
     this.camera.position.set(px + dx * d, py + dy * d, pz + dz * d);

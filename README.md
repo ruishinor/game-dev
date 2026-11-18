@@ -2,25 +2,16 @@
 
 **Proprietary project — all rights reserved.** Public visibility does not grant a general license to reuse or commercialize protected Attunement materials. See [LICENSE](LICENSE). Third-party materials retain their own terms.
 
-Browser-based, third-person 3D MMORPG slice: an authoritative Node server and a
-Three.js client. Two classes (Kinetic Vanguard, Symbiotech Conductor), a
-companion, a build system, shared-world combat and persistence, drawn with
-rigged, animated GLB characters in a kit-built Lattice Sanctum and Sporefield.
-
-**Status:** playable prototype. Not production-ready, not deployed, and not yet
-played or accepted by a person — see [`docs/HANDOFF.md`](docs/HANDOFF.md) for
-what is verified and what is not, and
-[`docs/VISUAL_REVIEW.md`](docs/VISUAL_REVIEW.md) for an honest assessment of
-the visuals.
+Attunement is a playable third-person browser MMORPG prototype. The Three.js client renders rigged GLB characters, VFX, and the Lattice Sanctum and Sporefield. The Node simulation owns combat, companions, equipment, crafting, quests and persistence. The playtest roster includes Kinetic Vanguard, Symbiotech Conductor, Aegis Keeper and Brine Surveyor.
 
 ```bash
-npm install
-npm start        # http://127.0.0.1:8080  (PORT, HOST, DATA_FILE override)
+npm ci
+npm start
 ```
 
-Two players on one computer: open the page twice, the second time with
-`?slot=2`. A Vanguard can choose the **Red Rucker** appearance at character
-creation; it changes how the character looks, never how it plays.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). `PORT`, `HOST` and `DATA_FILE` override the defaults. Use a second browser context or a different `?slot=NAME` to test multiplayer locally. Character creation offers cosmetic appearances such as Red Rucker.
+
+See the [handoff](docs/HANDOFF.md) for verification and known limits.
 
 ## Controls
 
@@ -38,10 +29,13 @@ creation; it changes how the character looks, never how it plays.
 | Right-click | Attack an enemy, or use an object |
 | F1 / Esc | Target yourself / clear the target |
 | 1 – 4 | Abilities |
-| Shift + 1 – 3 | Companion: Triage / Bond / Harry |
+| Shift + 1 – 5 | Companion: Triage / Bond / Attack / Follow / Stay |
 | F | Interact |
 | V | Reset the camera behind you |
-| C | Build: devices, implants, glyphs |
+| C / I | Character and Loadout / Inventory |
+| B | Build Planner and Workshop |
+| J / L | Codex / Quest Journal |
+| R | Toggle auto-attack |
 | H | Controls |
 | Enter | Chat |
 
@@ -88,8 +82,7 @@ Built assets are committed, so none of this is needed to play:
 npm run assets:fetch && npm run assets:build && npm run assets:preview
 ```
 
-Every third-party asset is CC0; sources, creators and checksums are in
-[`assets/sources.json`](assets/sources.json).
+The visual asset ledger records CC0 donors, creators and checksums. See the [visual pipeline](docs/ASSETS.md) and [prerecorded voice credits](docs/art/VOICE-CREDITS.md) for their respective terms.
 
 ## Documents
 
