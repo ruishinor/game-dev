@@ -6,6 +6,7 @@ import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
+import { buildContainmentVessel } from './containment-vessel.js';
 import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
@@ -324,24 +325,7 @@ const procedural = {
     }
     return g;
   },
-  deep_vessel(p) {
-    const g = new THREE.Group();
-    g.name = 'kestrel:vessel:' + p.seed;
-    const shell = mat(0x78817a, { metal: 0.38, rough: 0.67 });
-    const clamp = mat(0x353e3c, { metal: 0.55, rough: 0.57 });
-    const window = mat(0x718b7a, { metal: 0.05, rough: 0.35, emissive: 0x162b21 });
-    // G.cyl8 has unit radius, not unit diameter: keep all equipment
-    // surfaces inside the simulation's 1.05m circular footprint.
-    g.add(scaled(G.cyl8, clamp, 1.0, 0.24, 1.0, 0, 0.12, 0));
-    g.add(scaled(G.cyl8, shell, 0.9, p.h - 0.5, 0.9, 0, p.h / 2, 0));
-    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 0.99, 0.18, 0.99, 0, y, 0));
-    g.add(scaled(G.cyl8, clamp, 0.55, 0.2, 0.55, 0, p.h-0.1, 0));
-    for (const side of [-1,1]) g.add(scaled(G.box, clamp, 0.13, p.h-0.64, 0.14, side*0.62, p.h/2, 0.64));
-    g.add(scaled(G.box, clamp, 0.72, 0.91, 0.15, 0, p.h*0.58, 0.8));
-    g.add(scaled(G.box, window, 0.52, 0.65, 0.045, 0, p.h*0.58, 0.89, false));
-    for(let i=0;i<3;i++) g.add(scaled(G.box, shell, 0.43, 0.035, 0.015, 0, p.h*0.58-0.18+i*0.18, 0.922, false));
-    return g;
-  },
+  deep_vessel(p) { return buildContainmentVessel(THREE,p); },
   // Wind-cut, laminated mineral fins: broad bases, fractured edges, no emission.
   sinter_ridge(p) {
     const g = new THREE.Group();
