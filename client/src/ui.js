@@ -4,6 +4,7 @@
 
 import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
+import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
@@ -721,6 +722,9 @@ export class UI {
     const out = [h('div', 'tip-title', ab.name), h('div', 'tip-meta', bits.join(' · ')), h('div', 'tip-body', ab.desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.ability === id) out.push(h('div', 'tip-glyph', note.text));
+    if (id==='overgrowth_surge' && this.sheet?.equipped.device===BLOOM_RELAY.device) {
+      out[2]=h('div','tip-body','Bloom Relay: the restorative bloom originates around you instead of the Mender, healing allies within '+BLOOM_RELAY.radius+'m. The Mender is still required.');
+    }
     return out;
   }
 
@@ -1214,7 +1218,7 @@ export class UI {
 
     // Mark abilities and commands the equipped glyph alters.
     const note = GLYPH_NOTES[sheet.equipped.glyph];
-    for (const b of this.abilityButtons) b.pip.hidden = !(note && note.ability === b.id);
+    for (const b of this.abilityButtons) b.pip.hidden = !((note && note.ability === b.id) || (b.id==='overgrowth_surge' && sheet.equipped.device===BLOOM_RELAY.device));
     for (const b of this.petButtons) b.pip.hidden = !(note && note.pet === b.mode);
   }
 

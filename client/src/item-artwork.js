@@ -15,6 +15,7 @@ const motifs=Object.freeze({
   myelin_lattice:'<path d="m12 2 8 5v10l-8 5-8-5V7Z" fill="#3d5048"/><path d="M12 4v16M5 8l14 8M5 16 19 8" stroke="#b7d2a6"/><path d="m12 7 4 3v4l-4 3-4-3v-4Z" fill="#79937f"/>',
   kinetic_capacitor:'<path d="M4 5h16v16H4Z" fill="#536061"/><path d="M7 5V2m10 3V2M8 8v10m8-10v10" stroke="#aab3a6" stroke-width="2"/><path d="m13 7-4 6h5l-3 6" stroke="#e5b974" stroke-width="2"/>',
   adrenal_shunt:'<path d="m4 19 15-15 3 3L7 22Z" fill="#64746e"/><path d="m6 12 6 6m-1-11 6 6" stroke="#b7b6a3" stroke-width="2"/><path d="m8 13 3-3 4 4-3 3Z" fill="#c39268"/>',
+  bloom_relay:'<path d="M5 5Q12 0 19 5l2 7-4 8H7l-4-8Z" fill="#405451" stroke="#a7b4a0"/><path d="M5 9l4 3-2 5 5 3 5-3-2-5 4-3" stroke="#c6a679"/><path d="M12 4q-7 5 0 11 7-6 0-11Z" fill="#82a98b" stroke="#d3e9be"/><path d="M12 8v8m-3 1h6" stroke="#e3eabf"/><circle cx="12" cy="18" r="1" fill="#c2e7d3"/>',
   aegis_rectifier:'<path d="m12 2 9 5v7l-9 8-9-8V7Z" fill="#52696b"/><path d="M4 7 12 12l8-5M12 12v9" stroke="#b0b8a2"/><path d="m6 7 6 4 6-4-2 8-4 4-4-4Z" fill="#203d40"/><path d="M12 5v8" stroke="#e8bb7b"/>',
   keeper_resonator:'<rect x="3" y="4" width="18" height="16" rx="2" fill="#53616e"/><circle cx="12" cy="12" r="6" fill="#233244" stroke="#a99dbd"/><circle cx="12" cy="12" r="3" stroke="#d2bce4"/><path d="M12 7v10M7 12h10" stroke="#9bbebd"/>',
   brine_rescue_lattice:'<path d="M4 4h16v16H4Z" fill="#4f625d"/><path d="M4 4l16 16M20 4 4 20" stroke="#82998a"/><path d="M9 6h6v4h4v5h-4v4H9v-4H5v-5h4Z" fill="#9eb8a5" stroke="#c8dbca"/>',

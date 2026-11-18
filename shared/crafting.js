@@ -22,6 +22,7 @@ export const RECIPES={
   restore_servo:{name:'Remove servo calibration',discipline:'Engineering',kind:'restore',inputs:{},target:'calibrated_servo',output:{item:'servo_harness'}},
   restore_focus:{name:'Remove focus culture',discipline:'Research',kind:'restore',inputs:{},target:'cultured_focus',output:{item:'sporeglass_focus'}},
   resonance_buffer:{name:'Assemble resonance buffer',discipline:'Engineering',attune:'resonance',inputs:{resonance_fragment:1,sentinel_alloy:2,mire_fibre:2},output:{item:'resonance_buffer'}},
+  bloom_relay:{name:'Fuse Bloom Relay',discipline:'Research',site:'brine_research',cls:'symbiotech',kind:'fusion',attune:'resonance',requires:{biotech:13},inputs:{culture_matrix:1,resonance_fragment:1},targets:['conductive_membrane','sinter_laminate'],output:{item:'bloom_relay'}},
   aegis_rectifier:{name:'Fuse Aegis Rectifier',discipline:'Engineering',site:'brine_engineering',cls:'vanguard',kind:'fusion',attune:'resonance',requires:{kinetics:13},inputs:{kinetic_coupler:1},targets:['field_vector_array','conductive_membrane'],output:{item:'aegis_rectifier'}},
 };
 

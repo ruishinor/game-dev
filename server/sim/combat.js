@@ -6,6 +6,7 @@ import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } fro
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus } from '../../shared/condition.js';
+import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
 
 // --- buffs -----------------------------------------------------------------
@@ -502,10 +503,12 @@ export function useAbility(game, p, abilityId) {
       p.autoOn = true;
       break;
     case 'overgrowth_surge': {
-      const c = p.companion;
-      game.events.push({ e: 'fx', k: 'surge', s: c.id, r: ab.radius });
+      const relayed = p.char.equipped.device === BLOOM_RELAY.device;
+      const origin = relayed ? p : p.companion;
+      const radius = relayed ? BLOOM_RELAY.radius : ab.radius;
+      game.events.push({ e: 'fx', k: 'surge', s: origin.id, r: radius });
       for (const ally of game.players.values()) {
-        if (!ally.dead && dist(c, ally) <= ab.radius) applyHeal(game, p, ally, ab.heal, abilityId, c.id);
+        if (!ally.dead && dist(origin, ally) <= radius) applyHeal(game, p, ally, ab.heal, abilityId, origin.id);
       }
       break;
     }
