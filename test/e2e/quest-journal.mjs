@@ -10,8 +10,9 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
  await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
- await page.waitForFunction(()=>window.__attune?.state().sheet?.cls==='vanguard');
- const p=[...server.game.players.values()].find(p=>p.name==='Journal Tester');assert.ok(p);
+ await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard';});
+ const playerId=await page.evaluate(()=>window.__attune.state().myId);
+ const p=server.game.players.get(playerId);assert.ok(p);
  p.char.quest={step:2,progress:0};p.char.survey='signal';server.game.markDirty(p);
  await page.waitForFunction(()=>window.__attune.state().sheet.quest.step===2&&window.__attune.state().sheet.survey==='signal');
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
