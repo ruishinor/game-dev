@@ -14,6 +14,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { GOODS } from '../../shared/goods.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -115,20 +116,22 @@ export function grantSalvage(game,p,id,count=1) {
   game.markDirty(p);return true;
 }
 
-export function craftRecipe(game,p,id) {
+export function craftRecipe(game,p,id,rev) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
   if(!Object.hasOwn(RECIPES,id))return {ok:false,reason:'Unknown recipe.'};
   if(!canFabricateAt(RECIPES[id],workshopSite(p)))return {ok:false,reason:'Use the appropriate Workshop: Lattice Sanctum or commissioned Brineworks station.'};
+  if(RECIPES[id].output.goods&&(!Number.isSafeInteger(rev)||rev!==p.utilityRev))return {ok:false,reason:'Utility fabrication request expired. Refresh the Workshop.'};
   const result=previewRecipe(p.char,id);
   if(!result.ok)return result;
   // One synchronous transaction, after every requirement has passed.
   p.char.inventory=result.inventory;
   p.char.materials=result.materials;
+  if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
   if(out.item)p.outbox.push({e:'loot',item:out.item});
-  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:MATERIALS[out.material].name)+'.');
+  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
   game.markDirty(p);
   return {ok:true};
 }

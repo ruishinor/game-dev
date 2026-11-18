@@ -3,6 +3,7 @@
 // the unique owned-item list. Client preview never mutates a character.
 import { ITEMS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
 import { computeSkills } from './build.js';
+import { GOODS,GOODS_CAP,sanitizeGoods } from './goods.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
@@ -19,6 +20,7 @@ export const RECIPES={
   longpoint_emitter:{name:'Rebuild Longpoint Emitter',discipline:'Engineering',site:'brine_engineering',kind:'upgrade',attune:'resonance',requires:{instrumentation:13},inputs:{resonance_fragment:1,sentinel_alloy:4,mire_fibre:2},target:'tuned_emitter',output:{item:'longpoint_emitter'}},
   survey_strider_link:{name:'Assemble Survey Strider Link',discipline:'Engineering',site:'brine_engineering',cls:'surveyor',attune:'resonance',requires:{instrumentation:13},inputs:{sentinel_alloy:4,mire_fibre:2,resonance_fragment:1},output:{item:'survey_strider_link'}},
   coupler:{name:'Assemble kinetic coupler',discipline:'Engineering',requires:{kinetics:13},inputs:{sentinel_alloy:2,mire_fibre:1},output:{material:'kinetic_coupler',count:1}},
+  field_maintenance_kit:{name:'Assemble field maintenance kits',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{goods:'field_maintenance_kit',count:2}},
   matrix:{name:'Grow culture matrix',discipline:'Research',requires:{biotech:13},inputs:{mire_fibre:2,sentinel_alloy:1},output:{material:'culture_matrix',count:1}},
   calibrate_servo:{name:'Calibrate servo harness',discipline:'Engineering',kind:'upgrade',requires:{kinetics:11},inputs:{kinetic_coupler:1,sentinel_alloy:1},target:'servo_harness',output:{item:'calibrated_servo'}},
   cultivate_focus:{name:'Cultivate Sporeglass focus',discipline:'Research',kind:'upgrade',requires:{biotech:11},inputs:{culture_matrix:1,mire_fibre:1},target:'sporeglass_focus',output:{item:'cultured_focus'}},
@@ -71,6 +73,12 @@ export function previewRecipe(char,id){
   }
   for(const target of targets)inventory.splice(inventory.indexOf(target),1);
   if(output.item)inventory.push(output.item);
+  if(output.goods){
+    const goods=sanitizeGoods(char.goods),count=(goods[output.goods]||0)+output.count;
+    if(count>GOODS_CAP)return fail('Utility storage is full for '+GOODS[output.goods].name+'.');
+    goods[output.goods]=count;
+    return {ok:true,inventory,materials,goods};
+  }
   return {ok:true,inventory,materials};
 }
 
