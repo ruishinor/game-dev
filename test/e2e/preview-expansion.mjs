@@ -58,6 +58,10 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  await moveTo(-5.5,-2.6);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
+  await capture('preview-evidence/01a-sanctum-storage.png');
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
@@ -70,6 +74,10 @@ try {
   await page.waitForFunction(() => window.__attune.state().you.surveyKit.rigMs === 0);
   assert.equal(p.surveyKit.rig, null);
   await page.locator('#view').focus();
+  await moveTo(44,-34.8);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.40,pitch:.32,dist:9,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-plant')?.children.length===6));
+  await capture('preview-evidence/02a-pressure-plant.png');
   await moveTo(38, -36.5);
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
@@ -314,6 +322,7 @@ try {
     }
     return true;
   }));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('kestrel:service-pipes')?.children.length===5));
   await capture('preview-evidence/07-kestrel-interior.png');
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.
@@ -367,7 +376,11 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  await keeper.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector'));
+  // Require the real named projector on the currently loaded GLB character.
+  await keeper.waitForFunction(()=>{
+    const state=window.__attune?.state();
+    return state?.myId&&state.ents.some(e=>e.id===state.myId&&e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('aegis-projector');
+  });
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
