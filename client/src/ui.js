@@ -945,7 +945,11 @@ export class UI {
     this.hideJournalPanels();
     this.workshopPanel.hidden=!open;
     if(!open)return;
-    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){
+      this.workshopTab='fabrication';this.recipeId=recipeId;this.productionQuantity=null;
+      // An explicit recipe link must not land on a hidden result.
+      if(this.recipeFilter)Object.assign(this.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false});
+    }
     renderWorkshop(this);
   }
 
@@ -1457,6 +1461,16 @@ export class UI {
       c1.append(entry);
     }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
+
+    c1.append(h('h3',null,'Profession abilities'));
+    for(const [i,id] of def.abilities.entries()){
+      const ability=ABILITIES[id];
+      const link=h('button','ability-guide',`[${i+1}] ${ability.name}`);
+      link.type='button';link.addEventListener('click',()=>this.toggleCodex(true,id));
+      c1.append(link);
+      if(id==='phase_transposition')c1.append(h('p','muted',s.attunements.includes('resonance')?'Resonance attuned · transfer your own active barrier to an eligible ally.':'Locked · learn Resonance at the Listening Stone.'));
+    }
+    c1.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
 
     c1.append(h('h3',null,'Field disciplines'));
     const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
