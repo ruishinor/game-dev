@@ -79,7 +79,10 @@ try {
   await moveTo(39, -30);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
   await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver'));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver').children.some(m=>m.material.map&&m.material.roughnessMap)));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
   await capture('preview-evidence/03a-pressure-receiver.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
@@ -127,13 +130,15 @@ try {
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
   await moveTo(47,-30);
   await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:shift-ledger'));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/06a-shift-ledger.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
   await page.locator('.field-record').waitFor({state:'visible'});
   assert.match(await page.locator('.field-record').innerText(),/SHIFT LEDGER 07/);
   await capture('preview-evidence/06-commissioned.png');
-  await capture('preview-evidence/06a-shift-ledger.png');
   await moveTo(49,-36.5);
   await page.waitForFunction(()=>window.__attune.state().you.workshop==='brine_engineering');
   await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();

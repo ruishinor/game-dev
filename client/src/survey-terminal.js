@@ -1,28 +1,48 @@
 // Brineworks evidence instruments: visual-only, grounded and material-batched.
 // The ledger and receiver keep their existing authoritative interaction envelopes.
-import { mergeGeometries } from './gear-kit.js';
+import { mergeGeometries, paintTexture } from './gear-kit.js';
 export function buildSurveyTerminal(T, ledger) {
   const group=new T.Group();
   group.name=ledger?'brine:shift-ledger':'brine:pressure-receiver';
   const mat=(color,roughness,metalness,extra={})=>new T.MeshStandardMaterial({color,roughness,metalness,...extra});
-  const dark=mat(0x303836,.86,.32), paint=mat(ledger?0x98805a:0x536f70,.77,.25);
+  const coat=paintTexture(T,group.name,{base:ledger?'#938166':'#5b7375',metal:'#868b81',seams:false,seed:ledger?384:671});
+  const dark=mat(0x303836,.86,.32), paint=mat(coat?0xffffff:ledger?0x98805a:0x536f70,.77,.25,coat??{});
   const steel=mat(0x858b84,.54,.65), rubber=mat(0x272b28,.94,.04);
   const display=mat(ledger?0xb99e6d:0x739f95,.42,.12,{emissive:ledger?0x886124:0x416e65,emissiveIntensity:.28});
   const batches=new Map();
   const add=(material,geo)=>{if(!batches.has(material))batches.set(material,[]);batches.get(material).push(geo);};
   const box=(m,w,h,d,x,y,z,rx=0,rz=0)=>add(m,new T.BoxGeometry(w,h,d).rotateX(rx).rotateZ(rz).translate(x,y,z));
   const cyl=(m,r,h,x,y,z,rx=0)=>add(m,new T.CylinderGeometry(r,r,h,16).rotateX(rx).translate(x,y,z));
+  // A stamped enclosure with genuine chamfered edges, fitted inside its declared box.
+  const shell=(m,w,h,d,x,y,z,b=.025)=>{
+    const a=w/2-b,k=h/2-b,c=Math.min(.07,a*.25,k*.25),shape=new T.Shape();
+    shape.moveTo(-a+c,-k);shape.lineTo(a-c,-k);shape.lineTo(a,-k+c);
+    shape.lineTo(a,k-c);shape.lineTo(a-c,k);shape.lineTo(-a+c,k);
+    shape.lineTo(-a,k-c);shape.lineTo(-a,-k+c);shape.closePath();
+    const depth=d-2*b;
+    const geo=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:1});
+    geo.translate(0,0,-depth/2);
+    const p=geo.getAttribute('position'),n=geo.getAttribute('normal'),uv=geo.getAttribute('uv');
+    for(let i=0;i<p.count;i++){
+      const X=p.getX(i),Y=p.getY(i),Z=p.getZ(i),nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i)),nz=Math.abs(n.getZ(i));
+      uv.setXY(i,nz>=nx&&nz>=ny?X/w+.5:nx>=ny?Z/d+.5:X/w+.5,ny>nx&&ny>nz?Z/d+.5:Y/h+.5);
+    }
+    uv.needsUpdate=true;
+    add(m,geo.translate(x,y,z));
+  };
   for(const side of [-1,1]){
     box(rubber,.23,.12,.96,side*.54,.06,0);
     box(steel,.09,.84,.76,side*.52,.60,0);
     for(const z of [-.33,.33])cyl(steel,.036,.035,side*.54,.135,z);
   }
   box(steel,1.36,.10,.94,0,.17,0);
-  box(paint,.94,.91,.72,0,.675,0);
+  shell(paint,.94,.91,.72,0,.675,0);
   box(dark,.80,.58,.055,0,.63,.365);
-  box(steel,1.12,.10,.82,0,1.16,0);
+  shell(steel,1.12,.10,.82,0,1.16,0,.016);
   for(const side of [-1,1]){
     for(let i=0;i<4;i++)box(dark,.022,.041,.36,side*.478,.44+i*.11,0);
+    // Narrow reflected edge of a pressed service grille.
+    for(let i=0;i<4;i++)box(steel,.014,.014,.33,side*.488,.46+i*.11,0);
     for(const y of [.40,.99])cyl(steel,.027,.022,side*.38,y,.407,Math.PI/2);
   }
   if(ledger){
@@ -51,7 +71,11 @@ export function buildSurveyTerminal(T, ledger) {
     cyl(dark,.19,.16,-.31,1.29,-.17);
     cyl(steel,.095,.49,-.31,1.60,-.17);
     cyl(dark,.14,.09,-.31,1.76,-.17);
-    add(steel,new T.SphereGeometry(1,16,10).scale(.18,.11,.18).translate(-.31,1.88,-.17));
+    // Flat-topped protected sampling head, with visible flange and cover seam.
+    add(steel,new T.LatheGeometry([[0,1.77],[.12,1.77],[.15,1.79],[.15,1.87],[.12,1.94],[.08,1.965],[0,1.965]].map(([r,y])=>new T.Vector2(r,y)),24).translate(-.31,0,-.17));
+    cyl(dark,.152,.026,-.31,1.845,-.17);
+    const cable=new T.CatmullRomCurve3([[-.31,1.40,-.17],[-.31,1.34,.07],[-.12,1.30,.19],[.20,1.28,.12]].map(v=>new T.Vector3(...v)));
+    add(rubber,new T.TubeGeometry(cable,16,.018,6,false));
     box(paint,.37,.29,.32,.29,1.34,-.12);
     box(display,.17,.025,.16,.29,1.498,-.12);
   }
@@ -66,5 +90,6 @@ export function buildSurveyTerminal(T, ledger) {
   return {group,height:ledger?1.65:2,radius:.8,hover:0,update(){},dispose(){
     if(disposed)return;disposed=true;
     for(const mesh of group.children){mesh.geometry.dispose();mesh.material.dispose();}
+    coat?.map.dispose();coat?.roughnessMap.dispose();
   }};
 }
