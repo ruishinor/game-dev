@@ -1,6 +1,7 @@
 // The panel presents only the current scoped server quote. No pricing math
 // or balance mutation is accepted as authority from the browser.
 import {itemArt,itemTooltip} from './journal-ui.js';
+import {characterPortraitMeta} from './portrait-identity.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const button=(label,fn)=>{const el=h('button',null,label);el.type='button';el.addEventListener('click',fn);return el;};
 export class VendorPanel{
@@ -8,7 +9,7 @@ export class VendorPanel{
   this.ui=ui;this.state=null;this.suppressed=null;this.signature='';this.tab='buy';this.pending=null;
   this.el=h('section','panel vendor-window');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','Vendor');
   this.el.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();this.dismiss();}else if(['Tab','Enter',' ','ArrowUp','ArrowDown'].includes(e.key))e.stopPropagation();});
-  ui.root.append(this.el);
+  this.content=h('div','managed-window-content');this.el.append(this.content);ui.root.append(this.el);
  }
  dismiss(send=true){
   if(this.el.contains(this.ui.tipFor))this.ui.tooltip.hidden=true;
@@ -36,18 +37,18 @@ export class VendorPanel{
  draw(){
   const s=this.state;if(!s)return;const focus=this.el.contains(document.activeElement)?document.activeElement?.dataset.focus:null;
   if(this.el.contains(this.ui.tipFor))this.ui.tooltip.hidden=true;
-  this.el.hidden=false;this.el.replaceChildren();
+  this.el.hidden=false;this.content.replaceChildren();
   const close=button('×',()=>this.dismiss());close.className='close';close.setAttribute('aria-label','Close vendor');
-  this.el.append(h('div','kicker','LATTICE SANCTUM · SUPPLY'),h('h2',null,s.name),close,h('div','vendor-balance',s.credits+' credits'));
+  this.content.append(h('div','kicker','LATTICE SANCTUM · SUPPLY'),h('h2',null,s.name),close,h('div','vendor-balance',s.credits+' credits'));
   const tabs=h('div','vendor-tabs');
   for(const [id,name] of [['buy','Buy'],['sell','Sell junk'],['buyback','Buyback'],['repair','Repair']]){
    const b=button(name,()=>{this.tab=id;this.draw();});b.dataset.focus='tab-'+id;b.setAttribute('aria-pressed',String(this.tab===id));tabs.append(b);
   }
-  this.el.append(tabs);
+  this.content.append(tabs);
   const list=h('div','vendor-list');
   for(const row of s[this.tab]||[]){
    const item=h('div','vendor-row'),copy=h('div','vendor-copy');
-   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(this.tab==='sell'?' · × '+row.quantity:'')));
+   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(row.cosmetic?' · Cosmetic only':'')+(this.tab==='sell'?' · × '+row.quantity:'')));
    const artwork = itemArt(row.id);
    item.append(artwork,copy);
    copy.tabIndex=0;
@@ -56,16 +57,18 @@ export class VendorPanel{
    this.ui.hover(artwork,()=>itemTooltip(this.ui.sheet,row.id));
    const controls=h('div','vendor-actions');
    const make=(label,id,qty,disabled)=>{const b=button(label,()=>this.trade(this.tab,id,qty));b.dataset.focus=this.tab+'-'+id+'-'+qty;b.disabled=!!this.pending||disabled;controls.append(b);};
-   if(this.tab==='buy'){make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);}
+   if(this.tab==='buy'){make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);
+    if(row.cosmetic){const preview=button('Preview',()=>{const s=this.ui.sheet;if(!s)return;const prior=item.querySelector('.social-preview');if(prior){prior.remove();return;}const src=this.ui.a.portrait(characterPortraitMeta({...s,equipped:{...s.equipped,social_torso:row.id}}));if(!src)return;const img=h('img','social-preview');img.src=src;img.alt=row.name+' on your character';img.style.maxWidth='120px';item.append(img);});controls.append(preview);}
+   }
    else if(this.tab==='sell'){make('Sell 1',row.id,1,false);if(row.quantity>1)make('Sell '+row.quantity,row.id,row.quantity,false);}
    else if(this.tab==='repair')make('Repair',row.id,1,row.max<1);
    else make('Buy back',row.receipt,row.quantity,row.max<row.quantity);
    item.append(controls);list.append(item);
   }
   if(!list.children.length)list.append(h('p','muted',this.tab==='sell'?'No carried junk to sell.':this.tab==='repair'?'No owned equipment needs repair.':'No items to buy back during this visit.'));
-  this.el.append(list);
-  if(this.tab==='sell'){const all=button('Sell all junk',()=>this.trade('sell_junk','',1));all.dataset.focus='sell-all';all.disabled=!s.sell.length||!!this.pending;this.el.append(all);}
-  this.el.append(h('p','muted','Only trade salvage can be sold here. Buyback is available during this visit. Only equipment marked repairable is affected by condition.'));
+  this.content.append(list);
+  if(this.tab==='sell'){const all=button('Sell all junk',()=>this.trade('sell_junk','',1));all.dataset.focus='sell-all';all.disabled=!s.sell.length||!!this.pending;this.content.append(all);}
+  this.content.append(h('p','muted','Only trade salvage can be sold here. Buyback is available during this visit. Only equipment marked repairable is affected by condition.'));
   if(focus)[...this.el.querySelectorAll('[data-focus]')].find(b=>b.dataset.focus===focus)?.focus({preventScroll:true});
  }
 }

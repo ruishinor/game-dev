@@ -6,7 +6,7 @@ import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop} from
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
-import {dist,hasLineOfSight} from '../../shared/world.js';
+import {dist,hasLineOfSight,inRiftAnnex} from '../../shared/world.js';
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
 
@@ -28,7 +28,7 @@ export function distributeCorpseLoot(game,e,credited){
   if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
   const relic=relicDrop(e.type,game.relicRng);
   if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
-  const print=blueprintDrop(e.type,game.blueprintRng);
+  const print=blueprintDrop(e.type,game.blueprintRng,inRiftAnnex(e.home.x,e.home.z));
   if(print&&(p.char.goods?.[print]||0)<goodsCap(print))entries.push({id:print,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
  }

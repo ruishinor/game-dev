@@ -8,8 +8,8 @@ import {sanitizeCredits,walletAfter} from './wallet.js';
 import {ITEMS} from '../../shared/content.js';
 import {sanitizeCondition,conditionOf} from '../../shared/condition.js';
 import {repairPrice} from './condition.js';
-const BUY=Object.freeze({mire_fibre:8,sentinel_alloy:12});
-const BUY_WEAPONS=Object.freeze({field_emitter:12});
+const BUY=Object.freeze({mire_fibre:8,sentinel_alloy:12,pulse_housing:14,pulse_cell:9});
+const BUY_EQUIPMENT=Object.freeze({field_emitter:12,social_service_coat:8,social_relay_coat:12});
 const BUY_UTILITIES=Object.freeze({field_maintenance_kit:12});
 const SELL=Object.freeze({mire_husk:2,spent_contact:3});
 const RANGE=5,BUYBACK_LIMIT=8;
@@ -31,7 +31,7 @@ export function vendorState(game,p){
  const goods=sanitizeGoods(p.char.goods),materials=sanitizeMaterials(p.char.materials);
  const credits=sanitizeCredits(p.char.credits);
  return {id:session.id,name:game.ents.get(session.id).name,ticket:session.ticket,rev:session.rev,credits,
-  buy:[...Object.entries(BUY).map(([id,price])=>({id,name:MATERIALS[id].name,price,max:Math.min(MATERIAL_CAP-(materials[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_UTILITIES).map(([id,price])=>({id,name:GOODS[id].name,price,max:Math.min(GOODS_CAP-(goods[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_WEAPONS).map(([id,price])=>({id,name:ITEMS[id].name,price,ql:ITEMS[id].ql,max:!p.char.inventory.includes(id)&&credits>=price?1:0}))],
+  buy:[...Object.entries(BUY).map(([id,price])=>({id,name:MATERIALS[id].name,price,max:Math.min(MATERIAL_CAP-(materials[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_UTILITIES).map(([id,price])=>({id,name:GOODS[id].name,price,max:Math.min(GOODS_CAP-(goods[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_EQUIPMENT).map(([id,price])=>({id,name:ITEMS[id].name,price,ql:ITEMS[id].ql,cosmetic:ITEMS[id].slot==='social_torso',max:!p.char.inventory.includes(id)&&credits>=price?1:0}))],
   repair:p.char.inventory.flatMap(id=>{const price=repairPrice(p.char,id);return price===null?[]:[{id,name:ITEMS[id].name,price,condition:conditionOf(p.char,id),max:credits>=price?1:0}];}),
   sell:Object.entries(SELL).filter(([id])=>goods[id]>0).map(([id,price])=>({id,name:GOODS[id].name,price,quantity:goods[id]})),
   buyback:session.buyback.map(r=>({...r,name:GOODS[r.id].name,max:credits>=r.total&&(goods[r.id]||0)+r.quantity<=GOODS_CAP?r.quantity:0})),
@@ -52,9 +52,9 @@ export function tradeVendor(game,p,msg){
   goods[id]-=quantity;if(!goods[id])delete goods[id];
  };
  if(msg.op==='buy'){
-  if(Object.hasOwn(BUY_WEAPONS,msg.id)){
-   if(msg.qty!==1||inventory.includes(msg.id))return fail('A unique weapon can be purchased only once while owned.');
-   delta=-BUY_WEAPONS[msg.id];inventory.push(msg.id);newItem=msg.id;label='Purchased '+ITEMS[msg.id].name+'.';
+  if(Object.hasOwn(BUY_EQUIPMENT,msg.id)){
+   if(msg.qty!==1||inventory.includes(msg.id))return fail('A unique item can be purchased only once while owned.');
+   delta=-BUY_EQUIPMENT[msg.id];inventory.push(msg.id);newItem=msg.id;label='Purchased '+ITEMS[msg.id].name+'.';
   }else if(Object.hasOwn(BUY_UTILITIES,msg.id)){
    if((goods[msg.id]||0)+msg.qty>GOODS_CAP)return fail('Utility storage full.');
    delta=-BUY_UTILITIES[msg.id]*msg.qty;goods[msg.id]=(goods[msg.id]||0)+msg.qty;

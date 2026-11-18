@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
 import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
+import { equipItem } from '../../server/sim/progress.js';
+import { clearCombatSpot } from '../cover-setup.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
@@ -217,6 +219,31 @@ try {
   await page.keyboard.press('KeyC');
   const character=page.getByRole('dialog',{name:'Character and loadout'});
   await character.waitFor({state:'visible'});
+  // Exercise real pointer movement and edge resize, not synthetic style mutations.
+  const drag=async(locator,dx,dy)=>{
+    const box=await locator.boundingBox();assert.ok(box);
+    const x=box.x+box.width/2,y=box.y+box.height/2;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:4});await page.mouse.up();
+  };
+  const initial=await character.boundingBox();
+  await drag(character.locator('.journal-title'),-35,-25);
+  const moved=await character.boundingBox();
+  assert.ok(moved.x<initial.x-20&&moved.y<initial.y-10,'Title drag moves the actual window');
+  await drag(character.locator('[data-edge="e"]'),35,0);
+  const resized=await character.boundingBox();
+  assert.ok(resized.width>moved.width+20&&Math.abs(resized.x-moved.x)<2,'East edge resizes around the anchored west edge');
+  await character.getByRole('button',{name:'Opacity 100%'}).click();
+  assert.equal(await character.evaluate(el=>el.style.getPropertyValue('--window-alpha')),'0.8');
+  await character.getByRole('button',{name:'Lock layout'}).click();
+  assert.equal(await character.locator('[data-edge="e"]').isHidden(),true);
+  await character.getByRole('button',{name:'Unlock layout'}).click();
+  await page.locator('#view').focus();await page.keyboard.press('KeyI');
+  const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
+  assert.ok(await inventory.isVisible()&&await character.isVisible(),'Independent windows coexist');
+  await inventory.locator('.close').click();
+  await character.getByRole('button',{name:'Reset layout'}).click();
+  assert.equal(await character.getAttribute('data-window-custom'),null);
+
   const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
   assert.equal(tabRows.length,6);
   assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
@@ -442,12 +469,35 @@ try {
   await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
   await workshop.locator('[data-recipe="longpoint_emitter"]').click();
   await workshop.locator('[data-craft="longpoint_emitter"]').click();
+  await page.waitForFunction(()=>{
+    const s=window.__attune.state();
+    const tool=window.__attune.gfx.scene.getObjectByName('production:right');
+    return !!s.you.production&&tool?.visible&&!!document.querySelector('.production-icon .item-art');
+  });
+  await page.screenshot({path:'preview-evidence/10a-fabrication-work.png'});
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('longpoint_emitter'));
   assert.ok(!p.char.inventory.includes('tuned_emitter'));
   assert.equal(p.char.materials.resonance_fragment,undefined);
   await capture('preview-evidence/10-longpoint-fabricated.png');
   await workshop.waitFor({state:'hidden'});
   await page.locator('.production-status').waitFor({state:'hidden'});
+  // The same legally fabricated and equipped weapon must fire from a real
+  // humanoid rig. Fixture arranges a safe clear target; R is actual input.
+  assert.ok(equipItem(server.game,p,'longpoint_emitter').ok);
+  const target=server.game.enemies.find(e=>e.type==='skitter');resetEnemy(server.game,target);
+  for(const enemy of server.game.enemies)if(enemy!==target){enemy.state='dead';enemy.deadAt=server.game.time-20000;enemy.respawnAt=Infinity;}
+  target.hp=target.maxHp=Math.max(250,target.maxHp);target.wander=null;target.wanderAt=Infinity;
+  const spot=clearCombatSpot(target,5,8);p.combatUntil=0;p.autoOn=false;
+  await moveTo(spot.x,spot.z);
+  assert.ok(server.game.setTarget(p,target.id));
+  await page.waitForFunction(id=>window.__attune.state().target===id,target.id);
+  await page.locator('#view').focus();await page.keyboard.press('KeyR');
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.ents.find(e=>e.id===s.myId)?.weaponPose?.id==='longpoint';},null,{timeout:20000});
+  const pose=await page.evaluate(()=>{const s=window.__attune.state();return s.ents.find(e=>e.id===s.myId).weaponPose;});
+  assert.ok(pose.forwardDot>.75&&Number.isFinite(pose.supportError)&&pose.supportError<.20&&pose.recoil>0,JSON.stringify(pose));
+  assert.ok(target.hp<target.maxHp,'auto attack must apply actual server damage');
+  await page.screenshot({path:'preview-evidence/10a-longpoint-firing.png'});
+  await page.locator('#view').focus();await page.keyboard.press('KeyR');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});

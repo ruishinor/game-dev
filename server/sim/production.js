@@ -41,6 +41,14 @@ export function productionState(game, p) {
     total: job.duration, ms: Math.max(0, job.until - game.time) } : null;
 }
 
+// Public presentation only: no recipe, quantity, inventory, skill or outcomes.
+export function productionVisualState(game,p){
+  const job=p.production;
+  if(!job)return null;
+  const progress=Math.min(1,Math.max(0,1-(job.until-game.time)/job.duration));
+  return {m:job.method,q:Math.round(progress*100)/100};
+}
+
 export function stopProduction(game, p, reason = 'Production cancelled.') {
   const job = p.production;
   if (!job) return;

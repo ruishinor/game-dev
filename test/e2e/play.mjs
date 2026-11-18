@@ -358,7 +358,9 @@ async function followInventoryPlaytest(){
  const auto=B.page.getByRole('checkbox',{name:'Auto-loot corpses'});
  await auto.check();
  check('auto-loot preference is stored locally',await B.page.evaluate(()=>localStorage.getItem('attunement.autoLoot'))==='1');
- await B.page.keyboard.press('Escape');await B.page.locator('#view').focus();
+ await B.page.keyboard.press('Escape');
+ check('Escape closes Settings even when a checkbox has focus',await B.page.getByRole('dialog',{name:'Settings',exact:true}).isHidden());
+ await B.page.locator('#view').focus();
  // Fixture only: position and kill a deterministic sentinel. Actual collection is through the browser.
  await teleport(B,0,8.5);await settle(B,0,8.5);
  const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;

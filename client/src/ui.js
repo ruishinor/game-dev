@@ -6,16 +6,17 @@ import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NE
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
-import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { conditionOf, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
-import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { renderLoadout, renderInventory, renderCodex, itemArt } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { canSalvageEquipment } from '../../shared/item-actions.js';
 import { renderWorkshop, updateProduction } from './workshop-ui.js';
 import { WindowLayout } from './window-layout.js';
+import {productionEstimate} from './production-presentation.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
@@ -433,14 +434,17 @@ export class UI {
     this.inscription.append(this.inscriptionName, cancelInscription, this.inscriptionProgress);
     this.productionStatus = h('div', 'production-status');
     this.productionStatus.hidden = true;
-    this.productionName = h('span', null);
+    this.productionName = h('span','production-name');
     this.productionName.setAttribute('role', 'status');
+    this.productionIcon=h('span','production-icon');
+    this.productionDetail=h('span','production-detail');
+    this.productionClock=null;
     this.productionProgress = h('progress');
     this.productionProgress.setAttribute('aria-label', 'Fabrication progress');
     const cancelProduction = h('button', null, 'Cancel');
     cancelProduction.type = 'button';
     cancelProduction.addEventListener('click', () => this.a.cancelProduction());
-    this.productionStatus.append(this.productionName, cancelProduction, this.productionProgress);
+    this.productionStatus.append(this.productionIcon,this.productionName,cancelProduction,this.productionProgress,this.productionDetail);
     bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
@@ -528,7 +532,7 @@ export class UI {
     }catch{}
     this.inventoryOpacityButton.addEventListener('click',()=>{
       const levels=[100,80,60,40];
-      this.setInventoryOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
+      this.inventoryLayout.setOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
     });
     this.inventoryOpacityButton.addEventListener('keydown',e=>{
       if(e.key==='Enter'||e.key===' ')e.stopPropagation();
@@ -590,6 +594,17 @@ export class UI {
     this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
     root.append(this.workshopPanel);
     this.workshopLayout=new WindowLayout(this.workshopPanel,this.workshopBody,'workshop');
+    this.inventoryLayout=new WindowLayout(this.inventoryPanel,this.inventoryBody,'inventory',{
+      min:{w:280,h:240},initialOpacity:this.inventoryOpacity,
+      onOpacity:value=>{if(value!==this.inventoryOpacity)this.setInventoryOpacity(value);}
+    });
+    this.characterLayout=new WindowLayout(this.panel,this.panelBody,'character',{min:{w:320,h:260}});
+    this.codexLayout=new WindowLayout(this.codexPanel,this.codexContent,'codex',{min:{w:320,h:260}});
+    this.companionLayout=new WindowLayout(this.companionSheet,this.companionSheetBody,'companions',{min:{w:280,h:240}});
+    this.questLayout=new WindowLayout(this.questJournal.el,this.questJournal.content,'quest',{min:{w:300,h:240}});
+    this.vendorLayout=new WindowLayout(this.vendor.el,this.vendor.content,'vendor',{min:{w:300,h:240}});
+    this.lootLayout=new WindowLayout(this.loot.el,this.loot.content,'loot',{min:{w:230,h:180}});
+    this.windowLayouts=[this.characterLayout,this.inventoryLayout,this.workshopLayout,this.codexLayout,this.companionLayout,this.questLayout,this.vendorLayout,this.lootLayout];
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
@@ -616,6 +631,9 @@ export class UI {
     this.settingsPanel.hidden = true;
     this.settingsPanel.setAttribute('role', 'dialog');
     this.settingsPanel.setAttribute('aria-label', 'Settings');
+    this.settingsPanel.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.toggleSettings(false);document.getElementById('view')?.focus({preventScroll:true});}
+    });
     const sc = h('button', 'close', '×');
     sc.setAttribute('aria-label', 'Close settings');
     sc.addEventListener('click', () => this.toggleSettings(false));
@@ -670,6 +688,9 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
+    const resetWindows=h('button',null,'Reset all window layouts');
+    resetWindows.type='button';resetWindows.addEventListener('click',()=>{for(const layout of this.windowLayouts)layout.reset();});
+    this.settingsPanel.append(resetWindows);
     root.append(this.settingsPanel);
 
     // Help panel
@@ -702,7 +723,7 @@ export class UI {
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
-      ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
+      ['Window layout', 'Drag titles or window edges; use individual opacity and layout controls. Reset all layouts from Settings.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
@@ -909,6 +930,17 @@ export class UI {
     this.closeCompanionDetails();
   }
 
+  // Non-modal gameplay windows coexist. Keep existing explicit dismissal
+  // policies for NPC conversations, modal screens and world actions.
+  prepareManagedWindow() {
+    this.closeNpc();
+    this.fieldRecordPanel.hidden=true;
+    this.help.hidden=this.partyPanel.hidden=this.settingsPanel.hidden=true;
+    this.menuItems.hidden=this.tooltip.hidden=true;
+    this.closePlayerContext();
+    this.closeCompanionDetails();
+  }
+
   openCompanionMenu(x, y) {
     if (!this.companionId) return;
     this.closePlayerContext();
@@ -926,7 +958,7 @@ export class UI {
   }
 
   toggleCompanionSheet(open) {
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.companionSheet.hidden = !open;
     if (open) {
       this.renderCompanionSheet();
@@ -981,7 +1013,7 @@ export class UI {
 
   toggleBuild(force) {
     const open = force ?? this.panel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.panel.hidden = !open;
     if (open) {
       this.renderBuild();
@@ -990,7 +1022,7 @@ export class UI {
 
   toggleWorkshop(force,recipeId=null) {
     const open=force??this.workshopPanel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.workshopPanel.hidden=!open;
     if(!open)return;
     if(recipeId&&Object.hasOwn(RECIPES,recipeId)){
@@ -1025,13 +1057,13 @@ export class UI {
   toggleQuestJournal(force) {
     const open=force??this.questJournal.el.hidden;
     if(!open){this.questJournal.dismiss();return;}
-    this.hideJournalPanels();
+    this.prepareManagedWindow();
     this.questJournal.show(this.sheet,this.questTrial);
   }
 
   toggleCodex(force, id = null) {
     const open = force ?? this.codexPanel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.codexPanel.hidden = !open;
     if (!open) return;
     if (id) {
@@ -1591,12 +1623,24 @@ export class UI {
     if(productionStarted||inscriptionStarted)this.dismissWorldActionPanels();
     set(this.productionStatus,'hidden',!this.production);
     if(this.production){
-      const job=this.production,recipe=RECIPES[job.id];
-      const units=recipe?.output.count||1;
+      const job=this.production,recipe=RECIPES[job.id],units=recipe?.output.count||1;
+      const clock=this.productionClock;
+      if(!clock||clock.job!==job){
+        const sameCycle=clock?.job.id===job.id&&clock.job.complete===job.complete&&clock.job.quantity===job.quantity;
+        this.productionClock={job,at:st.now,cycle:sameCycle?clock.cycle:0};
+      }
+      const current=this.productionClock;
+      const estimate=productionEstimate(job,st.now-current.at,current.cycle);
+      if(estimate){
+        current.cycle=estimate.cycle;
+        const remaining=estimate.remaining>0?Math.ceil(estimate.remaining/1000)+'s remaining':'Finishing…';
+        set(this.productionDetail,'text',estimate.stage+' · '+Math.floor(estimate.overall*100)+'% · '+remaining);
+        this.productionProgress.max=1;this.productionProgress.value=estimate.overall;
+      }
+      const id=recipe?.output.item||recipe?.output.material||recipe?.output.goods;
+      if(this.productionIcon.dataset.item!==id){this.productionIcon.replaceChildren(...(id?[itemArt(id)]:[]));this.productionIcon.dataset.item=id||'';}
       set(this.productionName,'text',recipe?recipe.name+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
-      this.productionProgress.max=job.cycles;
-      this.productionProgress.value=job.complete+Math.max(0,Math.min(1,(job.total-job.ms)/job.total));
-    }
+    }else this.productionClock=null;
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
     set(this.rescueStatus,'hidden',you.rescueReady===undefined);
@@ -1777,6 +1821,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
+    else if(['rift_entry','rift_return'].includes(st.nearObject?.meta.c))set(this.interact,'text',lock?'Phase gate · disengage first':'[F] '+(st.nearObject.meta.c==='rift_entry'?'Enter Phase Annex':'Return to the Reach'));
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
@@ -1853,6 +1898,7 @@ export class UI {
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.production = null;
+    this.productionClock=null;
     this.productionStatus.hidden = true;
     this.inscriptionActive = false;
     this.inscription.hidden = true;
@@ -1909,7 +1955,8 @@ export class UI {
     const c = this.minimap;
     const g = c.getContext('2d');
     const R = c.width / 2;
-    const k = (R - 4) / WORLD.radius;
+    const annex=inRiftAnnex(st.me.pos.x,st.me.pos.z,2);
+    const k = (R - 4) / (annex?Math.hypot(RIFT_ANNEX.hw,RIFT_ANNEX.hd):WORLD.radius);
     g.clearRect(0, 0, c.width, c.height);
     g.save();
     g.translate(R, R);
@@ -1919,10 +1966,11 @@ export class UI {
     g.fill();
     g.clip();
     // Top-down with north (-Z) up and east (+X) to the right.
-    const X = (x) => x * k;
-    const Z = (z) => z * k;
+    const X = (x) => (x-(annex?RIFT_ANNEX.x:0)) * k;
+    const Z = (z) => (z-(annex?RIFT_ANNEX.z:0)) * k;
+    if(annex){g.strokeStyle='#638e9c';g.strokeRect(X(RIFT_ANNEX.x-RIFT_ANNEX.hw),Z(RIFT_ANNEX.z-RIFT_ANNEX.hd),2*RIFT_ANNEX.hw*k,2*RIFT_ANNEX.hd*k);}
     const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
-    for (const key of Object.keys(ZONES)) {
+    for (const key of annex?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
@@ -1930,13 +1978,13 @@ export class UI {
       g.fill();
     }
     g.fillStyle = 'rgba(160, 175, 185, 0.5)';
-    for (const col of COLLIDERS) {
+    for (const col of annex?[]:COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
     }
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
-      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)) continue;
+      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
@@ -1951,7 +1999,7 @@ export class UI {
       if (member.id === st.me.id) continue;
       number++;
       const ent = st.ents.get(member.id);
-      if (ent?.meta.k !== 'p') continue;
+      if (ent?.meta.k !== 'p'||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       const x = X(ent.pos.x), z = Z(ent.pos.z);
       const marker = placePartyMarker(x, z, R - 9, placed);
       placed.push(marker);
@@ -1977,7 +2025,7 @@ export class UI {
       g.textAlign = 'center';
       g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
     }
-    const mapLabel = ['World minimap', ...partyLabels].join('. ');
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));

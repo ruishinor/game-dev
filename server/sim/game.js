@@ -5,12 +5,13 @@
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import {equipmentVisuals} from '../../shared/equipment-visuals.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion, spawnMender, companionRoster } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
@@ -25,7 +26,7 @@ import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 import { inventoryCounts, trackAcquisitions } from './inventory-seen.js';
-import { productionState, stopProduction, tickProduction } from './production.js';
+import { productionState, productionVisualState, stopProduction, tickProduction } from './production.js';
 import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -78,6 +79,7 @@ export class Game {
       this.ents.set(e.id, e);
     }
     this.rift=createRift(this);
+    this.annexOpened=false;
   }
 
   // --- players -----------------------------------------------------------
@@ -87,7 +89,8 @@ export class Game {
     const def = CLASSES[char.cls];
     const stats = deriveStats(char);
     const fresh = !(char.hp > 0) || !char.pos;
-    const pos = fresh ? { ...WORLD.spawn } : { x: char.pos.x, z: char.pos.z };
+    const savedInAnnex=char.pos&&inRiftAnnex(char.pos.x,char.pos.z,4);
+    const pos = fresh || savedInAnnex ? { ...WORLD.spawn } : { x: char.pos.x, z: char.pos.z };
     resolveCollisions(pos, PLAYER_RADIUS);
     const p = {
       id: this.nextId++,
@@ -163,7 +166,8 @@ export class Game {
 
   /** Copy live state that should survive a reconnect onto the record. */
   syncChar(p) {
-    p.char.pos = { x: r2(p.x), z: r2(p.z) };
+    // Reconnects from the annex return safely to the Reach; HP is not restored.
+    p.char.pos = inRiftAnnex(p.x,p.z,2)?{...WORLD.spawn}:{ x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
     if (p.companion) {
       p.char.petMode = p.companion.mode;
@@ -246,6 +250,44 @@ export class Game {
     }
   }
 
+  // The only gameplay route into the disconnected deck. The interaction
+  // checks the actual server-owned gate, range, calibration and combat.
+  travelRift(p,obj) {
+    const entering=obj===this.rift?.entry,exiting=obj===this.rift?.exit;
+    if(!entering&&!exiting)return {ok:false,reason:'Unknown phase gate.'};
+    if(p.dead||dist(p,obj)>5||!hasLineOfSight(p,obj))return {ok:false,reason:'Approach the gate while alive.'};
+    if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
+    if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
+    if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
+    if(entering&&!this.annexOpened){
+      // Persistent shared encounter, not an instance or a reset-on-entry farm.
+      for(const [type,dx,z] of [['sentinel',-6,-8],['skitter',6,-6]]){
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name:type==='sentinel'?'Displaced Sentinel':'Phase Skitter',level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1};
+        resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
+      }
+      this.annexOpened=true;
+    }
+    this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
+    clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
+    cancelInscription(this,p);stopProduction(this,p);
+    p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
+    if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
+    if(p.companion){
+      const c=p.companion;for(const other of this.players.values())other.buffs=other.buffs.filter(b=>b.k!=='bond'||b.src!==c.id);
+      if(c.mode==='guard')c.mode='triage';c.host=0;c.act='idle';c.actTarget=0;
+    }
+    // A travelling host cannot keep a remote companion bond.
+    p.buffs=p.buffs.filter(b=>b.k!=='bond');
+    p.x=entering?RIFT_ANNEX.x:this.rift.entry.x;
+    p.z=entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-1.8;
+    resolveCollisions(p,PLAYER_RADIUS);
+    if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
+    else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
+    this.syncChar(p);this.markDirty(p);
+    this.message(p,'info',entering?'Phase Annex: shared hostile encounter. The return gate remains available outside combat.':'You returned to the Reach.');
+    return {ok:true};
+  }
+
   setTarget(p, id) {
     if (id === 0) {
       p.target = 0;
@@ -253,7 +295,7 @@ export class Game {
       return true;
     }
     const t = this.ents.get(id);
-    if (!t || t.kind === 'object') return false;
+    if (!t || t.kind === 'object'||!sameTravelRegion(p,t)) return false;
     if (t.kind === 'enemy' && t.state === 'dead') return false;
     if (p.target !== id) p.autoOn = false;
     p.target = id;
@@ -333,6 +375,8 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
+        ...equipmentVisuals(p.char.equipped),
+        ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });

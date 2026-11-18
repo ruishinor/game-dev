@@ -1,0 +1,44 @@
+{
+  "creator": "Quaternius",
+  "title": "Sci-Fi Modular Gun Pack",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "page": "https://quaternius.com/packs/scifimodularguns.html",
+  "mirror": "https://github.com/trebeljahr/quaternius-showcase",
+  "revision": "0128ca510d653bb04d6d1e4885bd8890b5050b4f",
+  "acquired": "2026-11-18",
+  "models": {
+    "field": {
+      "file": "client/weapon-assets/field.glb",
+      "source": "public/glb/modular_sci_fi_guns_pack/Pistol_1.glb",
+      "gitBlobSha": "8cd54a77bbf39083defc25168465d5c52402c7e1",
+      "bytes": 71524,
+      "length": 0.32,
+      "axis": 1
+    },
+    "tuned": {
+      "file": "client/weapon-assets/tuned.glb",
+      "source": "public/glb/modular_sci_fi_guns_pack/Pistol_2.glb",
+      "gitBlobSha": "dec22f154f7ef51353ecd7b08896cb040a5380e9",
+      "bytes": 55712,
+      "length": 0.36,
+      "axis": 1
+    },
+    "dense": {
+      "file": "client/weapon-assets/dense.glb",
+      "source": "public/glb/modular_sci_fi_guns_pack/Pistol_3.glb",
+      "gitBlobSha": "08deefbd48caa7670b15a91181ddafd57e5885f2",
+      "bytes": 88464,
+      "length": 0.42,
+      "axis": 1
+    },
+    "longpoint": {
+      "file": "client/weapon-assets/longpoint.glb",
+      "source": "public/glb/modular_sci_fi_guns_pack/AR_5.glb",
+      "gitBlobSha": "d5e6c529293d51e29217622465f38cadf32d43b2",
+      "bytes": 66012,
+      "length": 0.76,
+      "axis": -1
+    }
+  }
+}

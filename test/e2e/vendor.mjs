@@ -95,6 +95,31 @@ try{
  await inventory.getByRole('button',{name:'Close inventory'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await panel.waitFor({state:'visible'});
+ await panel.getByRole('button',{name:'Buy',exact:true}).click();
+ // Avoid starving the live socket while software WebGL renders two scenes.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ try{
+ const coat=panel.locator('.vendor-row').filter({hasText:'Sanctum Service Coat'});
+ await coat.getByRole('button',{name:'Preview',exact:true}).click();
+ assert.ok(await coat.locator('.social-preview').isVisible());
+ await coat.getByRole('button',{name:'Buy 1',exact:true}).click();
+ try{await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.includes('social_service_coat'),null,{timeout:30000});}catch(error){
+   const s=await page.evaluate(()=>{const s=window.__attune.state();return {myId:s.myId,credits:s.sheet?.credits,vendorOpen:!!s.you?.vendor,inventory:s.sheet?.inventory,status:document.querySelector('#status')?.textContent};});
+   console.error('Coat purchase diagnostic',JSON.stringify({client:s,server:{sameSession:server.game.players.get(p.id)===p,credits:p.char.credits,inventory:p.char.inventory,vendorOpen:!!p.vendor,x:p.x,z:p.z},errors}));throw error;
+  }
+ assert.equal(server.game.players.get(p.id),p,'cosmetic purchase must remain in the same authenticated session');assert.ok(p.char.inventory.includes('social_service_coat'));
+ await panel.getByRole('button',{name:'Close vendor'}).click();
+ await page.locator('#view').focus();await page.keyboard.press('KeyC');
+ const char=page.locator('.panel.build');const basePortrait=await char.locator('.doll-portrait .doll-image').getAttribute('src');
+ await char.locator('[data-tab="social"]').click();
+ await char.locator('.compact-item').filter({hasText:'Sanctum Service Coat'}).getByRole('button',{name:'Equip',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet?.equipped?.social_torso==='social_service_coat'&&s.ents.find(e=>e.id===s.myId)?.row?.sv==='service';});
+ await char.locator('[data-tab="character"]').click();
+ assert.notEqual(await char.locator('.doll-portrait .doll-image').getAttribute('src'),basePortrait);
+ }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
+ assert.equal(server.game.players.get(p.id),p,'cosmetic equip must not reconnect');
+ await page.screenshot({path:'vendor-evidence/06-social-coat.png'});
+ await page.locator('#view').focus();await page.keyboard.press('Escape');await page.keyboard.press('KeyF');await panel.waitFor({state:'visible'});
  p.x=vendor.x-8;p.z=vendor.z;
  await panel.waitFor({state:'hidden'});
  assert.equal(p.vendor,null);

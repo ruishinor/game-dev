@@ -32,7 +32,10 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.some(q=>q.id==='field:rift_calibration'&&q.progress==='1 / 2 stages'));
  await move(f.core,3.6);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1);
+ try{await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1,null,{timeout:30000});}catch(error){
+   const s=await page.evaluate(()=>{const s=window.__attune.state();return {myId:s.myId,pos:s.pos,phase:s.ents.find(e=>e.c==='phase_scar')?.row.rf,materials:s.sheet?.materials,status:document.querySelector('#status')?.textContent};});
+   console.error('Rift recovery diagnostic',JSON.stringify({client:s,server:{sameSession:server.game.players.get(p.id)===p,phase:f.phase,calibration:p.char.riftCalibration,materials:p.char.materials,x:p.x,z:p.z,dead:p.dead,combatRemaining:Math.max(0,p.combatUntil-server.game.time),autoOn:p.autoOn},errors}));throw error;
+  }
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  assert.equal(p.char.materials.resonance_fragment,1);
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
@@ -41,6 +44,17 @@ try{
  assert.match(await journal.locator('.quest-rewards').innerText(),/Resonance fragment/);
  assert.equal(await journal.locator('[data-quest="field:rift_calibration"]').getAttribute('data-status'),'completed');
  await page.screenshot({path:'rift-evidence/03-calibration.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyL');
+ await move(f.entry,-1.7);
+ // The calibrated gate can be used in dormant, cooling or stabilized phases.
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you.x>200);
+ assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
+ assert.ok(await page.evaluate(()=>window.__attune.state().ents.filter(e=>e.c==='rift_entry'||e.c==='rift_return').every(e=>e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
+ assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
+ await page.screenshot({path:'rift-evidence/04-annex.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you.x<100);
  assert.deepEqual(errors,[]);
  console.log('PASS actual rift interaction, synchronized phases and Three membrane');
 }finally{await browser?.close();await server.close();}

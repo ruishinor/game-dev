@@ -6,6 +6,7 @@ import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } fro
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import {equipmentVisuals} from '../../shared/equipment-visuals.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
 import { companionCanSupport } from './party.js';
@@ -140,6 +141,9 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   const ev = { e: 'dmg', s: src ? src.id : 0, d: dst.id, a: amt, ab: ability };
   if (absorbed > 0) ev.sh = absorbed;
   if (opts.kind) ev.k = opts.kind;
+  if(ability==='auto'&&opts.kind==='bolt'&&src?.kind==='player'){
+    const {wv}=equipmentVisuals(src.char.equipped);if(wv)ev.wv=wv;
+  }
   game.events.push(ev);
 
   if (dst.kind === 'enemy') {
