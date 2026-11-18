@@ -1,4 +1,13 @@
 // Only presentation capabilities are exposed here. The server validates act.
+import { ITEMS } from '../../shared/content.js';
+
+// Use existing public recipes. This selects a lesson, not crafting eligibility.
+export function starterFabrication(sheet) {
+  const carried=Array.isArray(sheet?.inventory)?sheet.inventory:[];
+  const owned=[...carried,sheet?.equipped?.weapon];
+  return owned.some(id=>typeof id==='string'&&Object.hasOwn(ITEMS,id)&&ITEMS[id].slot==='weapon')
+    ? 'field_maintenance_kit' : 'field_emitter';
+}
 const profiles = Object.freeze({
   archivist: Object.freeze({
     role: 'Archivist · Lattice Sanctum',

@@ -22,7 +22,7 @@ import { QuestJournal } from './quest-journal-ui.js';
 import { QuestTracker } from './quest-tracker-ui.js';
 import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
-import { npcProfile } from './npc-interaction.js';
+import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 
@@ -1360,7 +1360,12 @@ export class UI {
         if(service==='talk'){speak();return;}
         const why=this.a.npcAccess(ent.id);if(why){this.closeNpc();this.error(why);return;}
         if(service==='codex')this.toggleCodex(true,ent.meta.c);
-        if(service==='workshop'){this.workshopTab='fabrication';this.toggleWorkshop(true);}
+        if(service==='workshop'){
+          this.workshopTutorialOpen=true;this.workshopLesson=1;
+          if(this.recipeFilter)Object.assign(this.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false});
+          this.productionQuantity=null;
+          this.toggleWorkshop(true,starterFabrication(this.sheet));
+        }
       });
       actions.append(btn);
     }

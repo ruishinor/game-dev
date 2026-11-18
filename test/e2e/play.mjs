@@ -237,6 +237,12 @@ async function workshopPlaytest(){
   await page.locator('.npc-panel').waitFor({state:'visible',timeout:10000});
   await page.keyboard.press('Escape');
   check('NPC keyboard interaction opens and Escape dismisses',await page.locator('.npc-panel').isHidden());
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.locator('.npc-panel').getByRole('button',{name:'Workshop',exact:true}).click();
+  const intro=page.locator('.workshop-window');
+  await intro.locator('.recipe-detail').getByRole('heading',{name:'Assemble field pulse emitter',exact:true}).waitFor({state:'visible',timeout:10000});
+  check('NPC workshop guidance selects a starter recipe and material lesson',await intro.locator('.workshop-tutorial').getByRole('heading',{name:'Recover components',exact:true}).isVisible());
+  await page.locator('#view').focus();await page.keyboard.press('Escape');
   await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
@@ -255,6 +261,9 @@ async function workshopPlaytest(){
   await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
   await page.waitForFunction(()=>window.__attune.state().sheet.equipped.device==='servo_harness',null,{timeout:10000});
   await page.keyboard.press('KeyB');
+  const plannerTab=page.locator('.workshop-tabs [data-tab="planner"]');
+  check('reopened Workshop retains the NPC-selected fabrication tab',await page.locator('.workshop-tabs [data-tab="fabrication"]').getAttribute('aria-pressed')==='true');
+  await plannerTab.click();
   await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
   check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());

@@ -45,7 +45,8 @@ try{
  // Completed Brineworks must not hide an actionable field service.
  p.char.brineStage=3;p.x=38;p.z=-36.5;server.game.markDirty(p);
  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.brineStage===3&&s.you.workshop==='brine_research';});
- assert.ok(await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).isVisible());
+ // The network snapshot precedes the HUD's animation-frame update.
+ await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).waitFor({state:'visible'});
  await page.getByRole('button',{name:'Minimize quest tracker'}).click();
  assert.ok(await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).isVisible());
  await page.getByRole('button',{name:'Expand quest tracker'}).click();
