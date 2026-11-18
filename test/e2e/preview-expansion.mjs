@@ -70,6 +70,10 @@ try {
   await page.waitForFunction(() => window.__attune.state().you.surveyKit.rigMs === 0);
   assert.equal(p.surveyKit.rig, null);
   await page.locator('#view').focus();
+  await moveTo(44,-34.8);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.40,pitch:.32,dist:9,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-plant')?.children.length===6));
+  await capture('preview-evidence/02a-pressure-plant.png');
   await moveTo(38, -36.5);
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');

@@ -6,6 +6,7 @@ import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
+import { buildPressurePlant } from './pressure-plant.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -378,7 +379,7 @@ const procedural = {
     }
     return g;
   },
-  survey_pump(p) {
+  survey_tower(p) {
     const g = new THREE.Group();
     const base = mat(0x494a43, { rough: 0.91 });
     const steel = mat(0x727b78, { rough: 0.57, metal: 0.55 });
@@ -403,7 +404,7 @@ const procedural = {
     add(G.box, glow(0xe1bc6b), 0.12, 0.055, 0.025, 0.36, 2.55, 0.87, false);
     return g;
   },
-  survey_tower(p) { return procedural.survey_pump(p); },
+  survey_pump(p) { return buildPressurePlant(THREE,p); },
   survey_workstation(p) { return procedural.console(p); },
   survey_engineering(p) {
     const g = new THREE.Group();
