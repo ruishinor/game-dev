@@ -85,6 +85,45 @@ const hold = async (p, key, ms) => {
   await sleep(ms);
   await p.page.keyboard.up(key);
 };
+// Nameplates and HUD elements can own a pointer coordinate as the camera
+// moves. Start each world gesture over the actual canvas.
+async function worldPointer(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('#view');
+    for (const row of [0.38, 0.48, 0.58, 0.68]) {
+      for (const col of [0.34, 0.54, 0.66]) {
+        const x = Math.round(innerWidth * col);
+        const y = Math.round(innerHeight * row);
+        if (document.elementFromPoint(x, y) === canvas) return { x, y };
+      }
+    }
+    throw Error('No exposed canvas point for a world gesture');
+  });
+}
+
+async function dragWorld(p, button, direction, observe, start, label) {
+  const { x, y } = await worldPointer(p.page);
+  await p.page.mouse.move(x, y);
+  await p.page.evaluate(() => {
+    window.lastPlaytestMouseDown = null;
+    document.addEventListener('mousedown', (event) => {
+      window.lastPlaytestMouseDown = {
+        target: event.target.id || event.target.className,
+        buttons: event.buttons,
+      };
+    }, { capture: true, once: true });
+  });
+  await p.page.mouse.down({ button });
+  try {
+    await p.page.mouse.move(x + direction * 160, y + 30, { steps: 16 });
+    const observed = await until(p, observe, start, 4000, label);
+    const mouseDown = await p.page.evaluate(() => window.lastPlaytestMouseDown);
+    return { observed: observed && mouseDown?.target === 'view', mouseDown, pose: await state(p) };
+  } finally {
+    await p.page.mouse.up({ button });
+  }
+}
+
 // Capture errors still fail the run; only optional disk writes are non-fatal.
 // On Windows, a viewer or scanner can prevent overwriting an earlier PNG.
 const shot = async (p, file) => {
@@ -283,6 +322,7 @@ try {
   check('14. each session draws the other with its own look, standing idle', aByB.look === 'vanguard_plate' && bByA.look === 'conductor' && aByB.base === 'Idle_Loop' && bByA.base === 'Idle_Loop', `A as seen by B: ${JSON.stringify(aByB)}`);
 
   // ---------------------------------------------------- 2/3. movement etc.
+  await A.page.bringToFront();
   const z0 = sa.pos.z;
   await A.page.keyboard.down('KeyW');
   await sleep(900);
@@ -329,37 +369,53 @@ try {
   sa = await state(A);
   check('2. D turns the character and the camera follows', turned,
     `character ${headingBefore.actor.toFixed(2)} → ${sa.yaw.toFixed(2)}, camera ${headingBefore.camera.toFixed(2)} → ${sa.camYaw.toFixed(2)}`);
-  const before = sa.pos;
-  await hold(A, 'KeyS', 700);
-  await hold(A, 'KeyE', 600);
-  sa = await state(A);
-  check('2. backpedal and strafe move the character', Math.hypot(sa.pos.x - before.x, sa.pos.z - before.z) > 1.5);
+  async function stepWithKey(key, label) {
+    const { pos } = await state(A);
+    await A.page.keyboard.down(key);
+    try {
+      return await until(A, (start) => {
+        const end = window.__attune.state().pos;
+        return Math.hypot(end.x - start.x, end.z - start.z) > 0.8;
+      }, pos, 3500, label);
+    } finally {
+      await A.page.keyboard.up(key);
+    }
+  }
+  const backpedalled = await stepWithKey('KeyS', 'backpedal');
+  const strafed = await stepWithKey('KeyE', 'strafe');
+  check('2. backpedal and strafe move the character', backpedalled && strafed);
 
   await A.page.keyboard.down('Space');
   const jumped = await until(A, () => window.__attune.state().you.jy > 0.25, null, 2500, 'jump height');
   await A.page.keyboard.up('Space');
   check('2. Space jumps (server-simulated)', jumped);
 
-  // Mouse: right-drag steers, left-drag orbits only, wheel zooms.
-  await sleep(600);
+  // Keep each button held until the browser has sampled the actual drag.
   sa = await state(A);
-  await A.page.mouse.move(480, 300);
-  await A.page.mouse.down({ button: 'right' });
-  for (let i = 1; i <= 8; i++) await A.page.mouse.move(480 + i * 20, 300, { steps: 2 });
-  await sleep(200);
-  const steer = await state(A);
-  await A.page.mouse.up({ button: 'right' });
-  check('2. right-drag steers camera and character together', Math.abs(steer.camYaw - sa.camYaw) > 0.3 && Math.abs(steer.yaw - steer.camYaw) < 0.02, `camera yaw ${sa.camYaw.toFixed(2)} → ${steer.camYaw.toFixed(2)}`);
-  await A.page.mouse.down({ button: 'left' });
-  for (let i = 1; i <= 8; i++) await A.page.mouse.move(640 - i * 20, 300 + i * 4, { steps: 2 });
-  await sleep(200);
-  const orbit = await state(A);
-  await A.page.mouse.up({ button: 'left' });
-  check('2. left-drag orbits the camera without turning the character', Math.abs(orbit.camYaw - steer.camYaw) > 0.3 && Math.abs(orbit.yaw - steer.yaw) < 0.02, `camera yaw ${steer.camYaw.toFixed(2)} → ${orbit.camYaw.toFixed(2)}, character yaw ${steer.yaw.toFixed(2)} → ${orbit.yaw.toFixed(2)}`);
+  const steer = await dragWorld(A, 'right', 1, (start) => {
+    const s = window.__attune.state();
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    return Math.abs(wrap(s.camYaw - start)) > 0.3 && Math.abs(wrap(s.camYaw - s.yaw)) < 0.02;
+  }, sa.camYaw, 'right-drag steering');
+  check('2. right-drag steers camera and character together', steer.observed,
+    `camera yaw ${sa.camYaw.toFixed(2)} → ${steer.pose.camYaw.toFixed(2)}, input ${JSON.stringify(steer.mouseDown)}`);
+  const orbitStart = await state(A);
+  const orbit = await dragWorld(A, 'left', -1, (start) => {
+    const s = window.__attune.state();
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    return Math.abs(wrap(s.camYaw - start.camera)) > 0.3 && Math.abs(wrap(s.yaw - start.actor)) < 0.02;
+  }, { camera: orbitStart.camYaw, actor: orbitStart.yaw }, 'left-drag orbit');
+  check('2. left-drag orbits the camera without turning the character', orbit.observed,
+    `camera yaw ${orbitStart.camYaw.toFixed(2)} → ${orbit.pose.camYaw.toFixed(2)}, character yaw ${orbitStart.yaw.toFixed(2)} → ${orbit.pose.yaw.toFixed(2)}, input ${JSON.stringify(orbit.mouseDown)}`);
+  const wheel = await worldPointer(A.page);
+  await A.page.mouse.move(wheel.x, wheel.y);
   for (let i = 0; i < 5; i++) await A.page.mouse.wheel(0, -120);
-  await sleep(900);
-  const zoomed = await state(A);
-  check('2. mouse wheel zooms the camera', zoomed.camWant < orbit.camWant - 3 && zoomed.camDist <= zoomed.camWant + 0.01, `wanted distance ${orbit.camWant.toFixed(1)} → ${zoomed.camWant.toFixed(1)}`);
+  const zoomed = await until(A, (start) => {
+    const s = window.__attune.state();
+    return s.camWant < start - 3 && s.camDist <= s.camWant + 0.01;
+  }, orbit.pose.camWant, 4000, 'mouse wheel zoom');
+  check('2. mouse wheel zooms the camera', zoomed,
+    `wanted distance ${orbit.pose.camWant.toFixed(1)} → ${(await state(A)).camWant.toFixed(1)}`);
   // Put the camera back behind the character for the rest of the run.
   await A.page.keyboard.press('KeyV');
 
@@ -529,6 +585,7 @@ try {
   await B.page.keyboard.press('Digit2');
   const grafted = await until(A, () => /Mending Graft heals you for \d+/.test(document.querySelector('.log').innerText), null, 4000, 'graft heal seen by ally');
   check('11. Mending Graft from one player heals the other', grafted);
+  await until(B, () => /Your Mending Graft heals Brakka for \d+/.test(document.querySelector('.log').innerText), null, 4000, 'caster sees first graft amount');
   const baseHeal = Number((/Your Mending Graft heals Brakka for (\d+)/.exec(await logText(B)) || [])[1]);
   const triaged = await until(A, () => /symbiote's mend heals you for \d+/.test(document.querySelector('.log').innerText), null, 6000, 'triage heal seen by ally');
   check("8. the symbiote autonomously mends the injured ally (triage)", triaged);
@@ -628,18 +685,24 @@ try {
   // return under the same ID with a live GLB model. No server restart.
   const corpse = skitters[3];
   if (corpse.state === 'dead') {
+    const deadModel = (id) => window.__attune.state().ents.some((ent) => ent.id === id && ent.dead && ent.model === 'glb');
+    const [remainsA, remainsB] = await Promise.all([
+      until(A, deadModel, corpse.id, 6000, 'A displays the dead model'),
+      until(B, deadModel, corpse.id, 6000, 'B displays the dead model'),
+    ]);
     teleport('Brakka', 0, 7.5);
     teleport('Lumen', 0, 7.5);
-    await settle(A, 0, 7.5);
-    await settle(B, 0, 7.5);
-    const remainsA = (await state(A)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
-    const remainsB = (await state(B)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
-    // Shorten only this harness sequence; production remains persist for 12s.
-    corpse.deadAt = game.time - CORPSE_MS + 1200;
-    corpse.respawnAt = game.time + 4500;
-    note(`accelerated corpse expiry for Mire Skitter ${corpse.id}; production holds for ${CORPSE_MS / 1000}s`);
-    const vanishedA = await until(A, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'A removes expired enemy');
-    const vanishedB = await until(B, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'B removes expired enemy');
+    // Observe expiry and respawn in distinct windows on both clients. Keep the
+    // actual removal and respawn logic, adjusting only this fixture's clock.
+    corpse.deadAt = game.time - CORPSE_MS;
+    const respawnAt = corpse.respawnAt;
+    corpse.respawnAt = Math.max(respawnAt, game.time + 15000);
+    const removed = (id) => !window.__attune.state().ents.some((ent) => ent.id === id);
+    const [vanishedA, vanishedB] = await Promise.all([
+      until(A, removed, corpse.id, 6000, 'A removes expired enemy'),
+      until(B, removed, corpse.id, 6000, 'B removes expired enemy'),
+    ]);
+    corpse.respawnAt = game.time + 1000;
     check('6/11. remains persist as 3D models, then disappear from both clients', remainsA && remainsB && vanishedA && vanishedB);
     const returned = (id) => {
       const ent = window.__attune.state().ents.find((e) => e.id === id);
