@@ -125,8 +125,14 @@ try {
   assert.equal(p.char.quest.step, 0);
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
-  // Exercise the actual NPC dialogue panel, not a detached mock-up.
-  await page.locator('.plate[data-npc="archivist"]').click({timeout:30000});
+  // Keep the same nameplate click and live dialogue. On software WebGL
+  // pause only scene drawing during this DOM action to free the compositor.
+  if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(true));
+  try {
+    await page.locator('.plate[data-npc="archivist"]').click({ timeout: 30000 });
+  } finally {
+    if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(false));
+  }
   const npcDialog=page.getByRole('dialog',{name:'NPC interaction'});
   await npcDialog.waitFor({state:'visible'});
   const portraitBox=await npcDialog.locator('.npc-portrait').boundingBox();

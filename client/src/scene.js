@@ -822,7 +822,10 @@ const kit = {
     if (!obj) return;
     const y = groundHeight(p.x, p.z);
     c.occluders.add(obj, p.x, p.z, 1.15 * p.s, y + 0.5 * p.s, y + 3.1 * p.s);
-    c.beads.push([p.x, y + 1.95 * p.s, p.z, 0.16 * p.s, 0x9dffb0]);
+    // Keep the emitter with the pod so it follows the same foreground fade.
+    const emitter = scaled(G.sph, glow(0xa5c3a5), 0.07, 0.07, 0.07, 0, 0.76, 0, false);
+    emitter.name = 'spore-pod:emitter';
+    obj.add(emitter);
   },
   rock(p, c) {
     const n = (p.seed % 3) + 1;
