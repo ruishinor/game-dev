@@ -15,6 +15,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { canSalvageEquipment } from '../../shared/item-actions.js';
 import { renderWorkshop, updateProduction } from './workshop-ui.js';
+import { WindowLayout } from './window-layout.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
@@ -578,6 +579,7 @@ export class UI {
     this.workshopBody=h('div','workshop-body');
     this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
     root.append(this.workshopPanel);
+    this.workshopLayout=new WindowLayout(this.workshopPanel,this.workshopBody,'workshop');
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
@@ -947,6 +949,7 @@ export class UI {
     if(!open)return;
     if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
     renderWorkshop(this);
+    this.workshopLayout.sync();
   }
 
   setInventoryOpacity(value) {
