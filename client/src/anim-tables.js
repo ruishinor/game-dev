@@ -21,6 +21,7 @@ export const HUMANOID_ACTIONS = {
   hinge_field:{clip:'Spell_Simple_Enter',fadeOut:.4},
   resonant_reversal:{clip:'Idle_Shield_Break',start:.1},
   lattice_relay:{clip:'Shield_OneShot',start:.1},
+  phase_transposition:{clip:'Spell_Simple_Shoot',timeScale:1.1},
   fault_scan: { clip: 'Interact', fadeOut: 0.3 },
   core_bore: { clip: 'Spell_Simple_Shoot', timeScale: 1.2 },
   field_rig: { clip: 'Interact', fadeOut: 0.3 },

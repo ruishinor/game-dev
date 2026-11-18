@@ -255,6 +255,7 @@ async function workshopPlaytest(){
   await page.keyboard.press('KeyB');
   await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
+  check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
   await shot(P,'workshop-01-planner.png');
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await page.locator('.recipe-entry[data-recipe="coupler"]').click();
@@ -276,6 +277,10 @@ async function workshopPlaytest(){
   await page.locator('[data-craft="calibrate_servo"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('calibrated_servo'),null,{timeout:10000});
   check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
+  await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
+  const detail=page.locator('.recipe-detail');
+  check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
+  await shot(P,'workshop-03-bloom-relay.png');
   check('workshop UI: no script/resource errors',pageErrors.length===0,pageErrors.slice(0,4).join(' | '));
   await P.ctx.close();
 }
