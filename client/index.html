@@ -73,9 +73,18 @@
           <div class="label">Calling</div>
           <div id="classes"></div>
           <div id="look-row" hidden>
-            <div class="label">Appearance</div>
+            <div class="label">Outfit</div>
             <div id="looks"></div>
           </div>
+          <fieldset id="appearance" class="appearance">
+            <legend class="label">Character</legend>
+            <div class="ap-row" role="group" aria-label="Body frame"><span class="ap-name">Frame</span><div id="ap-frame" class="ap-choices"></div></div>
+            <div class="ap-row" role="group" aria-label="Origin"><span class="ap-name">Origin</span><div id="ap-race" class="ap-choices ap-races"></div></div>
+            <p id="ap-race-blurb" class="ap-blurb"></p>
+            <div class="ap-row" role="group" aria-label="Skin"><span class="ap-name">Skin</span><div id="ap-skin" class="ap-choices ap-swatches"></div></div>
+            <div class="ap-row" role="group" aria-label="Hair"><span class="ap-name">Hair</span><div id="ap-hair" class="ap-choices"></div></div>
+            <div class="ap-row" role="group" aria-label="Hair colour"><span class="ap-name">Colour</span><div id="ap-colour" class="ap-choices ap-swatches"></div></div>
+          </fieldset>
           <p id="login-error" role="alert"></p>
           <button id="enter" class="primary" type="submit" disabled>Loading the Reach…</button>
           <p class="hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>

@@ -10,7 +10,15 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
-import { appearanceFor, setupFace } from './face.js';
+import { appearanceFor, setupFace, veyranMaterial } from './face.js';
+import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
+
+// Arm reach differs by frame (hand_l x: 0.739 masculine, 0.645 feminine). Gear
+// authored for one frame is moved along the arm for the other (shoulder ~0.17).
+const HAND_X = { m: 0.739, f: 0.645 };
+const SHOULDER_X = 0.17;
+const armBone = (bone) => /^(upperarm|lowerarm|hand)_/.test(bone);
+export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) - SHOULDER_X) * k);
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
@@ -55,12 +63,24 @@ export const gearKit = () => (kit ??= createGearKit(THREE, { shared }));
 
 export function makeHumanoid(assets, lookId, opts = {}) {
   const def = LOOK_DEFS[lookId];
-  const inst = def && assets.instance(def.body);
+  if (!def) return null;
+  // Appearance (frame, race, skin, hair) is chosen per character; the look is
+  // the outfit. NPC looks without a stored appearance keep their own body.
+  const look = defaultAppearance(lookId);
+  const lookFrame = def.body === 'humanoid_f' ? 'f' : 'm';
+  const app = opts.appearance ? normalizeAppearance(opts.appearance, lookId) : { ...look, frame: lookFrame };
+  const body = FRAMES[app.frame].body;
+  const inst = assets.instance(body);
   if (!inst) return null;
   const clips = assets.clips('humanoid_m');
   const group = new THREE.Group();
-  inst.scale.setScalar(def.scale || 1);
+  inst.scale.setScalar(app.frame === lookFrame ? def.scale || 1 : app.frame === 'm' ? 1.03 : 0.97);
   group.add(inst);
+  const armK = HAND_X[app.frame] / HAND_X[lookFrame];
+  const remap = armRemap(armK);
+  const veyran = app.race === 'veyran';
+  // Hair (or the Mirekin crest) is worn with the hood lowered.
+  const hoodDown = !!opts.appearance && (app.hair !== 'none' || app.race === 'mirekin');
 
   const mats = [];
   const shellMats = {};
@@ -81,7 +101,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     const shell = o.name.startsWith('shell_') ? o.name.slice(6) : null;
     const name = shell ? o.name : o.material.name;
     // Faceless looks wear the mannequin's smooth head, shaded like the body.
-    const spec = shell ? (shell === 'mannequin_head' && def.faceless ? def.parts.body : def.shells[shell]) : def.parts[name] || {};
+    const spec = shell ? (shell === 'mannequin_head' && (def.faceless || veyran) ? def.parts.body : shell === 'hood' && hoodDown ? null : def.shells[shell]) : def.parts[name] || {};
     if (!spec) {
       hidden.push(o);
       return;
@@ -104,8 +124,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // A face for bodies that have one. Looks may pin an appearance (NPCs) or
   // hide the face (helmets, faceless characters); players get a stable face
   // derived from their name.
-  const female = def.body === 'humanoid_f';
-  const ap = appearanceFor(opts.appearanceKey ?? lookId, female, def.face || {});
+  const female = app.frame === 'f';
+  // Name-derived identity (face shape, age, stubble) under the chosen
+  // appearance; NPC looks pin a full preset when no appearance is stored.
+  const chosen = opts.appearance || !def.face
+    ? { tone: RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
+    : def.face;
+  const ap = appearanceFor(opts.appearanceKey ?? lookId, female, chosen);
   const helmet = !!def.shells.helmet;
   const suit = mats.find((m) => m.name === 'body') || null;
   let faceSuit = null;
@@ -119,11 +144,19 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     mats.push(faceSuit);
   }
   const gloves = def.gloves ? mats.find((m) => m.name === 'joints') || null : null;
-  const face = setupFace(inst, ap, assets, { faceless: !!def.faceless, hideHead: helmet || !!def.faceless, suitMaterial: faceSuit, hood: !!def.shells.hood, gloveMaterial: gloves });
+  // A Veyran in an ordinary outfit: the smooth crimson head, with tracery.
+  let veyranMat = null;
+  if (veyran && !def.faceless) {
+    const vm = (veyranMat = veyranMaterial(ap));
+    mats.push(vm);
+    inst.traverse((o) => { if (o.isMesh && o.name === 'shell_mannequin_head') o.material = vm; });
+    faceSuit = vm;
+  }
+  const face = setupFace(inst, ap, assets, { faceless: !!def.faceless || veyran, hideHead: helmet || !!def.faceless || veyran, suitMaterial: faceSuit, hood: !!def.shells.hood && !hoodDown, gloveMaterial: gloves });
   if (face) mats.push(...face.materials.filter((m) => m.emissive));
   // A look that names a shell the body does not have would silently lose that
   // piece of clothing; make it loud (automated checks fail on console errors).
-  for (const name of Object.keys(def.shells)) if (!shellMats[name]) console.error(`[models] look ${lookId}: shell "${name}" is not in ${def.body}`);
+  for (const name of Object.keys(def.shells)) if (!shellMats[name] && !(name === 'hood' && hoodDown)) console.error(`[models] look ${lookId}: shell "${name}" is not in ${def.body}`);
 
   // Gear is positioned in bind pose, then handed to a bone.
   group.updateMatrixWorld(true);
@@ -138,6 +171,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         console.error(`[models] look ${lookId}: bone "${boneName}" is not in ${def.body}; gear not attached`);
         return;
       }
+      // Legacy gear is authored for the look's own frame: move it along the arm.
+      if (armK !== 1 && armBone(boneName) && !obj.userData.frameFitted) {
+        if (obj.isGroup && obj.position.x === 0) for (const ch of obj.children) ch.position.x = remap(ch.position.x);
+        else obj.position.x = remap(obj.position.x);
+      }
       inst.add(obj);
       obj.updateMatrixWorld(true);
       bone.attach(obj);
@@ -148,7 +186,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let gearUpdate = null;
   if (SIGNATURE_GEAR[lookId]) {
     try {
-      gearUpdate = gearKit().instantiate(lookId, SIGNATURE_GEAR[lookId], ctx);
+      gearUpdate = gearKit().instantiate(lookId, SIGNATURE_GEAR[lookId], ctx, { armK });
     } catch (err) {
       console.warn(`[models] signature gear for ${lookId} unavailable`, err);
     }
@@ -202,6 +240,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       if (gearUpdate) gearUpdate(st);
       if (face && (step || st.faceDetail)) face.update(step || dt, st);
+      // Veyran tracery brightens with exertion and when struck.
+      if (veyranMat) veyranMat.userData.face.trace.value = 0.18 + (st.combat ? 0.22 : 0) + (st.hit || 0) * 0.8;
       if (ctx.fluid) ctx.fluid.scale.y = 0.8 + Math.sin(st.t * 2.2) * 0.14;
     },
     trigger(kind, id) {
@@ -484,7 +524,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c });
+    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
     else if (meta.c === 'mender') {
       if (assets.menderPrototype) {
         try {
