@@ -11,6 +11,7 @@ import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import {createTorsoLayers} from './torso-layers.js';
+import {createWeaponCarry} from './weapon-visuals.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
 import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
@@ -194,6 +195,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const weaponCarry=createWeaponCarry(THREE,assets,inst,opts.cls==='vanguard');
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -213,6 +215,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     update(dt, st) {
       torsoLayers.apply(st.cv,st.sv);
+      weaponCarry.apply(st.wv);
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -261,6 +264,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       anim.dispose();
       face?.dispose();
       torsoLayers.dispose();
+      weaponCarry.dispose();
       disposeInstance(group);
     },
   };
@@ -528,7 +532,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
+    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, cls:meta.c });
     else if (meta.c === 'mender') {
       if (assets.menderPrototype) {
         try {

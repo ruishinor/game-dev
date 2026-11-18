@@ -9,7 +9,7 @@ export function characterPortraitMeta(sheet){
 export function portraitCacheKey(meta,style,glb){
  const humanoid=meta.k==='p'||meta.c==='archivist'||meta.c==='quartermaster';
  return JSON.stringify([meta.k,meta.c,meta.a??null,humanoid?meta.n??null:null,
-  humanoid?meta.ap??null:null,meta.cv??null,meta.sv??null,style,!!glb]);
+  humanoid?meta.ap??null:null,meta.cv??null,meta.sv??null,meta.wv??null,style,!!glb]);
 }
 export function createPortraitCache(limit=PORTRAIT_CACHE_LIMIT){
  const entries=new Map();
