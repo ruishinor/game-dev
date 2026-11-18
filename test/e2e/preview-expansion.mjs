@@ -204,7 +204,16 @@ try {
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('sinter:habitats');return g?.children.length===2&&g.children.every(c=>c.children.length>=3)}));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Controlled art evidence, then restore the original sampler position/view.
+  await moveTo(0,54.5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.45,dist:7,face:0}));
+  await capture('preview-evidence/04b2-sinter-nursery.png');
+  await moveTo(8.8,54.6);
+  await capture('preview-evidence/04b3-sinter-deposits.png');
+  await moveTo(-3,58.4);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   // Unlock is a fixture; deployment and sample collection use real server rules.
   p.char.inventory.push('glyph_faultline');
   p.char.attunements.push('resonance');
