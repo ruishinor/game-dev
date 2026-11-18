@@ -4,6 +4,8 @@
 
 Attunement is a third-person browser MMORPG prototype. The Lattice Sanctum and surrounding Verdigris Reach support two playable classes, companion commands, combat, equipment and persistent characters in a shared world.
 
+This branch contains the first playable slice. For the current build and its setup and controls, see the [Brineworks playtest](https://github.com/ruishinor/game-dev/tree/preview/playtest-brineworks).
+
 ```bash
 npm ci
 npm test
