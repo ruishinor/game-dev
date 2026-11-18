@@ -224,6 +224,23 @@ try {
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
   assert.equal(p.char.xp,beforeSampleXp);
   await capture('preview-evidence/04c-strata-interferometer.png');
+  // Inspect both new terrain-conforming habitats with the existing live
+  // Field Rig shader. Only fixture staging/cooldown reset is synthetic.
+  for(const [site,x,z] of [['nursery',1.6,57.9],['mineral-bed',9.1,57.7]]){
+    await moveTo(x,z);
+    await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.70,dist:5.8,face:0}));
+    p.surveyKit.rig=null;p.cds.field_rig=0;p.gcdUntil=0;p.res=100;
+    await page.waitForFunction(()=>window.__attune.state().you.surveyKit.rigMs===0);
+    assert.ok(useAbility(server.game,p,'field_rig').ok);
+    await page.waitForFunction(site=>{
+      const api=window.__attune,mesh=api.gfx.scene.getObjectByName('sinter:'+site+':membrane');
+      const vfx=api.gfx.scene.getObjectByName('vfx-engine');
+      return mesh?.material?.vertexColors&&mesh.geometry.attributes.position.count>500&&
+        api.state().you.surveyKit.rigMs>0&&vfx?.children.some(n=>n.material?.uniforms?.sigil&&n.material.uniforms.prog?.value===1.06);
+    },site);
+    await capture('preview-evidence/04d-sinter-'+site+'-vfx.png');
+  }
+  p.surveyKit.rig=null;
   // Controlled placement for an art evidence capture; ecology movement,
   // convergence, alarm and maturation are independently tested in Node.
   const herd=server.game.enemies.filter(e=>e.form);
