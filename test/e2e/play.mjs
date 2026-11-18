@@ -236,6 +236,12 @@ async function workshopPlaytest(){
   await page.locator('.npc-panel').waitFor({state:'visible',timeout:10000});
   await page.keyboard.press('Escape');
   check('NPC keyboard interaction opens and Escape dismisses',await page.locator('.npc-panel').isHidden());
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.locator('.npc-panel').getByRole('button',{name:'Workshop',exact:true}).click();
+  const intro=page.locator('.workshop-window');
+  await intro.locator('.recipe-detail').getByRole('heading',{name:'Assemble field pulse emitter',exact:true}).waitFor({state:'visible',timeout:10000});
+  check('NPC workshop guidance selects a starter recipe and material lesson',await intro.locator('.workshop-tutorial').getByRole('heading',{name:'Recover components',exact:true}).isVisible());
+  await page.locator('#view').focus();await page.keyboard.press('Escape');
   await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();

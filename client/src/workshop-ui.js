@@ -20,8 +20,8 @@ const visual=(id,name,sub,met)=>{
 };
 const LESSONS=[
   ['Plan before you commit','Choose a device, implant or glyph in Build Planner. Compare Current and Planned statistics. Unowned items can be previewed; the planner never equips or spends anything.','planner'],
-  ['Recover components','Open Workshop. Select a recipe and inspect its source components. The icon, owned count and source tell you what to recover. Mire Skitters provide fibre; Rogue Sentinels provide alloy; the Vault Warden provides resonance fragments.','fabrication'],
-  ['Meet requirements','Check skills, attunement and location. Equip skill-boosting equipment in Character [C] if needed. The Sanctum supports general fabrication; commissioned Brineworks A handles Research and B Engineering. Some recipes require a specific site.','fabrication'],
+  ['Recover components','Start with a field pulse emitter if you have no weapon, or field maintenance kits if you already own one. Both require mire fibre and sentinel alloy. Recover personal salvage from Mire Skitters and Rogue Sentinels, or buy components from the Sanctum Quartermaster. Inspect the selected recipe for exact quantities.','fabrication'],
+  ['Meet requirements','Check skills, attunement and location. Equip skill-boosting equipment in Character [C] if needed. General recipes can be assembled at the Sanctum. Commission Brineworks to access specialized Research (station A) and Engineering (station B); some recipes need those stations or additional knowledge.','fabrication'],
   ['Fabricate and install','Target equipment must be carried, not installed. Fabrication spends materials; upgrades replace their target, and permanent fusion consumes both target items. Check the result, then fabricate and install it in Character [C].','fabrication'],
 ];
 function tutorial(ui){
