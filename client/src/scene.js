@@ -2,7 +2,7 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
@@ -239,6 +239,38 @@ const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 
 // A roofed laboratory rather than a surface ruin. Floor, ducts and
 // lights share a bounded static kit; the walkable height stays authoritative.
+// Low, weathered biological deposits, not another obstacle or harvest node.
+// All geometry sits close to shared groundHeight; no invisible collisions.
+function buildSinterHabitat(scene){
+  const g=new THREE.Group();g.name='sinter:habitats';
+  const rind=mat(0x7a7661,{rough:.94}),salt=mat(0xb4ab8e,{rough:.7,metal:.06});
+  const fibre=mat(0x525b46,{rough:.93}),mucosa=mat(0x8d976f,{rough:.64});
+  const {nursery,mineral}=SINTER_SITES;
+  const nest=new THREE.Group();nest.name='sinter:nursery';
+  for(let i=0;i<11;i++){
+    const a=i*Math.PI*2/11;
+    // Interrupted crescent, open to the south and west; safe to walk over.
+    if(i===6||i===7||i===8)continue;
+    const x=nursery.x+Math.cos(a)*1.1,z=nursery.z+Math.sin(a)*.82;
+    const m=scaled(G.sph,rind,.27,.12,.36,x,groundHeight(x,z)+.06,z,false);
+    m.rotation.y=-a;nest.add(m);
+  }
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI*2/6,x=nursery.x+Math.cos(a)*.38,z=nursery.z+Math.sin(a)*.28;
+    const m=scaled(G.sph,i%2?fibre:mucosa,.12,.13,.21,x,groundHeight(x,z)+.09,z,false);
+    m.rotation.y=a;nest.add(m);
+  }
+  g.add(nest);
+  const bed=new THREE.Group();bed.name='sinter:mineral-bed';
+  const rng=mulberry32(17118);
+  for(let i=0;i<16;i++){
+    const a=rng()*Math.PI*2,rad=.25+rng()*1.25;
+    const x=mineral.x+Math.cos(a)*rad,z=mineral.z+Math.sin(a)*rad;
+    const m=scaled(G.ico,i%3===0?fibre:salt,.10+rng()*.12,.055+rng()*.06,.16+rng()*.18,x,groundHeight(x,z)+.035,z,false);
+    m.rotation.y=a;bed.add(m);
+  }
+  g.add(bed);scene.add(g);
+}
 function buildDeepArchitecture(scene) {
   const g = new THREE.Group();
   g.name = 'kestrel:architecture';
@@ -1301,6 +1333,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
   scene.add(serviceDeck);
 
+  buildSinterHabitat(scene);
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);
   anim.push(buildParticlesAndLights(scene));
