@@ -349,6 +349,16 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
+  const bio=await browser.newPage({viewport:{width:1000,height:700}});
+  bio.setDefaultTimeout(90000);const bioErrors=[];
+  bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
+  await bio.goto(url+'&menderArt=1');
+  await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
+  await bio.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.compId&&s.drawn>=2&&!!window.__attune.gfx.scene.getObjectByName('mender:original-carapace-preview')});
+  await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
+  {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
+  await bio.screenshot({path:'preview-evidence/09a-mender-carapace.png'});
+  assert.deepEqual(bioErrors,[]);await bio.close();
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
   const keeperErrors=[];
