@@ -136,19 +136,27 @@ async function workshopPlaytest(){
   await page.waitForFunction(()=>window.__attune.state().drawn>=1&&window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:60000});
   // Rendering once establishes the actual loaded model; pause continuous world
   // drawing for UI interactions on software-rendered hosted runners.
-  await page.evaluate(()=>window.__attune.pause(true));
   const npc=game.objects.find(o=>o.type==='archivist');
   const npcPlate=page.locator('.plate[data-npc="archivist"]');
-  // The first synchronous offscreen portrait may compile a new WebGL context.
-  // Retain actual pointer activation; use the same generous timeout as other UI actions.
-  await npcPlate.click({timeout:90000});
-  const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   teleport('Mechanic',npc.x,npc.z+3);
   await settle(P,npc.x,npc.z+3);
-  await page.locator('.npc-panel button').filter({hasText:/^Talk$/}).click();
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,face:Math.PI,dist:7}));
+  await npcPlate.click({timeout:90000});
+  const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
   const talk=await until(P,()=>document.querySelector('.npc-dialogue')?.textContent.includes('skitters breed'),null,10000,'NPC dialogue');
-  check('workshop UI: NPC model portrait and authoritative dialogue',npcVisible&&talk);
-  await page.locator('.npc-panel .close').click();
+  const bounds=await page.locator('.npc-panel').boundingBox();
+  check('workshop UI: compact NPC bust and authoritative dialogue',npcVisible&&talk&&!!bounds&&bounds.width<=350&&bounds.height<=280);
+  await shot(P,'npc-01-dialogue.png');
+  teleport('Mechanic',npc.x+8,npc.z+3);
+  await page.locator('.npc-panel').waitFor({state:'hidden',timeout:10000});
+  check('NPC conversation closes when the player leaves range',await page.locator('.npc-panel').isHidden());
+  teleport('Mechanic',npc.x,npc.z+3);
+  await settle(P,npc.x,npc.z+3);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.locator('.npc-panel').waitFor({state:'visible',timeout:10000});
+  await page.keyboard.press('Escape');
+  check('NPC keyboard interaction opens and Escape dismisses',await page.locator('.npc-panel').isHidden());
+  await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
   check('workshop UI: class-specific model-backed anatomy',await page.locator('.equipment-sketch img').count()===1);
@@ -223,16 +231,23 @@ async function followInventoryPlaytest(){
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/unfollow');await B.page.keyboard.press('Enter');
  const stopped=await until(B,()=>!window.__attune.state().followId,null,5000,'unfollow');
  check('/unfollow clears authoritative follow',stopped&&pb.followId===0);
+ // Enable and persist auto-loot through the actual settings control.
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyO');
+ const auto=B.page.getByRole('checkbox',{name:'Auto-loot corpses'});
+ await auto.check();
+ check('auto-loot preference is stored locally',await B.page.evaluate(()=>localStorage.getItem('attunement.autoLoot'))==='1');
+ await B.page.keyboard.press('Escape');await B.page.locator('#view').focus();
  // Fixture only: position and kill a deterministic sentinel. Actual collection is through the browser.
  teleport('FollowFollower',0,8.5);await settle(B,0,8.5);
  const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;
  dealDamage(game,pb,corpse,99999,'test');
  await B.page.waitForFunction(id=>{const s=window.__attune.state(),e=s.ents.find(x=>x.id===id);return e?.dead&&Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)<=5&&s.you.lootable?.some(x=>x.id===id);},corpse.id,{timeout:15000});
- await B.page.locator('#view').focus();await B.page.keyboard.press('KeyF');
+ await B.page.locator('#view').focus();await B.page.keyboard.press('Shift+KeyF');
  const loot=B.page.locator('.loot-window');
  try{await loot.waitFor({state:'visible',timeout:10000});}catch(error){
    const s=await state(B);console.error('Loot interaction diagnostic',JSON.stringify({serverTarget:pb.lootTarget,corpse:corpse.id,corpseState:corpse.state,player:{x:pb.x,z:pb.z,dead:pb.dead},clientLoot:s.you?.loot,clientEligible:s.you?.lootable,log:await logText(B)}));throw error;
  }
+ check('Shift+F opens manual loot despite enabled auto-loot',await loot.isVisible()&&pb.char.materials.sentinel_alloy===2);
  const alloy=loot.locator('[data-loot-id="sentinel_alloy"]');await alloy.hover();
  check('corpse loot lists material art and hover tooltip',await alloy.locator('[data-art="sentinel_alloy"] svg').count()===1&&await B.page.locator('.tooltip').innerText().then(t=>t.includes('Sentinel alloy')));
  await alloy.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:10000});
@@ -677,6 +692,8 @@ try {
     if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
     slotTabs=slotTabs&&!faults.length;
   }
+  await B.page.locator('.doll-tabs [data-tab="gear"]').click();
+  if(await B.page.locator('.equipment-slot-grid [data-slot="glyph"]').count())throw new Error('Glyph must not be duplicated in Gear');
   await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const glyphSlot= B.page.locator('.equipment-slot-grid [data-slot="glyph"]');
   await glyphSlot.click();
