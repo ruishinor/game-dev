@@ -10,6 +10,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
+import { appearanceFor, setupFace } from './face.js';
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
@@ -64,13 +65,23 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const mats = [];
   const shellMats = {};
   const hidden = [];
+  // Face meshes (head, hands, eyes, lashes) are dressed by face.js.
+  const faceNode = (o) => {
+    for (let n = o; n && n !== inst; n = n.parent) if (/^(head|hands|eyes|lashes|teeth|hair_[a-z]+)(_\d+)?$/.test(n.name)) return n.name.replace(/_\d+$/, '');
+    return null;
+  };
   inst.traverse((o) => {
     if (!o.isMesh) return;
+    if (faceNode(o)) {
+      o.userData.facePart = faceNode(o);
+      return;
+    }
     // Shells are identified by node name: identical placeholder materials are
     // merged by the asset build, so their material names are not reliable.
     const shell = o.name.startsWith('shell_') ? o.name.slice(6) : null;
     const name = shell ? o.name : o.material.name;
-    const spec = shell ? def.shells[shell] : def.parts[name] || {};
+    // Faceless looks wear the mannequin's smooth head, shaded like the body.
+    const spec = shell ? (shell === 'mannequin_head' && def.faceless ? def.parts.body : def.shells[shell]) : def.parts[name] || {};
     if (!spec) {
       hidden.push(o);
       return;
@@ -90,6 +101,26 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     if (shell) shellMats[shell] = m;
   });
   for (const o of hidden) o.parent.remove(o);
+  // A face for bodies that have one. Looks may pin an appearance (NPCs) or
+  // hide the face (helmets, faceless characters); players get a stable face
+  // derived from their name.
+  const female = def.body === 'humanoid_f';
+  const ap = appearanceFor(opts.appearanceKey ?? lookId, female, def.face || {});
+  const helmet = !!def.shells.helmet;
+  const suit = mats.find((m) => m.name === 'body') || null;
+  let faceSuit = null;
+  if (def.faceless && suit) {
+    faceSuit = suit.clone();
+    if (suit.map) {
+      faceSuit.map = suit.map.clone();
+      faceSuit.map.channel = 1;
+      faceSuit.map.needsUpdate = true;
+    }
+    mats.push(faceSuit);
+  }
+  const gloves = def.gloves ? mats.find((m) => m.name === 'joints') || null : null;
+  const face = setupFace(inst, ap, assets, { faceless: !!def.faceless, hideHead: helmet || !!def.faceless, suitMaterial: faceSuit, hood: !!def.shells.hood, gloveMaterial: gloves });
+  if (face) mats.push(...face.materials.filter((m) => m.emissive));
   // A look that names a shell the body does not have would silently lose that
   // piece of clothing; make it loud (automated checks fail on console errors).
   for (const name of Object.keys(def.shells)) if (!shellMats[name]) console.error(`[models] look ${lookId}: shell "${name}" is not in ${def.body}`);
@@ -170,6 +201,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         for (const c of ctx.coils) c.scale.set(k, k, 1 + (st.charge ?? 0) * 1.5);
       }
       if (gearUpdate) gearUpdate(st);
+      if (face && (step || st.faceDetail)) face.update(step || dt, st);
       if (ctx.fluid) ctx.fluid.scale.y = 0.8 + Math.sin(st.t * 2.2) * 0.14;
     },
     trigger(kind, id) {
@@ -184,6 +216,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     dispose() {
       anim.dispose();
+      face?.dispose();
       disposeInstance(group);
     },
   };
@@ -451,7 +484,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, ['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {});
+    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c });
     else if (meta.c === 'mender') {
       if (assets.menderPrototype) {
         try {

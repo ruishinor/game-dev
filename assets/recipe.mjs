@@ -45,25 +45,64 @@ export const SHELLS = [
     clip: (J) => [(p) => p[1] - (J.calf_l[1] + 0.2), (p) => J.neck_01[1] + 0.015 - p[1], (p) => J.upperarm_l[0] + 0.03 - Math.abs(p[0])],
   },
   // Open-faced hood: the back, sides and crown of the head (a tilted plane keeps the face clear).
-  { name: 'hood', joints: ['Head', 'neck_01'], threshold: 0.6, offset: 0.016, clip: (J) => [(p) => J.Head[2] + 0.075 - p[2] + (p[1] - (J.Head[1] + 0.13)) * 0.9, (p) => p[1] - (J.neck_01[1] + 0.02)] },
+  { name: 'hood', source: 'mannequin', joints: ['Head', 'neck_01'], threshold: 0.6, offset: 0.02, clip: (J) => [(p) => J.Head[2] + 0.07 - p[2] + (p[1] - (J.Head[1] + 0.13)) * 0.35, (p) => p[1] - (J.neck_01[1] + 0.02)] },
 ];
 
 export const HUMANOIDS = [
   {
     id: 'humanoid_m',
     out: 'humanoid_m.glb',
-    sources: ['ual2', 'ual1'],
+    sources: ['ual2', 'ual1', 'makehuman'],
     mesh: ['ual2', UAL2],
     // Clips already on this rig.
     keep: ['Sword_Block', 'Idle_Shield_Break', 'Shield_OneShot', 'Melee_Hook', 'OverhandThrow', 'Hit_Knockback', 'Idle_FoldArms_Loop', 'Consume'],
     // Clips retargeted from library 1 (bone rename only).
+    // Body, head and face: a fitted CC0 MakeHuman body (tools/assets/lib/mh-humanoid.mjs).
+    makehuman: {
+      crown: 1.8,
+      // Seams to the head and hands are locked so the surfaces stay closed.
+      simplify: [
+        { node: /^body$/, material: /^body$/, ratio: 0.45, lockBorder: true },
+        { node: /^body$/, material: /^joints$/, ratio: 0.22, lockBorder: true },
+        { node: /^shell_(?!mannequin_head|helmet)/, ratio: 0.32, error: 0.006 },
+      ],
+      hair: [
+        { name: 'buzz', layers: 2, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
+        { name: 'crop', layers: 6, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
+        { name: 'swept', layers: 8, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
+      ],
+      macro: { gender: 1, age: 0.5, muscle: 0.68, weight: 0.5, height: 0.5, proportions: 0.85 },
+      targets: [['torso/torso-vshape-incr.target', 0.55], ['torso/torso-muscle-pectoral-incr.target', 0.35], ['torso/torso-muscle-dorsi-incr.target', 0.3], ['neck/neck-scale-horiz-incr.target', 0.55], ['neck/neck-scale-depth-incr.target', 0.4]],
+    },
     retarget: {
       from: ['ual1', UAL1],
       clips: ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Punch_Jab', 'Punch_Cross', 'Spell_Simple_Enter', 'Spell_Simple_Idle_Loop', 'Spell_Simple_Shoot', 'Spell_Simple_Exit', 'Hit_Chest', 'Hit_Head', 'Death01', 'Interact', 'Idle_Talking_Loop'],
     },
   },
   // Same rig and bone names; plays humanoid_m's clips at runtime.
-  { id: 'humanoid_f', out: 'humanoid_f.glb', sources: ['ual2'], mesh: ['ual2', UAL2_F], keep: [] },
+  {
+    id: 'humanoid_f',
+    out: 'humanoid_f.glb',
+    sources: ['ual2', 'makehuman'],
+    mesh: ['ual2', UAL2_F],
+    keep: [],
+    makehuman: {
+      crown: 1.775,
+      // Seams to the head and hands are locked so the surfaces stay closed.
+      simplify: [
+        { node: /^body$/, material: /^body$/, ratio: 0.45, lockBorder: true },
+        { node: /^body$/, material: /^joints$/, ratio: 0.22, lockBorder: true },
+        { node: /^shell_(?!mannequin_head|helmet)/, ratio: 0.32, error: 0.006 },
+      ],
+      hair: [
+        { name: 'buzz', layers: 2, top: 0.0035, side: 0.0025, back: 0.003, lean: 0.3 },
+        { name: 'crop', layers: 6, top: 0.018, side: 0.007, back: 0.009, lean: 0.5 },
+        { name: 'swept', layers: 8, top: 0.032, side: 0.0045, back: 0.012, lean: 1.3, flow: 'back' },
+      ],
+      macro: { gender: 0, age: 0.5, muscle: 0.55, weight: 0.45, height: 0.5, proportions: 0.85 },
+      targets: [['neck/neck-scale-horiz-incr.target', 0.2]],
+    },
+  },
 ];
 
 const mega = (dir, names) => names.map((n) => ({ name: n, src: ['scifi_megakit', `${MEGA}/glTF/${dir}/${n}.gltf`], textureDirs: [`${MEGA}/Textures`] }));
@@ -133,4 +172,15 @@ export const KITS = [
 export const TEXTURES = [
   { id: 'ground_albedo', out: 'tex/ground_albedo.webp', src: ['ph_aerial_grass_rock', 'aerial_grass_rock_diff_1k.jpg'], size: 1024, quality: 80, grey: 0.75 },
   { id: 'ground_normal', out: 'tex/ground_normal.webp', src: ['ph_aerial_grass_rock', 'aerial_grass_rock_nor_gl_1k.jpg'], size: 1024, quality: 88 },
+];
+
+// Skin and face maps baked from the MakeHuman UV layout (tools/assets/lib/mh-skin.mjs)
+// and small face textures (tools/assets/lib/face-textures.mjs).
+export const FACE_TEXTURES = [
+  { id: 'skin_albedo', out: 'tex/skin_albedo.webp', kind: 'albedo', size: 2048, quality: 88, noAlpha: true, sources: ['makehuman'] },
+  { id: 'skin_normal', out: 'tex/skin_normal.webp', kind: 'normal', size: 2048, quality: 90, noAlpha: true, sources: ['makehuman'] },
+  { id: 'skin_orm', out: 'tex/skin_orm.webp', kind: 'orm', size: 1024, quality: 88, noAlpha: true, sources: ['makehuman'] },
+  { id: 'skin_masks', out: 'tex/skin_masks.webp', kind: 'masks', size: 2048, quality: 90, sources: ['makehuman'] },
+  { id: 'eye_albedo', out: 'tex/eye_albedo.webp', kind: 'eye', size: 512, quality: 90, sources: ['makehuman'] },
+  { id: 'lash_alpha', out: 'tex/lash_alpha.webp', kind: 'lash', w: 256, h: 128, quality: 92, sources: [] },
 ];

@@ -62,7 +62,7 @@ export async function fetchAll({ log = console.log, sourceIds = null } = {}) {
     if (sourceIds && !sourceIds.has(f.id)) continue;
     const dir = path.join(CACHE, f.id);
     const dest = path.join(dir, f.file);
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (!fs.existsSync(dest)) {
       log(`downloading ${f.id}/${f.file} (${(f.bytes / 1e6).toFixed(1)} MB)`);
       await download(f.url, dest);

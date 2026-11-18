@@ -114,7 +114,7 @@ export function clipDurations(doc) {
 
 // --- mesh surgery ------------------------------------------------------------
 
-function readTriangles(prim) {
+export function readTriangles(prim) {
   const P = prim.getAttribute('POSITION');
   const N = prim.getAttribute('NORMAL');
   const J = prim.getAttribute('JOINTS_0');
@@ -146,7 +146,7 @@ function lerpVertex(a, b, k) {
 }
 
 /** Keep the part of each triangle where dist(p) >= 0. */
-function clipTriangles(tris, dist) {
+export function clipTriangles(tris, dist) {
   const out = [];
   for (const t of tris) {
     const d = t.map((v) => dist(v.p));
@@ -173,7 +173,7 @@ export function atlasUV(p, back) {
   return [back ? 0.75 - x * 0.25 : 0.25 + x * 0.25, 1 - Math.max(0, Math.min(ATLAS.heightM, p[1])) / ATLAS.heightM];
 }
 
-function writePrimitive(doc, tris, material, offset = 0) {
+export function writePrimitive(doc, tris, material, offset = 0) {
   const buffer = doc.getRoot().listBuffers()[0];
   const pos = [];
   const nrm = [];
