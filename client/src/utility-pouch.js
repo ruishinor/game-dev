@@ -18,7 +18,7 @@ export function buildUtilityPouch(T,style){
  box(0,.96,.23,.90,0,.365,-.025);
  box(1,.12,.45,.065,0,-.01,.401);
  box(2,.19,.15,.065,0,-.075,.467);
- box(1,.64,.10,.07,0,.38,-.475);
+ box(1,.64,.10,.07,0,.38,-.465);
  for(let i=0;i<3;i++)box(2,.09,.018,.038,-.28+i*.28,.30,.44);
  for(let i=0;i<3;i++){const g=mergeGeometries(T,sets[i]);for(const p of sets[i])p.dispose();const m=new T.Mesh(g,materials[i]);m.castShadow=true;root.add(m)}
  return root;
