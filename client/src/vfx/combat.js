@@ -45,11 +45,12 @@ const DISCHARGE = [
     // Capacitor discharge earths itself: short forked arcs from the core to the ground ring.
     const f = typeof feet === 'function' ? feet() : feet;
     const c = typeof core === 'function' ? core() : core;
-    if (f && c) for (let i = 0; i < 3; i++) {
+    if (f && c) for (let i = 0; i < 4; i++) {
+      // Short, close arcs: they earth beside the body, not across the whole radius.
       const a = v.rand() * Math.PI * 2;
-      const r = radius * (0.55 + v.rand() * 0.35);
+      const r = Math.min(radius * 0.4, 1.8) * (0.55 + v.rand() * 0.45);
       const cx = c.x ?? c[0], cy = c.y ?? c[1], cz = c.z ?? c[2];
-      v.lightning({ from: [cx, cy, cz], to: [f[0] + Math.cos(a) * r, f[1] + 0.05, f[2] + Math.sin(a) * r], color: 0xfff0d0, color2: 0xff9a3c, width: 0.045, life: 0.2 + i * 0.05, jag: 0.16, rate: 0.045, branches: 1 });
+      v.lightning({ from: [cx, cy, cz], to: [f[0] + Math.cos(a) * r, f[1] + 0.05, f[2] + Math.sin(a) * r], color: 0xfff0d0, color2: 0xff9a3c, width: 0.04, life: 0.16 + i * 0.04, jag: 0.22, rate: 0.045, branches: 1 });
     }
     v.shock({ at: feet, radius, color: 0xffaa54, life: 0.53, width: 0.055, filaments: true, alpha: 0.88 });
     v.shell({ at: feet, radius, height: 0.83, color: 0xd87839, kind: 'wall', life: 0.42, from: 0.13, growPart: 0.72, streak: 0.8, alpha: 0.38 });
