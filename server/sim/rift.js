@@ -8,7 +8,8 @@ const OPEN_MS=4000,ACTIVE_MS=22000,WARN_MS=2300,REST_MS=4600,STABLE_MS=15000,COO
 const deny=reason=>({ok:false,reason});const ok={ok:true};
 export function createRift(game){
  const core=game.objects.find(o=>o.type==='phase_scar'),indexer=game.objects.find(o=>o.type==='rift_indexer'),regulator=game.objects.find(o=>o.type==='rift_regulator');
- return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
+ const entry=game.objects.find(o=>o.type==='rift_entry'),exit=game.objects.find(o=>o.type==='rift_return');
+ return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,entry,exit,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
 }
 function effect(game,k,r){const s=game.rift.core;game.events.push({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
 function setPhase(game,phase,until){

@@ -10,6 +10,8 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
+import {createTorsoLayers} from './torso-layers.js';
+import {createWeaponCarry} from './weapon-visuals.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
 import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
@@ -22,7 +24,7 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -84,7 +86,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
 
   const mats = [];
   const shellMats = {};
-  const hidden = [];
+  const hidden = [],torsoShells=[];
   // Face meshes (head, hands, eyes, lashes) are dressed by face.js.
   const faceNode = (o) => {
     for (let n = o; n && n !== inst; n = n.parent) if (/^(head|hands|eyes|lashes|teeth|hair_[a-z]+)(_\d+)?$/.test(n.name)) return n.name.replace(/_\d+$/, '');
@@ -102,24 +104,25 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     const name = shell ? o.name : o.material.name;
     // Faceless looks wear the mannequin's smooth head, shaded like the body.
     const spec = shell ? (shell === 'mannequin_head' && (def.faceless || veyran) ? def.parts.body : shell === 'hood' && hoodDown ? null : def.shells[shell]) : def.parts[name] || {};
-    if (!spec) {
-      hidden.push(o);
-      return;
-    }
-    const m = new THREE.MeshStandardMaterial({ color: spec.color ?? 0x888888, roughness: spec.roughness ?? 0.7, metalness: spec.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
+    const torso=shell==='chest'||shell==='coat';
+    if (!spec&&!torso) {hidden.push(o);return;}
+    const shade=spec??{};
+    const m = new THREE.MeshStandardMaterial({ color: shade.color ?? 0x888888, roughness: shade.roughness ?? 0.7, metalness: shade.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
     m.name = name;
-    if (spec.map) m.map = assets.texture(spec.map);
-    if (spec.emissiveMap) {
-      m.emissiveMap = assets.texture(spec.emissiveMap);
-      m.emissive.set(spec.emissive ?? 0xffffff);
+    if (shade.map) m.map = assets.texture(shade.map);
+    if (shade.emissiveMap) {
+      m.emissiveMap = assets.texture(shade.emissiveMap);
+      m.emissive.set(shade.emissive ?? 0xffffff);
     }
     o.material = m;
     o.castShadow = true;
     // Bind-pose bounds do not cover every pose; visibility is decided per entity.
     o.frustumCulled = false;
     mats.push(m);
-    if (shell) shellMats[shell] = m;
+    if (shell&&spec) shellMats[shell] = m;
+    if(torso){o.visible=!!spec;torsoShells.push({mesh:o,shell,original:m,originalVisible:!!spec});}
   });
+  const torsoLayers=createTorsoLayers(THREE,assets,torsoShells);
   for (const o of hidden) o.parent.remove(o);
   // A face for bodies that have one. Looks may pin an appearance (NPCs) or
   // hide the face (helmets, faceless characters); players get a stable face
@@ -192,6 +195,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const weaponCarry=createWeaponCarry(THREE,assets,inst,opts.cls==='vanguard');
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -199,7 +203,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const lod = { acc: 0 };
   let dead = false;
   let moving = false;
-  let landed = true;
+  let landed = true, meleeIndex=0;
 
   return {
     kind: 'glb',
@@ -209,7 +213,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     radius: 0.45,
     hover: 0,
     accent: def.accent,
+    fireWeapon(id,target){return weaponCarry.fire(id,target);},
+    weaponOrigin(){return weaponCarry.muzzle();},
+    inspectWeaponPose(){return weaponCarry.inspect();},
+    handOrigin(){return weaponCarry.hand();},
     update(dt, st) {
+      torsoLayers.apply(st.cv,st.sv);
+      weaponCarry.apply(st.wv);
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -231,7 +241,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if (step){weaponCarry.restorePose();anim.update(step);}
+      weaponCarry.update(dt,st,!!step);
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -251,12 +262,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         return;
       }
       // A ranged class's basic attack is a bolt, not a punch.
-      const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
+      const combo=[{clip:'Punch_Jab',start:.16,timeScale:1.35},{clip:'Punch_Cross',start:.16,timeScale:1.25},{clip:'Melee_Hook',start:.13,timeScale:1.2}];
+      const a = id==='auto'&&kind==='attack'?combo[meleeIndex++%combo.length]:(kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
       anim.dispose();
       face?.dispose();
+      torsoLayers.dispose();
+      weaponCarry.dispose();
       disposeInstance(group);
     },
   };
@@ -524,7 +538,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
+    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, cls:meta.c });
     else if (meta.c === 'mender') {
       if (assets.menderPrototype) {
         try {
@@ -534,7 +548,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_entry'||meta.c==='rift_return') model=buildPhaseGate(meta.c==='rift_return',assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

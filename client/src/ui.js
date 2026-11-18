@@ -6,7 +6,7 @@ import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NE
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
-import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { conditionOf, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
@@ -1777,6 +1777,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
+    else if(['rift_entry','rift_return'].includes(st.nearObject?.meta.c))set(this.interact,'text',lock?'Phase gate · disengage first':'[F] '+(st.nearObject.meta.c==='rift_entry'?'Enter Phase Annex':'Return to the Reach'));
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
@@ -1909,7 +1910,8 @@ export class UI {
     const c = this.minimap;
     const g = c.getContext('2d');
     const R = c.width / 2;
-    const k = (R - 4) / WORLD.radius;
+    const annex=inRiftAnnex(st.me.pos.x,st.me.pos.z,2);
+    const k = (R - 4) / (annex?Math.hypot(RIFT_ANNEX.hw,RIFT_ANNEX.hd):WORLD.radius);
     g.clearRect(0, 0, c.width, c.height);
     g.save();
     g.translate(R, R);
@@ -1919,10 +1921,11 @@ export class UI {
     g.fill();
     g.clip();
     // Top-down with north (-Z) up and east (+X) to the right.
-    const X = (x) => x * k;
-    const Z = (z) => z * k;
+    const X = (x) => (x-(annex?RIFT_ANNEX.x:0)) * k;
+    const Z = (z) => (z-(annex?RIFT_ANNEX.z:0)) * k;
+    if(annex){g.strokeStyle='#638e9c';g.strokeRect(X(RIFT_ANNEX.x-RIFT_ANNEX.hw),Z(RIFT_ANNEX.z-RIFT_ANNEX.hd),2*RIFT_ANNEX.hw*k,2*RIFT_ANNEX.hd*k);}
     const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
-    for (const key of Object.keys(ZONES)) {
+    for (const key of annex?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
@@ -1930,13 +1933,13 @@ export class UI {
       g.fill();
     }
     g.fillStyle = 'rgba(160, 175, 185, 0.5)';
-    for (const col of COLLIDERS) {
+    for (const col of annex?[]:COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
     }
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
-      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)) continue;
+      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
@@ -1951,7 +1954,7 @@ export class UI {
       if (member.id === st.me.id) continue;
       number++;
       const ent = st.ents.get(member.id);
-      if (ent?.meta.k !== 'p') continue;
+      if (ent?.meta.k !== 'p'||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       const x = X(ent.pos.x), z = Z(ent.pos.z);
       const marker = placePartyMarker(x, z, R - 9, placed);
       placed.push(marker);
@@ -1977,7 +1980,7 @@ export class UI {
       g.textAlign = 'center';
       g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
     }
-    const mapLabel = ['World minimap', ...partyLabels].join('. ');
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));

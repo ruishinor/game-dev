@@ -6,11 +6,12 @@ import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
-import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
+import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import {loadWeaponModels,shotProfile} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
@@ -68,6 +69,7 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -791,6 +793,7 @@ function onSnapshot(m) {
     ent.row = row;
     if (ent.meta.c === 'surveyor') syncRig(ent);
     ent.dead = !!(row.f & 1);
+    const prev=ent.buf.at(-1);if(prev&&!sameTravelRegion(prev,row))ent.buf.length=0;
     ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
     if (ent.buf.length > 12) ent.buf.shift();
   }
@@ -871,6 +874,11 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
+      const shot=e.ab==='auto'&&e.k==='bolt'&&s?.meta.k==='p'?shotProfile(e.wv):null;
+      if(shot&&s?.placed&&d?.placed&&s.speed<1.5&&!s.dead){
+        const yaw=Math.atan2(d.pos.x-s.pos.x,d.pos.z-s.pos.z);s.holder.rotation.y=yaw;s.displayYaw=yaw;
+      }
+      const fired=!!(shot&&s?.placed&&d?.placed&&!s.dead&&s.model.fireWeapon?.(e.wv,d.chest));
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -896,8 +904,11 @@ function onEvent(e) {
           s.faceTo = d.id;
           s.faceUntil = now + 500;
         }
-        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (!fired&&s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
+        if (shot&&d?.placed&&s.placed&&!rich()){
+          const origin=s.model.weaponOrigin?.()??s.model.handOrigin?.()??s.chest.clone();
+          legacyFx.beam(()=>origin,chestOf(d),shot.color,shot.life*1000,shot.width);
+        }else if (!shot&&e.k === 'bolt' && d) fx.bolt(()=>s.model.handOrigin?.()??s.chest,chestOf(d),sourceColour(s));
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);
@@ -1632,6 +1643,7 @@ function updateEntities(dt, t, now) {
     }
     ent.model.update(dt, {
       lookAt,
+      aimAt:row?.t===ent.faceTo?S.ents.get(ent.faceTo)?.chest:undefined,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
@@ -1646,6 +1658,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
+      cv:row?.cv,sv:row?.sv,wv:row?.wv,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
@@ -1910,7 +1923,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null,weaponPose:e.model.inspectWeaponPose?.()??null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

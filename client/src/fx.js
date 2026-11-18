@@ -81,12 +81,13 @@ export class Fx {
 
   /** A fast projectile between two moving points (functions returning Vector3). */
   bolt(from, to, color, ms = 200) {
-    const m = new THREE.Mesh(SPH, additive(color));
-    m.scale.setScalar(0.16);
-    const start = from().clone();
+    const m = new THREE.Mesh(CYL, additive(color));
+    const start = from().clone(),dir=new THREE.Vector3();
     this.add(m, ms / 1000, (k) => {
-      m.position.lerpVectors(start, to(), k);
-      m.scale.setScalar(0.16 + Math.sin(k * Math.PI) * 0.1);
+      const end=to();dir.subVectors(end,start);
+      m.position.lerpVectors(start,end,k);
+      if(dir.lengthSq()>1e-8)m.quaternion.setFromUnitVectors(UP,dir.normalize());
+      m.scale.set(.035,.32,.035);
     });
   }
 

@@ -1,0 +1,33 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {previewRecipe,previewProduction} from '../shared/crafting.js';
+import {makeGame,makeChar,place,enemyOf,isolate} from './helpers.js';
+import {craftRecipe,equipItem} from '../server/sim/progress.js';
+import {beginProduction,tickProduction} from '../server/sim/production.js';
+import {weaponBonus,weaponReach} from '../shared/condition.js';
+import {blueprintDrop} from '../server/sim/loot-tables.js';
+import {tickPlayerCombat} from '../server/sim/combat.js';
+import {equipmentVisuals} from '../shared/equipment-visuals.js';
+test('component assemblies consume exact materials, preserve originals on failure and equip a real ranged weapon',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{materials:{sentinel_alloy:3,mire_fibre:3}}));place(p,0,7.5);
+ for(const id of ['machine_pulse_housing','grow_pulse_cell','shape_phase_lens','combine_pulse_module'])assert.ok(craftRecipe(g,p,id).ok,id);
+ assert.deepEqual(p.char.materials,{pulse_housing:1,pulse_module:1});
+ const before=JSON.stringify(p.char.materials);assert.ok(previewProduction(p.char,'assemble_patrol_sidearm',1).ok);assert.equal(JSON.stringify(p.char.materials),before);
+ assert.ok(beginProduction(g,p,'assemble_patrol_sidearm',1,p.inventoryRev).ok);g.time=p.production.until;tickProduction(g,p);
+ assert.deepEqual(p.char.materials,{});assert.ok(p.char.inventory.includes('patrol_sidearm'));assert.ok(equipItem(g,p,'patrol_sidearm').ok);assert.equal(weaponBonus(p.char),3);
+ assert.equal(equipmentVisuals(p.char.equipped).wv,'tuned');assert.equal(craftRecipe(g,p,'assemble_patrol_sidearm').ok,false);
+ const melee=g.addPlayer(makeChar('vanguard',{inventory:['patrol_sidearm'],materials:{pulse_housing:1,pulse_module:1}}));
+ assert.equal(equipItem(g,melee,'patrol_sidearm').ok,false);assert.equal(previewRecipe(melee.char,'assemble_patrol_sidearm').ok,false);
+});
+test('rare annex blueprint is personal retained knowledge, and commissioned skill gates are enforced',()=>{
+ assert.equal(blueprintDrop('sentinel',()=>.01,true),'blueprint_relay_carbine');
+ assert.equal(blueprintDrop('sentinel',()=>.04,true),'blueprint_relay_vest');assert.equal(blueprintDrop('sentinel',()=>.07,true),null);
+ assert.equal(blueprintDrop('sentinel',()=>.01,false),'blueprint_relay_vest');
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{level:4,survey:'signal_done',brineStage:3,attunements:['resonance'],materials:{relay_frame:1,pulse_module:1,resonance_fragment:1}}));
+ place(p,49,-36.5);const before=JSON.stringify(p.char.materials);
+ assert.equal(craftRecipe(g,p,'assemble_relay_carbine').ok,false);assert.equal(JSON.stringify(p.char.materials),before);
+ p.char.goods={blueprint_relay_carbine:1};assert.ok(craftRecipe(g,p,'assemble_relay_carbine').ok);
+ assert.equal(p.char.goods.blueprint_relay_carbine,1);assert.deepEqual(p.char.materials,{});assert.ok(equipItem(g,p,'relay_carbine').ok);
+ assert.equal(weaponBonus(p.char),4);assert.equal(weaponReach(p.char),24);
+ const e=enemyOf(g,'skitter');isolate(g,e);place(p,e.x+1,e.z);p.target=e.id;p.autoOn=true;tickPlayerCombat(g,p,0);
+ assert.ok(g.events.some(e=>e.e==='dmg'&&e.s===p.id&&e.ab==='auto'&&e.wv==='longpoint'));
+});

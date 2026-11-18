@@ -78,6 +78,7 @@ export function resolveLoadout(char, equipped) {
     if (!item) rejected.set(slot, 'Unknown item.');
     else if (item.slot !== slot) rejected.set(slot, `${item.name} does not fit that slot.`);
     else if (!char.inventory.includes(id)) rejected.set(slot, 'You do not own that item.');
+    else if(item.attackKind&&item.attackKind!==CLASSES[char.cls].auto.kind)rejected.set(slot,`${item.name} requires a ranged profession.`);
     else if (item.cls && item.cls !== char.cls) rejected.set(slot, `${item.name} cannot be used by your class.`);
     else pending.set(slot, id);
   }
@@ -130,6 +131,7 @@ export function describeRequirements(char, itemId) {
   const item = ITEMS[itemId];
   const out = [];
   if (!item) return out;
+  if(item.attackKind)out.push({text:'Requires a ranged profession',met:CLASSES[char.cls]?.auto.kind===item.attackKind});
   if (item.cls) out.push({ text: `Class: ${CLASSES[item.cls].name}`, met: item.cls === char.cls });
   if (item.req) {
     const supporting = resolveLoadout(char, { ...char.equipped, [item.slot]: null }).equipped;

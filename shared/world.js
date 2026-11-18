@@ -17,6 +17,13 @@ export const WORLD = {
   spawn: { x: 0, z: 7.5 },
 };
 
+// Disconnected shared encounter deck. No movement input can bridge the gap.
+export const RIFT_ANNEX=Object.freeze({name:'Phase Annex',x:220,z:0,hw:16,hd:18,arrivalZ:12,exitZ:15.5});
+export function inRiftAnnex(x,z,pad=0){
+ return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
+}
+export function sameTravelRegion(a,b){return inRiftAnnex(a.x,a.z,2)===inRiftAnnex(b.x,b.z,2);}
+
 export const ZONES = {
   sanctum: { x: 0, z: 0, r: 13, name: 'Lattice Sanctum' },
   sporefield: { x: -42, z: 26, r: 21, name: 'The Sporefield' },
@@ -76,6 +83,7 @@ const FLAT_AREAS = [
 
 /** Terrain height at a world position. Purely presentational for the server. */
 export function groundHeight(x, z) {
+  if(inRiftAnnex(x,z,2))return 0;
   let h =
     1.7 * Math.sin(x * 0.043) * Math.cos(z * 0.051) +
     0.9 * Math.sin(x * 0.11 + 1.3) * Math.sin(z * 0.093 + 0.7) +
@@ -275,6 +283,7 @@ export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undef
 // used for movement. Small ground details and characters are not cover.
 // A small endpoint tolerance avoids self-intersections with boundary contact.
 export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
+  if(!sameTravelRegion(a,b))return false;
   const dx = b.x - a.x, dz = b.z - a.z, len2 = dx*dx + dz*dz;
   if (![a.x,a.z,b.x,b.z].every(Number.isFinite)) return false;
   if (len2 < 1e-10) return true;
@@ -335,7 +344,9 @@ if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
   OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
-    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65});
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
+    {key:'rift_entry',type:'rift_entry',name:'Calibrated Phase Gate',x,z:z-6.4,r:.72},
+    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72});
 }
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
@@ -346,6 +357,7 @@ const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
  * Old outdoor obstacles retain their existing planar combat semantics.
  */
 export function deepLineClear(a, b) {
+  if(!sameTravelRegion(a,b))return false;
   for (const c of DEEP_WALLS) {
     let lo = 0, hi = 1;
     for (const [origin, delta, min, max] of [
@@ -412,6 +424,9 @@ export function resolveCollisions(p, rad) {
       }
     }
   }
+  if(inRiftAnnex(p.x,p.z,4)){
+    const a=RIFT_ANNEX;p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));return p;
+  }
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {
@@ -466,6 +481,7 @@ export function inSanctum(p) {
 }
 
 export function zoneAt(x, z) {
+  if(inRiftAnnex(x,z,2))return RIFT_ANNEX.name;
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;

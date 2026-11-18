@@ -12,6 +12,7 @@
 //   hostile      red/orange; hazard sigils, scorch, dust, debris
 import { CELL } from './textures.js';
 import { hot, shieldEnvelope } from './engine.js';
+import {shotProfile} from '../weapon-visuals.js';
 
 export const PALETTE = {
   kinetic: 0xff9a3c, kineticHot: 0xffd08a,
@@ -119,6 +120,13 @@ export class CombatVfx {
   /** Any damage event (auto-attacks and abilities); `kind` from the server. */
   hit(d, s, e) {
     // Projectiles land when they arrive; everything else lands now.
+    const shot=e.ab==='auto'&&s?.meta?.k==='p'&&e.k==='bolt'?shotProfile(e.wv):null;
+    if(shot&&s.placed&&s!==d){
+      const from=s.model.weaponOrigin?.()??s.model.handOrigin?.()??s.chest.clone(),to=d.chest.clone();
+      this.v.beam({from,to,color:shot.color,width:shot.width,life:shot.life,grow:.08,taper:1});
+      this.v.burst({at:from,count:3,cell:CELL.streak,color:shot.color,size:[.045,.095],life:[.07,.13],speed:[.4,1.2],dir:to.clone().sub(from).normalize()});
+      this.impact(d,s,e);return;
+    }
     if (e.k === 'bolt' && s?.placed && s !== d) {
       this.bolt(s, d, () => this.impact(d, s, e));
       return;
@@ -156,7 +164,7 @@ export class CombatVfx {
   /** A projectile from s to d; class decides its form. */
   bolt(s, d, onArrive) {
     const v = this.v;
-    const a = s.chest.clone();
+    const a = s.model?.handOrigin?.()??s.chest.clone();
     const len = a.distanceTo(d.chest);
     const life = Math.min(0.42, Math.max(0.12, len / 45));
     const c = s.meta.k === 'e' ? PALETTE.hostile : this.colour(s);
@@ -164,7 +172,7 @@ export class CombatVfx {
     const head = cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? CELL.diamond : CELL.glow;
     const at = [0, 0, 0];
     const prev = [a.x, a.y, a.z];
-    v.burst({ at: a, count: 3, cell: CELL.glow, color: hot(c, 0.5), color2: c, size: [0.25, 0.4], sizeEnd: 0.05, life: 0.18, speed: [0.3, 1] });
+    v.burst({ at: a, count: 3, cell: CELL.glow, color: hot(c, 0.5), color2: c, size: [0.08, 0.14], sizeEnd: 0.02, life: 0.18, speed: [0.3, 1] });
     // A continuous trail gives each discipline a readable path shape:
     // kinetic/hostile slugs leave hot streaks, symbiote spores a beaded
     // organic filament, resonance a double ribbon, survey a thin trace.
@@ -181,7 +189,7 @@ export class CombatVfx {
         at[1] = a.y + (b.y - a.y) * k + Math.sin(k * Math.PI) * (cls === 'symbiotech' ? 0.6 : 0.15);
         at[2] = a.z + (b.z - a.z) * k;
         const vel = [(at[0] - prev[0]) * 20, (at[1] - prev[1]) * 20, (at[2] - prev[2]) * 20];
-        v.burst({ at, count: 1, exact: true, cell: head, color: hot(c, 0.6), size: cls === 'surveyor' ? 0.32 : 0.45, life: 0.05, speed: 0 });
+        v.burst({ at, count: 1, exact: true, cell: head, color: hot(c, 0.15), size: cls === 'symbiotech' ? 0.13 : 0.09, life: 0.035, speed: 0 });
         if (cls === 'keeper' || cls === 'surveyor' || cls === 'hostile') v.burst({ at, count: 1, exact: true, cell: CELL.streak, color: hot(c, 0.3), size: 0.18, life: 0.07, speed: 0, dir: vel });
         v.burst({ at, count: 2, cell: cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? [CELL.runeA, CELL.runeB, CELL.ember] : CELL.ember, color: hot(c, 0.3), color2: c, size: [0.05, 0.12], sizeEnd: 0.01, life: [0.2, 0.45], speed: [0.1, 0.6], drag: 2, gravity: cls === 'symbiotech' ? -0.5 : 0.5, turb: cls === 'symbiotech' ? 0.8 : 0.3, turbScale: 3 });
         if (k >= 1 && onArrive) {

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
 import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
+import { equipItem } from '../../server/sim/progress.js';
+import { clearCombatSpot } from '../cover-setup.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
@@ -448,6 +450,23 @@ try {
   await capture('preview-evidence/10-longpoint-fabricated.png');
   await workshop.waitFor({state:'hidden'});
   await page.locator('.production-status').waitFor({state:'hidden'});
+  // The same legally fabricated and equipped weapon must fire from a real
+  // humanoid rig. Fixture arranges a safe clear target; R is actual input.
+  assert.ok(equipItem(server.game,p,'longpoint_emitter').ok);
+  const target=server.game.enemies.find(e=>e.type==='skitter');resetEnemy(server.game,target);
+  for(const enemy of server.game.enemies)if(enemy!==target){enemy.state='dead';enemy.deadAt=server.game.time-20000;enemy.respawnAt=Infinity;}
+  target.hp=target.maxHp=Math.max(250,target.maxHp);target.wander=null;target.wanderAt=Infinity;
+  const spot=clearCombatSpot(target,5,8);p.combatUntil=0;p.autoOn=false;
+  await moveTo(spot.x,spot.z);
+  assert.ok(server.game.setTarget(p,target.id));
+  await page.waitForFunction(id=>window.__attune.state().target===id,target.id);
+  await page.locator('#view').focus();await page.keyboard.press('KeyR');
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.ents.find(e=>e.id===s.myId)?.weaponPose?.id==='longpoint';},null,{timeout:20000});
+  const pose=await page.evaluate(()=>{const s=window.__attune.state();return s.ents.find(e=>e.id===s.myId).weaponPose;});
+  assert.ok(pose.forwardDot>.75&&Number.isFinite(pose.supportError)&&pose.supportError<.20&&pose.recoil>0,JSON.stringify(pose));
+  assert.ok(target.hp<target.maxHp,'auto attack must apply actual server damage');
+  await page.screenshot({path:'preview-evidence/10a-longpoint-firing.png'});
+  await page.locator('#view').focus();await page.keyboard.press('KeyR');
   assert.deepEqual(errors, []);
   await page.close();
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});

@@ -1,7 +1,7 @@
 // Fabrication is deterministic, skill-gated and server-authoritative.
 // Existing equipment IDs remain stable; counted materials are independent of
 // the unique owned-item list. Client preview never mutates a character.
-import { ITEMS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
+import { ITEMS, CLASSES, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
 import { computeSkills } from './build.js';
 import { GOODS,GOODS_CAP,sanitizeGoods } from './goods.js';
 import {recoveryRank} from './recovery.js';
@@ -9,6 +9,11 @@ import { surveyState } from './survey.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
+  pulse_housing:{name:'Field pulse housing',desc:'A standardized housing for an inert resonance instrument. Individually fabricated or bought as a component.',source:'Workshop fabrication; Sanctum Quartermaster'},
+  phase_lens:{name:'Field phase lens',desc:'An engineered optical substrate for an Attunement pulse module.',source:'Workshop fabrication'},
+  pulse_cell:{name:'Dormant pulse cell',desc:'An inert energy-bearing culture cell, ready for calibration.',source:'Workshop fabrication; Sanctum Quartermaster'},
+  pulse_module:{name:'Calibrated pulse module',desc:'A fitted field lens and cell; an intermediate assembly used by multiple weapon designs.',source:'Workshop assembly'},
+  relay_frame:{name:'Extended relay frame',desc:'An extended resonance instrument chassis for the Relay Arc Carbine.',source:'Workshop fabrication'},
   sinter_flake:{name:'Loose sinter flake',desc:'Conductive surface shedding recovered without disturbing living mineral colonies or grazers.',source:'Loose deposits at Sinter Flats'},
   mire_fibre:{name:'Mire fibre',desc:'Conductive organic strands harvested from Mire Skitters.',source:'Mire Skitter'},
   sentinel_alloy:{name:'Sentinel alloy',desc:'Recoverable actuator alloy and contact assemblies.',source:'Rogue Sentinel'},
@@ -18,6 +23,13 @@ export const MATERIALS={
 };
 export const RECIPES={
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  machine_pulse_housing:{name:'Fabricate field pulse housing',discipline:'Engineering',inputs:{sentinel_alloy:2},output:{material:'pulse_housing',count:1}},
+  grow_pulse_cell:{name:'Prepare dormant pulse cell',discipline:'Engineering',inputs:{mire_fibre:2},output:{material:'pulse_cell',count:1}},
+  shape_phase_lens:{name:'Fabricate field phase lens',discipline:'Engineering',inputs:{sentinel_alloy:1,mire_fibre:1},output:{material:'phase_lens',count:1}},
+  combine_pulse_module:{name:'Combine lens and cell',discipline:'Engineering',kind:'assembly',inputs:{phase_lens:1,pulse_cell:1},output:{material:'pulse_module',count:1}},
+  assemble_patrol_sidearm:{name:'Assemble Patrol Arc Sidearm',discipline:'Engineering',kind:'assembly',attackKind:'bolt',inputs:{pulse_housing:1,pulse_module:1},output:{item:'patrol_sidearm'}},
+  machine_relay_frame:{name:'Fabricate extended relay frame',discipline:'Engineering',inputs:{pulse_housing:1,sentinel_alloy:2},output:{material:'relay_frame',count:1}},
+  assemble_relay_carbine:{name:'Assemble Relay Arc Carbine',discipline:'Engineering',kind:'assembly',site:'brine_engineering',attackKind:'bolt',blueprint:'blueprint_relay_carbine',attune:'resonance',requires:{instrumentation:13},inputs:{relay_frame:1,pulse_module:1,resonance_fragment:1},output:{item:'relay_carbine'}},
   field_chest:{name:'Assemble field composite vest',discipline:'Engineering',inputs:{mire_fibre:2,sentinel_alloy:2},output:{item:'field_chest'}},
   reinforced_chest:{name:'Reinforce relay vest',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_relay_vest',inputs:{sentinel_alloy:3,mire_fibre:2},target:'field_chest',output:{item:'reinforced_chest'}},
   resonant_chest:{name:'Line vest with resonance',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_resonant_vest',site:'brine_engineering',attune:'resonance',inputs:{resonance_fragment:1,kinetic_coupler:1},target:'reinforced_chest',output:{item:'resonant_chest'}},
@@ -62,6 +74,7 @@ export function previewRecipe(char,id){
     if((skills[skill]||0)<min)return fail('Requires '+SKILL_NAMES[skill]+' '+min+' (you have '+(skills[skill]||0)+').');
   }
   if(recipe.cls&&recipe.cls!==char.cls)return fail('This recipe is not available to your profession.');
+  if(recipe.attackKind&&CLASSES[char.cls]?.auto.kind!==recipe.attackKind)return fail('Requires a ranged profession.');
   const targets=recipe.targets??(recipe.target?[recipe.target]:[]);
   if(!Array.isArray(targets)||new Set(targets).size!==targets.length||targets.some(id=>!Object.hasOwn(ITEMS,id)))return fail('Invalid fusion inputs.');
   for(const target of targets){
@@ -100,6 +113,7 @@ export function productionQuantities(recipe) {
 
 export function productionTime(recipe) {
   if (recipe.kind === 'fusion') return 2600;
+  if (recipe.kind === 'assembly') return 2200;
   if (recipe.kind === 'upgrade') return 1900;
   if (recipe.discipline === 'Research') return 1450;
   return 1100;

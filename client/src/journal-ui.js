@@ -18,6 +18,14 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  patrol_sidearm:'<path d="M3 6h16l2 3-3 3h-7l-2 8H5l2-8H3Z" fill="#527578" stroke="#adc9ca"/><path d="M7 8h11m-8 6-2 4" stroke="#d5c28b"/>',
+  relay_carbine:'<path d="M2 8h7l2-2h9v2h2v3H10l-2 6H5l1-6H2Z" fill="#5e7484" stroke="#acd4ec"/><path d="M12 8h6M9 12l3 4h3" stroke="#c7b9e6"/>',
+  pulse_housing:'<path d="M4 5h15l2 4-2 5H9l-2 5H4v-7Z" fill="#586e78"/><path d="M7 8h10v3H7Z" stroke="#bfd2cb"/>',
+  phase_lens:'<ellipse cx="12" cy="12" rx="7" ry="9" fill="#527d87" stroke="#a6ddec"/><path d="M8 6q8 5 8 12M8 18q8-5 8-12" stroke="#c3e5e8"/>',
+  pulse_cell:'<path d="M7 3h10v3h2v15H5V6h2Z" fill="#425a5c"/><path d="m12 7-3 7h3l-1 4 5-8h-3Z" fill="#d7cf8b" stroke="#d7cf8b"/>',
+  pulse_module:'<rect x="3" y="6" width="18" height="12" rx="2" fill="#4c596b"/><circle cx="11" cy="12" r="4" fill="#6f9faa"/><path d="M4 9h3m-3 6h3m9-6h4m-4 6h4" stroke="#d5be90"/>',
+  relay_frame:'<path d="M2 7h19v5h-7l-3 7H7l3-7H2Z" fill="#5a666e" stroke="#a9bcba"/><path d="M3 9h16m-8 4-2 4" stroke="#ddbb87"/>',
+  blueprint_relay_carbine:'<path d="M4 3h16v18H4Z" fill="#375565"/><path d="M6 9h12v3H9l-1 3H6Z" stroke="#a7d8df"/><path d="M7 18h8m1 0h1M6 6h8" stroke="#d9c388"/>',
   vault_memory_foil:'<path d="M4 4 18 3l3 4-1 13-13 1-3-4Z" fill="#4e6265" stroke="#bac7bd"/><path d="M7 6h9l2 2v10H7Z" fill="#293b42" stroke="#a6c3b6"/><path d="m8 15 3-5 3 5 3-7M8 8h3m3 9h3" stroke="#e1c688"/><path d="M5 12h2m12-1h2" stroke="#a0c8c4"/>',
   vault_witness_seal:'<path d="m12 2 8.5 5v10L12 22l-8.5-5V7Z" fill="#515361" stroke="#e3d0a2"/><path d="m12 5 5.7 3.5v7L12 19l-5.7-3.5v-7Z" fill="#292c42" stroke="#b8a3de"/><path d="M7.5 12q4.5-6 9 0-4.5 6-9 0Z" stroke="#e6d9ae" fill="#77668e"/><circle cx="12" cy="12" r="1.8" fill="#e4d8a6"/><path d="M12 2v3m0 14v3" stroke="#efdea7"/>',
   sinter_flake:'<path d="M4 14 7 6 15 3 21 9 18 17 9 21Z" fill="#7c8069" stroke="#c2c4a2"/><path d="m7 6 2 15 6-18 3 14M4 14l5 1 12-6" stroke="#d4c8a0"/><path d="m10 10 4-4 3 4-3 4Z" fill="#a7bb9b"/>',
@@ -53,6 +61,8 @@ const art={
   glyph_resonant_aegis:'<path d="m12 3 9 5v8l-9 5-9-5V8zM12 7v10M7 12h10"/>',
   glyph_rending_echo:'<path d="M3 18C8 9 13 5 21 5M7 21C12 12 16 9 22 9M2 11c3-5 7-7 12-8"/>',
   location:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/>',
+  social_service_coat:'<path d="m6 3 6 4 6-4 4 5-4 4-1 10H7L6 12 2 8Z" fill="#a49779"/><path d="m9 4 3 5 3-5M12 9v13M7 14h4m2 0h4" stroke="#ded1aa"/>',
+  social_relay_coat:'<path d="m5 4 7 3 7-3 3 5-4 3 1 10H5l1-10-4-3Z" fill="#335b5f"/><path d="M9 6v15M15 6v15M6 13h3m6 0h3M8 16h8" stroke="#b7c4ad"/>',
   field_chest:'<path d="m3 5 5-2 4 3 4-3 5 2-2 16H5Z" fill="#536265"/><path d="M6 10h12m-12 5h12M12 6v15" stroke="#b6b8a0"/>',
   reinforced_chest:'<path d="m2 5 5-3 5 3 5-3 5 3-2 17H4Z" fill="#617078"/><path d="M5 8h14v5H5ZM6 15h12v5H6Z" fill="#35494e" stroke="#bac6bb"/><path d="M12 5v16" stroke="#d1ab70"/>',
   resonant_chest:'<path d="m3 5 5-3 4 3 4-3 5 3-2 17H5Z" fill="#56626e"/><path d="m6 8 6 3 6-3v9l-6 4-6-4Z" fill="#273e49" stroke="#d5b4e2"/><path d="M12 7v13m-5-5h10" stroke="#98e0d5"/>',
@@ -185,7 +195,7 @@ const LOADOUT_TABS = [
   ]},
   {id:'social',name:'Social clothing',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('face','Face',3,1),
-    present('arms','Arms',1,2),present('torso','Torso',2,2),present('hands','Hands',3,2),
+    present('arms','Arms',1,2),present('torso','Torso',2,2,'social_torso'),present('hands','Hands',3,2),
     present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
   ]},
 ];
@@ -200,7 +210,7 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
-    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon',social:'social_torso'}[t.id];
     if(slotFor)btn.dataset.seenGroup=slotFor;
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
@@ -216,14 +226,19 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[]),...(s.equipped.social_torso?['social_torso']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
     const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
-    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+    if(item){detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+      if(item.slot==='social_torso'||item.slot==='chest'){
+        const preview=ui.a.portrait(characterPortraitMeta({...s,equipped:{...s.equipped,[item.slot]:id}}));
+        if(preview){const img=h('img','doll-image');img.src=preview;img.alt='Selected torso appearance preview';detail.append(img);}
+      }
+    }
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
@@ -323,7 +338,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['social_torso','Social'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.dataset.seenGroup=id;
