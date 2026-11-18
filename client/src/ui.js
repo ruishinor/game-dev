@@ -1186,7 +1186,8 @@ export class UI {
   }
 
   updateItemIndicators() {
-    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    // Character exposes equipment only; materials and trade goods belong to Inventory.
+    this.buildBtn.classList.toggle('new',[...this.unseenItems].some(id=>Object.hasOwn(ITEMS,id)));
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     for (const el of this.root.querySelectorAll('[data-seen-item]')) {
       el.classList.toggle('new-equipment', this.unseenItems.has(el.dataset.seenItem));
