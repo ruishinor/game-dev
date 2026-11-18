@@ -89,14 +89,19 @@ export class WindowLayout {
     this.bindKeys(this.move,'move');this.bindKeys(this.size,'se');
     panel.addEventListener('focusin',()=>this.raise());
     // Opening a window (including through a hotkey) brings it to the front.
-    new MutationObserver(()=>{if(!panel.hidden){this.sync();this.raise();}}).observe(panel,{attributes:true,attributeFilter:['hidden']});
+    let wasHidden=panel.hidden;
+    new MutationObserver(()=>{
+      const hidden=panel.hidden;
+      if(wasHidden&&!hidden){this.sync();this.raise();}
+      wasHidden=hidden;
+    }).observe(panel,{attributes:true,attributeFilter:['hidden']});
     window.addEventListener('resize',()=>this.sync());
     this.sync();
   }
   raise(){
     const peers=[...this.panel.parentElement.querySelectorAll(':scope > .managed-window:not([hidden])')]
       .filter(p=>p!==this.panel).sort((a,b)=>Number(a.style.zIndex||30)-Number(b.style.zIndex||30));
-    [...peers,this.panel].forEach((p,i)=>{p.style.zIndex=String(30+i);});
+    [...peers,this.panel].forEach((p,i)=>{p.style.zIndex=String(31+i);});
   }
   reset(){this.state=sanitizeWindowLayout(null);this.sync();this.save();}
   setOpacity(value){

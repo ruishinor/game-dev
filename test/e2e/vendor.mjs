@@ -103,7 +103,10 @@ try{
  await coat.getByRole('button',{name:'Preview',exact:true}).click();
  assert.ok(await coat.locator('.social-preview').isVisible());
  await coat.getByRole('button',{name:'Buy 1',exact:true}).click();
- await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.includes('social_service_coat'));
+ try{await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.includes('social_service_coat'),null,{timeout:30000});}catch(error){
+   const s=await page.evaluate(()=>{const s=window.__attune.state();return {myId:s.myId,credits:s.sheet?.credits,vendorOpen:!!s.you?.vendor,inventory:s.sheet?.inventory,status:document.querySelector('#status')?.textContent};});
+   console.error('Coat purchase diagnostic',JSON.stringify({client:s,server:{sameSession:server.game.players.get(p.id)===p,credits:p.char.credits,inventory:p.char.inventory,vendorOpen:!!p.vendor,x:p.x,z:p.z},errors}));throw error;
+  }
  assert.equal(server.game.players.get(p.id),p,'cosmetic purchase must remain in the same authenticated session');assert.ok(p.char.inventory.includes('social_service_coat'));
  await panel.getByRole('button',{name:'Close vendor'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyC');

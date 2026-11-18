@@ -631,6 +631,9 @@ export class UI {
     this.settingsPanel.hidden = true;
     this.settingsPanel.setAttribute('role', 'dialog');
     this.settingsPanel.setAttribute('aria-label', 'Settings');
+    this.settingsPanel.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.toggleSettings(false);document.getElementById('view')?.focus({preventScroll:true});}
+    });
     const sc = h('button', 'close', '×');
     sc.setAttribute('aria-label', 'Close settings');
     sc.addEventListener('click', () => this.toggleSettings(false));

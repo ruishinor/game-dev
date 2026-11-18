@@ -32,7 +32,10 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.some(q=>q.id==='field:rift_calibration'&&q.progress==='1 / 2 stages'));
  await move(f.core,3.6);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1);
+ try{await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1,null,{timeout:30000});}catch(error){
+   const s=await page.evaluate(()=>{const s=window.__attune.state();return {myId:s.myId,pos:s.pos,phase:s.ents.find(e=>e.c==='phase_scar')?.row.rf,materials:s.sheet?.materials,status:document.querySelector('#status')?.textContent};});
+   console.error('Rift recovery diagnostic',JSON.stringify({client:s,server:{sameSession:server.game.players.get(p.id)===p,phase:f.phase,calibration:p.char.riftCalibration,materials:p.char.materials,x:p.x,z:p.z,dead:p.dead,combatRemaining:Math.max(0,p.combatUntil-server.game.time),autoOn:p.autoOn},errors}));throw error;
+  }
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  assert.equal(p.char.materials.resonance_fragment,1);
  await page.locator('#view').focus();await page.keyboard.press('KeyL');

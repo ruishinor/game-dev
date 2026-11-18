@@ -8,7 +8,7 @@ export function createProductionWork(T,inst){
  const valid=arms.every(a=>a.upper&&a.lower&&a.hand);
  const saved=new Map();
  let right=null,left=null,method=null;
- const restorePose=()=>{for(const [bone,q] of saved)bone.quaternion.copy(q);saved.clear();if(valid)inst.updateWorldMatrix(true,true);};
+ const restorePose=()=>{if(!saved.size)return;for(const [bone,q] of saved)bone.quaternion.copy(q);saved.clear();inst.updateWorldMatrix(true,true);};
  function free(group){
   if(!group)return;
   group.removeFromParent();
