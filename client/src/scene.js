@@ -605,6 +605,21 @@ const procedural = {
     return g;
   },
   conduit(p, anim) {
+    if(p.foothill){
+      // Low-detail equivalent retains a rooted trunk and canopy at the same footprint.
+      const g=new THREE.Group(),rnd=mulberry32(p.seed),h=p.h;
+      const bark=mat(0x4b3b40,{rough:.98}),leaf=mat(0x663a48,{rough:.95});
+      g.add(mesh(new THREE.CylinderGeometry(.20,.72,h*.63,8),bark,0,h*.315-.24,0));
+      for(let i=0;i<5;i++){
+        const a=i*Math.PI*2/5+rnd()*.4,l=h*(.18+rnd()*.08),y=h*(.52+rnd()*.18);
+        const tip=new THREE.Vector3(Math.sin(a)*l,y+l*.64,Math.cos(a)*l);
+        const base=new THREE.Vector3(0,y-h*.22,0),delta=tip.clone().sub(base),mid=base.clone().add(tip).multiplyScalar(.5);
+        const branch=mesh(new THREE.CylinderGeometry(.065,.18,delta.length(),6),bark,mid.x,mid.y,mid.z);
+        branch.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());g.add(branch);
+        g.add(scaled(G.sph,leaf,h*.17,h*.13,h*.15,tip.x,tip.y,tip.z));
+      }
+      g.name='foothill-tree:'+p.seed;return g;
+    }
     // A "conduit tree": grown wood threaded with old cabling and light.
     const g = new THREE.Group();
     const rnd = mulberry32(p.seed);
@@ -882,9 +897,21 @@ const kit = {
   rock(p, c) {
     const n = (p.seed % 3) + 1;
     const big = p.s > 2;
-    c.solid.add(c.piece('nature', `Rock_Medium_${n}`), at(p.x, p.z, { y: -0.1, ry: p.seed % 6, s: [(p.r * 2.3) / 3.2, (p.h * (big ? 0.92 : 0.8)) / 2.1, (p.r * 2.3) / 3.2] }), big ? TINT.dusk : null);
+    c.solid.add(c.piece('nature', `Rock_Medium_${n}`), at(p.x, p.z, { y: p.foothill ? -0.32 : -0.1, ry: p.seed % 6, s: [(p.r * 2.3) / 3.2, (p.h * (big ? 0.92 : 0.8)) / 2.1, (p.r * 2.3) / 3.2] }), big ? TINT.dusk : null);
   },
   conduit(p, c) {
+    if(p.foothill){
+      if(c.detail<1)return procedural.conduit(p,c.anim);
+      const rnd=mulberry32(p.seed),name=p.seed%2?'TwistedTree_1':'TwistedTree_3';
+      // Both source pieces extend 0.201 m below their local origin. Sink the
+      // root slightly into the shallow foothill rather than mounting it on a cliff.
+      const obj=c.single('nature',name,at(p.x,p.z,{y:.201*p.s-.27,ry:rnd()*Math.PI*2,s:p.s}),{tint:0xbda7ad});
+      obj.name='foothill-tree:'+p.seed;
+      const y=groundHeight(p.x,p.z);
+      c.occluders.add(obj,p.x,p.z,p.r,y,y+p.h*.64);
+      c.occluders.add(obj,p.x,p.z,p.h*.49,y+p.h*.44,y+p.h);
+      return;
+    }
     // A "conduit tree": dead wood threaded with old cabling and light. The
     // tree models are thousands of twigs that do not simplify, so the low
     // preset keeps the light procedural version.
@@ -1016,7 +1043,7 @@ function clearOfColliders(x, z, pad) {
   return true;
 }
 
-/** Ground cover and the unreachable backdrop ring. Decorative only. */
+/** Low ground cover. Full-size trees and rocks come from shared world props. */
 function buildVegetation(c, detail) {
   const rnd = mulberry32(7331);
   const sf = ZONES.sporefield;
@@ -1062,18 +1089,7 @@ function buildVegetation(c, detail) {
   scatter(N(22), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Clover_1'), at(x, z, { ry: rnd() * 6, s: 0.5 + rnd() * 0.4 }), vary(TINT.meadow)));
   scatter(N(16), inMeadow, (x, z) => c.cover.add(c.piece('nature', 'Flower_3_Group'), at(x, z, { ry: rnd() * 6, s: 0.4 + rnd() * 0.25 })));
 
-  // Backdrop on the basin wall, beyond where anyone can walk (the world limit
-  // is radius 86): big twisted trees and boulders that close the horizon
-  // without ever standing in a sight line.
-  const ring = detail < 1 ? 0 : 18;
-  for (let i = 0; i < ring; i++) {
-    const a = (i / ring) * Math.PI * 2 + rnd() * 0.2;
-    const r = 88.5 + rnd() * 5;
-    const x = Math.sin(a) * r;
-    const z = Math.cos(a) * r;
-    if (i % 3 === 2) c.solid.add(c.piece('nature', `Rock_Medium_${(i % 3) + 1}`), at(x, z, { y: -0.6, ry: rnd() * 6, s: 2.6 + rnd() * 2.4 }), TINT.dusk);
-    else c.far.add(c.piece('nature', i % 2 ? 'TwistedTree_1' : 'TwistedTree_3'), at(x, z, { y: -0.5, ry: rnd() * 6, s: 0.75 + rnd() * 0.45 }), vary(TINT.spore, 0.3));
-  }
+
 }
 
 function buildParticlesAndLights(scene) {
