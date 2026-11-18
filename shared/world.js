@@ -38,6 +38,17 @@ export function deepRoofAt(x, z, pad = 0) {
   return Math.abs(x - DEEP.x) <= DEEP.hw + pad && Math.abs(z - DEEP.z) <= DEEP.hd + pad;
 }
 
+// Low-profile ecological landmarks; no new colliders or walkable level.
+export const SINTER_SITES = {
+  nursery: {x:1.6,z:59.4,r:2.8},
+  mineral: {x:9.1,z:59.2,r:2.9},
+};
+export function sinterSiteAt(p) {
+  for(const [id,site] of Object.entries(SINTER_SITES))
+    if(Math.hypot(p.x-site.x,p.z-site.z)<=site.r)return id;
+  return null;
+}
+
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function rand() {
@@ -225,6 +236,35 @@ function buildProps() {
     { type: 'deep_vessel', x: -61.1, z: -12, r: 1.05, h: 2.9, seed: 1701 },
     { type: 'deep_vessel', x: -61.1, z: -4, r: 1.05, h: 2.55, seed: 1702 },
   );
+  // Grounded foothill scenery replaces the old non-colliding cliff ring.
+  // Independent seed preserves the existing scatter, encounters and lore sites.
+  const foothillRng=mulberry32(7347);
+  const ringCount=18;
+  for(let i=0;i<ringCount;i++){
+    const tree=i%3!==2;
+    const s=tree?0.46+foothillRng()*0.12:1.45+foothillRng()*0.48;
+    const radius=tree?0.85:s;
+    const height=tree?15.9*s:1.65*s;
+    const seed=Math.floor(foothillRng()*1000000);
+    const angle=i/ringCount*Math.PI*2;
+    for(let attempt=0;attempt<8;attempt++){
+      const a=angle+(foothillRng()-.5)*.28;
+      const d=WORLD.radius-13-foothillRng()*7;
+      const x=Math.sin(a)*d,z=Math.cos(a)*d;
+      const pad=radius+2.5;
+      if(Math.hypot(x,z)+radius+1>=WORLD.radius-9)continue;
+      if(Object.values(ZONES).some(zone=>Math.hypot(x-zone.x,z-zone.z)<zone.r+pad+3))continue;
+      if(retained.some(p=>Math.hypot(x-p.x,z-p.z)<(p.r??Math.hypot(p.hw??0,p.hd??0))+pad))continue;
+      const heights=[groundHeight(x,z)];
+      for(let k=0;k<8;k++){
+        const t=k*Math.PI/4;
+        heights.push(groundHeight(x+Math.cos(t)*(radius+.25),z+Math.sin(t)*(radius+.25)));
+      }
+      if(Math.max(...heights)-Math.min(...heights)>.42)continue;
+      retained.push({type:tree?'conduit':'rock',x,z,r:radius,h:height,s,seed,foothill:true});
+      break;
+    }
+  }
   return retained;
 }
 
@@ -271,8 +311,32 @@ export const OBJECTS = [
   { key: 'brine_engineering', type: 'brine_engineering', name: 'B · Engineering Station', x: 49, z: -39, r: 0, embedded: true },
   { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
   { key: 'deep_console', type: 'deep_console', name: 'Kestrel Phase Recorder', x: -61.5, z: -8, r: 0.8 },
+  { key: 'quartermaster', type: 'quartermaster', name: 'Sanctum Quartermaster', x: -5.6, z: -1.8, r: 0.5 },
 ];
 
+// A small additive site outside established zones. Never delete or relocate
+// existing props to make room. Ordered candidates keep placement deterministic.
+function findRiftSite(){
+  const preferred=[[30,46],[30,50],[34,48],[28,44],[32,52],[34,44]];
+  for(let z=40;z<=66;z+=2)for(let x=22;x<=58;x+=2)preferred.push([x,z]);
+  for(const [x,z] of preferred){
+    if(Math.hypot(x,z)>WORLD.radius-16)continue;
+    if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+8.6))continue;
+    if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<8.6+(o.r??Math.hypot(o.hw??0,o.hd??0))))continue;
+    const h=groundHeight(x,z),samples=[h];
+    for(let i=0;i<20;i++){const a=i*Math.PI/10;for(const rad of [2.2,6.2])samples.push(groundHeight(x+Math.cos(a)*rad,z+Math.sin(a)*rad));}
+    if(Math.max(...samples)-Math.min(...samples)>1.55)continue;
+    return Object.freeze({x,z,r:8.5,hazard:5.5});
+  }
+  return null;
+}
+export const RIFT_SITE=findRiftSite();
+if(RIFT_SITE){
+  const {x,z}=RIFT_SITE;
+  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
+    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65});
+}
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
 
@@ -404,5 +468,6 @@ export function zoneAt(x, z) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;
   }
+  if(RIFT_SITE&&Math.hypot(x-RIFT_SITE.x,z-RIFT_SITE.z)<RIFT_SITE.r)return 'The Phase Scar';
   return WORLD.name;
 }

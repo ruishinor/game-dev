@@ -15,6 +15,8 @@ import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
+import { liveFixturePlayer } from './live-fixture.mjs';
+import { SLOTS } from '../../shared/content.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
@@ -42,7 +44,10 @@ const browser = await launchBrowser();
 // (ATTUNEMENT_GPU=1) nothing is capped. Everything still goes through the
 // real renderer, and script errors from drawing still fail the run.
 const QUERY = `q=0&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`;
-note(SOFTWARE_GL ? 'software WebGL: each client draws at most 1 frame per second (logic uncapped)' : 'hardware WebGL requested: no draw cap');
+const integrated = !process.argv.some((arg) => arg === '--workshop' || arg === '--follow-inventory');
+const serialDraw = SOFTWARE_GL && integrated;
+note(serialDraw ? 'software WebGL: draw each integrated client separately at entry and capture; frame logic stays active'
+  : SOFTWARE_GL ? 'software WebGL: cap draws to 1 per second' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
 async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
@@ -63,7 +68,16 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  if (integrated) await finishInitialDraw(page);
   return { ctx, page, name };
+}
+
+async function finishInitialDraw(page) {
+  await page.waitForFunction(() => {
+    const s = window.__attune.state();
+    return s.drawn > 0 && s.draw.triangles > 10000;
+  }, null, { timeout: 60000, polling: 100 });
+  if (serialDraw) await page.evaluate(() => window.__attune.pause(true));
 }
 
 const state = (p) => p.page.evaluate(() => window.__attune.state());
@@ -85,9 +99,61 @@ const hold = async (p, key, ms) => {
   await sleep(ms);
   await p.page.keyboard.up(key);
 };
+// Nameplates and HUD elements can own a pointer coordinate as the camera
+// moves. Start each world gesture over the actual canvas.
+async function worldPointer(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('#view');
+    for (const row of [0.38, 0.48, 0.58, 0.68]) {
+      for (const col of [0.34, 0.54, 0.66]) {
+        const x = Math.round(innerWidth * col);
+        const y = Math.round(innerHeight * row);
+        if (document.elementFromPoint(x, y) === canvas) return { x, y };
+      }
+    }
+    throw Error('No exposed canvas point for a world gesture');
+  });
+}
+
+async function dragWorld(p, button, direction, observe, start, label) {
+  const { x, y } = await worldPointer(p.page);
+  await p.page.mouse.move(x, y);
+  await p.page.evaluate(() => {
+    window.lastPlaytestMouseDown = null;
+    document.addEventListener('mousedown', (event) => {
+      window.lastPlaytestMouseDown = {
+        target: event.target.id || event.target.className,
+        buttons: event.buttons,
+      };
+    }, { capture: true, once: true });
+  });
+  await p.page.mouse.down({ button });
+  try {
+    await p.page.mouse.move(x + direction * 160, y + 30, { steps: 16 });
+    const observed = await until(p, observe, start, 4000, label);
+    const mouseDown = await p.page.evaluate(() => window.lastPlaytestMouseDown);
+    return { observed: observed && mouseDown?.target === 'view', mouseDown, pose: await state(p) };
+  } finally {
+    await p.page.mouse.up({ button });
+  }
+}
+
 // Capture errors still fail the run; only optional disk writes are non-fatal.
 // On Windows, a viewer or scanner can prevent overwriting an earlier PNG.
 const shot = async (p, file) => {
+  if (serialDraw) {
+    const previous = await p.page.evaluate(() => {
+      const count = window.__attune.state().drawn;
+      window.__attune.pause(false);
+      return count;
+    });
+    try {
+      await p.page.waitForFunction((count) => window.__attune.state().drawn > count, previous,
+        { timeout: 60000, polling: 100 });
+    } finally {
+      await p.page.evaluate(() => window.__attune.pause(true));
+    }
+  }
   const png = await p.page.screenshot({ timeout: 120000 });
   try {
     fs.writeFileSync(path.join(OUT, file), png);
@@ -103,21 +169,34 @@ const drawn = (p, id) => p.page.evaluate((i) => {
 const LOCOMOTION = ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop'];
 const logText = (p) => p.page.evaluate(() => document.querySelector('.log').innerText);
 const serverPlayer = (name) => [...game.players.values()].find((x) => x.name === name);
-function teleport(name, x, z) {
-  const p = serverPlayer(name);
+async function teleport(browserPlayer, x, z) {
+  const p = await liveFixturePlayer(browserPlayer.page, srv, browserPlayer.name);
   p.x = x;
   p.z = z;
+  p.jy = 0;
+  p.vy = 0;
   if (p.companion) {
     p.companion.x = x + 1.5;
     p.companion.z = z - 1.5;
   }
-  note(`moved ${name} to (${x.toFixed(0)}, ${z.toFixed(0)})`);
+  note(`moved ${browserPlayer.name} to (${x.toFixed(0)}, ${z.toFixed(0)})`);
 }
-const settle = async (p, x, z) =>
-  until(p, ([tx, tz]) => {
+async function settle(p, x, z) {
+  const reached = await until(p, ([tx, tz]) => {
     const s = window.__attune.state();
-    return s.pos && Math.hypot(s.pos.x - tx, s.pos.z - tz) < 1.5;
-  }, [x, z], 6000, 'client to accept teleport');
+    return s.you && s.pos
+      && Math.hypot(s.you.x - tx, s.you.z - tz) < 1.5
+      && Math.hypot(s.pos.x - tx, s.pos.z - tz) < 1.5;
+  }, [x, z], 10000, p.name + ' to render the authoritative fixture position');
+  if (!reached) {
+    const { pos, you, myId, snaps } = await state(p);
+    const actor = serverPlayer(p.name);
+    throw Error(`Fixture position failed for ${p.name}: ${JSON.stringify({
+      expected: { x, z }, actor: actor && { id: actor.id, x: actor.x, z: actor.z },
+      client: { myId, snaps, pos, authoritative: you && { x: you.x, z: you.z } },
+    })}`);
+  }
+}
 
 // Focused path through the same real client/server harness, without replaying
 // the long combat scenario on every UI change. Fixture only grants earned
@@ -136,19 +215,27 @@ async function workshopPlaytest(){
   await page.waitForFunction(()=>window.__attune.state().drawn>=1&&window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:60000});
   // Rendering once establishes the actual loaded model; pause continuous world
   // drawing for UI interactions on software-rendered hosted runners.
-  await page.evaluate(()=>window.__attune.pause(true));
   const npc=game.objects.find(o=>o.type==='archivist');
   const npcPlate=page.locator('.plate[data-npc="archivist"]');
-  // The first synchronous offscreen portrait may compile a new WebGL context.
-  // Retain actual pointer activation; use the same generous timeout as other UI actions.
+  await teleport(P,npc.x,npc.z+3);
+  await settle(P,npc.x,npc.z+3);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,face:Math.PI,dist:7}));
   await npcPlate.click({timeout:90000});
   const npcVisible=await page.locator('.npc-panel .npc-portrait').count()===1;
-  teleport('Mechanic',npc.x,npc.z+3);
-  await settle(P,npc.x,npc.z+3);
-  await page.locator('.npc-panel button').filter({hasText:/^Talk$/}).click();
   const talk=await until(P,()=>document.querySelector('.npc-dialogue')?.textContent.includes('skitters breed'),null,10000,'NPC dialogue');
-  check('workshop UI: NPC model portrait and authoritative dialogue',npcVisible&&talk);
-  await page.locator('.npc-panel .close').click();
+  const bounds=await page.locator('.npc-panel').boundingBox();
+  check('workshop UI: compact NPC bust and authoritative dialogue',npcVisible&&talk&&!!bounds&&bounds.width<=350&&bounds.height<=280);
+  await shot(P,'npc-01-dialogue.png');
+  await teleport(P,npc.x+8,npc.z+3);
+  await page.locator('.npc-panel').waitFor({state:'hidden',timeout:10000});
+  check('NPC conversation closes when the player leaves range',await page.locator('.npc-panel').isHidden());
+  await teleport(P,npc.x,npc.z+3);
+  await settle(P,npc.x,npc.z+3);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.locator('.npc-panel').waitFor({state:'visible',timeout:10000});
+  await page.keyboard.press('Escape');
+  check('NPC keyboard interaction opens and Escape dismisses',await page.locator('.npc-panel').isHidden());
+  await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
   check('workshop UI: class-specific model-backed anatomy',await page.locator('.equipment-sketch img').count()===1);
@@ -168,6 +255,7 @@ async function workshopPlaytest(){
   await page.keyboard.press('KeyB');
   await page.locator('.planner-slot select[data-slot="device"]').selectOption('calibrated_servo');
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
+  check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
   await shot(P,'workshop-01-planner.png');
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await page.locator('.recipe-entry[data-recipe="coupler"]').click();
@@ -189,6 +277,10 @@ async function workshopPlaytest(){
   await page.locator('[data-craft="calibrate_servo"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('calibrated_servo'),null,{timeout:10000});
   check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
+  await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
+  const detail=page.locator('.recipe-detail');
+  check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
+  await shot(P,'workshop-03-bloom-relay.png');
   check('workshop UI: no script/resource errors',pageErrors.length===0,pageErrors.slice(0,4).join(' | '));
   await P.ctx.close();
 }
@@ -198,7 +290,7 @@ async function followInventoryPlaytest(){
  const B=await openPlayer('follow-follower','FollowFollower','vanguard');
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
  await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
- teleport('FollowLeader',0,7.5);teleport('FollowFollower',0,11);
+ await teleport(A,0,7.5);await teleport(B,0,11);
  await settle(A,0,7.5);await settle(B,0,11);
  await B.page.bringToFront();
  pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
@@ -223,17 +315,33 @@ async function followInventoryPlaytest(){
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/unfollow');await B.page.keyboard.press('Enter');
  const stopped=await until(B,()=>!window.__attune.state().followId,null,5000,'unfollow');
  check('/unfollow clears authoritative follow',stopped&&pb.followId===0);
+ // Enable and persist auto-loot through the actual settings control.
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyO');
+ const auto=B.page.getByRole('checkbox',{name:'Auto-loot corpses'});
+ await auto.check();
+ check('auto-loot preference is stored locally',await B.page.evaluate(()=>localStorage.getItem('attunement.autoLoot'))==='1');
+ await B.page.keyboard.press('Escape');await B.page.locator('#view').focus();
  // Fixture only: position and kill a deterministic sentinel. Actual collection is through the browser.
- teleport('FollowFollower',0,8.5);await settle(B,0,8.5);
+ await teleport(B,0,8.5);await settle(B,0,8.5);
  const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;
  dealDamage(game,pb,corpse,99999,'test');
- await B.page.waitForFunction(id=>window.__attune.state().you.lootable?.some(x=>x.id===id),corpse.id,{timeout:15000});
- await B.page.locator('#view').focus();await B.page.keyboard.press('KeyF');
- const loot=B.page.locator('.loot-window');await loot.waitFor({state:'visible',timeout:10000});
+ await B.page.waitForFunction(id=>{const s=window.__attune.state(),e=s.ents.find(x=>x.id===id);return e?.dead&&Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)<=5&&s.you.lootable?.some(x=>x.id===id);},corpse.id,{timeout:15000});
+ await B.page.waitForFunction(id=>!!window.__attune.gfx.scene.getObjectByName('recovery-cache:'+id),corpse.id);
+ await shot(B,'loot-00-recovery-cache.png');
+ await B.page.locator('#view').focus();await B.page.keyboard.press('Shift+KeyF');
+ const loot=B.page.locator('.loot-window');
+ try{await loot.waitFor({state:'visible',timeout:10000});}catch(error){
+   const s=await state(B);console.error('Loot interaction diagnostic',JSON.stringify({serverTarget:pb.lootTarget,corpse:corpse.id,corpseState:corpse.state,player:{x:pb.x,z:pb.z,dead:pb.dead},clientLoot:s.you?.loot,clientEligible:s.you?.lootable,log:await logText(B)}));throw error;
+ }
+ check('Shift+F opens manual loot despite enabled auto-loot',await loot.isVisible()&&pb.char.materials.sentinel_alloy===2);
  const alloy=loot.locator('[data-loot-id="sentinel_alloy"]');await alloy.hover();
  check('corpse loot lists material art and hover tooltip',await alloy.locator('[data-art="sentinel_alloy"] svg').count()===1&&await B.page.locator('.tooltip').innerText().then(t=>t.includes('Sentinel alloy')));
  await alloy.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:10000});
  check('only selected stack is collected; unchosen equipment remains',await loot.locator('[data-loot-id="adrenal_shunt"]').count()===1&&!pb.char.inventory.includes('adrenal_shunt'));
+ const scrap=loot.locator('[data-loot-id="spent_contact"]');
+ await scrap.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.goods?.spent_contact===1,null,{timeout:10000});
+ check('selected trade salvage enters a separate authoritative stack',pb.char.goods.spent_contact===1&&!pb.char.inventory.includes('spent_contact')&&await loot.locator('[data-loot-id="spent_contact"]').count()===0);
+ await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
  check('no script errors in focused browser sessions',pageErrors.length===0,pageErrors.slice(0,3).join(' | '));
@@ -251,7 +359,6 @@ try {
   let sa = await state(A);
   let sb = await state(B);
   note(`graphics: ${(await describeGraphics(A.page)).renderer}`);
-  await until(A, () => window.__attune.state().drawn >= 2 && window.__attune.state().draw.triangles > 10000, null, 60000, 'first frames drawn');
   // Wait for both clients to receive the other's metadata and a snapshot.
   // A ready local character does not imply the remote observer is ready.
   // Keep metadata and loaded-model diagnostics separate; do not treat pending GLB as a lost snapshot.
@@ -263,13 +370,14 @@ try {
     const inspect=(s,id)=>({myId:s.myId,snaps:s.snaps,drawn:s.drawn,assets:s.assets,observer:s.ents.find(e=>e.id===id)||null});
     throw Error('Mutual observer not ready: '+JSON.stringify({A:inspect(sa,sb.myId),B:inspect(sb,sa.myId),pageErrors}));
   }
-  check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000, `A id ${sa.myId}, B id ${sb.myId}, ${sa.draw.triangles} triangles drawn`);
+  check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000 && sb.draw.triangles > 10000,
+    `A id ${sa.myId}, ${sa.draw.triangles} triangles; B id ${sb.myId}, ${sb.draw.triangles} triangles`);
   check('10. second session sees the first (and its class)', sb.ents.some((e) => e.id === sa.myId && e.c === 'vanguard') && sa.ents.some((e) => e.id === sb.myId && e.c === 'symbiotech'));
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian'].includes(e.c)).map((e) => e.c);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator'].includes(e.c)).map((e) => e.c);
   check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
   const aByB = await drawn(B, sa.myId);
@@ -277,66 +385,105 @@ try {
   check('14. each session draws the other with its own look, standing idle', aByB.look === 'vanguard_plate' && bByA.look === 'conductor' && aByB.base === 'Idle_Loop' && bByA.base === 'Idle_Loop', `A as seen by B: ${JSON.stringify(aByB)}`);
 
   // ---------------------------------------------------- 2/3. movement etc.
+  await A.page.bringToFront();
   const z0 = sa.pos.z;
-  await A.page.keyboard.down('KeyW');
-  await sleep(900);
-  const runSelf = await drawn(A, sa.myId);
-  const runSeen = await until(B, ([id, clips]) => {
+  const hasLocomotion = ([id, clips]) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.anim && clips.includes(e.anim.base);
-  }, [sa.myId, LOCOMOTION], 3000, 'B to see A running');
-  await sleep(500);
+    return clips.includes(e?.anim?.base);
+  };
+  await A.page.keyboard.down('KeyW');
+  try {
+    const [runSelf, runSeen, forward] = await Promise.all([
+      until(A, hasLocomotion, [sa.myId, LOCOMOTION], 6000, 'A to play its own locomotion clip'),
+      until(B, hasLocomotion, [sa.myId, LOCOMOTION], 6000, 'B to see A running'),
+      until(A, (start) => window.__attune.state().pos.z < start - 1.5, z0, 6000, 'A to move forward'),
+    ]);
+    check('14. moving plays a locomotion clip, in the mover\'s session and in the observer\'s', runSelf && runSeen,
+      `mover ${runSelf}, observer ${runSeen}`);
+    sa = await state(A);
+    check('2. W moves the character forward', forward, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
+  } finally {
+    await A.page.keyboard.up('KeyW');
+  }
+  await A.page.keyboard.down('KeyW');
+  const reachedBeacon = await until(A, () => {
+    const p = window.__attune.state().pos;
+    return p && Math.hypot(p.x, p.z) < 2.6;
+  }, null, 4500, 'reach the beacon with forward input');
+  // Keep sending forward input for several snapshots so brushing past the
+  // measured radius cannot count as a blocked character.
+  const approachSnaps = (await state(A)).snaps;
+  const continued = await until(A, (n) => window.__attune.state().snaps >= n + 5, approachSnaps, 2500, 'continued forward input');
+  sa = await state(A);
   await A.page.keyboard.up('KeyW');
-  check('14. moving plays a locomotion clip, in the mover\'s session and in the observer\'s', LOCOMOTION.includes(runSelf.base) && runSeen, `own session: ${runSelf.base}`);
-  await sleep(300);
-  sa = await state(A);
-  check('2. W moves the character forward', sa.pos.z < z0 - 1.5, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
-  await hold(A, 'KeyW', 1600);
-  await sleep(300);
-  sa = await state(A);
   const beaconGap = Math.hypot(sa.pos.x, sa.pos.z);
-  check('3. the beacon blocks movement (collision)', beaconGap >= 1.9 && beaconGap < 2.6, `stopped ${beaconGap.toFixed(2)}m from its centre (radius 1.5 + body 0.45)`);
+  check('3. the beacon blocks movement (collision)', reachedBeacon && continued && beaconGap >= 1.9 && beaconGap < 2.6, `stopped ${beaconGap.toFixed(2)}m from its centre (radius 1.5 + body 0.45)`);
   const serverA = serverPlayer('Brakka');
   check('2. server position matches the predicted client position', Math.hypot(serverA.x - sa.pos.x, serverA.z - sa.pos.z) < 0.6 && sa.pending < 30, `Δ ${Math.hypot(serverA.x - sa.pos.x, serverA.z - sa.pos.z).toFixed(3)}m, ${sa.pending} unacked inputs`);
   sb = await state(B);
   const aSeenByB = sb.ents.find((e) => e.id === sa.myId);
   check('10. the other session observes that movement', Math.hypot(aSeenByB.x - sa.pos.x, aSeenByB.z - sa.pos.z) < 1.2, `B sees A at (${aSeenByB.x.toFixed(1)}, ${aSeenByB.z.toFixed(1)})`);
 
-  const yaw0 = sa.yaw;
-  await hold(A, 'KeyD', 500);
+  const headingBefore = { actor: sa.yaw, camera: sa.camYaw };
+  await A.page.keyboard.down('KeyD');
+  const turned = await until(A, (start) => {
+    const s = window.__attune.state();
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    const actorTurn = wrap(s.yaw - start.actor);
+    const cameraTurn = wrap(s.camYaw - start.camera);
+    return actorTurn < -0.4 && Math.abs(wrap(cameraTurn - actorTurn)) < 0.05;
+  }, headingBefore, 3000, 'character and camera turn together from D');
+  await A.page.keyboard.up('KeyD');
   sa = await state(A);
-  check('2. D turns the character and the camera follows', Math.abs(sa.yaw - yaw0) > 0.4 && Math.abs(sa.camYaw - sa.yaw) < 0.05, `yaw ${yaw0.toFixed(2)} → ${sa.yaw.toFixed(2)}`);
-  const before = sa.pos;
-  await hold(A, 'KeyS', 700);
-  await hold(A, 'KeyE', 600);
-  sa = await state(A);
-  check('2. backpedal and strafe move the character', Math.hypot(sa.pos.x - before.x, sa.pos.z - before.z) > 1.5);
+  check('2. D turns the character and the camera follows', turned,
+    `character ${headingBefore.actor.toFixed(2)} → ${sa.yaw.toFixed(2)}, camera ${headingBefore.camera.toFixed(2)} → ${sa.camYaw.toFixed(2)}`);
+  async function stepWithKey(key, label) {
+    const { pos } = await state(A);
+    await A.page.keyboard.down(key);
+    try {
+      return await until(A, (start) => {
+        const end = window.__attune.state().pos;
+        return Math.hypot(end.x - start.x, end.z - start.z) > 0.8;
+      }, pos, 3500, label);
+    } finally {
+      await A.page.keyboard.up(key);
+    }
+  }
+  const backpedalled = await stepWithKey('KeyS', 'backpedal');
+  const strafed = await stepWithKey('KeyE', 'strafe');
+  check('2. backpedal and strafe move the character', backpedalled && strafed);
 
   await A.page.keyboard.down('Space');
   const jumped = await until(A, () => window.__attune.state().you.jy > 0.25, null, 2500, 'jump height');
   await A.page.keyboard.up('Space');
   check('2. Space jumps (server-simulated)', jumped);
 
-  // Mouse: right-drag steers, left-drag orbits only, wheel zooms.
-  await sleep(600);
+  // Keep each button held until the browser has sampled the actual drag.
   sa = await state(A);
-  await A.page.mouse.move(480, 300);
-  await A.page.mouse.down({ button: 'right' });
-  for (let i = 1; i <= 8; i++) await A.page.mouse.move(480 + i * 20, 300, { steps: 2 });
-  await sleep(200);
-  const steer = await state(A);
-  await A.page.mouse.up({ button: 'right' });
-  check('2. right-drag steers camera and character together', Math.abs(steer.camYaw - sa.camYaw) > 0.3 && Math.abs(steer.yaw - steer.camYaw) < 0.02, `camera yaw ${sa.camYaw.toFixed(2)} → ${steer.camYaw.toFixed(2)}`);
-  await A.page.mouse.down({ button: 'left' });
-  for (let i = 1; i <= 8; i++) await A.page.mouse.move(640 - i * 20, 300 + i * 4, { steps: 2 });
-  await sleep(200);
-  const orbit = await state(A);
-  await A.page.mouse.up({ button: 'left' });
-  check('2. left-drag orbits the camera without turning the character', Math.abs(orbit.camYaw - steer.camYaw) > 0.3 && Math.abs(orbit.yaw - steer.yaw) < 0.02, `camera yaw ${steer.camYaw.toFixed(2)} → ${orbit.camYaw.toFixed(2)}, character yaw ${steer.yaw.toFixed(2)} → ${orbit.yaw.toFixed(2)}`);
+  const steer = await dragWorld(A, 'right', 1, (start) => {
+    const s = window.__attune.state();
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    return Math.abs(wrap(s.camYaw - start)) > 0.3 && Math.abs(wrap(s.camYaw - s.yaw)) < 0.02;
+  }, sa.camYaw, 'right-drag steering');
+  check('2. right-drag steers camera and character together', steer.observed,
+    `camera yaw ${sa.camYaw.toFixed(2)} → ${steer.pose.camYaw.toFixed(2)}, input ${JSON.stringify(steer.mouseDown)}`);
+  const orbitStart = await state(A);
+  const orbit = await dragWorld(A, 'left', -1, (start) => {
+    const s = window.__attune.state();
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    return Math.abs(wrap(s.camYaw - start.camera)) > 0.3 && Math.abs(wrap(s.yaw - start.actor)) < 0.02;
+  }, { camera: orbitStart.camYaw, actor: orbitStart.yaw }, 'left-drag orbit');
+  check('2. left-drag orbits the camera without turning the character', orbit.observed,
+    `camera yaw ${orbitStart.camYaw.toFixed(2)} → ${orbit.pose.camYaw.toFixed(2)}, character yaw ${orbitStart.yaw.toFixed(2)} → ${orbit.pose.yaw.toFixed(2)}, input ${JSON.stringify(orbit.mouseDown)}`);
+  const wheel = await worldPointer(A.page);
+  await A.page.mouse.move(wheel.x, wheel.y);
   for (let i = 0; i < 5; i++) await A.page.mouse.wheel(0, -120);
-  await sleep(900);
-  const zoomed = await state(A);
-  check('2. mouse wheel zooms the camera', zoomed.camWant < orbit.camWant - 3 && zoomed.camDist <= zoomed.camWant + 0.01, `wanted distance ${orbit.camWant.toFixed(1)} → ${zoomed.camWant.toFixed(1)}`);
+  const zoomed = await until(A, (start) => {
+    const s = window.__attune.state();
+    return s.camWant < start - 3 && s.camDist <= s.camWant + 0.01;
+  }, orbit.pose.camWant, 4000, 'mouse wheel zoom');
+  check('2. mouse wheel zooms the camera', zoomed,
+    `wanted distance ${orbit.pose.camWant.toFixed(1)} → ${(await state(A)).camWant.toFixed(1)}`);
   // Put the camera back behind the character for the rest of the run.
   await A.page.keyboard.press('KeyV');
 
@@ -355,8 +502,8 @@ try {
   const skitters = game.enemies.filter((e) => e.type === 'skitter');
   const fightAt = async (sk) => {
     const a=clearCombatSpot(sk,1.5,3), b=clearCombatSpot(sk,5.5,6);
-    teleport('Brakka', a.x,a.z);
-    teleport('Lumen', b.x,b.z);
+    await teleport(A, a.x,a.z);
+    await teleport(B, b.x,b.z);
     await settle(A,a.x,a.z);
     await settle(B,b.x,b.z);
   };
@@ -395,7 +542,7 @@ try {
   note('initial Skitter fixture health raised to 300 for timing-sensitive observer checks');
   const hpBefore = sk.hp;
   const attackSpot=clearCombatSpot(sk,1.5,2.5);
-  teleport('Brakka',attackSpot.x,attackSpot.z);
+  await teleport(A,attackSpot.x,attackSpot.z);
   await settle(A,attackSpot.x,attackSpot.z);
   await A.page.keyboard.press('Digit1');
   const hit = await until(A, (id) => {
@@ -506,6 +653,7 @@ try {
   await B.page.keyboard.press('Digit2');
   const grafted = await until(A, () => /Mending Graft heals you for \d+/.test(document.querySelector('.log').innerText), null, 4000, 'graft heal seen by ally');
   check('11. Mending Graft from one player heals the other', grafted);
+  await until(B, () => /Your Mending Graft heals Brakka for \d+/.test(document.querySelector('.log').innerText), null, 4000, 'caster sees first graft amount');
   const baseHeal = Number((/Your Mending Graft heals Brakka for (\d+)/.exec(await logText(B)) || [])[1]);
   const triaged = await until(A, () => /symbiote's mend heals you for \d+/.test(document.querySelector('.log').innerText), null, 6000, 'triage heal seen by ally');
   check("8. the symbiote autonomously mends the injured ally (triage)", triaged);
@@ -605,18 +753,24 @@ try {
   // return under the same ID with a live GLB model. No server restart.
   const corpse = skitters[3];
   if (corpse.state === 'dead') {
-    teleport('Brakka', 0, 7.5);
-    teleport('Lumen', 0, 7.5);
-    await settle(A, 0, 7.5);
-    await settle(B, 0, 7.5);
-    const remainsA = (await state(A)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
-    const remainsB = (await state(B)).ents.some((ent) => ent.id === corpse.id && ent.dead && ent.model === 'glb');
-    // Shorten only this harness sequence; production remains persist for 12s.
-    corpse.deadAt = game.time - CORPSE_MS + 1200;
-    corpse.respawnAt = game.time + 4500;
-    note(`accelerated corpse expiry for Mire Skitter ${corpse.id}; production holds for ${CORPSE_MS / 1000}s`);
-    const vanishedA = await until(A, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'A removes expired enemy');
-    const vanishedB = await until(B, (id) => !window.__attune.state().ents.some((ent) => ent.id === id), corpse.id, 6000, 'B removes expired enemy');
+    const deadModel = (id) => window.__attune.state().ents.some((ent) => ent.id === id && ent.dead && ent.model === 'glb');
+    const [remainsA, remainsB] = await Promise.all([
+      until(A, deadModel, corpse.id, 6000, 'A displays the dead model'),
+      until(B, deadModel, corpse.id, 6000, 'B displays the dead model'),
+    ]);
+    await teleport(A, 0, 7.5);
+    await teleport(B, 0, 7.5);
+    // Observe expiry and respawn in distinct windows on both clients. Keep the
+    // actual removal and respawn logic, adjusting only this fixture's clock.
+    corpse.deadAt = game.time - CORPSE_MS;
+    const respawnAt = corpse.respawnAt;
+    corpse.respawnAt = Math.max(respawnAt, game.time + 15000);
+    const removed = (id) => !window.__attune.state().ents.some((ent) => ent.id === id);
+    const [vanishedA, vanishedB] = await Promise.all([
+      until(A, removed, corpse.id, 6000, 'A removes expired enemy'),
+      until(B, removed, corpse.id, 6000, 'B removes expired enemy'),
+    ]);
+    corpse.respawnAt = game.time + 1000;
     check('6/11. remains persist as 3D models, then disappear from both clients', remainsA && remainsB && vanishedA && vanishedB);
     const returned = (id) => {
       const ent = window.__attune.state().ents.find((e) => e.id === id);
@@ -630,8 +784,8 @@ try {
   }
 
   // ------------------------------------------------ 9. build modification
-  teleport('Brakka', 3, 9);
-  teleport('Lumen', -3, 9);
+  await teleport(A, 3, 9);
+  await teleport(B, -3, 9);
   await settle(A, 3, 9);
   await settle(B, -3, 9);
   const outOfCombat = (p) => until(p, () => {
@@ -670,6 +824,8 @@ try {
     if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
     slotTabs=slotTabs&&!faults.length;
   }
+  await B.page.locator('.doll-tabs [data-tab="gear"]').click();
+  if(await B.page.locator('.equipment-slot-grid [data-slot="glyph"]').count())throw new Error('Glyph must not be duplicated in Gear');
   await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const glyphSlot= B.page.locator('.equipment-slot-grid [data-slot="glyph"]');
   await glyphSlot.click();
@@ -712,11 +868,14 @@ try {
   const independentClose=await B.page.locator('.inventory-window').isHidden();
   check('9. inventory excludes installed devices, stays open across panels, and has independent opacity/close controls',carriedOnly&&buildStillOpen&&codexWithInventory&&inventoryAfterEscape&&changedOpacity&&independentClose);
   await B.page.keyboard.press('KeyB');
-  const planner=await B.page.locator('.workshop-window').isVisible()&&await B.page.locator('.planner-slot select').count()===3;
+  const plannerSlots = await B.page.locator('.planner-slot select').evaluateAll((selects) => selects.map((select) => select.dataset.slot));
+  const expectedSlots = [...new Set(['device', 'implant', 'glyph', ...SLOTS])].sort();
+  const planner = await B.page.locator('.workshop-window').isVisible()
+    && JSON.stringify(plannerSlots.sort()) === JSON.stringify(expectedSlots);
   await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
   await B.page.keyboard.press('Escape');
-  check('9. Build opens independent planning and fabrication interfaces',planner&&fabrication);
+  check('9. Build opens independent planning and fabrication interfaces', planner && fabrication, `planner slots ${plannerSlots.join(', ')}; matrix recipe ${fabrication}`);
   await B.page.keyboard.press('KeyC');
   await equipVia(B, 'Myelin Lattice');
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');
@@ -736,8 +895,8 @@ try {
   await A.page.keyboard.press('Escape');
 
   // The changed capability, experienced: the same heal is now bigger.
-  teleport('Brakka', 20, 30);
-  teleport('Lumen', 24, 30);
+  await teleport(A, 20, 30);
+  await teleport(B, 24, 30);
   await settle(A, 20, 30);
   await settle(B, 24, 30);
   await B.page.keyboard.down('Shift');
@@ -764,13 +923,14 @@ try {
   note('destroyed two sentinels on Lumen\'s behalf (the fight itself is covered by unit tests)');
   await until(B, () => window.__attune.state().sheet.inventory.includes('glyph_shared_pulse'), null, 4000, 'glyph reward');
   pB.combatUntil = 0;
-  await B.page.keyboard.press('KeyC');
+  await B.page.locator('#view').focus();await B.page.keyboard.press('KeyC');
+  await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const inert = await B.page.locator('.panel.build .card', { hasText: 'Glyph of Shared Pulse' }).first().innerText();
   check('9. an un-attuned character sees the glyph as inert, with the reason', /Attunement: Resonance/.test(inert) && /✗/.test(inert));
   await B.page.keyboard.press('Escape');
   const ob = game.objects.find((o) => o.type === 'obelisk');
-  teleport('Lumen', ob.x + 2.5, ob.z + 1);
-  teleport('Brakka', ob.x + 3.5, ob.z + 3);
+  await teleport(B, ob.x + 2.5, ob.z + 1);
+  await teleport(A, ob.x + 3.5, ob.z + 3);
   await settle(B, ob.x + 2.5, ob.z + 1);
   await settle(A, ob.x + 3.5, ob.z + 3);
   const prompt = await until(B, () => !document.querySelector('.interact').hidden, null, 3000, 'interact prompt');
@@ -800,6 +960,7 @@ try {
   await sleep(4500); // let the periodic save run
   await B.page.reload();
   await B.page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  await finishInitialDraw(B.page);
   sb = await state(B);
   check(
     '12. reloading the page resumes the same character with its state',
@@ -817,7 +978,7 @@ try {
     note('respawned a skitter early');
     await sleep(300);
   }
-  teleport('Brakka', sk2.x + 1, sk2.z + 2);
+  await teleport(A, sk2.x + 1, sk2.z + 2);
   await settle(A, sk2.x + 1, sk2.z + 2);
   serverPlayer('Brakka').hp = 1;
   note('set Brakka to 1 health next to an enemy');
@@ -848,7 +1009,7 @@ try {
   // The second browser must independently recover, including its companion.
   // Force damage through the authoritative combat function, then use the
   // normal on-screen death/reconstitution UI (not a direct respawn call).
-  teleport('Lumen', 0, 45);
+  await teleport(B, 0, 45);
   await settle(B, 0, 45);
   const levelBeforeRecovery = (await state(B)).sheet.level;
   const support = serverPlayer('Lumen');
@@ -891,11 +1052,18 @@ try {
   const soloTarget = skitters.find((s) => s.state !== 'dead') || skitters[0];
   if (soloTarget.state === 'dead') soloTarget.respawnAt = 0;
   await sleep(300);
-  teleport('Lumen', soloTarget.x + 4, soloTarget.z + 12);
-  await settle(B, soloTarget.x + 4, soloTarget.z + 12);
+  // Start on a walkable, unobstructed line to the skitter. The fixed offset
+  // could put a mushroom collider between the player and the encounter.
+  const soloSpot = clearCombatSpot(soloTarget, 4, 6);
+  await teleport(B, soloSpot.x, soloSpot.z);
+  await settle(B, soloSpot.x, soloSpot.z);
   const xpBefore = (await state(B)).sheet;
-  await B.page.keyboard.press('Tab');
-  for (let i = 0; i < 6 && (await state(B)).target !== soloTarget.id; i++) await B.page.keyboard.press('Tab');
+  let soloSelected = false;
+  for (let i = 0; i < 7 && !soloSelected; i++) {
+    await B.page.keyboard.press('Tab');
+    soloSelected = await until(B, (id) => window.__attune.state().target === id, soloTarget.id, 800, 'solo Skitter selected');
+  }
+  if (!soloSelected) throw new Error(`Solo combat fixture could not select expected Skitter ${soloTarget.id}`);
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit3');
   await B.page.keyboard.up('Shift');
@@ -904,8 +1072,11 @@ try {
     if (i % 6 === 0) await B.page.keyboard.press('Digit3');
     await sleep(500);
   }
-  const after = (await state(B)).sheet;
-  check('13. the support class wins a fight alone (symbiote set to Harry)', soloTarget.state === 'dead' && (after.xp !== xpBefore.xp || after.level !== xpBefore.level), `${serverPlayer('Lumen') ? Math.ceil(serverPlayer('Lumen').hp) : '?'} health left`);
+  const earnedProgress = await until(B, (before) => {
+    const after = window.__attune.state().sheet;
+    return after.xp !== before.xp || after.level !== before.level;
+  }, { xp: xpBefore.xp, level: xpBefore.level }, 5000, 'solo reward reached the browser');
+  check('13. the support class wins a fight alone (symbiote set to Harry)', soloTarget.state === 'dead' && earnedProgress, `Skitter ${soloTarget.id} ${soloTarget.state}, ${Math.ceil(soloTarget.hp)} HP, ${Math.ceil(serverPlayer('Lumen')?.hp ?? 0)} player HP`);
   await shot(B, '07-solo-symbiotech.png');
 
   check('no script errors in either browser', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));

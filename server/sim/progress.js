@@ -10,6 +10,11 @@ import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECOR
 
 import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
 import { distributeCorpseLoot } from './loot.js';
+import { openVendor } from './vendor.js';
+import { interactRift } from './rift.js';
+import {traceTalk,traceRead} from './field-quests.js';
+import { sanitizeCondition } from '../../shared/condition.js';
+import { GOODS } from '../../shared/goods.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -111,19 +116,22 @@ export function grantSalvage(game,p,id,count=1) {
   game.markDirty(p);return true;
 }
 
-export function craftRecipe(game,p,id) {
+export function craftRecipe(game,p,id,rev) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
   if(!Object.hasOwn(RECIPES,id))return {ok:false,reason:'Unknown recipe.'};
   if(!canFabricateAt(RECIPES[id],workshopSite(p)))return {ok:false,reason:'Use the appropriate Workshop: Lattice Sanctum or commissioned Brineworks station.'};
+  if(RECIPES[id].output.goods&&(!Number.isSafeInteger(rev)||rev!==p.utilityRev))return {ok:false,reason:'Utility fabrication request expired. Refresh the Workshop.'};
   const result=previewRecipe(p.char,id);
   if(!result.ok)return result;
   // One synchronous transaction, after every requirement has passed.
   p.char.inventory=result.inventory;
   p.char.materials=result.materials;
+  if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
+  p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
   if(out.item)p.outbox.push({e:'loot',item:out.item});
-  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:MATERIALS[out.material].name)+'.');
+  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
   game.markDirty(p);
   return {ok:true};
 }
@@ -231,6 +239,8 @@ export function interact(game, p, objectId) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
+  if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj);
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
       game.message(p, 'info', 'The stone hums in recognition. You are already attuned.');
@@ -248,6 +258,7 @@ export function interact(game, p, objectId) {
   if (obj.type === 'deep_console') {
     if (!hasLineOfSight(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
     if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
+    traceRead(game,p,obj,'recorder',transmit);
     if (p.char.inventory.includes('phase_damper')) {
       transmitAuthored(game,p,'kestrel.implant.present');
       return { ok: true };
@@ -265,6 +276,7 @@ export function interact(game, p, objectId) {
   if (obj.type === 'sinter_sampler') {
     // Alternative source of the existing unique item; no repeatable XP or new save state.
     if (p.char.inventory.includes('sinter_laminate')) {
+      traceRead(game,p,obj,'strata',transmit);
       transmitAuthored(game,p,'sinter.sample.present');
       return { ok: true };
     }
@@ -293,6 +305,7 @@ export function interact(game, p, objectId) {
     if (grantItem(game, p, 'sinter_laminate')) {
       game.events.push({ e: 'fx', k: 'sinter_sample', s: p.id, o: obj.id, mode });
       transmitAuthored(game,p,'sinter.sample.recovered');
+      traceRead(game,p,obj,'strata',transmit);
     }
     return { ok: true };
   }
@@ -325,6 +338,7 @@ export function interact(game, p, objectId) {
       p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: 'Do not waste a charge on a blind shot. Map the fault, bore into it, and rig the ground before you commit.' });
       return { ok: true };
     }
+    if(traceTalk(game,p,obj,{grantSalvage,grantXp}))return {ok:true};
     const line = ARCHIVIST_LINES[Math.min(p.char.quest.step, ARCHIVIST_LINES.length - 1)];
     p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: line });
     return { ok: true };

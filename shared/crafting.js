@@ -3,6 +3,7 @@
 // the unique owned-item list. Client preview never mutates a character.
 import { ITEMS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
 import { computeSkills } from './build.js';
+import { GOODS,GOODS_CAP,sanitizeGoods } from './goods.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
@@ -12,15 +13,21 @@ export const MATERIALS={
   kinetic_coupler:{name:'Kinetic coupler',desc:'Machined interface for controlled Charge transfer.',source:'Engineering fabrication'},
   culture_matrix:{name:'Culture matrix',desc:'A stabilized living scaffold for restorative signal transfer.',source:'Research fabrication'},
 };
-export const SALVAGE={skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'};
 export const RECIPES={
+  field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  tune_emitter:{name:'Tune field pulse emitter',discipline:'Engineering',kind:'upgrade',inputs:{mire_fibre:2,sentinel_alloy:3},target:'field_emitter',output:{item:'tuned_emitter'}},
+  dense_pulse_core:{name:'Rebuild Dense Pulse Core',discipline:'Engineering',site:'brine_engineering',kind:'upgrade',attune:'resonance',requires:{kinetics:13},inputs:{kinetic_coupler:2,resonance_fragment:1},target:'tuned_emitter',output:{item:'dense_pulse_core'}},
+  longpoint_emitter:{name:'Rebuild Longpoint Emitter',discipline:'Engineering',site:'brine_engineering',kind:'upgrade',attune:'resonance',requires:{instrumentation:13},inputs:{resonance_fragment:1,sentinel_alloy:4,mire_fibre:2},target:'tuned_emitter',output:{item:'longpoint_emitter'}},
+  survey_strider_link:{name:'Assemble Survey Strider Link',discipline:'Engineering',site:'brine_engineering',cls:'surveyor',attune:'resonance',requires:{instrumentation:13},inputs:{sentinel_alloy:4,mire_fibre:2,resonance_fragment:1},output:{item:'survey_strider_link'}},
   coupler:{name:'Assemble kinetic coupler',discipline:'Engineering',requires:{kinetics:13},inputs:{sentinel_alloy:2,mire_fibre:1},output:{material:'kinetic_coupler',count:1}},
+  field_maintenance_kit:{name:'Assemble field maintenance kits',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{goods:'field_maintenance_kit',count:2}},
   matrix:{name:'Grow culture matrix',discipline:'Research',requires:{biotech:13},inputs:{mire_fibre:2,sentinel_alloy:1},output:{material:'culture_matrix',count:1}},
   calibrate_servo:{name:'Calibrate servo harness',discipline:'Engineering',kind:'upgrade',requires:{kinetics:11},inputs:{kinetic_coupler:1,sentinel_alloy:1},target:'servo_harness',output:{item:'calibrated_servo'}},
   cultivate_focus:{name:'Cultivate Sporeglass focus',discipline:'Research',kind:'upgrade',requires:{biotech:11},inputs:{culture_matrix:1,mire_fibre:1},target:'sporeglass_focus',output:{item:'cultured_focus'}},
   restore_servo:{name:'Remove servo calibration',discipline:'Engineering',kind:'restore',inputs:{},target:'calibrated_servo',output:{item:'servo_harness'}},
   restore_focus:{name:'Remove focus culture',discipline:'Research',kind:'restore',inputs:{},target:'cultured_focus',output:{item:'sporeglass_focus'}},
   resonance_buffer:{name:'Assemble resonance buffer',discipline:'Engineering',attune:'resonance',inputs:{resonance_fragment:1,sentinel_alloy:2,mire_fibre:2},output:{item:'resonance_buffer'}},
+  bloom_relay:{name:'Fuse Bloom Relay',discipline:'Research',site:'brine_research',cls:'symbiotech',kind:'fusion',attune:'resonance',requires:{biotech:13},inputs:{culture_matrix:1,resonance_fragment:1},targets:['conductive_membrane','sinter_laminate'],output:{item:'bloom_relay'}},
   aegis_rectifier:{name:'Fuse Aegis Rectifier',discipline:'Engineering',site:'brine_engineering',cls:'vanguard',kind:'fusion',attune:'resonance',requires:{kinetics:13},inputs:{kinetic_coupler:1},targets:['field_vector_array','conductive_membrane'],output:{item:'aegis_rectifier'}},
 };
 
@@ -66,6 +73,12 @@ export function previewRecipe(char,id){
   }
   for(const target of targets)inventory.splice(inventory.indexOf(target),1);
   if(output.item)inventory.push(output.item);
+  if(output.goods){
+    const goods=sanitizeGoods(char.goods),count=(goods[output.goods]||0)+output.count;
+    if(count>GOODS_CAP)return fail('Utility storage is full for '+GOODS[output.goods].name+'.');
+    goods[output.goods]=count;
+    return {ok:true,inventory,materials,goods};
+  }
   return {ok:true,inventory,materials};
 }
 

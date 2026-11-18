@@ -7,6 +7,7 @@
 // handed to a bone and follows it rigidly.
 
 import * as THREE from '/vendor/three/three.module.js';
+import { buildUtilityPouch } from './utility-pouch.js';
 
 const std = (o) => new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0, ...o });
 const glow = (color) => new THREE.MeshBasicMaterial({ color });
@@ -103,8 +104,7 @@ function cultureTank(ctx) {
   // Reservoirs, frame and feed lines: gear-recipes.js (conductorCulture).
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 6, 14), casing);
   ctx.attach('neck_01', place(collar, 0, 1.5, 0.0, Math.PI / 2 - 0.25));
-  const satchel = new THREE.Mesh(box(0.09, 0.12, 0.05), std({ color: 0x2a4a44, roughness: 0.9 }));
-  ctx.attach('pelvis', place(satchel, 0.19, 0.93, 0.0));
+  ctx.attach('pelvis', place(buildUtilityPouch(THREE,'conductor'), 0.19, 0.93, 0.0));
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), teal);
   ctx.attach('pelvis', place(lamp, 0.24, 0.95, 0.01));
   // A small industrial lower-face respirator breaks up the exposed
@@ -134,21 +134,19 @@ function archivistKit(ctx) {
 function surveyRig(ctx) {
   const steel = std({ color: 0x687779, metalness: 0.65, roughness: 0.55 });
   const rubber = std({ color: 0x252a2a, roughness: 0.94 });
-  const ochre = std({ color: 0x9b713d, roughness: 0.72 });
   const glass = std({ color: 0x2a4549, metalness: 0.55, roughness: 0.24 });
   const status = glow(0xe1bc6b);
   // Cartridges, power cell, mast and supply line: gear-recipes.js (surveyorField).
   ctx.attach('Head', place(new THREE.Mesh(box(0.133, 0.039, 0.028), rubber), 0, 1.698, 0.117));
   ctx.attach('Head', place(new THREE.Mesh(box(0.117, 0.022, 0.009), glass), 0, 1.70, 0.135));
   ctx.attach('Head', place(new THREE.Mesh(box(0.014, 0.008, 0.006), status), -0.045, 1.70, 0.141));
-  ctx.attach('pelvis', place(new THREE.Mesh(box(0.10, 0.15, 0.06), ochre), 0.185, 0.94, -0.02));
+  ctx.attach('pelvis', place(buildUtilityPouch(THREE,'surveyor'), 0.185, 0.94, -0.02));
 }
 
 /** A forearm projector and offset reserve cell, not a physical shield. */
 function aegisArray(ctx) {
   const alloy = std({ color: 0x697f83, metalness: 0.65, roughness: 0.5 });
   const ceramic = std({ color: 0x31383b, metalness: 0.25, roughness: 0.82 });
-  const insulator = std({ color: 0xa28b61, roughness: 0.8 });
   const status = glow(0x89cfe1);
   const attach = (bone, geo, mat, ...at) => ctx.attach(bone, place(new THREE.Mesh(geo, mat), ...at));
   // Dorsal resonance apparatus: gear-recipes.js (keeperResonance).
@@ -161,7 +159,7 @@ function aegisArray(ctx) {
   ctx.attach('lowerarm_l', emitter);
   attach('Head', box(0.054, 0.028, 0.021), alloy, -0.043, 1.7, 0.125);
   attach('Head', box(0.032, 0.009, 0.008), status, -0.043, 1.7, 0.139);
-  attach('pelvis', box(0.09, 0.12, 0.055), insulator, -0.18, 0.94, -0.02);
+  ctx.attach('pelvis',place(buildUtilityPouch(THREE,'keeper'),-0.18,0.94,-0.02));
 }
 
 // --- looks -------------------------------------------------------------------
@@ -263,8 +261,14 @@ export const LOOK_DEFS = {
   },
 };
 
+// Reuse the existing humanoid/rig; distinct utilitarian service colours.
+LOOK_DEFS.quartermaster={
+ ...LOOK_DEFS.archivist,body:'humanoid_m',scale:1.02,
+ shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x6c6a53,roughness:.9,map:'look_coat_panels'},upperarms:{color:0x4b5149,roughness:.85},forearms:{color:0x333d3d,roughness:.85},hood:{color:0x4b5149,roughness:.85}},
+ accent:0xc5ae73,gear:[],
+};
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist' };
+export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;

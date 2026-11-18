@@ -1,13 +1,16 @@
 // Build planning never changes equipped state. Workshop commits only a
 // recipe ID; the authoritative server revalidates skill, materials and location.
-import { ITEMS, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { itemArt } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
+import { GOODS } from '../../shared/goods.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
-const recipeOutput=r=>r.output.item?ITEMS[r.output.item]:MATERIALS[r.output.material];
+const outputId=r=>r.output.item||r.output.material||r.output.goods;
+const recipeOutput=r=>r.output.item?ITEMS[r.output.item]:r.output.goods?GOODS[r.output.goods]:MATERIALS[r.output.material];
 const visual=(id,name,sub,met)=>{
   const card=h('div','fabrication-visual');card.append(itemArt(id));
   const copy=h('div','fabrication-copy');copy.append(h('strong',null,name));
@@ -74,6 +77,8 @@ function planner(ui,body){
   compare('Charge generation',s.stats.chargeMul,stats.chargeMul,pct);
   compare('Extra Discharge radius',s.stats.dischargeRadius,stats.dischargeRadius,n=>n+'m');
   compare('Aegis capacity',s.stats.shieldMul,stats.shieldMul,pct);
+  compare('Weapon auto-attack bonus',weaponBonus(s),weaponBonus(hypothetical),n=>n.toFixed(1));
+  compare('Auto-attack reach',weaponReach(s),weaponReach(hypothetical),n=>Number(n.toFixed(2))+'m');
   right.append(score);
   right.append(h('p',res.ok?(owned.ok?'met':'muted'):'why',!res.ok?'Requirements not met: '+res.reason:!owned.ok?'The proposed build is mechanically compatible, but one or more items are not owned.':'Requirements met with current ownership.'));
   if(!res.ok)right.append(h('p','muted','Statistics above are hypothetical; the build cannot be equipped as shown.'));
@@ -90,7 +95,7 @@ function fabrication(ui,body){
   list.setAttribute('aria-label','Fabrication recipes');
   for(const [key,r] of entries){
     const b=btn(r.name,()=>{ui.recipeId=key;renderWorkshop(ui);},'recipe-entry'+(key===id?' active':''));
-    b.dataset.recipe=key;const copy=h('div','recipe-entry-copy');copy.append(h('strong',null,r.name),h('small',null,r.discipline));b.replaceChildren(itemArt(r.output.item||r.output.material),copy);list.append(b);
+    b.dataset.recipe=key;const copy=h('div','recipe-entry-copy');copy.append(h('strong',null,r.name),h('small',null,r.discipline));b.replaceChildren(itemArt(outputId(r)),copy);list.append(b);
   }
   const detail=h('section','workshop-section recipe-detail');
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
@@ -112,8 +117,10 @@ function fabrication(ui,body){
   if(!targets.length)target.append(h('p','muted','New assembly'));
   parts.append(source,target);
   const result=h('div','recipe-result');
-  result.append(h('div','kicker','Result'),visual(recipe.output.item||recipe.output.material,output.name+(recipe.output.count?' × '+recipe.output.count:''),output.summary||output.desc));
+  result.append(h('div','kicker','Result'),visual(outputId(recipe),output.name+(recipe.output.count?' × '+recipe.output.count:''),output.summary||output.desc));
   detail.append(parts,result,h('h3',null,'Requirements'));
+  if(recipe.cls)detail.append(row('Profession',CLASSES[recipe.cls].name,s.cls===recipe.cls));
+  if(recipe.kind==='fusion')detail.append(h('p','why','Permanent fusion: all listed equipment and materials are consumed. This cannot be reversed.'));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
   const site=ui.workshopSite??(ui.atSanctum?'sanctum':null),siteOk=canFabricateAt(recipe,site);
@@ -122,7 +129,7 @@ function fabrication(ui,body){
   const preview=previewRecipe(s,id);
   const reason=ui.buildLock?'Unavailable during combat or defeat.':!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'';
   if(reason)detail.append(h('p','why',reason));
-  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id),'primary');
+  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,recipe.output.goods?s.utilityRev:undefined),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
   body.append(list,detail);

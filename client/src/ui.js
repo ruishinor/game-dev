@@ -4,7 +4,9 @@
 
 import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NEXT, MAX_LEVEL, SKILL_NAMES, ATTUNEMENT_NAMES, SLOTS, SLOT_NAMES, ENEMIES } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
+import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
@@ -12,6 +14,11 @@ import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
+import { QuestJournal } from './quest-journal-ui.js';
+import { QuestTracker } from './quest-tracker-ui.js';
+import { VendorPanel } from './vendor-ui.js';
+import { enemyTargetStatus } from './target-status.js';
+import { npcProfile } from './npc-interaction.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -19,6 +26,7 @@ const ICONS = {
   hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
   resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
   lattice_relay:svg('<path d="m12 3 9 9-9 9-9-9zM3 12h18M12 3v18"/><circle cx="12" cy="12" r="3"/>'),
+  phase_transposition:svg('<path d="M2 8l5-3 5 3v4c0 4-5 7-5 7s-5-3-5-7zM14 5h6m-3-3 3 3-3 3M14 14l4-2 4 2v3c0 3-4 5-4 5s-4-2-4-5z"/>'),
   fault_scan: svg('<circle cx="12" cy="12" r="8"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M12 12l5-4"/>'),
   core_bore: svg('<path d="M3 20 18 5m-5 0h5v5M5 14l5 5M9 10l5 5"/>'),
   field_rig: svg('<rect x="8" y="3" width="8" height="10" rx="1"/><path d="M12 13v8M8 13l-5 8m13-8 5 8M10 6h4m-4 3h4"/>'),
@@ -60,7 +68,7 @@ const GLYPH_NOTES = {
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
@@ -224,6 +232,11 @@ export class UI {
     this.npcPanel.hidden=true;
     this.npcPanel.setAttribute('role','dialog');
     this.npcPanel.setAttribute('aria-label','NPC interaction');
+    this.npcPanel.setAttribute('aria-modal','false');
+    this.npcPanel.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.closeNpc();}
+      else if(['Tab','Enter',' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.stopPropagation();
+    });
     root.append(this.npcPanel);
     this.fieldRecordPanel=h('aside','field-record');this.fieldRecordPanel.hidden=true;
     this.fieldRecordPanel.setAttribute('aria-label','Field record');root.append(this.fieldRecordPanel);
@@ -266,7 +279,8 @@ export class UI {
     this.brineWorkshop.hidden=true;
     this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
     this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
-    side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
+    this.questTracker=new QuestTracker(this);
+    side.append(this.minimap, this.zoneLabel, this.questTracker.el);
     root.append(side);
 
     this.errors = h('div', 'errors');
@@ -274,7 +288,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
-    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
+    this.radio=new RadioPanel(root,{tracker:this.questTracker.el,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -404,9 +418,11 @@ export class UI {
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
     this.codexBtn = h('button', 'menubtn', 'Codex [J]');
     this.codexBtn.addEventListener('click', () => this.toggleCodex());
+    this.questJournalBtn=h('button','menubtn','Journal [L]');
+    this.questJournalBtn.addEventListener('click',()=>this.toggleQuestJournal());
     this.workshopBtn=h('button','menubtn','Build [B]');
     this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
-    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.questJournalBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -415,6 +431,8 @@ export class UI {
     this.tooltip.hidden = true;
     root.append(this.tooltip);
     this.loot=new LootPanel(this);
+    this.questJournal=new QuestJournal(this);
+    this.vendor=new VendorPanel(this);
 
 
     // Build panel
@@ -511,6 +529,11 @@ export class UI {
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
+    // First-use guidance is browser-local; completing it suppresses automatic reopening.
+    this.workshopTutorialSeen=false;
+    try{this.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}
+    this.workshopLesson=0;
+    this.workshopTutorialOpen=!this.workshopTutorialSeen;
     this.atSanctum=false;
 
     this.partyPanel = h('div', 'panel party-panel');
@@ -585,14 +608,16 @@ export class UI {
       ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
-      ['1 – 4', 'Abilities'],
-      ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
+      ['1 – 9', 'Available abilities'],
+      ['Shift + 1 – 5', 'Companion commands (depend on active companion)'],
       ['F', 'Interact with nearby equipment, NPC or lootable remains'],
+      ['Shift + F', 'Inspect loot manually even when auto-loot is enabled'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
       ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
+      ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
       ['M', 'Open the corner menu'],
@@ -624,9 +649,9 @@ export class UI {
   }
 
   /** Build the class-specific action bars once the class is known. */
-  setClass(cls) {
-    if (this.cls === cls) return;
-    this.cls = cls;
+  setClass(cls,companionType=CLASSES[cls].companion) {
+    if (this.cls === cls&&this.companionType===companionType) return;
+    this.cls = cls;this.companionType=companionType;
     const def = CLASSES[cls];
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
@@ -638,9 +663,10 @@ export class UI {
       return { id, ...b };
     });
     this.petButtons = [];
-    if (def.companion) {
-      const cdef = COMPANIONS[def.companion];
+    if (companionType) {
+      const cdef = COMPANIONS[companionType];
       PET_KEYS.forEach((mode, i) => {
+        if(!Object.hasOwn(cdef.modes,mode))return;
         const b = this.slotButton(ICONS[mode], `⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
         b.el.addEventListener('click', () => this.a.pet(mode));
@@ -649,8 +675,8 @@ export class UI {
         this.petButtons.push({ mode, ...b });
       });
     }
-    set(this.pet, 'hidden', !def.companion);
-    this.petBar.hidden = !def.companion;
+    set(this.pet, 'hidden', !companionType);
+    this.petBar.hidden = !companionType;
     this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
   }
@@ -699,11 +725,15 @@ export class UI {
     const out = [h('div', 'tip-title', ab.name), h('div', 'tip-meta', bits.join(' · ')), h('div', 'tip-body', ab.desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.ability === id) out.push(h('div', 'tip-glyph', note.text));
+    if (id==='overgrowth_surge' && this.sheet?.equipped.device===BLOOM_RELAY.device) {
+      out[2]=h('div','tip-body','Bloom Relay: the restorative bloom originates around you instead of the Mender, healing allies within '+BLOOM_RELAY.radius+'m. The Mender is still required.');
+    }
     return out;
   }
 
   petTip(mode) {
-    const cdef = COMPANIONS[CLASSES[this.cls].companion];
+    const cdef = COMPANIONS[this.companionType];
+    if(!cdef?.modes[mode])return [];
     const out = [h('div', 'tip-title', `${cdef.name}: ${cdef.modes[mode].name}`), h('div', 'tip-body', cdef.modes[mode].desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.pet === mode) out.push(h('div', 'tip-glyph', note.text));
@@ -761,11 +791,13 @@ export class UI {
   }
 
   hideJournalPanels() {
+    this.questJournal.dismiss();
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
-    this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    this.panel.hidden = this.codexPanel.hidden = this.workshopPanel.hidden = true;
+    this.closeNpc();
     this.loot.dismiss();
+    this.vendor.dismiss();
     this.fieldRecordPanel.hidden=true;
-    this.npcId=0;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
     this.menuItems.hidden = this.tooltip.hidden = true;
@@ -778,7 +810,6 @@ export class UI {
     this.hideJournalPanels();
     this.panel.hidden = !open;
     if (open) {
-      this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
   }
@@ -810,6 +841,13 @@ export class UI {
     this.root.classList.toggle('inventory-open',open);
     this.root.classList.toggle('inventory-front',open);
     if (open) renderInventory(this);
+  }
+
+  toggleQuestJournal(force) {
+    const open=force??this.questJournal.el.hidden;
+    if(!open){this.questJournal.dismiss();return;}
+    this.hideJournalPanels();
+    this.questJournal.show(this.sheet,this.questTrial);
   }
 
   toggleCodex(force, id = null) {
@@ -991,6 +1029,13 @@ export class UI {
     this.playerContext.querySelector('button')?.focus({preventScroll:true});
   }
 
+  acknowledgeItem(id) {
+    if(!this.unseenItems.delete(id))return false;
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
+    return true;
+  }
+
   itemAction(id,action) {
     const s=this.sheet;
     if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return this.error('Item is unavailable.');
@@ -1040,31 +1085,62 @@ export class UI {
     panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
   }
 
+  closeNpc() {
+    const focused=this.npcPanel.contains(document.activeElement);
+    this.npcId=0;
+    this.npcPanel.hidden=true;
+    if(focused)this.a.focusView();
+  }
+
+  syncNpc() {
+    if(this.npcId&&this.a.npcAccess(this.npcId))this.closeNpc();
+  }
+
   openNpc(ent) {
-    if(ent?.meta.c!=='archivist'||ent.meta.k!=='o')return;
+    const profile=npcProfile(ent);
+    if(!profile)return false;
+    const reason=this.a.npcAccess(ent.id);
+    if(reason){this.error(reason);return false;}
+    if(this.npcId===ent.id&&!this.npcPanel.hidden)return true;
     this.hideJournalPanels();
+    this.a.target(0);
     this.npcId=ent.id;
     const panel=this.npcPanel;
     panel.replaceChildren();
     const close=h('button','close','×');
-    close.setAttribute('aria-label','Close NPC interaction');
-    close.addEventListener('click',()=>{panel.hidden=true;this.npcId=0;});
-    const content=h('div','npc-content');
-    const art=this.a.portrait(ent.meta);
-    if(art){const img=h('img','npc-portrait');img.src=art;img.alt=ent.meta.n;content.append(img);}
-    const details=h('div','npc-options');
-    this.npcDialogue=h('p','npc-dialogue','Archivist of the Lattice Sanctum. Speak to Venn for guidance.');
-    const talk=h('button','primary','Talk');
-    talk.addEventListener('click',()=>{if(this.liveEntities?.has(ent.id))this.a.interact(ent.id);else this.error('NPC is unavailable.');});
-    const info=h('button',null,'Info · Codex');
-    info.addEventListener('click',()=>this.toggleCodex(true,'archivist'));
-    const workshop=h('button',null,'Workshop');workshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
-    details.append(h('h2',null,ent.meta.n),h('div','muted','Archivist · Lattice Sanctum'),this.npcDialogue,talk,info,workshop);
-    content.append(details);panel.append(close,content);panel.hidden=false;
+    close.type='button';close.setAttribute('aria-label','Close NPC interaction');
+    close.addEventListener('click',()=>this.closeNpc());
+    const identity=h('div','npc-identity');
+    const art=this.a.portrait(ent.meta,'bust');
+    if(art){const img=h('img','npc-portrait');img.src=art;img.alt='';identity.append(img);}
+    else {const fallback=h('span','npc-portrait-fallback',ent.meta.n.slice(0,1));fallback.setAttribute('aria-hidden','true');identity.append(fallback);}
+    const name=h('div','npc-name');
+    name.append(h('h2',null,ent.meta.n),h('div','muted',profile.role));identity.append(name);
+    this.npcDialogue=h('p','npc-dialogue',profile.intro);
+    this.npcDialogue.setAttribute('aria-live','polite');
+    const speak=()=>{const why=this.a.npcAccess(ent.id);if(why){this.closeNpc();this.error(why);return;}this.a.interact(ent.id);};
+    const actions=h('div','npc-actions');
+    for(const service of profile.services){
+      const btn=h('button',service==='talk'?'primary':null,service==='talk'?'Talk':service==='codex'?'Info · Codex':'Workshop');
+      btn.type='button';
+      btn.addEventListener('click',()=>{
+        if(service==='talk'){speak();return;}
+        const why=this.a.npcAccess(ent.id);if(why){this.closeNpc();this.error(why);return;}
+        if(service==='codex')this.toggleCodex(true,ent.meta.c);
+        if(service==='workshop'){this.workshopTab='fabrication';this.toggleWorkshop(true);}
+      });
+      actions.append(btn);
+    }
+    panel.append(close,identity,this.npcDialogue,actions);panel.hidden=false;
+    actions.querySelector('button')?.focus({preventScroll:true});
+    speak();
+    return true;
   }
 
   showNpcDialogue(id,message) {
-    if(id===this.npcId&&!this.npcPanel.hidden)this.npcDialogue.textContent=message;
+    if(id!==this.npcId||this.npcPanel.hidden||typeof message!=='string')return false;
+    this.npcDialogue.textContent=message;
+    return true;
   }
 
   openCompanionDetails(ent, kind) {
@@ -1091,11 +1167,13 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
-    this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
+    const any = !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.questJournal.dismiss();
+    this.codexPanel.hidden = this.workshopPanel.hidden = true;
+    this.closeNpc();
     this.loot.dismiss();
+    this.vendor.dismiss();
     this.fieldRecordPanel.hidden=true;
-    this.npcId=0;
     this.root.classList.toggle('inventory-front',!this.inventoryPanel.hidden);
     this.closePlayerContext();
     this.menuItems.hidden = true;
@@ -1116,7 +1194,9 @@ export class UI {
       for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
     }else this.unseenItems.clear();
     this.sheet = sheet;
-    this.setClass(sheet.cls);
+    this.questTracker.sync(sheet,this.questTrial);
+    this.questJournal.sync(sheet,this.questTrial);
+    this.setClass(sheet.cls,sheet.companion??CLASSES[sheet.cls].companion);
     this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
@@ -1142,7 +1222,7 @@ export class UI {
 
     // Mark abilities and commands the equipped glyph alters.
     const note = GLYPH_NOTES[sheet.equipped.glyph];
-    for (const b of this.abilityButtons) b.pip.hidden = !(note && note.ability === b.id);
+    for (const b of this.abilityButtons) b.pip.hidden = !((note && note.ability === b.id) || (b.id==='overgrowth_surge' && sheet.equipped.device===BLOOM_RELAY.device));
     for (const b of this.petButtons) b.pip.hidden = !(note && note.pet === b.mode);
   }
 
@@ -1228,8 +1308,10 @@ export class UI {
     set(this.moveStatus, 'hidden', !st.movement);
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
-    this.loot.sync(you.lootable,you.loot);
     const def = CLASSES[this.sheet.cls];
+    this.questTrial=you.brineTrial??null;
+    this.questTracker.sync(this.sheet,this.questTrial);
+    if(!this.questJournal.el.hidden)this.questJournal.sync(this.sheet,this.questTrial);
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
@@ -1265,23 +1347,24 @@ export class UI {
     set(this.target.el, 'hidden', !target);
     if (target) {
       const enemy = target.meta.k === 'e';
-      const neutral = enemy && target.meta.neu && !(target.row.f & 8);
-      const hostile = enemy && !neutral;
-      set(this.target.el, 'cls', `frame target ${hostile ? 'hostile' : neutral ? 'neutral' : 'friendly'}`);
+      const status = enemy ? enemyTargetStatus(target.meta,target.row,target.dead) : null;
+      set(this.target.el, 'cls', `frame target ${status?.tone ?? 'friendly'}`);
       this.target.el.tabIndex = target.meta.k==='p'&&target.id!==me.id?0:-1;
       set(this.target.name, 'text', target.meta.n);
       const lvl = target.meta.l ? `Level ${target.meta.l}` : '';
       const companion = target.meta.k === 'c';
       const owner = companion ? st.ents.get(target.meta.o) : null;
-      const kind = neutral ? 'Neutral · retaliates if attacked' : hostile ? (target.meta.el ? 'Elite' : 'Hostile') : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
-      set(this.target.sub, 'text', [lvl, kind].filter(Boolean).join(' · '));
+      const kind = status ? status.label : companion ? `Companion · ${owner ? owner.meta.n : 'Owner unknown'}` : target.meta.k === 'p' ? CLASSES[target.meta.c].name : '';
+      const form=target.meta.form&&!target.dead&&!(target.row.f&1)?
+        [target.meta.form,target.row.mineral?'calcified':null,target.row.scar?'scarred':null].filter(Boolean).join(' / '):'';
+      set(this.target.sub, 'text', [lvl, kind, form].filter(Boolean).join(' · '));
       set(this.target.details, 'hidden', true);
       const hasHp = target.row.m !== undefined;
       set(this.target.hp.wrap, 'hidden', !hasHp);
       if (hasHp) this.frameBars(this.target, target.row.h, target.row.m);
       set(this.target.res.wrap, 'hidden', true);
       this.buffChips(this.target.buffs, target.row.b || []);
-      const cast = target.cast && st.now < target.cast.end ? target.cast : null;
+      const cast = !target.dead && !(target.row.f & 1) && target.cast && st.now < target.cast.end ? target.cast : null;
       set(this.target.cast.wrap, 'hidden', !cast);
       if (cast) {
         set(this.target.cast.fill, 'width', `${Math.min(100, ((st.now - cast.start) / (cast.end - cast.start)) * 100)}%`);
@@ -1300,7 +1383,7 @@ export class UI {
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;
-      const cdef = COMPANIONS[def.companion];
+      const cdef = COMPANIONS[st.comp.meta.c];
       set(this.petName, 'text', st.comp.meta.n);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
@@ -1315,12 +1398,15 @@ export class UI {
     const autoTarget = target?.meta.k === 'e' && !target.dead;
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
-    const reach = def.auto.range;
+    const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
+    const reach=Number(effectiveReach.toFixed(2));
+    const autoTitle=`${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    if(this.autoButton.title!==autoTitle)this.autoButton.title=autoTitle;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     set(this.autoButton, 'text', `[R] Auto-attack ${engaging ? 'ON' : 'OFF'}`);
     set(this.autoControl, 'cls', `auto-control${engaging ? ' engaged' : ''}`);
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > reach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     set(this.autoStatus, 'text', autoText);
 
     // Action bar
@@ -1340,11 +1426,13 @@ export class UI {
         if (b.id === 'controlled_blast' && (kit.rigMs <= 0 || kit.rigDistance > SURVEYOR.remoteRange)) usable = false;
       }
       if(b.id==='resonant_reversal' && !(you.keeperShield>0))usable=false;
+      if(b.id==='phase_transposition' && (!(you.keeperShield>0)||!this.sheet?.attunements?.includes('resonance')||!target||target.meta.k!=='p'||target.id===me.id||target.dead||target.row.b?.includes('shield')))usable=false;
       let ranged = true;
       if (ab.type === 'hostile') {
         if (!target || target.meta.k !== 'e' || target.dead) usable = false;
         else if (st.dist(target) > ab.range || obstructed) ranged = false;
       } else if (ab.type === 'friendly' && target && target.meta.k === 'p' && target.id !== me.id && st.dist(target) > ab.range) ranged = false;
+      if(b.id==='phase_transposition' && obstructed)ranged=false;
       b.el.classList.toggle('unusable', !usable);
       b.el.classList.toggle('far', usable && !ranged);
     }
@@ -1389,7 +1477,7 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
@@ -1415,15 +1503,21 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
-      if(ent.meta.k==='o'&&ent.meta.c==='archivist'){
+      if(ent.meta.k==='o'&&ent.meta.c==='quartermaster'){
+        const interact=e=>{e.preventDefault();e.stopPropagation();this.a.interact(ent.id);};
+        el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');el.dataset.npc='quartermaster';
+        el.addEventListener('click',interact);el.addEventListener('contextmenu',interact);
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')interact(e);});
+      }
+      if(npcProfile(ent)){
         el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');
         el.addEventListener('click',()=>this.openNpc(this.liveEntities?.get(ent.id)));
         el.addEventListener('contextmenu',e=>{e.preventDefault();this.openNpc(this.liveEntities?.get(ent.id));});
         el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.openNpc(this.liveEntities?.get(ent.id));}});
-        el.dataset.npc='archivist';
+        el.dataset.npc=ent.meta.c;
       }
       if(ent.meta.k==='e'){
-        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id,e.shiftKey===true);};
         el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
       }
       if(ent.meta.k==='p'){
@@ -1449,7 +1543,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();this.loot.reset();
+    this.radio.clear();this.loot.reset();this.vendor.reset();this.questJournal.reset();this.questTracker.reset();this.questTrial=null;
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.

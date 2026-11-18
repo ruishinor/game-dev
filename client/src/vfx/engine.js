@@ -15,6 +15,8 @@ export const MAX_ITEMS = 40;
 export const CAPACITY = { add: 1800, alpha: 420 };
 export const MAX_AREAS = 16;
 export const MAX_AURAS = 48;
+export const MAX_TIMELINES = 24;
+export const shieldEnvelope = (height = 1.9) => Math.max(1.7, height * 1.12);
 const STRIDE = 30;
 const TAU = Math.PI * 2;
 
@@ -96,24 +98,31 @@ void main(){
   float n = texture2D(sigil, rot(p, spinB) + 0.5).g;
   float w = texture2D(sigil, p + 0.5).b;
   float vis = 1.0 - smoothstep(prog - 0.06, prog, r);
-  float front = exp(-pow((r - prog) * 14.0, 2.0)) * hot;
+  float edgeDistance = (r - prog) * 14.0;
+  float front = exp(-edgeDistance * edgeDistance) * hot;
   float line = max(o, n);
   float a = clamp(line * 0.95 + w * 0.3 + front * 0.8, 0.0, 1.0) * vis * alpha;
   vec3 c = mix(color, vec3(1.0), clamp(line * hot * 0.45 + front * 0.5, 0.0, 1.0));
   gl_FragColor = vec4(c, a);
 }`;
 const SHOCK_FS = `
-uniform sampler2D noise; uniform vec3 color; uniform float alpha, prog, width, t;
+uniform sampler2D noise; uniform vec3 color; uniform float alpha, prog, width, t, filaments;
 varying vec2 vUv;
 void main(){
   vec2 p = vUv - 0.5; float r = length(p) * 2.0;
   if (r > 1.0) discard;
-  float d = (r - prog) / width;
+  float angle = atan(p.y, p.x + 0.00001);
+  float n = texture2D(noise, vec2(angle / 6.2831853 * 3.0, r * 0.6 - t * 0.35)).r;
+  float offset = filaments * (sin(angle * 11.0) * 0.009 + (n - 0.5) * 0.017);
+  float d = (r - prog - offset) / width;
   float ring = exp(-d * d * 3.0);
   float inside = (1.0 - smoothstep(prog - width * 2.5, prog, r)) * step(r, prog) * 0.18;
-  float n = texture2D(noise, vec2(atan(p.y, p.x) / 6.2831853 * 3.0, r * 0.6 - t * 0.35)).r;
-  float a = (ring * (0.45 + n) + inside * n) * alpha;
-  gl_FragColor = vec4(mix(color, vec3(1.0), ring * ring * 0.55), clamp(a, 0.0, 1.0));
+  float crest = exp(-d * d * 27.0);
+  float echo = exp(-pow(abs(d + 1.1 + 0.25 * sin(angle * 13.0)), 2.0) * 14.0);
+  float segment = smoothstep(0.42, 0.68, n + sin(angle * 17.0) * 0.16);
+  float layered = ring * 0.32 + crest * (0.28 + segment * 0.45) + echo * segment * 0.42;
+  float a = (mix(ring * (0.45 + n), layered, filaments) + inside * n) * alpha;
+  gl_FragColor = vec4(mix(color, vec3(1.0), mix(ring * ring * 0.55, crest * 0.75, filaments)), clamp(a, 0.0, 1.0));
 }`;
 const SCORCH_FS = `
 uniform sampler2D crack; uniform vec3 color; uniform float alpha, heat;
@@ -191,10 +200,26 @@ void main(){
   float a = k * k * (edge * 1.1 + 0.18) * (0.55 + 0.7 * n) * alpha;
   gl_FragColor = vec4(mix(color, vec3(1.0), edge * k * 0.8), clamp(a, 0.0, 1.0));
 }`;
-const SHELL_VS = `varying vec3 vN; varying vec3 vV; varying vec2 vUv; void main(){ vUv = uv; vec4 q = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = -q.xyz; gl_Position = projectionMatrix * q; }`;
+const SHELL_VS = `
+varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+#ifdef IMPACT_RIPPLE
+varying vec3 vLocal;
+#endif
+void main(){
+  vUv = uv;
+  #ifdef IMPACT_RIPPLE
+  vLocal = position;
+  #endif
+  vec4 q = modelViewMatrix * vec4(position, 1.0);
+  vN = normalize(normalMatrix * normal); vV = -q.xyz; gl_Position = projectionMatrix * q;
+}`;
 const SHELL_FS = `
 uniform sampler2D noise; uniform vec3 color; uniform float alpha, t, hex, flow, vfade, streak;
 varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+#ifdef IMPACT_RIPPLE
+uniform vec3 impactDirection; uniform float ripple;
+varying vec3 vLocal;
+#endif
 float hexDistance(vec2 p){ p = abs(p); return max(dot(p, vec2(0.8660254, 0.5)), p.y); }
 void main(){
   float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);
@@ -203,9 +228,21 @@ void main(){
   vec2 a1 = mod(hp, period) - period * 0.5; vec2 b1 = mod(hp - period * 0.5, period) - period * 0.5;
   vec2 hh = dot(a1, a1) < dot(b1, b1) ? a1 : b1;
   float cell = 1.0 - smoothstep(0.02, 0.07, abs(hexDistance(hh.yx) - 0.5));
+  #ifdef IMPACT_RIPPLE
+  float distanceToHit = 1.0 - dot(normalize(vLocal), impactDirection);
+  float d = (distanceToHit - ripple) / 0.055;
+  float leading = exp(-d * d * 2.4);
+  float echo = exp(-(d + 2.15) * (d + 2.15) * 2.0) * 0.4;
+  float cells = cell * (1.0 - smoothstep(0.04, 0.16, abs(distanceToHit - ripple)));
+  float contact = exp(-distanceToHit * 29.0) * (1.0 - smoothstep(0.01, 0.16, ripple));
+  float intensity = (leading * 0.54 + echo * 0.35 + cells * 0.31 + contact * 0.42) * alpha;
+  if (intensity < 0.004) discard;
+  gl_FragColor = vec4(mix(color, vec3(0.86, 0.96, 1.0), clamp(leading + contact, 0.0, 0.71)), intensity);
+  #else
   float v = mix(1.0, 1.0 - vUv.y, vfade);
   float a = (f * 0.95 + pow(n, 3.0) * streak * 0.6 + cell * hex * (0.2 + 0.6 * n)) * v * alpha;
   gl_FragColor = vec4(mix(color, vec3(1.0), f * f * 0.45), clamp(a, 0.0, 1.0));
+  #endif
 }`;
 
 // --- engine ---------------------------------------------------------------------
@@ -400,6 +437,7 @@ export function createVfx(THREE, scene, options = {}) {
     }
     pool.live = w;
     pool.geo.instanceCount = w;
+    if (!w) return;
     for (const a of Object.values(pool.a)) {
       a.clearUpdateRanges?.();
       a.addUpdateRange?.(0, w * a.itemSize);
@@ -408,7 +446,7 @@ export function createVfx(THREE, scene, options = {}) {
   }
 
   // Shader meshes -------------------------------------------------------------------
-  const items = [];
+  const items = new Set();
   const shared = {
     sphere: new THREE.SphereGeometry(1, 32, 16),
     dome: new THREE.SphereGeometry(1, 32, 12, 0, TAU, 0, Math.PI / 2),
@@ -434,14 +472,17 @@ export function createVfx(THREE, scene, options = {}) {
     mesh.frustumCulled = false;
     mesh.renderOrder = 4;
     root.add(mesh);
-    while (items.length >= MAX_ITEMS) retire(items.shift());
-    const it = { mesh, life, age: 0, tick, ownGeometry };
-    items.push(it);
-    tick(0, 0, it);
+    const it = queueItem({ mesh, life, age: 0, tick, ownGeometry });
+    try { tick(0, 0, it); } catch { retire(it); return null; }
+    return it;
+  }
+  function queueItem(it) {
+    if (items.size >= MAX_ITEMS) retire(items.values().next().value);
+    items.add(it);
     return it;
   }
   function retire(it) {
-    if (!it) return;
+    if (!items.delete(it)) return;
     stats.retired++;
     if (it.light) it.light.intensity = 0;
     if (!it.mesh) return;
@@ -497,12 +538,12 @@ export function createVfx(THREE, scene, options = {}) {
     if (disposed || quality <= 0) return null;
     const c = point(o.at);
     if (!c || !finitePos(o.radius, 60)) return null;
-    const u = { noise: { value: T.noise }, color: { value: col(o.color ?? 0xffffff) }, alpha: { value: 0 }, prog: { value: 0 }, width: { value: o.width ?? 0.06 }, t: { value: 0 } };
+    const u = { noise: { value: T.noise }, color: { value: col(o.color ?? 0xffffff) }, alpha: { value: 0 }, prog: { value: 0 }, width: { value: o.width ?? 0.06 }, t: { value: 0 }, filaments: { value: o.filaments ? 1 : 0 } };
     const life = o.life ?? 0.55;
     return track(decalMesh(c, o.radius * 1.08, material(DECAL_VS, SHOCK_FS, u), o.lift ?? 0.09), life, (k, t) => {
       const e = 1 - Math.pow(1 - k, 2.6);
       u.prog.value = (0.05 + e * 0.88);
-      u.t.value = t;
+      u.t.value = o.filaments && reduced ? 0 : t;
       u.alpha.value = (o.alpha ?? 1) * (1 - k);
     }, true);
   }
@@ -614,8 +655,14 @@ export function createVfx(THREE, scene, options = {}) {
     if (!c0 || !finitePos(o.radius, 60)) return null;
     const kind = o.kind || 'sphere';
     const geo = kind === 'dome' ? shared.dome : kind === 'sphere' ? shared.sphere : shared.tube;
+    const impact = (kind === 'sphere' || kind === 'dome') && point(o.impactDirection);
     const u = { noise: { value: T.noise }, color: { value: col(o.color ?? 0xffffff) }, alpha: { value: 0 }, t: { value: 0 }, hex: { value: o.hex ?? 0 }, flow: { value: reduced ? 0 : o.flow ?? 0.6 }, vfade: { value: kind === 'wall' || kind === 'pillar' ? 1 : 0 }, streak: { value: o.streak ?? 0.6 } };
-    const m = new THREE.Mesh(geo, material(SHELL_VS, SHELL_FS, u));
+    if (impact) {
+      u.impactDirection = { value: v3(impact).normalize() };
+      u.ripple = { value: 0 };
+    }
+    const m = new THREE.Mesh(geo, material(SHELL_VS, SHELL_FS, u, THREE.AdditiveBlending,
+      impact ? { defines: { IMPACT_RIPPLE: 1 }, side: THREE.FrontSide } : {}));
     const life = o.life ?? 0.8;
     const from = o.from ?? (kind === 'pillar' ? 1 : 0.35);
     const to = o.to ?? 1;
@@ -628,6 +675,7 @@ export function createVfx(THREE, scene, options = {}) {
       if (kind === 'wall' || kind === 'pillar') m.scale.set(r, h * (kind === 'wall' ? 1 - 0.5 * k : 0.6 + 0.4 * e), r);
       else m.scale.setScalar(r);
       u.t.value = t;
+      if (impact) u.ripple.value = reduced ? 0.08 : (1 - (1 - k) ** 2) * 0.42;
       u.alpha.value = (o.alpha ?? 0.8) * Math.min(1, k / 0.06) * (k > (o.holdUntil ?? 0.35) ? 1 - (k - (o.holdUntil ?? 0.35)) / (1 - (o.holdUntil ?? 0.35)) : 1);
     });
   }
@@ -745,18 +793,16 @@ export function createVfx(THREE, scene, options = {}) {
     if (disposed || !lights.length || quality < 2) return null;
     const c = point(o.at);
     if (!c) return null;
-    const free = (s) => !s.it || s.it.done || s.it.age >= s.it.life;
+    const free = (s) => !items.has(s.it);
     const slot = lights.find(free) || lights.reduce((a, b) => (a.it.age > b.it.age ? a : b));
-    if (slot.it) slot.it.done = true;
+    retire(slot.it);
     const L = slot.l;
     L.position.set(...c);
     L.color.setHex(o.color ?? 0xffffff);
     L.distance = o.distance ?? 7;
     const I = (o.intensity ?? 12) * (reduced ? 0.5 : 1);
     const it = { mesh: null, light: L, life: o.life ?? 0.3, age: 0, tick: (k) => { L.intensity = I * Math.pow(1 - k, 2); } };
-    slot.it = it;
-    while (items.length >= MAX_ITEMS) retire(items.shift());
-    items.push(it);
+    slot.it = queueItem(it);
     return it;
   }
 
@@ -764,17 +810,48 @@ export function createVfx(THREE, scene, options = {}) {
   function emitter(o) {
     if (disposed || quality <= 0 || typeof o.tick !== 'function') return null;
     const it = { mesh: null, life: Math.max(0.02, o.life ?? 0.5), age: 0, tick: o.tick };
-    while (items.length >= MAX_ITEMS) retire(items.shift());
-    items.push(it);
-    return it;
+    return queueItem(it);
+  }
+
+  // Timelines schedule discrete layers on the presentation clock. Canceling a
+  // timeline stops pending stages; emitted layers keep their own fade/lifetime.
+  const timelines = new Set();
+  function play(stages, context) {
+    if (disposed || quality <= 0 || timelines.size >= MAX_TIMELINES || !Array.isArray(stages)
+      || !stages.length || stages.length > 12) return null;
+    let last = 0;
+    for (const stage of stages) {
+      if (!stage || !Number.isFinite(stage.at) || stage.at < last || stage.at > 8 || typeof stage.emit !== 'function') return null;
+      last = stage.at;
+    }
+    const sequence = { age: 0, next: 0, stages: stages.map(({ at, emit }) => ({ at, emit })), context };
+    timelines.add(sequence);
+    advance(sequence, 0);
+    return { get alive() { return timelines.has(sequence); }, cancel() { timelines.delete(sequence); } };
+  }
+
+  function advance(sequence, dt) {
+    sequence.age += dt;
+    const { stages, context } = sequence;
+    while (timelines.has(sequence) && sequence.next < stages.length && stages[sequence.next].at <= sequence.age + 1e-8) {
+      const stage = stages[sequence.next++];
+      try {
+        stage.emit(context);
+      } catch {
+        timelines.delete(sequence);
+        stats.retired++;
+      }
+    }
+    if (sequence.next === stages.length) timelines.delete(sequence);
   }
 
   function update(dt) {
     if (disposed) return;
     if (!Number.isFinite(dt) || dt < 0) dt = 0;
     dt = Math.min(dt, 0.1);
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
+    // Emitters can create layers and evict the oldest item while ticking.
+    for (const it of [...items]) {
+      if (!items.has(it)) continue;
       it.age += dt;
       const k = Math.min(1, it.age / it.life);
       if (!it.done) {
@@ -784,20 +861,18 @@ export function createVfx(THREE, scene, options = {}) {
           it.done = true;
         }
       }
-      if (k >= 1 || it.done) {
-        retire(it);
-        items.splice(i--, 1);
-      }
+      if (k >= 1 || it.done) retire(it);
     }
     for (const a of areas) a.tick(dt);
     for (const a of auras) a.tick(dt);
     stepPool(pools.add, dt);
     stepPool(pools.alpha, dt);
+    if (timelines.size) for (const sequence of [...timelines]) advance(sequence, dt);
   }
 
   function clear() {
+    timelines.clear();
     for (const it of items) retire(it);
-    items.length = 0;
     for (const p of Object.values(pools)) {
       p.live = 0;
       p.geo.instanceCount = 0;
@@ -806,7 +881,7 @@ export function createVfx(THREE, scene, options = {}) {
 
   function setQuality(q) {
     quality = q;
-    if (q < 2) for (const s of lights) s.l.intensity = 0;
+    if (q < 2) for (const s of lights) retire(s.it);
     if (q <= 0) {
       clear();
       for (const a of [...areas]) a.dispose();
@@ -832,13 +907,13 @@ export function createVfx(THREE, scene, options = {}) {
   }
 
   return {
-    root, burst, sigil, area, aura, shock, scorch, telegraph, beam, arc, shell, flash, emitter, update, clear, dispose, setQuality,
+    root, burst, sigil, area, aura, shock, scorch, telegraph, beam, arc, shell, flash, emitter, play, update, clear, dispose, setQuality,
     rand,
     get quality() { return quality; },
     get reducedMotion() { return reduced; },
     set reducedMotion(v) { reduced = !!v; },
     stats() {
-      return { ...stats, areas: areas.size, auras: auras.size, items: items.length, particles: pools.add.live + pools.alpha.live, lights: lights.length };
+      return { ...stats, areas: areas.size, auras: auras.size, timelines: timelines.size, items: items.size, particles: pools.add.live + pools.alpha.live, lights: lights.length };
     },
   };
 }

@@ -5,9 +5,16 @@
 import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
+import { sanitizeGoods } from '../../shared/goods.js';
+import { sanitizeCredits } from './wallet.js';
+import { sanitizeCondition } from '../../shared/condition.js';
+import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
+import { createRift,tickRift,riftRow } from './rift.js';
+import {fieldQuestProjection} from './field-quests.js';
+import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial } from './progress.js';
@@ -53,12 +60,14 @@ export class Game {
         radius: def.radius,
         home: { x: s.x, z: s.z },
         route: s.route ?? null,
+        form: s.form ?? null,
         metaVer: 1,
       };
       resetEnemy(this, e);
       this.enemies.push(e);
       this.ents.set(e.id, e);
     }
+    this.rift=createRift(this);
   }
 
   // --- players -----------------------------------------------------------
@@ -100,6 +109,8 @@ export class Game {
       followId: 0,
       followAcc: 0,
       lootTarget:null,
+      vendor:null,
+      utilityRev:0,
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
@@ -136,6 +147,7 @@ export class Game {
       this.companions.push(c);
       this.ents.set(c.id, c);
     }
+    syncSurveyStrider(this,p);
     checkDirective(this, p);
     return p;
   }
@@ -178,6 +190,7 @@ export class Game {
     p.stats = deriveStats(p.char);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
+    syncSurveyStrider(this,p);
   }
 
   message(p, kind, text) {
@@ -270,7 +283,8 @@ export class Game {
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    if (p.companion) {
+    if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
+    else if (p.companion) {
       p.companion.x = p.x + 1.5;
       p.companion.z = p.z - 1.5;
     }
@@ -291,6 +305,8 @@ export class Game {
       tickPlayerCombat(this, p, dt);
       tickBrineTrial(this,p);
       tickLoot(this,p);
+      tickVendor(this,p);
+      if(!p.companion&&!p.dead&&wantsSurveyStrider(p)&&this.time>=(p.striderDeployAt??0))syncSurveyStrider(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -299,6 +315,7 @@ export class Game {
         }
       }
     }
+    tickRift(this);
     for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
   }
@@ -335,12 +352,13 @@ export class Game {
         f: (e.state === 'dead' ? 1 : 0) | (e.state === 'evade' ? 2 : 0) | (e.cast ? 4 : 0) | (e.state === 'combat' ? 8 : 0),
         t: e.target,
         b: e.buffs.map((b) => b.k),
+        ...(e.form ? { ec: e.ecologyMode, grown: e.grown ? 1 : 0, ...(e.calcified?{mineral:1}:{}), ...(e.scarred?{scar:1}:{}) } : e.type==='faultstalker' ? {ec:e.ecologyMode} : {}),
       });
     }
     for (const c of this.companions) {
       rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host });
     }
-    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z });
+    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o) });
     return rows;
   }
 
@@ -349,7 +367,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}) };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
@@ -367,7 +385,9 @@ export class Game {
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       ack: p.lastSeq,
+      comp:p.companion?.id??0,
       ...lootState(this,p),
+      vendor:vendorState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,
       x: p.x,
@@ -404,22 +424,28 @@ export class Game {
     return {
       name: c.name,
       cls: c.cls,
+      companion:p.companion?.type??null,
       look: c.look,
       level: c.level,
       xp: c.xp,
       inventory: [...c.inventory],
       materials: sanitizeMaterials(c.materials),
+      goods: sanitizeGoods(c.goods),
+      utilityRev:p.utilityRev,
+      credits: sanitizeCredits(c.credits),
+      condition:sanitizeCondition(c.condition,c.inventory),
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      ...fieldQuestProjection(c),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,
     };
   }
 
-  endTick() {
+  endTick({preservePrivate=false}={}) {
     this.events = [];
-    for (const p of this.players.values()) p.outbox = [];
+    if(!preservePrivate)for (const p of this.players.values()) p.outbox = [];
   }
 }

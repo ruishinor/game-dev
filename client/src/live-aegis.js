@@ -1,6 +1,7 @@
 // Snapshot-driven Aegis presentation. Only the server grants/removes shields.
 import { createArtEffect } from './artfx/common.js';
 import { aegisSampler } from './artfx/aegis.js';
+import { shieldEnvelope } from './vfx/engine.js';
 export function shieldVisible(row) {
   return !!row && !(row.f & 1) && Array.isArray(row.b) && row.b.includes('shield');
 }
@@ -19,7 +20,7 @@ export class LiveAegis {
     if (!active) return;
     if (!field) {
       // Visual envelope, not attack range. Stay inside the sampler's opaque time window.
-      const radius = Math.max(1.7, ent.model.height * 1.12);
+      const radius = shieldEnvelope(ent.model.height);
       const sample = aegisSampler({ variant: 'base', radius, duration: 120, reducedMotion });
       const effect = createArtEffect(this.THREE, t => sample(t).map(o => ({...o, opacity: o.opacity * 0.62})));
       effect.group.name = 'live-aegis:' + ent.id;

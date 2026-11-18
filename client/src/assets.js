@@ -86,6 +86,13 @@ export class Assets {
           clip.name = name;
           bundle.clips.get(piece).set(name, clip);
         }
+        for (const [pieceName, metadata] of Object.entries(entry.pieces || {})) {
+          if (!bundle.pieces.has(pieceName)) throw new Error(`kit is missing piece "${pieceName}"`);
+          const clips = bundle.clips.get(pieceName);
+          for (const clip of metadata.clips || []) {
+            if (!clips?.has(clip)) throw new Error(`kit piece "${pieceName}" is missing clip "${clip}"`);
+          }
+        }
       } else {
         bundle.pieces.set('', gltf.scene);
         bundle.clips.set('', new Map(gltf.animations.map((c) => [c.name, c])));

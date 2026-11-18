@@ -11,6 +11,7 @@ import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { createGearKit } from './gear-kit.js';
+import { createMenderPrototype } from './mender-prototype.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
@@ -218,6 +219,27 @@ export function makeCreature(assets, type) {
   const extras = [];
   group.updateMatrixWorld(true);
   const body = inst.getObjectByName('Body');
+  if(type==='survey_strider'){
+    // Original mechanical instrumentation on the existing rigged CC0 tripod.
+    const kit=new THREE.Group();kit.name='strider:survey-instruments';kit.position.set(0,2.08,-.25);
+    const housing=new THREE.MeshStandardMaterial({color:0x748779,roughness:.64,metalness:.48});
+    const frame=new THREE.MeshStandardMaterial({color:0x343d42,roughness:.53,metalness:.65});
+    const ferrule=new THREE.MeshStandardMaterial({color:0xa88f60,roughness:.6,metalness:.43});
+    const sensor=new THREE.MeshStandardMaterial({color:0x8bcfc5,emissive:0x246e70,emissiveIntensity:.65,roughness:.32,metalness:.3});
+    const mesh=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;kit.add(m);return m;};
+    mesh(new THREE.BoxGeometry(.78,.16,.42,1,1,1),frame,0,0,0);
+    for(const side of [-1,1]){
+      const pod=mesh(new THREE.CapsuleGeometry(.16,.36,4,12),housing,side*.39,.18,-.02);pod.rotation.z=side*.18;
+      mesh(new THREE.CylinderGeometry(.13,.13,.07,16),ferrule,side*.39,.4,-.02);
+      mesh(new THREE.CylinderGeometry(.085,.085,.025,16),sensor,side*.39,.45,-.02);
+    }
+    mesh(new THREE.CylinderGeometry(.045,.09,.64,12),frame,.08,.35,-.15);
+    const dish=mesh(new THREE.SphereGeometry(.27,24,12,0,Math.PI*2,0,Math.PI*.43),housing,.08,.68,-.12);
+    dish.rotation.x=Math.PI*.24;
+    mesh(new THREE.SphereGeometry(.075,16,10),sensor,.08,.82,-.07);
+    inst.add(kit);kit.updateMatrixWorld(true);if(body)body.attach(kit);
+    extras.push(st=>{sensor.emissiveIntensity=.55+(st.act==='surveying'? .65+.3*Math.sin(st.t*6):.08);});
+  }
   if (spec.sacs && body) {
     const mat = new THREE.MeshBasicMaterial({ color: spec.sacs });
     for (let i = 0; i < 5; i++) {
@@ -425,15 +447,23 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: HB.npcIdle } : {});
-    else if (meta.c === 'mender') model = makeMender(assets);
-    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    if (look) model = makeHumanoid(assets, look, ['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {});
+    else if (meta.c === 'mender') {
+      if (assets.menderPrototype) {
+        try {
+          model = createMenderPrototype(THREE, assets.menderPrototype);
+        } catch (err) {
+          console.warn('[models] Mender preview instance failed:', err.message || err);
+        }
+      }
+      if (!model) model = makeMender(assets);
+    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;
   }
   if (model) return model;
-  const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)();
+  const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)(meta);
   fallback.kind = 'procedural';
   return fallback;
 }

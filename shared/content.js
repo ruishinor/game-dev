@@ -2,7 +2,7 @@
 // Data only. Rules live in shared/build.js (loadouts) and server/sim (combat).
 
 import { ZONES } from './world.js';
-import { GADGET_ITEMS, SENTINEL_GADGET_DROPS } from './gadgets.js';
+import { GADGET_ITEMS } from './gadgets.js';
 
 export const GCD_MS = 1000;
 export const MAX_LEVEL = 5;
@@ -11,8 +11,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph' };
-export const SLOTS = ['device', 'implant', 'glyph'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon'];
 
 export const CLASSES = {
   vanguard: {
@@ -53,7 +53,7 @@ export const CLASSES = {
     baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
     skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
     auto:{range:22,interval:2000,dmg:6,kind:'bolt'},
-    abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay'],companion:null,
+    abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition'],companion:null,
   },
   surveyor: {
     id: 'surveyor', name: 'Brine Surveyor', role: 'Field Engineer / Ranged Control',
@@ -97,6 +97,7 @@ export const ABILITIES = {
   hinge_field:{name:'Hinge Field',type:'friendly',range:20,cd:6000,cost:30,dur:9000,desc:'Project a 40-point damage-absorption barrier onto an ally or yourself for 9 seconds. It is not a solid wall. Cover blocks projection.'},
   resonant_reversal:{name:'Resonant Reversal',type:'hostile',range:22,cd:5000,cost:15,desc:'Consume your own remaining Hinge or Relay barrier. Inflict 12 plus 65% of its remaining capacity as damage.'},
   lattice_relay:{name:'Lattice Relay',type:'self',cd:12000,cost:40,radius:8,dur:8000,desc:'Project 24-point damage-absorption barriers onto yourself and unobstructed allies within 8m for 8s. Does not replace a stronger barrier.'},
+  phase_transposition:{name:'Phase Transposition',type:'friendly',range:18,cd:8000,cost:10,desc:'Requires Resonance attunement. Transfer your own active Hinge or Relay barrier to an unshielded ally within 18m. Remaining capacity and expiry are preserved. Cover blocks transfer.'},
   fault_scan: { name: 'Fault Scan', type: 'hostile', range: 30, cd: 4000, desc: 'Analyze one hostile target for 9s and recover 30 Power Cells. Does not deal damage or engage auto-attack.' },
   core_bore: { name: 'Core Bore', type: 'hostile', range: 24, cd: 2500, cost: 30, dmg: 30, desc: 'Fire a focused boring pulse into your own scanned target. Consumes its scan and 30 Power Cells.' },
   field_rig: { name: 'Field Rig', type: 'self', cd: 16000, desc: 'Deploy a stationary power rig at your feet for 12s. Recover 8 Power Cells per second within 4m. Cannot deploy in the Sanctum.' },
@@ -184,6 +185,14 @@ export const validCompanionName = (name) =>
   typeof name === 'string' && /^[A-Za-z][A-Za-z '-]{1,16}[A-Za-z]$/.test(name) && !/[ '-]{2}/.test(name);
 
 export const COMPANIONS = {
+  survey_strider:{
+    name:'Survey Strider',followDist:2.8,speed:8,leash:28,radius:.9,
+    modes:{
+      assist:{name:'Analyze target',desc:'Approaches your selected hostile target and applies a 6s analysis if you have no active scan. No damage or Power Cells. Cover and tether limit its reach.'},
+      follow:{name:'Follow',desc:'Walks near you along clear ground routes without scanning.'},
+      stay:{name:'Stay',desc:'Holds position; attempts to follow when you leave its tether. Cannot teleport through obstacles.'}
+    }
+  },
   mender: {
     name: 'Mender Symbiote',
     followDist: 2.4,
@@ -208,7 +217,7 @@ export const ENEMIES = {
     level: 1, hp: 85, speed: 3.1, radius: 0.62,
     neutral: true, aggro: 0, social: 0, leash: 19,
     attack: { range: 2.6, interval: 2000, dmg: 7, kind: 'melee' },
-    xp: 0, respawn: 24000, loot: [],
+    xp: 0, respawn: 24000,
   },
   quarantine_custodian: {
     name: 'Quarantine Custodian',
@@ -216,7 +225,7 @@ export const ENEMIES = {
     aggro: 7, social: 0, leash: 17,
     attack: { range: 3.0, interval: 2300, dmg: 12, kind: 'melee' },
     specials: [{ id: 'containment_sweep', name: 'Containment Sweep', cd: 10000, first: 3500, windup: 1900, radius: 4.7, dmg: 32, at: 'self' }],
-    xp: 50, respawn: 38000, loot: [],
+    xp: 50, respawn: 38000,
   },
   faultstalker: {
     name: 'Faultstalker',
@@ -225,7 +234,6 @@ export const ENEMIES = {
     attack: { range: 3.0, interval: 1900, dmg: 10, kind: 'melee' },
     specials: [{ id: 'fault_shear', name: 'Fault Shear', cd: 10500, first: 2800, windup: 1800, radius: 4.1, dmg: 28, at: 'target' }],
     xp: 46, respawn: 31000,
-    loot: [{ item: 'sinter_laminate', chance: 0.45 }],
   },
   skitter: {
     name: 'Mire Skitter',
@@ -239,7 +247,6 @@ export const ENEMIES = {
     attack: { range: 2.4, interval: 1800, dmg: 6, kind: 'melee' },
     xp: 22,
     respawn: 18000,
-    loot: [],
   },
   sentinel: {
     name: 'Rogue Sentinel',
@@ -254,7 +261,6 @@ export const ENEMIES = {
     specials: [{ id: 'arc_pulse', name: 'Arc Pulse', cd: 9000, first: 4000, windup: 1600, radius: 4.5, dmg: 24, at: 'target' }],
     xp: 42,
     respawn: 28000,
-    loot: [{ item: 'adrenal_shunt', chance: 0.35 }, ...SENTINEL_GADGET_DROPS],
   },
   warden: {
     name: 'Vault Warden',
@@ -275,15 +281,20 @@ export const ENEMIES = {
     ],
     xp: 180,
     respawn: 60000,
-    loot: [{ item: 'wardstone_shard', chance: 1 }],
   },
 };
 
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });
 // Routes are independent of combat RNG. Herd members share a circuit
 // with offsets; there is no ambient loot farm.
-const grazerCircuit = [[3,47],[5,52],[4,62],[2,65],[1,58],[2,50]];
-const stalkerCircuit = [[17,58],[19,56],[17,50],[11,48],[10,57],[12,58]];
+// Different life stages have independent forage circuits. Their western and
+// southern stations bring them within calling distance, then separate them.
+const grazerCircuits = {
+  juvenile: [[3,47],[4,53],[1,58],[2,65],[5,66],[6,58],[2,51]],
+  adult: [[-1,47],[1,50],[3,56],[5,63],[7,67],[8,60],[7,51],[3,45]],
+  shieldback: [[7,46],[9,51],[10,58],[7,64],[5,69],[3,61],[0,56],[0,50]],
+};
+const stalkerCircuit = [[17,58],[19,56],[18,51],[15,47],[11,46],[9,49],[10,57],[12,59],[18,60]];
 const patrol = (type, circuit, dx = 0, dz = 0) => ({
   type, x: circuit[0][0] + dx, z: circuit[0][1] + dz,
   route: circuit.map(([x,z]) => ({ x: x + dx, z: z + dz })),
@@ -299,9 +310,9 @@ export const SPAWNS = [
   sp('sentinel', 'relay', 6, 5),
   sp('sentinel', 'relay', 4, -13),
   sp('warden', 'vault', 0, 0),
-  patrol('sinter_grazer', grazerCircuit, -0.85, 0.8),
-  patrol('sinter_grazer', grazerCircuit),
-  patrol('sinter_grazer', grazerCircuit, 0.85, -0.8),
+  { ...patrol('sinter_grazer', grazerCircuits.juvenile), form: 'juvenile' },
+  { ...patrol('sinter_grazer', grazerCircuits.adult), form: 'adult' },
+  { ...patrol('sinter_grazer', grazerCircuits.shieldback), form: 'shieldback' },
   patrol('faultstalker', stalkerCircuit),
   patrol('quarantine_custodian', [[-52,-8],[-54,-5.2],[-57,-5.2],[-57,-10.8],[-54,-10.8]]),
 ];
@@ -309,6 +320,10 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
+  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
+  dense_pulse_core:{name:'Dense Pulse Core',slot:'weapon',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
+  longpoint_emitter:{name:'Longpoint Emitter',slot:'weapon',ql:5,repairable:true,autoBonus:2,autoReachBonus:4,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +2 base auto-attack damage · +4m ranged auto-attack reach at full condition',desc:'An instrument-grade phase lens trades damage for precision at distance. Adds up to 4m reach to ranged auto-attacks only, scaled by condition; melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
   keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
   keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},

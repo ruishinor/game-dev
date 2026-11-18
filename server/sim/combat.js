@@ -5,6 +5,9 @@ import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shar
 import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
+import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import { BLOOM_RELAY } from '../../shared/gadgets.js';
+import { wearEquippedWeapon } from './condition.js';
 
 // --- buffs -----------------------------------------------------------------
 
@@ -136,6 +139,27 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
     if (actor) {
       addThreat(dst, actor.id, Math.max(1, amt) * CLASSES[actor.cls].threatMul);
       actor.combatUntil = game.time + COMBAT_LINGER_MS;
+      // A damaged grazer calls locally. Only the mature shieldback defends;
+      // other unengaged herd members flee. No XP/loot/aggro on observation.
+      if(dst.form && amt>0 && !actor.dead && !inSanctum(actor)){
+        if(dst.callUntil<=game.time){
+          dst.callUntil=game.time+4500;
+          game.events.push({e:'fx',k:'sinter_alarm',s:dst.id});
+        }
+        for(const o of game.enemies){
+          if(o===dst||!o.form||o.state==='dead'||o.state==='evade'||dist(o,dst)>5.5||dist(o,actor)>8)continue;
+          if(o.form==='shieldback'){
+            if(!o.threat.has(actor.id)){
+              addThreat(o,actor.id,1);
+              game.events.push({e:'fx',k:'sinter_guard',s:o.id});
+            }
+          }else if(o.threat.size===0){
+            o.alarmUntil=game.time+4500;
+            o.alarmFrom={x:actor.x,z:actor.z};
+            o.alarmKind='player';
+          }
+        }
+      }
     }
     if (dst.hp <= 0) killEnemy(game, dst);
   } else {
@@ -231,6 +255,7 @@ function killPlayer(game, p) {
   clearThreatFor(game, p.id);
   game.events.push({ e: 'die', id: p.id });
   game.message(p, 'info', 'You have been defeated.');
+  wearEquippedWeapon(game,p);
 }
 
 // --- per-tick player upkeep --------------------------------------------------
@@ -274,9 +299,9 @@ export function tickPlayerCombat(game, p, dt) {
     const t = game.ents.get(p.target);
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
-    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range && hasLineOfSight(p,t)) {
+    } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
-      dealDamage(game, p, t, cdef.auto.dmg, 'auto', { kind: cdef.auto.kind });
+      dealDamage(game, p, t, cdef.auto.dmg+weaponBonus(p.char), 'auto', { kind: cdef.auto.kind });
       gainCharge(p, 5);
     }
   }
@@ -328,6 +353,14 @@ export function useAbility(game, p, abilityId) {
 
   if (p.cls==='keeper') {
     if (abilityId==='hinge_field' && target!==p && !hasLineOfSight(p,target)) return fail('Line of sight blocked.');
+    if (abilityId==='phase_transposition') {
+      if (!p.char.attunements.includes('resonance')) return fail('Requires Resonance attunement.');
+      if (target===p) return fail('Select another living ally.');
+      if (!hasLineOfSight(p,target) || !deepLineClear(p,target)) return fail('Line of sight blocked.');
+      const shield=getBuff(p,'shield'),old=getBuff(target,'shield');
+      if (!shield || shield.src!==p.id || !shield.keeper || !Number.isFinite(shield.v) || !Number.isFinite(shield.cap) || !Number.isFinite(shield.until) || shield.v<=0 || shield.v>shield.cap || shield.until<=game.time) return fail('Project your own active barrier first.');
+      if (old && old.until>game.time && old.v>0) return fail('That ally already has an active barrier.');
+    }
     if (abilityId==='resonant_reversal') {
       const shield=getBuff(p,'shield');
       if (!shield || shield.src!==p.id || !shield.keeper || shield.v<=0 || shield.until<=game.time) return fail('Project your own active barrier first.');
@@ -367,6 +400,12 @@ export function useAbility(game, p, abilityId) {
     case 'lattice_relay':
       for(const ally of game.players.values())if(!ally.dead&&dist(p,ally)<=ab.radius&&hasLineOfSight(p,ally))project(ally,24,ab.dur);
       game.events.push({e:'fx',k:'lattice_relay',s:p.id,r:ab.radius});break;
+    case 'phase_transposition': {
+      const shield=getBuff(p,'shield');
+      p.buffs=p.buffs.filter(b=>b!==shield);
+      addBuff(target,{...shield});
+      game.events.push({e:'shield',s:p.id,d:target.id,a:shield.v});break;
+    }
     case 'fault_scan': {
       p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) };
       p.res = Math.min(cdef.resource.max, p.res + 30);
@@ -478,10 +517,12 @@ export function useAbility(game, p, abilityId) {
       p.autoOn = true;
       break;
     case 'overgrowth_surge': {
-      const c = p.companion;
-      game.events.push({ e: 'fx', k: 'surge', s: c.id, r: ab.radius });
+      const relayed = p.char.equipped.device === BLOOM_RELAY.device;
+      const origin = relayed ? p : p.companion;
+      const radius = relayed ? BLOOM_RELAY.radius : ab.radius;
+      game.events.push({ e: 'fx', k: 'surge', s: origin.id, r: radius });
       for (const ally of game.players.values()) {
-        if (!ally.dead && dist(c, ally) <= ab.radius) applyHeal(game, p, ally, ab.heal, abilityId, c.id);
+        if (!ally.dead && dist(origin, ally) <= radius) applyHeal(game, p, ally, ab.heal, abilityId, origin.id);
       }
       break;
     }

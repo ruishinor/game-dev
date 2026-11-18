@@ -8,7 +8,9 @@ import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
+import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -22,6 +24,8 @@ import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI } from './ui.js';
+import { nearestInteractable } from './interact-target.js';
+import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 
 const INTERP_MS = 110;
@@ -57,6 +61,12 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Original carapace is opt-in until actual visual/motion review; no
+// change to default companion animation or low-spec behavior.
+if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
+  try{const gltf=await assets.loader.loadAsync('/client/art-assets/mender_carapace.glb');assets.menderPrototype=prepareMenderCarapace(THREE,gltf.scene);}
+  catch(err){console.warn('[models] Mender prototype unavailable; retaining live rig:',err.message||err);}
+}
 const useGlb = (meta) => glbOnly === null || (glbOnly !== 'none' && glbOnly.split(',').includes(meta.c));
 // ?glb=none reproduces the original procedural presentation exactly (used for
 // before/after comparisons), so it also skips image-based lighting.
@@ -79,6 +89,7 @@ const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 // Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
 // rendering can photograph them mid-flight; simulation time is untouched.
 const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
+const inspectVfx = new URLSearchParams(location.search).get('vfxcapture') === '1';
 let fxClock = 0;
 // Particle/shader effect engine (quality >= 1). Quality 0 keeps the original
 // lightweight Fx primitives. Flash lights exist only when starting at quality 2.
@@ -104,6 +115,7 @@ try {
 }
 motionPreference.addEventListener?.('change', () => { if (vfx) vfx.reducedMotion = motionPreference.matches; });
 const rich = () => !!cvfx && quality > 0;
+const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
 const cam = new ThirdPersonCamera(camera);
@@ -297,6 +309,8 @@ document.addEventListener('contextmenu', e=>{
 const portraits = makePortraits(assets, useGlb);
 const ui = new UI({
   portrait: portraits,
+  npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
+  focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
   petRename: (name) => net.send({ t: 'pet_rename', name }),
@@ -330,7 +344,10 @@ const ui = new UI({
   lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
   lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
   lootClose:()=>net.send({t:'loot_close'}),
-  craft: recipe=>net.send({t:'craft',recipe}),
+  vendorTrade:quote=>net.send({...quote,t:'vendor_trade'}),
+  vendorClose:()=>net.send({t:'vendor_close'}),
+  craft: (recipe,rev)=>net.send({t:'craft',recipe,rev}),
+  useUtility: (item,weapon,rev)=>net.send({t:'use_utility',item,weapon,rev}),
   equip: (item) => net.send({ t: 'equip', item }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
@@ -607,6 +624,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  recoveryVisuals.remove(ent.id);
   fx.clearRoot(ent.id);
   svfx?.remove(ent.id);
   liveAegis.remove(ent.id);
@@ -625,12 +643,14 @@ function removeEntity(ent) {
 }
 
 function clearWorld() {
+  recoveryVisuals.clear();
   stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
   liveCasts.clear();
   vfx?.clear();
   svfx?.clear();
+  fx.clearFauna();
   ui.clearPlates();
 }
 
@@ -640,6 +660,7 @@ const chestOf = (ent) => () => ent.chest;
 
 function onWelcome(m) {
   clearWorld();
+  ui.questTracker.useCharacter(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
@@ -689,6 +710,7 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
   if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
   while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
@@ -727,6 +749,10 @@ function onSnapshot(m) {
     S.sheet = m.sheet;
     ui.setSheet(m.sheet);
   }
+  // Private loot state must be current before keyboard input, even if rendering lags.
+  ui.loot.sync(y.lootable,y.loot);
+  ui.vendor.sync(y.vendor);
+  ui.syncNpc();
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
@@ -738,10 +764,11 @@ const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'v
 function nameOf(ent) {
   if (!ent) return 'Something';
   if (ent.id === S.myId) return 'You';
-  if (ent.id === S.compId) return 'Your symbiote';
+  if (ent.id === S.compId) return ent.meta.c==='survey_strider'?'Your Strider':'Your symbiote';
   if (ent.meta.k === 'c') {
     const owner = S.ents.get(ent.meta.o);
-    return owner ? `${owner.meta.n}'s symbiote` : 'A symbiote';
+    const kind=ent.meta.c==='survey_strider'?'Strider':'symbiote';
+    return owner ? `${owner.meta.n}'s ${kind}` : `A ${kind}`;
   }
   return ent.meta.n;
 }
@@ -763,7 +790,13 @@ function onEvent(e) {
         ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         if (rich() && d.placed) cvfx.hit(d, s, e);
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
-        else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        else if (!rich() && e.a>0 && !e.sh && d.placed && (d.meta.c==='sinter_grazer'||d.meta.c==='faultstalker')){
+          const dx=(s?.placed?s.pos.x:d.pos.x)-d.pos.x,dz=(s?.placed?s.pos.z:d.pos.z+1)-d.pos.z;
+          const len=Math.hypot(dx,dz),nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          const reach=d.model.radius*.68;
+          fx.faunaImpact([d.chest.x+nx*reach,d.chest.y,d.chest.z+nz*reach],[nx,0,nz],
+            {radius:d.model.radius*.62,reducedMotion:motionPreference.matches||quality===0});
+        }else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -828,6 +861,14 @@ function onEvent(e) {
       if (s.model.trigger) s.model.trigger('ability', e.ab);
       if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
       if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
+      else if (e.ab === 'phase_transposition' && d) {
+        s.castAnim=1;
+        if (!rich()) {
+          fx.beam(chestOf(s),chestOf(d),0x9adfff,650,0.12);
+          fx.ring(s.pos.x,s.pos.z,1.6,0x7fd0ff,550,s.pos.y);
+          fx.ring(d.pos.x,d.pos.z,1.6,0x7fd0ff,750,d.pos.y);
+        }
+      }
       else if (e.ab === 'graviton_tether' && d) fx.beam(chestOf(s), chestOf(d), 0xb48cff, 520, 0.09);
       else if (e.ab === 'fault_scan' && d) {
         if(s.placed&&d.placed){const a=pointOf(s),b=pointOf(d);authored('fault-scan','kinetic',{variant:'survey',center:[a[0],a[1]+1.0,a[2]],direction:toward(a,b),radius:Math.min(12,Math.max(.5,Math.hypot(b[0]-a[0],b[2]-a[2]))),duration:.9});}
@@ -856,13 +897,56 @@ function onEvent(e) {
       // A kind without an engine recipe (or one that could not be placed)
       // keeps its original effect, so new server effects never go invisible.
       if (!handled) fx = legacyFx;
+      // Rich recipes supersede the ecology fallback only when handled.
+      if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+        if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
+          const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
+          fx.ring(e.x,e.z,e.r,colour,850);
+          if(!motionPreference.matches&&quality>0)fx.pillar(e.x,e.z,colour,650);
+        }
+        break;
+      }
       if (e.k === 'survey_blast') {
         fx.ring(e.x, e.z, e.r, 0xf0b56b, 650);
         fx.pillar(e.x, e.z, 0xf0b56b, 450);
         authored('controlled-blast','kinetic',{variant:'impact',center:[e.x,groundHeight(e.x,e.z)+.12,e.z],direction:[0,1,0],radius:e.r,duration:1});
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'fault_shear' || e.k === 'containment_sweep') {
+      if (e.k === 'fault_shear') {
+        fx.ring(e.x,e.z,e.r,0xd18b4b,680);
+        fx.ring(e.x,e.z,e.r*0.72,0xf2d6a0,450);
+        fx.faunaImpact([e.x,groundHeight(e.x,e.z)+.24,e.z],[0,1,0],
+          {variant:'shear',radius:e.r*.9,duration:.7,reducedMotion:motionPreference.matches||quality===0});
+        if(!motionPreference.matches&&quality>0){
+          for(let i=0;i<5;i++){
+            const a=i*Math.PI*2/5;
+            const x=e.x+Math.cos(a)*e.r*0.58,z=e.z+Math.sin(a)*e.r*0.58;
+            fx.burst(new THREE.Vector3(x,groundHeight(x,z)+0.25,z),0xc8a481,3,0.8);
+          }
+        }
+        break;
+      }
+      if(e.k==='sinter_pounce'||e.k==='sinter_repel'){
+        const d=S.ents.get(e.d);
+        if(s&&d&&s.placed&&d.placed){
+          s.attack=1;
+          const dx=d.pos.x-s.pos.x,dz=d.pos.z-s.pos.z,len=Math.hypot(dx,dz);
+          const nx=len>.001?dx/len:0,nz=len>.001?dz/len:1;
+          fx.faunaImpact([s.chest.x+nx*.35,s.chest.y,s.chest.z+nz*.35],[nx,0,nz],
+            {variant:'wild',radius:.5,duration:.45,reducedMotion:motionPreference.matches||quality===0});
+        }
+        break;
+      }
+      if(e.k==='sinter_alarm'||e.k==='sinter_guard'||e.k==='sinter_molt'){
+        if(s&&s.placed){
+          const colour=e.k==='sinter_alarm'?0xcbb67a:e.k==='sinter_guard'?0xd98f52:0x9eae83;
+          fx.ring(s.pos.x,s.pos.z,e.k==='sinter_alarm'?2.3:1.3,colour,680,s.pos.y);
+          if(!motionPreference.matches&&quality>0)fx.burst(s.chest,colour,5,0.65);
+        }
+        break;
+      }
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -897,6 +981,10 @@ function onEvent(e) {
         }
         break;
       }
+      if (e.k === 'field_maintenance') {
+        if(!handled)fx.ring(s.pos.x,s.pos.z,1.15,0xd6b788,650,s.pos.y);
+        break;
+      }
       if (e.k === 'carapace_imprint') {
         fx.ring(s.pos.x, s.pos.z, 1.3, 0x97b6a1, 430, s.pos.y);
         break;
@@ -906,14 +994,18 @@ function onEvent(e) {
       else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6});fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
       else if (e.k === 'discharge') {
         s.castAnim = 1;
-        fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
-        fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
-        fx.burst(s.chest, 0xffb45c, 14, 2.4);
-        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
+        if (!handled) {
+          fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
+          fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
+          fx.burst(s.chest, 0xffb45c, 14, 2.4);
+          if (s.placed) authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
+        }
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
-        fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
-        if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
+        if (!handled) {
+          fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
+        }
       } else if (e.k === 'surge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
@@ -1002,9 +1094,8 @@ function onEvent(e) {
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':
-      ui.showNpcDialogue(e.id,e.m);
+      if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');
-      ui.toast(`${e.n}: “${e.m}”`, 'npc');
       break;
     default:
       break;
@@ -1059,19 +1150,7 @@ function pick(x, y, kinds, allowLoot=false) {
 }
 
 function nearestObject() {
-  const me = S.ents.get(S.myId);
-  if (!me) return null;
-  let best = null;
-  let bestD = INTERACT_RANGE;
-  for (const ent of S.ents.values()) {
-    if(ent.meta.k!=='o'&&!(ent.meta.k==='e'&&ent.dead&&ui.loot.canLoot(ent.id)))continue;
-    const d = Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z);
-    if (d < bestD) {
-      bestD = d;
-      best = ent;
-    }
-  }
-  return best;
+  return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
 function nextEnemy() {
@@ -1104,7 +1183,8 @@ input.onClick = (button, x, y) => {
     if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    } else if(ent?.meta.k==='o'&&ent.meta.c==='quartermaster') {net.send({t:'act',id:ent.id});}
+    else if(npcProfile(ent)) {ui.openNpc(ent);}
     else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {
@@ -1114,8 +1194,8 @@ input.onClick = (button, x, y) => {
     if(ent.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
     if (ent.meta.k === 'o') {
-      if(ent.meta.c==='archivist')ui.openNpc(ent);
-      net.send({ t: 'act', id: ent.id });
+      if(npcProfile(ent))ui.openNpc(ent);
+      else net.send({ t: 'act', id: ent.id });
     }
     else {
       setTarget(ent.id);
@@ -1125,13 +1205,14 @@ input.onClick = (button, x, y) => {
 };
 
 input.onAction = (code, e) => {
-  const digit = /^Digit([1-5])$/.exec(code);
+  const digit = /^Digit([1-9])$/.exec(code);
   if (digit && S.sheet) {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
       const mode = ['triage', 'guard', 'assist', 'follow', 'stay'][i];
-      if (mode && def.companion) net.send({ t: 'pet', c: mode });
+      const pet=S.ents.get(S.compId)?.meta.c;
+      if (mode && (pet==='survey_strider'?['assist','follow','stay'].includes(mode):def.companion)) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
   }
@@ -1177,6 +1258,9 @@ input.onAction = (code, e) => {
     case 'KeyJ':
       ui.toggleCodex();
       break;
+    case 'KeyL':
+      ui.toggleQuestJournal();
+      break;
     case 'KeyP':
       ui.toggleParty();
       break;
@@ -1194,7 +1278,8 @@ input.onAction = (code, e) => {
       break;
     case 'KeyF': {
       const o = nearestObject();
-      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id,e.shiftKey===true);
+      else if(npcProfile(o))ui.openNpc(o);
       else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
@@ -1410,6 +1495,11 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
+      reducedMotion: motionPreference.matches || quality===0,
+      ecology: row?.ec,
+      riftPhase:row?.rf,riftWarning:row?.rw??0,
+      grown: !!row?.grown,
+      mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
       charge: ent.id === S.myId && S.you ? S.you.res / 100 : 0,
       self: ent.id === S.myId,
@@ -1419,17 +1509,25 @@ function updateEntities(dt, t, now) {
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
   }
+  recoveryVisuals.sync(S.ents,S.you?.lootable,me?.pos,vfx,quality,motionPreference.matches);
 }
 
 function updatePlates(now) {
   const me = S.ents.get(S.myId);
-  for (const ent of S.ents.values()) {
+  // Only suppress overlapping calm wildlife labels, never active enemies,
+  // allies, objects or the currently selected target. Stable priority.
+  const occupied=[];
+  const entries=[...S.ents.values()].sort((a,b)=>{
+    const priority=e=>e.id===S.target?0:e.meta.neu&&!(e.row?.f&8)&&!e.dead?2:1;
+    return priority(a)-priority(b)||a.id-b.id;
+  });
+  for (const ent of entries) {
     if (ent.id === S.myId) continue;
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
     const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
-    const screen = hide ? null : toScreen(ent.head);
+    let screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
     let label = ent.meta.n;
@@ -1439,16 +1537,23 @@ function updatePlates(now) {
       cls = ent.dead ? (lootable?'corpse lootable':'corpse') : ent.meta.el ? 'enemy elite' : calm ? 'enemy neutral' : 'enemy';
       label = ent.dead ? `${ent.meta.n} · ${lootable?"Loot":"remains"}` : `${ent.meta.n}${ent.meta.el ? " ◆" : ""}`;
       if (!ent.dead && row.f & 2) label += ' (retreating)';
-      else if (!ent.dead && calm) label += ' · neutral';
+      else if (!ent.dead && calm) label += ent.meta.form ? ' · '+(row.grown?'matured ': '')+ent.meta.form+(ent.id===S.target?' · neutral':'') : ' · neutral';
     } else if (k === 'c') cls = 'comp';
     else if (k === 'o') cls = 'object';
+    if(screen){
+      const half=Math.max(36,label.length*3.9);
+      const rect={l:screen.x-half,r:screen.x+half,t:screen.y-30,b:screen.y};
+      const calm=ent.meta.neu&&!(row.f&8)&&!ent.dead;
+      if(calm&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
+      if(screen)occupied.push(rect);
+    }
     ui.placePlate(ent, screen, {
       cls,
       label,
       lootable,
       selected: k === 'c' ? ent.id === S.inspect?.id : ent.id === S.target,
       owned: k === 'c' && ent.meta.o === S.myId,
-      hp: (k === 'e' || k === 'p') && row.m ? Math.max(0, row.h / row.m) : 0,
+      hp: (k === 'e' || k === 'p') && row.m && (!ent.meta.neu || row.f&8 || ent.id===S.target) ? Math.max(0, row.h / row.m) : 0,
     });
   }
 }
@@ -1512,6 +1617,13 @@ if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
 const drawGap = Number(params.get('rfps')) > 0 ? 1000 / Number(params.get('rfps')) - 2 : 0;
 let lastDraw = -1e9;
 
+function advanceEffects(dt) {
+  fxClock += dt * 1000;
+  fx.update(dt);
+  liveCasts.update(fxClock);
+  vfx?.update(dt);
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
@@ -1550,10 +1662,7 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
-  fxClock += dt * 1000 * vfxTime;
-  fx.update(dt * vfxTime);
-  liveCasts.update(fxClock);
-  vfx?.update(dt * vfxTime);
+  if (!inspectVfx || !S.paused) advanceEffects(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;
@@ -1641,7 +1750,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },
@@ -1657,6 +1766,15 @@ window.__attune = {
   },
   /** Renderer internals, for profiling from automated checks. */
   gfx: { scene, renderer, camera },
+  ...(inspectVfx && { effects: {
+    stats: () => vfx?.stats(),
+    step(seconds) {
+      if (!S.paused || !Number.isFinite(seconds) || seconds < 0 || seconds > 3) return;
+      const count = Math.ceil(seconds * 60);
+      for (let i = 0; i < count; i++) advanceEffects(seconds / count);
+      renderer.render(scene, camera);
+    },
+  } }),
   /** Pose the camera (and the character's facing) for repeatable screenshots. Presentation only. */
   view({ yaw, pitch, dist, face } = {}) {
     if (yaw !== undefined) cam.yaw = yaw;

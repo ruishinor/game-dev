@@ -4,6 +4,9 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
+import { buildSurveyTerminal } from './survey-terminal.js';
+import { buildRift,buildRiftControl } from './rift-visual.js';
+import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 
 const std = (color, o = {}) =>
   new THREE.MeshStandardMaterial({
@@ -539,58 +542,148 @@ export function makeObelisk() {
   };
 }
 
-// Low sealed field instrument; distinct housing silhouettes for the two evidence sources.
-function makeSurveyTerminal(ledger) {
-  const group = new THREE.Group();
-  const dark = std(0x303c3c, { rough: 0.78, metal: 0.45 });
-  const paint = std(ledger ? 0x98805a : 0x536f70, { rough: 0.68, metal: 0.25 });
-  const steel = std(0x737c7a, { rough: 0.48, metal: 0.65 });
-  const display = std(ledger ? 0xd5b37b : 0x8bc7bc, { emissive: ledger ? 0x886124 : 0x416e65, ei: 0.6 });
-  group.add(part(BOX, dark, 1.4, 0.18, 1.0, 0, 0.09, 0));
-  group.add(part(BOX, paint, 1.12, 0.98, 0.8, 0, 0.65, 0));
-  group.add(part(BOX, steel, 1.23, 0.15, 0.9, 0, 1.15, 0));
-  for (const side of [-1, 1]) {
-    group.add(part(BOX, dark, 0.11, 0.9, 0.88, side * 0.55, 0.66, 0));
-    for (let i = 0; i < 3; i++) group.add(part(BOX, steel, 0.18, 0.035, 0.025, side * 0.36, 0.55 + i * 0.12, 0.42));
-  }
-  group.add(part(BOX, dark, 0.85, 0.055, 0.55, 0, 1.24, 0));
-  group.add(part(BOX, display, 0.69, 0.02, 0.37, 0, 1.28, 0));
-  if (!ledger) {
-    group.add(part(CYL, steel, 0.17, 0.62, 0.17, -0.43, 1.55, -0.3));
-    group.add(part(SPH, dark, 0.24, 0.15, 0.24, -0.43, 1.88, -0.3));
-  } else {
-    group.add(part(BOX, dark, 0.9, 0.24, 0.12, 0, 1.41, -0.36));
-  }
-  return { group, height: ledger ? 1.65 : 2.0, radius: 0.8, hover: 0, update() {} };
-}
+// The evidence instruments are presentation-only, independently disposable models.
+const makeSurveyTerminal = ledger => buildSurveyTerminal(THREE, ledger);
 
+// Small shared deterministic surface texture: sediment veins and pores,
+// sampled through each carapace plate's UVs. No external downloads,
+// randomness, extra materials per entity, or per-frame texture generation.
+let sinterTexture;
+function mineralTexture(){
+  if(sinterTexture)return sinterTexture;
+  const n=64,data=new Uint8Array(n*n*4);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const i=(y*n+x)*4;
+    const band=Math.sin(y*0.61+Math.sin(x*0.35)*1.8);
+    const grain=Math.sin(x*19.27+y*73.13)*43758.54;
+    const noise=grain-Math.floor(grain);
+    const value=Math.round(196+band*19+(noise-0.5)*44);
+    data[i]=value;data[i+1]=value;data[i+2]=value;data[i+3]=255;
+  }
+  sinterTexture=new THREE.DataTexture(data,n,n,THREE.RGBAFormat);
+  sinterTexture.colorSpace=THREE.SRGBColorSpace;
+  sinterTexture.wrapS=sinterTexture.wrapT=THREE.RepeatWrapping;
+  sinterTexture.magFilter=THREE.LinearFilter;
+  sinterTexture.minFilter=THREE.LinearMipmapLinearFilter;
+  sinterTexture.generateMipmaps=true;
+  sinterTexture.needsUpdate=true;
+  sinterTexture.name='sinter:mineral-strata';
+  return sinterTexture;
+}
+// Continuous tapered, closed mineral scute, shared across all fauna.
+const SHELL_GEO=new THREE.SphereGeometry(1,16,10);
+{
+ const p=SHELL_GEO.attributes.position;
+ for(let i=0;i<p.count;i++){
+  const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+  const width=.85+.15*(1-z)*.5;
+  p.setXYZ(i,x*width,y>=0?Math.pow(y,.75):y*.30,z);
+ }
+ SHELL_GEO.computeVertexNormals();
+ SHELL_GEO.computeBoundingSphere();
+}
+function limbBetween(geo,material,a,b,width,depth=width){
+ const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);
+ const m=part(geo,material,width,d.length()*.58,depth);
+ m.position.copy(av).add(bv).multiplyScalar(.5);
+ m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+ return m;
+}
 // Different body plans, shared primitive geometry; per-instance materials.
-function makeSinterFauna(predator) {
+function makeSinterFauna(predator, form = 'adult') {
   const group = new THREE.Group(), rig = new THREE.Group();
   group.name = predator ? 'fauna:faultstalker' : 'fauna:sinter-grazer';
   group.add(rig);
-  const shell = std(predator ? 0x756c5e : 0xb4a48a, { rough: 0.92 });
-  const dark = std(predator ? 0x343b37 : 0x5a6457, { rough: 0.75 });
-  const facet = std(predator ? 0x9c7959 : 0xd0c1a4, { rough: 0.68, metal: 0.14 });
+  const juvenile=!predator&&form==='juvenile', shieldback=!predator&&form==='shieldback';
+  const shell = std(predator ? 0x675343 : juvenile ? 0x968662 : shieldback ? 0x625c48 : 0xab9a79, { rough: 0.86 });
+  const dark = std(predator ? 0x282e2a : 0x414b3f, { rough: 0.91 });
+  const facet = std(predator ? 0xb18a59 : juvenile ? 0xbeb485 : shieldback ? 0x938164 : 0xc9b792, { rough: 0.60, metal: 0.14 });
+  const membrane = std(predator ? 0x7c4f3d : 0x666d4c,{rough:0.74,metal:0.02});
+  const edge = std(predator ? 0xc1a47d : 0xb9aa85,{rough:0.55,metal:0.08});
   const sensory = std(predator ? 0x9c582d : 0x777959, { rough: 0.45 });
+  shell.map=facet.map=mineralTexture();
+  shell.bumpMap=facet.bumpMap=mineralTexture();
+  shell.bumpScale=.045;facet.bumpScale=.025;
+  shell.flatShading=facet.flatShading=membrane.flatShading=dark.flatShading=false;
   const y = predator ? 1.12 : 0.61;
   const torso = pivot(0, y, 0);
+  rig.name=predator?'fauna:stalker-rig':'fauna:grazer-'+form;
   rig.add(torso);
-  torso.add(part(SPH, dark, predator ? 0.45 : 0.49, predator ? 0.43 : 0.29, 0.76));
-  for (let i = 0; i < 5; i++) {
-    const plate = part(ICO, i % 2 ? facet : shell, predator ? 0.44 : 0.5, predator ? 0.25 : 0.19, 0.28, 0, 0.22 + 0.035 * (i % 2), -0.55 + i * 0.27);
-    plate.rotation.z = (i % 2 ? 1 : -1) * 0.14;
+  torso.add(part(SPH, dark, predator ? 0.38 : 0.43, predator ? 0.36 : 0.27, 0.78));
+  torso.add(part(SPH,membrane,predator?.31:.36,predator?.22:.16,.69,0,-.16,-.04));
+  // Overlapping scutes follow a continuous tapered ribcage.
+  for(let i=0;i<5;i++){
+    const taper=[.68,.92,1,.91,.72][i];
+    const plate=part(SHELL_GEO,i%2?facet:shell,(predator?.43:.49)*taper,(predator?.26:.23)*taper,.30,0,.18+(1-taper)*.025,-.55+i*.27);
+    plate.rotation.x=.10-i*.035;
     torso.add(plate);
+  }
+  for(const side of [-1,1]){
+    for(let i=0;i<4;i++){
+      const z=-.46+i*.28;
+      const rib=part(SHELL_GEO,shell,.17,.16,.21,side*(predator?.32:.40),.01,z);
+      rib.rotation.z=side*.64;torso.add(rib);
+    }
+  }
+  const molt = new THREE.Group();
+  molt.name='fauna:mineral-growth';
+  molt.visible=false;torso.add(molt);
+  const deposits=new THREE.Group(),scars=new THREE.Group();
+  deposits.name='fauna:calcified';scars.name='fauna:scar';
+  deposits.visible=scars.visible=false;torso.add(deposits,scars);
+  if(!predator){
+    for(let i=0;i<4;i++){
+      const z=-.48+i*.24;
+      for(const side of [-1,1]){
+        const rib=part(SHELL_GEO,edge,.08,.17,.21,side*.33,.30,z);
+        rib.rotation.z=-side*.38;deposits.add(rib);
+      }
+    }
+    for(let i=0;i<3;i++){
+      const scar=part(SPH,membrane,.028,.028,.19,.27,.35-i*.025,-.15+i*.075);
+      scar.rotation.y=.58;scars.add(scar);
+    }
+  }
+  // Layered carapace seams, flexible lateral gills and newly deposited
+  // mineral ridges; not a rescaled rock on legs.
+  for(let i=0;i<5;i++)for(const side of [-1,1]){
+    const z=-0.55+i*0.25;
+    const gill=part(SPH,membrane,0.09,0.12,0.15,side*(predator?0.40:0.46),-0.04,z);
+    gill.rotation.z=side*0.30;torso.add(gill);
+    const lip=part(SPH,edge,0.075,0.04,0.22,side*0.32,0.35,z);
+    lip.rotation.y=side*0.18;torso.add(lip);
+    if(!predator){
+      const ridge=part(ICO,edge,0.11,shieldback?0.21:0.12,0.15,side*0.35,0.38,z);
+      ridge.rotation.z=-side*0.23;molt.add(ridge);
+    }
+  }
+  if(shieldback)for(const side of [-1,1]){
+    const shoulder=part(ICO,shell,0.23,0.33,0.46,side*0.43,0.15,0.32);
+    shoulder.rotation.z=-side*0.28;torso.add(shoulder);
+  }
+  if(predator){
+    const tail=pivot(0,-0.03,-0.66);
+    tail.add(part(SPH,dark,0.13,0.13,0.35,0,0,-0.20),part(ICO,facet,0.10,0.12,0.28,0,-0.02,-0.56));
+    torso.add(tail);
   }
   const head = pivot(0, predator ? 0.03 : -0.13, 0.66);
   torso.add(head);
-  head.add(part(ICO, shell, predator ? 0.3 : 0.37, predator ? 0.32 : 0.18, 0.36, 0, 0, 0.15));
+  torso.add(part(SPH,membrane,predator?.24:.30,predator?.24:.16,.31,0,-.06,.57));
+  head.add(part(SHELL_GEO,shell,predator?.29:.35,predator?.32:.18,.40,0,.03,.15));
+  head.add(part(SPH,dark,predator?.22:.27,.125,.27,0,-.10,.31));
+  const jawRig=pivot(0,-.07,.18);
+  head.add(jawRig);
+  jawRig.add(part(SPH,membrane,predator?.20:.25,.09,.27,0,-.05,.20));
   for (const side of [-1, 1]) {
     head.add(part(SPH, sensory, 0.055, 0.055, 0.056, side * 0.23, 0.06, 0.26));
     const jaw = part(CONE, dark, 0.10, predator ? 0.52 : 0.26, 0.12, side * 0.17, -0.08, 0.36);
     jaw.rotation.x = Math.PI / 2.7;
-    head.add(jaw);
-    if (!predator) for (let i = 0; i < 3; i++) {
+    jaw.position.y+=.07;jaw.position.z-=.18;jawRig.add(jaw);
+    if(predator){
+      const fang=part(CONE,edge,0.064,0.29,0.06,side*0.12,-0.19,0.51);
+      fang.rotation.z=Math.PI;head.add(fang);
+    }
+    if (!predator) for (let i = 0; i < (juvenile?2:4); i++) {
       const rib = part(BOX, dark, 0.025, 0.13, 0.18, side * 0.34, -0.04, i * 0.12);
       rib.rotation.z = side * 0.32;
       head.add(rib);
@@ -600,36 +693,61 @@ function makeSinterFauna(predator) {
   for (let i = 0; i < (predator ? 2 : 3); i++) for (const side of [-1, 1]) {
     const length = predator ? (i === 0 ? 0.93 : 0.8) : 0.46;
     const leg = pivot(side * 0.31, y - 0.11, 0.45 - i * (predator ? 0.92 : 0.44));
-    const upper = part(SPH, shell, predator ? 0.13 : 0.12, length * 0.39, 0.13, side * 0.11, -length * 0.29, 0.03);
-    upper.rotation.z = side * 0.47;
-    const knee = part(SPH, dark, 0.115, 0.115, 0.115, side * 0.24, -length * 0.54, 0.05);
-    const shin = part(SPH, facet, 0.09, length * 0.30, 0.09, side * 0.27, -length * 0.76, 0.04);
-    shin.rotation.z = -side * 0.11;
-    leg.add(upper, knee, shin, part(ICO, dark, 0.13, 0.07, 0.19, side * 0.28, -length * 0.99, 0.1));
+    const kx=side*.24,ky=-length*.52,kz=predator?-.13:.04;
+    const knee=pivot(kx,ky,kz);
+    const footY=-(y-.11)+.075-ky;
+    leg.add(part(SPH,membrane,.14,.15,.15),limbBetween(SPH,shell,[0,0,0],[kx,ky,kz],predator?.135:.105),knee);
+    knee.add(part(SPH,dark,.105,.105,.105),limbBetween(SPH,facet,[0,0,0],[side*.055,footY,.19],predator?.09:.07));
+    const ankle=pivot(side*.055,footY,.19);
+    knee.add(ankle);
+    ankle.add(part(SPH,dark,.12,.075,.16));
+    for(const dx of [-.065,.065]){
+      const toe=part(CONE,edge,.038,.15,.045,dx,-.015,.125);
+      toe.rotation.x=Math.PI/2;ankle.add(toe);
+    }
     rig.add(leg);
-    legs.push({ leg, side, i });
+    legs.push({ leg, knee, ankle, side, i });
   }
   if (predator) for (const side of [-1, 1]) {
     const fin = part(ICO, facet, 0.12, 0.38, 0.48, side * 0.33, 0.36, -0.13);
     fin.rotation.z = -side * 0.25;
     torso.add(fin);
   }
-  const flash = flasher([shell, dark, facet, sensory]);
+  // Juvenile's shorter body/limbs and shieldback's broad shoulder armour
+  // differ in silhouette; all three retain the same server combat envelope.
+  if(juvenile)rig.scale.set(0.82,0.80,0.84);
+  if(shieldback)rig.scale.set(1.07,1.16,1.02);
   let phase = 0, fallen = 0;
   return {
-    group, height: predator ? 1.85 : 1.03, radius: predator ? 0.85 : 0.62, hover: 0,
+    group, height: predator ? 1.85 : juvenile ? 0.84 : shieldback ? 1.23 : 1.03, radius: predator ? 0.85 : 0.62, hover: 0,
     update(dt, st) {
       const stride = Math.min(1, st.speed / (predator ? 3.4 : 1.7));
-      phase += dt * st.speed * 3.8;
-      for (const {leg, side, i} of legs) leg.rotation.x = Math.sin(phase + i * Math.PI + (side > 0 ? Math.PI : 0)) * stride * 0.48;
-      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055;
-      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? 0.02 : 0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      phase += dt * st.speed * (juvenile?5.0:shieldback?3.15:3.8);
+      molt.visible=!!st.grown&&!predator;
+      deposits.visible=!!st.mineral&&!predator;
+      scars.visible=!!st.scar&&!predator;
+      for(const {leg,knee,ankle,side,i} of legs){
+        const q=phase+i*Math.PI+(side>0?Math.PI:0),swing=Math.sin(q);
+        leg.rotation.x=swing*stride*.39;
+        knee.rotation.x=Math.max(0,swing)*stride*.46;
+        ankle.rotation.x=-leg.rotation.x-knee.rotation.x;
+      }
+      const brace=st.ecology==='brace',watch=st.ecology==='watch'||st.ecology==='crouch'||st.ecology==='circle';
+      const lunge=st.ecology==='lunge';
+      torso.position.y = y + Math.abs(Math.sin(phase)) * stride * 0.055-(brace?0.09:watch?0.07:0);
+      head.rotation.x = st.casting ? -0.55 : st.attack > 0.2 ? -0.24 : predator ? (watch?0.31:0.02) : st.ecology==='forage'?0.63+Math.sin(st.t*3)*0.08:st.ecology==='rest'?0.38:st.ecology==='defend'||brace?-0.32:0.24 + Math.sin(st.t * 1.4) * 0.11 * (1 - stride);
+      head.rotation.y=watch?Math.sin(st.t*1.5)*0.28:0;
+      const bite=st.dead?0:Math.max(0,st.attack||0);
+      jawRig.rotation.x=.08+(st.casting?.35:bite*.50);
+      torso.rotation.x=-bite*(predator?.19:.10)+(lunge?.14:0);
+      torso.position.z=lunge?.13:0;
+      // Small physical recoil; material colours remain stable on damage.
+      torso.rotation.z=(st.hit||0)*.08;
       fallen += ((st.dead ? 1 : 0) - fallen) * Math.min(1, dt * 5);
       rig.rotation.z = fallen * 1.22;
       rig.position.y = fallen * 0.16;
-      flash(st.hit || 0);
     },
-    dispose() { for (const m of [shell, dark, facet, sensory]) m.dispose(); },
+    dispose() { for (const m of [shell, dark, facet, sensory,membrane,edge]) m.dispose(); },
   };
 }
 
@@ -741,18 +859,23 @@ export const MODEL_FACTORIES = {
   keeper: makeKeeper,
   mender: makeMender,
   skitter: makeSkitter,
-  sinter_grazer: () => makeSinterFauna(false),
+  sinter_grazer: meta => makeSinterFauna(false,meta?.form),
   faultstalker: () => makeSinterFauna(true),
+  survey_strider:()=>{const m=makeQuarantineCustodian(),kit=pivot(0,1.65,0),frame=std(0x344043,{metal:.5}),sensor=lit(0x8bcfc5);m.group.name='strider:fallback';kit.add(part(CYL,frame,.08,.48,.08,0,.19,-.15),part(SPH,sensor,.21,.1,.21,0,.45,-.15));m.group.add(kit);const dispose=m.dispose;m.dispose=()=>{dispose();frame.dispose();sensor.dispose();};m.height=2.1;m.radius=.9;return m;},
   quarantine_custodian: makeQuarantineCustodian,
   deep_console: makeKestrelRecorder,
   sentinel: makeSentinel,
   warden: makeWarden,
   obelisk: makeListeningStone, // makeObelisk is kept as the minimal original
   archivist: makeArchivist,
+  quartermaster: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
   brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
   sinter_sampler: makeSinterSampler,
+  phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
+  rift_indexer:()=>buildRiftControl(THREE,false),
+  rift_regulator:()=>buildRiftControl(THREE,true),
 };
