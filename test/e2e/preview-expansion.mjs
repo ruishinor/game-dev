@@ -58,6 +58,11 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  // Controlled tower art capture from outside the relay site's combat radius.
+  await moveTo(45, -5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
+  await capture('preview-evidence/01b-relay-mast.png');
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));

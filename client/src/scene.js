@@ -5,6 +5,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { buildRelayTower } from './relay-tower.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 
 const matCache = new Map();
@@ -513,24 +514,9 @@ const procedural = {
     return g;
   },
   relaytower(p, anim) {
-    const g = new THREE.Group();
-    const rust = mat(0x6b5a4e, { metal: 0.5, rough: 0.7 });
-    g.add(scaled(G.cyl8, mat(0x4a4744, { metal: 0.4 }), 2.5, 1.4, 2.5, 0, 0.7, 0));
-    g.add(mesh(new THREE.CylinderGeometry(0.9, 1.4, 9, 8), rust, 0, 5.9, 0));
-    const top = mesh(new THREE.CylinderGeometry(0.5, 0.9, 4.5, 8), rust, 0.9, 11.6, 0.3);
-    top.rotation.z = -0.55;
-    g.add(top);
-    for (let i = 0; i < 3; i++) {
-      const arm = scaled(G.box, mat(0x3d3b3a, { metal: 0.6 }), 5 - i, 0.18, 0.18, 0, 4 + i * 2.4, 0);
-      arm.rotation.y = i * 1.1;
-      g.add(arm);
-    }
-    const lamp = scaled(G.sph, glow(0xff5a4a), 0.28, 0.28, 0.28, 0, 10.6, 0, false);
-    g.add(lamp);
-    anim.push((dt, t) => {
-      lamp.visible = Math.sin(t * 3) > -0.2;
-    });
-    return g;
+    const m=buildRelayTower(THREE,p);
+    anim.push((dt,t)=>m.update(t));
+    return m.group;
   },
   wall(p, anim) {
     const g = new THREE.Group();
@@ -945,16 +931,7 @@ const kit = {
   dish(p, c) {
     c.solid.add(c.piece('sanctum', 'Prop_SatelliteDish'), at(p.x, p.z, { ry: 2.2, s: 0.78 }));
   },
-  relaytower(p, c) {
-    c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.05, s: 0.95 }));
-    c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { ry: 0.6, rz: 0.06, s: [1.9, 1.38, 1.6] }));
-    for (let i = 0; i < 3; i++) c.solid.add(c.piece('sanctum', 'Column_MetalSupport'), at(p.x, p.z, { y: 5 + i * 3, ry: i * 1.1, s: [1, 1, 1.5 - i * 0.25] }));
-    const lamp = scaled(G.sph, glow(0xff5a4a), 0.3, 0.3, 0.3, p.x, groundHeight(p.x, p.z) + 14.2, p.z, false);
-    c.scene.add(lamp);
-    c.anim.push((dt, t) => {
-      lamp.visible = Math.sin(t * 3) > -0.2;
-    });
-  },
+  relaytower(p, c) { return procedural.relaytower(p,c.anim); },
 };
 
 /** Lattice Sanctum: tiled deck, overhead lattice between the pylons, and gates. */
