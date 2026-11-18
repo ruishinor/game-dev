@@ -89,6 +89,7 @@ const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 // Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
 // rendering can photograph them mid-flight; simulation time is untouched.
 const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
+const inspectVfx = new URLSearchParams(location.search).get('vfxcapture') === '1';
 let fxClock = 0;
 // Particle/shader effect engine (quality >= 1). Quality 0 keeps the original
 // lightweight Fx primitives. Flash lights exist only when starting at quality 2.
@@ -970,14 +971,18 @@ function onEvent(e) {
       else if(['harmonic_restore','rescue_lattice','brine_service'].includes(e.k)){if(s.placed)authored(e.k,'restorative',{variant:'stabilize',target:pointOf(s),radius:1.3,duration:1.6});fx.ring(s.pos.x,s.pos.z,1.6,0x8ecfb1,650,s.pos.y);}
       else if (e.k === 'discharge') {
         s.castAnim = 1;
-        fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
-        fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
-        fx.burst(s.chest, 0xffb45c, 14, 2.4);
-        if(s.placed)authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
+        if (!handled) {
+          fx.ring(s.pos.x, s.pos.z, e.r, 0xffb45c, 520, s.pos.y);
+          fx.ring(s.pos.x, s.pos.z, e.r * 0.55, 0xfff2c0, 380, s.pos.y);
+          fx.burst(s.chest, 0xffb45c, 14, 2.4);
+          if (s.placed) authored('discharge','kinetic',{variant:'resonance',center:pointOf(s),radius:Math.min(12,e.r),duration:1});
+        }
       } else if (e.k === 'aegis') {
         s.castAnim = 1;
-        fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
-        if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
+        if (!handled) {
+          fx.ring(s.pos.x, s.pos.z, e.r, 0x7fd0ff, 650, s.pos.y);
+          if (!motionPreference.matches && quality > 0) fx.ring(s.pos.x, s.pos.z, e.r * 0.65, 0xb6e7ef, 450, s.pos.y);
+        }
       } else if (e.k === 'surge') {
         s.castAnim = 1;
         fx.ring(s.pos.x, s.pos.z, e.r, 0x7dffc4, 700, s.pos.y - s.model.hover);
@@ -1587,6 +1592,13 @@ if (wantQ !== null && /^[012]$/.test(wantQ)) setQuality(Number(wantQ));
 const drawGap = Number(params.get('rfps')) > 0 ? 1000 / Number(params.get('rfps')) - 2 : 0;
 let lastDraw = -1e9;
 
+function advanceEffects(dt) {
+  fxClock += dt * 1000;
+  fx.update(dt);
+  liveCasts.update(fxClock);
+  vfx?.update(dt);
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
@@ -1625,10 +1637,7 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
-  fxClock += dt * 1000 * vfxTime;
-  fx.update(dt * vfxTime);
-  liveCasts.update(fxClock);
-  vfx?.update(dt * vfxTime);
+  if (!inspectVfx || !S.paused) advanceEffects(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 
   const target = S.ents.get(S.target) || null;
@@ -1732,6 +1741,15 @@ window.__attune = {
   },
   /** Renderer internals, for profiling from automated checks. */
   gfx: { scene, renderer, camera },
+  ...(inspectVfx && { effects: {
+    stats: () => vfx?.stats(),
+    step(seconds) {
+      if (!S.paused || !Number.isFinite(seconds) || seconds < 0 || seconds > 3) return;
+      const count = Math.ceil(seconds * 60);
+      for (let i = 0; i < count; i++) advanceEffects(seconds / count);
+      renderer.render(scene, camera);
+    },
+  } }),
   /** Pose the camera (and the character's facing) for repeatable screenshots. Presentation only. */
   view({ yaw, pitch, dist, face } = {}) {
     if (yaw !== undefined) cam.yaw = yaw;
