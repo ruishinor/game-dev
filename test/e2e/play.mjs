@@ -44,7 +44,10 @@ const browser = await launchBrowser();
 // (ATTUNEMENT_GPU=1) nothing is capped. Everything still goes through the
 // real renderer, and script errors from drawing still fail the run.
 const QUERY = `q=0&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`;
-note(SOFTWARE_GL ? 'software WebGL: each client draws at most 1 frame per second (logic uncapped)' : 'hardware WebGL requested: no draw cap');
+const integrated = !process.argv.some((arg) => arg === '--workshop' || arg === '--follow-inventory');
+const serialDraw = SOFTWARE_GL && integrated;
+note(serialDraw ? 'software WebGL: draw each integrated client separately at entry and capture; frame logic stays active'
+  : SOFTWARE_GL ? 'software WebGL: cap draws to 1 per second' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
 async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
@@ -65,7 +68,16 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  if (integrated) await finishInitialDraw(page);
   return { ctx, page, name };
+}
+
+async function finishInitialDraw(page) {
+  await page.waitForFunction(() => {
+    const s = window.__attune.state();
+    return s.drawn > 0 && s.draw.triangles > 10000;
+  }, null, { timeout: 60000, polling: 100 });
+  if (serialDraw) await page.evaluate(() => window.__attune.pause(true));
 }
 
 const state = (p) => p.page.evaluate(() => window.__attune.state());
@@ -129,6 +141,19 @@ async function dragWorld(p, button, direction, observe, start, label) {
 // Capture errors still fail the run; only optional disk writes are non-fatal.
 // On Windows, a viewer or scanner can prevent overwriting an earlier PNG.
 const shot = async (p, file) => {
+  if (serialDraw) {
+    const previous = await p.page.evaluate(() => {
+      const count = window.__attune.state().drawn;
+      window.__attune.pause(false);
+      return count;
+    });
+    try {
+      await p.page.waitForFunction((count) => window.__attune.state().drawn > count, previous,
+        { timeout: 60000, polling: 100 });
+    } finally {
+      await p.page.evaluate(() => window.__attune.pause(true));
+    }
+  }
   const png = await p.page.screenshot({ timeout: 120000 });
   try {
     fs.writeFileSync(path.join(OUT, file), png);
@@ -329,7 +354,6 @@ try {
   let sa = await state(A);
   let sb = await state(B);
   note(`graphics: ${(await describeGraphics(A.page)).renderer}`);
-  await until(A, () => window.__attune.state().drawn >= 2 && window.__attune.state().draw.triangles > 10000, null, 60000, 'first frames drawn');
   // Wait for both clients to receive the other's metadata and a snapshot.
   // A ready local character does not imply the remote observer is ready.
   // Keep metadata and loaded-model diagnostics separate; do not treat pending GLB as a lost snapshot.
@@ -341,7 +365,8 @@ try {
     const inspect=(s,id)=>({myId:s.myId,snaps:s.snaps,drawn:s.drawn,assets:s.assets,observer:s.ents.find(e=>e.id===id)||null});
     throw Error('Mutual observer not ready: '+JSON.stringify({A:inspect(sa,sb.myId),B:inspect(sb,sa.myId),pageErrors}));
   }
-  check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000, `A id ${sa.myId}, B id ${sb.myId}, ${sa.draw.triangles} triangles drawn`);
+  check('1. both sessions enter the 3D world', sa.myId && sb.myId && sa.draw.triangles > 10000 && sb.draw.triangles > 10000,
+    `A id ${sa.myId}, ${sa.draw.triangles} triangles; B id ${sb.myId}, ${sb.draw.triangles} triangles`);
   check('10. second session sees the first (and its class)', sb.ents.some((e) => e.id === sa.myId && e.c === 'vanguard') && sa.ents.some((e) => e.id === sb.myId && e.c === 'symbiotech'));
   check('7. symbiotech has a visible companion entity; vanguard has none', sb.compId > 0 && sb.ents.some((e) => e.id === sb.compId && e.k === 'c') && sa.compId === 0);
   await shot(A, '01-entered-vanguard.png');
@@ -357,19 +382,24 @@ try {
   // ---------------------------------------------------- 2/3. movement etc.
   await A.page.bringToFront();
   const z0 = sa.pos.z;
-  await A.page.keyboard.down('KeyW');
-  await sleep(900);
-  const runSelf = await drawn(A, sa.myId);
-  const runSeen = await until(B, ([id, clips]) => {
+  const hasLocomotion = ([id, clips]) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.anim && clips.includes(e.anim.base);
-  }, [sa.myId, LOCOMOTION], 3000, 'B to see A running');
-  await sleep(500);
-  await A.page.keyboard.up('KeyW');
-  check('14. moving plays a locomotion clip, in the mover\'s session and in the observer\'s', LOCOMOTION.includes(runSelf.base) && runSeen, `own session: ${runSelf.base}`);
-  await sleep(300);
-  sa = await state(A);
-  check('2. W moves the character forward', sa.pos.z < z0 - 1.5, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
+    return clips.includes(e?.anim?.base);
+  };
+  await A.page.keyboard.down('KeyW');
+  try {
+    const [runSelf, runSeen, forward] = await Promise.all([
+      until(A, hasLocomotion, [sa.myId, LOCOMOTION], 6000, 'A to play its own locomotion clip'),
+      until(B, hasLocomotion, [sa.myId, LOCOMOTION], 6000, 'B to see A running'),
+      until(A, (start) => window.__attune.state().pos.z < start - 1.5, z0, 6000, 'A to move forward'),
+    ]);
+    check('14. moving plays a locomotion clip, in the mover\'s session and in the observer\'s', runSelf && runSeen,
+      `mover ${runSelf}, observer ${runSeen}`);
+    sa = await state(A);
+    check('2. W moves the character forward', forward, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
+  } finally {
+    await A.page.keyboard.up('KeyW');
+  }
   await A.page.keyboard.down('KeyW');
   const reachedBeacon = await until(A, () => {
     const p = window.__attune.state().pos;
@@ -925,6 +955,7 @@ try {
   await sleep(4500); // let the periodic save run
   await B.page.reload();
   await B.page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  await finishInitialDraw(B.page);
   sb = await state(B);
   check(
     '12. reloading the page resumes the same character with its state',
