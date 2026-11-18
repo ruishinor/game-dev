@@ -13,7 +13,8 @@ function eligibility(game, p) {
 }
 
 function notify(game, p, job, phase) {
-  game.events.push({ e: 'production', s: p.id, phase, method: job.method });
+  game.events.push({ e: 'production', s: p.id, phase, method: job.method,
+    ...(phase === 'begin' && job.complete === 0 ? { first: true } : {}) });
 }
 
 export function beginProduction(game, p, id, quantity, rev) {

@@ -23,7 +23,7 @@ try{
  await workshop.locator('[data-craft="survey_strider_link"]').click();
  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('survey_strider_link'));
  assert.deepEqual(p.char.materials,{});assert.equal(p.companion,null);
- await workshop.getByRole('button',{name:'Close Build'}).click();await page.locator('#view').focus();await page.keyboard.press('KeyI');
+ await workshop.waitFor({state:'hidden'});await page.locator('.production-status').waitFor({state:'hidden'});await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await page.locator('.inventory-window button.item-cell[aria-label="Survey Strider Link"]').click({button:'right'});
  await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
  await page.waitForFunction(()=>{const s=window.__attune.state();return s.compId&&s.ents.some(e=>e.id===s.compId&&e.c==='survey_strider'&&e.model==='glb')&&s.sheet.equipped.device==='survey_strider_link';});

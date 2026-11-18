@@ -50,5 +50,5 @@ export const ENTRIES = [
   {id:'kinetics',group:'Skills & Abilities',name:'Kinetics',type:'Skill',desc:'The Vanguard primary skill. Each point above 10 contributes two percentage points of Power. It also satisfies Kinetics equipment requirements. It does not modify movement speed.',facts:[]},
   {id:'instrumentation',group:'Skills & Abilities',name:'Instrumentation',type:'Skill',desc:'Surveyor primary skill. Raises Power and meets field instrument requirements.',facts:[]},
   {id:'biotech',group:'Skills & Abilities',name:'Biotech',type:'Skill',desc:'The Conductor primary skill. Each point above 10 contributes two percentage points of Power and helps meet Biotech equipment requirements.',facts:[]},
-  ...Object.entries(ABILITIES).map(([id,a])=>({id,group:'Skills & Abilities',name:a.name,type:'Ability',desc:a.desc,ability:id,facts:['Cooldown: '+a.cd/1000+'s',...(a.range?['Range: '+a.range+'m']:[])]})),
+  ...Object.entries(ABILITIES).map(([id,a])=>({id,group:'Skills & Abilities',name:a.name,type:'Ability',desc:a.desc,ability:id,facts:[...Object.values(CLASSES).filter(c=>c.abilities.includes(id)).map(c=>c.name+' · key '+(c.abilities.indexOf(id)+1)),...(id==='phase_transposition'?['Requires Resonance attunement']:[]),'Cooldown: '+a.cd/1000+'s',...(a.range?['Range: '+a.range+'m']:[])]})),
 ];
