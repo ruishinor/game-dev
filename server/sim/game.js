@@ -420,8 +420,8 @@ export class Game {
     };
   }
 
-  endTick() {
+  endTick({preservePrivate=false}={}) {
     this.events = [];
-    for (const p of this.players.values()) p.outbox = [];
+    if(!preservePrivate)for (const p of this.players.values()) p.outbox = [];
   }
 }

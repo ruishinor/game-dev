@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
+import { buildSurveyTerminal } from './survey-terminal.js';
 
 const std = (color, o = {}) =>
   new THREE.MeshStandardMaterial({
@@ -539,30 +540,8 @@ export function makeObelisk() {
   };
 }
 
-// Low sealed field instrument; distinct housing silhouettes for the two evidence sources.
-function makeSurveyTerminal(ledger) {
-  const group = new THREE.Group();
-  const dark = std(0x303c3c, { rough: 0.78, metal: 0.45 });
-  const paint = std(ledger ? 0x98805a : 0x536f70, { rough: 0.68, metal: 0.25 });
-  const steel = std(0x737c7a, { rough: 0.48, metal: 0.65 });
-  const display = std(ledger ? 0xd5b37b : 0x8bc7bc, { emissive: ledger ? 0x886124 : 0x416e65, ei: 0.6 });
-  group.add(part(BOX, dark, 1.4, 0.18, 1.0, 0, 0.09, 0));
-  group.add(part(BOX, paint, 1.12, 0.98, 0.8, 0, 0.65, 0));
-  group.add(part(BOX, steel, 1.23, 0.15, 0.9, 0, 1.15, 0));
-  for (const side of [-1, 1]) {
-    group.add(part(BOX, dark, 0.11, 0.9, 0.88, side * 0.55, 0.66, 0));
-    for (let i = 0; i < 3; i++) group.add(part(BOX, steel, 0.18, 0.035, 0.025, side * 0.36, 0.55 + i * 0.12, 0.42));
-  }
-  group.add(part(BOX, dark, 0.85, 0.055, 0.55, 0, 1.24, 0));
-  group.add(part(BOX, display, 0.69, 0.02, 0.37, 0, 1.28, 0));
-  if (!ledger) {
-    group.add(part(CYL, steel, 0.17, 0.62, 0.17, -0.43, 1.55, -0.3));
-    group.add(part(SPH, dark, 0.24, 0.15, 0.24, -0.43, 1.88, -0.3));
-  } else {
-    group.add(part(BOX, dark, 0.9, 0.24, 0.12, 0, 1.41, -0.36));
-  }
-  return { group, height: ledger ? 1.65 : 2.0, radius: 0.8, hover: 0, update() {} };
-}
+// The evidence instruments are presentation-only, independently disposable models.
+const makeSurveyTerminal = ledger => buildSurveyTerminal(THREE, ledger);
 
 // Small shared deterministic surface texture: sediment veins and pores,
 // sampled through each carapace plate's UVs. No external downloads,

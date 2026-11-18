@@ -58,6 +58,10 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  await moveTo(-5.5,-2.6);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
+  await capture('preview-evidence/01a-sanctum-storage.png');
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
@@ -70,6 +74,10 @@ try {
   await page.waitForFunction(() => window.__attune.state().you.surveyKit.rigMs === 0);
   assert.equal(p.surveyKit.rig, null);
   await page.locator('#view').focus();
+  await moveTo(44,-34.8);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.40,pitch:.32,dist:9,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-plant')?.children.length===6));
+  await capture('preview-evidence/02a-pressure-plant.png');
   await moveTo(38, -36.5);
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
@@ -78,6 +86,11 @@ try {
   assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
+  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver'));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver').children.some(m=>m.material.map&&m.material.roughnessMap)));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/03a-pressure-receiver.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
@@ -124,6 +137,10 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
   await moveTo(47,-30);
+  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:shift-ledger'));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/06a-shift-ledger.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
@@ -305,6 +322,7 @@ try {
     }
     return true;
   }));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('kestrel:service-pipes')?.children.length===5));
   await capture('preview-evidence/07-kestrel-interior.png');
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.
@@ -325,6 +343,18 @@ try {
   assert.match(await page.locator('.radio-transcript').innerText(),/Kestrel Phase Damper/);
   assert.match(await page.locator('.log').innerText(),/Kestrel Phase Damper/);
   await capture('preview-evidence/08-kestrel-recorder.png');
+  // Exercise the existing authoritative Field Rig and enhanced VFX in the
+  // actual containment room; reset only the earlier test fixture's cooldown.
+  p.surveyKit.rig=null;p.cds.field_rig=0;p.gcdUntil=0;
+  p.res=Math.max(p.res,100);
+  await page.waitForFunction(()=>window.__attune.state().you.surveyKit.rigMs===0);
+  assert.ok(useAbility(server.game,p,'field_rig').ok);
+  await page.waitForFunction(()=>{
+    const s=window.__attune.state(),root=window.__attune.gfx.scene.getObjectByName('vfx-engine');
+    return s.you.surveyKit.rigMs>0&&root?.children.some(n=>n.material?.uniforms?.sigil&&n.material.uniforms.prog?.value===1.06);
+  });
+  await page.evaluate(()=>window.__attune.view({yaw:-2.65,pitch:0.16,dist:3.4,face:-2.65}));
+  await capture('preview-evidence/08a-kestrel-vessel-vfx.png');
   await moveTo(-39,-8);
   assert.deepEqual(errors, []);
   await page.close();
@@ -358,8 +388,11 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  await keeper.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector'));
-  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  // Require the real named projector on the currently loaded GLB character.
+  await keeper.waitForFunction(()=>{
+    const state=window.__attune?.state();
+    return state?.myId&&state.ents.some(e=>e.id===state.myId&&e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('aegis-projector');
+  });
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);

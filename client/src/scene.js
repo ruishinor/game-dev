@@ -6,6 +6,10 @@ import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
+import { buildContainmentVessel } from './containment-vessel.js';
+import { buildStorageCase } from './storage-case.js';
+import { buildPressurePlant } from './pressure-plant.js';
+import { buildDeepServicePipes } from './service-pipes.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -292,17 +296,13 @@ function buildDeepArchitecture(scene) {
   for (const side of [-1,1]) {
     const z = DEEP.z + side * 5.65;
     g.add(scaled(G.box, ochre, 12.7, 0.015, 0.12, DEEP.x, DEEP.floor + 0.08, z, false));
-    // Wall-hugging insulated pipes stay outside usable floor space.
-    for (let i=0; i<2; i++) {
-      const pipe = scaled(G.cyl8, i ? steel : ochre, 0.14, 12.5, 0.14, DEEP.x, DEEP.floor + 3.25 + i * 0.35, DEEP.z + side * 6.0);
-      pipe.rotation.z = Math.PI / 2;
-      g.add(pipe);
-    }
+
     g.add(scaled(G.box, steel, 12, 0.14, 0.28, DEEP.x, DEEP.roofBottom - 0.42, DEEP.z + side * 3.7));
     for (const x of [-61,-55]) {
       g.add(scaled(G.box, glow(0xd5d4a2), 2.6, 0.035, 0.16, x, DEEP.roofBottom - 0.5, DEEP.z + side * 3.7, false));
     }
   }
+  g.add(buildDeepServicePipes(THREE,DEEP).group);
   // Open portal fascia, no doorway collision across the aisle.
   g.add(scaled(G.box, ochre, 0.16, 0.42, 12.7, DEEP.x + DEEP.hw - 0.1, DEEP.roofBottom - 0.18, DEEP.z));
   const lamp = new THREE.PointLight(0xffddb2, 75, 13, 2);
@@ -325,24 +325,7 @@ const procedural = {
     }
     return g;
   },
-  deep_vessel(p) {
-    const g = new THREE.Group();
-    g.name = 'kestrel:vessel:' + p.seed;
-    const shell = mat(0x78817a, { metal: 0.38, rough: 0.67 });
-    const clamp = mat(0x353e3c, { metal: 0.55, rough: 0.57 });
-    const window = mat(0x718b7a, { metal: 0.05, rough: 0.35, emissive: 0x162b21 });
-    // G.cyl8 has unit radius, not unit diameter: keep all equipment
-    // surfaces inside the simulation's 1.05m circular footprint.
-    g.add(scaled(G.cyl8, clamp, 1.0, 0.24, 1.0, 0, 0.12, 0));
-    g.add(scaled(G.cyl8, shell, 0.9, p.h - 0.5, 0.9, 0, p.h / 2, 0));
-    for (const y of [0.35,p.h-0.32]) g.add(scaled(G.cyl8, clamp, 0.99, 0.18, 0.99, 0, y, 0));
-    g.add(scaled(G.cyl8, clamp, 0.55, 0.2, 0.55, 0, p.h-0.1, 0));
-    for (const side of [-1,1]) g.add(scaled(G.box, clamp, 0.13, p.h-0.64, 0.14, side*0.62, p.h/2, 0.64));
-    g.add(scaled(G.box, clamp, 0.72, 0.91, 0.15, 0, p.h*0.58, 0.8));
-    g.add(scaled(G.box, window, 0.52, 0.65, 0.045, 0, p.h*0.58, 0.89, false));
-    for(let i=0;i<3;i++) g.add(scaled(G.box, shell, 0.43, 0.035, 0.015, 0, p.h*0.58-0.18+i*0.18, 0.922, false));
-    return g;
-  },
+  deep_vessel(p) { return buildContainmentVessel(THREE,p); },
   // Wind-cut, laminated mineral fins: broad bases, fractured edges, no emission.
   sinter_ridge(p) {
     const g = new THREE.Group();
@@ -378,7 +361,7 @@ const procedural = {
     }
     return g;
   },
-  survey_pump(p) {
+  survey_tower(p) {
     const g = new THREE.Group();
     const base = mat(0x494a43, { rough: 0.91 });
     const steel = mat(0x727b78, { rough: 0.57, metal: 0.55 });
@@ -403,7 +386,7 @@ const procedural = {
     add(G.box, glow(0xe1bc6b), 0.12, 0.055, 0.025, 0.36, 2.55, 0.87, false);
     return g;
   },
-  survey_tower(p) { return procedural.survey_pump(p); },
+  survey_pump(p) { return buildPressurePlant(THREE,p); },
   survey_workstation(p) { return procedural.console(p); },
   survey_engineering(p) {
     const g = new THREE.Group();
@@ -469,13 +452,7 @@ const procedural = {
     g.add(screen);
     return g;
   },
-  crate(p) {
-    const g = new THREE.Group();
-    g.add(scaled(G.box, mat(0x5b5a4c, { rough: 0.8 }), p.hw * 2, p.h, p.hd * 2, 0, p.h / 2, 0));
-    g.add(scaled(G.box, mat(0x2c3338, { metal: 0.5 }), p.hw * 2.06, 0.12, p.hd * 2.06, 0, p.h * 0.75, 0));
-    g.add(scaled(G.box, glow(0xffb45c), 0.2, 0.2, 0.05, p.hw * 0.5, p.h * 0.4, p.hd + 0.01, false));
-    return g;
-  },
+  crate(p) { return buildStorageCase(THREE,p); },
   sporetree(p, anim) {
     const g = new THREE.Group();
     const rnd = mulberry32(p.seed);
@@ -862,13 +839,7 @@ const kit = {
     for (const dx of [-0.55, 0.55]) c.solid.add(c.piece('sanctum', 'Prop_Computer'), at(p.x + dx, p.z, { y: 0.07, ry: dx * 0.25, s: 1.05 }));
     c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(p.x - 1.6, p.z + 0.9, { y: 0.09, ry: 0.6 }));
   },
-  crate(p, c) {
-    const big = p.hw > 0.7;
-    const name = big ? 'Prop_Crate4' : 'Prop_Crate3';
-    const half = big ? 0.56 : 0.5;
-    const s = p.hw / half;
-    c.solid.add(c.piece('sanctum', name), at(p.x, p.z, { y: half * s + 0.05, ry: ((p.x * 7) % 4) * 0.05, s }));
-  },
+  crate(p, c) { return buildStorageCase(THREE,p); },
   sporetree(p, c) {
     const rnd = mulberry32(p.seed);
     // One mushroom, grown to tree size: a thin stem inside the collider and a
