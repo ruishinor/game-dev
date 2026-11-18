@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { createRecoveryVisuals, RECOVERY_LIMIT } from '../client/src/recovery-visuals.js';
+import { createVfx } from '../client/src/vfx/engine.js';
+const ent=(i,dead=true)=>({id:i,meta:{k:'e'},dead,placed:true,inView:true,pos:{x:i,z:2},model:{radius:.8},displayYaw:0});
+const row=(id,generation=1)=>({id,generation});
+test('visual cache follows private eligibility, generation, recovery and despawn',()=>{
+  const scene=new THREE.Scene(),fx=createVfx(THREE,scene,{groundHeight:()=>0}),v=createRecoveryVisuals(THREE,scene,()=>2);
+  const entities=new Map([[1,ent(1)],[2,ent(2,false)],[3,ent(3)]]);
+  v.sync(entities,[row(1),row(2)],{x:0,z:0},fx,2);
+  const node=scene.getObjectByName('recovery-cache:1');assert.ok(node);
+  assert.equal(node.position.y,2);
+  assert.ok(!scene.getObjectByName('recovery-cache:2')&&!scene.getObjectByName('recovery-cache:3'));
+  const n=fx.stats().particles;assert.ok(n>0);
+  v.sync(entities,[row(1),row(2)],{x:0,z:0},fx,2);
+  assert.equal(fx.stats().particles,n);
+  v.sync(entities,[row(1,2)],{x:0,z:0},fx,2,true);
+  assert.notEqual(scene.getObjectByName('recovery-cache:1'),node);
+  assert.equal(fx.stats().particles,n);
+  entities.get(1).dead=false;
+  v.sync(entities,[row(1,2)],{x:0,z:0},fx,2);
+  assert.ok(!scene.getObjectByName('recovery-cache:1'));
+  v.sync(entities,[row(3)],{x:0,z:0},fx,0);
+  assert.ok(scene.getObjectByName('recovery-cache:3'));v.remove(3);
+  assert.ok(!scene.getObjectByName('recovery-cache:3'));
+  v.dispose();v.dispose();fx.dispose();
+});
+test('cache visual count is bounded and prefers nearby corpses',()=>{
+  const scene=new THREE.Scene(),v=createRecoveryVisuals(THREE,scene,()=>0);
+  const es=new Map(Array.from({length:RECOVERY_LIMIT+3},(_,i)=>[i+1,ent(i+1)]));
+  v.sync(es,[...es.keys()].reverse().map(i=>row(i)),{x:0,z:0},null,0);
+  const root=scene.getObjectByName('corpse-recovery-visuals');
+  assert.equal(root.children.length,RECOVERY_LIMIT);
+  assert.ok(scene.getObjectByName('recovery-cache:1'));assert.ok(!scene.getObjectByName('recovery-cache:'+(RECOVERY_LIMIT+3)));
+  v.clear();assert.equal(root.children.length,0);v.dispose();
+});

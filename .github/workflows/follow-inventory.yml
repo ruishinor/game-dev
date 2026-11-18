@@ -33,5 +33,5 @@ jobs:
         if: always()
         with:
           name: selective-loot-browser-evidence
-          path: test/e2e/out/loot-01-selective.png
+          path: test/e2e/out/loot-*.png
           if-no-files-found: ignore
