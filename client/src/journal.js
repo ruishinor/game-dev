@@ -38,7 +38,7 @@ export const ENTRIES = [
     ],
   })),
   ...Object.entries(COMPANIONS).map(([id,c])=>({id,group:'Creatures',name:c.name,type:'Companion',
-    desc:'A bioengineered symbiote bonded to a Conductor. Its behavior depends on the selected companion command.',
+    desc:id==='survey_strider'?'A reclaimed ground survey chassis linked to a Surveyor through the fabricated Strider Link. It scans rather than fights; ground obstacles and range constrain its movement.':'A bioengineered symbiote bonded to a Conductor. Its behavior depends on the selected companion command.',
     meta:{ k:'c', c:id }, facts: Object.values(c.modes).map(m=>m.name+': '+m.desc)})),
   {id:'quartermaster',group:'Lore',name:'Sanctum Quartermaster',type:'NPC',desc:'A supply clerk at the Lattice Sanctum. Exchanges recovered trade salvage for credits and stocks fabrication materials.',meta:{k:'o',c:'quartermaster'},facts:['Location: Lattice Sanctum','Interaction: Buy and sell salvage']},
   {id:'archivist',group:'Lore',name:'Archivist Venn',type:'NPC',desc:'An archivist at the Lattice Sanctum who guides travellers through their directives.',meta:{k:'o',c:'archivist'},facts:['Location: Lattice Sanctum','Interaction: Talk for current directive guidance']},

@@ -708,6 +708,7 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
   if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
   while (local.pending.length && local.pending[0].seq <= y.ack) local.pending.shift();
@@ -761,10 +762,11 @@ const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'v
 function nameOf(ent) {
   if (!ent) return 'Something';
   if (ent.id === S.myId) return 'You';
-  if (ent.id === S.compId) return 'Your symbiote';
+  if (ent.id === S.compId) return ent.meta.c==='survey_strider'?'Your Strider':'Your symbiote';
   if (ent.meta.k === 'c') {
     const owner = S.ents.get(ent.meta.o);
-    return owner ? `${owner.meta.n}'s symbiote` : 'A symbiote';
+    const kind=ent.meta.c==='survey_strider'?'Strider':'symbiote';
+    return owner ? `${owner.meta.n}'s ${kind}` : `A ${kind}`;
   }
   return ent.meta.n;
 }
@@ -1191,7 +1193,8 @@ input.onAction = (code, e) => {
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
       const mode = ['triage', 'guard', 'assist', 'follow', 'stay'][i];
-      if (mode && def.companion) net.send({ t: 'pet', c: mode });
+      const pet=S.ents.get(S.compId)?.meta.c;
+      if (mode && (pet==='survey_strider'?['assist','follow','stay'].includes(mode):def.companion)) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
   }

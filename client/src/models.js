@@ -859,6 +859,7 @@ export const MODEL_FACTORIES = {
   skitter: makeSkitter,
   sinter_grazer: meta => makeSinterFauna(false,meta?.form),
   faultstalker: () => makeSinterFauna(true),
+  survey_strider:()=>{const m=makeQuarantineCustodian(),kit=pivot(0,1.65,0),frame=std(0x344043,{metal:.5}),sensor=lit(0x8bcfc5);m.group.name='strider:fallback';kit.add(part(CYL,frame,.08,.48,.08,0,.19,-.15),part(SPH,sensor,.21,.1,.21,0,.45,-.15));m.group.add(kit);const dispose=m.dispose;m.dispose=()=>{dispose();frame.dispose();sensor.dispose();};m.height=2.1;m.radius=.9;return m;},
   quarantine_custodian: makeQuarantineCustodian,
   deep_console: makeKestrelRecorder,
   sentinel: makeSentinel,

@@ -60,6 +60,8 @@ export const CREATURES = {
     runRate: 4.2,
     sacs: 0xff7ae6,
   },
+  // Reclaimed tripod donor with dedicated survey mast and instrument pods.
+  survey_strider:{piece:'walker',scale:.53,height:1.85,radius:.9,tint:0xd0c7a9,emissive:0x182321,clips:{idle:'Idle',walk:'Walk',run:'Run',attack:'Look',hit:'Hit',death:'TurnOff',cast:'Look'},runAbove:3,walkRate:1.8,runRate:4.4},
   // Rogue Sentinel: a derelict tripod walker still running its patrol.
   sentinel: {
     piece: 'walker',

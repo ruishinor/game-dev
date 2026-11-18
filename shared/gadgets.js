@@ -2,7 +2,13 @@
 // No new slot, resource, crafting protocol or client-owned effects.
 // Deliberately public Workshop sidegrade presentation and behavior.
 export const BLOOM_RELAY = Object.freeze({ radius: 7, device: 'bloom_relay' });
+export const STRIDER_LINK='survey_strider_link';
 export const GADGET_ITEMS = {
+  survey_strider_link:{
+    name:'Survey Strider Link',slot:'device',cls:'surveyor',req:{attune:'resonance',skills:{instrumentation:13}},
+    summary:'Deploy one ground survey companion · Analyze / Follow / Stay',
+    desc:'A control coupler for a reclaimed survey chassis. Equip to deploy a Survey Strider; remove outside combat to dismiss it. Its analysis enables Core Bore but grants no Power Cells, damage or threat. Cannot engage or absorb attacks. Owner defeat makes it dormant.'
+  },
   bloom_relay: {
     name:'Bloom Relay', slot:'device', cls:'symbiotech', req:{attune:'resonance',skills:{biotech:13}},
     summary:'Overgrowth Surge originates at you instead of the Mender · 7m radius',

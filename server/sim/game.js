@@ -12,6 +12,7 @@ import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
+import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial } from './progress.js';
@@ -142,6 +143,7 @@ export class Game {
       this.companions.push(c);
       this.ents.set(c.id, c);
     }
+    syncSurveyStrider(this,p);
     checkDirective(this, p);
     return p;
   }
@@ -184,6 +186,7 @@ export class Game {
     p.stats = deriveStats(p.char);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
+    syncSurveyStrider(this,p);
   }
 
   message(p, kind, text) {
@@ -276,7 +279,8 @@ export class Game {
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    if (p.companion) {
+    if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
+    else if (p.companion) {
       p.companion.x = p.x + 1.5;
       p.companion.z = p.z - 1.5;
     }
@@ -298,6 +302,7 @@ export class Game {
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
+      if(!p.companion&&!p.dead&&wantsSurveyStrider(p)&&this.time>=(p.striderDeployAt??0))syncSurveyStrider(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -375,6 +380,7 @@ export class Game {
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       ack: p.lastSeq,
+      comp:p.companion?.id??0,
       ...lootState(this,p),
       vendor:vendorState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
@@ -413,6 +419,7 @@ export class Game {
     return {
       name: c.name,
       cls: c.cls,
+      companion:p.companion?.type??null,
       look: c.look,
       level: c.level,
       xp: c.xp,

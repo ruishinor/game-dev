@@ -6,6 +6,7 @@ const motifs=Object.freeze({
   dense_pulse_core:'<path d="M5 4h14l3 5-3 11H5L2 9Z" fill="#626e6c" stroke="#b4bcb1"/><path d="M7 5v13m10-13v13M4 10h16" stroke="#a7a99a"/><path d="m12 6-4 7h5l-1 5 5-8h-5Z" fill="#c99b61" stroke="#f3d6a4"/>',
   longpoint_emitter:'<path d="M3 16 17 3l4 3-2 8-12 7H3Z" fill="#4c666a" stroke="#b5c2b5"/><path d="m7 14 9-8 2 2-9 8Z" fill="#66b7b5" stroke="#c4efdc"/><path d="m3 18 4-1m9-5 3 2m-5 1 2 2" stroke="#d5b785"/>',
   brine_phase_filter:'<path d="M3 7 9 3h9l3 4v10l-5 4H7l-4-4Z" fill="#50615e"/><path d="M3 7h13l5-4M16 7v14" stroke="#a9b4a2"/><path d="M6 10h7v8H6Z" fill="#292f2e"/><path d="M8 11v5m3-5v5" stroke="#d4bb79"/><path d="M18 9v8" stroke="#a2b2af"/>',
+  survey_strider_link:'<path d="M4 6h16v13H4Z" fill="#545e58" stroke="#b5bdad"/><path d="M7 9h10v7H7Z" fill="#203b3b"/><path d="m8 14 4-4 4 4m-4-4v7" stroke="#b5e6dc"/><path d="M6 4V2m12 2V2M6 21v1m12-1v1" stroke="#d0b584"/>',
   survey_calibrator:'<path d="M5 5h13l3 5v9l-4 3H5l-2-4V8Z" fill="#6c7465"/><path d="M6 8h10v7H6Z" fill="#203a3a"/><path d="m7 12 2-2 2 4 2-3 2 1" stroke="#afd0bd"/><path d="M17 5v-3m2 0h-4M7 18h3m3 0h3" stroke="#d2bd8a"/>',
   survey_induction:'<path d="M4 7 8 3h8l4 4v10l-4 4H8l-4-4Z" fill="#485b60"/><path d="M2 9h4m12 0h4M2 15h4m12 0h4" stroke="#a0b5a9"/><path d="m8 5 8 2v10l-8 2Z" fill="#182d33"/><path d="m9 8 6 2-6 2 6 2-6 2" stroke="#d7aa6f"/>',
   glyph_faultline:'<path d="M12 2 22 12 12 22 2 12Z" stroke="#b7b3a1" fill="#34403e"/><path d="m13 4-5 7 5 1-3 8m-6-7h4m6-3h6" stroke="#ebbc7a" stroke-width="1.8"/>',
