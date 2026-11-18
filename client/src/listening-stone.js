@@ -262,6 +262,40 @@ export function makeListeningStone() {
   lamp.position.set(0, 2.6, 1.6);
   group.add(lamp);
 
+  // Resonance waves: thin inscribed rings that travel outward across the
+  // ground from the base while someone is near. Slow and sparse by design;
+  // at full intensity the cadence eases slightly rather than racing.
+  const WAVE_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const WAVE_FS = `uniform float k; uniform float t; uniform vec3 color; varying vec2 vUv;
+    void main(){ vec2 p = vUv * 2.0 - 1.0; float r = length(p); float a = atan(p.y, p.x);
+      float band = smoothstep(0.86, 0.95, r) * (1.0 - smoothstep(0.95, 1.0, r));
+      float ticks = 0.55 + 0.45 * step(0.5, fract(a * 9.5492966));
+      float runes = 0.7 + 0.3 * sin(a * 48.0 + t * 0.6);
+      gl_FragColor = vec4(color * band * ticks * runes * k, 1.0); }`;
+  const waves = Array.from({ length: 3 }, () => {
+    const u = { k: { value: 0 }, t: { value: 0 }, color: { value: new THREE.Color(GOLD) } };
+    const m = new THREE.Mesh(own(new THREE.PlaneGeometry(2, 2)), own(new THREE.ShaderMaterial({ uniforms: u, vertexShader: WAVE_VS, fragmentShader: WAVE_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })));
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = 0.06;
+    m.renderOrder = 4;
+    m.visible = false;
+    group.add(m);
+    return { m, u, age: Infinity };
+  });
+  let waveIn = 1.5;
+  // A soft column of light around the shaft, scrolling upward with the
+  // inscriptions; it is the near-field echo of the sky beam.
+  const COLUMN_FS = `uniform float k; uniform float t; varying vec2 vUv;
+    void main(){ float fall = pow(1.0 - vUv.y, 1.6) * smoothstep(0.0, 0.08, vUv.y);
+      float bands = 0.6 + 0.4 * sin(vUv.y * 40.0 - t * 1.4 + sin(vUv.x * 18.85) * 1.5);
+      float seam = 0.75 + 0.25 * sin(vUv.x * 37.7);
+      gl_FragColor = vec4(vec3(1.0, 0.72, 0.32) * fall * bands * seam * k * 0.35, 1.0); }`;
+  const columnU = { k: { value: 0 }, t: { value: 0 } };
+  const column = new THREE.Mesh(own(new THREE.CylinderGeometry(1.15, 1.45, 5.2, 24, 1, true)), own(new THREE.ShaderMaterial({ uniforms: columnU, vertexShader: WAVE_VS, fragmentShader: COLUMN_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false })));
+  column.position.y = 2.6;
+  column.renderOrder = 4;
+  group.add(column);
+
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -304,12 +338,36 @@ export function makeListeningStone() {
         m.y += (dt || 0) * m.v * (1 + k);
         if (m.y > 6.5) m.y = 0;
         const a = m.a + t * 0.2;
-        motePos[i * 3] = Math.cos(a) * m.R;
+        // Lazy curl drift layered on the orbit so motes eddy rather than march.
+        const dx = Math.sin(m.y * 1.7 + t * 0.5 + m.a) * 0.22, dz = Math.cos(m.y * 1.3 - t * 0.4 + m.a * 2) * 0.22;
+        motePos[i * 3] = Math.cos(a) * m.R + dx;
         motePos[i * 3 + 1] = m.y;
-        motePos[i * 3 + 2] = Math.sin(a) * m.R;
+        motePos[i * 3 + 2] = Math.sin(a) * m.R + dz;
       }
       moteGeo.getAttribute('position').needsUpdate = true;
       moteMat.opacity = 0.35 + 0.55 * k;
+      // Waves and column (reduced-motion players get the column only, still).
+      const calm = !!st?.reducedMotion;
+      const kk = Math.min(1, k);
+      waveIn -= dt || 0;
+      if (!calm && kk > 0.25 && waveIn <= 0) {
+        const w = waves.find((x) => x.age > 2.8) || waves[0];
+        w.age = 0;
+        waveIn = 3.2 + 0.6 * kk;
+      }
+      for (const w of waves) {
+        w.age += dt || 0;
+        const life = 2.8;
+        w.m.visible = w.age < life;
+        if (!w.m.visible) continue;
+        const p = w.age / life;
+        w.m.scale.setScalar(1.5 + 6 * (1 - Math.pow(1 - p, 2)));
+        w.u.k.value = Math.min(1, p * 6) * Math.pow(1 - p, 1.5) * (0.5 + 0.5 * kk);
+        w.u.t.value = t;
+      }
+      columnU.k.value = kk * kk;
+      columnU.t.value = calm ? 0 : t;
+      column.visible = kk > 0.02;
     },
     dispose() {
       for (const x of owned) x.dispose?.();
