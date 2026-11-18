@@ -313,7 +313,9 @@ export function renderInventory(ui) {
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
   const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
   count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' trade stacks · '+view.goodsUnits+' trade units';
-  root.append(tabs,count,grid);
+  const wallet=h('div','inventory-wallet','Credits: '+String(Number.isSafeInteger(s.credits)&&s.credits>=0?s.credits:0));
+  wallet.setAttribute('aria-label','Credit balance');
+  root.append(wallet,tabs,count,grid);
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
     const card=equipmentCard(ui,ui.inventorySelection,false,null,true);

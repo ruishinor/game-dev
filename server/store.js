@@ -11,6 +11,7 @@ import { validateLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
 import { sanitizeGoods } from '../shared/goods.js';
+import { sanitizeCredits } from './sim/wallet.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -48,6 +49,7 @@ function sanitize(raw) {
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
     materials: sanitizeMaterials(raw.materials),
     goods: sanitizeGoods(raw.goods),
+    credits: sanitizeCredits(raw.credits),
     equipped: { device: null, implant: null, glyph: null },
     attunements: Array.isArray(raw.attunements) ? [...new Set(raw.attunements.filter((a) => Object.hasOwn(ATTUNEMENT_NAMES, a)))] : [],
     quest: {
@@ -153,6 +155,7 @@ export class CharacterStore {
       inventory: [],
       materials: {},
       goods: {},
+      credits: 0,
       equipped: { device: null, implant: null, glyph: null },
       attunements: [],
       quest: { step: 0, progress: 0 },
