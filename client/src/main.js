@@ -10,6 +10,7 @@ import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -59,6 +60,12 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Original carapace is opt-in until actual visual/motion review; no
+// change to default companion animation or low-spec behavior.
+if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
+  try{const gltf=await assets.loader.loadAsync('/client/art-assets/mender_carapace.glb');assets.menderPrototype=prepareMenderCarapace(THREE,gltf.scene);}
+  catch(err){console.warn('[models] Mender prototype unavailable; retaining live rig:',err.message||err);}
+}
 const useGlb = (meta) => glbOnly === null || (glbOnly !== 'none' && glbOnly.split(',').includes(meta.c));
 // ?glb=none reproduces the original procedural presentation exactly (used for
 // before/after comparisons), so it also skips image-based lighting.
@@ -1447,6 +1454,7 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
+      reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
