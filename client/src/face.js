@@ -122,7 +122,9 @@ export function skinMaterial(assets, ap) {
     uHairColor: { value: hair },
     uBrow: { value: new THREE.Vector2(0.62 - ap.brow * 0.4, 0.9 - ap.brow * 0.35) },
     uStubble: { value: ap.stubble },
-    uScalp: { value: ap.hairStyle === 'shaved' ? 0.12 : ap.hairStyle === 'buzz' ? 0.9 : 0.75 },
+    uScalp: { value: ap.hairStyle === 'shaved' || ap.hairStyle === 'none' ? 0.12 : ap.hairStyle === 'buzz' ? 0.9 : 0.75 },
+    uRace: { value: ap.race === 'mirekin' ? 2 : 0 },
+    uTime: { value: 0 },
     uLip: { value: ap.lip },
     uAge: { value: ap.morph?.age || 0 },
     uSkinScatter: { value: new THREE.Color(deep ? 0x8a3a24 : 0xc4523a).multiplyScalar(0.55) },
@@ -135,8 +137,10 @@ export function skinMaterial(assets, ap) {
     sh.fragmentShader = sh.fragmentShader
       .replace(
         'void main() {',
-        `uniform sampler2D uSkinMasks; uniform vec3 uHairColor; uniform vec2 uBrow; uniform float uStubble, uScalp, uLip, uAge;
+        `uniform sampler2D uSkinMasks; uniform vec3 uHairColor; uniform vec2 uBrow; uniform float uStubble, uScalp, uLip, uAge, uRace, uTime;
 float skinHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float skinNoise(vec2 x){ vec2 i = floor(x); vec2 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(skinHash(i), skinHash(i + vec2(1.0, 0.0)), f.x), mix(skinHash(i + vec2(0.0, 1.0)), skinHash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {`,
       )
       .replace(
@@ -154,15 +158,78 @@ void main() {`,
 	diffuseColor.rgb = mix( diffuseColor.rgb, hairTone, clamp( browA * 0.92, 0.0, 1.0 ) );
 	diffuseColor.rgb = mix( diffuseColor.rgb, hairTone * 0.9 + diffuseColor.rgb * 0.1, clamp( beardA * 0.85, 0.0, 1.0 ) );
 	diffuseColor.rgb = mix( diffuseColor.rgb, hairTone, clamp( scalpA * 0.88, 0.0, 1.0 ) );
-	float hairCover = max( browA, max( beardA, scalpA ) );`,
+	float hairCover = max( browA, max( beardA, scalpA ) );
+	// Mirekin: bloom-altered skin, mottled in two scales with darker plates.
+	float mire = 0.0;
+	if ( uRace > 1.5 ) {
+		vec2 q = vMapUv * 48.0;
+		float m1 = skinHash( floor( q ) ) * 0.5 + skinHash( floor( q * 0.37 + 3.1 ) ) * 0.5;
+		float plates = smoothstep( 0.55, 0.8, m1 );
+		diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 0.72, 0.8, 0.74 ), plates * ( 1.0 - hairCover ) );
+		// Vein network: contour lines of domain-warped noise wind and fork like
+		// vessels; a second, finer octave adds capillaries. Lit from within.
+		vec2 u = vMapUv * 22.0;
+		vec2 warp = vec2( skinNoise( u * 0.7 + 4.1 ), skinNoise( u * 0.7 + 9.3 ) ) * 1.6;
+		float n1 = skinNoise( u + warp );
+		float n2 = skinNoise( u * 2.7 + warp * 1.8 + 17.0 );
+		float vein = ( 1.0 - smoothstep( 0.0, 0.035, abs( n1 - 0.5 ) ) ) * smoothstep( 0.35, 0.6, skinNoise( u * 0.45 + 2.0 ) );
+		vein += ( 1.0 - smoothstep( 0.0, 0.025, abs( n2 - 0.5 ) ) ) * 0.35;
+		mire = min( vein, 1.0 ) * ( 1.0 - hairCover ) * ( 1.0 - skMask.a );
+		diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 0.6, 0.85, 0.85 ), mire * 0.6 );
+	}`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
 	roughnessFactor = mix( roughnessFactor, 0.78, hairCover ) + uAge * 0.06;`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+	// Bioluminescent veins breathe slowly (Mirekin only).
+	totalEmissiveRadiance += vec3( 0.12, 0.85, 0.7 ) * mire * ( 0.35 + 0.15 * sin( uTime * 1.3 ) );`,
       );
   };
-  m.customProgramCacheKey = () => 'attune-skin-v1';
+  m.customProgramCacheKey = () => 'attune-skin-v3';
+  return m;
+}
+
+/**
+ * Veyran: the smooth featureless head (mannequin surface, atlas UVs) in the
+ * character's crimson, with fine tracery lines that brighten faintly with
+ * exertion (st.combat / hit set uTrace).
+ */
+export function veyranMaterial(ap) {
+  const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(ap.tone), roughness: 0.42, metalness: 0.05 });
+  m.name = 'veyran';
+  const trace = { value: 0.2 };
+  m.userData.face = { trace };
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTrace = trace;
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying vec3 vVeyP;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvVeyP = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', `uniform float uTrace; varying vec3 vVeyP;
+float vh(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.743); }
+void main() {`)
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+	// Contour tracery: thin bands following height and a slow twist around the skull.
+	vec3 p = vVeyP * 60.0;
+	// Irregular, branching contours: two warped families, broken in places.
+	float w = sin( p.x * 0.55 + p.z * 0.35 ) * 0.4 + sin( p.y * 0.23 + p.x * 0.9 ) * 0.25;
+	float band = abs( fract( p.y * 0.45 + w ) - 0.5 );
+	float band2 = abs( fract( ( p.y + p.z ) * 0.31 - w * 1.3 ) - 0.5 );
+	float breakUp = step( 0.35, vh( floor( vec2( p.y * 0.45 + w, p.x * 0.3 ) ) ) );
+	float line = ( 1.0 - smoothstep( 0.0, 0.035, band ) ) * breakUp + ( 1.0 - smoothstep( 0.0, 0.025, band2 ) ) * 0.55;
+	line = min( line, 1.0 );
+	diffuseColor.rgb *= 1.0 - 0.14 * line;
+	totalEmissiveRadiance += vec3( 1.0, 0.36, 0.22 ) * line * uTrace * 0.7;`,
+      );
+  };
+  m.customProgramCacheKey = () => 'attune-veyran-v2';
   return m;
 }
 
@@ -255,6 +322,28 @@ void main() {`,
   return m;
 }
 
+/** Mirekin chitin crest: glossy segmented plates along the skull midline. */
+export function chitinMaterial() {
+  const m = new THREE.MeshPhysicalMaterial({ color: 0x2d3a33, roughness: 0.35, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.25 });
+  m.name = 'chitin';
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying vec3 vChP;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvChP = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', 'varying vec3 vChP;\nvoid main() {')
+      .replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+	// Overlapping plates: darker seams every ~1.6 cm along the crest.
+	float seg = fract( ( vChP.y * 0.7 - vChP.z ) * 62.0 );
+	diffuseColor.rgb *= mix( 0.55, 1.12, smoothstep( 0.0, 0.18, seg ) );`,
+      );
+  };
+  m.customProgramCacheKey = () => 'attune-chitin-v1';
+  return m;
+}
+
 export function lashMaterial(assets, ap) {
   const tex = assets.texture('lash_alpha');
   const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(ap.hair).multiplyScalar(0.6), alphaMap: tex, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.6, metalness: 0 });
@@ -337,8 +426,9 @@ const FWD = new THREE.Vector3(0, 0, 1);
  */
 export function setupFace(inst, ap, assets, { faceless = false, hideHead = false, suitMaterial = null, hood = false, gloveMaterial = null } = {}) {
   // Under a hood the shell layers would push through the cloth; the painted
-  // scalp carries the hairline instead.
+  // scalp carries the hairline instead. The Mirekin crest is not hair.
   const hairStyle = hood ? 'none' : ap.hairStyle;
+  const crest = ap.race === 'mirekin' && !hood && !hideHead && !faceless;
   const nodes = {};
   inst.traverse((o) => {
     if (o.isMesh && o.userData.facePart) (nodes[o.userData.facePart] ||= []).push(o);
@@ -377,11 +467,17 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
   // Hair: only the chosen style is shown (none under helmets or faceless heads).
   const hairMat = hairMaterial(ap);
   mats.push(hairMat);
+  let crestMaterial = null;
   for (const [part, list] of Object.entries(nodes)) {
     if (!part.startsWith('hair_')) continue;
     for (const o of list) {
       o.material = hairMat;
-      o.visible = !faceless && !hideHead && part === `hair_${hairStyle}`;
+      o.visible = !faceless && !hideHead && (part === `hair_${hairStyle}` || (crest && part === 'hair_crest'));
+      if (part === 'hair_crest') {
+        if (!crestMaterial) mats.push((crestMaterial = chitinMaterial()));
+        o.material = crestMaterial;
+        o.castShadow = o.visible;
+      }
       // The head already shadows the scalp; alpha-tested layers in the shadow pass cost more than they add.
       o.castShadow = false;
       o.frustumCulled = false;
@@ -473,6 +569,7 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
   let detailShown = true;
   function update(dt, st = {}) {
     if (!morphMeshes.length) return;
+    if (skin.userData.face.uRace.value > 1.5) skin.userData.face.uTime.value += dt;
     const near = st.faceDetail !== false;
     if (near !== detailShown) {
       detailShown = near;

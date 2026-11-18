@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
+import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
@@ -371,10 +372,53 @@ const ui = new UI({
 
 let chosenClass = 'symbiotech';
 let chosenLook = defaultLook(chosenClass);
+// Cosmetic appearance chosen at creation (validated again by the server).
+let chosenAp = defaultAppearance(chosenLook);
+let apTouched = false;
+function buildAppearance() {
+  const pick = (id, items, current, onPick, label) => {
+    const wrap = $(id);
+    wrap.replaceChildren();
+    for (const it of items) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.value = String(it.value);
+      b.setAttribute('aria-pressed', String(it.value === current));
+      if (it.swatch !== undefined) {
+        b.style.background = '#' + it.swatch.toString(16).padStart(6, '0');
+        b.setAttribute('aria-label', it.label);
+        b.title = it.label;
+      } else b.textContent = it.label;
+      b.addEventListener('click', () => {
+        apTouched = true;
+        onPick(it.value);
+        chosenAp = normalizeAppearance(chosenAp, chosenLook);
+        buildAppearance();
+      });
+      wrap.append(b);
+    }
+    void label;
+  };
+  const race = RACES[chosenAp.race];
+  pick('ap-frame', Object.values(FRAMES).map((f) => ({ value: f.id, label: f.name })), chosenAp.frame, (v) => (chosenAp.frame = v));
+  pick('ap-race', Object.values(RACES).map((r) => ({ value: r.id, label: r.name })), chosenAp.race, (v) => { chosenAp.race = v; chosenAp.skin = 0; });
+  // Race-bound outfits (Red Rucker) offer only their race.
+  if (LOOK_RACE[chosenLook]) for (const b of $('ap-race').children) b.disabled = b.dataset.value !== LOOK_RACE[chosenLook];
+  $('ap-race-blurb').textContent = race.blurb;
+  pick('ap-skin', race.skins.map((hex, i) => ({ value: i, swatch: hex, label: `Skin tone ${i + 1}` })), chosenAp.skin, (v) => (chosenAp.skin = v));
+  pick('ap-hair', race.hair.map((h) => ({ value: h, label: HAIR_STYLES[h].name })), chosenAp.hair, (v) => (chosenAp.hair = v));
+  pick('ap-colour', HAIR_COLOURS.map((c, i) => ({ value: i, swatch: c.hex, label: c.name })), chosenAp.hairColour, (v) => (chosenAp.hairColour = v));
+  const hairless = race.hair.length === 1 && race.hair[0] === 'none';
+  for (const b of $('ap-colour').children) b.disabled = hairless;
+}
 /** Offer the appearances of the chosen class (hidden when there is only one). */
 function buildLooks() {
   const list = LOOKS[chosenClass];
   chosenLook = defaultLook(chosenClass);
+  if (!apTouched) {
+    chosenAp = defaultAppearance(chosenLook);
+    if ($('ap-frame')) buildAppearance();
+  }
   $('look-row').hidden = list.length < 2;
   const wrap = $('looks');
   wrap.replaceChildren();
@@ -392,6 +436,8 @@ function buildLooks() {
     card.addEventListener('click', () => {
       chosenLook = look.id;
       for (const c of wrap.children) c.setAttribute('aria-pressed', String(c.dataset.look === look.id));
+      chosenAp = apTouched ? normalizeAppearance(chosenAp, chosenLook) : defaultAppearance(chosenLook);
+      buildAppearance();
     });
     wrap.append(card);
   }
@@ -421,6 +467,7 @@ function buildLogin() {
     wrap.append(card);
   }
   buildLooks();
+  buildAppearance();
   $('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = $('name').value.trim();
@@ -430,7 +477,7 @@ function buildLogin() {
     }
     $('login-error').textContent = '';
     $('enter').disabled = true;
-    net.create(name, chosenClass, chosenLook);
+    net.create(name, chosenClass, chosenLook, encodeAppearance(normalizeAppearance(chosenAp, chosenLook)));
   });
 }
 

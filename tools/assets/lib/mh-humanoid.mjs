@@ -513,7 +513,10 @@ export function replaceWithMakeHuman(doc, mh, spec, shells) {
           const p = posed[i];
           const sw = scalp.get(i) || 0;
           const a = Math.max(0, n[1]), b = Math.abs(n[0]), c = Math.max(0, -n[2]), f = Math.max(0, n[2]);
-          const T = sw * (a * style.top + b * style.side + c * style.back + f * style.top) / (a + b + c + f || 1);
+          // Crest profile: a ridge along the skull midline from the hairline to the nape.
+          const T = style.profile === 'crest'
+            ? sw * style.top * Math.exp(-((p[0] / style.width) ** 2)) * (1 - smooth(0.06, 0.11, p[2] - fit.world.Head[2]))
+            : sw * (a * style.top + b * style.side + c * style.back + f * style.top) / (a + b + c + f || 1);
           const g = style.flow === 'back' ? [Math.sign(p[0]) * 0.25 * b, 0.1, -1] : vec.add(vec.norm(vec.sub(p, whorl)), [0, -0.5, 0]);
           const fl = vec.norm(vec.sub(g, vec.mul(n, vec.dot(g, n))));
           const q = vec.add(vec.add(p, vec.mul(n, h * T + 0.0004 * h)), vec.mul(fl, h * T * style.lean));

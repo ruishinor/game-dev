@@ -359,7 +359,7 @@ export class Game {
   metaFor(ent) {
     switch (ent.kind) {
       case 'player':
-        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look };
+        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance };
       case 'enemy':
         return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
@@ -424,6 +424,7 @@ export class Game {
       cls: c.cls,
       companion:p.companion?.type??null,
       look: c.look,
+      appearance: c.appearance,
       level: c.level,
       xp: c.xp,
       inventory: [...c.inventory],

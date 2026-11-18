@@ -179,13 +179,13 @@ export class Net {
     ws.onerror = () => {};
   }
 
-  create(name, cls, look) {
+  create(name, cls, look, appearance) {
     if (this.accountLogged) {
-      this.send({ t: 'account_create_character', name, cls, look });
+      this.send({ t: 'account_create_character', name, cls, look, appearance });
       return;
     }
-    this.pendingCreate = { name, cls, look };
-    if (this.ws && this.ws.readyState === 1) this.send({ t: 'create', name, cls, look });
+    this.pendingCreate = { name, cls, look, appearance };
+    if (this.ws && this.ws.readyState === 1) this.send({ t: 'create', name, cls, look, appearance });
     else if (!this.ws) this.connect();
   }
 
