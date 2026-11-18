@@ -7,13 +7,17 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
-import { validateLoadout } from '../shared/build.js';
+import { resolveLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
+import { sanitizeUnseen } from './sim/inventory-seen.js';
+import { ownedCompanionType } from './sim/companion.js';
+import { recoverySamples } from '../shared/recovery.js';
+import { sanitizeRecoveryReadyAt } from './sim/recovery.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -60,6 +64,8 @@ function sanitize(raw) {
     },
     survey: surveyState(raw.survey),
     traceState:sanitizeTraceState(raw.traceState),
+    recoverySamples:recoverySamples(raw.recoverySamples),
+    recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
@@ -69,15 +75,16 @@ function sanitize(raw) {
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
   c.condition=sanitizeCondition(raw.condition,c.inventory);
+  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
+  c.companionDismissed = raw.companionDismissed === true;
+  c.defaultCompanion = typeof raw.defaultCompanion === 'string' && raw.defaultCompanion === ownedCompanionType(c)
+    ? raw.defaultCompanion : null;
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };
-    // A loadout that no longer validates (content changed) is simply cleared.
-    if (validateLoadout(c, eq).ok) {
-      c.equipped=eq;
-      const extended={...eq,weapon:raw.equipped.weapon};
-      if(raw.equipped.weapon&&validateLoadout(c,extended).ok)c.equipped=extended;
-    }
+    if (raw.equipped.weapon) eq.weapon = raw.equipped.weapon;
+    c.equipped = resolveLoadout(c, eq).equipped;
+    if (!c.equipped.weapon) delete c.equipped.weapon;
   }
   return c;
 }
@@ -170,6 +177,8 @@ export class CharacterStore {
       quest: { step: 0, progress: 0 },
       survey: null,
       traceState:null,
+      recoverySamples:0,
+      recoveryReadyAt:0,
       brineStage: 0,
       pos: null,
       hp: 0,

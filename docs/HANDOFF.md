@@ -2,7 +2,7 @@
 
 Read [AGENTS.md](../AGENTS.md) for the standing server-authority, minimum-disclosure and publication review gate.
 
-Latest visual-upgrade validation (2026-11-18): [art/VISUAL-UPGRADE-VALIDATION.md](art/VISUAL-UPGRADE-VALIDATION.md) covers the pointer-lock steering fix, skitter material, capture tool, verification evidence, and the open visual and performance items.
+Historical visual-upgrade validation (2026-11-18, before current integration; rerun checks for this branch): [art/VISUAL-UPGRADE-VALIDATION.md](art/VISUAL-UPGRADE-VALIDATION.md) covers the pointer-lock steering fix, skitter material, capture tool, verification evidence, and the open visual and performance items.
 
 ## Current implementation
 
@@ -12,7 +12,7 @@ Latest visual-upgrade validation (2026-11-18): [art/VISUAL-UPGRADE-VALIDATION.md
 
 ## Verification
 
-Run `npm test` for simulation, networking and asset contracts, and `npm run e2e` for two independent Chromium contexts. The latter compares both clients' observed enemy health with the server value and checks creation and persistence. Use `npm run capture` for matched scripted views and `npm run profile` to measure the active browser renderer. Compare against the applicable branch and commit, since the default branch is an earlier slice.
+Run `npm test` for simulation, networking and asset contracts, and `npm run e2e` for two independent Chromium contexts. The latter compares both clients' observed enemy health with the server value and checks creation and persistence. Use `npm run capture` for matched scripted views and `npm run profile` to measure the active browser renderer. Compare against the applicable branch and commit. `main` is the consolidated integration line; the earlier default and playtest branches are retained for history.
 
 The [rendering extraction matrix](art/MMO-RENDERING-EXTRACTION.md) records the reference implementations, decisions and risks. The [art review records](art/reviews/) document the original asset work. New screenshots used to evaluate this branch remain separate from historical reference captures.
 

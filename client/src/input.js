@@ -99,7 +99,8 @@ export class Input {
           const p = canvas.requestPointerLock();
           if (p && p.catch) p.catch(() => { this.lockPending = false; });
         } catch {
-          /* pointer lock unavailable */
+          this.lockPending = false;
+          /* pointer lock unavailable; continue unlocked */
         }
       }
     });
@@ -135,7 +136,14 @@ export class Input {
     });
     document.addEventListener('pointerlockchange', () => {
       this.lockPending = false;
-      if (document.pointerLockElement === canvas) this.skipMoves = 1;
+      if (document.pointerLockElement === canvas) {
+        // A request may finish after mouse-up, blur or a reset.
+        if (!this.enabled || (!this.lmb && !this.rmb)) {
+          document.exitPointerLock();
+          return;
+        }
+        this.skipMoves = 1;
+      }
       if (document.pointerLockElement !== canvas && (this.lmb || this.rmb) && this.dragDist > DRAG_THRESHOLD) {
         // Lock was taken away (Esc): end the drag rather than steer blindly.
         this.lmb = false;
@@ -154,6 +162,7 @@ export class Input {
     this.downAt = null;
     this.lookX = 0;
     this.lookY = 0;
+    this.skipMoves = 0;
     if (document.pointerLockElement === this.canvas) document.exitPointerLock();
   }
 

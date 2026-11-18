@@ -14,10 +14,13 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS } from '../../shared/goods.js';
+import {recoverField} from './recovery.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
+const INSCRIPTION_MS = 1800;
 
 export function grantXp(game, p, amount) {
   const c = p.char;
@@ -116,7 +119,7 @@ export function grantSalvage(game,p,id,count=1) {
   game.markDirty(p);return true;
 }
 
-export function craftRecipe(game,p,id,rev) {
+export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
   if(!Object.hasOwn(RECIPES,id))return {ok:false,reason:'Unknown recipe.'};
@@ -130,8 +133,10 @@ export function craftRecipe(game,p,id,rev) {
   if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
-  if(out.item)p.outbox.push({e:'loot',item:out.item});
-  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
+  if (!quiet) {
+    if(out.item)p.outbox.push({e:'loot',item:out.item});
+    game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
+  }
   game.markDirty(p);
   return {ok:true};
 }
@@ -144,10 +149,18 @@ export function equipItem(game, p, itemId) {
   if (typeof itemId !== 'string' || !Object.hasOwn(ITEMS, itemId)) return { ok: false, reason: 'Unknown item.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (inCombat(game, p)) return { ok: false, reason: 'You cannot modify your build in combat.' };
+  if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
+  if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
   if (p.char.equipped[ITEMS[itemId].slot] === itemId) return { ok: false, reason: 'That is already equipped.' };
   const res = tryEquip(p.char, itemId);
   if (!res.ok) return res;
-  applyLoadout(game, p, res.equipped);
+  if (ITEMS[itemId].slot === 'glyph') {
+    if (p.followId || p.jy > 0.05 || p.autoOn) return { ok: false, reason: 'Stand still and disengage before inscribing a glyph.' };
+    p.inscription = { itemId, x: p.x, z: p.z, until: game.time + INSCRIPTION_MS, traced: false };
+    game.events.push({ e: 'ritual', s: p.id, phase: 'begin' });
+    return { ok: true };
+  }
+  applyLoadout(game, p, res.equipped, ITEMS[itemId].name);
   game.message(p, 'info', `${ITEMS[itemId].name} equipped.`);
   return { ok: true };
 }
@@ -156,21 +169,64 @@ export function unequipSlot(game, p, slot) {
   if (typeof slot !== 'string' || !SLOTS.includes(slot)) return { ok: false, reason: 'Unknown slot.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (inCombat(game, p)) return { ok: false, reason: 'You cannot modify your build in combat.' };
+  if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
+  if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
   const res = tryUnequip(p.char, slot);
   if (!res.ok) return res;
   const name = ITEMS[p.char.equipped[slot]].name;
-  applyLoadout(game, p, res.equipped);
+  applyLoadout(game, p, res.equipped, name);
   game.message(p, 'info', `${name} removed.`);
+  if (res.alsoRemoved.length) {
+    const names = res.alsoRemoved.map(id => ITEMS[id].name).join(', ');
+    game.message(p, 'info', `Returned to inventory because requirements changed: ${names}.`);
+  }
   return { ok: true };
 }
 
-function applyLoadout(game, p, equipped) {
+function applyLoadout(game, p, equipped, itemName, playEquip = true) {
+  const before = equipmentAttributes(p.char, p.stats);
   p.char.equipped = equipped;
   game.refreshStats(p);
+  const changes = attributeChanges(before, equipmentAttributes(p.char, p.stats));
+  if (changes.length) p.outbox.push({ e: 'attributes', item: itemName, changes });
   p.buffs = p.buffs.filter((b) => b.k !== 'shield');
-  game.events.push({ e: 'fx', k: 'equip', s: p.id });
+  if (playEquip) game.events.push({ e: 'fx', k: 'equip', s: p.id });
   game.markDirty(p);
   checkDirective(game, p);
+}
+
+export function inscriptionState(game, p) {
+  const ritual = p.inscription;
+  return ritual ? { name: ITEMS[ritual.itemId].name, ms: Math.max(0, ritual.until - game.time), total: INSCRIPTION_MS } : null;
+}
+
+export function cancelInscription(game, p, reason = 'Inscription cancelled.') {
+  if (!p.inscription) return;
+  p.inscription = null;
+  game.events.push({ e: 'ritual', s: p.id, phase: 'cancel' });
+  game.message(p, 'info', reason);
+}
+
+export function tickInscription(game, p) {
+  const ritual = p.inscription;
+  if (!ritual) return;
+  if (p.dead || inCombat(game, p) || p.autoOn) return cancelInscription(game, p, 'Inscription interrupted by combat.');
+  if (p.followId || p.jy > 0.05 || dist(p, ritual) > 0.1) return cancelInscription(game, p, 'Inscription interrupted by movement.');
+  const ms = ritual.until - game.time;
+  if (ms > 0) {
+    if (!ritual.traced && ms <= INSCRIPTION_MS / 2) {
+      ritual.traced = true;
+      game.events.push({ e: 'ritual', s: p.id, phase: 'trace' });
+    }
+    return;
+  }
+  const result = tryEquip(p.char, ritual.itemId);
+  if (!result.ok) return cancelInscription(game, p, 'Inscription failed. ' + result.reason);
+  p.inscription = null;
+  const name = ITEMS[ritual.itemId].name;
+  applyLoadout(game, p, result.equipped, name, false);
+  game.events.push({ e: 'ritual', s: p.id, phase: 'complete' });
+  game.message(p, 'info', `${name} inscribed.`);
 }
 
 const denied = reason => ({ok:false, reason});
@@ -240,6 +296,7 @@ export function interact(game, p, objectId) {
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj);
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {

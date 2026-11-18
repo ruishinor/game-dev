@@ -337,6 +337,8 @@ if(RIFT_SITE){
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
     {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65});
 }
+// Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
+OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
 

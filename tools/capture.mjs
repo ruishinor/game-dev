@@ -90,6 +90,7 @@ async function shot(c, name) {
 const toward = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
 
 let failed = false;
+let keepAlive = null;
 try {
   const sf = ZONES.sporefield;
   const A = await join('a', 'Brakka', 'vanguard');
@@ -137,7 +138,7 @@ try {
   // fight would outlast the players. Harness only: keep both at or above a
   // wounded floor (A is wounded on purpose so the heal shows).
   const fighters = [await activeBrowserPlayer(A.page, srv, A.name), await activeBrowserPlayer(B.page, srv, B.name)];
-  const keepAlive = setInterval(() => {
+  keepAlive = setInterval(() => {
     for (const p of fighters) if (p.hp > 0 && p.hp < 80) p.hp = 120;
   }, 200);
   await shot(A, '07-combat-vanguard');
@@ -156,6 +157,7 @@ try {
   await sleep(1500);
   await shot(A, '10-enemy-destroyed');
   clearInterval(keepAlive);
+  keepAlive = null;
   clients.splice(clients.indexOf(B), 1);
   await B.ctx.close();
 
@@ -181,6 +183,7 @@ try {
   failed = true;
   console.log(`FAIL: ${err.stack || err}`);
 } finally {
+  if (keepAlive !== null) clearInterval(keepAlive);
   await browser.close();
   await srv.close();
 }

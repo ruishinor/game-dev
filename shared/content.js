@@ -177,7 +177,7 @@ export const ABILITIES = {
     cost: 40,
     heal: 48,
     radius: 10,
-    desc: 'Your symbiote erupts in a restorative bloom, healing every ally within 10m of it.',
+    desc: 'Your symbiote erupts in a restorative bloom, healing you and party members within 10m of it.',
   },
 };
 
@@ -202,8 +202,8 @@ export const COMPANIONS = {
     guard: { regen: 5, dr: 0.2, range: 40 },
     assist: { interval: 1500, dmg: 4, range: 8, corrode: { dur: 4000, mul: 1.12 } },
     modes: {
-      triage: { name: 'Triage', desc: 'Roams near you and mends the most injured ally in reach.' },
-      guard: { name: 'Bond', desc: 'Bonds to your friendly target (or you): steady regeneration and 20% less damage taken.' },
+      triage: { name: 'Triage', desc: 'Roams near you and mends you or the most injured party member in reach.' },
+      guard: { name: 'Bond', desc: 'Bonds to you or your selected party member for steady regeneration and 20% less damage taken.' },
       assist: { name: 'Attack', desc: 'Attacks your target. Its sting makes the target take 12% more damage.' },
       follow: { name: 'Follow', desc: 'Stays near you without automatically attacking, healing or bonding.' },
       stay: { name: 'Stay', desc: 'Holds position without engaging. Returns to you if you move beyond its tether.' },
