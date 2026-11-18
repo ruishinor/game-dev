@@ -642,6 +642,7 @@ const chestOf = (ent) => () => ent.chest;
 
 function onWelcome(m) {
   clearWorld();
+  ui.questTracker.useCharacter(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;

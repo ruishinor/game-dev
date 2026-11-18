@@ -13,6 +13,7 @@ import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
+import { QuestTracker } from './quest-tracker-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -268,7 +269,8 @@ export class UI {
     this.brineWorkshop.hidden=true;
     this.brineWorkshop.addEventListener('click',()=>{this.workshopTab='fabrication';this.toggleWorkshop(true);});
     this.surveyTracker.append(h('div', 'kicker', 'Brineworks · field investigation'), this.surveyText,this.brineWorkshop);
-    side.append(this.minimap, this.zoneLabel, this.tracker, this.surveyTracker);
+    this.questTracker=new QuestTracker(this);
+    side.append(this.minimap, this.zoneLabel, this.questTracker.el);
     root.append(side);
 
     this.errors = h('div', 'errors');
@@ -276,7 +278,7 @@ export class UI {
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
     root.append(this.errors, this.toasts, this.banner);
-    this.radio=new RadioPanel(root,{tracker:this.surveyTracker,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
+    this.radio=new RadioPanel(root,{tracker:this.questTracker.el,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
     const logWrap = h('div', 'logwrap');
@@ -1141,6 +1143,7 @@ export class UI {
       for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
     }else this.unseenItems.clear();
     this.sheet = sheet;
+    this.questTracker.sync(sheet,this.questTrial);
     this.questJournal.sync(sheet,this.questTrial);
     this.setClass(sheet.cls);
     this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
@@ -1256,6 +1259,7 @@ export class UI {
     if (!me || !you || !this.sheet) return;
     const def = CLASSES[this.sheet.cls];
     this.questTrial=you.brineTrial??null;
+    this.questTracker.sync(this.sheet,this.questTrial);
     if(!this.questJournal.el.hidden)this.questJournal.sync(this.sheet,this.questTrial);
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
@@ -1477,7 +1481,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();this.loot.reset();this.questJournal.reset();this.questTrial=null;
+    this.radio.clear();this.loot.reset();this.questJournal.reset();this.questTracker.reset();this.questTrial=null;
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.

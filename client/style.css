@@ -542,3 +542,6 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .quest-journal-detail p {font-size:13px;line-height:1.5;}
 .quest-progress {color:var(--green);font-size:12px;}
 @media(max-width:560px){.quest-journal-layout{grid-template-columns:1fr;}.quest-journal-nav{max-height:30vh;}.quest-journal-detail{max-height:30vh;}}
+
+/* Local quest tracking; use the existing HUD card visual language. */
+.quest-tracker-group{width:100%;min-width:0;display:grid;gap:5px}.quest-tracker-header{display:flex;gap:6px;align-items:center;justify-content:space-between}.quest-tracker-header button{font:inherit;font-size:11px;padding:3px 8px}.quest-collapse{min-width:28px}.quest-tracker-cards,.quest-tracker-other{display:grid;gap:6px}.quest-tracker-cards[hidden],.quest-tracker-other[hidden],.quest-tracker-group [hidden]{display:none!important}.quest-journal-detail button[data-focus="tracking"]{margin-top:12px}

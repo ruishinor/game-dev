@@ -42,7 +42,7 @@ export class QuestJournal{
   }
   if(!visible.length)nav.append(h('p','muted','No quests in this category.'));
   const details=h('section','quest-journal-detail'),q=visible.find(q=>q.id===this.selected);
-  if(q){details.append(h('div','kicker',q.group+' · '+labels[q.status]),h('h3',null,q.title),h('p',null,q.text));if(q.progress)details.append(h('div','quest-progress',q.progress));}
+  if(q){details.append(h('div','kicker',q.group+' · '+labels[q.status]),h('h3',null,q.title),h('p',null,q.text));if(q.progress)details.append(h('div','quest-progress',q.progress));if(q.status!=='completed'){const tracker=this.ui.questTracker,tracked=tracker.has(q),b=button(tracked?'Untrack quest':'Track quest',()=>{tracker.toggle(q);this.draw();});b.dataset.focus='tracking';b.setAttribute('aria-pressed',String(tracked));b.disabled=!tracked&&!tracker.canAdd();details.append(b,h('p','muted',tracker.selected().length+' / 3 quests tracked'));}}
   else details.append(h('p','muted','Select a quest to view its objectives.'));
   layout.append(nav,details);this.el.append(layout);
   if(focused)[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focused)?.focus({preventScroll:true});
