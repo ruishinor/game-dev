@@ -336,8 +336,9 @@ const FWD = new THREE.Vector3(0, 0, 1);
  * opts.faceless: draw the head with the body suit (looks without a face).
  */
 export function setupFace(inst, ap, assets, { faceless = false, hideHead = false, suitMaterial = null, hood = false, gloveMaterial = null } = {}) {
-  // Under a hood, longer styles would push through the cloth.
-  const hairStyle = hood && ap.hairStyle !== 'shaved' ? 'buzz' : ap.hairStyle;
+  // Under a hood the shell layers would push through the cloth; the painted
+  // scalp carries the hairline instead.
+  const hairStyle = hood ? 'none' : ap.hairStyle;
   const nodes = {};
   inst.traverse((o) => {
     if (o.isMesh && o.userData.facePart) (nodes[o.userData.facePart] ||= []).push(o);

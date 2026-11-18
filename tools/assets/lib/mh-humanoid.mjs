@@ -200,12 +200,14 @@ export function replaceWithMakeHuman(doc, mh, spec, shells) {
   for (const sp of shells) {
     if (mannequinShells.some((m) => m.name === sp.name)) continue;
     const set = new Set(sp.joints.map((n) => names.indexOf(n)).filter((i) => i >= 0));
+    // Shells marked source: 'mannequin' are cut from the smooth mannequin
+    // surface (hoods drape over ears instead of tracing them).
     const share = (v) => {
       let s = 0;
       for (const [j, w] of v.sk) if (set.has(j)) s += w;
       return s;
     };
-    let tris = allTris.filter((t) => t.every((v) => share(v) >= (sp.threshold ?? 0.5)));
+    let tris = (sp.source === 'mannequin' ? mannequinTris : allTris).filter((t) => t.every((v) => share(v) >= (sp.threshold ?? 0.5)));
     for (const plane of sp.clip ? sp.clip(J) : []) tris = clipTriangles(tris, plane);
     if (!tris.length) throw new Error(`shell ${sp.name} selected no geometry`);
     const material = doc.createMaterial(`shell_${sp.name}`).setBaseColorFactor([0.5, 0.5, 0.5, 1]).setRoughnessFactor(0.7).setMetallicFactor(0).setDoubleSided(true);

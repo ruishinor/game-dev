@@ -45,7 +45,7 @@ export const SHELLS = [
     clip: (J) => [(p) => p[1] - (J.calf_l[1] + 0.2), (p) => J.neck_01[1] + 0.015 - p[1], (p) => J.upperarm_l[0] + 0.03 - Math.abs(p[0])],
   },
   // Open-faced hood: the back, sides and crown of the head (a tilted plane keeps the face clear).
-  { name: 'hood', joints: ['Head', 'neck_01'], threshold: 0.6, offset: 0.026, clip: (J) => [(p) => J.Head[2] + 0.07 - p[2] + (p[1] - (J.Head[1] + 0.13)) * 0.35, (p) => p[1] - (J.neck_01[1] + 0.02)] },
+  { name: 'hood', source: 'mannequin', joints: ['Head', 'neck_01'], threshold: 0.6, offset: 0.02, clip: (J) => [(p) => J.Head[2] + 0.07 - p[2] + (p[1] - (J.Head[1] + 0.13)) * 0.35, (p) => p[1] - (J.neck_01[1] + 0.02)] },
 ];
 
 export const HUMANOIDS = [

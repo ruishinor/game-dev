@@ -118,11 +118,11 @@
   "humanoid_f": {
    "kind": "humanoid",
    "url": "humanoid_f.glb",
-   "bytes": 1162220,
-   "rawBytes": 9784832,
-   "hash": "19337313dfbf",
-   "tris": 38398,
-   "sourceTris": 38398,
+   "bytes": 1152932,
+   "rawBytes": 9749188,
+   "hash": "54c7967e3bae",
+   "tris": 37623,
+   "sourceTris": 37623,
    "clips": {},
    "shells": {
     "helmet": 396,
@@ -136,7 +136,7 @@
     "shins": 842,
     "thighs": 920,
     "coat": 3730,
-    "hood": 2860
+    "hood": 383
    },
    "morphs": [
     "blink_l",
@@ -222,11 +222,11 @@
   "humanoid_m": {
    "kind": "humanoid",
    "url": "humanoid_m.glb",
-   "bytes": 1783708,
-   "rawBytes": 16378024,
-   "hash": "fd20c5269798",
-   "tris": 38390,
-   "sourceTris": 38390,
+   "bytes": 1773928,
+   "rawBytes": 16341960,
+   "hash": "42733a65ae33",
+   "tris": 37632,
+   "sourceTris": 37632,
    "clips": {
     "Consume": 1.333,
     "Hit_Knockback": 0.833,
@@ -267,7 +267,7 @@
     "shins": 822,
     "thighs": 968,
     "coat": 3686,
-    "hood": 2622
+    "hood": 366
    },
    "morphs": [
     "blink_l",
