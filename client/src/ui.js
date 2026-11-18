@@ -15,6 +15,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { canSalvageEquipment } from '../../shared/item-actions.js';
 import { renderWorkshop, updateProduction } from './workshop-ui.js';
+import { WindowLayout } from './window-layout.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
@@ -430,7 +431,17 @@ export class UI {
     cancelInscription.type = 'button';
     cancelInscription.addEventListener('click', () => this.a.cancelInscription());
     this.inscription.append(this.inscriptionName, cancelInscription, this.inscriptionProgress);
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, actions, this.xp.wrap);
+    this.productionStatus = h('div', 'production-status');
+    this.productionStatus.hidden = true;
+    this.productionName = h('span', null);
+    this.productionName.setAttribute('role', 'status');
+    this.productionProgress = h('progress');
+    this.productionProgress.setAttribute('aria-label', 'Fabrication progress');
+    const cancelProduction = h('button', null, 'Cancel');
+    cancelProduction.type = 'button';
+    cancelProduction.addEventListener('click', () => this.a.cancelProduction());
+    this.productionStatus.append(this.productionName, cancelProduction, this.productionProgress);
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -578,6 +589,7 @@ export class UI {
     this.workshopBody=h('div','workshop-body');
     this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
     root.append(this.workshopPanel);
+    this.workshopLayout=new WindowLayout(this.workshopPanel,this.workshopBody,'workshop');
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
@@ -954,6 +966,19 @@ export class UI {
     if (!body.children.length) body.append(h('p', 'muted', 'You have no acquired companions.'));
   }
 
+  // Only the owner's authoritative action-start snapshot closes these panels.
+  // Later batch cycles and completion do not change window visibility.
+  dismissWorldActionPanels() {
+    const panels = [this.panel, this.inventoryPanel, this.workshopPanel];
+    const restoreView = panels.some(panel => !panel.hidden && panel.contains(document.activeElement)) ||
+      this.playerContext.contains(document.activeElement);
+    for (const panel of panels) panel.hidden = true;
+    this.root.classList.remove('inventory-front');
+    this.tooltip.hidden = true;
+    this.closePlayerContext();
+    if(restoreView)this.a.focusView();
+  }
+
   toggleBuild(force) {
     const open = force ?? this.panel.hidden;
     this.hideJournalPanels();
@@ -968,8 +993,13 @@ export class UI {
     this.hideJournalPanels();
     this.workshopPanel.hidden=!open;
     if(!open)return;
-    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){this.workshopTab='fabrication';this.recipeId=recipeId;}
+    if(recipeId&&Object.hasOwn(RECIPES,recipeId)){
+      this.workshopTab='fabrication';this.recipeId=recipeId;this.productionQuantity=null;
+      // An explicit recipe link must not land on a hidden result.
+      if(this.recipeFilter)Object.assign(this.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false});
+    }
     renderWorkshop(this);
+    this.workshopLayout.sync();
   }
 
   setInventoryOpacity(value) {
@@ -1186,7 +1216,8 @@ export class UI {
   }
 
   updateItemIndicators() {
-    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    // Character exposes equipment only; materials and trade goods belong to Inventory.
+    this.buildBtn.classList.toggle('new',[...this.unseenItems].some(id=>Object.hasOwn(ITEMS,id)));
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     for (const el of this.root.querySelectorAll('[data-seen-item]')) {
       el.classList.toggle('new-equipment', this.unseenItems.has(el.dataset.seenItem));
@@ -1486,6 +1517,16 @@ export class UI {
     }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
 
+    c1.append(h('h3',null,'Profession abilities'));
+    for(const [i,id] of def.abilities.entries()){
+      const ability=ABILITIES[id];
+      const link=h('button','ability-guide',`[${i+1}] ${ability.name}`);
+      link.type='button';link.addEventListener('click',()=>this.toggleCodex(true,id));
+      c1.append(link);
+      if(id==='phase_transposition')c1.append(h('p','muted',s.attunements.includes('resonance')?'Resonance attuned · transfer your own active barrier to an eligible ally.':'Locked · learn Resonance at the Listening Stone.'));
+    }
+    c1.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
+
     c1.append(h('h3',null,'Field disciplines'));
     const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
     stat('Field Recovery','Rank '+rank,false,'Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');
@@ -1532,7 +1573,19 @@ export class UI {
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
     const site=you.workshop??(you.safe?'sanctum':null);
     const workshopChanged=site!==this.workshopSite||lock!==this.buildLock||you.production?.id!==this.production?.id;
+    const productionStarted=!!you.production&&!this.production;
+    const inscriptionStarted=!!you.inscription&&!this.inscriptionActive;
     this.production = you.production;
+    this.inscriptionActive=!!you.inscription;
+    if(productionStarted||inscriptionStarted)this.dismissWorldActionPanels();
+    set(this.productionStatus,'hidden',!this.production);
+    if(this.production){
+      const job=this.production,recipe=RECIPES[job.id];
+      const units=recipe?.output.count||1;
+      set(this.productionName,'text',recipe?recipe.name+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
+      this.productionProgress.max=job.cycles;
+      this.productionProgress.value=job.complete+Math.max(0,Math.min(1,(job.total-job.ms)/job.total));
+    }
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
     set(this.rescueStatus,'hidden',you.rescueReady===undefined);
@@ -1788,6 +1841,9 @@ export class UI {
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.production = null;
+    this.productionStatus.hidden = true;
+    this.inscriptionActive = false;
+    this.inscription.hidden = true;
     this.productionQuantity = 1;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;

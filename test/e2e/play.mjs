@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
+import { resetEnemy } from '../../server/sim/ai.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
 import { liveFixturePlayer } from './live-fixture.mjs';
@@ -267,7 +268,10 @@ async function workshopPlaytest(){
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await page.locator('.recipe-entry[data-recipe="coupler"]').click();
   await page.locator('[data-craft="coupler"]').click();
+  await page.waitForFunction(()=>document.querySelector('.workshop-window').hidden&&!document.querySelector('.production-status').hidden,null,{timeout:10000});
   await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1,null,{timeout:10000});
+  await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
+  check('workshop closes on accepted production and stays closed after completion',await page.locator('.workshop-window').isHidden());
   check('workshop UI: non-mutating planning and skill-gated intermediate fabrication',planned&&player.char.materials.sentinel_alloy===1);
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
@@ -278,12 +282,15 @@ async function workshopPlaytest(){
   await device.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:/^Unequip$/}).click();
   await page.waitForFunction(()=>!window.__attune.state().sheet.equipped.device,null,{timeout:10000});
+  if(await page.locator('.inventory-window').isHidden())await page.keyboard.press('KeyI');
   await source.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:'Upgrade'}).click();
   await shot(P,'workshop-02-recipe.png');
   await page.locator('[data-craft="calibrate_servo"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('calibrated_servo'),null,{timeout:10000});
   check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
+  await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
+  await page.locator('#view').focus();await page.keyboard.press('KeyB');
   await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
   const detail=page.locator('.recipe-detail');
   check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
@@ -307,6 +314,8 @@ async function followInventoryPlaytest(){
  await B.page.bringToFront();
  pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
  await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.mire_fibre===5,null,{timeout:15000});
+ const characterButton=B.page.getByRole('button',{name:'Character [C]',exact:true});
+ check('material-only acquisition does not light Character',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await B.page.keyboard.press('KeyI');
  const inv=B.page.locator('.inventory-window');
  await inv.getByRole('button',{name:'All',exact:true}).click();
@@ -314,6 +323,9 @@ async function followInventoryPlaytest(){
  const qty=await inv.locator('[data-material="mire_fibre"] .stack-quantity').innerText();
  await inv.getByRole('button',{name:'Materials',exact:true}).click();
  check('All and Materials both show actual material stacks and quantity',all===2&&qty==='5'&&await inv.locator('.material-cell').count()===2);
+ await inv.locator('[data-material="mire_fibre"]').hover();
+ await B.page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('mire_fibre'),null,{timeout:10000});
+ check('material hover records Seen on server',!pb.char.unseenItems.includes('mire_fibre'));
  await inv.getByRole('button',{name:'Close inventory'}).click();
  await B.page.locator('#view').focus();
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/follow FollowLeader');await B.page.keyboard.press('Enter');
@@ -356,6 +368,30 @@ async function followInventoryPlaytest(){
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
+ await B.page.locator('#view').focus();await B.page.keyboard.down('Shift');await B.page.keyboard.down('KeyF');await B.page.keyboard.up('Shift');
+ await loot.waitFor({state:'visible',timeout:10000});
+ await B.page.keyboard.down('KeyF'); // repeated keydown while held must not collect
+ await B.page.waitForTimeout(200);
+ check('held F does not collect remaining loot',!pb.char.inventory.includes('adrenal_shunt'));
+ await B.page.keyboard.up('KeyF');await B.page.keyboard.press('KeyF');
+ await B.page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('adrenal_shunt'),null,{timeout:10000});
+ await loot.waitFor({state:'hidden',timeout:10000});
+ check('next independent F collects remaining personal loot',pb.char.inventory.includes('adrenal_shunt'));
+ check('equipment acquisition lights Character',(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyI');
+ await inv.getByRole('button',{name:'All',exact:true}).click();
+ // The deterministic Sentinel drops three distinct equipment items; each
+ // must be inspected before the Character indicator can stop glowing.
+ const equipmentDrops=['adrenal_shunt','field_vector_array','conductive_membrane'];
+ for(const [i,id] of equipmentDrops.entries()){
+   const {ITEMS}=await import('../../shared/content.js');
+   await inv.getByRole('button',{name:ITEMS[id].name,exact:true}).hover();
+   await B.page.waitForFunction(id=>!window.__attune.state().sheet.unseenItems.includes(id),id,{timeout:10000});
+   check('equipment hover marks '+id+' Seen on server',!pb.char.unseenItems.includes(id));
+   if(i<equipmentDrops.length-1)check('remaining unread equipment retains Character notification',(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ }
+ check('all equipment Seen clears Character notification',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ await inv.getByRole('button',{name:'Close inventory'}).click();
  // Fixture only: isolate a real Warden defeat and select the very-rare
  // independent roll. Neither loot collection nor presentation is mocked.
  await teleport(B,0,5.2);await settle(B,0,5.2);
@@ -988,7 +1024,7 @@ try {
   await equipVia(B, 'Glyph of Shared Pulse');
   const inscribing = await until(B, () => {
     const s = window.__attune.state();
-    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden;
+    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden && document.querySelector('.panel.build').hidden;
   }, null, 3000, 'inscription pending before glyph effect');
   check('9. glyph effects wait for the visible inscription', inscribing);
   await until(B, () => window.__attune.state().sheet.equipped.glyph === 'glyph_shared_pulse', null, 4000, 'glyph equipped');
@@ -1023,18 +1059,23 @@ try {
   check('12. state is persisted on the server, not in the browser', onDisk.characters.some((c) => c.name === 'Lumen' && c.equipped.glyph === 'glyph_shared_pulse'));
 
   // ------------------------------------------------ defeat and recovery
+  // A fixed offset can be blocked by cover or a roaming/evading enemy.
+  // Reset only the fixture; a real AI attack and ordinary browser recovery
+  // must still defeat the player. Do not call the defeat function here.
   const sk2 = skitters[1];
-  if (sk2.state === 'dead') {
-    sk2.respawnAt = 0;
-    note('respawned a skitter early');
-    await sleep(300);
-  }
-  await teleport(A, sk2.x + 1, sk2.z + 2);
-  await settle(A, sk2.x + 1, sk2.z + 2);
-  serverPlayer('Brakka').hp = 1;
-  note('set Brakka to 1 health next to an enemy');
+  const brakka=serverPlayer('Brakka');
+  brakka.autoOn=false;
+  brakka.buffs=[];
+  brakka.hp=brakka.maxHp;
+  resetEnemy(game,sk2);
+  const deathSpot=clearCombatSpot(sk2,1,2);
+  await teleport(A, deathSpot.x, deathSpot.z);
+  await settle(A, deathSpot.x, deathSpot.z);
+  brakka.hp=1;
+  note('set Brakka to 1 health on clear ground next to a live enemy');
   const died = await until(A, () => !document.querySelector('.death').hidden, null, 8000, 'death overlay');
-  check('6. the player can be defeated (death screen shown)', died);
+  check('6. the player can be defeated (death screen shown)', died&&brakka.dead,
+    JSON.stringify({hp:brakka.hp,dead:brakka.dead,enemyState:sk2.state,enemyTarget:sk2.target,enemyDistance:Math.hypot(brakka.x-sk2.x,brakka.z-sk2.z)}));
   const fallen = await until(A, () => {
     const s = window.__attune.state();
     const e = s.ents.find((x) => x.id === s.myId);

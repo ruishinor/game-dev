@@ -84,7 +84,8 @@ try{
  await workshop.locator('[data-craft="field_maintenance_kit"]').click();
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
  assert.equal(p.char.materials.mire_fibre,undefined);assert.equal(p.char.materials.sentinel_alloy,undefined);
- await workshop.getByRole('button',{name:'Close Build'}).click();
+ await workshop.waitFor({state:'hidden'});
+ await page.locator('.production-status').waitFor({state:'hidden'});
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await inventory.getByRole('button',{name:'Utility',exact:true}).click();
  await inventory.getByRole('button',{name:'Use Field Maintenance Kit',exact:true}).click();
