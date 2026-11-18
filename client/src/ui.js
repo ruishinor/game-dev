@@ -12,6 +12,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
+import { QuestJournal } from './quest-journal-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -405,9 +406,11 @@ export class UI {
     this.signoutBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.signOut(); });
     this.codexBtn = h('button', 'menubtn', 'Codex [J]');
     this.codexBtn.addEventListener('click', () => this.toggleCodex());
+    this.questJournalBtn=h('button','menubtn','Journal [L]');
+    this.questJournalBtn.addEventListener('click',()=>this.toggleQuestJournal());
     this.workshopBtn=h('button','menubtn','Build [B]');
     this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
-    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.questJournalBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -416,6 +419,7 @@ export class UI {
     this.tooltip.hidden = true;
     root.append(this.tooltip);
     this.loot=new LootPanel(this);
+    this.questJournal=new QuestJournal(this);
 
 
     // Build panel
@@ -599,6 +603,7 @@ export class UI {
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
       ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
+      ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
       ['M', 'Open the corner menu'],
@@ -767,6 +772,7 @@ export class UI {
   }
 
   hideJournalPanels() {
+    this.questJournal.dismiss();
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.loot.dismiss();
@@ -816,6 +822,13 @@ export class UI {
     this.root.classList.toggle('inventory-open',open);
     this.root.classList.toggle('inventory-front',open);
     if (open) renderInventory(this);
+  }
+
+  toggleQuestJournal(force) {
+    const open=force??this.questJournal.el.hidden;
+    if(!open){this.questJournal.dismiss();return;}
+    this.hideJournalPanels();
+    this.questJournal.show(this.sheet,this.questTrial);
   }
 
   toggleCodex(force, id = null) {
@@ -1102,7 +1115,8 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.questJournal.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.questJournal.dismiss();
     this.codexPanel.hidden = this.npcPanel.hidden = this.workshopPanel.hidden = true;
     this.loot.dismiss();
     this.fieldRecordPanel.hidden=true;
@@ -1127,6 +1141,7 @@ export class UI {
       for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
     }else this.unseenItems.clear();
     this.sheet = sheet;
+    this.questJournal.sync(sheet,this.questTrial);
     this.setClass(sheet.cls);
     this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
@@ -1240,6 +1255,8 @@ export class UI {
     set(this.moveStatus, 'text', st.movement || '');
     if (!me || !you || !this.sheet) return;
     const def = CLASSES[this.sheet.cls];
+    this.questTrial=you.brineTrial??null;
+    if(!this.questJournal.el.hidden)this.questJournal.sync(this.sheet,this.questTrial);
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
@@ -1460,7 +1477,7 @@ export class UI {
   }
 
   clearPlates() {
-    this.radio.clear();this.loot.reset();
+    this.radio.clear();this.loot.reset();this.questJournal.reset();this.questTrial=null;
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
     // Do not carry an old character's visible inventory into a world reset.

@@ -526,3 +526,19 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 
 /* Classic selective corpse loot; uses the existing item art and tooltip. */
 .loot-window{width:min(300px,calc(100vw - 24px));left:50%;top:43%;padding:12px;z-index:35}.loot-title{position:relative;padding-right:34px}.loot-title h2{font-size:16px;margin:4px 0 10px}.loot-title .close{top:0;right:0}.loot-list{display:grid;gap:5px;max-height:48vh;overflow:auto;scrollbar-width:thin;scrollbar-color:#527882 transparent}.loot-entry{display:flex;align-items:center;gap:10px;width:100%;padding:5px;text-align:left;min-width:0}.loot-slot{position:relative;width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:#10222c;border:1px solid #45616c;border-radius:4px}.loot-slot .item-art{width:34px;height:34px}.loot-copy{display:grid;gap:3px;min-width:0}.loot-copy strong{font-size:12px;color:var(--gold)}.loot-copy small{font-size:10px;color:#9cb3bd}.loot-footer{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}.loot-footer button{font-size:12px}.plate.corpse.lootable{pointer-events:auto;cursor:pointer}.plate.corpse.lootable .pname{color:#f5cb85;text-shadow:0 1px 4px black}.plate.corpse.lootable:hover .pname{text-decoration:underline}.loot-option{margin-top:8px}
+
+.panel.quest-journal {width:min(700px,94vw);padding:16px;max-height:82vh;}
+.quest-journal>h2 {margin:5px 34px 10px 0;}
+.quest-filters {display:flex;gap:5px;margin:10px 0;flex-wrap:wrap;}
+.quest-filters button {flex:1;font-size:12px;}
+.quest-filters button[aria-pressed="true"],.quest-journal-nav button[aria-pressed="true"] {background:#244956;border-color:var(--cyan);}
+.quest-journal-layout {display:grid;grid-template-columns:minmax(155px,1fr) minmax(200px,1.3fr);gap:10px;}
+.quest-journal-nav,.quest-journal-detail {max-height:min(55vh,440px);overflow:auto;min-width:0;}
+.quest-journal-nav {display:grid;gap:5px;align-content:start;}
+.quest-journal-nav button {text-align:left;display:grid;gap:4px;white-space:normal;font-size:12px;}
+.quest-journal-nav button[data-status="completed"] strong {color:var(--green);}
+.quest-journal-detail {border:1px solid var(--edge);background:#10232b;padding:12px;}
+.quest-journal-detail h3 {font-size:16px;text-transform:none;letter-spacing:.02em;color:var(--gold);margin:7px 0;}
+.quest-journal-detail p {font-size:13px;line-height:1.5;}
+.quest-progress {color:var(--green);font-size:12px;}
+@media(max-width:560px){.quest-journal-layout{grid-template-columns:1fr;}.quest-journal-nav{max-height:30vh;}.quest-journal-detail{max-height:30vh;}}

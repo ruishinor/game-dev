@@ -1210,6 +1210,9 @@ input.onAction = (code, e) => {
     case 'KeyJ':
       ui.toggleCodex();
       break;
+    case 'KeyL':
+      ui.toggleQuestJournal();
+      break;
     case 'KeyP':
       ui.toggleParty();
       break;

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {startServer} from '../../server/index.js';
+import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
+const server=await startServer({port:0,dataFile:null});
+let browser;
+try{
+ fs.mkdirSync('quest-evidence',{recursive:true});browser=await launchBrowser();
+ const page=await browser.newPage({viewport:{width:1100,height:750}});page.setDefaultTimeout(90000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
+ await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.waitForFunction(()=>window.__attune?.state().sheet?.cls==='vanguard');
+ const p=[...server.game.players.values()].find(p=>p.name==='Journal Tester');assert.ok(p);
+ p.char.quest={step:2,progress:0};p.char.survey='signal';server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.quest.step===2&&window.__attune.state().sheet.survey==='signal');
+ await page.locator('#view').focus();await page.keyboard.press('KeyL');
+ const journal=page.getByRole('dialog',{name:'Quest Journal'});await journal.waitFor({state:'visible'});
+ assert.equal(await journal.locator('[data-quest][data-status="completed"]').count(),2);
+ assert.equal(await journal.locator('[data-quest][data-status="active"]').count(),2);
+ assert.equal(await journal.getByRole('button',{name:/The Vault Warden/}).count(),0);
+ await journal.getByRole('button',{name:'Completed',exact:true}).click();
+ assert.equal(await journal.locator('[data-quest]').count(),2);
+ await journal.getByRole('button',{name:'All',exact:true}).click();
+ await journal.locator('[data-quest="brine:investigation"]').click();
+ assert.match(await journal.locator('.quest-journal-detail').innerText(),/return to Archivist Venn/i);
+ await page.screenshot({path:'quest-evidence/01-journal.png'});
+ p.char.survey='signal_done';p.char.brineStage=1;server.game.markDirty(p);
+ await journal.locator('[data-quest="brine:commissioning"]').waitFor({state:'visible'});
+ assert.equal(await journal.locator('[data-quest="brine:investigation"]').getAttribute('data-status'),'completed');
+ await page.keyboard.press('Escape');assert.ok(await journal.isHidden());
+ await page.locator('#view').focus();await page.keyboard.press('KeyJ');
+ assert.ok(await page.getByRole('dialog',{name:'Codex',exact:true}).isVisible());
+ assert.deepEqual(errors,[]);
+ console.log('PASS live Quest Journal, progress snapshots, filters, and separate Codex');
+}finally{await browser?.close();await server.close();}
