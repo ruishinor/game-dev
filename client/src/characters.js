@@ -203,7 +203,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const lod = { acc: 0 };
   let dead = false;
   let moving = false;
-  let landed = true;
+  let landed = true, meleeIndex=0;
 
   return {
     kind: 'glb',
@@ -213,6 +213,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     radius: 0.45,
     hover: 0,
     accent: def.accent,
+    fireWeapon(id,target){return weaponCarry.fire(id,target);},
+    weaponOrigin(){return weaponCarry.muzzle();},
+    handOrigin(){return weaponCarry.hand();},
     update(dt, st) {
       torsoLayers.apply(st.cv,st.sv);
       weaponCarry.apply(st.wv);
@@ -237,7 +240,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if (step){weaponCarry.restorePose();anim.update(step);}
+      weaponCarry.update(dt,st,!!step);
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -257,7 +261,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         return;
       }
       // A ranged class's basic attack is a bolt, not a punch.
-      const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
+      const combo=[{clip:'Punch_Jab',start:.16,timeScale:1.35},{clip:'Punch_Cross',start:.16,timeScale:1.25},{clip:'Melee_Hook',start:.13,timeScale:1.2}];
+      const a = id==='auto'&&kind==='attack'?combo[meleeIndex++%combo.length]:(kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {

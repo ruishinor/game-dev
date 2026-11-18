@@ -11,7 +11,7 @@ import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
-import {loadWeaponModels} from './weapon-visuals.js';
+import {loadWeaponModels,shotProfile} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
@@ -874,6 +874,8 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
+      const shot=e.ab==='auto'&&e.k==='bolt'&&s?.meta.k==='p'?shotProfile(e.wv):null;
+      const fired=!!(shot&&s?.placed&&d?.placed&&s.model.fireWeapon?.(e.wv,d.chest));
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -899,8 +901,11 @@ function onEvent(e) {
           s.faceTo = d.id;
           s.faceUntil = now + 500;
         }
-        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (!fired&&s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
+        if (shot&&d?.placed&&s.placed&&!rich()){
+          const origin=s.model.weaponOrigin?.()??s.model.handOrigin?.()??s.chest.clone();
+          legacyFx.beam(()=>origin,chestOf(d),shot.color,shot.life*1000,shot.width);
+        }else if (!shot&&e.k === 'bolt' && d) fx.bolt(()=>s.model.handOrigin?.()??s.chest,chestOf(d),sourceColour(s));
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);
@@ -1635,6 +1640,7 @@ function updateEntities(dt, t, now) {
     }
     ent.model.update(dt, {
       lookAt,
+      aimAt:S.ents.get(ent.faceTo)?.chest,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
