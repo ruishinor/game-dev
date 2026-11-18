@@ -66,7 +66,24 @@ function requirements(s,id) {
     return line;
   });
 }
+
+export function itemTooltip(sheet, id, { owned, required } = {}) {
+  const item = ITEMS[id], material = MATERIALS[id], goods = GOODS[id];
+  const def = item || material || goods;
+  if (!def) return [];
+  const category = item ? SLOT_NAMES[item.slot] : material ? 'Material' : goods.category;
+  const out = [
+    h('div', 'tip-title', def.name),
+    h('div', 'tip-meta', category + (def.ql ? ' · QL ' + def.ql : '')),
+    h('div', 'tip-body', def.desc),
+  ];
+  if (owned !== undefined) out.push(h('div', 'tip-meta', required === undefined ? `Owned ${owned}` : `Owned ${owned} · Required ${required}`));
+  if (material?.source) out.push(h('div', 'tip-meta', `Source · ${material.source}`));
+  if (sheet && item) out.push(...requirements(sheet, id));
+  return out;
+}
 function bindItem(ui,el,id) {
+  bindSeen(ui,el,id);
   el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();ui.openItemContext(id,e.clientX,e.clientY,el);});
   el.addEventListener('keydown',e=>{
     if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
@@ -82,6 +99,12 @@ function bindItem(ui,el,id) {
   });
   el.addEventListener('dragend',()=>{ui.dragItem=null;});
 }
+function bindSeen(ui, el, id) {
+  el.dataset.seenItem = id;
+  el.classList.toggle('new-equipment', ui.unseenItems.has(id));
+  el.addEventListener('mouseenter', () => ui.acknowledgeItem(id));
+  el.addEventListener('focus', () => ui.acknowledgeItem(id));
+}
 function itemDrop(ui,el,accept,apply){
   el.ondragover=e=>{
     if(ui.dragItem&&accept(ui.dragItem)){e.preventDefault();e.dataTransfer.dropEffect='move';}
@@ -95,7 +118,6 @@ function itemDrop(ui,el,accept,apply){
 function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const s=ui.sheet,item=ITEMS[id];
   const card=h('div','card compact-item'+(equipped?' slotcard':''));
-  if(ui.unseenItems.has(id))card.classList.add('new-equipment');
   const label=h('div','compact-item-label');
   label.append(itemArt(id),h('div','iname',item.name));
   card.append(h('div','kicker',SLOT_NAMES[item.slot]),label);
@@ -104,7 +126,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   if(condition!==null)card.append(h('div','item-summary','QL '+item.ql+' · Condition '+condition+'%'));
   card.append(...requirements(s,id));
   const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
-  const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':s.equipped[item.slot]?'Swap in':'Equip');
+  const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
   btn.disabled=!res.ok||!!ui.buildLock;
   btn.addEventListener('click',e=>{
     e.stopPropagation();
@@ -117,7 +139,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   if(onSelect)card.addEventListener('click',()=>onSelect(id));
   card.tabIndex=0;
   bindItem(ui,card,id);
-  ui.hover(label,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
+  ui.hover(card,()=>itemTooltip(s,id));
   return card;
 }
 
@@ -160,8 +182,7 @@ export function renderLoadout(ui,body,stats) {
     btn.type='button';
     btn.dataset.tab=t.id;
     const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
-    const unseen=[...(ui.unseenItems||[])].filter(id=>ITEMS[id]?.slot===slotFor);
-    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
+    if(slotFor)btn.dataset.seenGroup=slotFor;
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
       if(ui.loadoutTab===t.id)return;
@@ -271,6 +292,7 @@ export function renderLoadout(ui,body,stats) {
   }
   body.append(stats,doll,column);
   renderDetail();
+  ui.updateItemIndicators();
 }
 
 export function renderInventory(ui) {
@@ -284,8 +306,7 @@ export function renderInventory(ui) {
   for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
-    const unseen=[...(ui.unseenItems||[])].filter(item=>id==='all'||ITEMS[item]?.slot===id);
-    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';}
+    btn.dataset.seenGroup=id;
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }
@@ -299,9 +320,10 @@ export function renderInventory(ui) {
       const material=kind==='material'?MATERIALS[id]:GOODS[id],btn=h('button',kind==='material'?'item-cell material-cell':'item-cell goods-cell');
       btn.type='button';if(kind==='material')btn.dataset.material=id;else btn.dataset.goods=id;
       btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
+      bindSeen(ui,btn,id);
       btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
       btn.addEventListener('click',()=>ui.toggleCodex(true,id));
-      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body',(kind==='material'?'Material':material.category==='utility'?'Utility':'Junk')+' · quantity '+quantity)]);
+      ui.hover(btn,()=>itemTooltip(s,id,{owned:quantity}));
       grid.append(btn);continue;
     }
     const item=ITEMS[id];
@@ -309,9 +331,8 @@ export function renderInventory(ui) {
     btn.append(itemArt(id));
     btn.title=item.name;btn.setAttribute('aria-label',item.name);
     bindItem(ui,btn,id);
-    if(ui.unseenItems.has(id))btn.classList.add('new-equipment');
     btn.addEventListener('click',()=>{ui.acknowledgeItem(id);ui.inventorySelection=id;renderInventory(ui);if(!ui.panel.hidden)ui.renderBuild();});
-    ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
+    ui.hover(btn,()=>itemTooltip(s,id));
     grid.append(btn);
   }
   // A cell is an equipment item or one material stack, not storage capacity.
@@ -335,6 +356,7 @@ export function renderInventory(ui) {
     root.append(card);
   }
   if(ui.buildLock)root.append(h('div','why','Equipment changes are locked during combat or defeat.'));
+  ui.updateItemIndicators();
 }
 
 export function renderCodex(ui,abilityIcons) {

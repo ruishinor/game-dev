@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { previewRecipe } from '../shared/crafting.js';
 import { craftRecipe, equipItem } from '../server/sim/progress.js';
 import { useAbility } from '../server/sim/combat.js';
-import { makeGame, makeChar, place } from './helpers.js';
+import { makeGame, makeChar, place, joinParty } from './helpers.js';
 const fixture=()=>makeChar('symbiotech',{level:4,survey:'signal_done',brineStage:3,attunements:['resonance'],inventory:['conductive_membrane','sinter_laminate'],materials:{culture_matrix:1,resonance_fragment:1}});
 
 test('Bloom Relay is a permanent multi-stage, site and skill gated fusion',()=>{
@@ -28,12 +28,17 @@ for(const relayed of [false,true])test('Surge '+(relayed?'moves to the Conductor
   const g=makeGame(),c=fixture();
   if(relayed){c.inventory=['bloom_relay'];c.equipped.device='bloom_relay';}
   const p=g.addPlayer(c),near=g.addPlayer(makeChar('vanguard')),edge=g.addPlayer(makeChar('vanguard')),remote=g.addPlayer(makeChar('vanguard'));
+  const stranger = g.addPlayer(makeChar('vanguard'));
+  joinParty(g, p, near, edge, remote);
   place(p,0,25);p.companion.x=20;p.companion.z=25;
   place(near,2,25);place(edge,8,25);place(remote,20,25);
+  place(stranger, relayed ? 2 : 20, 25);
+  stranger.hp = 20;
   for(const a of [near,edge,remote])a.hp=20;
   const source=relayed?p:p.companion,initial=p.res;
   assert.ok(useAbility(g,p,'overgrowth_surge').ok);assert.equal(p.res,initial-40);
   assert.equal(near.hp>20,relayed);assert.equal(edge.hp,20);assert.equal(remote.hp>20,!relayed);
+  assert.equal(stranger.hp, 20);
   assert.ok(g.events.some(e=>e.e==='fx'&&e.k==='surge'&&e.s===source.id&&e.r===(relayed?7:10)));
   assert.equal(useAbility(g,p,'overgrowth_surge').ok,false);
 });

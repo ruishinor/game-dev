@@ -3,10 +3,10 @@
 // Nothing a client sends is trusted beyond "this is what I would like to do".
 
 import { useAbility, startAttack } from './sim/combat.js';
-import { petCommand } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, craftRecipe } from './sim/progress.js';
+import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
+import { equipItem, unequipSlot, interact, craftRecipe, cancelInscription } from './sim/progress.js';
+import { markItemSeen } from './sim/inventory-seen.js';
 import { inviteParty, answerParty, leaveParty } from './sim/party.js';
-import { renameCompanion } from './sim/companion.js';
 import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
 import { useUtility } from './sim/utility.js';
@@ -363,6 +363,11 @@ export class NetServer {
       case 'pet_rename':
         reply(renameCompanion(game, p, msg.name));
         break;
+      case 'pet_manage':
+        if (!['default', 'dismiss', 'summon'].includes(msg.action) ||
+          (msg.action === 'default' && (typeof msg.type !== 'string' || msg.type.length > 40))) return this.strike(conn);
+        reply(manageCompanion(game, p, msg.action, msg.type));
+        break;
       case 'party_invite':
         if (!isId(msg.id)) return this.strike(conn);
         reply(inviteParty(game, p, msg.id));
@@ -383,8 +388,15 @@ export class NetServer {
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;
+      case 'item_seen':
+        if (typeof msg.item !== 'string' || msg.item.length > 80 || !isId(msg.rev)) return this.strike(conn);
+        markItemSeen(game, p, msg.item, msg.rev);
+        break;
       case 'unequip':
         reply(unequipSlot(game, p, msg.slot));
+        break;
+      case 'inscription_cancel':
+        cancelInscription(game, p);
         break;
       case 'loot_open':
         if(!isId(msg.id)||!isId(msg.generation)||typeof msg.auto!=='boolean')return this.strike(conn);

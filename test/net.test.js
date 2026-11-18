@@ -299,6 +299,13 @@ test('multiplayer: two clients share one world, see each other, fight the same e
     await new Promise((r) => setTimeout(r, 1100));
     b.send({ t: 'use', a: 'mending_graft' });
     await a.until(() => a.events.some((e) => e.e === 'heal' && e.s === wb.id && e.d === wa.id && e.ab === 'mending_graft'), 3000, 'A sees the graft');
+    assert.ok(!a.events.some(e => e.e === 'heal' && e.s === wb.comp && e.d === wa.id));
+    b.send({ t: 'pet', c: 'guard' });
+    await b.until(() => b.events.some(e => e.k === 'err' && /party member/.test(e.m)), 3000, 'unrelated bond rejected');
+    b.send({ t: 'party_invite', id: wa.id });
+    await a.until(() => a.snap?.y?.party?.invite?.name === 'Lumen', 3000, 'combat party invitation');
+    a.send({ t: 'party_answer', accept: true });
+    await b.until(() => b.snap?.y?.party?.members?.length === 2, 3000, 'combat party rejoined');
     await a.until(() => a.events.some((e) => e.e === 'heal' && e.s === wb.comp && e.d === wa.id && e.ab === 'triage'), 5000, "A is mended by B's symbiote");
     const comp = a.ent(wb.comp);
     assert.equal(comp.md, 'triage');

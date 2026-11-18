@@ -93,6 +93,11 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .companion-icon svg { width: 100%; height: 100%; }
 .plate .companion-icon { pointer-events: auto; width: 21px; height: 21px; }
 .panel.companion-dialog { width: min(350px, 92vw); }
+.panel.companion-sheet { width: min(460px, 92vw); }
+.companion-sheet-entry { overflow: auto; }
+.companion-sheet-entry ul { padding-left: 17px; font-size: 13px; line-height: 1.5; }
+.companion-sheet-portrait { width: 72px; height: 72px; object-fit: contain; float: right; }
+.summon-pet { align-self: flex-start; }
 .companion-dialog h2 { font-size: 18px; padding-right: 29px; }
 .inspect-sub { color: var(--muted); font-size: 12px; margin: 4px 0 12px; }
 .companion-codex { font-size: 13px; line-height: 1.5; }
@@ -172,6 +177,9 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .auto-toggle kbd { position: absolute; top: 1px; left: 4px; font-size: 10px; }
 .auto-indicator { position: absolute; right: 4px; bottom: 2px; font-size: 10px; }
 .auto-toggle[aria-pressed="true"] { border-color: var(--green); color: var(--green); }
+.inscription-status { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 9px; width: min(270px, calc(100vw - 24px)); padding: 6px 8px; margin-bottom: 6px; background: var(--panel); border: 1px solid #b8a0e0; border-radius: 5px; font-size: 12px; }
+.inscription-status[hidden] { display: none; }
+.inscription-status progress { width: 100%; grid-column: 1 / -1; height: 5px; accent-color: #b8a0e0; }
 .auto-status { min-width: 0; font-size: 10px; line-height: 1.25; color: var(--muted); }
 .slot { position: relative; width: 62px; height: 62px; padding: 0; border-radius: 10px; background: linear-gradient(#22363e, #14232a); border: 1px solid var(--edge); overflow: hidden; }
 .slot.small { width: 46px; height: 46px; border-radius: 8px; }
@@ -202,6 +210,8 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 
 /* --- panels --- */
 .panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(10, 18, 23, 0.95); border: 1px solid var(--edge); border-radius: 12px; padding: 20px 22px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); max-height: 86vh; overflow: auto; z-index: 30; }
+#hud { scrollbar-color: #527882 #101c23; scrollbar-width: thin; }
+.panel, .field-record, .workshop-recipes, .vendor-list { scrollbar-width: thin; }
 .panel .close { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
 .panel.build { width: min(900px, 94vw); }
 .panel.party-panel, .panel.settings-panel { width: min(460px, 94vw); }
@@ -474,6 +484,11 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .comparison-line span:not(:first-child),.comparison-head span:not(:first-child){text-align:right;}
 .comparison-line .changed{color:#96e2ee;font-weight:600;}
 .workshop-recipes{display:flex;flex-direction:column;gap:5px;max-height:65vh;overflow:auto;}
+.recipe-filters { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 9px; font-size: 12px; }
+.recipe-filters input[type="search"], .recipe-filters select { width: 100%; padding: 6px 8px; color: var(--ink); background: #101c23; border: 1px solid var(--edge); border-radius: 4px; font: inherit; }
+.recipe-filters label { display: flex; align-items: center; gap: 6px; }
+.recipe-filters input[type="checkbox"] { margin: 0; }
+.recipe-entry.recipe-unavailable:not(.active) { background: #101c23; color: var(--muted); }
 .recipe-entry{text-align:left;font-size:12px;padding:8px 7px;background:#112731;}
 .recipe-entry small{display:block;color:var(--muted);font-size:10px;margin-top:4px;}
 .recipe-parts{display:grid;grid-template-columns:1fr 1fr;gap:7px;}

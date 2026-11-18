@@ -634,6 +634,14 @@ try {
     return e.defaultPrevented;
   });
   check('11. player context menu opens from frames and nameplate; native menu suppressed elsewhere',allyMenu&&targetMenu&&plateMenu&&nativeSuppressed&&(await state(B)).target===sa.myId);
+  await B.page.locator('.frame.ally').click({ button: 'right' });
+  await B.page.getByRole('button', { name: 'Invite to party', exact: true }).click();
+  await A.page.keyboard.press('KeyP');
+  await A.page.locator('.party-panel').getByRole('button', { name: 'Accept', exact: true }).click();
+  await A.page.keyboard.press('Escape');
+  check('11. the minimap identifies visible party members', await until(B,
+    () => /Brakka, \d+ metres/.test(document.querySelector('.minimap').getAttribute('aria-label')),
+    null, 3000, 'party minimap marker'));
   await B.page.keyboard.press('Enter');
   await B.page.locator('.chat').fill('/p ');
   const partyChannel=await B.page.locator('.chat-mode').getAttribute('data-channel')==='party';
@@ -874,6 +882,11 @@ try {
     && JSON.stringify(plannerSlots.sort()) === JSON.stringify(expectedSlots);
   await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
+  await B.page.getByRole('searchbox', { name: 'Find a recipe or item' }).fill('Culture matrix');
+  const filtered = await B.page.locator('.workshop-recipes .recipe-entry').count() === 1 &&
+    await B.page.locator('.recipe-entry[data-recipe="matrix"]').isVisible();
+  await B.page.getByRole('searchbox', { name: 'Find a recipe or item' }).clear();
+  check('9. workshop searches by recipe or result', filtered);
   await B.page.keyboard.press('Escape');
   check('9. Build opens independent planning and fabrication interfaces', planner && fabrication, `planner slots ${plannerSlots.join(', ')}; matrix recipe ${fabrication}`);
   await B.page.keyboard.press('KeyC');
@@ -942,6 +955,11 @@ try {
   check('9. discovering the Listening Stone grants an Attunement', prompt && sb.sheet.attunements.includes('resonance'));
   await shot(B, '05-listening-stone.png');
   await equipVia(B, 'Glyph of Shared Pulse');
+  const inscribing = await until(B, () => {
+    const s = window.__attune.state();
+    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden;
+  }, null, 3000, 'inscription pending before glyph effect');
+  check('9. glyph effects wait for the visible inscription', inscribing);
   await until(B, () => window.__attune.state().sheet.equipped.glyph === 'glyph_shared_pulse', null, 4000, 'glyph equipped');
   await B.page.keyboard.press('Escape');
   const pip = await B.page.evaluate(() => [...document.querySelectorAll('.petbar .slot')].map((b) => !b.querySelector('.pip').hidden));
@@ -1033,6 +1051,18 @@ try {
   const secondState = await state(B);
   check('6/11. second player respawns using own UI, keeps level and remains visible', secondCanRespawn && secondRecovered && secondSeenByAlly && secondState.sheet.level === levelBeforeRecovery);
   check('8. companion remains attached to the second player after recovery', secondState.compId > 0 && secondState.ents.some((e) => e.id === secondState.compId));
+  await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
+  await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
+  const dismissed = await until(B, () => {
+    const s = window.__attune.state();
+    return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
+  }, null, 5000, 'companion dismissed and summon available');
+  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  const resummoned = await until(B, oldId => {
+    const s = window.__attune.state();
+    return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
+  }, secondState.compId, 5000, 'default companion summoned');
+  check('8. right-click dismisses the companion and the HUD summons its default', dismissed && resummoned);
 
   // --------------------------------------------- 15. appearance independent of class
   const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker');

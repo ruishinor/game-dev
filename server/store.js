@@ -14,6 +14,8 @@ import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
+import { sanitizeUnseen } from './sim/inventory-seen.js';
+import { ownedCompanionType } from './sim/companion.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -69,6 +71,10 @@ function sanitize(raw) {
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
   c.condition=sanitizeCondition(raw.condition,c.inventory);
+  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
+  c.companionDismissed = raw.companionDismissed === true;
+  c.defaultCompanion = typeof raw.defaultCompanion === 'string' && raw.defaultCompanion === ownedCompanionType(c)
+    ? raw.defaultCompanion : null;
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };

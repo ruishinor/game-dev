@@ -12,6 +12,7 @@ import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
+import { GOODS } from '../../shared/goods.js';
 import { renderWorkshop } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
@@ -65,7 +66,7 @@ const GLYPH_NOTES = {
   glyph_wideband: { ability: 'fault_scan', text: 'Glyph of Wideband: 14s target analysis.' },
   glyph_rending_echo: { ability: 'rending_arc', text: 'Glyph of Rending Echo: also strikes every other enemy within 4.5m for 70%. An imprinted target moves the echo to its position, consuming the imprint.' },
   glyph_resonant_aegis: { ability: 'discharge', text: 'Glyph of Resonant Aegis: 40% less damage, but shields you and nearby allies for 60% of the Charge spent. Shared Pulse repairs an active damaged Aegis instead of splash healing.' },
-  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals allies within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
+  glyph_shared_pulse: { pet: 'triage', text: 'Glyph of Shared Pulse: each mend also heals you and party members within 8m of the patient for 60%. A partially depleted active Aegis is repaired instead.' },
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
@@ -176,11 +177,26 @@ export class UI {
       if (this.companionId) this.a.inspectCompanion(this.companionId, { x: 0, y: 0 });
     };
     this.pet.addEventListener('click', inspectPet);
+    this.pet.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openCompanionMenu(e.clientX, e.clientY);
+    });
     this.petName.addEventListener('keydown', (e) => {
       if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation();
+      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const r = this.petName.getBoundingClientRect();
+        this.openCompanionMenu(r.left, r.bottom);
+      }
     });
+    this.summonPet = h('button', 'summon-pet', 'Summon companion');
+    this.summonPet.type = 'button';
+    this.summonPet.hidden = true;
+    this.summonPet.addEventListener('click', () => this.a.managePet('summon'));
     const left = h('div', 'col');
-    left.append(this.player.el, this.pet);
+    left.append(this.player.el, this.pet, this.summonPet);
     frames.append(left, this.target.el);
     root.append(frames);
 
@@ -268,6 +284,8 @@ export class UI {
     this.minimap.width = 168;
     this.minimap.height = 168;
     this.minimap.className = 'minimap';
+    this.minimap.setAttribute('role', 'img');
+    this.minimap.setAttribute('aria-label', 'World minimap');
     this.zoneLabel = h('div', 'zone-label');
     this.tracker = h('div', 'tracker');
     this.trackerTitle = h('div', 'title');
@@ -399,7 +417,17 @@ export class UI {
     this.surveyStatus = h('div', 'auto-status');
     this.surveyStatus.hidden = true;
     this.rescueStatus=h('div','auto-status');this.rescueStatus.hidden=true;
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, actions, this.xp.wrap);
+    this.inscription = h('div', 'inscription-status');
+    this.inscription.hidden = true;
+    this.inscriptionName = h('span', null);
+    this.inscriptionName.setAttribute('role', 'status');
+    this.inscriptionProgress = h('progress');
+    this.inscriptionProgress.setAttribute('aria-label', 'Inscription progress');
+    const cancelInscription = h('button', null, 'Cancel');
+    cancelInscription.type = 'button';
+    cancelInscription.addEventListener('click', () => this.a.cancelInscription());
+    this.inscription.append(this.inscriptionName, cancelInscription, this.inscriptionProgress);
+    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -431,7 +459,9 @@ export class UI {
     this.questJournalBtn.addEventListener('click',()=>this.toggleQuestJournal());
     this.workshopBtn=h('button','menubtn','Build [B]');
     this.workshopBtn.addEventListener('click',()=>this.toggleWorkshop());
-    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.questJournalBtn,this.codexBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
+    const companionsBtn = h('button', 'menubtn', 'Companion Sheet');
+    companionsBtn.addEventListener('click', () => this.toggleCompanionSheet(true));
+    this.menuItems.append(this.inventoryBtn,this.workshopBtn,this.questJournalBtn,this.codexBtn,companionsBtn,this.partyBtn,this.settingsBtn,this.charactersBtn,this.signoutBtn);
     this.netLabel = h('div', 'net');
     menu.append(this.buildBtn, this.menuBtn, helpBtn, this.netLabel, this.menuItems);
     root.append(menu);
@@ -442,6 +472,16 @@ export class UI {
     this.loot=new LootPanel(this);
     this.questJournal=new QuestJournal(this);
     this.vendor=new VendorPanel(this);
+    this.companionSheet = h('section', 'panel companion-sheet');
+    this.companionSheet.hidden = true;
+    this.companionSheet.setAttribute('role', 'dialog');
+    this.companionSheet.setAttribute('aria-label', 'Companion Sheet');
+    const closeCompanions = h('button', 'close', '×');
+    closeCompanions.setAttribute('aria-label', 'Close Companion Sheet');
+    closeCompanions.addEventListener('click', () => this.toggleCompanionSheet(false));
+    this.companionSheetBody = h('div', 'companion-sheet-body');
+    this.companionSheet.append(closeCompanions, h('h2', null, 'Companion Sheet'), this.companionSheetBody);
+    root.append(this.companionSheet);
 
 
     // Build panel
@@ -735,7 +775,7 @@ export class UI {
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.ability === id) out.push(h('div', 'tip-glyph', note.text));
     if (id==='overgrowth_surge' && this.sheet?.equipped.device===BLOOM_RELAY.device) {
-      out[2]=h('div','tip-body','Bloom Relay: the restorative bloom originates around you instead of the Mender, healing allies within '+BLOOM_RELAY.radius+'m. The Mender is still required.');
+      out[2]=h('div','tip-body','Bloom Relay: the restorative bloom heals you and party members within '+BLOOM_RELAY.radius+'m of you. The Mender is still required.');
     }
     return out;
   }
@@ -819,6 +859,7 @@ export class UI {
     this.questJournal.dismiss();
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.workshopPanel.hidden = true;
+    this.companionSheet.hidden = true;
     this.closeNpc();
     this.loot.dismiss();
     this.vendor.dismiss();
@@ -828,6 +869,62 @@ export class UI {
     this.menuItems.hidden = this.tooltip.hidden = true;
     this.closePlayerContext();
     this.closeCompanionDetails();
+  }
+
+  openCompanionMenu(x, y) {
+    if (!this.companionId) return;
+    this.closePlayerContext();
+    this.contextAnchor = this.petName;
+    const dismiss = h('button', null, 'Dismiss companion');
+    dismiss.disabled = !!this.buildLock;
+    dismiss.addEventListener('click', () => { this.closePlayerContext(); this.a.managePet('dismiss'); });
+    const sheet = h('button', null, 'Companion Sheet');
+    sheet.addEventListener('click', () => this.toggleCompanionSheet(true));
+    this.playerContext.replaceChildren(h('div', 'context-title', this.petName.textContent), dismiss, sheet);
+    this.playerContext.hidden = false;
+    this.playerContext.style.left = `${Math.max(8, Math.min(window.innerWidth - this.playerContext.offsetWidth - 8, x))}px`;
+    this.playerContext.style.top = `${Math.max(8, Math.min(window.innerHeight - this.playerContext.offsetHeight - 8, y))}px`;
+    (dismiss.disabled ? sheet : dismiss).focus({ preventScroll: true });
+  }
+
+  toggleCompanionSheet(open) {
+    this.hideJournalPanels();
+    this.companionSheet.hidden = !open;
+    if (open) {
+      this.renderCompanionSheet();
+      this.companionSheet.querySelector('.close').focus({ preventScroll: true });
+    }
+  }
+
+  renderCompanionSheet() {
+    const body = this.companionSheetBody;
+    body.replaceChildren();
+    for (const companion of this.companionRoster || []) {
+      const { type, name, active, available, needsLink, isDefault } = companion;
+      const definition = COMPANIONS[type];
+      const section = h('section', 'companion-sheet-entry');
+      const portrait = this.a.portrait({ k: 'c', c: type });
+      if (portrait) {
+        const image = h('img', 'companion-sheet-portrait');
+        image.src = portrait;
+        image.alt = '';
+        section.append(image);
+      }
+      section.append(h('h3', null, name), h('p', 'muted', definition.name));
+      section.append(h('p', null, active ? 'Active' : needsLink ? 'Equip the Survey Strider Link to summon' : available ? 'Ready to summon' : 'Unavailable during combat or defeat'));
+      const modes = h('ul');
+      for (const mode of Object.values(definition.modes)) {
+        const row = h('li');
+        row.append(h('strong', null, mode.name + ' · '), document.createTextNode(mode.desc));
+        modes.append(row);
+      }
+      const useDefault = h('button', null, isDefault ? 'Default summon' : 'Set as default summon');
+      useDefault.disabled = isDefault;
+      useDefault.addEventListener('click', () => this.a.managePet('default', type));
+      section.append(modes, useDefault);
+      body.append(section);
+    }
+    if (!body.children.length) body.append(h('p', 'muted', 'You have no acquired companions.'));
   }
 
   toggleBuild(force) {
@@ -1056,9 +1153,25 @@ export class UI {
 
   acknowledgeItem(id) {
     if(!this.unseenItems.delete(id))return false;
+    this.updateItemIndicators();
+    this.a.itemSeen(id, this.sheet.inventoryRev);
+    return true;
+  }
+
+  updateItemIndicators() {
     this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
-    return true;
+    for (const el of this.root.querySelectorAll('[data-seen-item]')) {
+      el.classList.toggle('new-equipment', this.unseenItems.has(el.dataset.seenItem));
+    }
+    for (const el of this.root.querySelectorAll('[data-seen-group]')) {
+      const group = el.dataset.seenGroup;
+      const count = [...this.unseenItems].filter(id => group === 'all' ||
+        (ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
+      el.classList.toggle('new-equipment', count > 0);
+      el.title = count ? `${count} new item(s)` : '';
+      el.setAttribute('aria-label', count ? `${el.textContent} · ${count} new item(s)` : el.textContent);
+    }
   }
 
   itemAction(id,action) {
@@ -1082,7 +1195,7 @@ export class UI {
     this.contextAnchor=anchor;
     this.playerContext.replaceChildren(h('div','context-title',item.name));
     const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
-    const equip=h('button',null,installed?'Unequip':s.equipped[item.slot]?'Swap in':'Equip');
+    const equip=h('button',null,installed?'Unequip':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
     equip.disabled=!!this.buildLock||!res.ok;
     equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
     this.playerContext.append(equip);
@@ -1193,7 +1306,8 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
-    const any = !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    this.companionSheet.hidden = true;
     this.questJournal.dismiss();
     this.codexPanel.hidden = this.workshopPanel.hidden = true;
     this.closeNpc();
@@ -1215,19 +1329,22 @@ export class UI {
 
   setSheet(sheet) {
     const previous=this.sheet;
-    if(previous&&previous.name===sheet.name&&previous.cls===sheet.cls){
-      for(const id of sheet.inventory)if(!previous.inventory.includes(id))this.unseenItems.add(id);
-      for(const id of this.unseenItems)if(!sheet.inventory.includes(id))this.unseenItems.delete(id);
-    }else this.unseenItems.clear();
+    this.unseenItems = new Set(sheet.unseenItems);
     this.sheet = sheet;
+    // An acknowledgement updates the indicators without rebuilding the
+    // control the player is currently hovering or focusing.
+    if (previous && previous.inventoryRev === sheet.inventoryRev &&
+      Object.keys(sheet).every(key => key === 'unseenItems' || JSON.stringify(sheet[key]) === JSON.stringify(previous[key]))) {
+      this.updateItemIndicators();
+      return;
+    }
     this.questTracker.sync(sheet,this.questTrial);
     this.questJournal.sync(sheet,this.questTrial);
-    this.setClass(sheet.cls,sheet.companion??CLASSES[sheet.cls].companion);
-    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
-    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.setClass(sheet.cls,sheet.companion);
     if (!this.panel.hidden) this.renderBuild();
     if (!this.inventoryPanel.hidden) renderInventory(this);
     if(!this.workshopPanel.hidden)renderWorkshop(this);
+    this.updateItemIndicators();
 
     set(this.surveyText, 'text', brineHint(sheet.survey,sheet.brineStage,null));
     const q = sheet.quest;
@@ -1406,6 +1523,17 @@ export class UI {
     // Companion frame
     this.companionId = st.comp?.id || 0;
     this.currentCompanion = st.comp;
+    const roster = you.companions ?? [];
+    const rosterSignature = JSON.stringify(roster);
+    if (this.companionRosterSignature !== rosterSignature) {
+      this.companionRoster = roster;
+      this.companionRosterSignature = rosterSignature;
+      if (!this.companionSheet.hidden) this.renderCompanionSheet();
+    }
+    const summon = roster.find(entry => entry.isDefault);
+    this.summonPet.hidden = !!st.comp || !summon;
+    this.summonPet.disabled = !summon?.available;
+    this.summonPet.title = summon?.needsLink ? 'Equip the Survey Strider Link first.' : summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;
@@ -1422,6 +1550,12 @@ export class UI {
     // Auto-attack state is server-authoritative: it does not chase enemies or
     // ignore range. Hostile abilities and right-click can also engage it.
     const autoTarget = target?.meta.k === 'e' && !target.dead;
+    this.inscription.hidden = !you.inscription;
+    if (you.inscription) {
+      set(this.inscriptionName, 'text', `Inscribing ${you.inscription.name}`);
+      this.inscriptionProgress.max = you.inscription.total;
+      this.inscriptionProgress.value = you.inscription.total - you.inscription.ms;
+    }
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
     const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
@@ -1664,6 +1798,31 @@ export class UI {
       g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
       g.fill();
     }
+    const partyLabels = [];
+    let number = 0;
+    for (const member of st.party) {
+      if (member.id === st.me.id) continue;
+      number++;
+      const ent = st.ents.get(member.id);
+      if (ent?.meta.k !== 'p') continue;
+      const x = X(ent.pos.x), z = Z(ent.pos.z);
+      const scale = Math.min(1, (R - 9) / Math.hypot(x, z));
+      const dx = ent.pos.x - st.me.pos.x, dz = ent.pos.z - st.me.pos.z;
+      partyLabels.push(`${number} ${member.name}, ${Math.round(Math.hypot(dx, dz))} metres${ent.dead ? ', defeated' : ''}`);
+      g.beginPath();
+      g.arc(x * scale, z * scale, 6.5, 0, Math.PI * 2);
+      g.fillStyle = ent.dead ? '#43332c' : '#123a46';
+      g.fill();
+      g.strokeStyle = '#a8e8f6';
+      g.lineWidth = 1;
+      g.stroke();
+      g.fillStyle = '#fff';
+      g.font = 'bold 9px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(ent.dead ? '×' : String(number), x * scale, z * scale + 3);
+    }
+    const mapLabel = ['World minimap', ...partyLabels].join('. ');
+    if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));
     g.rotate(Math.PI - st.yaw);

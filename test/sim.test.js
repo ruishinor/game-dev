@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeChar, makeGame, run, place, enemyOf, isolate } from './helpers.js';
-import { useAbility, startAttack, dealDamage, applyHeal, getBuff } from '../server/sim/combat.js';
-import { petCommand } from '../server/sim/companion.js';
+import { makeChar, makeGame, run, place, enemyOf, isolate, joinParty, finishInscription } from './helpers.js';
+import { leaveParty } from '../server/sim/party.js';
+import { useAbility, startAttack, dealDamage, applyHeal, getBuff, addThreat } from '../server/sim/combat.js';
+import { manageCompanion, petCommand } from '../server/sim/companion.js';
 import { equipItem, unequipSlot, interact, grantItem, grantXp, craftRecipe } from '../server/sim/progress.js';
 import { openLoot,takeLoot } from '../server/sim/loot.js';
 import { ABILITIES, ENEMIES, CLASSES, DIRECTIVES } from '../shared/content.js';
@@ -353,6 +354,7 @@ function trio() {
   for (const e of game.enemies) isolate(game, null);
   place(healer, 0, 40);
   place(ally, 6, 40);
+  joinParty(game, healer, ally);
   return { game, healer, ally, comp: healer.companion };
 }
 
@@ -367,6 +369,54 @@ test('companion: exists only for the symbiotech, follows its owner and leashes',
   place(healer, -60, -20);
   run(game, 100);
   assert.ok(Math.hypot(comp.x - healer.x, comp.z - healer.z) < 4, 'teleports when left far behind');
+});
+
+test('companion rejects strangers and immediately loses protection when a member leaves', () => {
+  const { game, healer, ally, comp } = trio();
+  const stranger = game.addPlayer(makeChar('vanguard'));
+  place(stranger, 3, 40);
+  stranger.hp = 20;
+  stranger.combatUntil = game.time + 10000;
+  game.setTarget(healer, stranger.id);
+  assert.match(petCommand(game, healer, 'guard').reason, /party member/);
+  run(game, 1500);
+  assert.equal(stranger.hp, 20);
+  game.setTarget(healer, ally.id);
+  assert.equal(petCommand(game, healer, 'guard').ok, true);
+  run(game, 2500);
+  assert.ok(getBuff(ally, 'bond'));
+  leaveParty(game, ally);
+  const hp = ally.hp;
+  dealDamage(game, null, ally, 25, 'test', { flat: true });
+  assert.equal(ally.hp, hp - 25);
+  run(game, 50);
+  assert.equal(getBuff(ally, 'bond'), null);
+  assert.equal(comp.mode, 'triage');
+});
+
+test('dismissal clears the bond and survives reconnect; the owned default summons once', () => {
+  const { game, healer, ally, comp } = trio();
+  game.setTarget(healer, ally.id);
+  assert.ok(petCommand(game, healer, 'guard').ok);
+  run(game, 2500);
+  assert.ok(getBuff(ally, 'bond'));
+  assert.equal(manageCompanion(game, healer, 'default', 'survey_strider').ok, false);
+  assert.ok(manageCompanion(game, healer, 'default', 'mender').ok);
+  assert.equal(healer.companion, comp);
+  assert.ok(manageCompanion(game, healer, 'dismiss').ok);
+  assert.equal(getBuff(ally, 'bond'), null);
+  assert.equal(game.ents.has(comp.id), false);
+  game.removePlayer(healer.id);
+  const connected = game.addPlayer(healer.char);
+  assert.equal(connected.companion, null);
+  assert.equal(game.privateState(connected).companions[0].active, false);
+  assert.equal(game.privateState(connected).companions[0].isDefault, true);
+  connected.combatUntil = game.time + 1000;
+  assert.equal(manageCompanion(game, connected, 'summon').ok, false);
+  run(game, 1000);
+  assert.ok(manageCompanion(game, connected, 'summon').ok);
+  assert.equal(manageCompanion(game, connected, 'summon').ok, false);
+  assert.equal(game.companions.filter(pet => pet.owner === connected.id).length, 1);
 });
 
 test('companion triage: autonomously heals the most injured ally near its owner', () => {
@@ -531,6 +581,7 @@ test('build: augmentation changes ability AND companion effectiveness', () => {
 test('glyph: Shared Pulse makes triage splash to nearby allies (needs attunement)', () => {
   const { game, healer, ally } = trio();
   const third = game.addPlayer(makeChar('vanguard'));
+  joinParty(game, healer, third);
   place(third, 8, 42);
   for (const p of [ally, third, healer]) p.combatUntil = game.time + 1e6;
   ally.hp = 60;
@@ -543,6 +594,7 @@ test('glyph: Shared Pulse makes triage splash to nearby allies (needs attunement
   assert.equal(equipItem(game, healer, 'glyph_shared_pulse').ok, false, 'inert without attunement');
   healer.char.attunements.push('resonance');
   assert.ok(equipItem(game, healer, 'glyph_shared_pulse').ok);
+  finishInscription(game, healer);
   ev.length = 0;
   run(game, 2500, ev);
   const splash = ev.find((x) => x.e === 'heal' && x.ab === 'shared_pulse' && x.d === third.id);
@@ -554,6 +606,7 @@ test('glyph: Carapace turns the bond from regeneration into protection + reflect
   const { game, healer, ally } = trio();
   healer.char.inventory.push('glyph_carapace');
   assert.ok(equipItem(game, healer, 'glyph_carapace').ok);
+  finishInscription(game, healer);
   game.setTarget(healer, ally.id);
   petCommand(game, healer, 'guard');
   run(game, 2000);
@@ -594,6 +647,7 @@ test('glyph: Resonant Aegis converts Discharge into shields for nearby allies', 
   e.hp = e.maxHp;
   tank.combatUntil = 0;
   assert.ok(equipItem(game, tank, 'glyph_resonant_aegis').ok);
+  finishInscription(game, tank);
   run(game, 6000);
   tank.res = 100;
   const hp1 = e.hp;
@@ -620,7 +674,9 @@ test('glyph: Rending Echo cleaves other nearby enemies', () => {
   assert.equal(b.hp, b.maxHp, 'no cleave without the glyph');
   run(game, 100);
   p.combatUntil = 0;
+  p.autoOn = false;
   assert.ok(equipItem(game, p, 'glyph_rending_echo').ok);
+  finishInscription(game, p);
   run(game, 4000);
   const hp = b.hp;
   useAbility(game, p, 'rending_arc');
@@ -628,6 +684,33 @@ test('glyph: Rending Echo cleaves other nearby enemies', () => {
 });
 
 // ------------------------------------------------------------- progression
+
+test('threat changes targets after sustained damage and falls back after defeat or disengagement', () => {
+  const game = makeGame();
+  const enemy = enemyOf(game, 'warden');
+  isolate(game, enemy);
+  const first = game.addPlayer(makeChar('vanguard'));
+  const next = game.addPlayer(makeChar('vanguard'));
+  place(first, enemy.x, enemy.z + 4);
+  place(next, enemy.x + 2, enemy.z + 4);
+  addThreat(enemy, first.id, 100);
+  addThreat(enemy, next.id, 90);
+  game.tick(50);
+  assert.equal(enemy.target, first.id);
+  dealDamage(game, next, enemy, 8, 'test', { flat: true });
+  game.tick(50);
+  assert.equal(enemy.target, first.id, 'a slight lead retains the current target');
+  dealDamage(game, next, enemy, 8, 'test', { flat: true });
+  game.tick(50);
+  assert.equal(enemy.target, next.id, 'a sustained lead changes the target');
+  dealDamage(game, null, next, next.hp + 1, 'test', { flat: true });
+  game.tick(50);
+  assert.equal(enemy.target, first.id);
+  place(first, 0, 0);
+  game.tick(50);
+  assert.equal(enemy.target, 0);
+  assert.equal(enemy.threat.size, 0);
+});
 
 test('progression: levels raise primary skill, health and power', () => {
   const game = makeGame();
@@ -671,6 +754,7 @@ test('progression: the directive chain hands out the build pieces in order', () 
   assert.ok(interact(game, p, obelisk.id).ok);
   assert.deepEqual(p.char.attunements, ['resonance'], 'attuning twice does nothing');
   assert.ok(equipItem(game, p, 'glyph_shared_pulse').ok);
+  finishInscription(game, p);
   assert.equal(p.char.quest.step, 6);
   const warden=enemyOf(game,'warden');
   dealDamage(game, p, warden, 9999, 'test');
@@ -774,6 +858,7 @@ function wardenFight({ tankGlyph = null, withHealer = true, healerHeals = true, 
       place(healer, e.x, e.z + (soloHealer ? 4 : 14));
       if (!healerHeals) petCommand(game, healer, 'assist');
       players.push(healer);
+      if (tank) joinParty(game, healer, tank);
     }
     const front = tank || healer;
     return {

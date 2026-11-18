@@ -2,7 +2,7 @@
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
 
-import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
+import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import { sanitizeGoods } from '../../shared/goods.js';
@@ -11,14 +11,15 @@ import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
-import { tickCompanion } from './companion.js';
+import { tickCompanion, spawnMender, companionRoster } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
-import { checkDirective, tickBrineTrial } from './progress.js';
+import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
+import { inventoryCounts, trackAcquisitions } from './inventory-seen.js';
 import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -111,6 +112,8 @@ export class Game {
       lootTarget:null,
       vendor:null,
       utilityRev:0,
+      inventoryRev: 0,
+      inventoryCounts: inventoryCounts(char),
       outbox: [],
       sheetDirty: true,
       metaVer: 1,
@@ -123,30 +126,7 @@ export class Game {
     };
     this.players.set(p.id, p);
     this.ents.set(p.id, p);
-    if (def.companion) {
-      const cdef = COMPANIONS[def.companion];
-      const mode = cdef.modes[char.petMode] && char.petMode !== 'guard' ? char.petMode : 'triage';
-      const c = {
-        id: this.nextId++,
-        kind: 'companion',
-        type: def.companion,
-        name: char.petName || cdef.name,
-        owner: p.id,
-        x: p.x + 1.5,
-        z: p.z - 1.5,
-        yaw: 0,
-        mode,
-        host: 0,
-        act: 'idle',
-        actTarget: 0,
-        nextPulse: 0,
-        nextRegen: 0,
-        metaVer: 1,
-      };
-      p.companion = c;
-      this.companions.push(c);
-      this.ents.set(c.id, c);
-    }
+    spawnMender(this, p);
     syncSurveyStrider(this,p);
     checkDirective(this, p);
     return p;
@@ -157,6 +137,7 @@ export class Game {
     const p = this.players.get(id);
     if (!p) return;
     this.syncChar(p);
+    cancelInscription(this, p);
     forgetLoot(this,p);
     removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
@@ -181,6 +162,7 @@ export class Game {
   }
 
   markDirty(p) {
+    trackAcquisitions(p);
     p.sheetDirty = true;
     this.onCharChanged(p.char);
   }
@@ -215,6 +197,7 @@ export class Game {
       if(p.followId)this.stopFollow(p);
       if (p.moveBudget < 1) continue; // acknowledged but not applied
       p.moveBudget -= 1;
+      if (p.inscription && (inp.f || inp.s || inp.j)) cancelInscription(this, p, 'Inscription interrupted by movement.');
       p.yaw = inp.yaw;
       stepMove(p, inp, this.moveSpeedMul(p));
     }
@@ -306,7 +289,7 @@ export class Game {
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
-      if(!p.companion&&!p.dead&&wantsSurveyStrider(p)&&this.time>=(p.striderDeployAt??0))syncSurveyStrider(this,p);
+      if(!p.companion&&!p.dead&&!p.char.companionDismissed&&wantsSurveyStrider(p)&&this.time>=(p.striderDeployAt??0))syncSurveyStrider(this,p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -318,6 +301,7 @@ export class Game {
     tickRift(this);
     for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
+    for (const p of this.players.values()) tickInscription(this, p);
   }
 
   // --- snapshots ---------------------------------------------------------
@@ -406,6 +390,8 @@ export class Game {
       safe: inSanctum(p) ? 1 : 0,
       workshop:workshopSite(p),
       party: partyState(this, p),
+      companions: companionRoster(this, p),
+      inscription: inscriptionState(this, p),
     };
     if(p.char.equipped.implant==='brine_rescue_lattice')y.rescueReady=!p.rescueSpent;
     if (p.brineTrial) y.brineTrial = { ms: Math.max(0,p.brineTrial.until-this.time), read:p.brineTrial.read };
@@ -429,6 +415,8 @@ export class Game {
       level: c.level,
       xp: c.xp,
       inventory: [...c.inventory],
+      unseenItems: [...(c.unseenItems || [])],
+      inventoryRev: p.inventoryRev,
       materials: sanitizeMaterials(c.materials),
       goods: sanitizeGoods(c.goods),
       utilityRev:p.utilityRev,

@@ -4,10 +4,83 @@
 //   guard  — bonds to one ally: regeneration + damage reduction
 //   assist — harries the owner's target and makes it take more damage
 
-import { COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
+import { CLASSES, COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
+import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, hasLineOfSight } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
-import { tickSurveyStrider } from './survey-strider.js';
+import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider } from './survey-strider.js';
+import { companionCanSupport } from './party.js';
+
+export function ownedCompanionType(char) {
+  return CLASSES[char.cls].companion || (char.cls === 'surveyor' && char.inventory.includes(STRIDER_LINK) ? 'survey_strider' : null);
+}
+
+export function companionRoster(game, p) {
+  const type = ownedCompanionType(p.char);
+  if (!type) return [];
+  const eligible = !p.dead && (type !== 'survey_strider' || wantsSurveyStrider(p));
+  return [{
+    type,
+    name: p.char.petName && !(type === 'survey_strider' && p.char.petName === COMPANIONS.mender.name)
+      ? p.char.petName : COMPANIONS[type].name,
+    isDefault: (p.char.defaultCompanion || type) === type,
+    active: p.companion?.type === type,
+    available: eligible && game.time >= p.combatUntil,
+    needsLink: type === 'survey_strider' && !wantsSurveyStrider(p),
+  }];
+}
+
+export function spawnMender(game, p) {
+  if (p.dead || p.companion || p.char.companionDismissed || CLASSES[p.cls].companion !== 'mender') return;
+  const def = COMPANIONS.mender;
+  const mode = p.char.petMode !== 'guard' && Object.hasOwn(def.modes, p.char.petMode) ? p.char.petMode : 'triage';
+  const c = {
+    id: game.nextId++, kind: 'companion', type: 'mender', owner: p.id,
+    name: p.char.petName || def.name, x: p.x + 1.5, z: p.z - 1.5, yaw: 0,
+    mode, host: 0, act: 'idle', actTarget: 0, nextPulse: 0, nextRegen: 0, metaVer: 1,
+  };
+  p.companion = c;
+  game.companions.push(c);
+  game.ents.set(c.id, c);
+}
+
+export function manageCompanion(game, p, action, type) {
+  const owned = ownedCompanionType(p.char);
+  if (action === 'default') {
+    if (!owned || owned !== type) return { ok: false, reason: 'That companion is unavailable.' };
+    if (p.char.defaultCompanion !== owned) {
+      p.char.defaultCompanion = owned;
+      game.markDirty(p);
+    }
+    return { ok: true };
+  }
+  if (p.dead || game.time < p.combatUntil) return { ok: false, reason: 'Manage active companions outside combat while alive.' };
+  if (action === 'dismiss') {
+    const c = p.companion;
+    if (!c) return { ok: false, reason: 'You have no active companion.' };
+    if (c.mode === 'guard') release(game, c, p);
+    if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
+    p.char.companionDismissed = true;
+    game.ents.delete(c.id);
+    game.companions = game.companions.filter(active => active !== c);
+    p.companion = null;
+    game.markDirty(p);
+    return { ok: true };
+  }
+  if (action !== 'summon') return { ok: false, reason: 'Unknown companion action.' };
+  if (p.companion) return { ok: false, reason: 'A companion is already active.' };
+  if (!owned || (p.char.defaultCompanion && p.char.defaultCompanion !== owned)) return { ok: false, reason: 'Choose an acquired companion first.' };
+  if (owned === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Equip your Survey Strider Link first.' };
+  p.char.companionDismissed = false;
+  if (owned === 'mender') spawnMender(game, p);
+  else syncSurveyStrider(game, p);
+  if (!p.companion) {
+    p.char.companionDismissed = true;
+    return { ok: false, reason: 'Move to open ground and try summoning again.' };
+  }
+  game.markDirty(p);
+  return { ok: true };
+}
 
 function flyToward(c, tx, tz, step) {
   const dx = tx - c.x;
@@ -36,6 +109,8 @@ function followOwner(c, owner, def, step) {
 }
 
 function release(game, c, owner, reason) {
+  const previous = game.players.get(c.host);
+  if (previous) previous.buffs = previous.buffs.filter(b => b.k !== 'bond' || b.src !== c.id);
   c.mode = 'triage';
   c.host = 0;
   c.act = 'idle';
@@ -73,6 +148,10 @@ export function tickCompanion(game, c, dt) {
     const host = game.players.get(c.host);
     if (!host || host.dead) {
       release(game, c, owner, 'Your symbiote releases its bond: the host is gone.');
+      return;
+    }
+    if (!companionCanSupport(game, owner, host)) {
+      release(game, c, owner, 'Your symbiote releases its bond: the host left your party.');
       return;
     }
     if (dist(host, owner) > def.guard.range) {
@@ -143,7 +222,7 @@ export function tickCompanion(game, c, dt) {
   let patient = null;
   let worst = def.triage.threshold;
   for (const p of game.players.values()) {
-    if (p.dead || dist(p, owner) > def.triage.seek) continue;
+    if (!companionCanSupport(game, owner, p) || dist(p, owner) > def.triage.seek) continue;
     const ratio = p.hp / p.maxHp;
     if (ratio < worst) {
       worst = ratio;
@@ -167,7 +246,7 @@ export function tickCompanion(game, c, dt) {
     game.events.push({ e: 'beam', s: c.id, d: patient.id });
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
-        if (p === patient || p.dead || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
+        if (p === patient || !companionCanSupport(game, owner, p) || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
         const budget = def.triage.heal * GLYPH.sharedPulse.pct;
         const repaired = repairAegis(game, owner, p, budget, c.id);
         if (repaired > 0) {
@@ -208,9 +287,11 @@ export function petCommand(game, p, cmd) {
   if (cmd === 'guard') {
     const t = game.ents.get(p.target);
     const target = t && t.kind === 'player' && !t.dead ? t : p;
+    if (!companionCanSupport(game, p, target)) return { ok: false, reason: 'Bond requires you or an eligible party member.' };
     if (dist(target, p) > def.guard.range) return { ok: false, reason: 'That ally is too far away to bond with.' };
     host = target.id;
   }
+  if (c.mode === 'guard' && (cmd !== 'guard' || c.host !== host)) release(game, c, null, null);
   c.mode = cmd;
   c.host = host;
   c.act = cmd === 'guard' ? 'bonding' : 'idle';

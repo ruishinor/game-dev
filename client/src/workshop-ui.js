@@ -2,7 +2,7 @@
 // recipe ID; the authoritative server revalidates skill, materials and location.
 import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
-import { itemArt } from './journal-ui.js';
+import { itemArt, itemTooltip } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
@@ -93,10 +93,62 @@ function fabrication(ui,body){
   const recipe=RECIPES[id],output=recipeOutput(recipe);
   const list=h('nav','workshop-recipes');
   list.setAttribute('aria-label','Fabrication recipes');
+  const search = h('input', 'recipe-search');
+  search.type = 'search';
+  search.placeholder = 'Find a recipe or item';
+  search.setAttribute('aria-label', 'Find a recipe or item');
+  const discipline = h('select');
+  discipline.setAttribute('aria-label', 'Production discipline');
+  for (const label of ['All disciplines', ...new Set(entries.map(([, r]) => r.discipline))]) {
+    const option = h('option', null, label);
+    option.value = label;
+    discipline.append(option);
+  }
+  const filter = ui.recipeFilter ??= { query: '', discipline: 'All disciplines', materials: false, prioritize: false };
+  search.value = filter.query;
+  discipline.value = filter.discipline;
+  const controls = h('div', 'recipe-filters');
+  controls.append(search, discipline);
+  for (const [key, label] of [['materials', 'Materials on hand'], ['prioritize', 'Craftable first']]) {
+    const wrapper = h('label'), input = h('input');
+    input.type = 'checkbox';
+    input.checked = filter[key];
+    input.addEventListener('change', () => { filter[key] = input.checked; applyFilters(); });
+    wrapper.append(input, document.createTextNode(label));
+    controls.append(wrapper);
+  }
+  const site = ui.workshopSite ?? (ui.atSanctum ? 'sanctum' : null);
+  const buttons = [];
   for(const [key,r] of entries){
     const b=btn(r.name,()=>{ui.recipeId=key;renderWorkshop(ui);},'recipe-entry'+(key===id?' active':''));
-    b.dataset.recipe=key;const copy=h('div','recipe-entry-copy');copy.append(h('strong',null,r.name),h('small',null,r.discipline));b.replaceChildren(itemArt(outputId(r)),copy);list.append(b);
+    b.dataset.recipe=key;
+    const craftable = !ui.buildLock && canFabricateAt(r, site) && previewRecipe(s, key).ok;
+    const hasMaterials = Object.entries(r.inputs).every(([input, required]) => (s.materials?.[input] || 0) >= required);
+    b.classList.toggle('recipe-unavailable', !craftable);
+    const copy=h('div','recipe-entry-copy');
+    copy.append(h('strong',null,r.name),h('small',null,r.discipline));
+    b.replaceChildren(itemArt(outputId(r)),copy);
+    buttons.push({ b, craftable, hasMaterials, discipline: r.discipline, text: `${r.name} ${recipeOutput(r).name}`.toLowerCase() });
   }
+  function applyFilters() {
+    const query = filter.query.trim().toLowerCase();
+    const shown = buttons.filter(row => row.text.includes(query)
+      && (discipline.selectedIndex === 0 || row.discipline === filter.discipline)
+      && (!filter.materials || row.hasMaterials));
+    if (filter.prioritize) shown.sort((a, b) => Number(b.craftable) - Number(a.craftable));
+    list.replaceChildren(...shown.map(row => row.b));
+    if (!shown.length) list.append(h('p', 'muted', 'No recipes match these filters.'));
+  }
+  search.addEventListener('input', () => { filter.query = search.value; applyFilters(); });
+  search.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    ui.toggleWorkshop(false);
+    ui.a.focusView();
+  });
+  discipline.addEventListener('change', () => { filter.discipline = discipline.value; applyFilters(); });
+  applyFilters();
   const detail=h('section','workshop-section recipe-detail');
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
   const parts=h('div','recipe-parts');
@@ -104,7 +156,10 @@ function fabrication(ui,body){
   source.append(h('div','kicker','Source components'));
   for(const [key,count] of Object.entries(recipe.inputs)){
     const quantity=s.materials?.[key]||0;
-    source.append(visual(key,MATERIALS[key].name,quantity+' / '+count+' · '+MATERIALS[key].source,quantity>=count));
+    const component=visual(key,MATERIALS[key].name,quantity+' / '+count+' · '+MATERIALS[key].source,quantity>=count);
+    component.tabIndex=0;
+    ui.hover(component,()=>itemTooltip(s,key,{owned:quantity,required:count}));
+    source.append(component);
   }
   if(!Object.keys(recipe.inputs).length)source.append(h('p','muted','No additional material required.'));
   const target=h('div','recipe-part');
@@ -112,7 +167,10 @@ function fabrication(ui,body){
   target.append(h('div','kicker',recipe.kind==='fusion'?'Consumed equipment':'Target'));
   for(const item of targets){
     const has=s.inventory.includes(item),installed=Object.values(s.equipped).includes(item);
-    target.append(visual(item,ITEMS[item].name,installed?'Installed — remove first':has?'Carried · consumed':'Not owned',has&&!installed));
+    const component=visual(item,ITEMS[item].name,installed?'Installed — remove first':has?'Carried · consumed':'Not owned',has&&!installed);
+    component.tabIndex=0;
+    ui.hover(component,()=>itemTooltip(s,item,{owned:Number(has),required:1}));
+    target.append(component);
   }
   if(!targets.length)target.append(h('p','muted','New assembly'));
   parts.append(source,target);
@@ -123,7 +181,7 @@ function fabrication(ui,body){
   if(recipe.kind==='fusion')detail.append(h('p','why','Permanent fusion: all listed equipment and materials are consumed. This cannot be reversed.'));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
-  const site=ui.workshopSite??(ui.atSanctum?'sanctum':null),siteOk=canFabricateAt(recipe,site);
+  const siteOk=canFabricateAt(recipe,site);
   const names={sanctum:'Lattice Sanctum',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
   detail.append(row('Fabrication site',site?names[site]:'Outside workshop',siteOk));
   const preview=previewRecipe(s,id);
@@ -132,11 +190,16 @@ function fabrication(ui,body){
   const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,recipe.output.goods?s.utilityRev:undefined),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
-  body.append(list,detail);
+  const catalogue = h('div', 'recipe-catalogue');
+  catalogue.append(controls,list);
+  body.append(catalogue,detail);
 }
 export function renderWorkshop(ui){
   if(!ui.sheet)return;
-  const root=ui.workshopBody;root.replaceChildren();
+  const root=ui.workshopBody;
+  const searchFocused = root.querySelector('.recipe-search') === document.activeElement;
+  if (root.contains(ui.tipFor)) ui.tooltip.hidden = true;
+  root.replaceChildren();
   const tabs=h('div','workshop-tabs');
   for(const [id,name] of [['planner','Build Planner'],['fabrication','Workshop']]){
     const b=btn(name,()=>{ui.workshopTab=id;renderWorkshop(ui);},ui.workshopTab===id?'active':'');
@@ -147,4 +210,5 @@ export function renderWorkshop(ui){
   const content=h('div','workshop-layout'+(ui.workshopTab==='fabrication'?' fabrication':''));
   if(ui.workshopTab==='fabrication')fabrication(ui,content);else planner(ui,content);
   root.append(content);
+  if (searchFocused) root.querySelector('.recipe-search')?.focus({ preventScroll: true });
 }
