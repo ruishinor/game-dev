@@ -30,6 +30,7 @@ import { UI } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
+import {createCreationPreview} from './creation-preview.js';
 
 const INTERP_MS = 110;
 const TURN_RATE = 2.9;
@@ -399,6 +400,8 @@ let chosenLook = defaultLook(chosenClass);
 // Cosmetic appearance chosen at creation (validated again by the server).
 let chosenAp = defaultAppearance(chosenLook);
 let apTouched = false;
+const creationPreview=createCreationPreview({root:$('creation-preview'),assets,useGlb,motionPreference,getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))})});
+let titleDrawAt=-Infinity;
 function buildAppearance() {
   const pick = (id, items, current, onPick, label) => {
     const wrap = $(id);
@@ -439,10 +442,8 @@ function buildAppearance() {
 function buildLooks() {
   const list = LOOKS[chosenClass];
   chosenLook = defaultLook(chosenClass);
-  if (!apTouched) {
-    chosenAp = defaultAppearance(chosenLook);
-    if ($('ap-frame')) buildAppearance();
-  }
+  chosenAp=apTouched?normalizeAppearance(chosenAp,chosenLook):defaultAppearance(chosenLook);
+  buildAppearance();
   $('look-row').hidden = list.length < 2;
   const wrap = $('looks');
   wrap.replaceChildren();
@@ -765,6 +766,7 @@ function onWelcome(m) {
   local.outbox = [];
   local.seq = 0;
   local.err = { x: 0, z: 0 };
+  creationPreview.release();
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -1818,6 +1820,11 @@ function frame(now) {
   }
 
   if (!S.myId) {
+    // The live preview and title share a frame budget. While inspecting the
+    // character, draw the decorative backdrop at most four times per second.
+    const inspecting=creationPreview.update(now,dt);
+    if(inspecting&&now-titleDrawAt<250)return;
+    titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
