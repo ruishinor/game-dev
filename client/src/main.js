@@ -730,6 +730,8 @@ function removeEntity(ent) {
 }
 
 function clearWorld() {
+  S.sheet = null;
+  S.you = null;
   recoveryVisuals.clear();
   stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);

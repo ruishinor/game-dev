@@ -1209,10 +1209,21 @@ export class UI {
   }
 
   acknowledgeItem(id) {
-    if(!this.unseenItems.delete(id))return false;
-    this.updateItemIndicators();
+    // Keep the indicator authoritative until the private sheet confirms Seen.
+    // Stale revision or rate-limited requests may be refused.
+    if(!this.sheet||!this.unseenItems.has(id))return false;
     this.a.itemSeen(id, this.sheet.inventoryRev);
     return true;
+  }
+
+  resetInventoryPresentation() {
+    this.sheet=null;
+    this.unseenItems.clear();
+    this.workshopSite=null;
+    this.buildLock='';
+    // Do not expose old details before the first private sheet of a new world.
+    for(const body of [this.panelBody,this.inventoryBody,this.workshopBody])body.replaceChildren();
+    this.updateItemIndicators();
   }
 
   updateItemIndicators() {
@@ -1834,8 +1845,9 @@ export class UI {
     this.radio.clear();this.loot.reset();this.vendor.reset();this.questJournal.reset();this.questTracker.reset();this.questTrial=null;
     for (const id of [...this.plates.keys()]) this.removePlate(id);
     this.closePanels();
-    // Do not carry an old character's visible inventory into a world reset.
+    // Do not carry an old character's inventory or Seen state into a world reset.
     this.toggleInventory(false);
+    this.resetInventoryPresentation();
     this.inventorySelection = this.loadoutSelection = null;
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
