@@ -1,26 +1,15 @@
-# Attunement — vertical slice (work in progress)
+# Attunement — playable vertical slice
 
-**Proprietary project — all rights reserved.** Public visibility does not grant a general license to reuse or commercialize protected Attunement materials. See [LICENSE](LICENSE). Third-party materials retain their own terms.
+**Proprietary project — all rights reserved.** Repository visibility does not grant permission to reuse or commercialize protected Attunement materials. See [LICENSE](LICENSE). Third-party materials retain their own terms.
 
-Browser-based, third-person 3D MMORPG slice. **Status: server-side game is
-implemented and unit-tested; the browser client has not been written yet, so
-the game is NOT playable.** See [`docs/HANDOFF.md`](docs/HANDOFF.md) for the
-exact state, what is verified, and what to do next.
+Attunement is a third-person browser MMORPG prototype. The Lattice Sanctum and surrounding Verdigris Reach support two playable classes, companion commands, combat, equipment and persistent characters in a shared world.
 
 ```bash
-npm install
-```
-
-```bash
+npm ci
 npm test
-```
-
-```bash
 npm start
 ```
 
-`npm start` runs the server on http://127.0.0.1:8080 (`PORT`, `HOST`,
-`DATA_FILE` env vars override). It will serve a 404 for `/` until
-`client/index.html` exists.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Use WASD to move, right-drag to steer, left-drag to orbit, and the wheel to zoom. Tab or click selects a target, 1–4 use abilities, Shift+1–3 command the companion, F interacts, and C opens the build panel.
 
-The design brief is in [`docs/Attunement-Game-Concept.md`](docs/Attunement-Game-Concept.md).
+See the [handoff](docs/HANDOFF.md) for architecture, verification and known limits, and the [game concept](docs/Attunement-Game-Concept.md) for design intent.
