@@ -101,6 +101,18 @@ try {
   assert.equal(p.char.quest.step, 0);
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
+  // Exercise the actual NPC dialogue panel, not a detached mock-up.
+  await page.locator('.plate[data-npc="archivist"]').click({timeout:30000});
+  const npcDialog=page.getByRole('dialog',{name:'NPC interaction'});
+  await npcDialog.waitFor({state:'visible'});
+  const portraitBox=await npcDialog.locator('.npc-portrait').boundingBox();
+  const dialogueBox=await npcDialog.locator('.npc-dialogue').boundingBox();
+  const npcBox=await npcDialog.boundingBox();
+  assert.ok(portraitBox&&dialogueBox&&npcBox&&portraitBox.width<=61&&dialogueBox.y>=portraitBox.y+portraitBox.height&&npcBox.width<=381,'NPC portrait is compact and dialogue spans the panel');
+  for(const name of ['Talk','Info · Codex','Workshop'])assert.ok(await npcDialog.getByRole('button',{name,exact:true}).isVisible());
+  await page.screenshot({path:'preview-evidence/04a-npc-dialogue.png'});
+  await npcDialog.getByRole('button',{name:'Close NPC interaction'}).click();
+  await page.locator('#view').focus();
   await moveTo(38,-36.5);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 1);
