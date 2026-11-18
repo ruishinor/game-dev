@@ -426,9 +426,17 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, meta.c === 'archivist' ? { idle: HB.npcIdle } : {});
-    else if (meta.c === 'mender') { if(assets.menderPrototype)try{model=createMenderPrototype(THREE,assets.menderPrototype)}catch(err){console.warn('[models] Mender preview instance failed:',err.message||err);} if(!model)model=makeMender(assets); }
-    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    if (look) model = makeHumanoid(assets, look, ['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {});
+    else if (meta.c === 'mender') {
+      if (assets.menderPrototype) {
+        try {
+          model = createMenderPrototype(THREE, assets.menderPrototype);
+        } catch (err) {
+          console.warn('[models] Mender preview instance failed:', err.message || err);
+        }
+      }
+      if (!model) model = makeMender(assets);
+    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

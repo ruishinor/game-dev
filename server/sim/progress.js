@@ -10,6 +10,8 @@ import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECOR
 
 import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
 import { distributeCorpseLoot } from './loot.js';
+import { openVendor } from './vendor.js';
+import { sanitizeCondition } from '../../shared/condition.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -121,6 +123,7 @@ export function craftRecipe(game,p,id) {
   // One synchronous transaction, after every requirement has passed.
   p.char.inventory=result.inventory;
   p.char.materials=result.materials;
+  p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
   if(out.item)p.outbox.push({e:'loot',item:out.item});
   game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:MATERIALS[out.material].name)+'.');
@@ -231,6 +234,7 @@ export function interact(game, p, objectId) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
+  if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
       game.message(p, 'info', 'The stone hums in recognition. You are already attuned.');

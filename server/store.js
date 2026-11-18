@@ -10,6 +10,9 @@ import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, de
 import { validateLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
+import { sanitizeGoods } from '../shared/goods.js';
+import { sanitizeCredits } from './sim/wallet.js';
+import { sanitizeCondition } from '../shared/condition.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -46,6 +49,8 @@ function sanitize(raw) {
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
     materials: sanitizeMaterials(raw.materials),
+    goods: sanitizeGoods(raw.goods),
+    credits: sanitizeCredits(raw.credits),
     equipped: { device: null, implant: null, glyph: null },
     attunements: Array.isArray(raw.attunements) ? [...new Set(raw.attunements.filter((a) => Object.hasOwn(ATTUNEMENT_NAMES, a)))] : [],
     quest: {
@@ -61,11 +66,16 @@ function sanitize(raw) {
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
+  c.condition=sanitizeCondition(raw.condition,c.inventory);
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };
     // A loadout that no longer validates (content changed) is simply cleared.
-    if (validateLoadout(c, eq).ok) c.equipped = eq;
+    if (validateLoadout(c, eq).ok) {
+      c.equipped=eq;
+      const extended={...eq,weapon:raw.equipped.weapon};
+      if(raw.equipped.weapon&&validateLoadout(c,extended).ok)c.equipped=extended;
+    }
   }
   return c;
 }
@@ -150,6 +160,9 @@ export class CharacterStore {
       xp: 0,
       inventory: [],
       materials: {},
+      goods: {},
+      credits: 0,
+      condition: {},
       equipped: { device: null, implant: null, glyph: null },
       attunements: [],
       quest: { step: 0, progress: 0 },

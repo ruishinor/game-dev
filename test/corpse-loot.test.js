@@ -14,12 +14,12 @@ test('personal loot is rolled once, held on corpse, selected individually, and n
  const {g,e,a,b,stranger,gen}=fixture();assert.equal(a.char.inventory.length,0);assert.equal(b.char.inventory.length,0);
  assert.ok(!a.char.materials?.sentinel_alloy);assert.equal(lootState(g,stranger).lootable.length,0);
  assert.equal(openLoot(g,stranger,e.id,gen).ok,false);assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);
- assert.ok(openLoot(g,a,e.id,gen).ok);assert.equal(lootState(g,a).loot.entries.length,4);
+ assert.ok(openLoot(g,a,e.id,gen).ok);assert.equal(lootState(g,a).loot.entries.length,5);
  assert.ok(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok);assert.deepEqual(a.char.inventory,['adrenal_shunt']);
- assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);assert.equal(lootState(g,a).loot.entries.length,3);
+ assert.equal(takeLoot(g,a,e.id,gen,'adrenal_shunt').ok,false);assert.equal(lootState(g,a).loot.entries.length,4);
  clearLoot(a);assert.equal(lootState(g,a).loot,null);assert.equal(a.char.materials?.sentinel_alloy||0,0);
- assert.ok(openLoot(g,a,e.id,gen,true).ok);assert.equal(a.char.materials.sentinel_alloy,1);assert.equal(lootState(g,a).loot,null);
- assert.ok(openLoot(g,b,e.id,gen).ok);assert.equal(lootState(g,b).loot.entries.length,4);
+ assert.ok(openLoot(g,a,e.id,gen,true).ok);assert.equal(a.char.materials.sentinel_alloy,1);assert.equal(a.char.goods.spent_contact,1);assert.ok(!b.char.goods?.spent_contact);assert.equal(lootState(g,a).loot,null);
+ assert.ok(openLoot(g,b,e.id,gen).ok);assert.equal(lootState(g,b).loot.entries.length,5);
 });
 test('loot rejects range, stale generation, death, expiry and leaves uncollected entries',()=>{
  const {g,e,a,gen}=fixture();assert.ok(openLoot(g,a,e.id,gen).ok);

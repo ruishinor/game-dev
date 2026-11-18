@@ -14,6 +14,8 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
   warden: freezeDrops([{ item: 'wardstone_shard', chance: 1 }]),
 });
 export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'});
+// Generic playtest salvage; deliberately independent of equipment RNG.
+export const TRADE_SALVAGE = Object.freeze({skitter:'mire_husk',sentinel:'spent_contact'});
 export function itemDrops(type) {
   return Object.hasOwn(ENEMY_ITEM_DROPS,type) ? ENEMY_ITEM_DROPS[type] : [];
 }

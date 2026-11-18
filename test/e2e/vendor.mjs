@@ -1,0 +1,72 @@
+// Live server and browser. The fixture supplies earned salvage only; all
+// sales, purchases, buyback and dismissal are player interactions.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {startServer} from '../../server/index.js';
+import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
+import {liveFixturePlayer} from './live-fixture.mjs';
+const server=await startServer({port:0,dataFile:null});
+let browser;
+try{
+ fs.mkdirSync('vendor-evidence',{recursive:true});
+ browser=await launchBrowser();
+ const page=await browser.newPage({viewport:{width:1100,height:750}});
+ page.setDefaultTimeout(90000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
+ await page.goto(url);await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb');});
+ const p=await liveFixturePlayer(page,server,'Vendor Tester');
+ const vendor=server.game.objects.find(o=>o.type==='quartermaster');
+ assert.ok(p&&vendor);
+ p.char.goods={spent_contact:4,mire_husk:3};p.char.credits=0;
+ p.x=vendor.x;p.z=vendor.z+2;server.game.markDirty(p);
+ await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.25&&s.sheet.goods.spent_contact===4;},[p.x,p.z]);
+ await page.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.18,dist:7,face:Math.PI}));
+ const drawn=await page.evaluate(()=>window.__attune.state().drawn);
+ await page.waitForFunction(n=>window.__attune.state().drawn>n,drawn);
+ await page.screenshot({path:'vendor-evidence/01-quartermaster-world.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ const panel=page.getByRole('dialog',{name:'Vendor',exact:true});
+ await panel.waitFor({state:'visible'});
+ assert.match(await panel.locator('.vendor-balance').innerText(),/^0 credits$/);
+ assert.ok(await panel.getByRole('button',{name:'Buy 1',exact:true}).first().isDisabled());
+ await panel.getByRole('button',{name:'Sell junk',exact:true}).click();
+ await panel.getByRole('button',{name:'Sell all junk',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===18);
+ assert.deepEqual(p.char.goods,{});
+ await panel.getByRole('button',{name:'Buy',exact:true}).click();
+ const fibre=panel.locator('.vendor-row').filter({hasText:'Mire fibre'});
+ await fibre.getByRole('button',{name:'Buy 1',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===10&&window.__attune.state().sheet.materials.mire_fibre===1);
+ await page.screenshot({path:'vendor-evidence/02-purchase.png'});
+ await panel.getByRole('button',{name:'Buyback',exact:true}).click();
+ const husk=panel.locator('.vendor-row').filter({hasText:'Torn mire husk'});
+ await husk.getByRole('button',{name:'Buy back',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===4&&window.__attune.state().sheet.goods.mire_husk===3);
+ assert.equal(p.char.credits,4);assert.deepEqual(p.char.goods,{mire_husk:3});
+ await page.screenshot({path:'vendor-evidence/03-buyback.png'});
+ // Fixture supplies currency and damaged condition; buying/repairing still
+ // use the authenticated browser. Defeat wear is covered by simulation tests.
+ p.char.credits=50;server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===50);
+ await panel.getByRole('button',{name:'Buy',exact:true}).click();
+ await panel.locator('.vendor-row').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Buy 1',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('field_emitter')&&window.__attune.state().sheet.credits===38);
+ p.char.condition={field_emitter:60};server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.condition.field_emitter===60);
+ await panel.getByRole('button',{name:'Repair',exact:true}).click();
+ await panel.locator('.vendor-row').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Repair',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===30&&!Object.hasOwn(window.__attune.state().sheet.condition,'field_emitter'));
+ assert.equal(p.char.credits,30);assert.deepEqual(p.char.condition,{});
+ await page.screenshot({path:'vendor-evidence/04-repair.png'});
+ await panel.getByRole('button',{name:'Close vendor'}).click();
+ await page.waitForFunction(()=>!window.__attune.state().you.vendor);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await panel.waitFor({state:'visible'});
+ p.x=vendor.x-8;p.z=vendor.z;
+ await panel.waitFor({state:'hidden'});
+ assert.equal(p.vendor,null);
+ assert.deepEqual(errors,[]);
+ console.log('PASS live quartermaster, private balance, sale, purchase, buyback and range dismissal');
+}finally{await browser?.close();await server.close();}

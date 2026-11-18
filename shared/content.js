@@ -11,8 +11,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph' };
-export const SLOTS = ['device', 'implant', 'glyph'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon'];
 
 export const CLASSES = {
   vanguard: {
@@ -311,6 +311,8 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
+  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
   keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
   keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},

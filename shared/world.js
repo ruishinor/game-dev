@@ -311,6 +311,7 @@ export const OBJECTS = [
   { key: 'brine_engineering', type: 'brine_engineering', name: 'B · Engineering Station', x: 49, z: -39, r: 0, embedded: true },
   { key: 'sinter_sampler', type: 'sinter_sampler', name: 'Strata Interferometer', x: -5.2, z: 58.4, r: 0.8 },
   { key: 'deep_console', type: 'deep_console', name: 'Kestrel Phase Recorder', x: -61.5, z: -8, r: 0.8 },
+  { key: 'quartermaster', type: 'quartermaster', name: 'Sanctum Quartermaster', x: -5.6, z: -1.8, r: 0.5 },
 ];
 
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
