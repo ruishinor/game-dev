@@ -16,7 +16,7 @@ export async function launchBrowser() {
   try {
     return await chromium.launch({ args, headless: process.env.ATTUNEMENT_HEADED !== '1', executablePath: process.env.ATTUNEMENT_CHROMIUM || undefined });
   } catch (err) {
-    if (/Executable doesn't exist|browserType.launch/.test(String(err.message))) {
+    if (/Executable doesn't exist/.test(String(err.message))) {
       throw new Error(`Chromium for Playwright is not installed. Run: npx playwright install chromium\n(${String(err.message).split('\n')[0]})`);
     }
     throw err;
@@ -31,4 +31,16 @@ export async function describeGraphics(page) {
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     return { webgl2: true, vendor: ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR), renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER), userAgent: navigator.userAgent };
   });
+}
+
+/** Correlate browser readiness to the currently attached authoritative actor. */
+export async function activeBrowserPlayer(page, server, name) {
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const id = await page.evaluate(() => window.__attune?.state().myId);
+    const player = server.game.players.get(id);
+    const session = player && server.net.sessions.get(player.char.id);
+    if (player?.name === name && session?.player === player && session.ws.readyState === 1) return player;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`No active authoritative player for ${name}`);
 }

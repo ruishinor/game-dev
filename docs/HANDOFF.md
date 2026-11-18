@@ -6,7 +6,7 @@ Read [AGENTS.md](../AGENTS.md) for the standing server-authority, minimum-disclo
 
 - The Three.js browser client runs the Sanctum, Sporefield and surrounding zones. `client/src/main.js` manages input, prediction, reconciliation and snapshot interpolation. `scene.js` builds the environment, batches static placements and fades foreground occluders. `camera.js` places the camera using terrain and solid geometry.
 - `client/src/assets.js` loads the versioned GLB manifest, validates required kit contents and shares geometry and textures. Animated entities use a per-instance skeleton and AnimationMixer. Cosmetic looks use named bone attachments. See [assets and provenance](ASSETS.md).
-- The Node server owns combat, progression, persistent characters, progression and inventory. The WebSocket client submits intent and renders acknowledged outcomes. Scene props in the reference area use the existing collision and heightfield data. The reference-scene change adds no client payload fields or static mounts.
+- The Node server owns combat, progression, persistent characters and inventory. The WebSocket client submits intent and renders acknowledged outcomes. Scene props in the reference area use the existing collision and heightfield data. The reference-scene change adds no client payload fields or static mounts.
 
 ## Verification
 

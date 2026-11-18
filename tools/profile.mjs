@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../server/index.js';
 import { ZONES } from '../shared/world.js';
-import { launchBrowser, describeGraphics, SOFTWARE_GL } from './browser.mjs';
+import { launchBrowser, describeGraphics, SOFTWARE_GL, activeBrowserPlayer } from './browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tiers = (process.argv[2] || '2,1,0').split(',').map(Number);
@@ -50,12 +50,13 @@ try {
     await page.waitForSelector('#enter:not([disabled])');
     const loadMs = Date.now() - t0;
     if (!report.graphics) report.graphics = await describeGraphics(page);
-    await page.fill('#name', `Prof${'abc'[tier]}x`);
+    const name = `Prof${'abc'[tier]}x`;
+    await page.fill('#name', name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
     await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos);
-    const player = [...srv.game.players.values()].pop();
     for (const scene of SCENES) {
+      const player = await activeBrowserPlayer(page, srv, name);
       player.x = scene.x;
       player.z = scene.z;
       player.hp = player.maxHp;
@@ -105,6 +106,7 @@ try {
           syncedRenderMs: synced,
           quality: s.quality,
           draw: s.draw,
+          assets: s.assets,
           entities: { total: s.ents.length, inView: s.ents.filter((e) => e.inView).length, animated: s.ents.filter((e) => e.anim).length },
           world: s.world,
         };
