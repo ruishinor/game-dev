@@ -23,6 +23,7 @@ import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
+import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 
 const INTERP_MS = 110;
@@ -298,6 +299,8 @@ document.addEventListener('contextmenu', e=>{
 const portraits = makePortraits(assets, useGlb);
 const ui = new UI({
   portrait: portraits,
+  npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
+  focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
   petRename: (name) => net.send({ t: 'pet_rename', name }),
@@ -731,6 +734,7 @@ function onSnapshot(m) {
   }
   // Private loot state must be current before keyboard input, even if rendering lags.
   ui.loot.sync(y.lootable,y.loot);
+  ui.syncNpc();
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
@@ -1047,9 +1051,8 @@ function onEvent(e) {
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':
-      ui.showNpcDialogue(e.id,e.m);
+      if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');
-      ui.toast(`${e.n}: “${e.m}”`, 'npc');
       break;
     default:
       break;
@@ -1137,7 +1140,7 @@ input.onClick = (button, x, y) => {
     if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if(ent?.meta.k==='o'&&ent.meta.c==='archivist') {setTarget(0);ui.openNpc(ent);}
+    } else if(npcProfile(ent)) {ui.openNpc(ent);}
     else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
   } else {
@@ -1147,8 +1150,8 @@ input.onClick = (button, x, y) => {
     if(ent.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if(ent.meta.k==='p') { ui.openPlayerContext(ent,x,y); return; }
     if (ent.meta.k === 'o') {
-      if(ent.meta.c==='archivist')ui.openNpc(ent);
-      net.send({ t: 'act', id: ent.id });
+      if(npcProfile(ent))ui.openNpc(ent);
+      else net.send({ t: 'act', id: ent.id });
     }
     else {
       setTarget(ent.id);
@@ -1228,6 +1231,7 @@ input.onAction = (code, e) => {
     case 'KeyF': {
       const o = nearestObject();
       if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      else if(npcProfile(o))ui.openNpc(o);
       else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
