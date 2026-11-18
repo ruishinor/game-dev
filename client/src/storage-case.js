@@ -10,20 +10,40 @@ export function buildStorageCase(T,p){
   const body=mat(maps?0xffffff:large?0x77745d:0x526c69,.82,.23,maps??{});
   const frame=mat(0x444b48,.64,.56), gasket=mat(0x272c29,.94,.03), hardware=mat(0x96917a,.51,.64);
   const groups=new Map();
-  const box=(m,w,h,d,x,y,z)=>{
-    const geo=new T.BoxGeometry(w*W,h*H,d*D).translate(x*W,y*H,z*D);
-    if(!groups.has(m))groups.set(m,[]);groups.get(m).push(geo);
+  const add=(m,geo)=>{if(!groups.has(m))groups.set(m,[]);groups.get(m).push(geo);};
+  const box=(m,w,h,d,x,y,z)=>add(m,new T.BoxGeometry(w*W,h*H,d*D).translate(x*W,y*H,z*D));
+  // Stamped cargo shells with chamfers in all three axes. Geometry stays within
+  // the authoritative extent, rather than adding overhanging bevels.
+  const shell=(m,w,h,d,x,y,z)=>{
+    const X=w*W,Y=h*H,Z=d*D,b=Math.min(.035,X*.1,Y*.1,Z*.1),a=X/2-b,k=Y/2-b,c=Math.min(.07,a*.22,k*.22);
+    const path=new T.Shape();
+    path.moveTo(-a+c,-k);path.lineTo(a-c,-k);path.lineTo(a,-k+c);path.lineTo(a,k-c);
+    path.lineTo(a-c,k);path.lineTo(-a+c,k);path.lineTo(-a,k-c);path.lineTo(-a,-k+c);path.closePath();
+    const depth=Z-2*b,geo=new T.ExtrudeGeometry(path,{depth,bevelEnabled:true,bevelSize:b,bevelThickness:b,bevelSegments:2,curveSegments:1});
+    geo.translate(0,0,-depth/2);
+    const p=geo.getAttribute('position'),n=geo.getAttribute('normal'),uv=geo.getAttribute('uv');
+    for(let i=0;i<p.count;i++){
+      const px=p.getX(i),py=p.getY(i),pz=p.getZ(i),nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i)),nz=Math.abs(n.getZ(i));
+      uv.setXY(i,nz>=nx&&nz>=ny?px/X+.5:nx>=ny?pz/Z+.5:px/X+.5,ny>nx&&ny>nz?pz/Z+.5:py/Y+.5);
+    }
+    add(m,geo.translate(x*W,y*H,z*D));
   };
   // Two ground-contact runners, heavy frame and protected recessed panels.
   for(const side of [-1,1]){
     box(frame,.19,.13,.98,side*.35,.065,0);
     box(hardware,.17,.026,.86,side*.35,.142,0);
   }
-  box(body,.88,.65,.88,0,.48,0);
+  shell(body,.88,.65,.88,0,.48,0);
   box(frame,.96,.075,.96,0,.1825,0);
   box(gasket,.90,.025,.90,0,.81,0);
-  box(body,.91,.135,.91,0,.89,0);
-  box(frame,.98,.055,.98,0,.9725,0);
+  shell(body,.91,.15,.91,0,.895,0);
+  // Rim rails, raised ribs and carry hardware instead of an uninterrupted lid.
+  for(const side of [-1,1]){
+    box(frame,.98,.048,.085,0,.976,side*.4475);
+    box(frame,.085,.048,.81,side*.4475,.976,0);
+    box(hardware,.065,.027,.57,side*.26,.9815,0);
+  }
+  box(frame,.055,.028,.73,0,.984,0);
   for(const s of [-1,1]){
     for(const z of [-.42,.42]){
       box(frame,.075,.74,.075,s*.4525,.53,z);

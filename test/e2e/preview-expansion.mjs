@@ -59,7 +59,7 @@ try {
     await page.screenshot({ path });
   }
   await moveTo(-5.5,-2.6);
-  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.20,dist:6,face:Math.PI}));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
   await capture('preview-evidence/01a-sanctum-storage.png');
   await moveTo(43, -27);
@@ -360,7 +360,12 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  // The model may be recreated during a heartbeat-driven reconnect. Require
+  // the real named projector on the current GLB character before proceeding.
+  await keeper.waitForFunction(()=>{
+    const state=window.__attune?.state();
+    return state?.myId&&state.ents.some(e=>e.id===state.myId&&e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('aegis-projector');
+  });
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
