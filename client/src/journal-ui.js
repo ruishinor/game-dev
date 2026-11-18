@@ -92,6 +92,7 @@ function itemDrop(ui,el,accept,apply){
 function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const s=ui.sheet,item=ITEMS[id];
   const card=h('div','card compact-item'+(equipped?' slotcard':''));
+  if(ui.unseenItems.has(id))card.classList.add('new-equipment');
   const label=h('div','compact-item-label');
   label.append(itemArt(id),h('div','iname',item.name));
   card.append(h('div','kicker',SLOT_NAMES[item.slot]),label);
@@ -123,7 +124,7 @@ const LOADOUT_TABS = [
     present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
     present('arms','Arms',1,2),present('chest','Chest',2,2),present('hands','Hands',3,2),
     present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
-    present('device','Device',1,4,'device'),present('utility','Utility',2,4),present('glyph','Glyph',3,4,'glyph'),
+    present('device','Device',1,4,'device'),present('utility','Utility',2,4),
   ]},
   {id:'implants',name:'Implants',slots:[
     present('eyes','Eyes',1,1),present('brain','Brain',2,1),present('ear','Ear',3,1),
@@ -158,8 +159,7 @@ export function renderLoadout(ui,body,stats) {
     if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
-      if(unseen.length){for(const id of unseen)ui.unseenItems.delete(id);ui.buildBtn.classList.toggle('new',ui.unseenItems.size>0);ui.inventoryBtn.classList.toggle('new',ui.unseenItems.size>0);}
-      if(ui.loadoutTab===t.id&&!unseen.length)return;
+      if(ui.loadoutTab===t.id)return;
       ui.loadoutTab=t.id;
       ui.loadoutSelection=ui.loadoutSlot=null;
       ui.renderBuild();
@@ -189,9 +189,10 @@ export function renderLoadout(ui,body,stats) {
     }
   };
   const selectItem=id=>{
+    const changed=ui.acknowledgeItem(id);
     ui.loadoutSelection=id;
     ui.loadoutSlot=tab.slots.find(t=>t.slot===ITEMS[id]?.slot)?.key||null;
-    renderDetail();
+    if(changed)ui.renderBuild();else renderDetail();
   };
   if(tab.id==='character'){
     const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
@@ -225,7 +226,7 @@ export function renderLoadout(ui,body,stats) {
       btn.addEventListener('click',()=>{
         ui.loadoutSlot=slot.key;
         ui.loadoutSelection=null;
-        renderDetail();
+        if(id&&ui.acknowledgeItem(id))ui.renderBuild();else renderDetail();
       });
       if(id)bindItem(ui,btn,id);
       if(slot.slot)itemDrop(ui,btn,itemId=>!ui.buildLock&&ITEMS[itemId]?.slot===slot.slot&&ui.sheet.inventory.includes(itemId)&&ui.sheet.equipped[slot.slot]!==itemId,itemId=>ui.itemAction(itemId,'equip'));
@@ -278,7 +279,7 @@ export function renderInventory(ui) {
   for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
-    const unseen=[...(ui.unseenItems||[])].filter(item=>ITEMS[item]?.slot===id);
+    const unseen=[...(ui.unseenItems||[])].filter(item=>id==='all'||ITEMS[item]?.slot===id);
     if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';}
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
@@ -303,7 +304,8 @@ export function renderInventory(ui) {
     btn.append(itemArt(id));
     btn.title=item.name;btn.setAttribute('aria-label',item.name);
     bindItem(ui,btn,id);
-    btn.addEventListener('click',()=>{ui.inventorySelection=id;renderInventory(ui);});
+    if(ui.unseenItems.has(id))btn.classList.add('new-equipment');
+    btn.addEventListener('click',()=>{ui.acknowledgeItem(id);ui.inventorySelection=id;renderInventory(ui);if(!ui.panel.hidden)ui.renderBuild();});
     ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
     grid.append(btn);
   }

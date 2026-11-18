@@ -677,6 +677,8 @@ try {
     if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
     slotTabs=slotTabs&&!faults.length;
   }
+  await B.page.locator('.doll-tabs [data-tab="gear"]').click();
+  if(await B.page.locator('.equipment-slot-grid [data-slot="glyph"]').count())throw new Error('Glyph must not be duplicated in Gear');
   await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const glyphSlot= B.page.locator('.equipment-slot-grid [data-slot="glyph"]');
   await glyphSlot.click();

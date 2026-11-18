@@ -784,7 +784,6 @@ export class UI {
     this.hideJournalPanels();
     this.panel.hidden = !open;
     if (open) {
-      this.buildBtn.classList.remove('new');
       this.renderBuild();
     }
   }
@@ -995,6 +994,13 @@ export class UI {
     this.playerContext.style.left=`${Math.max(8,Math.min(window.innerWidth-w-8,x))}px`;
     this.playerContext.style.top=`${Math.max(8,Math.min(window.innerHeight-hgt-8,y))}px`;
     this.playerContext.querySelector('button')?.focus({preventScroll:true});
+  }
+
+  acknowledgeItem(id) {
+    if(!this.unseenItems.delete(id))return false;
+    this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
+    this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
+    return true;
   }
 
   itemAction(id,action) {
