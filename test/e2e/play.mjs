@@ -366,9 +366,17 @@ async function followInventoryPlaytest(){
  check('equipment acquisition lights Character',(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await B.page.locator('#view').focus();await B.page.keyboard.press('KeyI');
  await inv.getByRole('button',{name:'All',exact:true}).click();
- await inv.locator('[aria-label="Adrenal Shunt"]').hover();
- await B.page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('adrenal_shunt'),null,{timeout:10000});
- check('equipment hover clears Character notification',!pb.char.unseenItems.includes('adrenal_shunt')&&!(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ // The deterministic Sentinel drops three distinct equipment items; each
+ // must be inspected before the Character indicator can stop glowing.
+ const equipmentDrops=['adrenal_shunt','field_vector_array','conductive_membrane'];
+ for(const [i,id] of equipmentDrops.entries()){
+   const {ITEMS}=await import('../../shared/content.js');
+   await inv.getByRole('button',{name:ITEMS[id].name,exact:true}).hover();
+   await B.page.waitForFunction(id=>!window.__attune.state().sheet.unseenItems.includes(id),id,{timeout:10000});
+   check('equipment hover marks '+id+' Seen on server',!pb.char.unseenItems.includes(id));
+   if(i<equipmentDrops.length-1)check('remaining unread equipment retains Character notification',(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ }
+ check('all equipment Seen clears Character notification',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await inv.getByRole('button',{name:'Close inventory'}).click();
  // Fixture only: isolate a real Warden defeat and select the very-rare
  // independent roll. Neither loot collection nor presentation is mocked.
