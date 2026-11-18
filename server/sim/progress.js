@@ -6,7 +6,7 @@ import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVE
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
-import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
+import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
 import { directiveDialogueId, getRadioDialogue } from '../../shared/dialogue.js';
 import { distributeCorpseLoot } from './loot.js';
@@ -284,7 +284,7 @@ function operateBrine(game,p,obj) {
     return ok;
   }
   p.brineTrial=null;p.char.brineStage=3;
-  grantItem(game,p,route.reward);grantXp(game,p,55);game.markDirty(p);
+  grantItem(game,p,route.reward);grantXp(game,p,BRINE_REWARD_XP.commissioning);game.markDirty(p);
   transmitAuthored(game,p,'brine.commissioned');
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
@@ -387,7 +387,7 @@ export function interact(game, p, objectId) {
       p.char.survey = current + '_done'; // mark complete before granting XP
       p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: SURVEY[current].report });
       game.message(p, 'gain', 'Evidence reported: ' + SURVEY[current].title + '. Return to Brineworks to commission the site.');
-      grantXp(game, p, 35);
+      grantXp(game, p, BRINE_REWARD_XP.investigation);
       game.markDirty(p);
       return { ok: true };
     }

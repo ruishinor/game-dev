@@ -13,6 +13,7 @@ for(const first of ['strata','recorder'])test('Residual Traces '+first+' route i
  assert.ok(action(g,p,sites[first]).ok);assert.deepEqual(fieldQuestProjection(p.char),{});
  assert.equal(interact(g,p,venn.id).ok,false);assert.ok(action(g,p,venn).ok);
  assert.equal(p.char.traceState,'briefed');assert.equal(questLog(g.sheet(p)).find(q=>q.id==='field:residual_traces').progress,'0 / 2 readings');
+ assert.deepEqual(questLog(g.sheet(p)).find(q=>q.id==='field:residual_traces').rewards,['55 XP','Research allotment (revealed after both readings)']);
  const chosen=sites[first],second=sites[first==='strata'?'recorder':'strata'];
  assert.ok(action(g,p,chosen).ok);assert.equal(p.char.traceState,first+'_first');assert.ok(action(g,p,chosen).ok);assert.equal(p.char.traceState,first+'_first');
  assert.deepEqual(fieldQuestProjection(other.char),{});
@@ -20,10 +21,13 @@ for(const first of ['strata','recorder'])test('Residual Traces '+first+' route i
  assert.equal(restored.char.traceState,first+'_first');
  assert.ok(action(g,restored,second).ok);assert.equal(restored.char.traceState,first+'_ready');
  const before=restored.char.xp;const reward=first==='strata'?'culture_matrix':'kinetic_coupler';
+ const listed=first==='strata'?'1 × Culture matrix':'1 × Kinetic coupler';
+ assert.deepEqual(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').rewards,['55 XP',listed]);
  restored.char.materials={[reward]:99};assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.traceState,first+'_ready');assert.equal(restored.char.xp,before);
  restored.char.materials={};assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.traceState,first+'_done');assert.equal(restored.char.materials[reward],1);assert.equal(restored.char.xp,before+55);
  assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.materials[reward],1);assert.equal(restored.char.xp,before+55);
  assert.equal(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').status,'completed');
+ assert.deepEqual(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').rewards,['55 XP',listed]);
 });
 test('eligibility, combat, actual sample ownership and malformed state fail closed',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard')),venn=g.objects.find(o=>o.type==='archivist'),sampler=g.objects.find(o=>o.type==='sinter_sampler');
