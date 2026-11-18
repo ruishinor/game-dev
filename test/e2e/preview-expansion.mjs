@@ -283,6 +283,18 @@ try {
     await capture('preview-evidence/04d-sinter-'+site+'-vfx.png');
   }
   p.surveyKit.rig=null;
+  // Existing mineral-bed art is the recovery landmark; the interaction uses a
+  // real server-owned node. Predator remains staged safely away as above.
+  await moveTo(9.1,57.7);
+  await page.waitForFunction(()=>document.querySelector('.interact')?.textContent.includes('Recover loose mineral shedding'));
+  const recoveryBefore=p.char.xp;
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.waitForFunction(()=>window.__attune.state().sheet.materials.sinter_flake===1&&window.__attune.state().sheet.recoverySamples===1&&window.__attune.state().you.recoveryMs>0);
+  assert.equal(p.char.xp,recoveryBefore);
+  await page.keyboard.press('KeyF');
+  await page.waitForFunction(()=>/allow the mineral bed/i.test(document.querySelector('.errors')?.textContent||''));
+  assert.equal(p.char.materials.sinter_flake,1);
+  await capture('preview-evidence/04e-field-recovery.png');
   // Controlled placement for an art evidence capture; ecology movement,
   // convergence, alarm and maturation are independently tested in Node.
   const herd=server.game.enemies.filter(e=>e.form);

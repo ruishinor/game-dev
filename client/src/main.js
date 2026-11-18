@@ -987,6 +987,11 @@ function onEvent(e) {
         }
         break;
       }
+      if(e.k==='field_recovery'){
+        const o=S.ents.get(e.o);
+        if(!handled&&o?.placed)fx.ring(o.pos.x,o.pos.z,1.25,0xc0b88c,680,o.pos.y);
+        break;
+      }
       if (e.k === 'sinter_sample') {
         const o = S.ents.get(e.o);
         if (o) {
