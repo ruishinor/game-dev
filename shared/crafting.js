@@ -112,11 +112,11 @@ export function productionQuantities(recipe) {
 }
 
 export function productionTime(recipe) {
-  if (recipe.kind === 'fusion') return 2600;
-  if (recipe.kind === 'assembly') return 2200;
-  if (recipe.kind === 'upgrade') return 1900;
-  if (recipe.discipline === 'Research') return 1450;
-  return 1100;
+  if (recipe.kind === 'fusion') return 9000;
+  if (recipe.kind === 'upgrade' || recipe.kind === 'restore') return 6500;
+  if (recipe.discipline === 'Research') return 5500;
+  if (recipe.kind === 'assembly') return 5000;
+  return 4000;
 }
 
 // The consequence is part of the player-facing recipe quote.

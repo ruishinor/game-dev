@@ -9,13 +9,14 @@ import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { conditionOf, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
-import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
+import { renderLoadout, renderInventory, renderCodex, itemArt } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { canSalvageEquipment } from '../../shared/item-actions.js';
 import { renderWorkshop, updateProduction } from './workshop-ui.js';
 import { WindowLayout } from './window-layout.js';
+import {productionEstimate} from './production-presentation.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
@@ -433,14 +434,17 @@ export class UI {
     this.inscription.append(this.inscriptionName, cancelInscription, this.inscriptionProgress);
     this.productionStatus = h('div', 'production-status');
     this.productionStatus.hidden = true;
-    this.productionName = h('span', null);
+    this.productionName = h('span','production-name');
     this.productionName.setAttribute('role', 'status');
+    this.productionIcon=h('span','production-icon');
+    this.productionDetail=h('span','production-detail');
+    this.productionClock=null;
     this.productionProgress = h('progress');
     this.productionProgress.setAttribute('aria-label', 'Fabrication progress');
     const cancelProduction = h('button', null, 'Cancel');
     cancelProduction.type = 'button';
     cancelProduction.addEventListener('click', () => this.a.cancelProduction());
-    this.productionStatus.append(this.productionName, cancelProduction, this.productionProgress);
+    this.productionStatus.append(this.productionIcon,this.productionName,cancelProduction,this.productionProgress,this.productionDetail);
     bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
@@ -1616,12 +1620,24 @@ export class UI {
     if(productionStarted||inscriptionStarted)this.dismissWorldActionPanels();
     set(this.productionStatus,'hidden',!this.production);
     if(this.production){
-      const job=this.production,recipe=RECIPES[job.id];
-      const units=recipe?.output.count||1;
+      const job=this.production,recipe=RECIPES[job.id],units=recipe?.output.count||1;
+      const clock=this.productionClock;
+      if(!clock||clock.job!==job){
+        const sameCycle=clock?.job.id===job.id&&clock.job.complete===job.complete&&clock.job.quantity===job.quantity;
+        this.productionClock={job,at:st.now,cycle:sameCycle?clock.cycle:0};
+      }
+      const current=this.productionClock;
+      const estimate=productionEstimate(job,st.now-current.at,current.cycle);
+      if(estimate){
+        current.cycle=estimate.cycle;
+        const remaining=estimate.remaining>0?Math.ceil(estimate.remaining/1000)+'s remaining':'Finishing…';
+        set(this.productionDetail,'text',estimate.stage+' · '+Math.floor(estimate.overall*100)+'% · '+remaining);
+        this.productionProgress.max=1;this.productionProgress.value=estimate.overall;
+      }
+      const id=recipe?.output.item||recipe?.output.material||recipe?.output.goods;
+      if(this.productionIcon.dataset.item!==id){this.productionIcon.replaceChildren(...(id?[itemArt(id)]:[]));this.productionIcon.dataset.item=id||'';}
       set(this.productionName,'text',recipe?recipe.name+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
-      this.productionProgress.max=job.cycles;
-      this.productionProgress.value=job.complete+Math.max(0,Math.min(1,(job.total-job.ms)/job.total));
-    }
+    }else this.productionClock=null;
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
     set(this.rescueStatus,'hidden',you.rescueReady===undefined);
@@ -1879,6 +1895,7 @@ export class UI {
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.production = null;
+    this.productionClock=null;
     this.productionStatus.hidden = true;
     this.inscriptionActive = false;
     this.inscription.hidden = true;

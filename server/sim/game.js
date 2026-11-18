@@ -26,7 +26,7 @@ import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 import { inventoryCounts, trackAcquisitions } from './inventory-seen.js';
-import { productionState, stopProduction, tickProduction } from './production.js';
+import { productionState, productionVisualState, stopProduction, tickProduction } from './production.js';
 import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -376,6 +376,7 @@ export class Game {
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
         ...equipmentVisuals(p.char.equipped),
+        ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });

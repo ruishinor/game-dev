@@ -12,6 +12,7 @@ import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import {createTorsoLayers} from './torso-layers.js';
 import {createWeaponCarry} from './weapon-visuals.js';
+import {createProductionWork} from './production-work.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
 import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
@@ -196,6 +197,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   }
 
   const weaponCarry=createWeaponCarry(THREE,assets,inst,opts.cls==='vanguard');
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -219,7 +221,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     handOrigin(){return weaponCarry.hand();},
     update(dt, st) {
       torsoLayers.apply(st.cv,st.sv);
-      weaponCarry.apply(st.wv);
+      const working=work.canPose(st);
+      if(!working)work.clear();
+      weaponCarry.apply(working&&opts.cls!=='vanguard'?null:st.wv);
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -241,8 +245,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step){weaponCarry.restorePose();anim.update(step);}
-      weaponCarry.update(dt,st,!!step);
+      if (step){work.restorePose();weaponCarry.restorePose();anim.update(step);}
+      if(working){if(step)work.pose(st.work,st.t,st.reducedMotion);}
+      else weaponCarry.update(dt,st,!!step);
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -270,6 +275,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       anim.dispose();
       face?.dispose();
       torsoLayers.dispose();
+      work.dispose();
       weaponCarry.dispose();
       disposeInstance(group);
     },

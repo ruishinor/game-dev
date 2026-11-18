@@ -1220,7 +1220,7 @@ function onEvent(e) {
       if (!actor?.placed || e.phase === 'stop') break;
       const { x, y, z } = actor.pos;
       const colour = e.method === 'culture' ? 0x9ed4a3 : e.method === 'upgrade' ? 0xe3bd76 : 0x8fcbd1;
-      if (e.phase === 'begin') actor.model.trigger?.('ability', e.method === 'culture' ? 'mending_graft' : 'interact');
+      // The public work snapshot drives sustained rig motion, not a generic cast.
       fx.ring(x, z, e.phase === 'complete' ? 1.7 : 0.8, colour, 620, y);
       if (!motionPreference.matches) {
         if (e.method === 'culture') fx.burst(actor.chest, colour, 10, 0.55);
@@ -1658,7 +1658,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
-      cv:row?.cv,sv:row?.sv,wv:row?.wv,
+      cv:row?.cv,sv:row?.sv,wv:row?.wv,work:row?.work,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,

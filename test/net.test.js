@@ -638,7 +638,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
     await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');
     assert.equal(a.sheet.materials.culture_matrix, undefined);
-    await a.until(()=>a.sheet?.materials?.culture_matrix===1,4000,'workshop output');
+    await a.until(()=>a.sheet?.materials?.culture_matrix===1,10000,'workshop output');
     assert.deepEqual(a.sheet.materials,{mire_fibre:1,culture_matrix:1});
     assert.ok(!a.sheet.inventory.includes('wardstone_shard'));
     p.x = 20;

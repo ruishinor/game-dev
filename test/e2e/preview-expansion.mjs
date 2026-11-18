@@ -469,6 +469,12 @@ try {
   await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
   await workshop.locator('[data-recipe="longpoint_emitter"]').click();
   await workshop.locator('[data-craft="longpoint_emitter"]').click();
+  await page.waitForFunction(()=>{
+    const s=window.__attune.state();
+    const tool=window.__attune.gfx.scene.getObjectByName('production:right');
+    return !!s.you.production&&tool?.visible&&!!document.querySelector('.production-icon .item-art');
+  });
+  await page.screenshot({path:'preview-evidence/10a-fabrication-work.png'});
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('longpoint_emitter'));
   assert.ok(!p.char.inventory.includes('tuned_emitter'));
   assert.equal(p.char.materials.resonance_fragment,undefined);
