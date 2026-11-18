@@ -225,6 +225,35 @@ function buildProps() {
     { type: 'deep_vessel', x: -61.1, z: -12, r: 1.05, h: 2.9, seed: 1701 },
     { type: 'deep_vessel', x: -61.1, z: -4, r: 1.05, h: 2.55, seed: 1702 },
   );
+  // Grounded foothill scenery replaces the old non-colliding cliff ring.
+  // Independent seed preserves the existing scatter, encounters and lore sites.
+  const foothillRng=mulberry32(7347);
+  const ringCount=18;
+  for(let i=0;i<ringCount;i++){
+    const tree=i%3!==2;
+    const s=tree?0.46+foothillRng()*0.12:1.45+foothillRng()*0.48;
+    const radius=tree?0.85:s;
+    const height=tree?15.9*s:1.65*s;
+    const seed=Math.floor(foothillRng()*1000000);
+    const angle=i/ringCount*Math.PI*2;
+    for(let attempt=0;attempt<8;attempt++){
+      const a=angle+(foothillRng()-.5)*.28;
+      const d=WORLD.radius-13-foothillRng()*7;
+      const x=Math.sin(a)*d,z=Math.cos(a)*d;
+      const pad=radius+2.5;
+      if(Math.hypot(x,z)+radius+1>=WORLD.radius-9)continue;
+      if(Object.values(ZONES).some(zone=>Math.hypot(x-zone.x,z-zone.z)<zone.r+pad+3))continue;
+      if(retained.some(p=>Math.hypot(x-p.x,z-p.z)<(p.r??Math.hypot(p.hw??0,p.hd??0))+pad))continue;
+      const heights=[groundHeight(x,z)];
+      for(let k=0;k<8;k++){
+        const t=k*Math.PI/4;
+        heights.push(groundHeight(x+Math.cos(t)*(radius+.25),z+Math.sin(t)*(radius+.25)));
+      }
+      if(Math.max(...heights)-Math.min(...heights)>.42)continue;
+      retained.push({type:tree?'conduit':'rock',x,z,r:radius,h:height,s,seed,foothill:true});
+      break;
+    }
+  }
   return retained;
 }
 
