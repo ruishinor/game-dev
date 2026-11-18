@@ -875,7 +875,10 @@ function onEvent(e) {
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
       const shot=e.ab==='auto'&&e.k==='bolt'&&s?.meta.k==='p'?shotProfile(e.wv):null;
-      const fired=!!(shot&&s?.placed&&d?.placed&&s.model.fireWeapon?.(e.wv,d.chest));
+      if(shot&&s?.placed&&d?.placed&&s.speed<1.5&&!s.dead){
+        const yaw=Math.atan2(d.pos.x-s.pos.x,d.pos.z-s.pos.z);s.holder.rotation.y=yaw;s.displayYaw=yaw;
+      }
+      const fired=!!(shot&&s?.placed&&d?.placed&&!s.dead&&s.model.fireWeapon?.(e.wv,d.chest));
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.

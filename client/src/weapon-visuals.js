@@ -67,6 +67,7 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
   mounts.set(id,{id,anchor,muzzlePoint,supportPoint,restPos:anchor.position.clone(),restQuat:anchor.quaternion.clone()});
  }
  function restorePose(){
+  if(!saved.size)return;
   for(const [b,q] of saved)b.quaternion.copy(q);
   saved.clear();
   if(active){active.anchor.position.copy(active.restPos);active.anchor.quaternion.copy(active.restQuat);}
