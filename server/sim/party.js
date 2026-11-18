@@ -3,6 +3,13 @@
 export const PARTY_CAP = 4;
 const INVITE_MS = 30000;
 
+export function companionCanSupport(game, owner, recipient) {
+  if (!owner || owner.dead || !recipient || recipient.kind !== 'player' || recipient.dead) return false;
+  if (owner === recipient) return true;
+  const members = game.parties.get(owner.partyId);
+  return !!members?.has(owner.id) && members.has(recipient.id);
+}
+
 export function inviteParty(game, sender, id) {
   const other = game.players.get(id);
   if (!other || other.id === sender.id) return { ok: false, reason: 'Select another connected player to invite.' };

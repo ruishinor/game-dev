@@ -875,6 +875,8 @@ export const MODEL_FACTORIES = {
   survey_signal: () => makeSurveyTerminal(false),
   survey_ledger: () => makeSurveyTerminal(true),
   sinter_sampler: makeSinterSampler,
+  // Existing mineral-bed scene geometry is the visible resource; only the interaction anchor is instanced here.
+  sinter_recovery:()=>({group:new THREE.Group(),height:.65,radius:1.2,hover:0,update(){}}),
   phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),

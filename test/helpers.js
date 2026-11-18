@@ -1,6 +1,8 @@
 // Shared fixtures for simulation tests.
 import { Game } from '../server/sim/game.js';
 import { mulberry32 } from '../shared/world.js';
+import { inviteParty, answerParty } from '../server/sim/party.js';
+import { tickInscription } from '../server/sim/progress.js';
 
 let n = 0;
 export function makeChar(cls, over = {}) {
@@ -24,7 +26,20 @@ export function makeChar(cls, over = {}) {
 }
 
 export function makeGame(seed = 7) {
-  return new Game({ rng: mulberry32(seed) });
+  return new Game({ rng: mulberry32(seed), relicRng:()=>.999999 });
+}
+
+export function joinParty(game, owner, ...members) {
+  for (const member of members) {
+    if (!inviteParty(game, owner, member.id).ok || !answerParty(game, member, true).ok) {
+      throw new Error('Could not establish the test party.');
+    }
+  }
+}
+
+export function finishInscription(game, player) {
+  game.time = player.inscription.until;
+  tickInscription(game, player);
 }
 
 /** Advance the simulation in 50ms ticks, collecting every event. */

@@ -50,6 +50,11 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
+// Mesh culling must not change the scene's shader light count. The Stone
+// supplies this persistent light's properties when its world entity arrives.
+const stoneLight = new THREE.PointLight(0xffffff, 0);
+const stoneUp = new THREE.Vector3(0, 1, 0);
+scene.add(stoneLight);
 
 // Models come from GLB bundles, loaded once before anything is drawn. If a
 // bundle is missing, the affected entities use their procedural stand-ins.
@@ -314,6 +319,7 @@ const ui = new UI({
   useAbility: (id) => net.send({ t: 'use', a: id }),
   pet: (c) => net.send({ t: 'pet', c }),
   petRename: (name) => net.send({ t: 'pet_rename', name }),
+  managePet: (action, type) => net.send({ t: 'pet_manage', action, type }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
   followChat: (name) => {
@@ -346,9 +352,13 @@ const ui = new UI({
   lootClose:()=>net.send({t:'loot_close'}),
   vendorTrade:quote=>net.send({...quote,t:'vendor_trade'}),
   vendorClose:()=>net.send({t:'vendor_close'}),
-  craft: (recipe,rev)=>net.send({t:'craft',recipe,rev}),
+  craft: (recipe,quantity,rev)=>net.send({t:'craft',recipe,quantity,rev}),
+  cancelProduction: () => net.send({ t: 'production_cancel' }),
   useUtility: (item,weapon,rev)=>net.send({t:'use_utility',item,weapon,rev}),
   equip: (item) => net.send({ t: 'equip', item }),
+  itemSeen: (item, rev) => net.send({ t: 'item_seen', item, rev }),
+  disposeItem: (item, action, rev) => net.send({ t: 'item_dispose', item, action, rev }),
+  cancelInscription: () => net.send({ t: 'inscription_cancel' }),
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
@@ -593,6 +603,13 @@ function addEntity(meta) {
     return ent;
   }
   const model = createModel(assets, meta, useGlb(meta));
+  if (model.worldLight) {
+    const source = model.worldLight;
+    stoneLight.color.copy(source.color);
+    stoneLight.distance = source.distance;
+    stoneLight.decay = source.decay;
+    source.removeFromParent();
+  }
   const holder = new THREE.Group();
   holder.add(model.group);
   if (quality === 0) lowSpec(holder, true);
@@ -624,6 +641,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  if (ent.model.worldLight) stoneLight.intensity = 0;
   recoveryVisuals.remove(ent.id);
   fx.clearRoot(ent.id);
   svfx?.remove(ent.id);
@@ -969,6 +987,11 @@ function onEvent(e) {
         }
         break;
       }
+      if(e.k==='field_recovery'){
+        const o=S.ents.get(e.o);
+        if(!handled&&o?.placed)fx.ring(o.pos.x,o.pos.z,1.25,0xc0b88c,680,o.pos.y);
+        break;
+      }
       if (e.k === 'sinter_sample') {
         const o = S.ents.get(e.o);
         if (o) {
@@ -1075,6 +1098,8 @@ function onEvent(e) {
       if (e.k === 'err') ui.error(e.m);
       else {
         ui.log(e.m, e.k);
+        if (e.k === 'warn') ui.toast(e.m, 'warn');
+        if (e.k === 'production') ui.toast(e.m, 'production');
         if (e.k === 'gain') {
           ui.toast(e.m, 'gain');
           acquired();
@@ -1084,6 +1109,40 @@ function onEvent(e) {
     case 'loot':
       acquired();
       break;
+    case 'attributes':
+      ui.attributeToast(e.item, e.changes);
+      break;
+    case 'ritual': {
+      const actor = S.ents.get(e.s);
+      if (!actor?.placed) break;
+      const { x, y, z } = actor.pos;
+      const colour = 0xb8a0e0;
+      if (e.phase === 'begin') {
+        actor.model.trigger?.('ability', 'attune');
+        fx.ring(x, z, 0.95, colour, 700, y);
+      } else if (e.phase === 'trace') {
+        fx.ring(x, z, 1.45, colour, 700, y);
+        if (!motionPreference.matches) fx.burst(actor.chest, colour, 8, 0.65);
+      } else if (e.phase === 'complete') {
+        fx.ring(x, z, 2, colour, 710, y);
+        if (!motionPreference.matches) fx.pillar(x, z, colour, 600);
+      }
+      break;
+    }
+    case 'production': {
+      const actor = S.ents.get(e.s);
+      if (!actor?.placed || e.phase === 'stop') break;
+      const { x, y, z } = actor.pos;
+      const colour = e.method === 'culture' ? 0x9ed4a3 : e.method === 'upgrade' ? 0xe3bd76 : 0x8fcbd1;
+      if (e.phase === 'begin') actor.model.trigger?.('ability', e.method === 'culture' ? 'mending_graft' : 'interact');
+      fx.ring(x, z, e.phase === 'complete' ? 1.7 : 0.8, colour, 620, y);
+      if (!motionPreference.matches) {
+        if (e.method === 'culture') fx.burst(actor.chest, colour, 10, 0.55);
+        else if (e.method === 'upgrade') fx.pillar(x, z, colour, 500);
+        else fx.burst(actor.chest, colour, 5, 1.05);
+      }
+      break;
+    }
     case 'xp': {
       const me = S.ents.get(S.myId);
       if (me) ui.floatText(toScreen(me.head), `+${e.a} XP`, 'xp');
@@ -1521,6 +1580,14 @@ function updateEntities(dt, t, now) {
       fwd: ent.fwd,
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
+    const light = ent.model.worldLight;
+    if (light) {
+      stoneLight.intensity = light.intensity;
+      stoneLight.position.copy(light.position).applyAxisAngle(stoneUp, ent.displayYaw);
+      stoneLight.position.x += x;
+      stoneLight.position.y += y;
+      stoneLight.position.z += z;
+    }
   }
   recoveryVisuals.sync(S.ents,S.you?.lootable,me?.pos,vfx,quality,motionPreference.matches);
 }
@@ -1719,7 +1786,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [] });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;

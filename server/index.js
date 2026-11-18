@@ -140,6 +140,7 @@ export function startServer(opts = {}) {
 
   const store = new CharacterStore(dataFile);
   const game = new Game({ rng: opts.rng });
+  if (typeof opts.productionRoll === 'function') game.productionRoll = opts.productionRoll;
   const server = http.createServer(handleHttp);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
   const net = new NetServer(wss, game, store);
