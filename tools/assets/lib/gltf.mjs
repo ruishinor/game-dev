@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NodeIO, Document } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { mergeDocuments, unpartition, dedup, prune, getBounds, textureCompress, meshopt, resample, simplify, weld, compactPrimitive } from '@gltf-transform/functions';
+import { mergeDocuments, unpartition, dedup, prune, getBounds, textureCompress, meshopt, resample, simplify, weld, compactPrimitive, weldPrimitive, simplifyPrimitive } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
@@ -216,16 +216,39 @@ export function attachEmissive(materialName, file, factor) {
  * materials, drop unused data, downscale textures to WebP and compress
  * geometry and animation with Meshopt.
  */
-export async function optimise(doc, { maxTexture = 1024, simplifyRatio = 0, textureQuality = 82 } = {}) {
-  const steps = [dedup(), prune({ keepAttributes: false, keepLeaves: true })];
+/**
+ * Simplify selected primitives in place. rules: [{ node: RegExp, material?: RegExp, ratio, error?, lockBorder? }].
+ * Used for surfaces that are mostly hidden (suits under shells, feet in boots,
+ * clothing shells) so detail stays where it is seen.
+ */
+export async function simplifySelected(doc, rules) {
+  await MeshoptSimplifier.ready;
+  let before = 0, after = 0;
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh();
+    if (!mesh) continue;
+    for (const prim of mesh.listPrimitives()) {
+      const rule = rules.find((r) => r.node.test(node.getName()) && (!r.material || r.material.test(prim.getMaterial()?.getName() || '')));
+      if (!rule || prim.listTargets().length) continue;
+      before += prim.getIndices().getCount() / 3;
+      weldPrimitive(prim);
+      simplifyPrimitive(prim, { simplifier: MeshoptSimplifier, ratio: rule.ratio, error: rule.error ?? 0.004, lockBorder: !!rule.lockBorder });
+      after += prim.getIndices().getCount() / 3;
+    }
+  }
+  return { before, after };
+}
+
+export async function optimise(doc, { maxTexture = 1024, simplifyRatio = 0, textureQuality = 82, keepAttributes = false, quantizationVolume = 'mesh' } = {}) {
+  const steps = [dedup(), prune({ keepAttributes, keepLeaves: true })];
   if (simplifyRatio) steps.push(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: simplifyRatio, error: 0.002 }));
   steps.push(
     resample(),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [maxTexture, maxTexture], slots: /normal/i, quality: 90, effort: 5 }),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [maxTexture, maxTexture], slots: /^(?!.*normal)/i, quality: textureQuality, effort: 5 }),
     dedup(),
-    prune({ keepAttributes: false, keepLeaves: true }),
-    meshopt({ encoder: MeshoptEncoder, level: 'medium' })
+    prune({ keepAttributes, keepLeaves: true }),
+    meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizationVolume })
   );
   await doc.transform(...steps);
   return doc;

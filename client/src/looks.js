@@ -111,10 +111,10 @@ function cultureTank(ctx) {
   // mannequin silhouette without hiding the eyes or adding fantasy trim.
   const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
   const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
-  ctx.attach('Head', place(mask, 0, 1.635, 0.143, -0.12));
+  ctx.attach('Head', place(mask, 0, 1.612, 0.152, -0.12));
   for (const side of [-1, 1]) {
     const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
-    ctx.attach('Head', place(port, side * 0.085, 1.632, 0.153, Math.PI / 2));
+    ctx.attach('Head', place(port, side * 0.082, 1.61, 0.158, Math.PI / 2));
   }
 }
 
@@ -180,6 +180,7 @@ export const LOOK_DEFS = {
       helmet: { color: 0xa3b0be, metalness: 0.7, roughness: 0.4, map: 'look_plate_panels' },
     },
     gear: [capacitorHarness],
+    gloves: true,
     accent: 0xffb45c,
   },
   red_rucker: {
@@ -188,6 +189,7 @@ export const LOOK_DEFS = {
     // Veyran: smooth, featureless, naturally crimson. The mannequin's joint
     // panels take a slightly deeper red so the body reads as one skin.
     parts: { body: { color: 0xffffff, roughness: 0.55, map: 'look_red_rucker_body' }, joints: { color: 0xa81719, roughness: 0.55 } },
+    faceless: true,
     shells: {
       shorts: { color: 0xffffff, roughness: 0.85, map: 'look_red_rucker_shorts' },
       shoes: { color: 0xb51a1a, roughness: 0.7 },
@@ -225,6 +227,7 @@ export const LOOK_DEFS = {
       hood: { color: 0x2a5f55, roughness: 0.85 },
     },
     gear: [cultureTank],
+    gloves: true,
     accent: 0x7dffc4,
   },
   brine_surveyor: {
@@ -241,6 +244,7 @@ export const LOOK_DEFS = {
       hood: { color: 0x8e653a, roughness: 0.82 },
     },
     gear: [surveyRig],
+    gloves: true,
     accent: 0xe1bc6b,
   },
   archivist: {
@@ -257,6 +261,8 @@ export const LOOK_DEFS = {
       hood: { color: 0x4a4168, roughness: 0.85 },
     },
     gear: [archivistKit],
+    // Archivist Venn: an older scholar with a fixed, recognisable face.
+    face: { tone: 0xdcc0ab, hair: 0xb9b4ae, eye: 0x5c7f9c, hairStyle: 'crop', brow: 0.75, stubble: 0, lip: 0.3, morph: { age: 0.75, heritage_a: 0.15, heritage_b: 0.1, heritage_c: 0.6, cheekbones: 0.6, nose_length: 0.4, face_fat: -0.3, eye_size: -0.1 } },
     accent: 0xffd27a,
   },
 };
@@ -265,7 +271,9 @@ export const LOOK_DEFS = {
 LOOK_DEFS.quartermaster={
  ...LOOK_DEFS.archivist,body:'humanoid_m',scale:1.02,
  shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x6c6a53,roughness:.9,map:'look_coat_panels'},upperarms:{color:0x4b5149,roughness:.85},forearms:{color:0x333d3d,roughness:.85},hood:{color:0x4b5149,roughness:.85}},
- accent:0xc5ae73,gear:[],
+ accent:0xc5ae73,gear:[],gloves:true,
+ // The Sanctum Quartermaster: weathered, bearded, practical.
+ face:{tone:0xa98066,hair:0x2e1f16,eye:0x3b2414,hairStyle:'buzz',brow:0.95,stubble:0.95,lip:0.12,morph:{age:0.45,heritage_a:0.55,heritage_b:0.05,heritage_c:0.25,jaw_width:0.7,brow_ridge:0.6,nose_width:0.4,face_angular:0.6}},
 };
 /** Entity class -> look used when the server does not name one. */
 export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster' };

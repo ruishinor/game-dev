@@ -43,3 +43,7 @@ voice-auditions/
 *.bak
 .DS_Store
 Thumbs.db
+
+# Browser-suite screenshot output and worktree dependency links
+/preview-evidence/
+/node_modules
