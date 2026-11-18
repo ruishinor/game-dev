@@ -1,0 +1,38 @@
+name: Ground companion browser integration
+on:
+  pull_request:
+    paths:
+      - 'server/sim/survey-strider.js'
+      - 'server/sim/ground-navigation.js'
+      - 'server/sim/companion.js'
+      - 'server/sim/game.js'
+      - 'client/src/characters.js'
+      - 'client/src/main.js'
+      - 'client/src/ui.js'
+      - 'shared/content.js'
+      - 'shared/gadgets.js'
+      - 'shared/crafting.js'
+      - 'test/e2e/ground-companion.mjs'
+      - '.github/workflows/ground-companion.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  companion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/ground-companion.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: strider-evidence
+          path: strider-evidence/
+          if-no-files-found: ignore

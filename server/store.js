@@ -62,7 +62,7 @@ function sanitize(raw) {
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
     petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
-    petName: validCompanionName(raw.petName) ? raw.petName : COMPANIONS.mender.name,
+    petName: raw.cls==='surveyor' ? (validCompanionName(raw.petName)&&raw.petName!==COMPANIONS.mender.name?raw.petName:COMPANIONS.survey_strider.name) : (validCompanionName(raw.petName)?raw.petName:COMPANIONS.mender.name),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
@@ -171,7 +171,7 @@ export class CharacterStore {
       pos: null,
       hp: 0,
       petMode: 'triage',
-      petName: COMPANIONS.mender.name,
+      petName: cls==='surveyor'?COMPANIONS.survey_strider.name:COMPANIONS.mender.name,
       createdAt: Date.now(),
       lastSeen: Date.now(),
     };

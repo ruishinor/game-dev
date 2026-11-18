@@ -68,7 +68,7 @@ const GLYPH_NOTES = {
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', dormant: 'Dormant' };
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
@@ -609,7 +609,7 @@ export class UI {
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 9', 'Available abilities'],
-      ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
+      ['Shift + 1 – 5', 'Companion commands (depend on active companion)'],
       ['F', 'Interact with nearby equipment, NPC or lootable remains'],
       ['Shift + F', 'Inspect loot manually even when auto-loot is enabled'],
       ['V', 'Reset the camera behind you'],
@@ -649,9 +649,9 @@ export class UI {
   }
 
   /** Build the class-specific action bars once the class is known. */
-  setClass(cls) {
-    if (this.cls === cls) return;
-    this.cls = cls;
+  setClass(cls,companionType=CLASSES[cls].companion) {
+    if (this.cls === cls&&this.companionType===companionType) return;
+    this.cls = cls;this.companionType=companionType;
     const def = CLASSES[cls];
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
@@ -663,9 +663,10 @@ export class UI {
       return { id, ...b };
     });
     this.petButtons = [];
-    if (def.companion) {
-      const cdef = COMPANIONS[def.companion];
+    if (companionType) {
+      const cdef = COMPANIONS[companionType];
       PET_KEYS.forEach((mode, i) => {
+        if(!Object.hasOwn(cdef.modes,mode))return;
         const b = this.slotButton(ICONS[mode], `⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
         b.el.addEventListener('click', () => this.a.pet(mode));
@@ -674,8 +675,8 @@ export class UI {
         this.petButtons.push({ mode, ...b });
       });
     }
-    set(this.pet, 'hidden', !def.companion);
-    this.petBar.hidden = !def.companion;
+    set(this.pet, 'hidden', !companionType);
+    this.petBar.hidden = !companionType;
     this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
   }
@@ -731,7 +732,8 @@ export class UI {
   }
 
   petTip(mode) {
-    const cdef = COMPANIONS[CLASSES[this.cls].companion];
+    const cdef = COMPANIONS[this.companionType];
+    if(!cdef?.modes[mode])return [];
     const out = [h('div', 'tip-title', `${cdef.name}: ${cdef.modes[mode].name}`), h('div', 'tip-body', cdef.modes[mode].desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
     if (note && note.pet === mode) out.push(h('div', 'tip-glyph', note.text));
@@ -1194,7 +1196,7 @@ export class UI {
     this.sheet = sheet;
     this.questTracker.sync(sheet,this.questTrial);
     this.questJournal.sync(sheet,this.questTrial);
-    this.setClass(sheet.cls);
+    this.setClass(sheet.cls,sheet.companion??CLASSES[sheet.cls].companion);
     this.buildBtn.classList.toggle('new',this.unseenItems.size>0);
     this.inventoryBtn.classList.toggle('new',this.unseenItems.size>0);
     if (!this.panel.hidden) this.renderBuild();
@@ -1381,7 +1383,7 @@ export class UI {
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;
-      const cdef = COMPANIONS[def.companion];
+      const cdef = COMPANIONS[st.comp.meta.c];
       set(this.petName, 'text', st.comp.meta.n);
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';

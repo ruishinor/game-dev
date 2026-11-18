@@ -7,6 +7,7 @@
 import { COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
 import { dist, hasLineOfSight } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
+import { tickSurveyStrider } from './survey-strider.js';
 
 function flyToward(c, tx, tz, step) {
   const dx = tx - c.x;
@@ -43,6 +44,7 @@ function release(game, c, owner, reason) {
 }
 
 export function tickCompanion(game, c, dt) {
+  if(c.type==='survey_strider')return tickSurveyStrider(game,c,dt);
   const def = COMPANIONS[c.type];
   const owner = game.players.get(c.owner);
   if (!owner) return;
@@ -214,6 +216,7 @@ export function petCommand(game, p, cmd) {
   c.act = cmd === 'guard' ? 'bonding' : 'idle';
   c.actTarget = host;
   c.nextPulse = Math.max(c.nextPulse, game.time + 400);
+  if(c.type==='survey_strider')c.nav={};
   p.char.petMode = cmd;
   game.onCharChanged(p.char);
   return { ok: true };

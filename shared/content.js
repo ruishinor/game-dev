@@ -185,6 +185,14 @@ export const validCompanionName = (name) =>
   typeof name === 'string' && /^[A-Za-z][A-Za-z '-]{1,16}[A-Za-z]$/.test(name) && !/[ '-]{2}/.test(name);
 
 export const COMPANIONS = {
+  survey_strider:{
+    name:'Survey Strider',followDist:2.8,speed:8,leash:28,radius:.9,
+    modes:{
+      assist:{name:'Analyze target',desc:'Approaches your selected hostile target and applies a 6s analysis if you have no active scan. No damage or Power Cells. Cover and tether limit its reach.'},
+      follow:{name:'Follow',desc:'Walks near you along clear ground routes without scanning.'},
+      stay:{name:'Stay',desc:'Holds position; attempts to follow when you leave its tether. Cannot teleport through obstacles.'}
+    }
+  },
   mender: {
     name: 'Mender Symbiote',
     followDist: 2.4,
