@@ -226,10 +226,10 @@ export function renderLoadout(ui,body,stats) {
     }
   };
   const selectItem=id=>{
-    const changed=ui.acknowledgeItem(id);
+    ui.acknowledgeItem(id);
     ui.loadoutSelection=id;
     ui.loadoutSlot=tab.slots.find(t=>t.slot===ITEMS[id]?.slot)?.key||null;
-    if(changed)ui.renderBuild();else renderDetail();
+    renderDetail();
   };
   if(tab.id==='character'){
     const look=(LOOKS[s.cls]||[]).find(l=>l.id===s.look);
@@ -263,7 +263,8 @@ export function renderLoadout(ui,body,stats) {
       btn.addEventListener('click',()=>{
         ui.loadoutSlot=slot.key;
         ui.loadoutSelection=null;
-        if(id&&ui.acknowledgeItem(id))ui.renderBuild();else renderDetail();
+        if(id)ui.acknowledgeItem(id);
+        renderDetail();
       });
       if(id)bindItem(ui,btn,id);
       if(slot.slot)itemDrop(ui,btn,itemId=>!ui.buildLock&&ITEMS[itemId]?.slot===slot.slot&&ui.sheet.inventory.includes(itemId)&&ui.sheet.equipped[slot.slot]!==itemId,itemId=>ui.itemAction(itemId,'equip'));
