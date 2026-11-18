@@ -58,6 +58,10 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  await moveTo(-5.5,-2.6);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.20,dist:6,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
+  await capture('preview-evidence/01a-sanctum-storage.png');
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));

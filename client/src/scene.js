@@ -6,6 +6,7 @@ import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
+import { buildStorageCase } from './storage-case.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -469,13 +470,7 @@ const procedural = {
     g.add(screen);
     return g;
   },
-  crate(p) {
-    const g = new THREE.Group();
-    g.add(scaled(G.box, mat(0x5b5a4c, { rough: 0.8 }), p.hw * 2, p.h, p.hd * 2, 0, p.h / 2, 0));
-    g.add(scaled(G.box, mat(0x2c3338, { metal: 0.5 }), p.hw * 2.06, 0.12, p.hd * 2.06, 0, p.h * 0.75, 0));
-    g.add(scaled(G.box, glow(0xffb45c), 0.2, 0.2, 0.05, p.hw * 0.5, p.h * 0.4, p.hd + 0.01, false));
-    return g;
-  },
+  crate(p) { return buildStorageCase(THREE,p); },
   sporetree(p, anim) {
     const g = new THREE.Group();
     const rnd = mulberry32(p.seed);
@@ -862,13 +857,7 @@ const kit = {
     for (const dx of [-0.55, 0.55]) c.solid.add(c.piece('sanctum', 'Prop_Computer'), at(p.x + dx, p.z, { y: 0.07, ry: dx * 0.25, s: 1.05 }));
     c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(p.x - 1.6, p.z + 0.9, { y: 0.09, ry: 0.6 }));
   },
-  crate(p, c) {
-    const big = p.hw > 0.7;
-    const name = big ? 'Prop_Crate4' : 'Prop_Crate3';
-    const half = big ? 0.56 : 0.5;
-    const s = p.hw / half;
-    c.solid.add(c.piece('sanctum', name), at(p.x, p.z, { y: half * s + 0.05, ry: ((p.x * 7) % 4) * 0.05, s }));
-  },
+  crate(p, c) { return buildStorageCase(THREE,p); },
   sporetree(p, c) {
     const rnd = mulberry32(p.seed);
     // One mushroom, grown to tree size: a thin stem inside the collider and a
