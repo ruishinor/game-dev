@@ -11,6 +11,7 @@ import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
@@ -1623,7 +1624,7 @@ function updateEntities(dt, t, now) {
     }
     ent.model.update(dt, {
       lookAt,
-      faceDetail: ent.inView && (camD < 12 || fullFaceDetail),
+      faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
@@ -1753,6 +1754,7 @@ function setQuality(q) {
   lowSpec(scene, q === 0);
   if (q === 0) svfx?.clear();
   vfx?.setQuality(q);
+  setFaceQuality(q);
   renderer.setPixelRatio(q >= 1 ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1) * 0.75);
   resize();
 }

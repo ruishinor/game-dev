@@ -7,6 +7,16 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 
+// --- graphics preset ---------------------------------------------------------
+// 2 High: everything. 1 Medium: no eye clear coat, hair capped at three
+// layers. 0 Low: also only the innermost hair layer. Applied to characters
+// built after the change (the preset change reloads the world anyway).
+let faceQuality = 2;
+export function setFaceQuality(q) {
+  faceQuality = q >= 2 ? 2 : q >= 1 ? 1 : 0;
+}
+export const faceDetailRange = () => (faceQuality >= 2 ? 12 : faceQuality === 1 ? 8 : 4);
+
 // --- palettes ----------------------------------------------------------------
 
 // Multipliers over the neutral baked albedo (sRGB hex), light to deep.
@@ -235,7 +245,9 @@ void main() {`)
 
 /** Eyeball: sclera + iris (tinted through the texture's alpha mask). */
 export function eyeMaterial(assets, ap, centreY = 0) {
-  const m = new THREE.MeshPhysicalMaterial({ map: assets.texture('eye_albedo'), roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04 });
+  const m = faceQuality >= 2
+    ? new THREE.MeshPhysicalMaterial({ map: assets.texture('eye_albedo'), roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04 })
+    : new THREE.MeshStandardMaterial({ map: assets.texture('eye_albedo'), roughness: 0.18, metalness: 0 });
   m.name = 'eye';
   const iris = { value: new THREE.Color(ap.eye) };
   const lid = { value: 0.12 };
@@ -506,6 +518,16 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
   }
   const isExpression = (name) => !ID_MORPHS.includes(name) && name !== 'age';
   for (const o of morphMeshes) bakeIdentity(o, idWeights, (name) => isExpression(name) && !o.userData.hairLayers);
+  // Lower presets draw only the inner hair layers (layers are stored in order).
+  for (const [part, list] of Object.entries(nodes)) {
+    if (!part.startsWith('hair_') || part === 'hair_crest') continue;
+    for (const o of list) {
+      if (!o.visible) continue; // only this character's own (baked) copy
+      const layers = o.userData.layers || 1;
+      const keep = faceQuality >= 2 ? layers : faceQuality === 1 ? Math.min(3, layers) : 1;
+      if (keep < layers && o.geometry.index) o.geometry.setDrawRange(0, Math.floor(o.geometry.index.count * keep / layers / 3) * 3);
+    }
+  }
   // Hair has no expressions left; it stops being a morph mesh.
   for (let i = morphMeshes.length - 1; i >= 0; i--) if (!morphMeshes[i].morphTargetInfluences) morphMeshes.splice(i, 1);
   // Morph weights by name (each mesh has its own dictionary).

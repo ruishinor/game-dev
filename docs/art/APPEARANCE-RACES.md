@@ -48,6 +48,16 @@ two characters with the same choices are still different people.
 - Helmets still hide the head.
 - NPC outfits without a stored appearance keep their pinned faces.
 
+## Graphics presets
+
+The face cost scales with the existing preset:
+
+| Preset | Eyes | Hair | Face detail (eyes, lashes, teeth) |
+|---|---|---|---|
+| High | clear-coated | all shell layers | within 12 m |
+| Medium | standard material | up to 3 layers | within 8 m |
+| Low | standard material | innermost layer | within 4 m |
+
 ## Trust boundary
 
 - The server stores one normalised string per character. It never changes
