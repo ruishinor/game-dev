@@ -159,6 +159,30 @@ try {
   assert.equal(JSON.stringify({equipped:p.char.equipped,inventory:p.char.inventory,materials:p.char.materials}),baseline);
   await workshop.getByRole('button',{name:'Close Build'}).click();
   await page.locator('#view').focus();
+  // The actual character panel retains one blueprint scale across all five equipment categories.
+  await page.keyboard.press('KeyC');
+  const character=page.getByRole('dialog',{name:'Character and loadout'});
+  await character.waitFor({state:'visible'});
+  const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
+  assert.equal(tabRows.length,6);
+  assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
+  let blueprintSize,blueprintSrc;
+  for(const tab of ['gear','implants','glyphs','weapons','social']){
+    await character.locator('.doll-tabs [data-tab="'+tab+'"]').click();
+    const image=character.locator('.equipment-sketch img');
+    await image.waitFor({state:'visible'});
+    const src=await image.getAttribute('src'),box=await image.boundingBox();
+    assert.ok(src&&box?.width>0&&box?.height>0);
+    if(!blueprintSize){blueprintSize=box;blueprintSrc=src;}
+    assert.ok(src===blueprintSrc&&Math.abs(box.width-blueprintSize.width)<1&&Math.abs(box.height-blueprintSize.height)<1,'Blueprint asset and scale must not vary by equipment category');
+    assert.equal(await image.evaluate(el=>getComputedStyle(el).opacity),'0.32');
+    const slot=character.locator('.equipment-slot-grid .doll-slot').first();
+    await slot.click();
+    assert.equal(await slot.getAttribute('aria-pressed'),'true');
+    if(tab==='gear'||tab==='glyphs')await page.screenshot({path:'preview-evidence/06c-character-'+tab+'.png'});
+  }
+  await character.locator('.close').click();
+  await page.locator('#view').focus();
   // Art capture fixture: isolate the independently tested autonomous hunt
   // before entering the biome, not after it has already defeated the player.
   const predator=server.game.enemies.find(e=>e.type==='faultstalker');
