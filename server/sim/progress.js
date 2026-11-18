@@ -193,6 +193,10 @@ export function unequipSlot(game, p, slot) {
 }
 
 function applyLoadout(game, p, equipped, itemName, playEquip = true) {
+  // Cosmetic-only changes never refresh stats, clear shields or trigger directives.
+  if(SLOTS.every(slot=>slot==='social_torso'||(p.char.equipped[slot]??null)===(equipped[slot]??null))){
+    p.char.equipped=equipped;game.markDirty(p);return;
+  }
   const before = equipmentAttributes(p.char, p.stats);
   p.char.equipped = equipped;
   game.refreshStats(p);
@@ -308,6 +312,7 @@ export function interact(game, p, objectId) {
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
+  if(obj.type==='rift_entry'||obj.type==='rift_return')return game.travelRift(p,obj);
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {

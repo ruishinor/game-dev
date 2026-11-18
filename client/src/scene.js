@@ -2,7 +2,7 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, RIFT_ANNEX } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { buildSiteMarkings } from './site-markings.js';
@@ -1275,6 +1275,25 @@ export function buildWorld(scene, assets = null, opts = {}) {
   }
 
   buildDeepArchitecture(scene);
+  // Separate industrial encounter deck; the authoritative rectangular limit
+  // matches the visible perimeter, with flat walkable floor and clear lanes.
+  const annex=RIFT_ANNEX,annexFloor=new THREE.Group();annexFloor.name='rift:annex-deck';
+  const ax=annex.x,az=annex.z;
+  annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2+.6,.5,annex.hd*2+.6),mat(0x26373e,{rough:.74,metal:.35}),ax,-.27,az));
+  if(kits)for(let x=-annex.hw+2;x<annex.hw;x+=4)for(let z=-annex.hd+2;z<annex.hd;z+=4)
+    c.cover.add(c.piece('sanctum',(Math.abs(x)+Math.abs(z))%8?'Platform_Metal':'Platform_DarkPlates'),at(ax+x,az+z,{ground:false,y:0}));
+  for(const sign of [-1,1]){
+    annexFloor.add(mesh(new THREE.BoxGeometry(.5,4.5,annex.hd*2+1),mat(0x303e45,{metal:.5}),ax+sign*(annex.hw+.25),2.25,az));
+    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2+1,4.5,.5),mat(0x303e45,{metal:.5}),ax,2.25,az+sign*(annex.hd+.25)));
+    annexFloor.add(mesh(new THREE.BoxGeometry(.055,.055,annex.hd*2),glow(0x75b6b9),ax+sign*annex.hw,1.1,az,false));
+    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2,.055,.055),glow(0x75b6b9),ax,1.1,az+sign*annex.hd,false));
+  }
+  if(kits)for(const sign of [-1,1])for(const z of [-14,-6,2,10,14]){
+    // External supports remain outside the collision perimeter.
+    c.single('sanctum','Column_Hollow',at(ax+sign*(annex.hw+1),az+z,{ground:false,s:[.85,1.04,.85]}));
+  }
+  const annexLight=new THREE.PointLight(0xa6c3e5,115,44,1.6);annexLight.position.set(ax,6,az);annexFloor.add(annexLight);
+  scene.add(annexFloor);
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
