@@ -14,6 +14,7 @@ import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
+import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
 import { ownedCompanionType } from './sim/companion.js';
 import { recoverySamples } from '../shared/recovery.js';
@@ -64,6 +65,7 @@ function sanitize(raw) {
     },
     survey: surveyState(raw.survey),
     traceState:sanitizeTraceState(raw.traceState),
+    riftCalibration:sanitizeRiftCalibration(raw.riftCalibration),
     recoverySamples:recoverySamples(raw.recoverySamples),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
@@ -177,6 +179,7 @@ export class CharacterStore {
       quest: { step: 0, progress: 0 },
       survey: null,
       traceState:null,
+      riftCalibration:null,
       recoverySamples:0,
       recoveryReadyAt:0,
       brineStage: 0,
