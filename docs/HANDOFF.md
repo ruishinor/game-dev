@@ -2,6 +2,8 @@
 
 Read [AGENTS.md](../AGENTS.md) for the standing server-authority, minimum-disclosure and publication review gate.
 
+Latest visual-upgrade validation (2026-11-18): [art/VISUAL-UPGRADE-VALIDATION.md](art/VISUAL-UPGRADE-VALIDATION.md) covers the pointer-lock steering fix, skitter material, capture tool, verification evidence, and the open visual and performance items.
+
 ## Current implementation
 
 - The Three.js browser client runs the Sanctum, Sporefield and surrounding zones. `client/src/main.js` manages input, prediction, reconciliation and snapshot interpolation. `scene.js` builds the environment, batches static placements and fades foreground occluders. `camera.js` places the camera using terrain and solid geometry.

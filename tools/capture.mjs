@@ -48,7 +48,10 @@ async function join(slot, name, cls, look) {
   clients.push(client);
   return client;
 }
+// Only the client being waited on draws (join() pauses everyone else); a
+// paused client would never reach the frame count.
 const frames = async (c, n = 3) => {
+  for (const o of clients) await pause(o, o !== c);
   const start = await c.page.evaluate(() => window.__attune.state().drawn);
   await c.page.waitForFunction((f) => window.__attune.state().drawn >= f, start + n);
 };
@@ -74,8 +77,13 @@ const clients = [];
 const pause = (c, on) => c.page.evaluate((v) => window.__attune.pause(v), on).catch(() => {});
 async function shot(c, name) {
   if (only && !name.includes(only)) return;
-  for (const o of clients) await pause(o, o !== c);
   await frames(c, 4);
+  // A dead photographed player makes the shot meaningless evidence.
+  const dead = await c.page.evaluate(() => {
+    const s = window.__attune.state();
+    return !!s.ents.find((e) => e.id === s.myId)?.dead;
+  });
+  if (dead) errors.push(`${name}: ${c.name} was dead when photographed`);
   await c.page.screenshot({ path: path.join(OUT, `${name}.png`), timeout: 240000 });
   console.log(`  ${name}.png`);
 }
@@ -125,6 +133,13 @@ try {
   await frames(A, 2);
   await A.page.keyboard.press('Digit1');
   await B.page.keyboard.press('Digit1');
+  // Software frames take seconds while the server keeps simulating, so the
+  // fight would outlast the players. Harness only: keep both at or above a
+  // wounded floor (A is wounded on purpose so the heal shows).
+  const fighters = [await activeBrowserPlayer(A.page, srv, A.name), await activeBrowserPlayer(B.page, srv, B.name)];
+  const keepAlive = setInterval(() => {
+    for (const p of fighters) if (p.hp > 0 && p.hp < 80) p.hp = 120;
+  }, 200);
   await shot(A, '07-combat-vanguard');
   const a = await activeBrowserPlayer(A.page, srv, A.name);
   a.hp = Math.min(a.hp, 120);
@@ -133,10 +148,14 @@ try {
   await shot(B, '08-support-conductor');
   await A.page.keyboard.press('Digit3');
   await shot(A, '09-kinetic-ward');
-  sk.hp = 1;
+  // Tab picks the nearest enemy, which need not be sk: finish A's actual target.
+  const targetId = await A.page.evaluate(() => window.__attune.state().target);
+  const victim = game.enemies.find((e) => e.id === targetId) || sk;
+  victim.hp = 1;
   await A.page.keyboard.press('Digit4');
   await sleep(1500);
   await shot(A, '10-enemy-destroyed');
+  clearInterval(keepAlive);
   clients.splice(clients.indexOf(B), 1);
   await B.ctx.close();
 

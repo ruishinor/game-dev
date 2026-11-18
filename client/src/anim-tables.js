@@ -54,6 +54,10 @@ export const CREATURES = {
     // Pale chitin, so it stands out against the violet growth it lives in.
     tint: 0xf0e2cc,
     emissive: 0x1c0a22,
+    // The donor texture is ~95% metallic, which leaves almost no diffuse
+    // response: under the Sporefield's dim sky the pale tint read as dark
+    // brown metal. Chitin is mostly dielectric; keep a trace of metal.
+    metalness: 0.3,
     clips: { idle: 'Idle', walk: 'Walk', run: 'Run', attack: 'Attack', hit: 'Hit', death: 'TurnOff', cast: 'Charge' },
     runAbove: 3,
     walkRate: 1.6,

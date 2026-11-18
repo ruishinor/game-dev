@@ -213,6 +213,7 @@ export function makeCreature(assets, type) {
     m.color.set(spec.tint);
     m.emissive.set(spec.emissive);
     m.emissiveMap = null;
+    if (spec.metalness !== undefined) m.metalness = spec.metalness; // scales the metalness map
   }
   inst.traverse((o) => {
     if (o.isMesh) o.frustumCulled = false;
