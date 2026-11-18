@@ -316,15 +316,19 @@ try {
   const aSeenByB = sb.ents.find((e) => e.id === sa.myId);
   check('10. the other session observes that movement', Math.hypot(aSeenByB.x - sa.pos.x, aSeenByB.z - sa.pos.z) < 1.2, `B sees A at (${aSeenByB.x.toFixed(1)}, ${aSeenByB.z.toFixed(1)})`);
 
-  const yaw0 = sa.yaw;
+  const headingBefore = { actor: sa.yaw, camera: sa.camYaw };
   await A.page.keyboard.down('KeyD');
   const turned = await until(A, (start) => {
     const s = window.__attune.state();
-    return Math.abs(s.yaw - start) > 0.4 && Math.abs(s.camYaw - s.yaw) < 0.05;
-  }, yaw0, 3000, 'character and camera turn from D');
+    const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    const actorTurn = wrap(s.yaw - start.actor);
+    const cameraTurn = wrap(s.camYaw - start.camera);
+    return actorTurn < -0.4 && Math.abs(wrap(cameraTurn - actorTurn)) < 0.05;
+  }, headingBefore, 3000, 'character and camera turn together from D');
   await A.page.keyboard.up('KeyD');
   sa = await state(A);
-  check('2. D turns the character and the camera follows', turned && Math.abs(sa.yaw - yaw0) > 0.4 && Math.abs(sa.camYaw - sa.yaw) < 0.05, `yaw ${yaw0.toFixed(2)} → ${sa.yaw.toFixed(2)}`);
+  check('2. D turns the character and the camera follows', turned,
+    `character ${headingBefore.actor.toFixed(2)} → ${sa.yaw.toFixed(2)}, camera ${headingBefore.camera.toFixed(2)} → ${sa.camYaw.toFixed(2)}`);
   const before = sa.pos;
   await hold(A, 'KeyS', 700);
   await hold(A, 'KeyE', 600);
