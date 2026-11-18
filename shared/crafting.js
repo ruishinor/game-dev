@@ -12,7 +12,7 @@ export const MATERIALS={
   sinter_flake:{name:'Loose sinter flake',desc:'Conductive surface shedding recovered without disturbing living mineral colonies or grazers.',source:'Loose deposits at Sinter Flats'},
   mire_fibre:{name:'Mire fibre',desc:'Conductive organic strands harvested from Mire Skitters.',source:'Mire Skitter'},
   sentinel_alloy:{name:'Sentinel alloy',desc:'Recoverable actuator alloy and contact assemblies.',source:'Rogue Sentinel'},
-  resonance_fragment:{name:'Resonance fragment',desc:'An inert fragment recovered from the Vault Warden.',source:'Vault Warden'},
+  resonance_fragment:{name:'Resonance fragment',desc:'An inert resonance-bearing fragment recovered from the Vault Warden or field calibration.',source:'Vault Warden; Phase Scar calibration'},
   kinetic_coupler:{name:'Kinetic coupler',desc:'Machined interface for controlled Charge transfer.',source:'Engineering fabrication'},
   culture_matrix:{name:'Culture matrix',desc:'A stabilized living scaffold for restorative signal transfer.',source:'Research fabrication'},
 };

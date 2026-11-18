@@ -28,6 +28,19 @@ try{
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='stabilized');
  await page.evaluate(()=>window.__attune.view({yaw:-Math.PI/2,pitch:.22,dist:10,face:-Math.PI/2}));
  await page.screenshot({path:'rift-evidence/02-stabilized.png'});
- assert.equal(f.phase,'stabilized');assert.deepEqual(errors,[]);
+ assert.equal(f.phase,'stabilized');
+ await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.some(q=>q.id==='field:rift_calibration'&&q.progress==='1 / 2 stages'));
+ await move(f.core,3.6);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ assert.equal(p.char.materials.resonance_fragment,1);
+ await page.locator('#view').focus();await page.keyboard.press('KeyL');
+ const journal=page.getByRole('dialog',{name:'Quest Journal'});
+ await journal.locator('[data-quest="field:rift_calibration"]').click();
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Resonance fragment/);
+ assert.equal(await journal.locator('[data-quest="field:rift_calibration"]').getAttribute('data-status'),'completed');
+ await page.screenshot({path:'rift-evidence/03-calibration.png'});
+ assert.deepEqual(errors,[]);
  console.log('PASS actual rift interaction, synchronized phases and Three membrane');
 }finally{await browser?.close();await server.close();}

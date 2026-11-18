@@ -5,6 +5,12 @@ import {RIFT_SITE,PROPS,OBJECTS,ZONES,groundHeight,resolveCollisions,PLAYER_RADI
 import {makeGame,makeChar,place} from './helpers.js';
 import {interact} from '../server/sim/progress.js';
 import {tickRift,riftRow} from '../server/sim/rift.js';
+import {sanitizeRiftCalibration} from '../server/sim/rift-journal.js';
+import {CharacterStore} from '../server/store.js';
+import {questLog} from '../client/src/quest-log.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {buildRift,buildRiftControl} from '../client/src/rift-visual.js';
 import {createVfx} from '../client/src/vfx/engine.js';
 import {CombatVfx} from '../client/src/vfx/combat.js';
@@ -48,4 +54,37 @@ test('rift transition effects run through the existing bounded engine and expire
  const scene=new THREE.Scene(),v=createVfx(THREE,scene,{groundHeight}),combat=new CombatVfx(v);
  for(const k of ['rift_open','rift_pulse','rift_stabilize','rift_collapse'])assert.ok(combat.area({e:'fx',k,x:RIFT_SITE.x,y:0,z:RIFT_SITE.z,r:5.5},null,null,null));
  v.update(.02);assert.ok(v.stats().items>0);for(let i=0;i<300;i++)v.update(1/30);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);
+});
+
+test('Phase Scar calibration is personal, persisted and recoverable exactly once',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attunement-rift-'));
+ try{
+  const filename=path.join(dir,'characters.json'),store=new CharacterStore(filename);
+  const {char,token}=store.create('Rift Calibrator','vanguard');
+  Object.assign(char,{level:3,attunements:['resonance'],materials:{resonance_fragment:99}});
+  const g=makeGame(),p=g.addPlayer(char),visitor=g.addPlayer(eligible()),f=g.rift;
+  const entry=actor=>questLog(g.sheet(actor)).find(q=>q.id==='field:rift_calibration');
+  assert.equal(entry(p),undefined);assert.equal(entry(visitor),undefined);
+  at(p,f.indexer);assert.ok(interact(g,p,f.indexer.id).ok);assert.equal(entry(p).progress,'0 / 2 stages');
+  at(p,f.regulator);assert.equal(interact(g,p,f.regulator.id).ok,false);
+  g.time=f.until;tickRift(g);g.time=f.pulseAt;tickRift(g);
+  assert.ok(interact(g,p,f.regulator.id).ok);assert.equal(entry(p).progress,'1 / 2 stages');
+  assert.equal(entry(visitor),undefined);
+  place(visitor,f.core.x,f.core.z+3.6);assert.ok(interact(g,visitor,f.core.id).ok);
+  assert.equal(visitor.char.materials?.resonance_fragment,undefined);
+  place(p,f.core.x,f.core.z+3.6);
+  assert.equal(interact(g,p,f.core.id).ok,false);assert.equal(p.char.riftCalibration,'recorded');
+  g.removePlayer(p.id);store.markDirty();assert.ok(store.flush());
+  const loaded=new CharacterStore(filename),restored=loaded.authenticate(token);assert.equal(restored.riftCalibration,'recorded');
+  restored.materials={};const q=g.addPlayer(restored);
+  place(q,f.core.x+20,f.core.z);assert.equal(interact(g,q,f.core.id).ok,false);
+  place(q,f.core.x,f.core.z+3.6);q.combatUntil=g.time+5000;assert.equal(interact(g,q,f.core.id).ok,false);q.combatUntil=0;
+  f.phase='unstable';assert.equal(interact(g,q,f.core.id).ok,false);f.phase='stabilized';
+  assert.ok(interact(g,q,f.core.id).ok);assert.equal(q.char.materials.resonance_fragment,1);
+  assert.equal(entry(q).status,'completed');assert.ok(interact(g,q,f.core.id).ok);assert.equal(q.char.materials.resonance_fragment,1);
+  loaded.markDirty();loaded.flush();assert.equal(new CharacterStore(filename).authenticate(token).riftCalibration,'completed');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('legacy and invalid calibration records never imply reward eligibility',()=>{
+ for(const v of [null,undefined,true,{},'constructor','done'])assert.equal(sanitizeRiftCalibration(v),null);
 });

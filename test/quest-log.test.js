@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {questLog} from '../client/src/quest-log.js';
+import {QuestJournal} from '../client/src/quest-journal-ui.js';
+import {MAX_LEVEL} from '../shared/content.js';
 const sheet=(cls='vanguard',step=0,progress=0,survey=null,brineStage=0)=>({cls,quest:{step,progress},survey,brineStage});
 test('journal shows only discovered/current and completed objectives for each profession',()=>{
  for(const cls of ['vanguard','symbiotech','surveyor','keeper']){
@@ -33,4 +35,19 @@ test('field investigation and commissioning reflect the authoritative state with
  const complete=questLog(sheet('keeper',7,0,'signal_done',3));
  assert.equal(complete.length,9);
  assert.ok(complete.every(q=>q.status==='completed'));
+});
+
+test('open journal refreshes XP-cap guidance even with unchanged quest entries',()=>{
+ const below={...sheet(),level:MAX_LEVEL-1,xp:0};
+ const atCap={...below,level:MAX_LEVEL};
+ assert.deepEqual(questLog(below),questLog(atCap));
+ let draws=0;
+ const journal={entries:[],signature:'',el:{hidden:false},draw(){draws++;}};
+ const sync=(value,force=false)=>QuestJournal.prototype.sync.call(journal,value,null,force);
+ sync(below);assert.equal(draws,1);
+ sync({...below,xp:1});assert.equal(draws,1);
+ sync(atCap);assert.equal(draws,2);
+ sync(atCap);assert.equal(draws,2);
+ journal.el.hidden=true;sync(below);assert.equal(draws,2);
+ journal.el.hidden=false;sync(below,true);assert.equal(draws,3);
 });
