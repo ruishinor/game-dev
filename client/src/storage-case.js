@@ -32,7 +32,7 @@ export function buildStorageCase(T,p){
     // End frames, recessed grips and load ribs, inside the collider.
     box(frame,.035,.48,.68,s*.4625,.49,0);
     box(body,.023,.34,.53,s*.485,.49,0);
-    box(gasket,.012,.105,.27,s*.498,.56,0);
+    box(gasket,.012,.105,.27,s*.492,.56,0);
     for(const x of [-.25,0,.25])box(frame,.044,.48,.03,x,.49,s*.452);
   }
   for(const x of [-.27,.27]){
