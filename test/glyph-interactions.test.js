@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeGame, makeChar, place } from './helpers.js';
+import { makeGame, makeChar, place, joinParty } from './helpers.js';
 import { useAbility, dealDamage, getBuff, repairAegis, addBuff } from '../server/sim/combat.js';
 import { tickCompanion } from '../server/sim/companion.js';
 import { hasLineOfSight, resolveCollisions, inSanctum } from '../shared/world.js';
@@ -20,6 +20,7 @@ const make = (g,cls,glyph) => g.addPlayer(makeChar(cls,{inventory:[glyph],attune
 test('Shared Pulse routes its secondary mend into a damaged Aegis, without healing health or renewing duration',()=>{
   const g=makeGame(), tank=make(g,'vanguard','glyph_resonant_aegis'), healer=make(g,'symbiotech','glyph_shared_pulse');
   const patient=g.addPlayer(makeChar('vanguard'));
+  joinParty(g, healer, tank, patient);
   place(tank,0,35); place(patient,2,35); place(healer,3,35);
   healer.companion.x=patient.x; healer.companion.z=patient.z;
   tank.res=100;
@@ -42,6 +43,8 @@ test('repair rejects invalid, empty, expired and source-less fields and cannot e
   const g=makeGame(), tank=make(g,'vanguard','glyph_resonant_aegis'), healer=make(g,'symbiotech','glyph_shared_pulse');
   const shield={k:'shield',src:tank.id,v:11,cap:12,until:8000};
   addBuff(tank,shield);
+  assert.equal(repairAegis(g,healer,tank,9,healer.companion.id),0);
+  joinParty(g, healer, tank);
   assert.equal(repairAegis(g,healer,tank,9,healer.companion.id),1);
   assert.equal(shield.v,12);
   assert.equal(repairAegis(g,healer,tank,9,healer.companion.id),0);
@@ -56,6 +59,9 @@ test('Carapace reflection relocates only one Rending Echo and consumes the livin
   const [primary,near,far]=g.enemies.filter(e=>e.type==='skitter');
   for(const e of g.enemies) if(![primary,near,far].includes(e)){e.state='dead';e.respawnAt=Infinity;}
   echoGround(tank,primary,near,far);place(healer,tank.x+2,tank.z);
+  joinParty(g, healer, tank);
+  healer.companion.mode = 'guard';
+  healer.companion.host = tank.id;
   addBuff(tank,{k:'bond',src:healer.companion.id,until:300,dr:0.45,reflect:6});
   dealDamage(g,primary,tank,7,'auto',{melee:true,kind:'melee'});
   assert.ok(getBuff(primary,'carapace_imprint'));

@@ -16,6 +16,9 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  vault_memory_foil:'<path d="M4 4 18 3l3 4-1 13-13 1-3-4Z" fill="#4e6265" stroke="#bac7bd"/><path d="M7 6h9l2 2v10H7Z" fill="#293b42" stroke="#a6c3b6"/><path d="m8 15 3-5 3 5 3-7M8 8h3m3 9h3" stroke="#e1c688"/><path d="M5 12h2m12-1h2" stroke="#a0c8c4"/>',
+  vault_witness_seal:'<path d="m12 2 8.5 5v10L12 22l-8.5-5V7Z" fill="#515361" stroke="#e3d0a2"/><path d="m12 5 5.7 3.5v7L12 19l-5.7-3.5v-7Z" fill="#292c42" stroke="#b8a3de"/><path d="M7.5 12q4.5-6 9 0-4.5 6-9 0Z" stroke="#e6d9ae" fill="#77668e"/><circle cx="12" cy="12" r="1.8" fill="#e4d8a6"/><path d="M12 2v3m0 14v3" stroke="#efdea7"/>',
+  sinter_flake:'<path d="M4 14 7 6 15 3 21 9 18 17 9 21Z" fill="#7c8069" stroke="#c2c4a2"/><path d="m7 6 2 15 6-18 3 14M4 14l5 1 12-6" stroke="#d4c8a0"/><path d="m10 10 4-4 3 4-3 4Z" fill="#a7bb9b"/>',
   field_maintenance_kit:'<path d="M4 6 8 3h10l3 4v12l-4 2H7l-3-3Z" fill="#54645c" stroke="#b4bcaa"/><path d="M4 7h13l4-1M17 7v14" stroke="#a3a99b"/><rect x="6.5" y="9" width="8" height="8" rx="1" fill="#263c3b"/><path d="m8 14 4-4 2 2-4 4H8Z" fill="#d7b580" stroke="#f2dbad"/><path d="M7 19h8M19 10v5" stroke="#bdc3ad"/>',
   spent_contact:'<path d="M4 5h13l3 4v10H4z" fill="#65747a"/><path d="M7 8h3v8H7m6-8h3v5h-3" stroke="#c1a36b"/><path d="m12 4-1 6 4 2-3 7" stroke="#28343a"/>',
   mire_husk:'<path d="M4 17 7 7l6-4 7 4-2 7-8 7z" fill="#63745f"/><path d="m7 7 6 5 7-5m-7 5-3 9M5 14l6 2m4-2 3-2" stroke="#a5b28a"/>',
@@ -66,7 +69,23 @@ function requirements(s,id) {
     return line;
   });
 }
-function bindItem(ui,el,id) {
+
+export function itemTooltip(sheet, id, { owned, required } = {}) {
+  const item = ITEMS[id], material = MATERIALS[id], goods = GOODS[id];
+  const def = item || material || goods;
+  if (!def) return [];
+  const category = item ? SLOT_NAMES[item.slot] : material ? 'Material' : goods.rarity ? `${goods.rarity} relic` : goods.category;
+  const out = [
+    h('div', 'tip-title', def.name),
+    h('div', 'tip-meta', category + (def.ql ? ' · QL ' + def.ql : '')),
+    h('div', 'tip-body', def.desc),
+  ];
+  if (owned !== undefined) out.push(h('div', 'tip-meta', required === undefined ? `Owned ${owned}` : `Owned ${owned} · Required ${required}`));
+  if (material?.source) out.push(h('div', 'tip-meta', `Source · ${material.source}`));
+  if (sheet && item) out.push(...requirements(sheet, id));
+  return out;
+}
+function bindItemMenu(ui,el,id) {
   el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();ui.openItemContext(id,e.clientX,e.clientY,el);});
   el.addEventListener('keydown',e=>{
     if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
@@ -74,6 +93,10 @@ function bindItem(ui,el,id) {
       ui.openItemContext(id,r.left,r.bottom,el);
     }
   });
+}
+function bindItem(ui,el,id) {
+  bindSeen(ui,el,id);
+  bindItemMenu(ui,el,id);
   el.draggable=true;
   el.addEventListener('dragstart',e=>{
     if(ui.buildLock||!ui.sheet?.inventory.includes(id)){e.preventDefault();return;}
@@ -81,6 +104,12 @@ function bindItem(ui,el,id) {
     e.dataTransfer.setData('application/x-attunement-item',id);
   });
   el.addEventListener('dragend',()=>{ui.dragItem=null;});
+}
+function bindSeen(ui, el, id) {
+  el.dataset.seenItem = id;
+  el.classList.toggle('new-equipment', ui.unseenItems.has(id));
+  el.addEventListener('mouseenter', () => ui.acknowledgeItem(id));
+  el.addEventListener('focus', () => ui.acknowledgeItem(id));
 }
 function itemDrop(ui,el,accept,apply){
   el.ondragover=e=>{
@@ -95,16 +124,15 @@ function itemDrop(ui,el,accept,apply){
 function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const s=ui.sheet,item=ITEMS[id];
   const card=h('div','card compact-item'+(equipped?' slotcard':''));
-  if(ui.unseenItems.has(id))card.classList.add('new-equipment');
   const label=h('div','compact-item-label');
   label.append(itemArt(id),h('div','iname',item.name));
   card.append(h('div','kicker',SLOT_NAMES[item.slot]),label);
   card.append(h('div',showDescription?'idesc':'item-summary',showDescription?item.desc:(item.summary||item.desc)));
   const condition=conditionOf(s,id);
   if(condition!==null)card.append(h('div','item-summary','QL '+item.ql+' · Condition '+condition+'%'));
-  if(!equipped)card.append(...requirements(s,id));
+  card.append(...requirements(s,id));
   const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
-  const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':s.equipped[item.slot]?'Swap in':'Equip');
+  const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
   btn.disabled=!res.ok||!!ui.buildLock;
   btn.addEventListener('click',e=>{
     e.stopPropagation();
@@ -113,10 +141,11 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   });
   card.append(btn);
   if(!res.ok)card.append(h('div','why',res.reason));
+  if(res.alsoRemoved?.length)card.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
   if(onSelect)card.addEventListener('click',()=>onSelect(id));
   card.tabIndex=0;
   bindItem(ui,card,id);
-  ui.hover(label,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
+  ui.hover(card,()=>itemTooltip(s,id));
   return card;
 }
 
@@ -159,8 +188,7 @@ export function renderLoadout(ui,body,stats) {
     btn.type='button';
     btn.dataset.tab=t.id;
     const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
-    const unseen=[...(ui.unseenItems||[])].filter(id=>ITEMS[id]?.slot===slotFor);
-    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
+    if(slotFor)btn.dataset.seenGroup=slotFor;
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
       if(ui.loadoutTab===t.id)return;
@@ -182,7 +210,7 @@ export function renderLoadout(ui,body,stats) {
     const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
-    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc));
+    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
@@ -270,6 +298,7 @@ export function renderLoadout(ui,body,stats) {
   }
   body.append(stats,doll,column);
   renderDetail();
+  ui.updateItemIndicators();
 }
 
 export function renderInventory(ui) {
@@ -280,11 +309,10 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
-    const unseen=[...(ui.unseenItems||[])].filter(item=>id==='all'||ITEMS[item]?.slot===id);
-    if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';}
+    btn.dataset.seenGroup=id;
     btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
     tabs.append(btn);
   }
@@ -297,10 +325,14 @@ export function renderInventory(ui) {
     if(kind==='material'||kind==='goods'){
       const material=kind==='material'?MATERIALS[id]:GOODS[id],btn=h('button',kind==='material'?'item-cell material-cell':'item-cell goods-cell');
       btn.type='button';if(kind==='material')btn.dataset.material=id;else btn.dataset.goods=id;
+      if(material.rarity)btn.dataset.rarity=material.rarity;
       btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
-      btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
+      bindSeen(ui,btn,id);
+      if(kind==='goods')bindItemMenu(ui,btn,id);
+      btn.title=material.name+' × '+quantity+(material.rarity?' · '+material.rarity:'');
+      btn.setAttribute('aria-label',btn.title);
       btn.addEventListener('click',()=>ui.toggleCodex(true,id));
-      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body',(kind==='material'?'Material':material.category==='utility'?'Utility':'Junk')+' · quantity '+quantity)]);
+      ui.hover(btn,()=>itemTooltip(s,id,{owned:quantity}));
       grid.append(btn);continue;
     }
     const item=ITEMS[id];
@@ -308,9 +340,8 @@ export function renderInventory(ui) {
     btn.append(itemArt(id));
     btn.title=item.name;btn.setAttribute('aria-label',item.name);
     bindItem(ui,btn,id);
-    if(ui.unseenItems.has(id))btn.classList.add('new-equipment');
     btn.addEventListener('click',()=>{ui.acknowledgeItem(id);ui.inventorySelection=id;renderInventory(ui);if(!ui.panel.hidden)ui.renderBuild();});
-    ui.hover(btn,()=>[h('div','tip-title',item.name),h('div','tip-body',item.desc)]);
+    ui.hover(btn,()=>itemTooltip(s,id));
     grid.append(btn);
   }
   // A cell is an equipment item or one material stack, not storage capacity.
@@ -334,6 +365,7 @@ export function renderInventory(ui) {
     root.append(card);
   }
   if(ui.buildLock)root.append(h('div','why','Equipment changes are locked during combat or defeat.'));
+  ui.updateItemIndicators();
 }
 
 export function renderCodex(ui,abilityIcons) {

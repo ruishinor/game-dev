@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { CharacterStore } from '../server/store.js';
+import { grantItem, grantSalvage, equipItem } from '../server/sim/progress.js';
+import { markItemSeen } from '../server/sim/inventory-seen.js';
+import { makeGame } from './helpers.js';
+
+test('acquisitions are private, remain unread across restart, and stale stack acknowledgements are harmless', () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'attune-seen-')), 'characters.json');
+  const store = new CharacterStore(file);
+  const { char, token } = store.create('Seen Tester', 'vanguard');
+  const game = makeGame();
+  const p = game.addPlayer(char);
+  assert.deepEqual(game.sheet(p).unseenItems, []);
+  grantItem(game, p, 'field_emitter');
+  grantSalvage(game, p, 'mire_fibre');
+  const oldRevision = p.inventoryRev;
+  grantSalvage(game, p, 'mire_fibre');
+  markItemSeen(game, p, 'mire_fibre', oldRevision);
+  assert.deepEqual(game.sheet(p).unseenItems, ['field_emitter', 'mire_fibre']);
+  assert.ok(equipItem(game, p, 'field_emitter').ok);
+  assert.deepEqual(game.sheet(p).unseenItems, ['field_emitter', 'mire_fibre']);
+  assert.equal(game.buildRows().find(row => row.i === p.id).unseenItems, undefined);
+  markItemSeen(game, p, 'field_emitter', p.inventoryRev);
+  store.markDirty();
+  store.flush();
+  const loaded = new CharacterStore(file).authenticate(token);
+  assert.deepEqual(loaded.unseenItems, ['mire_fibre']);
+  assert.equal(loaded.materials.mire_fibre, 2);
+  fs.unlinkSync(file);
+  fs.rmdirSync(path.dirname(file));
+});
