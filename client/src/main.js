@@ -8,7 +8,9 @@ import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
+import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -59,6 +61,12 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Original carapace is opt-in until actual visual/motion review; no
+// change to default companion animation or low-spec behavior.
+if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
+  try{const gltf=await assets.loader.loadAsync('/client/art-assets/mender_carapace.glb');assets.menderPrototype=prepareMenderCarapace(THREE,gltf.scene);}
+  catch(err){console.warn('[models] Mender prototype unavailable; retaining live rig:',err.message||err);}
+}
 const useGlb = (meta) => glbOnly === null || (glbOnly !== 'none' && glbOnly.split(',').includes(meta.c));
 // ?glb=none reproduces the original procedural presentation exactly (used for
 // before/after comparisons), so it also skips image-based lighting.
@@ -106,6 +114,7 @@ try {
 }
 motionPreference.addEventListener?.('change', () => { if (vfx) vfx.reducedMotion = motionPreference.matches; });
 const rich = () => !!cvfx && quality > 0;
+const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
 const cam = new ThirdPersonCamera(camera);
@@ -613,6 +622,7 @@ function addEntity(meta) {
 }
 
 function removeEntity(ent) {
+  recoveryVisuals.remove(ent.id);
   fx.clearRoot(ent.id);
   svfx?.remove(ent.id);
   liveAegis.remove(ent.id);
@@ -631,6 +641,7 @@ function removeEntity(ent) {
 }
 
 function clearWorld() {
+  recoveryVisuals.clear();
   stopAutomaticMovement();
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
@@ -1455,6 +1466,7 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
+      reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
@@ -1467,6 +1479,7 @@ function updateEntities(dt, t, now) {
       interval: ent.id === S.myId ? 0 : animationInterval(camera.position.distanceTo(cullSphere.center), ent.inView, false),
     });
   }
+  recoveryVisuals.sync(S.ents,S.you?.lootable,me?.pos,vfx,quality,motionPreference.matches);
 }
 
 function updatePlates(now) {

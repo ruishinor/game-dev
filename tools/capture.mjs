@@ -13,13 +13,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../server/index.js';
-import { PROPS, ZONES, groundHeight } from '../shared/world.js';
-import { launchBrowser, describeGraphics } from './browser.mjs';
+import { PROPS, ZONES } from '../shared/world.js';
+import { CLASSES } from '../shared/content.js';
+import { CREATURES } from '../client/src/anim-tables.js';
+import { launchBrowser, describeGraphics, activeBrowserPlayer } from './browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] === 'before' ? 'before' : 'after';
 const only = process.argv[3] || '';
-const OUT = path.join(ROOT, 'docs', 'evidence', mode === 'before' ? 'before-matched' : 'after');
+const OUT = process.env.ATTUNEMENT_CAPTURE_DIR || path.join(ROOT, 'docs', 'evidence', mode === 'before' ? 'before-matched' : 'after');
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -27,7 +29,7 @@ const srv = await startServer({ port: 0, dataFile: null });
 const game = srv.game;
 const browser = await launchBrowser();
 const errors = [];
-const query = `q=2&qlock=1&nolock=1${mode === 'before' ? '&glb=none' : ''}`;
+const query = `q=${process.env.ATTUNEMENT_CAPTURE_QUALITY || 2}&qlock=1&nolock=1${mode === 'before' ? '&glb=none' : ''}`;
 
 async function join(slot, name, cls, look) {
   for (const o of clients) await pause(o, true);
@@ -42,23 +44,16 @@ async function join(slot, name, cls, look) {
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos);
-  const client = { page, ctx, name, player: () => [...game.players.values()].find((p) => p.name === name) };
+  const client = { page, ctx, name };
   clients.push(client);
   return client;
 }
 const frames = async (c, n = 3) => {
-  const start = await c.page.evaluate(() => window.__attune.state().frames);
-  await c.page.waitForFunction((f) => window.__attune.state().frames >= f, start + n);
+  const start = await c.page.evaluate(() => window.__attune.state().drawn);
+  await c.page.waitForFunction((f) => window.__attune.state().drawn >= f, start + n);
 };
 async function put(c, x, z, face) {
-  // Under software rendering a starved page can miss the server's heartbeat
-  // and reconnect; wait for its player to exist again rather than fail.
-  let p = c.player();
-  for (let i = 0; i < 240 && !p; i++) {
-    await sleep(500);
-    p = c.player();
-  }
-  if (!p) throw new Error(`${c.name} is not in the world`);
+  const p = await activeBrowserPlayer(c.page, srv, c.name);
   p.hp = p.maxHp;
   p.x = x;
   p.z = z;
@@ -131,7 +126,8 @@ try {
   await A.page.keyboard.press('Digit1');
   await B.page.keyboard.press('Digit1');
   await shot(A, '07-combat-vanguard');
-  A.player().hp = Math.min(A.player().hp, 120);
+  const a = await activeBrowserPlayer(A.page, srv, A.name);
+  a.hp = Math.min(a.hp, 120);
   await B.page.click('.frame.ally');
   await B.page.keyboard.press('Digit2');
   await shot(B, '08-support-conductor');
@@ -157,7 +153,8 @@ try {
   const state = await C.page.evaluate(() => window.__attune.state());
   console.log(`models: ${state.ents.map((e) => `${e.c}:${e.model}`).join(' ')}`);
   console.log(`world: ${JSON.stringify(state.world)}  draw: ${JSON.stringify(state.draw)}`);
-  if (mode === 'after' && state.ents.some((e) => e.model !== 'glb' && e.c !== 'obelisk')) {
+  const needsRig = (e) => Object.hasOwn(CLASSES, e.c) || Object.hasOwn(CREATURES, e.c) || ['archivist', 'mender'].includes(e.c);
+  if (mode === 'after' && (Object.keys(state.assets.failed).length || state.ents.some((e) => needsRig(e) && e.model !== 'glb'))) {
     failed = true;
     console.log('FAIL: an entity fell back to its procedural model');
   }

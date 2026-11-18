@@ -87,21 +87,28 @@ async function buildLookTexture(spec) {
 }
 
 async function main() {
-  const only = process.argv.slice(2);
-  const want = (id) => !only.length || only.includes(id);
-  await fetchAll({ log: () => {} });
-  fs.mkdirSync(OUT, { recursive: true });
-  const previous = only.length && fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).assets : {};
-  const assets = { ...previous };
+  const only = new Set(process.argv.slice(2));
   const jobs = [
     ...HUMANOIDS.map((s) => [s, buildHumanoid]),
     ...KITS.map((s) => [s, buildKit]),
     ...TEXTURES.map((s) => [s, buildTexture]),
     ...LOOK_TEXTURES.map((s) => [{ ...s, sources: [] }, buildLookTexture]),
   ];
-  for (const [spec, build] of jobs) {
-    if (!want(spec.id)) continue;
-    requireSources(spec.sources || [spec.src[0]], spec.id);
+  const unknown = [...only].filter((id) => !jobs.some(([spec]) => spec.id === id));
+  if (unknown.length) throw new Error(`unknown output: ${unknown.join(', ')}`);
+
+  const selected = only.size ? jobs.filter(([spec]) => only.has(spec.id)) : jobs;
+  const sourceIds = new Set();
+  for (const [spec] of selected) {
+    const sources = spec.sources || [spec.src[0]];
+    requireSources(sources, spec.id);
+    for (const source of sources) sourceIds.add(source);
+  }
+  await fetchAll({ log: () => {}, sourceIds });
+  fs.mkdirSync(OUT, { recursive: true });
+  const assets = only.size && fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).assets : {};
+
+  for (const [spec, build] of selected) {
     const t0 = Date.now();
     assets[spec.id] = await build(spec);
     const a = assets[spec.id];

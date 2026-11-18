@@ -58,6 +58,20 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  await moveTo(-5.5,-2.6);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
+  await capture('preview-evidence/01a-sanctum-storage.png');
+  // Controlled tower art capture from outside the relay site's combat radius.
+  await moveTo(45, -5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
+  await capture('preview-evidence/01b-relay-mast.png');
+  // The tower view is staged for art. A pursuing Relay guard must not carry
+  // combat from that fixture into the independent Brineworks service checks.
+  for (const guard of server.game.enemies) {
+    if (guard.type === 'sentinel' && guard.threat.has(p.id)) resetEnemy(server.game, guard);
+  }
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
@@ -70,10 +84,15 @@ try {
   await page.waitForFunction(() => window.__attune.state().you.surveyKit.rigMs === 0);
   assert.equal(p.surveyKit.rig, null);
   await page.locator('#view').focus();
+  await moveTo(44,-34.8);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.40,pitch:.32,dist:9,face:Math.PI}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-plant')?.children.length===6));
+  await capture('preview-evidence/02a-pressure-plant.png');
   await moveTo(38, -36.5);
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
   await moveTo(49, -36.5);
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('brineworks-site-markings');return g?.children.length===2&&g.children.every(m=>m.material.map?.image?.data?.length===512*128*4)}));
   await capture('preview-evidence/02c-engineering-station.png');
   assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);
@@ -106,8 +125,14 @@ try {
   assert.equal(p.char.quest.step, 0);
   assert.equal(p.char.xp, 35);
   await capture('preview-evidence/04-report.png');
-  // Exercise the actual NPC dialogue panel, not a detached mock-up.
-  await page.locator('.plate[data-npc="archivist"]').click({timeout:30000});
+  // Keep the same nameplate click and live dialogue. On software WebGL
+  // pause only scene drawing during this DOM action to free the compositor.
+  if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(true));
+  try {
+    await page.locator('.plate[data-npc="archivist"]').click({ timeout: 30000 });
+  } finally {
+    if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(false));
+  }
   const npcDialog=page.getByRole('dialog',{name:'NPC interaction'});
   await npcDialog.waitFor({state:'visible'});
   const portraitBox=await npcDialog.locator('.npc-portrait').boundingBox();
@@ -204,7 +229,16 @@ try {
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('sinter:habitats');return g?.children.length===2&&g.children.every(c=>c.children.length>=3)}));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Controlled art evidence, then restore the original sampler position/view.
+  await moveTo(0,54.5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.45,dist:7,face:0}));
+  await capture('preview-evidence/04b2-sinter-nursery.png');
+  await moveTo(8.8,54.6);
+  await capture('preview-evidence/04b3-sinter-deposits.png');
+  await moveTo(-3,58.4);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   // Unlock is a fixture; deployment and sample collection use real server rules.
   p.char.inventory.push('glyph_faultline');
   p.char.attunements.push('resonance');
@@ -224,6 +258,23 @@ try {
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
   assert.equal(p.char.xp,beforeSampleXp);
   await capture('preview-evidence/04c-strata-interferometer.png');
+  // Inspect both new terrain-conforming habitats with the existing live
+  // Field Rig shader. Only fixture staging/cooldown reset is synthetic.
+  for(const [site,x,z] of [['nursery',1.6,57.9],['mineral-bed',9.1,57.7]]){
+    await moveTo(x,z);
+    await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.70,dist:5.8,face:0}));
+    p.surveyKit.rig=null;p.cds.field_rig=0;p.gcdUntil=0;p.res=100;
+    await page.waitForFunction(()=>window.__attune.state().you.surveyKit.rigMs===0);
+    assert.ok(useAbility(server.game,p,'field_rig').ok);
+    await page.waitForFunction(site=>{
+      const api=window.__attune,mesh=api.gfx.scene.getObjectByName('sinter:'+site+':membrane');
+      const vfx=api.gfx.scene.getObjectByName('vfx-engine');
+      return mesh?.material?.vertexColors&&mesh.geometry.attributes.position.count>500&&
+        api.state().you.surveyKit.rigMs>0&&vfx?.children.some(n=>n.material?.uniforms?.sigil&&n.material.uniforms.prog?.value===1.06);
+    },site);
+    await capture('preview-evidence/04d-sinter-'+site+'-vfx.png');
+  }
+  p.surveyKit.rig=null;
   // Controlled placement for an art evidence capture; ecology movement,
   // convergence, alarm and maturation are independently tested in Node.
   const herd=server.game.enemies.filter(e=>e.form);
@@ -314,6 +365,7 @@ try {
     }
     return true;
   }));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('kestrel:service-pipes')?.children.length===5));
   await capture('preview-evidence/07-kestrel-interior.png');
   // A deterministic kill and cleared linger are setup for the recorder
   // interaction; Node tests independently cover actual encounter rules.
@@ -361,6 +413,16 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
+  const bio=await browser.newPage({viewport:{width:1000,height:700}});
+  bio.setDefaultTimeout(90000);const bioErrors=[];
+  bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
+  await bio.goto(url+'&menderArt=1');
+  await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
+  await bio.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.compId&&s.drawn>=2&&!!window.__attune.gfx.scene.getObjectByName('mender:original-carapace-preview')});
+  await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
+  {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
+  await bio.screenshot({path:'preview-evidence/09a-mender-carapace.png'});
+  assert.deepEqual(bioErrors,[]);await bio.close();
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
   const keeperErrors=[];
@@ -379,7 +441,11 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  await keeper.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector'));
+  // Require the real named projector on the currently loaded GLB character.
+  await keeper.waitForFunction(()=>{
+    const state=window.__attune?.state();
+    return state?.myId&&state.ents.some(e=>e.id===state.myId&&e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('aegis-projector');
+  });
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
