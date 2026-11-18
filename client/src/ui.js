@@ -913,7 +913,8 @@ export class UI {
         image.alt = '';
         section.append(image);
       }
-      section.append(h('h3', null, name), h('p', 'muted', definition.name));
+      section.append(h('h3', null, name));
+      if (definition.name !== name) section.append(h('p', 'muted', definition.name));
       section.append(h('p', null, active ? 'Active' : needsLink ? 'Equip the Survey Strider Link to summon' : available ? 'Ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
