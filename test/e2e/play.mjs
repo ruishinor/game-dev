@@ -300,6 +300,8 @@ async function followInventoryPlaytest(){
  await B.page.bringToFront();
  pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
  await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.mire_fibre===5,null,{timeout:15000});
+ const characterButton=B.page.getByRole('button',{name:'Character [C]',exact:true});
+ check('material-only acquisition does not light Character',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await B.page.keyboard.press('KeyI');
  const inv=B.page.locator('.inventory-window');
  await inv.getByRole('button',{name:'All',exact:true}).click();
@@ -307,6 +309,9 @@ async function followInventoryPlaytest(){
  const qty=await inv.locator('[data-material="mire_fibre"] .stack-quantity').innerText();
  await inv.getByRole('button',{name:'Materials',exact:true}).click();
  check('All and Materials both show actual material stacks and quantity',all===2&&qty==='5'&&await inv.locator('.material-cell').count()===2);
+ await inv.locator('[data-material="mire_fibre"]').hover();
+ await B.page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('mire_fibre'),null,{timeout:10000});
+ check('material hover records Seen on server',!pb.char.unseenItems.includes('mire_fibre'));
  await inv.getByRole('button',{name:'Close inventory'}).click();
  await B.page.locator('#view').focus();
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/follow FollowLeader');await B.page.keyboard.press('Enter');
@@ -349,6 +354,22 @@ async function followInventoryPlaytest(){
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
+ await B.page.locator('#view').focus();await B.page.keyboard.down('Shift');await B.page.keyboard.down('KeyF');await B.page.keyboard.up('Shift');
+ await loot.waitFor({state:'visible',timeout:10000});
+ await B.page.keyboard.down('KeyF'); // repeated keydown while held must not collect
+ await B.page.waitForTimeout(200);
+ check('held F does not collect remaining loot',!pb.char.inventory.includes('adrenal_shunt'));
+ await B.page.keyboard.up('KeyF');await B.page.keyboard.press('KeyF');
+ await B.page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('adrenal_shunt'),null,{timeout:10000});
+ await loot.waitFor({state:'hidden',timeout:10000});
+ check('next independent F collects remaining personal loot',pb.char.inventory.includes('adrenal_shunt'));
+ check('equipment acquisition lights Character',(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyI');
+ await inv.getByRole('button',{name:'All',exact:true}).click();
+ await inv.locator('[aria-label="Adrenal Shunt"]').hover();
+ await B.page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('adrenal_shunt'),null,{timeout:10000});
+ check('equipment hover clears Character notification',!pb.char.unseenItems.includes('adrenal_shunt')&&!(await characterButton.getAttribute('class')).split(' ').includes('new'));
+ await inv.getByRole('button',{name:'Close inventory'}).click();
  // Fixture only: isolate a real Warden defeat and select the very-rare
  // independent roll. Neither loot collection nor presentation is mocked.
  await teleport(B,0,5.2);await settle(B,0,5.2);

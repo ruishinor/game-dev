@@ -1336,6 +1336,8 @@ input.onAction = (code, e) => {
       cam.reset(local.yaw);
       break;
     case 'KeyF': {
+      // An open, visible personal loot session takes priority over world interaction.
+      if(!e.shiftKey&&ui.loot.takeAll())break;
       const o = nearestObject();
       if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id,e.shiftKey===true);
       else if(npcProfile(o))ui.openNpc(o);
