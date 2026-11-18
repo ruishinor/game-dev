@@ -223,16 +223,23 @@ async function followInventoryPlaytest(){
  await B.page.keyboard.press('Enter');await B.page.locator('.chat').fill('/unfollow');await B.page.keyboard.press('Enter');
  const stopped=await until(B,()=>!window.__attune.state().followId,null,5000,'unfollow');
  check('/unfollow clears authoritative follow',stopped&&pb.followId===0);
+ // Enable and persist auto-loot through the actual settings control.
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyO');
+ const auto=B.page.getByRole('checkbox',{name:'Auto-loot corpses'});
+ await auto.check();
+ check('auto-loot preference is stored locally',await B.page.evaluate(()=>localStorage.getItem('attunement.autoLoot'))==='1');
+ await B.page.keyboard.press('Escape');await B.page.locator('#view').focus();
  // Fixture only: position and kill a deterministic sentinel. Actual collection is through the browser.
  teleport('FollowFollower',0,8.5);await settle(B,0,8.5);
  const corpse=game.enemies.find(e=>e.type==='sentinel'&&e.state!=='dead');corpse.x=0;corpse.z=8.5;game.rng=()=>0;
  dealDamage(game,pb,corpse,99999,'test');
  await B.page.waitForFunction(id=>{const s=window.__attune.state(),e=s.ents.find(x=>x.id===id);return e?.dead&&Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)<=5&&s.you.lootable?.some(x=>x.id===id);},corpse.id,{timeout:15000});
- await B.page.locator('#view').focus();await B.page.keyboard.press('KeyF');
+ await B.page.locator('#view').focus();await B.page.keyboard.press('Shift+KeyF');
  const loot=B.page.locator('.loot-window');
  try{await loot.waitFor({state:'visible',timeout:10000});}catch(error){
    const s=await state(B);console.error('Loot interaction diagnostic',JSON.stringify({serverTarget:pb.lootTarget,corpse:corpse.id,corpseState:corpse.state,player:{x:pb.x,z:pb.z,dead:pb.dead},clientLoot:s.you?.loot,clientEligible:s.you?.lootable,log:await logText(B)}));throw error;
  }
+ check('Shift+F opens manual loot despite enabled auto-loot',await loot.isVisible()&&pb.char.materials.sentinel_alloy===2);
  const alloy=loot.locator('[data-loot-id="sentinel_alloy"]');await alloy.hover();
  check('corpse loot lists material art and hover tooltip',await alloy.locator('[data-art="sentinel_alloy"] svg').count()===1&&await B.page.locator('.tooltip').innerText().then(t=>t.includes('Sentinel alloy')));
  await alloy.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:10000});

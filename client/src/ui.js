@@ -594,6 +594,7 @@ export class UI {
       ['1 – 4', 'Abilities'],
       ['Shift + 1 – 5', 'Companion: Triage / Bond / Attack / Follow / Stay'],
       ['F', 'Interact with nearby equipment, NPC or lootable remains'],
+      ['Shift + F', 'Inspect loot manually even when auto-loot is enabled'],
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
@@ -1400,7 +1401,7 @@ export class UI {
     }
 
     set(this.interact, 'hidden', !st.nearObject);
-    if(st.nearObject?.meta.k==='e')set(this.interact,'text','[F] Loot '+st.nearObject.meta.n);
+    if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
@@ -1434,7 +1435,7 @@ export class UI {
         el.dataset.npc='archivist';
       }
       if(ent.meta.k==='e'){
-        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id);};
+        const open=e=>{if(!this.loot.canLoot(ent.id))return;e.preventDefault();e.stopPropagation();this.loot.open(ent.id,e.shiftKey===true);};
         el.addEventListener('click',open);el.addEventListener('contextmenu',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e);});
       }
       if(ent.meta.k==='p'){

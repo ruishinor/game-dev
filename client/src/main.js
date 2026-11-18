@@ -1227,7 +1227,7 @@ input.onAction = (code, e) => {
       break;
     case 'KeyF': {
       const o = nearestObject();
-      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id);
+      if(o?.meta.k==='e'&&o.dead)ui.loot.open(o.id,e.shiftKey===true);
       else if (o) net.send({ t: 'act', id: o.id });
       else ui.error('Nothing to interact with here.');
       break;
