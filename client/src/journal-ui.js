@@ -4,6 +4,7 @@ import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
+import { GOODS } from '../../shared/goods.js';
 import { inventoryView } from './inventory-view.js';
 
 function h(tag, cls, text) {
@@ -13,6 +14,8 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  spent_contact:'<path d="M4 5h13l3 4v10H4z" fill="#65747a"/><path d="M7 8h3v8H7m6-8h3v5h-3" stroke="#c1a36b"/><path d="m12 4-1 6 4 2-3 7" stroke="#28343a"/>',
+  mire_husk:'<path d="M4 17 7 7l6-4 7 4-2 7-8 7z" fill="#63745f"/><path d="m7 7 6 5 7-5m-7 5-3 9M5 14l6 2m4-2 3-2" stroke="#a5b28a"/>',
   mire_fibre:'<path d="M3 19C6 7 17 20 21 5M3 15C7 2 17 17 20 3M5 22C9 12 18 23 22 10" stroke="#9bac78" stroke-width="2.5"/>',
   sentinel_alloy:'<path d="m3 7 10-4 8 5-10 5z" fill="#a1a9a6"/><path d="m3 7 8 6v8l-8-5z" fill="#596b72"/><path d="m11 13 10-5v8l-10 5z" fill="#778891"/><path d="m5 9 5 3m3 4 6-4"/>',
   resonance_fragment:'<path d="m9 2 9 4 3 11-10 5L3 14z" fill="#5f758b"/><path d="m9 2 2 20 7-16M3 14l8-3 10 6" stroke="#d0b3ea"/>',
@@ -47,7 +50,7 @@ const art={
   implant:'<path d="M12 3 19 7v10l-7 4-7-4V7zM12 7v10M8 12h8"/>',
 };
 export function itemArt(id) {
-  const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':'');
+  const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':Object.hasOwn(GOODS,id)?'junk':'');
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
   e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(art[id]||art[slot]||art.glyph)+'</svg>';
@@ -274,7 +277,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     const unseen=[...(ui.unseenItems||[])].filter(item=>ITEMS[item]?.slot===id);
@@ -288,13 +291,13 @@ export function renderInventory(ui) {
   const grid=h('div','inventory-grid');
   for(const entry of items){
     const {id,kind,quantity}=entry;
-    if(kind==='material'){
-      const material=MATERIALS[id],btn=h('button','item-cell material-cell');
-      btn.type='button';btn.dataset.material=id;
+    if(kind==='material'||kind==='goods'){
+      const material=kind==='material'?MATERIALS[id]:GOODS[id],btn=h('button',kind==='material'?'item-cell material-cell':'item-cell goods-cell');
+      btn.type='button';if(kind==='material')btn.dataset.material=id;else btn.dataset.goods=id;
       btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
       btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
       btn.addEventListener('click',()=>ui.toggleCodex(true,id));
-      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body','Material · quantity '+quantity)]);
+      ui.hover(btn,()=>[h('div','tip-title',material.name),h('div','tip-body',(kind==='material'?'Material':'Junk')+' · quantity '+quantity)]);
       grid.append(btn);continue;
     }
     const item=ITEMS[id];
@@ -309,7 +312,7 @@ export function renderInventory(ui) {
   // A cell is an equipment item or one material stack, not storage capacity.
   for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
   const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
-  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units';
+  count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' trade stacks · '+view.goodsUnits+' trade units';
   root.append(tabs,count,grid);
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){

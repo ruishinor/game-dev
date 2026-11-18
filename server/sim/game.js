@@ -5,6 +5,7 @@
 import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
+import { sanitizeGoods } from '../../shared/goods.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
@@ -411,6 +412,7 @@ export class Game {
       xp: c.xp,
       inventory: [...c.inventory],
       materials: sanitizeMaterials(c.materials),
+      goods: sanitizeGoods(c.goods),
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },

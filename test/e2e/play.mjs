@@ -237,6 +237,9 @@ async function followInventoryPlaytest(){
  check('corpse loot lists material art and hover tooltip',await alloy.locator('[data-art="sentinel_alloy"] svg').count()===1&&await B.page.locator('.tooltip').innerText().then(t=>t.includes('Sentinel alloy')));
  await alloy.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.sentinel_alloy===3,null,{timeout:10000});
  check('only selected stack is collected; unchosen equipment remains',await loot.locator('[data-loot-id="adrenal_shunt"]').count()===1&&!pb.char.inventory.includes('adrenal_shunt'));
+ const scrap=loot.locator('[data-loot-id="spent_contact"]');
+ await scrap.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.goods?.spent_contact===1,null,{timeout:10000});
+ check('selected trade salvage enters a separate authoritative stack',pb.char.goods.spent_contact===1&&!pb.char.inventory.includes('spent_contact')&&await loot.locator('[data-loot-id="spent_contact"]').count()===0);
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());

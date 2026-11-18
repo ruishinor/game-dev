@@ -1,5 +1,6 @@
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS} from '../../shared/crafting.js';
+import {GOODS} from '../../shared/goods.js';
 import {itemArt} from './journal-ui.js';
 const h=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
 const button=(label,text,fn)=>{const e=h('button',null,text);e.type='button';e.setAttribute('aria-label',label);e.addEventListener('click',fn);return e;};
@@ -47,11 +48,11 @@ export class LootPanel{
   head.append(h('div','kicker','RECOVERABLE LOOT'),h('h2',null,s.name),close);
   const list=h('div','loot-list');
   for(const entry of s.entries){
-   const def=entry.kind==='material'?MATERIALS[entry.id]:ITEMS[entry.id];if(!def)continue;
+   const def=entry.kind==='material'?MATERIALS[entry.id]:entry.kind==='goods'?GOODS[entry.id]:entry.kind==='item'?ITEMS[entry.id]:null;if(!def)continue;
    const btn=button('Loot '+def.name,'',()=>this.ui.a.lootTake(s.id,s.generation,entry.id));
    btn.className='loot-entry';btn.dataset.lootId=entry.id;
    const picture=h('span','loot-slot');picture.append(itemArt(entry.id));if(entry.quantity>1)picture.append(h('span','stack-quantity',String(entry.quantity)));
-   const copy=h('span','loot-copy');copy.append(h('strong',null,def.name),h('small',null,entry.kind==='material'?'Material · × '+entry.quantity:'Equipment'));
+   const copy=h('span','loot-copy');copy.append(h('strong',null,def.name),h('small',null,entry.kind==='material'?'Material · × '+entry.quantity:entry.kind==='goods'?'Junk · × '+entry.quantity:'Equipment'));
    btn.append(picture,copy);ui.hover(btn,()=>[h('div','tip-title',def.name),h('div','tip-body',def.desc||def.summary||'Recoverable item')]);list.append(btn);
   }
   const footer=h('div','loot-footer');footer.append(button('Take all loot','Take all',()=>this.ui.a.lootTake(s.id,s.generation,null)),button('Leave remaining loot','Leave',()=>this.dismiss()));
