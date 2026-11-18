@@ -757,6 +757,8 @@ test('progression: the directive chain hands out the build pieces in order', () 
   finishInscription(game, p);
   assert.equal(p.char.quest.step, 6);
   const warden=enemyOf(game,'warden');
+  // Deterministic successful optional loot roll. The class glyph is the guaranteed directive reward.
+  game.rng=()=>0;
   dealDamage(game, p, warden, 9999, 'test');
   assert.equal(p.char.quest.step, DIRECTIVES.length);
   assert.ok(p.char.inventory.includes('glyph_carapace'));

@@ -15,7 +15,7 @@ test('exclusive rare reward brackets do not draw for unrelated enemies and never
  for(const [n,id] of [[0,seal],[.004999,seal],[.005,rare],[.079999,rare],[.08,null],[.999999,null],[NaN,null],[-1,null],[1,null]])assert.equal(relicDrop('warden',fn(n)),id);
  const g=makeGame(),w=enemyOf(g,'warden'),p=g.addPlayer(makeChar('keeper'));place(p,w.x,w.z);isolate(g,w);
  let legacy=0;g.rng=()=>{legacy++;return .5;};g.relicRng=()=>0;dealDamage(g,p,w,99999,'test');
- assert.equal(legacy,1,'legacy guaranteed item roll unchanged');assert.ok(w.lootByPlayer.get(p.id).some(e=>e.id===seal));
+ assert.equal(legacy,1,'one equipment roll remains independent of relic RNG');assert.ok(w.lootByPlayer.get(p.id).some(e=>e.id===seal));
 });
 test('eligible recipients roll separately; no replay, remote claim, ownership duplication or disclosure',()=>{
  const g=makeGame(),w=enemyOf(g,'warden'),a=g.addPlayer(makeChar('vanguard')),b=g.addPlayer(makeChar('keeper')),stranger=g.addPlayer(makeChar('keeper'));isolate(g,w);
