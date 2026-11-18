@@ -567,3 +567,9 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 
 /* Local quest tracking; use the existing HUD card visual language. */
 .quest-tracker-group{width:100%;min-width:0;display:grid;gap:5px}.quest-tracker-header{display:flex;gap:6px;align-items:center;justify-content:space-between}.quest-tracker-header button{font:inherit;font-size:11px;padding:3px 8px}.quest-collapse{min-width:28px}.quest-tracker-cards,.quest-tracker-other{display:grid;gap:6px}.quest-tracker-cards[hidden],.quest-tracker-other[hidden],.quest-tracker-group [hidden]{display:none!important}.quest-journal-detail button[data-focus="tracking"]{margin-top:12px}
+
+/* Relic quality is conveyed by explicit text and a secondary border cue. */
+.item-cell[data-rarity="Rare"],.loot-entry[data-rarity="Rare"]{border-color:#82a8b6}
+.item-cell[data-rarity="Very rare"],.loot-entry[data-rarity="Very rare"]{border-color:#cbaf76}
+.loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
+.loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}

@@ -344,6 +344,25 @@ async function followInventoryPlaytest(){
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
+ // Fixture only: isolate a real Warden defeat and select the very-rare
+ // independent roll. Neither loot collection nor presentation is mocked.
+ await teleport(B,0,5.2);await settle(B,0,5.2);
+ const vault=game.enemies.find(e=>e.type==='warden'&&e.state!=='dead');
+ vault.x=pb.x;vault.z=pb.z;game.relicRng=()=>0;
+ dealDamage(game,pb,vault,99999,'test');
+ await B.page.waitForFunction(id=>window.__attune.state().you.lootable?.some(x=>x.id===id),vault.id,{timeout:15000});
+ await B.page.locator('#view').focus();await B.page.keyboard.press('Shift+KeyF');
+ const seal=loot.locator('[data-loot-id="vault_witness_seal"]');
+ await seal.waitFor({state:'visible',timeout:10000});
+ check('very-rare relic has explicit quality and original artwork',await seal.getAttribute('data-rarity')==='Very rare'&&await seal.locator('[data-art="vault_witness_seal"] svg').count()===1&&/Very rare relic/.test(await seal.innerText()));
+ await seal.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.goods?.vault_witness_seal===1,null,{timeout:10000});
+ check('personal relic enters only the eligible owner inventory',pb.char.goods.vault_witness_seal===1&&!pa.char.goods?.vault_witness_seal&&!vault.lootByPlayer?.has(pa.id));
+ await loot.getByRole('button',{name:'Close loot'}).click();
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyI');
+ await inv.getByRole('button',{name:'Relics',exact:true}).click();
+ check('Relics filter exposes named unique collectible',await inv.locator('[data-goods="vault_witness_seal"][data-rarity="Very rare"]').count()===1);
+ await shot(B,'loot-02-relic.png');
+ await inv.getByRole('button',{name:'Close inventory'}).click();
  check('no script errors in focused browser sessions',pageErrors.length===0,pageErrors.slice(0,3).join(' | '));
 }
 

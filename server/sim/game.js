@@ -2,6 +2,7 @@
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
 
+import {randomInt} from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, COMPANIONS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
@@ -31,7 +32,8 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random, wallNow = Date.now } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000 } = {}) {
+    this.relicRng=relicRng;
     this.wallNow=wallNow;
     this.time = 0;
     this.rng = rng;

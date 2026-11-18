@@ -24,7 +24,7 @@ export function makeChar(cls, over = {}) {
 }
 
 export function makeGame(seed = 7) {
-  return new Game({ rng: mulberry32(seed) });
+  return new Game({ rng: mulberry32(seed), relicRng:()=>.999999 });
 }
 
 /** Advance the simulation in 50ms ticks, collecting every event. */
