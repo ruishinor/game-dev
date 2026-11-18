@@ -29,6 +29,7 @@ try {
     await page.click(`.classcard[data-cls="${cls}"]`);
     await page.click('#enter');
     await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn > 2 && s.ents.some((e) => e.id === s.myId && e.model === 'glb'); });
+    if(cls!=='vanguard')await page.waitForFunction(k=>!!window.__attune.gfx.scene.getObjectByName('utility-pouch:'+k),cls==='symbiotech'?'conductor':cls);
     await page.evaluate(() => document.querySelectorAll('#hud, .hud, #ui, .panel, .directive').forEach((n) => (n.style.visibility = 'hidden')));
     for (const [name, yaw] of [['back', 0], ['front', Math.PI], ['three-quarter', Math.PI * 0.75]]) {
       await page.evaluate((y) => window.__attune.view({ face: 0, yaw: y, pitch: 0.12, dist: 2.6 }), yaw);
