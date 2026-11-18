@@ -81,8 +81,8 @@ test('Phase Scar calibration is personal, persisted and recoverable exactly once
   place(q,f.core.x,f.core.z+3.6);q.combatUntil=g.time+5000;assert.equal(interact(g,q,f.core.id).ok,false);q.combatUntil=0;
   f.phase='unstable';assert.equal(interact(g,q,f.core.id).ok,false);f.phase='stabilized';
   assert.ok(interact(g,q,f.core.id).ok);assert.equal(q.char.materials.resonance_fragment,1);
-  assert.equal(entry(q).status,'completed');assert.ok(interact(g,q,f.core.id).ok);assert.equal(q.char.materials.resonance_fragment,1);
-  loaded.markDirty();loaded.flush();assert.equal(new CharacterStore(filename).authenticate(token).riftCalibration,'completed');
+  assert.equal(entry(q).status,'completed');assert.deepEqual(entry(q).received,['1 × Resonance fragment']);assert.ok(interact(g,q,f.core.id).ok);assert.equal(q.char.materials.resonance_fragment,1);
+  loaded.markDirty();loaded.flush();const persisted=new CharacterStore(filename).authenticate(token);assert.equal(persisted.riftCalibration,'completed');assert.equal(persisted.fieldReceipts.calibration,true);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('legacy and invalid calibration records never imply reward eligibility',()=>{

@@ -1,6 +1,7 @@
 // Read-only presentation of already available or discovered objectives.
 // Progress is never calculated as authority or mutated by this view.
 import {CLASSES,DIRECTIVES,ITEMS,directiveFor} from '../../shared/content.js';
+import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {SURVEY,BRINE_ROUTES,BRINE_REWARD_XP,surveyState,brineStage,brineHint} from '../../shared/survey.js';
 
 // The server supplies only the discovered field entries and their current
@@ -16,6 +17,17 @@ function fieldEntries(sheet){
  return out;
 }
 const investigationRewards=()=>[BRINE_REWARD_XP.investigation+' XP','Access to Brineworks commissioning'];
+// A receipt is display data for an already completed entry, never a quest.
+function withFieldReceipts(entries,sheet){
+ const rows=Array.isArray(sheet.fieldRewardReceipts)?sheet.fieldRewardReceipts.slice(0,4):[];
+ const known=new Map();
+ for(const row of rows){
+  if(!row||typeof row.id!=='string'||known.has(row.id)||!Array.isArray(row.received)||row.received.length<1||row.received.length>4)continue;
+  if(!row.received.every(value=>typeof value==='string'&&value.length>0&&value.length<=160))continue;
+  known.set(row.id,row.received.slice());
+ }
+ return entries.map(q=>q.status==='completed'&&!q.id.startsWith('directive:')&&known.has(q.id)?{...q,received:known.get(q.id)}:q);
+}
 function directiveRewards(d,cls){
  const rewards=[],item=d.reward.classItem?.[cls];
  if(d.reward.xp)rewards.push(d.reward.xp+' XP');
@@ -25,16 +37,22 @@ function directiveRewards(d,cls){
 export function questLog(sheet,trial=null){
  if(!sheet||!Object.hasOwn(CLASSES,sheet.cls)||!Number.isInteger(sheet.quest?.step)||sheet.quest.step<0||sheet.quest.step>DIRECTIVES.length)return [];
  const entries=[],step=sheet.quest.step;
+ const receipts=new Map(sanitizeDirectiveReceipts(sheet.directiveReceipts,sheet.cls,step).map(r=>[r.id,r]));
  for(let i=0;i<DIRECTIVES.length&&i<=step;i++){
   const d=directiveFor(sheet.cls,i),done=i<step,count=d.goal.count;
   const progress=Number.isSafeInteger(sheet.quest.progress)?Math.max(0,sheet.quest.progress):0;
-  entries.push({id:'directive:'+d.id,title:d.title,group:'Directive',status:done?'completed':'active',text:d.text,rewards:directiveRewards(d,sheet.cls),
+  const receipt=done?receipts.get(d.id):null,received=[];
+  if(receipt){
+   if(d.reward.xp)received.push(receipt.xp+' XP credited');
+   if(d.reward.classItem?.[sheet.cls])received.push(receipt.item?ITEMS[receipt.item].name:'No additional item granted');
+  }
+  entries.push({id:'directive:'+d.id,title:d.title,group:'Directive',status:done?'completed':'active',text:d.text,rewards:directiveRewards(d,sheet.cls),...(received.length?{received}:{}),
    progress:Number.isSafeInteger(count)&&count>0?(done?count:Math.min(progress,count))+' / '+count+' '+(d.goal.ability?'successful strikes':'defeated'):''});
  }
  const survey=surveyState(sheet.survey);
  if(!survey){
   entries.push({id:'brine:investigation',title:'Brineworks field investigation',group:'Field investigation',status:'available',text:brineHint(null,0,null),progress:'',rewards:investigationRewards()});
-  return entries.concat(fieldEntries(sheet));
+  return withFieldReceipts(entries.concat(fieldEntries(sheet)),sheet);
  }
  const reported=survey.endsWith('_done'),key=reported?survey.slice(0,-5):survey;
  entries.push({id:'brine:investigation',title:SURVEY[key].title,group:'Field investigation',status:reported?'completed':'active',text:reported?'Evidence reported to Archivist Venn.':brineHint(survey,0,null),progress:'',rewards:investigationRewards()});
@@ -42,5 +60,5 @@ export function questLog(sheet,trial=null){
   const stage=brineStage(sheet.brineStage);
   entries.push({id:'brine:commissioning',title:'Commission Brineworks',group:'Field investigation',status:stage===3?'completed':'active',text:brineHint(survey,stage,trial),progress:stage+' / 3 stages',rewards:[BRINE_REWARD_XP.commissioning+' XP',ITEMS[BRINE_ROUTES[key].reward].name,'Access to Brineworks services and eligible fabrication']});
  }
- return entries.concat(fieldEntries(sheet));
+ return withFieldReceipts(entries.concat(fieldEntries(sheet)),sheet);
 }

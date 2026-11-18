@@ -15,6 +15,8 @@ import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion, spawnMender, companionRoster } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
+import {fieldReceiptProjection} from './field-receipts.js';
+import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
@@ -34,8 +36,9 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000 } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000 } = {}) {
     this.relicRng=relicRng;
+    this.blueprintRng=blueprintRng;
     this.wallNow=wallNow;
     this.time = 0;
     this.rng = rng;
@@ -438,7 +441,9 @@ export class Game {
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      directiveReceipts:sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step),
       ...fieldQuestProjection(c),
+      fieldRewardReceipts:fieldReceiptProjection(c),
       recoverySamples:recoverySamples(c.recoverySamples),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,

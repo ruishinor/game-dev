@@ -11,8 +11,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon' };
-export const SLOTS = ['device', 'implant', 'glyph', 'weapon'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest'];
 
 export const CLASSES = {
   vanguard: {
@@ -320,6 +320,9 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ITEMS = {
+  field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
+  reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
+  resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
   field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
   tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
   dense_pulse_core:{name:'Dense Pulse Core',slot:'weapon',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
@@ -342,7 +345,7 @@ export const ITEMS = {
     mods: { hpAdd: 30, dmgMul: 0.9 },
     desc: 'A stress-buffering neural laminate recovered from Kestrel Deep. +30 maximum health, -10% outgoing damage. Requires Resonance attunement.',
   },
-  sinter_laminate: {
+  sinter_laminate: {rarity:'Common',
     name: 'Sinter Laminate',
     slot: 'device',
     skills: { kinetics: 1, biotech: 1 },
@@ -363,7 +366,7 @@ export const ITEMS = {
     skills: { kinetics: 3 },
     desc: '+3 Kinetics. For Vanguards: +6 percentage points of Power; unlocks Kinetics equipment.',
   },
-  wardstone_shard: {
+  wardstone_shard: {rarity:'Rare',
     summary: "+35 maximum health",
     name: 'Wardstone Shard',
     slot: 'device',
@@ -386,7 +389,7 @@ export const ITEMS = {
     mods: { chargeMul: 1.5, dischargeRadius: 2 },
     desc: 'Sub-dermal capacitor bank. Charge generation +50%. Discharge reaches 2m further.',
   },
-  adrenal_shunt: {
+  adrenal_shunt: {rarity:'Uncommon',
     summary: "+20% damage · −15% maximum health",
     name: 'Adrenal Shunt',
     slot: 'implant',

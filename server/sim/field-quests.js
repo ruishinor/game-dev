@@ -4,12 +4,11 @@ import {surveyState,brineStage} from '../../shared/survey.js';
 import {dist,hasLineOfSight} from '../../shared/world.js';
 import {MATERIALS,MATERIAL_CAP,sanitizeMaterials} from '../../shared/crafting.js';
 import {riftQuestEntries} from './rift-journal.js';
+import {TRACE_REWARD_XP,traceMaterial,recordFieldReceipt} from './field-receipts.js';
 const states=new Set(['briefed','strata_first','recorder_first','strata_ready','recorder_ready','strata_done','recorder_done']);
 export function sanitizeTraceState(raw){return typeof raw==='string'&&states.has(raw)?raw:null;}
 const eligible=c=>c.level>=3&&c.attunements.includes('resonance')&&surveyState(c.survey)?.endsWith('_done')&&brineStage(c.brineStage)===3;
 const TITLE='Residual Traces';
-const TRACE_REWARD_XP=55;
-const traceMaterial=s=>s.startsWith('strata_')?'culture_matrix':'kinetic_coupler';
 const lines={
  briefed:'Inspect either the Strata Interferometer in Sinter Flats or the recorder at Kestrel Deep. Choose which evidence leads the investigation.',
  strata_first:'The strata reading retained the disturbance, but not its timing. Compare it with the Kestrel Phase Recorder.',
@@ -41,7 +40,8 @@ export function traceTalk(game,p,obj,{grantSalvage,grantXp}){
  // preflight guarantees this single synchronous allotment under normal state.
  p.char.traceState=strata?'strata_done':'recorder_done';
  if(!grantSalvage(game,p,material,1)){p.char.traceState=s;speak(p,obj,'The research allotment could not be issued.');return true;}
- grantXp(game,p,TRACE_REWARD_XP);game.markDirty(p);
+ const xp=grantXp(game,p,TRACE_REWARD_XP);
+ recordFieldReceipt(p.char,'traces',{xp,material});game.markDirty(p);
  speak(p,obj,strata?'The living material has retained a history of the waveform. Take this culture matrix for your next research assembly.':'The timing records explain how the disturbance propagated. Take this kinetic coupler for your next engineering assembly.');
  return true;
 }

@@ -2,13 +2,14 @@
 // scene is rendered per frame. Instances are discarded after capture.
 import * as THREE from '/vendor/three/three.module.js';
 import { createModel } from './characters.js';
+import {portraitCacheKey,createPortraitCache} from './portrait-identity.js';
 
 export function makePortraits(assets, useGlb) {
-  const cache = new Map();
+  const cache = createPortraitCache();
   let renderer, unavailable = false;
   return (meta, style = 'portrait') => {
-    const key = [meta.k, meta.c, meta.a || '', style].join(':');
-    if (cache.has(key)) return cache.get(key);
+    const glb=useGlb(meta),key=portraitCacheKey(meta,style,glb);
+    const cached=cache.get(key);if(cached!==undefined)return cached;
     if (unavailable) return null;
     let model, sketchMaterial;
     try {
@@ -19,7 +20,7 @@ export function makePortraits(assets, useGlb) {
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.15;
       }
-      model = createModel(assets, meta, useGlb(meta));
+      model = createModel(assets, meta, glb);
       const scene = new THREE.Scene();
       scene.add(new THREE.HemisphereLight(0xb8edff, 0x293748, 2.1));
       const keyLight = new THREE.DirectionalLight(0xf1f9ff, 3);

@@ -5,7 +5,7 @@ import {GOODS,sanitizeGoods} from '../../shared/goods.js';
 // Carried equipment excludes installed slots; materials are distinct stacks.
 export function inventoryView(sheet,filter='all'){
  const equipment=(sheet.inventory||[]).filter(id=>Object.hasOwn(ITEMS,id)&&sheet.equipped?.[ITEMS[id].slot]!==id)
-   .map(id=>({id,kind:'equipment',category:ITEMS[id].slot,quantity:1}));
+   .map(id=>({id,kind:'equipment',category:ITEMS[id].slot==='chest'?'device':ITEMS[id].slot,quantity:1}));
  const materials=Object.keys(MATERIALS).filter(id=>Number.isSafeInteger(sheet.materials?.[id])&&sheet.materials[id]>0)
    .map(id=>({id,kind:'material',category:'materials',quantity:sheet.materials[id]}));
  const goods=Object.entries(sanitizeGoods(sheet.goods)).map(([id,quantity])=>({id,kind:'goods',category:GOODS[id].category,quantity}));

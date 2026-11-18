@@ -31,7 +31,9 @@ test('sentinel gadgets are server-awarded unique loot, not guaranteed or global 
   assert.ok(openLoot(game,unlucky,another.id,another.lootGeneration,true).ok);
   assert.deepEqual(unlucky.char.inventory, []);
   assert.deepEqual(itemDrops('skitter'), []);
-  assert.deepEqual(itemDrops('warden'), [{item:'wardstone_shard',chance:1}]);
+  assert.equal(itemDrops('warden').length,1);
+  assert.equal(itemDrops('warden')[0].item,'wardstone_shard');
+  assert.ok(itemDrops('warden')[0].chance>0&&itemDrops('warden')[0].chance<1);
   for (const drop of itemDrops('sentinel')) assert.ok(Object.hasOwn(ITEMS,drop.item));
 });
 
