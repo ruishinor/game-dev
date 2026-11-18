@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {makeGame,makeChar,place} from './helpers.js';
+import {interact} from '../server/sim/progress.js';
+import {sanitizeTraceState,fieldQuestProjection} from '../server/sim/field-quests.js';
+import {questLog} from '../client/src/quest-log.js';
+const make=()=>makeChar('vanguard',{level:3,survey:'signal_done',brineStage:3,attunements:['resonance'],inventory:['sinter_laminate'],quest:{step:3,progress:0},materials:{}});
+const at=(p,o)=>o.type==='deep_console'?place(p,o.x+2.5,o.z):place(p,o.x,o.z+1.7);
+const action=(g,p,o)=>{at(p,o);return interact(g,p,o.id);};
+for(const first of ['strata','recorder'])test('Residual Traces '+first+' route is discovered in sequence, persists and rewards once',()=>{
+ const g=makeGame(),p=g.addPlayer(make()),other=g.addPlayer(make()),venn=g.objects.find(o=>o.type==='archivist'),sites={strata:g.objects.find(o=>o.type==='sinter_sampler'),recorder:g.objects.find(o=>o.type==='deep_console')};
+ assert.deepEqual(fieldQuestProjection(p.char),{});
+ assert.ok(action(g,p,sites[first]).ok);assert.deepEqual(fieldQuestProjection(p.char),{});
+ assert.equal(interact(g,p,venn.id).ok,false);assert.ok(action(g,p,venn).ok);
+ assert.equal(p.char.traceState,'briefed');assert.equal(questLog(g.sheet(p)).find(q=>q.id==='field:residual_traces').progress,'0 / 2 readings');
+ const chosen=sites[first],second=sites[first==='strata'?'recorder':'strata'];
+ assert.ok(action(g,p,chosen).ok);assert.equal(p.char.traceState,first+'_first');assert.ok(action(g,p,chosen).ok);assert.equal(p.char.traceState,first+'_first');
+ assert.deepEqual(fieldQuestProjection(other.char),{});
+ const saved={...p.char,inventory:[...p.char.inventory]};g.removePlayer(p.id);const restored=g.addPlayer(saved);
+ assert.equal(restored.char.traceState,first+'_first');
+ assert.ok(action(g,restored,second).ok);assert.equal(restored.char.traceState,first+'_ready');
+ const before=restored.char.xp;const reward=first==='strata'?'culture_matrix':'kinetic_coupler';
+ restored.char.materials={[reward]:99};assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.traceState,first+'_ready');assert.equal(restored.char.xp,before);
+ restored.char.materials={};assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.traceState,first+'_done');assert.equal(restored.char.materials[reward],1);assert.equal(restored.char.xp,before+55);
+ assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.materials[reward],1);assert.equal(restored.char.xp,before+55);
+ assert.equal(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').status,'completed');
+});
+test('eligibility, combat, actual sample ownership and malformed state fail closed',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('vanguard')),venn=g.objects.find(o=>o.type==='archivist'),sampler=g.objects.find(o=>o.type==='sinter_sampler');
+ assert.ok(action(g,p,venn).ok);assert.equal(p.char.traceState,undefined);
+ Object.assign(p.char,{level:3,survey:'signal_done',brineStage:3,attunements:['resonance']});g.refreshStats(p);
+ p.combatUntil=1000;assert.ok(action(g,p,venn).ok);assert.equal(p.char.traceState,undefined);p.combatUntil=0;
+ assert.ok(action(g,p,venn).ok);assert.equal(p.char.traceState,'briefed');
+ assert.ok(action(g,p,sampler).ok);assert.equal(p.char.traceState,'briefed');
+ for(const s of [null,{},'constructor','done',3])assert.equal(sanitizeTraceState(s),null);
+ const log=questLog({...g.sheet(p),fieldQuests:[{id:'directive:fake',title:'x',status:'active'}]});assert.ok(!log.some(q=>q.id==='directive:fake'));
+});

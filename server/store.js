@@ -13,6 +13,7 @@ import { sanitizeMaterials } from '../shared/crafting.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
+import {sanitizeTraceState} from './sim/field-quests.js';
 
 const NAME_RE = /^[A-Za-z][A-Za-z '-]{1,14}[A-Za-z]$/;
 export const MAX_CHARACTERS = 500;
@@ -58,6 +59,7 @@ function sanitize(raw) {
       progress: int(raw.quest?.progress, 0, 1000, 0),
     },
     survey: surveyState(raw.survey),
+    traceState:sanitizeTraceState(raw.traceState),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
@@ -167,6 +169,7 @@ export class CharacterStore {
       attunements: [],
       quest: { step: 0, progress: 0 },
       survey: null,
+      traceState:null,
       brineStage: 0,
       pos: null,
       hp: 0,

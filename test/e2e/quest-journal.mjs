@@ -48,6 +48,36 @@ try{
  await page.locator('.workshop-window').waitFor({state:'visible'});
  await page.locator('#view').focus();await page.keyboard.press('Escape');
  await page.screenshot({path:'quest-evidence/02-tracker.png'});
+ // Eligible setup only. Venn, both field instruments and the final report
+ // use the ordinary authoritative interaction path. Existing content remains.
+ p.char.level=3;p.char.attunements=['resonance'];p.char.inventory.push('sinter_laminate');server.game.refreshStats(p);server.game.markDirty(p);
+ async function moveForQuest(obj,dx=0,dz=1.7){
+  const actor=await liveFixturePlayer(page,server,'Journal Tester');assert.equal(actor,p);
+  p.x=obj.x+dx;p.z=obj.z+dz;p.combatUntil=0;
+  await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1.5;},[p.x,p.z]);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ }
+ const venn=server.game.objects.find(o=>o.type==='archivist'),sampler=server.game.objects.find(o=>o.type==='sinter_sampler'),recorder=server.game.objects.find(o=>o.type==='deep_console');
+ await moveForQuest(venn,2,0);
+ await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.[0]?.status==='active');
+ await page.keyboard.press('Escape');
+ await page.keyboard.press('KeyL');await journal.waitFor({state:'visible'});
+ await journal.locator('[data-quest="field:residual_traces"]').click();
+ assert.match(await journal.locator('.quest-journal-detail').innerText(),/0 \/ 2 readings/);
+ await journal.getByRole('button',{name:'Close Quest Journal'}).click();
+ for(const e of server.game.enemies){e.state='dead';e.deadAt=server.game.time;e.respawnAt=Infinity;e.threat.clear();}
+ await moveForQuest(sampler,0,1.7);
+ await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.[0]?.progress==='1 / 2 readings');
+ await moveForQuest(recorder,2.5,0);
+ await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.[0]?.progress==='2 / 2 readings');
+ await moveForQuest(venn,2,0);
+ await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.[0]?.status==='completed');
+ assert.equal(p.char.materials.culture_matrix,1);
+ await page.keyboard.press('Escape');await page.locator('#view').focus();await page.keyboard.press('KeyL');
+ await journal.locator('[data-quest="field:residual_traces"]').click();
+ assert.match(await journal.locator('.quest-journal-detail').innerText(),/strata-first/i);
+ await page.screenshot({path:'quest-evidence/03-residual-traces.png'});
+ await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');
  assert.ok(await page.getByRole('dialog',{name:'Codex',exact:true}).isVisible());
  assert.deepEqual(errors,[]);

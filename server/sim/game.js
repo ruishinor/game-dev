@@ -12,6 +12,7 @@ import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion } from './companion.js';
+import {fieldQuestProjection} from './field-quests.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
@@ -431,6 +432,7 @@ export class Game {
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      ...fieldQuestProjection(c),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,
