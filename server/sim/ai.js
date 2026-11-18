@@ -2,8 +2,9 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight, sinterSiteAt } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
+import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
 export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
@@ -26,12 +27,22 @@ export function resetEnemy(game, e) {
   e.lootByPlayer=null;
   e.wanderAt = e.route ? game.time : game.time + 2000 + game.rng() * 5000;
   e.routeIndex = 1;
+  e.ecologyMode = 'travel';
+  e.routeLaps = 0;
+  e.grown = false;
+  e.mineralDose=0;e.calcified=false;e.scarred=false;
+  e.alarmUntil = 0;
+  e.alarmFrom = null;
+  e.alarmKind = null;
+  e.wildAlarmAt = 0;
+  e.callUntil = 0;
   e.wander = null;
   e.steerUntil = 0;
   e.steerSign = 1;
   e.progressAt = 0;
   e.progressDist = Infinity;
   e.evadeSince = 0;
+  if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
 }
 
 function moveToward(e, tx, tz, step, radius, steer) {
@@ -67,6 +78,7 @@ function startEvade(game, e) {
   e.cast = null;
   e.buffs = [];
   e.evadeSince = game.time;
+  if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
 }
 
 function pickTarget(game, e) {
@@ -170,14 +182,86 @@ export function tickEnemy(game, e, dt) {
       startEvade(game, e);
       return;
     }
+    if(tickWildPredator(game,e,dt)||tickWildHerd(game,e,dt))return;
+    // Wildlife reacts to a nearby living, unengaged predator without
+    // granting combat threat, damage or XP. A cooldown preserves migration.
+    if(e.form&&e.alarmUntil<=game.time&&game.time>=e.wildAlarmAt){
+      const stalker=game.enemies.find(o=>o.type==='faultstalker'&&o.state==='idle'&&dist(e,o)<4.8);
+      if(stalker){
+        e.wildAlarmAt=game.time+22000;
+        e.alarmUntil=game.time+(e.form==='shieldback'?1700:2800);
+        e.alarmFrom={x:stalker.x,z:stalker.z};
+        e.alarmKind='predator';
+      }
+    }
+    // A nearby threat causes non-defending, unengaged herd members to
+    // scatter temporarily. Selection and player proximity never trigger it.
+    if (e.form && e.alarmUntil > game.time && e.alarmFrom) {
+      if(e.form==='shieldback'&&e.alarmKind==='predator'){
+        e.ecologyMode='brace';
+        e.yaw=Math.atan2(e.alarmFrom.x-e.x,e.alarmFrom.z-e.z);
+        return;
+      }
+      e.ecologyMode = 'scatter';
+      const dx=e.x-e.alarmFrom.x, dz=e.z-e.alarmFrom.z;
+      const len=Math.hypot(dx,dz)||1;
+      const tx=e.x+dx/len*3, tz=e.z+dz/len*3;
+      // Flee locally; do not leave the biome or cross an obstacle.
+      if (Math.hypot(tx-6,tz-58)<14.5) moveToward(e,tx,tz,def.speed*0.85*dt,def.radius,0);
+      return;
+    }
     // Authored migration circuits run in real simulation time.
     if (e.route) {
-      if (game.time < e.wanderAt) return;
+      if (game.time < e.wanderAt) {
+        if(e.form){
+          const site=sinterSiteAt(e);
+          e.ecologyMode=site==='nursery'?'rest':'forage';
+          if(site==='mineral'){
+            e.mineralDose+=dt;
+            if(e.form==='adult'&&e.grown&&!e.calcified&&e.mineralDose>=14){
+              e.calcified=true;
+              game.events.push({e:'fx',k:'sinter_molt',s:e.id});
+            }
+          }
+        }
+        if(e.type==='faultstalker')e.ecologyMode='watch';
+        return;
+      }
       const waypoint = e.route[e.routeIndex];
       const ox = e.x, oz = e.z;
-      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? 0.43 : 0.56) * dt, def.radius, 0);
-      if (dist(e, waypoint) < 0.22 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
+      const pace = e.form === 'juvenile' ? 0.61 : e.form === 'shieldback' ? 0.38 : 0.47;
+      if(e.form)e.ecologyMode='travel';
+      const stalking=e.type==='faultstalker';
+      if(stalking)e.ecologyMode='stalk';
+      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? pace : stalking ? (e.routeIndex%3===0?0.37:0.56) : 0.56) * dt, def.radius, 0);
+      if(e.form){
+        // Soft local spacing, with collision re-resolution. No global
+        // flocking or RNG consumption; it affects only the three grazers.
+        for(const other of game.enemies){
+          if(other===e||!other.form||other.state==='dead')continue;
+          const dx=e.x-other.x,dz=e.z-other.z,d=Math.hypot(dx,dz);
+          if(d>1e-5&&d<1.85){
+            const push=Math.min(def.speed*dt,(1.85-d)*0.5);
+            e.x+=dx/d*push;e.z+=dz/d*push;
+            resolveCollisions(e,def.radius);
+          }
+        }
+      }
+      if (dist(e, waypoint) < 0.30 || (dt > 0 && Math.hypot(e.x - ox, e.z - oz) < 1e-5)) {
         e.routeIndex = (e.routeIndex + 1) % e.route.length;
+        if(e.form){
+          if(e.routeIndex===1){
+            e.routeLaps++;
+            if(!e.grown&&e.routeLaps>=2){e.grown=true;game.events.push({e:'fx',k:'sinter_molt',s:e.id});}
+          }
+          // Distinct feeding intervals, long circuits, no per-frame random roll.
+          if(e.routeIndex%3===0){
+            const site=sinterSiteAt(e);
+            const pause=e.form==='juvenile'?1600:e.form==='shieldback'?4200:2700;
+            // Long sheltered rest; adapted adults process deposits faster.
+            e.wanderAt=game.time+pause+(site==='nursery'?1000:site==='mineral'&&!e.calcified?1700:0);
+          }
+        }else if(stalking&&e.routeIndex%3===0)e.wanderAt=game.time+2000;
       }
       return;
     }
@@ -194,6 +278,9 @@ export function tickEnemy(game, e, dt) {
     return;
   }
 
+  // Player combat supersedes autonomous wildlife activity immediately.
+  if(e.type==='faultstalker')cancelWildHunt(game,e);
+  if(e.form)e.wildWound=0;
   if (dist(e, e.home) > def.leash) {
     startEvade(game, e);
     return;
@@ -213,6 +300,8 @@ export function tickEnemy(game, e, dt) {
     e.progressDist = Infinity;
   }
   e.target = target.id;
+  if(e.form)e.ecologyMode=e.form==='shieldback'?'defend':'retaliate';
+  if(e.type==='faultstalker')e.ecologyMode='hunt';
 
   // Encounter scaling: tougher for every extra player who joins the fight.
   if (def.perPlayer) {
