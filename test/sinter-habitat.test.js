@@ -11,8 +11,11 @@ test('Sinter habitat is deterministic, terrain-conforming, bounded and static',(
   let total=0;
   for(const [name,site] of [['nursery',SINTER_SITES.nursery],['mineral-bed',SINTER_SITES.mineral]]){
     const group=root.getObjectByName('sinter:'+name);
-    assert.ok(group);assert.equal(group.children.length,1);
-    const mesh=group.children[0],other=repeat.getObjectByName(mesh.name);
+    assert.ok(group);
+    const membranes = group.children.filter(mesh => mesh.name === 'sinter:' + name + ':membrane');
+    assert.equal(membranes.length, 1, 'one folded membrane per habitat');
+    const mesh = membranes[0];
+    const other = repeat.getObjectByName(mesh.name);
     const p=mesh.geometry.getAttribute('position'),colors=mesh.geometry.getAttribute('color'),normal=mesh.geometry.getAttribute('normal');
     assert.ok(mesh.material.vertexColors&&!mesh.material.transparent);
     assert.equal(colors.count,p.count);assert.equal(normal.count,p.count);
@@ -32,5 +35,5 @@ test('Sinter habitat is deterministic, terrain-conforming, bounded and static',(
     for(const i of mesh.geometry.index.array)assert.ok(i>=0&&i<p.count);
     total+=p.count;
   }
-  assert.ok(total>2500&&total<15000,'two bounded static draw batches');
+  assert.ok(total>2500&&total<15000,'two bounded membrane draw batches');
 });
