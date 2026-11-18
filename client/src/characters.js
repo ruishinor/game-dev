@@ -103,7 +103,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     shellMaterial: (n) => shellMats[n] || mats[0],
     attach(boneName, obj) {
       const bone = inst.getObjectByName(boneName);
-      if (!bone) return;
+      if (!bone) {
+        console.error(`[models] look ${lookId}: bone "${boneName}" is not in ${def.body}; gear not attached`);
+        return;
+      }
       inst.add(obj);
       obj.updateMatrixWorld(true);
       bone.attach(obj);

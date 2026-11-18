@@ -20,6 +20,7 @@ export class Input {
     this.lookY = 0;
     this.wheel = 0;
     this.skipMoves = 0;
+    this.lockPending = false;
     this.enabled = false;
     /** (code, event) for non-movement key presses. */
     this.onAction = () => {};
@@ -64,12 +65,17 @@ export class Input {
     });
     window.addEventListener('mousemove', (e) => {
       if (!this.lmb && !this.rmb) return;
+      // While a pointer-lock request is pending or held, mouseup always
+      // reaches us, and Chromium's cursor-warp move as the lock engages
+      // (sent before pointerlockchange) reports buttons 0 and a huge delta.
+      // Treating it as an unseen release ended every locked drag after a few
+      // pixels, so drop such moves instead.
+      if (e.buttons === 0 && (this.lockPending || document.pointerLockElement === canvas)) return;
       if (e.buttons === 0) {
         // The button was released where we could not see it.
         this.lmb = false;
         this.rmb = false;
         this.downAt = null;
-        if (document.pointerLockElement === canvas) document.exitPointerLock();
         return;
       }
       // Browsers occasionally report one huge delta as pointer lock engages.
@@ -88,8 +94,10 @@ export class Input {
       // because unlocked mousemove deltas keep working.
       if (this.useLock && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
         try {
+          if (this.lockPending) return;
+          this.lockPending = true;
           const p = canvas.requestPointerLock();
-          if (p && p.catch) p.catch(() => {});
+          if (p && p.catch) p.catch(() => { this.lockPending = false; });
         } catch {
           /* pointer lock unavailable */
         }
@@ -126,6 +134,7 @@ export class Input {
       if (document.hidden) reset();
     });
     document.addEventListener('pointerlockchange', () => {
+      this.lockPending = false;
       if (document.pointerLockElement === canvas) this.skipMoves = 1;
       if (document.pointerLockElement !== canvas && (this.lmb || this.rmb) && this.dragDist > DRAG_THRESHOLD) {
         // Lock was taken away (Esc): end the drag rather than steer blindly.
@@ -134,7 +143,7 @@ export class Input {
         this.downAt = null;
       }
     });
-    document.addEventListener('pointerlockerror', () => {});
+    document.addEventListener('pointerlockerror', () => { this.lockPending = false; });
   }
 
   reset() {
