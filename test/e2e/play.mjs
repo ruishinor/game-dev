@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
+import { resetEnemy } from '../../server/sim/ai.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
 import { liveFixturePlayer } from './live-fixture.mjs';
@@ -1045,18 +1046,23 @@ try {
   check('12. state is persisted on the server, not in the browser', onDisk.characters.some((c) => c.name === 'Lumen' && c.equipped.glyph === 'glyph_shared_pulse'));
 
   // ------------------------------------------------ defeat and recovery
+  // A fixed offset can be blocked by cover or a roaming/evading enemy.
+  // Reset only the fixture; a real AI attack and ordinary browser recovery
+  // must still defeat the player. Do not call the defeat function here.
   const sk2 = skitters[1];
-  if (sk2.state === 'dead') {
-    sk2.respawnAt = 0;
-    note('respawned a skitter early');
-    await sleep(300);
-  }
-  await teleport(A, sk2.x + 1, sk2.z + 2);
-  await settle(A, sk2.x + 1, sk2.z + 2);
-  serverPlayer('Brakka').hp = 1;
-  note('set Brakka to 1 health next to an enemy');
+  const brakka=serverPlayer('Brakka');
+  brakka.autoOn=false;
+  brakka.buffs=[];
+  brakka.hp=brakka.maxHp;
+  resetEnemy(game,sk2);
+  const deathSpot=clearCombatSpot(sk2,1,2);
+  await teleport(A, deathSpot.x, deathSpot.z);
+  await settle(A, deathSpot.x, deathSpot.z);
+  brakka.hp=1;
+  note('set Brakka to 1 health on clear ground next to a live enemy');
   const died = await until(A, () => !document.querySelector('.death').hidden, null, 8000, 'death overlay');
-  check('6. the player can be defeated (death screen shown)', died);
+  check('6. the player can be defeated (death screen shown)', died&&brakka.dead,
+    JSON.stringify({hp:brakka.hp,dead:brakka.dead,enemyState:sk2.state,enemyTarget:sk2.target,enemyDistance:Math.hypot(brakka.x-sk2.x,brakka.z-sk2.z)}));
   const fallen = await until(A, () => {
     const s = window.__attune.state();
     const e = s.ents.find((x) => x.id === s.myId);
