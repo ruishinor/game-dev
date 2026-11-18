@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {startServer} from '../../server/index.js';
+import {checkDirective} from '../../server/sim/progress.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
 const server=await startServer({port:0,dataFile:null});
@@ -13,6 +14,11 @@ try{
  await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard';});
  const p=await liveFixturePlayer(page,server,'Journal Tester');
+ // Exercise the authoritative completion transition with the prerequisite fixture.
+ p.char.quest={step:0,progress:3};checkDirective(server.game,p);
+ assert.equal(p.char.quest.step,1);
+ assert.equal(p.char.directiveReceipts[0].item,'servo_harness');
+ // The next historical completion is intentionally without a receipt.
  p.char.quest={step:2,progress:0};p.char.survey='signal';server.game.markDirty(p);
  await page.waitForFunction(()=>window.__attune.state().sheet.quest.step===2&&window.__attune.state().sheet.survey==='signal');
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
@@ -24,6 +30,10 @@ try{
  assert.match(await journal.locator('.quest-rewards').innerText(),/Listed quest rewards/);
  assert.match(await journal.locator('.quest-rewards').innerText(),/30 XP/);
  assert.match(await journal.locator('.quest-rewards').innerText(),/Sentinel Servo Harness/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Received at completion/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/30 XP credited/);
+ await journal.locator('[data-quest="directive:calibrate"]').click();
+ assert.match(await journal.locator('.quest-rewards').innerText(),/not a historical record of grants/);
  await journal.getByRole('button',{name:'Completed',exact:true}).click();
  assert.equal(await journal.locator('[data-quest]').count(),2);
  await journal.getByRole('button',{name:'All',exact:true}).click();

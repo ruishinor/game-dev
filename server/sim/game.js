@@ -15,6 +15,7 @@ import { tickEnemy, resetEnemy } from './ai.js';
 import { tickCompanion, spawnMender, companionRoster } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
+import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
 import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
@@ -438,6 +439,7 @@ export class Game {
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
+      directiveReceipts:sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step),
       ...fieldQuestProjection(c),
       recoverySamples:recoverySamples(c.recoverySamples),
       survey: c.survey ?? null,

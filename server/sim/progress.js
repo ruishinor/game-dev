@@ -17,6 +17,7 @@ import { sanitizeCondition } from '../../shared/condition.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
+import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -24,10 +25,12 @@ const INSCRIPTION_MS = 1800;
 
 export function grantXp(game, p, amount) {
   const c = p.char;
-  if (amount <= 0) return;
-  if (c.level >= MAX_LEVEL) return;
+  if (amount <= 0 || c.level >= MAX_LEVEL) return 0;
+  // Only XP actually applied toward progression is credited, including at the cap.
+  const remaining = XP_TO_NEXT.slice(c.level, MAX_LEVEL).reduce((sum,need)=>sum+need,0)-c.xp;
+  const credited = Math.max(0,Math.min(amount,remaining));
   c.xp += amount;
-  p.outbox.push({ e: 'xp', a: amount });
+  if(credited>0)p.outbox.push({ e: 'xp', a: credited });
   while (c.level < MAX_LEVEL && c.xp >= XP_TO_NEXT[c.level]) {
     c.xp -= XP_TO_NEXT[c.level];
     c.level += 1;
@@ -39,6 +42,7 @@ export function grantXp(game, p, amount) {
   }
   if (c.level >= MAX_LEVEL) c.xp = 0;
   game.markDirty(p);
+  return credited;
 }
 
 export function grantItem(game, p, itemId) {
@@ -83,8 +87,12 @@ export function checkDirective(game, p) {
     advanced = true;
     game.message(p, 'gain', `Directive complete: ${d.title}.`);
     p.outbox.push({ e: 'directive', title: d.title });
-    if (d.reward.classItem) grantItem(game, p, d.reward.classItem[c.cls]);
-    if (d.reward.xp) grantXp(game, p, d.reward.xp);
+    const itemId=d.reward.classItem?.[c.cls];
+    const item=itemId&&grantItem(game,p,itemId)?itemId:null;
+    const xp=d.reward.xp?grantXp(game,p,d.reward.xp):0;
+    // Completion, rewards and receipt are one synchronous server transition.
+    // Earlier completions without recorded receipts are not reconstructed.
+    c.directiveReceipts=[...sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step-1),{id:d.id,xp,item}];
   }
   if (advanced) {
     game.markDirty(p);
