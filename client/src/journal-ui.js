@@ -5,6 +5,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
+import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
 
@@ -98,6 +99,8 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   label.append(itemArt(id),h('div','iname',item.name));
   card.append(h('div','kicker',SLOT_NAMES[item.slot]),label);
   card.append(h('div',showDescription?'idesc':'item-summary',showDescription?item.desc:(item.summary||item.desc)));
+  const condition=conditionOf(s,id);
+  if(condition!==null)card.append(h('div','item-summary','QL '+item.ql+' · Condition '+condition+'%'));
   if(!equipped)card.append(...requirements(s,id));
   const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
   const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':s.equipped[item.slot]?'Swap in':'Equip');
@@ -116,8 +119,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   return card;
 }
 
-// The planned slot layout is UI-only. Only the three existing server
-// slots may ever produce an equip/unequip request.
+// Only implemented server slots may produce equip/unequip requests.
 const present = (key, label, col, row, slot = null) => ({key,label,col,row,slot});
 const LOADOUT_TABS = [
   {id:'character',name:'Character',slots:[]},
@@ -135,7 +137,7 @@ const LOADOUT_TABS = [
   ]},
   {id:'glyphs',name:'Glyphs',slots:[present('glyph','Glyph',2,2,'glyph')]},
   {id:'weapons',name:'Weapons',slots:[
-    present('right-hand','Right hand',1,1),present('left-hand','Left hand',3,1),
+    present('weapon','Weapon',1,1,'weapon'),present('left-hand','Left hand',3,1),
     present('ranged','Ranged',2,2),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
   ]},
   {id:'social',name:'Social clothing',slots:[
@@ -155,7 +157,7 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
-    const slotFor={gear:'device',implants:'implant',glyphs:'glyph'}[t.id];
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
     const unseen=[...(ui.unseenItems||[])].filter(id=>ITEMS[id]?.slot===slotFor);
     if(unseen.length){btn.classList.add('new-equipment');btn.title=unseen.length+' new item(s)';btn.setAttribute('aria-label',t.name+' · '+unseen.length+' new item(s)');}
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
@@ -172,7 +174,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph']:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
@@ -317,7 +319,7 @@ export function renderInventory(ui) {
   const wallet=h('div','inventory-wallet','Credits: '+String(Number.isSafeInteger(s.credits)&&s.credits>=0?s.credits:0));
   wallet.setAttribute('aria-label','Credit balance');
   root.append(wallet,tabs,count,grid);
-  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'||ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
+  if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'?'No weapons carried. Purchase or fabricate a starter emitter.':ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
     const card=equipmentCard(ui,ui.inventorySelection,false,null,true);
     card.classList.add('inventory-detail');

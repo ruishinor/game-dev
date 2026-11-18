@@ -13,6 +13,8 @@ export const MATERIALS={
   culture_matrix:{name:'Culture matrix',desc:'A stabilized living scaffold for restorative signal transfer.',source:'Research fabrication'},
 };
 export const RECIPES={
+  field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  tune_emitter:{name:'Tune field pulse emitter',discipline:'Engineering',kind:'upgrade',inputs:{mire_fibre:2,sentinel_alloy:3},target:'field_emitter',output:{item:'tuned_emitter'}},
   coupler:{name:'Assemble kinetic coupler',discipline:'Engineering',requires:{kinetics:13},inputs:{sentinel_alloy:2,mire_fibre:1},output:{material:'kinetic_coupler',count:1}},
   matrix:{name:'Grow culture matrix',discipline:'Research',requires:{biotech:13},inputs:{mire_fibre:2,sentinel_alloy:1},output:{material:'culture_matrix',count:1}},
   calibrate_servo:{name:'Calibrate servo harness',discipline:'Engineering',kind:'upgrade',requires:{kinetics:11},inputs:{kinetic_coupler:1,sentinel_alloy:1},target:'servo_harness',output:{item:'calibrated_servo'}},

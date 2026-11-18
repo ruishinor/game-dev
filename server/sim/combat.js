@@ -5,6 +5,8 @@ import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shar
 import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
+import { weaponBonus } from '../../shared/condition.js';
+import { wearEquippedWeapon } from './condition.js';
 
 // --- buffs -----------------------------------------------------------------
 
@@ -252,6 +254,7 @@ function killPlayer(game, p) {
   clearThreatFor(game, p.id);
   game.events.push({ e: 'die', id: p.id });
   game.message(p, 'info', 'You have been defeated.');
+  wearEquippedWeapon(game,p);
 }
 
 // --- per-tick player upkeep --------------------------------------------------
@@ -297,7 +300,7 @@ export function tickPlayerCombat(game, p, dt) {
       p.autoOn = false;
     } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= cdef.auto.range && hasLineOfSight(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
-      dealDamage(game, p, t, cdef.auto.dmg, 'auto', { kind: cdef.auto.kind });
+      dealDamage(game, p, t, cdef.auto.dmg+weaponBonus(p.char), 'auto', { kind: cdef.auto.kind });
       gainCharge(p, 5);
     }
   }

@@ -7,6 +7,7 @@ import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
+import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
@@ -419,6 +420,7 @@ export class Game {
       materials: sanitizeMaterials(c.materials),
       goods: sanitizeGoods(c.goods),
       credits: sanitizeCredits(c.credits),
+      condition:sanitizeCondition(c.condition,c.inventory),
       equipped: { ...c.equipped },
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },

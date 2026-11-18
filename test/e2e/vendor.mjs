@@ -46,6 +46,20 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.credits===4&&window.__attune.state().sheet.goods.mire_husk===3);
  assert.equal(p.char.credits,4);assert.deepEqual(p.char.goods,{mire_husk:3});
  await page.screenshot({path:'vendor-evidence/03-buyback.png'});
+ // Fixture supplies currency and damaged condition; buying/repairing still
+ // use the authenticated browser. Defeat wear is covered by simulation tests.
+ p.char.credits=50;server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===50);
+ await panel.getByRole('button',{name:'Buy',exact:true}).click();
+ await panel.locator('.vendor-row').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Buy 1',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('field_emitter')&&window.__attune.state().sheet.credits===38);
+ p.char.condition={field_emitter:60};server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.condition.field_emitter===60);
+ await panel.getByRole('button',{name:'Repair',exact:true}).click();
+ await panel.locator('.vendor-row').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Repair',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.credits===30&&!Object.hasOwn(window.__attune.state().sheet.condition,'field_emitter'));
+ assert.equal(p.char.credits,30);assert.deepEqual(p.char.condition,{});
+ await page.screenshot({path:'vendor-evidence/04-repair.png'});
  await panel.getByRole('button',{name:'Close vendor'}).click();
  await page.waitForFunction(()=>!window.__attune.state().you.vendor);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');

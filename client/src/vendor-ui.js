@@ -38,26 +38,27 @@ export class VendorPanel{
   const close=button('×',()=>this.dismiss());close.className='close';close.setAttribute('aria-label','Close vendor');
   this.el.append(h('div','kicker','LATTICE SANCTUM · SUPPLY'),h('h2',null,s.name),close,h('div','vendor-balance',s.credits+' credits'));
   const tabs=h('div','vendor-tabs');
-  for(const [id,name] of [['buy','Buy'],['sell','Sell junk'],['buyback','Buyback']]){
+  for(const [id,name] of [['buy','Buy'],['sell','Sell junk'],['buyback','Buyback'],['repair','Repair']]){
    const b=button(name,()=>{this.tab=id;this.draw();});b.dataset.focus='tab-'+id;b.setAttribute('aria-pressed',String(this.tab===id));tabs.append(b);
   }
   this.el.append(tabs);
   const list=h('div','vendor-list');
   for(const row of s[this.tab]||[]){
    const item=h('div','vendor-row'),copy=h('div','vendor-copy');
-   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:row.price+' credits each'+(this.tab==='sell'?' · × '+row.quantity:'')));
+   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(this.tab==='sell'?' · × '+row.quantity:'')));
    item.append(itemArt(row.id),copy);
    const controls=h('div','vendor-actions');
    const make=(label,id,qty,disabled)=>{const b=button(label,()=>this.trade(this.tab,id,qty));b.dataset.focus=this.tab+'-'+id+'-'+qty;b.disabled=!!this.pending||disabled;controls.append(b);};
    if(this.tab==='buy'){make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);}
    else if(this.tab==='sell'){make('Sell 1',row.id,1,false);if(row.quantity>1)make('Sell '+row.quantity,row.id,row.quantity,false);}
+   else if(this.tab==='repair')make('Repair',row.id,1,row.max<1);
    else make('Buy back',row.receipt,row.quantity,row.max<row.quantity);
    item.append(controls);list.append(item);
   }
-  if(!list.children.length)list.append(h('p','muted',this.tab==='sell'?'No carried junk to sell.':'No items to buy back during this visit.'));
+  if(!list.children.length)list.append(h('p','muted',this.tab==='sell'?'No carried junk to sell.':this.tab==='repair'?'No owned equipment needs repair.':'No items to buy back during this visit.'));
   this.el.append(list);
   if(this.tab==='sell'){const all=button('Sell all junk',()=>this.trade('sell_junk','',1));all.dataset.focus='sell-all';all.disabled=!s.sell.length||!!this.pending;this.el.append(all);}
-  this.el.append(h('p','muted','Only trade salvage can be sold here. Buyback is available during this visit. Equipment condition is not yet implemented.'));
+  this.el.append(h('p','muted','Only trade salvage can be sold here. Buyback is available during this visit. Only equipment marked repairable is affected by condition.'));
   if(focus)[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focus)?.focus({preventScroll:true});
  }
 }

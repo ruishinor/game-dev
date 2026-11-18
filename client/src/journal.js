@@ -15,7 +15,8 @@ const locations = {
 export const GROUPS = ['Locations', 'Items & Gear', 'Weapons', 'Creatures', 'Factions', 'Lore', 'Skills & Abilities', 'Fabrication'];
 export const ENTRIES = [
   ...Object.entries(ZONES).map(([id, zone]) => ({ id, group: 'Locations', name: zone.name, type: 'Location', desc: locations[id], facts: ['Region: ' + WORLD.name], zone: id })),
-  ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: 'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
+  ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: item.slot==='weapon'?'Weapons':'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
+    ...(item.ql?['Quality level: '+item.ql,'Repairable: condition scales the weapon bonus']:[]),
     ...(item.cls ? ['Class: ' + CLASSES[item.cls].name] : []),
     ...Object.entries(item.req?.skills || {}).map(([k,v]) => (SKILL_NAMES[k] || k) + ' required: ' + v),
     ...(item.req?.attune ? ['Requires Resonance'] : []),
