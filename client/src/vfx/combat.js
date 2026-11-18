@@ -11,7 +11,7 @@
 //   survey       cyan; measurement sigils, scan bubbles, drilling beams, demolition
 //   hostile      red/orange; hazard sigils, scorch, dust, debris
 import { CELL } from './textures.js';
-import { hot } from './engine.js';
+import { hot, shieldEnvelope } from './engine.js';
 
 export const PALETTE = {
   kinetic: 0xff9a3c, kineticHot: 0xffd08a,
@@ -27,12 +27,42 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
 const groundHeightOr = (e, s) => (Number.isFinite(e.y) ? e.y : s ? s.pos.y - (s.model?.hover || 0) : 0);
 
 const CLASS_COLOUR = { vanguard: PALETTE.kinetic, symbiotech: PALETTE.restore, keeper: PALETTE.resonance, surveyor: PALETTE.survey, mender: 0xffc46b };
+
+const DISCHARGE = [
+  { at: 0, emit({ v, core }) {
+    v.flash({ at: core, color: 0xffc47e, intensity: 11, life: 0.22, distance: 5 });
+    v.burst({ at: core, count: 1, exact: true, cell: CELL.flare, color: 0xffe5bc, color2: 0xf39846, size: 1.18, sizeEnd: 0.48, life: 0.18, speed: 0, alpha: 0.65 });
+    v.burst({ at: core, shape: 'ring', radius: 0.22, radial: true, up: 0.12, count: 23, cell: CELL.streak, color: 0xffd697, color2: 0xe66e2e, size: [0.045, 0.1], sizeEnd: 0.018, life: [0.25, 0.48], speed: [6, 11], stretch: 0.06, drag: 2, gravity: 5 });
+  } },
+  { at: 0.045, emit({ v, feet, radius }) {
+    v.shock({ at: feet, radius, color: 0xffaa54, life: 0.53, width: 0.055, filaments: true, alpha: 0.88 });
+    v.shell({ at: feet, radius, height: 0.83, color: 0xd87839, kind: 'wall', life: 0.42, from: 0.13, growPart: 0.72, streak: 0.8, alpha: 0.38 });
+  } },
+  { at: 0.28, emit({ v, feet, radius, combat }) {
+    if (!v.reducedMotion) combat.dust(feet, radius * 0.72, 11, 0x8e7662);
+    v.sigil({ at: feet, radius: radius * 0.47, color: 0xca864d, alpha: 0.44, life: 1.0, spin: 0, hot: 0.3 });
+    v.scorch({ at: feet, radius: Math.min(radius * 0.4, 2.3), color: 0xe67b3d, alpha: 0.55, life: 2.5 });
+  } },
+];
+
+const AEGIS = [
+  { at: 0, emit({ v, feet, radius }) {
+    v.sigil({ at: feet, radius, style: 'resonance', color: 0x77c4e2, alpha: 0.66, life: 1.14, spin: 0, grow: 0.22, hot: 0.55 });
+  } },
+  { at: 0.11, emit({ v, follow }) {
+    v.shell({ at: follow, radius: 1.23, color: 0x82cbe8, kind: 'dome', hex: 1.3, life: 0.68, from: 0.45, growPart: 0.56, streak: 0.18, holdUntil: 0.56, alpha: 0.59 });
+  } },
+  { at: 0.23, emit({ v, feet, radius }) {
+    v.burst({ at: feet, shape: 'ring', radius: Math.min(radius, 1.22), lift: 0.08, count: 12, cell: CELL.hex, color: 0xc5edff, color2: 0x629ec6, size: [0.075, 0.13], sizeEnd: 0.045, life: [0.44, 0.72], speed: [1.0, 1.65], spread: 0.22, spin: [-0.5, 0.5], drag: 0.45, alpha: 0.6 });
+  } },
+];
 
 export class CombatVfx {
   constructor(vfx) {
@@ -92,8 +122,19 @@ export class CombatVfx {
     const c = e.sh ? PALETTE.aegis : hostile ? PALETTE.hostile : this.colour(s);
     const dir = s ? [d.pos.x - s.pos.x, 0.4, d.pos.z - s.pos.z] : null;
     const heavy = ['rending_arc', 'discharge', 'core_bore', 'resonant_reversal', 'seismic_slam', 'survey_blast', 'controlled_blast'].includes(e.ab);
-    this.sparks(at, c, heavy ? 1.4 : e.k === 'bolt' ? 0.7 : 1, dir);
-    if (e.sh) this.v.burst({ at, count: 8, cell: CELL.hex, color: hot(PALETTE.aegis, 0.4), color2: PALETTE.aegis, size: [0.18, 0.3], sizeEnd: 0.05, life: [0.3, 0.5], speed: [1, 2.5], spin: [-3, 3], drag: 3 });
+    if (!e.sh || e.a > 0) this.sparks(at, e.sh && hostile ? PALETTE.hostile : c, heavy ? 1.4 : e.k === 'bolt' ? 0.7 : 1, dir);
+    if (e.sh) {
+      const outward = s ? s.chest.clone().sub(at) : at.clone().set(0, 1, 0);
+      outward.y = Math.max(0.8, outward.y + 0.85);
+      outward.normalize();
+      const feet = this.feet(d);
+      const radius = shieldEnvelope(d.model?.height);
+      this.v.shell({ at: feet, radius: radius + 0.015, kind: 'dome', impactDirection: outward, color: 0x69b5de,
+        from: 1, life: 0.36, holdUntil: 0.15, alpha: 0.86 });
+      this.v.burst({ at: outward.clone().multiplyScalar(radius).add(at.clone().fromArray(feet())), dir: outward, spread: 0.67,
+        count: 8, cell: CELL.hex, color: 0xc2e7ff, color2: 0x6eb7dc, size: [0.085, 0.16], sizeEnd: 0.04,
+        life: [0.23, 0.42], speed: [0.6, 1.7], spin: [-1, 1], drag: 3, alpha: 0.72 });
+    }
     if (e.k === 'melee' && s && !hostile && e.ab !== 'rending_arc') {
       this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: 1.6, color: hot(c, 0.2), sweep: 2.0, tilt: (this.v.rand() - 0.5) * 0.9, life: 0.24, alpha: 0.75, reverse: this.v.rand() < 0.5 });
     } else if (e.k === 'melee' && hostile) {
@@ -196,14 +237,6 @@ export class CombatVfx {
       v.sigil({ at: f, radius: 2, style: 'restorative', color: PALETTE.spore, life: 1.4, spin: -0.8, alpha: 0.75 });
       v.burst({ at: [f[0], f[1] + 0.4, f[2]], shape: 'disc', radius: 1.4, count: 10, blend: 'alpha', cell: CELL.smoke, color: 0x9ccc60, color2: 0x50703a, size: [0.6, 1], sizeEnd: [1.4, 2], life: [1, 1.6], speed: [0.1, 0.4], alpha: 0.4, spin: [-0.4, 0.4] });
       v.burst({ at: [f[0], f[1] + 0.3, f[2]], shape: 'disc', radius: 1.6, count: 24, cell: CELL.spore, color: hot(PALETTE.spore, 0.3), color2: PALETTE.spore, size: [0.06, 0.14], life: [1, 1.8], speed: [0.1, 0.5], dir: [0, 1, 0], spread: 1.2, drag: 0.6, swirl: 1 });
-    } else if (ab === 'phase_transposition' && d && d!==s) {
-      v.shell({at:s.chest,radius:1.15,color:PALETTE.aegis,kind:'sphere',hex:.8,life:.48,from:1.2,to:.25});
-      v.beam({from:s.chest,to:d.chest,color:PALETTE.aegis,width:.17,life:.65,grow:.55,flow:7,taper:1});
-      v.burst({at:s.chest,shape:'sphere',radius:.7,count:18,cell:CELL.hex,color:hot(PALETTE.aegis,.4),color2:PALETTE.resonance,size:[.12,.22],sizeEnd:.03,life:[.45,.8],speed:[.5,1.4],attract:d.chest,pull:16,spin:[-2,2]});
-      v.sigil({at:this.feet(s),radius:1.4,style:'resonance',color:PALETTE.resonance,life:.65,spin:-1.4});
-      v.sigil({at:this.feet(d),radius:1.7,style:'resonance',color:PALETTE.aegis,life:1.15,spin:1.2});
-      v.shell({at:this.feet(d),radius:1.7,kind:'dome',hex:1,color:PALETTE.aegis,life:1.1,holdUntil:.5,alpha:.55});
-      v.flash({at:d.chest,color:PALETTE.aegis,intensity:8,life:.35});
     } else if (ab === 'hinge_field' && d) {
       v.shell({ at: this.feet(d), radius: 1.7, color: PALETTE.aegis, kind: 'dome', hex: 1, life: 1.1, holdUntil: 0.5, alpha: 0.6 });
       v.sigil({ at: this.feet(d), radius: 1.9, style: 'resonance', color: PALETTE.aegis, life: 1.3, spin: 0.9 });
@@ -229,12 +262,21 @@ export class CombatVfx {
    */
   area(e, s, o = null, d = null) {
     if (!AREA_KINDS.has(e.k)) return false;
-    this.areaRecipe(e, s, o, d);
-    return true;
+    return this.areaRecipe(e, s, o, d) !== false;
   }
 
   areaRecipe(e, s, o, d) {
     const v = this.v;
+    if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+      if(!Number.isFinite(e.x)||!Number.isFinite(e.z)||!Number.isFinite(e.r))return;
+      const f=[e.x,groundHeightOr(e,s),e.z],pulse=e.k==='rift_pulse',closing=e.k==='rift_stabilize'||e.k==='rift_collapse';
+      const colour=pulse?0xd98e75:closing?0x8fc5b8:0xada7d3;
+      v.shock({at:f,radius:e.r,color:colour,life:pulse?.7:1.2,width:pulse?.14:.08});
+      v.shell({at:f,radius:pulse?e.r:2.15,height:pulse?1.15:4.1,kind:'wall',color:colour,life:pulse?.65:1.1,from:closing?1:.26,to:closing?.22:1,alpha:.45,streak:1.2});
+      v.burst({at:[f[0],f[1]+1.9,f[2]],shape:'sphere',radius:1.2,count:pulse?26:18,cell:[CELL.shard,CELL.streak],color:hot(colour,.36),color2:colour,size:[.06,.18],sizeEnd:.025,life:[.55,1.2],speed:[.9,2.7],gravity:pulse?2:0,spin:[-3,3]});
+      if(pulse)v.flash({at:[f[0],f[1]+1.2,f[2]],color:colour,intensity:7,life:.25});
+      return;
+    }
     if (e.k === 'fault_shear' || e.k === 'containment_sweep') {
       // Kestrel/Sinter hostile specials: a fracture line field or a sweeping containment band.
       const f = [e.x, e.y, e.z];
@@ -341,18 +383,11 @@ export class CombatVfx {
     if (!s) return;
     const f = this.feet(s)();
     if (e.k === 'discharge') {
-      v.flash({ at: s.chest, color: PALETTE.kinetic, intensity: 22, life: 0.45, distance: e.r * 2.5 });
-      v.sigil({ at: f, radius: e.r, style: 'kinetic', color: PALETTE.kinetic, life: 1.3, spin: 1.4, grow: 0.12 });
-      v.shock({ at: f, radius: e.r, color: PALETTE.kineticHot, life: 0.5, width: 0.07 });
-      v.shell({ at: f, radius: e.r, height: 1.6, color: PALETTE.kinetic, kind: 'wall', life: 0.5, from: 0.12, growPart: 0.45 });
-      v.shell({ at: s.chest, radius: 1.4, color: PALETTE.kineticHot, kind: 'sphere', life: 0.35, from: 0.3, to: 1.4, alpha: 0.35 });
-      v.scorch({ at: f, radius: Math.min(e.r * 0.5, 3), color: PALETTE.kinetic, life: 3 });
-      v.burst({ at: s.chest, shape: 'sphere', radius: 0.4, count: 40, cell: CELL.streak, color: PALETTE.kineticHot, color2: PALETTE.kinetic, size: [0.07, 0.12], life: [0.3, 0.6], speed: [5, 11], dir: [0, 0.3, 0], spread: Math.PI, stretch: 0.05, drag: 2.5, gravity: 4 });
-      this.dust(f, e.r * 0.45, 14);
+      if (!Number.isFinite(e.r) || e.r <= 0 || e.r > 60) return false;
+      return !!v.play(DISCHARGE, { v, feet: f, radius: e.r, core: [s.chest.x, s.chest.y - 0.12, s.chest.z], combat: this });
     } else if (e.k === 'aegis') {
-      v.shell({ at: f, radius: 1.8, color: PALETTE.aegis, kind: 'dome', hex: 1, life: 1.2, holdUntil: 0.5 });
-      v.sigil({ at: f, radius: e.r, style: 'resonance', color: PALETTE.aegis, life: 1.3, spin: 0.8 });
-      v.shock({ at: f, radius: e.r, color: PALETTE.aegis, life: 0.6 });
+      if (!Number.isFinite(e.r) || e.r <= 0 || e.r > 60) return false;
+      return !!v.play(AEGIS, { v, feet: f, radius: e.r, follow: this.feet(s) });
     } else if (e.k === 'lattice_relay') {
       v.sigil({ at: f, radius: e.r, style: 'resonance', color: PALETTE.aegis, life: 1.4, spin: 0.6 });
       v.shock({ at: f, radius: e.r, color: PALETTE.resonance, life: 0.7 });

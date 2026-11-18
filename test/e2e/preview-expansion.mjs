@@ -62,17 +62,25 @@ try {
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
   await capture('preview-evidence/01a-sanctum-storage.png');
-  // Controlled tower art capture from outside the relay site's combat radius.
+  // Controlled tower art capture: reset Relay guards BEFORE staging and hold
+  // their normal home positions during this slow software-GL capture. The
+  // nearest authored home (48,7) is outside the 12m proximity-aggro radius,
+  // but idle wandering can otherwise bring a guard into range mid-capture.
+  // Combat and aggro remain enabled; do not revive or protect the player.
+  const relayGuards=server.game.enemies.filter(e=>e.type==='sentinel');
+  for(const guard of relayGuards){
+    resetEnemy(server.game,guard);
+    guard.wander=null;guard.wanderAt=Infinity;
+    assert.ok(Math.hypot(guard.x-45,guard.z+5)>12,'Relay art staging must be outside proximity aggro');
+  }
   await moveTo(45, -5);
   await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
   assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
   await capture('preview-evidence/01b-relay-mast.png');
-  // The tower view is staged for art. A pursuing Relay guard must not carry
-  // combat from that fixture into the independent Brineworks service checks.
-  for (const guard of server.game.enemies) {
-    if (guard.type === 'sentinel' && guard.threat.has(p.id)) resetEnemy(server.game, guard);
-  }
+  assert.ok(!p.dead,'Relay art capture must finish with a living player');
+  assert.ok(relayGuards.every(guard=>!guard.threat.has(p.id)),'Relay art staging unexpectedly drew guard aggro');
   await moveTo(43, -27);
+  for(const guard of relayGuards)resetEnemy(server.game,guard);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
   await capture('preview-evidence/02-brineworks.png');

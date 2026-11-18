@@ -5,7 +5,8 @@
 //
 //   node tools/vfx-capture.mjs [label] [filter]
 //     label  -> docs/evidence/vfx/<label>/   (default "after")
-//     filter -> only shots whose name contains it
+//     filter -> only shots whose name contains it, or discharge-stages,
+//               aegis-stages, concurrent-stages for fixed-time sequences
 //
 // ?vfxt=<scale> slows presentation-only effect time so software rendering can
 // photograph a mid-effect frame; it never touches simulation time.
@@ -14,7 +15,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../server/index.js';
-import { useAbility } from '../server/sim/combat.js';
+import assert from 'node:assert/strict';
+import { dealDamage, useAbility } from '../server/sim/combat.js';
 import { CLASSES } from '../shared/content.js';
 import { launchBrowser } from './browser.mjs';
 
@@ -25,6 +27,7 @@ const OUT = path.join(ROOT, 'docs', 'evidence', 'vfx', label);
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const slow = Number(process.env.VFX_TIME_SCALE || 0.12);
+const phases = ['discharge-stages', 'aegis-stages', 'concurrent-stages'].includes(only);
 
 const srv = await startServer({ port: 0, dataFile: null });
 const game = srv.game;
@@ -38,7 +41,7 @@ async function join(name, cls) {
   page.setDefaultTimeout(240000);
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`));
-  await page.goto(`http://127.0.0.1:${srv.port}/?q=2&qlock=1&nolock=1&vfxt=${slow}`);
+  await page.goto(`http://127.0.0.1:${srv.port}/?q=2&qlock=1&nolock=1&vfxt=${slow}${phases ? '&vfxcapture=1' : ''}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   await page.click('#enter');
@@ -81,8 +84,64 @@ function cast(c, ab, target) {
   return r?.ok;
 }
 
-let failed = false;
-try {
+async function stageSequence() {
+  const aegis = only === 'aegis-stages';
+  const concurrent = only === 'concurrent-stages';
+  const player = await join('Fxstage', 'vanguard');
+  const ally = concurrent ? await join('Fxally', 'vanguard') : null;
+  if (ally) await ally.page.evaluate(() => window.__attune.pause(true));
+  const enemy = game.enemies.find((e) => e.type === 'skitter');
+  await stage(player, enemy, 2.9);
+  if (ally) {
+    ally.p.x = player.p.x + 1.85;
+    ally.p.z = player.p.z + 0.25;
+    await player.page.waitForFunction(([x, z]) => window.__attune.state().ents.some((entity) =>
+      entity.n === 'Fxally' && Math.hypot(entity.x - x, entity.z - z) < 0.75 && entity.inView), [ally.p.x, ally.p.z]);
+  }
+  if (aegis || ally) {
+    const actor = ally?.p ?? player.p;
+    actor.char.equipped.glyph = 'glyph_resonant_aegis';
+    game.refreshStats(actor);
+  }
+  const capture = async (label, seconds) => {
+    const stats = await player.page.evaluate((seconds) => {
+      window.__attune.effects.step(seconds);
+      return window.__attune.effects.stats();
+    }, seconds);
+    await player.page.screenshot({ path: path.join(OUT, `${only}-${label}.jpg`), type: 'jpeg', quality: 92 });
+    console.log(`${label}: ${stats.items} mesh/emitter items, ${stats.particles} particles, ${stats.timelines} timelines`);
+  };
+  await player.page.evaluate(() => window.__attune.pause(true));
+  assert.ok(cast(player, 'discharge', enemy));
+  if (ally) {
+    assert.ok(cast(ally, 'discharge', enemy));
+    assert.ok(player.p.buffs.some((buff) => buff.k === 'shield' && buff.v > 0), 'the second character protects the observer');
+  }
+  const shield = aegis && player.p.buffs.find((buff) => buff.k === 'shield');
+  if (aegis) {
+    assert.ok(shield?.v > 0);
+    // Keep the real, granted shield available across slow software screenshots.
+    shield.until = game.time + 60000;
+  }
+  await player.page.waitForFunction((expected) => window.__attune.effects.stats().timelines >= expected, ally ? 2 : 1);
+  await capture('01-activation', 0.08);
+  await capture('02-propagation', 0.17);
+  await capture('03-residual', 0.27);
+  if (aegis) {
+    assert.ok(player.p.buffs.includes(shield) && shield.v >= 12, 'the staged shield remains active before the test impact');
+    const before = shield.v;
+    const emitted = await player.page.evaluate(() => window.__attune.effects.stats().emitted);
+    assert.equal(dealDamage(game, enemy, player.p, 12, 'auto', { flat: true }), 0);
+    assert.equal(shield.v, before - 12);
+    await player.page.waitForFunction((emitted) => window.__attune.effects.stats().emitted > emitted, emitted);
+    await capture('04-confirmed-absorption', 0.08);
+  }
+  await capture('05-dissipation', 1.25);
+  await ally?.ctx.close();
+  await player.ctx.close();
+}
+
+async function captureAbilityCatalog() {
   const skitters = game.enemies.filter((e) => e.type === 'skitter');
   const plans = {
     vanguard: ['rending_arc', 'graviton_tether', 'kinetic_ward', 'discharge'],
@@ -133,6 +192,11 @@ try {
       await c.ctx.close();
     }
   }
+}
+
+let failed = false;
+try {
+  await (phases ? stageSequence() : captureAbilityCatalog());
 } catch (err) {
   failed = true;
   console.error(err);
