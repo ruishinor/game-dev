@@ -26,7 +26,7 @@ function dismiss(game,p){
 export function syncSurveyStrider(game,p){
  if(p.cls!=='surveyor')return;
  if(!wantsSurveyStrider(p)){dismiss(game,p);return;}
- if(p.companion||p.dead)return;
+ if(p.companion||p.dead||p.char.companionDismissed)return;
  p.striderDeployAt=game.time+1000;
  const spot=pointNear(p,def.followDist,p.yaw+Math.PI);if(!spot)return;
  const mode=Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';

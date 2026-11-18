@@ -49,7 +49,7 @@ const serialDraw = SOFTWARE_GL && integrated;
 note(serialDraw ? 'software WebGL: draw each integrated client separately at entry and capture; frame logic stays active'
   : SOFTWARE_GL ? 'software WebGL: cap draws to 1 per second' : 'hardware WebGL requested: no draw cap');
 const pageErrors = [];
-async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}) {
+async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}, { lock = false } = {}) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.setDefaultTimeout(90000);
@@ -62,7 +62,8 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   page.on('response', (response) => {
     if (response.status() >= 400) pageErrors.push(`${name}: HTTP ${response.status()} ${response.url()}`);
   });
-  await page.goto(`${base}/?${QUERY}&slot=${slot}`);
+  // lock: the default player configuration (pointer lock while steering).
+  await page.goto(`${base}/?${lock ? QUERY.replace('nolock=1', 'nolock=0') : QUERY}&slot=${slot}`);
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
@@ -280,6 +281,11 @@ async function workshopPlaytest(){
   await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
   const detail=page.locator('.recipe-detail');
   check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
+  const learned = page.getByRole('checkbox', { name: 'Learned recipes' });
+  await learned.check();
+  check('workshop UI: learned filter hides the uncommissioned station recipe and detail',
+    await page.locator('.recipe-entry[data-recipe="bloom_relay"]').count() === 0 && await detail.isHidden());
+  await learned.uncheck();
   await shot(P,'workshop-03-bloom-relay.png');
   check('workshop UI: no script/resource errors',pageErrors.length===0,pageErrors.slice(0,4).join(' | '));
   await P.ctx.close();
@@ -344,6 +350,25 @@ async function followInventoryPlaytest(){
  await shot(B,'loot-01-selective.png');
  await loot.getByRole('button',{name:'Close loot'}).click();
  check('closing loot leaves unselected items on corpse',!pb.char.inventory.includes('adrenal_shunt')&&await loot.isHidden());
+ // Fixture only: isolate a real Warden defeat and select the very-rare
+ // independent roll. Neither loot collection nor presentation is mocked.
+ await teleport(B,0,5.2);await settle(B,0,5.2);
+ const vault=game.enemies.find(e=>e.type==='warden'&&e.state!=='dead');
+ vault.x=pb.x;vault.z=pb.z;game.relicRng=()=>0;
+ dealDamage(game,pb,vault,99999,'test');
+ await B.page.waitForFunction(id=>window.__attune.state().you.lootable?.some(x=>x.id===id),vault.id,{timeout:15000});
+ await B.page.locator('#view').focus();await B.page.keyboard.press('Shift+KeyF');
+ const seal=loot.locator('[data-loot-id="vault_witness_seal"]');
+ await seal.waitFor({state:'visible',timeout:10000});
+ check('very-rare relic has explicit quality and original artwork',await seal.getAttribute('data-rarity')==='Very rare'&&await seal.locator('[data-art="vault_witness_seal"] svg').count()===1&&/Very rare relic/.test(await seal.innerText()));
+ await seal.click();await B.page.waitForFunction(()=>window.__attune.state().sheet?.goods?.vault_witness_seal===1,null,{timeout:10000});
+ check('personal relic enters only the eligible owner inventory',pb.char.goods.vault_witness_seal===1&&!pa.char.goods?.vault_witness_seal&&!vault.lootByPlayer?.has(pa.id));
+ await loot.getByRole('button',{name:'Close loot'}).click();
+ await B.page.locator('#view').focus();await B.page.keyboard.press('KeyI');
+ await inv.getByRole('button',{name:'Relics',exact:true}).click();
+ check('Relics filter exposes named unique collectible',await inv.locator('[data-goods="vault_witness_seal"][data-rarity="Very rare"]').count()===1);
+ await shot(B,'loot-02-relic.png');
+ await inv.getByRole('button',{name:'Close inventory'}).click();
  check('no script errors in focused browser sessions',pageErrors.length===0,pageErrors.slice(0,3).join(' | '));
 }
 
@@ -377,7 +402,7 @@ try {
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator'].includes(e.c)).map((e) => e.c);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery'].includes(e.c)).map((e) => e.c);
   check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
   const aByB = await drawn(B, sa.myId);
@@ -550,7 +575,7 @@ try {
     return e && e.row.h < e.row.m;
   }, sk.id, 3000, 'enemy damaged');
   check('4/5. ability 1 damages the enemy (server-side health)', hit && sk.hp < hpBefore, `server hp ${hpBefore} → ${Math.ceil(sk.hp)}`);
-  const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && /ON/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack ON in HUD');
+  const autoStarted = await until(A, () => window.__attune.state().you.auto === 1 && document.querySelector('.auto-toggle')?.getAttribute('aria-pressed') === 'true', null, 3000, 'auto-attack ON in HUD');
   // Submit the refusal attempt while the cooldown is still active, before
   // waiting on a separate browser's animation or screenshot.
   sa = await state(A);
@@ -569,7 +594,7 @@ try {
   }, sk.id, 3000, 'enemy hit reaction');
   check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker ${JSON.stringify(swingSelf)}, observer ${JSON.stringify(await drawn(B,sa.myId))}`);
   await A.page.keyboard.press('KeyR');
-  const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && /OFF/.test(document.querySelector('.auto-toggle')?.textContent), null, 3000, 'auto-attack OFF in HUD');
+  const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && document.querySelector('.auto-toggle')?.getAttribute('aria-pressed') === 'false', null, 3000, 'auto-attack OFF in HUD');
   await A.page.keyboard.press('KeyR');
   const autoResumed = await until(A, () => window.__attune.state().you.auto === 1, null, 3000, 'auto-attack resumed');
   check('5. R and the HUD expose server-authoritative auto-attack state', autoStarted && autoStopped && autoResumed);
@@ -634,6 +659,14 @@ try {
     return e.defaultPrevented;
   });
   check('11. player context menu opens from frames and nameplate; native menu suppressed elsewhere',allyMenu&&targetMenu&&plateMenu&&nativeSuppressed&&(await state(B)).target===sa.myId);
+  await B.page.locator('.frame.ally').click({ button: 'right' });
+  await B.page.getByRole('button', { name: 'Invite to party', exact: true }).click();
+  await A.page.keyboard.press('KeyP');
+  await A.page.locator('.party-panel').getByRole('button', { name: 'Accept', exact: true }).click();
+  await A.page.keyboard.press('Escape');
+  check('11. the minimap identifies visible party members', await until(B,
+    () => /Brakka, \d+ metres/.test(document.querySelector('.minimap').getAttribute('aria-label')),
+    null, 3000, 'party minimap marker'));
   await B.page.keyboard.press('Enter');
   await B.page.locator('.chat').fill('/p ');
   const partyChannel=await B.page.locator('.chat-mode').getAttribute('data-channel')==='party';
@@ -874,6 +907,11 @@ try {
     && JSON.stringify(plannerSlots.sort()) === JSON.stringify(expectedSlots);
   await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
+  await B.page.getByRole('searchbox', { name: 'Find a recipe or item' }).fill('Culture matrix');
+  const filtered = await B.page.locator('.workshop-recipes .recipe-entry').count() === 1 &&
+    await B.page.locator('.recipe-entry[data-recipe="matrix"]').isVisible();
+  await B.page.getByRole('searchbox', { name: 'Find a recipe or item' }).clear();
+  check('9. workshop searches by recipe or result', filtered);
   await B.page.keyboard.press('Escape');
   check('9. Build opens independent planning and fabrication interfaces', planner && fabrication, `planner slots ${plannerSlots.join(', ')}; matrix recipe ${fabrication}`);
   await B.page.keyboard.press('KeyC');
@@ -882,8 +920,10 @@ try {
   sb = await state(B);
   check('9. installing the Implant changes derived stats (+30% healing)', sb.sheet.stats.healMul === 1.3);
   await B.page.locator('.doll-tabs [data-tab="gear"]').click();
-  const removeDisabled = await B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' }).locator('button').isDisabled();
-  check('9. the Device cannot be removed while the Implant depends on it (UI explains why)', removeDisabled);
+  const focusCard = B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' });
+  check('9. removal previews which dependent equipment returns to inventory',
+    await focusCard.getByRole('button', { name: 'Remove' }).isEnabled() &&
+    await focusCard.getByText('Also removes Myelin Lattice.').isVisible());
   await B.page.keyboard.press('Escape');
 
   await equipVia(A, 'Sentinel Servo Harness');
@@ -940,6 +980,11 @@ try {
   check('9. discovering the Listening Stone grants an Attunement', prompt && sb.sheet.attunements.includes('resonance'));
   await shot(B, '05-listening-stone.png');
   await equipVia(B, 'Glyph of Shared Pulse');
+  const inscribing = await until(B, () => {
+    const s = window.__attune.state();
+    return !!s.you.inscription && !s.sheet.equipped.glyph && !document.querySelector('.inscription-status').hidden;
+  }, null, 3000, 'inscription pending before glyph effect');
+  check('9. glyph effects wait for the visible inscription', inscribing);
   await until(B, () => window.__attune.state().sheet.equipped.glyph === 'glyph_shared_pulse', null, 4000, 'glyph equipped');
   await B.page.keyboard.press('Escape');
   const pip = await B.page.evaluate(() => [...document.querySelectorAll('.petbar .slot')].map((b) => !b.querySelector('.pip').hidden));
@@ -1031,9 +1076,23 @@ try {
   const secondState = await state(B);
   check('6/11. second player respawns using own UI, keeps level and remains visible', secondCanRespawn && secondRecovered && secondSeenByAlly && secondState.sheet.level === levelBeforeRecovery);
   check('8. companion remains attached to the second player after recovery', secondState.compId > 0 && secondState.ents.some((e) => e.id === secondState.compId));
+  await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
+  await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
+  const dismissed = await until(B, () => {
+    const s = window.__attune.state();
+    return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
+  }, null, 5000, 'companion dismissed and summon available');
+  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  const resummoned = await until(B, oldId => {
+    const s = window.__attune.state();
+    return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
+  }, secondState.compId, 5000, 'default companion summoned');
+  check('8. right-click dismisses the companion and the HUD summons its default', dismissed && resummoned);
 
   // --------------------------------------------- 15. appearance independent of class
-  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker');
+  // This session uses the default input configuration (pointer lock while
+  // steering), which every other session here disables with ?nolock=1.
+  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker', undefined, { lock: true });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
@@ -1041,6 +1100,33 @@ try {
   }, sc.myId, 6000, 'B to see the Red Rucker look');
   check('15. a second Vanguard can wear the Red Rucker look and other sessions see it', cByB && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'red_rucker' && serverPlayer('Rucker').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}`);
   await shot(C, '08-red-rucker.png');
+  // Synthetic absolute moves cannot express relative motion under pointer
+  // lock (Chromium turns them into cancelling warp pairs), so the drag only
+  // engages the lock; the steering deltas are then delivered as locked
+  // mousemove events to the game's own handler.
+  const lockAt = await worldPointer(C.page);
+  await C.page.mouse.move(lockAt.x, lockAt.y);
+  await C.page.mouse.down({ button: 'right' });
+  let lockHeld = false, lockSteered = false, lockFrom = 0, lockTo = 0;
+  try {
+    await C.page.mouse.move(lockAt.x + 40, lockAt.y, { steps: 6 });
+    lockHeld = await until(C, () => document.pointerLockElement === document.querySelector('#view'), null, 4000, 'pointer lock to engage and hold');
+    lockFrom = (await state(C)).camYaw;
+    await C.page.evaluate(() => {
+      for (let i = 0; i < 12; i++) window.dispatchEvent(new MouseEvent('mousemove', { movementX: 20, movementY: 0, buttons: 2 }));
+    });
+    lockSteered = await until(C, (start) => {
+      const s = window.__attune.state();
+      const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
+      return Math.abs(wrap(s.camYaw - start)) > 0.3 && Math.abs(wrap(s.camYaw - s.yaw)) < 0.02;
+    }, lockFrom, 4000, 'locked right-drag steering');
+    lockTo = (await state(C)).camYaw;
+  } finally {
+    await C.page.mouse.up({ button: 'right' });
+  }
+  const lockReleased = await until(C, () => !document.pointerLockElement, null, 2000, 'pointer lock release');
+  check('2. default input (pointer lock enabled): lock holds through the drag, steers, and releases on mouse-up', lockHeld && lockSteered && lockReleased,
+    `lock held ${lockHeld}, camera yaw ${lockFrom.toFixed(2)} → ${lockTo.toFixed(2)}, released ${lockReleased}`);
   await C.ctx.close();
   await sleep(300);
 

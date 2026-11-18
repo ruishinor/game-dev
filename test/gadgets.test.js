@@ -46,7 +46,7 @@ test('gadget sidegrades preserve class, ownership and dependent implant restrict
   const implant = tryEquip(char,'kinetic_capacitor');
   assert.ok(implant.ok);
   char.equipped = implant.equipped;
-  assert.equal(tryUnequip(char,'device').ok,false);
+  assert.deepEqual(tryUnequip(char,'device').alsoRemoved,['kinetic_capacitor']);
   assert.equal(tryEquip(char,'field_vector_array').ok,false);
 });
 

@@ -78,6 +78,33 @@ test('assets: every animation clip and model piece the client names exists in th
   }
   for (const [state, clip] of Object.entries(MENDER_CLIPS)) assert.ok(assets.creatures.pieces.drone.clips.includes(clip), `mender ${state}: clip ${clip} is not on drone`);
 
+  // Rig compatibility: humanoid_f plays humanoid_m's clips and wears gear by
+  // bone name, so every animated bone and every attachment bone must exist on
+  // both bodies under the same parent. A missing bone would freeze a limb or
+  // drop gear silently at runtime.
+  const glbJson = (id) => {
+    const b = fs.readFileSync(path.join(DIR, assets[id].url));
+    return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString('utf8'));
+  };
+  const rig = (g) => {
+    const parent = new Map();
+    g.nodes.forEach((n) => (n.children || []).forEach((c) => parent.set(g.nodes[c].name, n.name)));
+    return { names: new Set(g.nodes.map((n) => n.name)), parent };
+  };
+  const male = glbJson('humanoid_m');
+  const rigs = { humanoid_m: rig(male), humanoid_f: rig(glbJson('humanoid_f')) };
+  const animated = new Set(male.animations.flatMap((a) => a.channels.map((c) => male.nodes[c.target.node].name)));
+  assert.ok(animated.size > 20, 'humanoid_m clips animate a skeleton');
+  const attached = new Set(['looks.js', 'gear-kit.js', 'gear-recipes.js'].flatMap((f) => [...read(`client/src/${f}`).matchAll(/attach\('([A-Za-z0-9_]+)'/g)].map((m) => m[1])));
+  assert.ok(attached.size > 0, 'gear attaches to named bones');
+  for (const [body, r] of Object.entries(rigs)) {
+    for (const bone of animated) {
+      assert.ok(r.names.has(bone), `${body}: animated bone ${bone} is missing`);
+      assert.equal(r.parent.get(bone), rigs.humanoid_m.parent.get(bone), `${body}: ${bone} has a different parent`);
+    }
+    for (const bone of attached) assert.ok(r.names.has(bone), `${body}: attachment bone ${bone} is missing`);
+  }
+
   // Looks: every look the server may hand out is drawn by the client, uses
   // shells that exist on both bodies, and textures that exist.
   const looks = read('client/src/looks.js');

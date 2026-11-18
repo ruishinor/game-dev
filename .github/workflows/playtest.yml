@@ -1,7 +1,8 @@
 name: Integrated browser playtest
 on:
   pull_request:
-    branches: [ccr-9a6736d4-kufz9x, preview/playtest-pr4-5-6, preview/playtest-brineworks]
+    branches: [main, ccr-9a6736d4-kufz9x, preview/playtest-pr4-5-6, preview/playtest-brineworks]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read

@@ -8,6 +8,7 @@ import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
+import { companionCanSupport } from './party.js';
 
 // --- buffs -----------------------------------------------------------------
 
@@ -25,7 +26,15 @@ export function addBuff(ent, buff) {
 
 export function expireBuffs(game, ent) {
   if (ent.buffs.length === 0) return;
-  ent.buffs = ent.buffs.filter((b) => b.until > game.time && !(b.k === 'shield' && b.v <= 0));
+  ent.buffs = ent.buffs.filter((b) => b.until > game.time &&
+    !(b.k === 'shield' && b.v <= 0) && (b.k !== 'bond' || activeBondSource(game, ent, b)));
+}
+
+function activeBondSource(game, recipient, bond) {
+  const comp = game.ents.get(bond.src);
+  return bond.until > game.time && comp?.kind === 'companion' && comp.mode === 'guard' &&
+    comp.host === recipient.id && companionCanSupport(game, game.players.get(comp.owner), recipient)
+    ? comp : null;
 }
 
 // --- threat ----------------------------------------------------------------
@@ -92,16 +101,14 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
       gainCharge(dst, prevented);
     }
     const bond = getBuff(dst, 'bond');
-    if (bond) {
+    const source = bond && activeBondSource(game, dst, bond);
+    if (source) {
       amt *= 1 - bond.dr;
       if (bond.reflect && opts.melee && src && src.kind === 'enemy') {
-        const comp = game.ents.get(bond.src);
-        if (comp) {
-          const landed = dealDamage(game, comp, src, bond.reflect, 'carapace', { flat: true });
-          if (landed > 0 && src.state !== 'dead' && src.state !== 'evade') {
-            addBuff(src, { k: 'carapace_imprint', until: game.time + GLYPH.carapace.imprintMs, src: comp.id });
-            game.events.push({ e: 'fx', k: 'carapace_imprint', s: src.id });
-          }
+        const landed = dealDamage(game, source, src, bond.reflect, 'carapace', { flat: true });
+        if (landed > 0 && src.state !== 'dead' && src.state !== 'evade') {
+          addBuff(src, { k: 'carapace_imprint', until: game.time + GLYPH.carapace.imprintMs, src: source.id });
+          game.events.push({ e: 'fx', k: 'carapace_imprint', s: src.id });
         }
       }
     }
@@ -176,6 +183,8 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
  */
 export function applyHeal(game, healer, dst, base, ability, srcId) {
   if (!dst || dst.kind !== 'player' || dst.dead) return 0;
+  const source = game.ents.get(srcId);
+  if (source?.kind === 'companion' && (source.owner !== healer?.id || !companionCanSupport(game, healer, dst))) return 0;
   let amt = base;
   if (healer) amt *= healer.stats.power * healer.stats.healMul;
   amt = Math.round(amt);
@@ -212,8 +221,8 @@ function supportThreat(game, healer, dst, actual) {
  * A valid living glyph source is required; the originating field owns its cap.
  */
 export function repairAegis(game, healer, dst, base, sourceId) {
-  if (!healer || healer.dead || healer.stats.glyph !== 'glyph_shared_pulse' ||
-      !dst || dst.kind !== 'player' || dst.dead) return 0;
+  if (!companionCanSupport(game, healer, dst) || healer.stats.glyph !== 'glyph_shared_pulse' ||
+      !healer.companion || healer.companion.id !== sourceId) return 0;
   const field = getBuff(dst, 'shield');
   if (!field || field.until <= game.time || !Number.isFinite(field.v) ||
       !Number.isFinite(field.cap) || field.v <= 0 || field.v >= field.cap) return 0;
@@ -522,7 +531,7 @@ export function useAbility(game, p, abilityId) {
       const radius = relayed ? BLOOM_RELAY.radius : ab.radius;
       game.events.push({ e: 'fx', k: 'surge', s: origin.id, r: radius });
       for (const ally of game.players.values()) {
-        if (!ally.dead && dist(origin, ally) <= radius) applyHeal(game, p, ally, ab.heal, abilityId, origin.id);
+        if (companionCanSupport(game, p, ally) && dist(origin, ally) <= radius) applyHeal(game, p, ally, ab.heal, abilityId, origin.id);
       }
       break;
     }
