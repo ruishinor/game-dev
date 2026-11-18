@@ -78,6 +78,11 @@ try {
   assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);
   await page.waitForFunction(() => window.__attune.state().ents.some(e => e.c === 'survey_signal'));
+  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver'));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('brine:pressure-receiver').children.some(m=>m.material.map&&m.material.roughnessMap)));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/03a-pressure-receiver.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.survey === 'signal');
   assert.match(await page.locator('.tracker').last().innerText(), /A Signal Below/);
@@ -124,6 +129,10 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
   await moveTo(47,-30);
+  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:shift-ledger'));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/06a-shift-ledger.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
@@ -358,7 +367,7 @@ try {
   let tank;
   for(let i=0;i<240&&!(tank=[...server.game.players.values()].find(x=>x.name==='Aegis Keeper'));i++)await new Promise(r=>setTimeout(r,250));
   assert.ok(tank,'Aegis Keeper never appeared on the server');
-  assert.ok(await keeper.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector')));
+  await keeper.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('aegis-projector'));
   assert.equal(tank.cls,'keeper');
   assert.equal(tank.companion,null);
   assert.equal(await keeper.getByRole('button',{name:'Rending Arc',exact:true}).count(),0);
