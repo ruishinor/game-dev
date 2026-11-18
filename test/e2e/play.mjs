@@ -297,11 +297,19 @@ try {
   await sleep(300);
   sa = await state(A);
   check('2. W moves the character forward', sa.pos.z < z0 - 1.5, `z ${z0.toFixed(2)} → ${sa.pos.z.toFixed(2)}`);
-  await hold(A, 'KeyW', 1600);
-  await sleep(300);
+  await A.page.keyboard.down('KeyW');
+  const reachedBeacon = await until(A, () => {
+    const p = window.__attune.state().pos;
+    return p && Math.hypot(p.x, p.z) < 2.6;
+  }, null, 4500, 'reach the beacon with forward input');
+  // Keep sending forward input for several snapshots so brushing past the
+  // measured radius cannot count as a blocked character.
+  const approachSnaps = (await state(A)).snaps;
+  const continued = await until(A, (n) => window.__attune.state().snaps >= n + 5, approachSnaps, 2500, 'continued forward input');
   sa = await state(A);
+  await A.page.keyboard.up('KeyW');
   const beaconGap = Math.hypot(sa.pos.x, sa.pos.z);
-  check('3. the beacon blocks movement (collision)', beaconGap >= 1.9 && beaconGap < 2.6, `stopped ${beaconGap.toFixed(2)}m from its centre (radius 1.5 + body 0.45)`);
+  check('3. the beacon blocks movement (collision)', reachedBeacon && continued && beaconGap >= 1.9 && beaconGap < 2.6, `stopped ${beaconGap.toFixed(2)}m from its centre (radius 1.5 + body 0.45)`);
   const serverA = serverPlayer('Brakka');
   check('2. server position matches the predicted client position', Math.hypot(serverA.x - sa.pos.x, serverA.z - sa.pos.z) < 0.6 && sa.pending < 30, `Δ ${Math.hypot(serverA.x - sa.pos.x, serverA.z - sa.pos.z).toFixed(3)}m, ${sa.pending} unacked inputs`);
   sb = await state(B);
@@ -309,9 +317,14 @@ try {
   check('10. the other session observes that movement', Math.hypot(aSeenByB.x - sa.pos.x, aSeenByB.z - sa.pos.z) < 1.2, `B sees A at (${aSeenByB.x.toFixed(1)}, ${aSeenByB.z.toFixed(1)})`);
 
   const yaw0 = sa.yaw;
-  await hold(A, 'KeyD', 500);
+  await A.page.keyboard.down('KeyD');
+  const turned = await until(A, (start) => {
+    const s = window.__attune.state();
+    return Math.abs(s.yaw - start) > 0.4 && Math.abs(s.camYaw - s.yaw) < 0.05;
+  }, yaw0, 3000, 'character and camera turn from D');
+  await A.page.keyboard.up('KeyD');
   sa = await state(A);
-  check('2. D turns the character and the camera follows', Math.abs(sa.yaw - yaw0) > 0.4 && Math.abs(sa.camYaw - sa.yaw) < 0.05, `yaw ${yaw0.toFixed(2)} → ${sa.yaw.toFixed(2)}`);
+  check('2. D turns the character and the camera follows', turned && Math.abs(sa.yaw - yaw0) > 0.4 && Math.abs(sa.camYaw - sa.yaw) < 0.05, `yaw ${yaw0.toFixed(2)} → ${sa.yaw.toFixed(2)}`);
   const before = sa.pos;
   await hold(A, 'KeyS', 700);
   await hold(A, 'KeyE', 600);
