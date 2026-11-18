@@ -4,6 +4,7 @@ import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
+import { materialUses } from './material-uses.js';
 import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
@@ -82,6 +83,10 @@ export function itemTooltip(sheet, id, { owned, required } = {}) {
   ];
   if (owned !== undefined) out.push(h('div', 'tip-meta', required === undefined ? `Owned ${owned}` : `Owned ${owned} · Required ${required}`));
   if (material?.source) out.push(h('div', 'tip-meta', `Source · ${material.source}`));
+  if (material && sheet) {
+    const uses=materialUses(sheet,id);
+    out.push(h('div','tip-meta',uses.length?'Used in · '+uses.map(x=>x.name+' (×'+x.quantity+')').join('; '):'No compatible learned recipe recorded yet.'));
+  }
   if (sheet && item) out.push(...requirements(sheet, id));
   return out;
 }
@@ -406,6 +411,20 @@ export function renderCodex(ui,abilityIcons) {
     const facts=h('div','codex-facts');
     for(const fact of entry.facts)facts.append(h('div','codex-fact',fact));
     copy.append(facts);
+    if(Object.hasOwn(MATERIALS,entry.id)){
+      const uses=h('section','material-uses');
+      uses.append(h('h3',null,'Used in'));
+      const recipes=materialUses(ui.sheet,entry.id);
+      if(!recipes.length)uses.append(h('p','muted','No compatible learned recipe recorded yet. Learn recipes through field disciplines and Brineworks commissioning.'));
+      for(const recipe of recipes){
+        const button=h('button',null,recipe.name+' · ×'+recipe.quantity+' per cycle');
+        button.type='button';button.dataset.materialRecipe=recipe.id;
+        button.addEventListener('click',()=>ui.toggleWorkshop(true,recipe.id));
+        uses.append(button);
+      }
+      if(recipes.length)uses.append(h('p','muted','Open a recipe for skill, station, equipment and material requirements.'));
+      copy.append(uses);
+    }
     const picture=h('div','codex-image');
     let pictured=false;
     if(entry.meta){

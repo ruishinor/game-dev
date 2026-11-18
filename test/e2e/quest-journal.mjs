@@ -89,6 +89,25 @@ try{
  await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');
  assert.ok(await page.getByRole('dialog',{name:'Codex',exact:true}).isVisible());
+ await page.locator('#view').focus();await page.keyboard.press('Escape');
+ // Material fixture only; exercise real Inventory, Codex and Workshop controls.
+ p.char.materials.kinetic_coupler=1;server.game.markDirty(p);
+ await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1);
+ await page.keyboard.press('KeyI');
+ const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
+ await inventory.locator('[data-material="kinetic_coupler"]').click();
+ const codex=page.getByRole('dialog',{name:'Codex',exact:true});
+ await codex.locator('.material-uses [data-material-recipe="calibrate_servo"]').waitFor({state:'visible'});
+ await codex.locator('.material-uses [data-material-recipe="calibrate_servo"]').click();
+ const recipe=page.locator('.recipe-detail');
+ await recipe.getByRole('heading',{name:'Calibrate servo harness',exact:true}).waitFor({state:'visible'});
+ assert.ok(await recipe.getByText('Requirements',{exact:true}).isVisible());
+ await page.locator('#view').focus();await page.keyboard.press('Escape');
+ if(await inventory.isVisible())await inventory.getByRole('button',{name:'Close inventory'}).click();
+ await page.locator('#view').focus();await page.keyboard.press('KeyC');
+ await page.getByRole('button',{name:'[1] Rending Arc',exact:true}).click();
+ await codex.getByRole('heading',{name:'Rending Arc',exact:true}).waitFor({state:'visible'});
+ assert.match(await codex.locator('.codex-facts').innerText(),/Kinetic Vanguard · key 1/);
  assert.deepEqual(errors,[]);
  console.log('PASS live Quest Journal, progress snapshots, filters, and separate Codex');
 }finally{await browser?.close();await server.close();}
