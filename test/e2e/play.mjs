@@ -788,7 +788,8 @@ try {
   note('destroyed two sentinels on Lumen\'s behalf (the fight itself is covered by unit tests)');
   await until(B, () => window.__attune.state().sheet.inventory.includes('glyph_shared_pulse'), null, 4000, 'glyph reward');
   pB.combatUntil = 0;
-  await B.page.keyboard.press('KeyC');
+  await B.page.locator('#view').focus();await B.page.keyboard.press('KeyC');
+  await B.page.locator('.doll-tabs [data-tab="glyphs"]').click();
   const inert = await B.page.locator('.panel.build .card', { hasText: 'Glyph of Shared Pulse' }).first().innerText();
   check('9. an un-attuned character sees the glyph as inert, with the reason', /Attunement: Resonance/.test(inert) && /✗/.test(inert));
   await B.page.keyboard.press('Escape');

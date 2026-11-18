@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
+import {liveFixturePlayer} from './live-fixture.mjs';
 const server=await startServer({port:0,dataFile:null});
 let browser;
 try{
@@ -15,8 +16,7 @@ try{
  const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
  await page.goto(url);await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb');});
- const playerId=await page.evaluate(()=>window.__attune.state().myId);
- const p=server.game.players.get(playerId);
+ const p=await liveFixturePlayer(page,server,'Vendor Tester');
  const vendor=server.game.objects.find(o=>o.type==='quartermaster');
  assert.ok(p&&vendor);
  p.char.goods={spent_contact:4,mire_husk:3};p.char.credits=0;
