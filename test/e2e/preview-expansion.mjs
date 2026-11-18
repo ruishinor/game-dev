@@ -62,6 +62,11 @@ try {
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
   await capture('preview-evidence/01a-sanctum-storage.png');
+  // Controlled tower art capture from outside the relay site's combat radius.
+  await moveTo(45, -5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
+  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
+  await capture('preview-evidence/01b-relay-mast.png');
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
@@ -82,6 +87,7 @@ try {
   await page.evaluate(() => window.__attune.view({yaw:0,pitch:0.25,dist:7,face:Math.PI}));
   await capture('preview-evidence/02b-research-station.png');
   await moveTo(49, -36.5);
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('brineworks-site-markings');return g?.children.length===2&&g.children.every(m=>m.material.map?.image?.data?.length===512*128*4)}));
   await capture('preview-evidence/02c-engineering-station.png');
   assert.ok(await page.evaluate(() => window.__attune.gfx.scene.getObjectByName('brineworks-service-deck')?.children.length > 0));
   await moveTo(39, -30);
@@ -212,7 +218,16 @@ try {
   await page.evaluate(() => window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Sinter Flats'));
   assert.ok(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('sinter-ridge:743')));
+  assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('sinter:habitats');return g?.children.length===2&&g.children.every(c=>c.children.length>=3)}));
   await capture('preview-evidence/04b-sinter-flats.png');
+  // Controlled art evidence, then restore the original sampler position/view.
+  await moveTo(0,54.5);
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.45,dist:7,face:0}));
+  await capture('preview-evidence/04b2-sinter-nursery.png');
+  await moveTo(8.8,54.6);
+  await capture('preview-evidence/04b3-sinter-deposits.png');
+  await moveTo(-3,58.4);
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.25,dist:12,face:0}));
   // Unlock is a fixture; deployment and sample collection use real server rules.
   p.char.inventory.push('glyph_faultline');
   p.char.attunements.push('resonance');
@@ -232,6 +247,23 @@ try {
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('sinter_laminate'));
   assert.equal(p.char.xp,beforeSampleXp);
   await capture('preview-evidence/04c-strata-interferometer.png');
+  // Inspect both new terrain-conforming habitats with the existing live
+  // Field Rig shader. Only fixture staging/cooldown reset is synthetic.
+  for(const [site,x,z] of [['nursery',1.6,57.9],['mineral-bed',9.1,57.7]]){
+    await moveTo(x,z);
+    await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.70,dist:5.8,face:0}));
+    p.surveyKit.rig=null;p.cds.field_rig=0;p.gcdUntil=0;p.res=100;
+    await page.waitForFunction(()=>window.__attune.state().you.surveyKit.rigMs===0);
+    assert.ok(useAbility(server.game,p,'field_rig').ok);
+    await page.waitForFunction(site=>{
+      const api=window.__attune,mesh=api.gfx.scene.getObjectByName('sinter:'+site+':membrane');
+      const vfx=api.gfx.scene.getObjectByName('vfx-engine');
+      return mesh?.material?.vertexColors&&mesh.geometry.attributes.position.count>500&&
+        api.state().you.surveyKit.rigMs>0&&vfx?.children.some(n=>n.material?.uniforms?.sigil&&n.material.uniforms.prog?.value===1.06);
+    },site);
+    await capture('preview-evidence/04d-sinter-'+site+'-vfx.png');
+  }
+  p.surveyKit.rig=null;
   // Controlled placement for an art evidence capture; ecology movement,
   // convergence, alarm and maturation are independently tested in Node.
   const herd=server.game.enemies.filter(e=>e.form);
@@ -370,6 +402,16 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
+  const bio=await browser.newPage({viewport:{width:1000,height:700}});
+  bio.setDefaultTimeout(90000);const bioErrors=[];
+  bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
+  await bio.goto(url+'&menderArt=1');
+  await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
+  await bio.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.compId&&s.drawn>=2&&!!window.__attune.gfx.scene.getObjectByName('mender:original-carapace-preview')});
+  await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
+  {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
+  await bio.screenshot({path:'preview-evidence/09a-mender-carapace.png'});
+  assert.deepEqual(bioErrors,[]);await bio.close();
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
   const keeperErrors=[];

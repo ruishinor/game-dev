@@ -2,14 +2,17 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, SINTER_SITES } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
+import { buildSiteMarkings } from './site-markings.js';
+import { buildRelayTower } from './relay-tower.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 import { buildContainmentVessel } from './containment-vessel.js';
 import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
+import { buildSinterHabitat } from './sinter-habitat.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -245,36 +248,6 @@ const rockGeos = [1, 2, 3, 4, 5].map((s) => jitteredRock(s * 977));
 // lights share a bounded static kit; the walkable height stays authoritative.
 // Low, weathered biological deposits, not another obstacle or harvest node.
 // All geometry sits close to shared groundHeight; no invisible collisions.
-function buildSinterHabitat(scene){
-  const g=new THREE.Group();g.name='sinter:habitats';
-  const rind=mat(0x7a7661,{rough:.94}),salt=mat(0xb4ab8e,{rough:.7,metal:.06});
-  const fibre=mat(0x525b46,{rough:.93}),mucosa=mat(0x8d976f,{rough:.64});
-  const {nursery,mineral}=SINTER_SITES;
-  const nest=new THREE.Group();nest.name='sinter:nursery';
-  for(let i=0;i<11;i++){
-    const a=i*Math.PI*2/11;
-    // Interrupted crescent, open to the south and west; safe to walk over.
-    if(i===6||i===7||i===8)continue;
-    const x=nursery.x+Math.cos(a)*1.1,z=nursery.z+Math.sin(a)*.82;
-    const m=scaled(G.sph,rind,.27,.12,.36,x,groundHeight(x,z)+.06,z,false);
-    m.rotation.y=-a;nest.add(m);
-  }
-  for(let i=0;i<6;i++){
-    const a=i*Math.PI*2/6,x=nursery.x+Math.cos(a)*.38,z=nursery.z+Math.sin(a)*.28;
-    const m=scaled(G.sph,i%2?fibre:mucosa,.12,.13,.21,x,groundHeight(x,z)+.09,z,false);
-    m.rotation.y=a;nest.add(m);
-  }
-  g.add(nest);
-  const bed=new THREE.Group();bed.name='sinter:mineral-bed';
-  const rng=mulberry32(17118);
-  for(let i=0;i<16;i++){
-    const a=rng()*Math.PI*2,rad=.25+rng()*1.25;
-    const x=mineral.x+Math.cos(a)*rad,z=mineral.z+Math.sin(a)*rad;
-    const m=scaled(G.ico,i%3===0?fibre:salt,.10+rng()*.12,.055+rng()*.06,.16+rng()*.18,x,groundHeight(x,z)+.035,z,false);
-    m.rotation.y=a;bed.add(m);
-  }
-  g.add(bed);scene.add(g);
-}
 function buildDeepArchitecture(scene) {
   const g = new THREE.Group();
   g.name = 'kestrel:architecture';
@@ -490,24 +463,9 @@ const procedural = {
     return g;
   },
   relaytower(p, anim) {
-    const g = new THREE.Group();
-    const rust = mat(0x6b5a4e, { metal: 0.5, rough: 0.7 });
-    g.add(scaled(G.cyl8, mat(0x4a4744, { metal: 0.4 }), 2.5, 1.4, 2.5, 0, 0.7, 0));
-    g.add(mesh(new THREE.CylinderGeometry(0.9, 1.4, 9, 8), rust, 0, 5.9, 0));
-    const top = mesh(new THREE.CylinderGeometry(0.5, 0.9, 4.5, 8), rust, 0.9, 11.6, 0.3);
-    top.rotation.z = -0.55;
-    g.add(top);
-    for (let i = 0; i < 3; i++) {
-      const arm = scaled(G.box, mat(0x3d3b3a, { metal: 0.6 }), 5 - i, 0.18, 0.18, 0, 4 + i * 2.4, 0);
-      arm.rotation.y = i * 1.1;
-      g.add(arm);
-    }
-    const lamp = scaled(G.sph, glow(0xff5a4a), 0.28, 0.28, 0.28, 0, 10.6, 0, false);
-    g.add(lamp);
-    anim.push((dt, t) => {
-      lamp.visible = Math.sin(t * 3) > -0.2;
-    });
-    return g;
+    const m=buildRelayTower(THREE,p);
+    anim.push((dt,t)=>m.update(t));
+    return m.group;
   },
   wall(p, anim) {
     const g = new THREE.Group();
@@ -916,16 +874,7 @@ const kit = {
   dish(p, c) {
     c.solid.add(c.piece('sanctum', 'Prop_SatelliteDish'), at(p.x, p.z, { ry: 2.2, s: 0.78 }));
   },
-  relaytower(p, c) {
-    c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.05, s: 0.95 }));
-    c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { ry: 0.6, rz: 0.06, s: [1.9, 1.38, 1.6] }));
-    for (let i = 0; i < 3; i++) c.solid.add(c.piece('sanctum', 'Column_MetalSupport'), at(p.x, p.z, { y: 5 + i * 3, ry: i * 1.1, s: [1, 1, 1.5 - i * 0.25] }));
-    const lamp = scaled(G.sph, glow(0xff5a4a), 0.3, 0.3, 0.3, p.x, groundHeight(p.x, p.z) + 14.2, p.z, false);
-    c.scene.add(lamp);
-    c.anim.push((dt, t) => {
-      lamp.visible = Math.sin(t * 3) > -0.2;
-    });
-  },
+  relaytower(p, c) { return procedural.relaytower(p,c.anim); },
 };
 
 /** Lattice Sanctum: tiled deck, overhead lattice between the pylons, and gates. */
@@ -1303,8 +1252,9 @@ export function buildWorld(scene, assets = null, opts = {}) {
   flat(43, -35.8, 0.53, 4.0, joint);
   for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
   scene.add(serviceDeck);
+  scene.add(buildSiteMarkings(THREE,deckY).group);
 
-  buildSinterHabitat(scene);
+  scene.add(buildSinterHabitat(THREE));
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);
   anim.push(buildParticlesAndLights(scene));
