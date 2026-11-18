@@ -219,6 +219,31 @@ try {
   await page.keyboard.press('KeyC');
   const character=page.getByRole('dialog',{name:'Character and loadout'});
   await character.waitFor({state:'visible'});
+  // Exercise real pointer movement and edge resize, not synthetic style mutations.
+  const drag=async(locator,dx,dy)=>{
+    const box=await locator.boundingBox();assert.ok(box);
+    const x=box.x+box.width/2,y=box.y+box.height/2;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:4});await page.mouse.up();
+  };
+  const initial=await character.boundingBox();
+  await drag(character.locator('.journal-title'),-35,-25);
+  const moved=await character.boundingBox();
+  assert.ok(moved.x<initial.x-20&&moved.y<initial.y-10,'Title drag moves the actual window');
+  await drag(character.locator('[data-edge="e"]'),35,0);
+  const resized=await character.boundingBox();
+  assert.ok(resized.width>moved.width+20&&Math.abs(resized.x-moved.x)<2,'East edge resizes around the anchored west edge');
+  await character.getByRole('button',{name:'Opacity 100%'}).click();
+  assert.equal(await character.evaluate(el=>el.style.getPropertyValue('--window-alpha')),'0.8');
+  await character.getByRole('button',{name:'Lock layout'}).click();
+  assert.equal(await character.locator('[data-edge="e"]').isHidden(),true);
+  await character.getByRole('button',{name:'Unlock layout'}).click();
+  await page.locator('#view').focus();await page.keyboard.press('KeyI');
+  const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
+  assert.ok(await inventory.isVisible()&&await character.isVisible(),'Independent windows coexist');
+  await inventory.locator('.close').click();
+  await character.getByRole('button',{name:'Reset layout'}).click();
+  assert.equal(await character.getAttribute('data-window-custom'),null);
+
   const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
   assert.equal(tabRows.length,6);
   assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
