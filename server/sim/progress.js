@@ -118,7 +118,7 @@ export function grantSalvage(game,p,id,count=1) {
   game.markDirty(p);return true;
 }
 
-export function craftRecipe(game,p,id,rev) {
+export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(inCombat(game,p))return {ok:false,reason:'Fabrication is locked during combat.'};
   if(!Object.hasOwn(RECIPES,id))return {ok:false,reason:'Unknown recipe.'};
@@ -132,8 +132,10 @@ export function craftRecipe(game,p,id,rev) {
   if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
-  if(out.item)p.outbox.push({e:'loot',item:out.item});
-  game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
+  if (!quiet) {
+    if(out.item)p.outbox.push({e:'loot',item:out.item});
+    game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
+  }
   game.markDirty(p);
   return {ok:true};
 }
@@ -147,6 +149,7 @@ export function equipItem(game, p, itemId) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (inCombat(game, p)) return { ok: false, reason: 'You cannot modify your build in combat.' };
   if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
+  if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
   if (p.char.equipped[ITEMS[itemId].slot] === itemId) return { ok: false, reason: 'That is already equipped.' };
   const res = tryEquip(p.char, itemId);
   if (!res.ok) return res;
@@ -166,6 +169,7 @@ export function unequipSlot(game, p, slot) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (inCombat(game, p)) return { ok: false, reason: 'You cannot modify your build in combat.' };
   if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
+  if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
   const res = tryUnequip(p.char, slot);
   if (!res.ok) return res;
   const name = ITEMS[p.char.equipped[slot]].name;

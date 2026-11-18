@@ -7,13 +7,14 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
-import { weaponReach } from '../../shared/condition.js';
+import { conditionOf, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
 import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
-import { renderWorkshop } from './workshop-ui.js';
+import { canSalvageEquipment } from '../../shared/item-actions.js';
+import { renderWorkshop, updateProduction } from './workshop-ui.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
 import { QuestJournal } from './quest-journal-ui.js';
@@ -1170,7 +1171,9 @@ export class UI {
         (ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
       el.classList.toggle('new-equipment', count > 0);
       el.title = count ? `${count} new item(s)` : '';
-      el.setAttribute('aria-label', count ? `${el.textContent} · ${count} new item(s)` : el.textContent);
+      el.setAttribute('aria-label', el.textContent);
+      if (count) el.setAttribute('aria-description', `${count} new item(s)`);
+      else el.removeAttribute('aria-description');
     }
   }
 
@@ -1188,19 +1191,53 @@ export class UI {
 
   openItemContext(id,x,y,anchor) {
     const s=this.sheet;
-    if(!s||!Object.hasOwn(ITEMS,id)||!s.inventory.includes(id))return;
-    const item=ITEMS[id],installed=s.equipped[item.slot]===id,action=installed?'remove':'equip';
+    if (!s) return;
+    const equipment = Object.hasOwn(ITEMS, id) && s.inventory.includes(id);
+    const good = Object.hasOwn(GOODS, id) && s.goods?.[id] > 0;
+    if (!equipment && !good) return;
+    const item = equipment ? ITEMS[id] : GOODS[id];
+    const installed = equipment && s.equipped[item.slot] === id;
     this.closePlayerContext();
     this.tooltip.hidden=true;
     this.contextAnchor=anchor;
     this.playerContext.replaceChildren(h('div','context-title',item.name));
-    const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
-    const equip=h('button',null,installed?'Unequip':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
-    equip.disabled=!!this.buildLock||!res.ok;
-    equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,action);});
-    this.playerContext.append(equip);
-    if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
-    if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    if (equipment) {
+      const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+      const equip=h('button',null,installed?'Unequip':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
+      equip.disabled=!!this.buildLock||!res.ok;
+      equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,installed?'remove':'equip');});
+      this.playerContext.append(equip);
+      if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
+      if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
+    }
+    if (id === 'field_maintenance_kit') {
+      const weapon = s.equipped.weapon;
+      const condition = conditionOf(s, weapon);
+      const use = h('button', null, 'Use maintenance kit');
+      use.disabled = !!this.buildLock || condition === null || condition >= 100;
+      use.addEventListener('click', () => { this.closePlayerContext(); this.a.useUtility(id, weapon, s.utilityRev); });
+      this.playerContext.append(use);
+      if (condition === null) this.playerContext.append(h('div', 'why', 'Equip a damaged repairable weapon first.'));
+    }
+    const salvage = equipment && !installed && canSalvageEquipment(id);
+    for (const action of salvage ? ['Salvage', 'Destroy'] : good && item.category === 'junk' ? ['Destroy'] : []) {
+      const button = h('button', null, action);
+      button.disabled = !!this.buildLock;
+      button.addEventListener('click', () => {
+        const destroying = action === 'Destroy';
+        const cancel = h('button', null, 'Cancel');
+        cancel.addEventListener('click', () => this.openItemContext(id, x, y, anchor));
+        const confirm = h('button', 'danger', destroying ? 'Destroy one permanently' : 'Salvage item');
+        confirm.addEventListener('click', () => {
+          this.closePlayerContext();
+          this.a.disposeItem(id, action.toLowerCase(), s.inventoryRev);
+        });
+        this.playerContext.replaceChildren(h('div', 'context-title', item.name),
+          h('p', 'why', destroying ? 'Removes one item permanently.' : 'Consumes the original item, even if no material is recovered.'), cancel, confirm);
+        cancel.focus({ preventScroll: true });
+      });
+      this.playerContext.append(button);
+    }
     const info=h('button',null,'Info · Codex');
     info.addEventListener('click',()=>{this.closePlayerContext();this.toggleCodex(true,id);});
     this.playerContext.append(info);
@@ -1459,7 +1496,8 @@ export class UI {
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
     const site=you.workshop??(you.safe?'sanctum':null);
-    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock;
+    const workshopChanged=site!==this.workshopSite||lock!==this.buildLock||you.production?.id!==this.production?.id;
+    this.production = you.production;
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
     set(this.rescueStatus,'hidden',you.rescueReady===undefined);
@@ -1470,6 +1508,7 @@ export class UI {
       if (!this.inventoryPanel.hidden) renderInventory(this);
     }
     if(workshopChanged&&!this.workshopPanel.hidden)renderWorkshop(this);
+    else if (this.production && !this.workshopPanel.hidden) updateProduction(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
     this.frameBars(this.player, me.row.h, me.row.m);
@@ -1712,6 +1751,8 @@ export class UI {
     this.loadoutTab = 'character';
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
+    this.production = null;
+    this.productionQuantity = 1;
     this.codexQuery = this.codexSearch.value = '';
     this.selectedCompanionId = 0;
     this.currentCompanion = null;

@@ -83,3 +83,36 @@ export function previewRecipe(char,id){
 }
 
 export function canFabricateAt(recipe,site){return !!recipe && (site==='sanctum' ? !recipe.site : recipe.site ? recipe.site===site : (site==='brine_engineering'&&recipe.discipline==='Engineering')||(site==='brine_research'&&recipe.discipline==='Research'));}
+
+export function productionQuantities(recipe) {
+  const units = recipe.output.count || 1;
+  return recipe.output.item ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
+}
+
+export function productionTime(recipe) {
+  if (recipe.kind === 'fusion') return 2600;
+  if (recipe.kind === 'upgrade') return 1900;
+  if (recipe.discipline === 'Research') return 1450;
+  return 1100;
+}
+
+// The consequence is part of the player-facing recipe quote.
+export function productionRisk(id) {
+  if (id === 'dense_pulse_core') return 'kinetic_coupler';
+  if (id === 'longpoint_emitter') return 'sentinel_alloy';
+  return null;
+}
+
+export function previewProduction(char, id, quantity) {
+  if (!Object.hasOwn(RECIPES, id)) return { ok: false, reason: 'Unknown recipe.' };
+  const recipe = RECIPES[id];
+  if (!productionQuantities(recipe).includes(quantity)) return { ok: false, reason: 'This quantity is unavailable.' };
+  const cycles = quantity / (recipe.output.count || 1);
+  let next = char;
+  for (let i = 0; i < cycles; i++) {
+    const step = previewRecipe(next, id);
+    if (!step.ok) return step;
+    next = { ...next, ...step };
+  }
+  return { ok: true, cycles };
+}

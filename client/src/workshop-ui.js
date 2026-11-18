@@ -4,7 +4,7 @@ import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
 import { itemArt, itemTooltip } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
-import { MATERIALS, RECIPES, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
+import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities, productionTime, previewProduction, productionRisk } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
@@ -91,6 +91,9 @@ function fabrication(ui,body){
   const id=Object.hasOwn(RECIPES,ui.recipeId)?ui.recipeId:entries[0][0];
   ui.recipeId=id;
   const recipe=RECIPES[id],output=recipeOutput(recipe);
+  const quantities = productionQuantities(recipe);
+  const quantity = quantities.includes(ui.productionQuantity) ? ui.productionQuantity : quantities[0];
+  const cycles = quantity / (recipe.output.count || 1);
   const list=h('nav','workshop-recipes');
   list.setAttribute('aria-label','Fabrication recipes');
   const search = h('input', 'recipe-search');
@@ -120,7 +123,7 @@ function fabrication(ui,body){
   const site = ui.workshopSite ?? (ui.atSanctum ? 'sanctum' : null);
   const buttons = [];
   for(const [key,r] of entries){
-    const b=btn(r.name,()=>{ui.recipeId=key;renderWorkshop(ui);},'recipe-entry'+(key===id?' active':''));
+    const b=btn(r.name,()=>{ui.recipeId=key;ui.productionQuantity=null;renderWorkshop(ui);},'recipe-entry'+(key===id?' active':''));
     b.dataset.recipe=key;
     const craftable = !ui.buildLock && canFabricateAt(r, site) && previewRecipe(s, key).ok;
     const hasMaterials = Object.entries(r.inputs).every(([input, required]) => (s.materials?.[input] || 0) >= required);
@@ -151,14 +154,32 @@ function fabrication(ui,body){
   applyFilters();
   const detail=h('section','workshop-section recipe-detail');
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
+  if (quantities.length > 1) {
+    const label = h('label', 'production-quantity', 'Quantity');
+    const select = h('select');
+    for (const option of quantities) {
+      const choice = h('option', null, String(option));
+      select.append(choice);
+    }
+    select.value = String(quantity);
+    select.addEventListener('change', () => {
+      ui.productionQuantity = Number(select.value);
+      renderWorkshop(ui);
+      ui.workshopBody.querySelector('.production-quantity select')?.focus({ preventScroll: true });
+    });
+    label.append(select);
+    detail.append(label);
+  }
+  detail.append(h('p', 'muted', `${quantity} produced · ${Math.round(cycles * productionTime(recipe) / 100) / 10}s`));
   const parts=h('div','recipe-parts');
   const source=h('div','recipe-part');
   source.append(h('div','kicker','Source components'));
   for(const [key,count] of Object.entries(recipe.inputs)){
     const quantity=s.materials?.[key]||0;
-    const component=visual(key,MATERIALS[key].name,quantity+' / '+count+' · '+MATERIALS[key].source,quantity>=count);
+    const required = count * cycles;
+    const component=visual(key,MATERIALS[key].name,quantity+' / '+required+' · '+MATERIALS[key].source,quantity>=required);
     component.tabIndex=0;
-    ui.hover(component,()=>itemTooltip(s,key,{owned:quantity,required:count}));
+    ui.hover(component,()=>itemTooltip(s,key,{owned:quantity,required}));
     source.append(component);
   }
   if(!Object.keys(recipe.inputs).length)source.append(h('p','muted','No additional material required.'));
@@ -175,31 +196,69 @@ function fabrication(ui,body){
   if(!targets.length)target.append(h('p','muted','New assembly'));
   parts.append(source,target);
   const result=h('div','recipe-result');
-  result.append(h('div','kicker','Result'),visual(outputId(recipe),output.name+(recipe.output.count?' × '+recipe.output.count:''),output.summary||output.desc));
+  result.append(h('div','kicker','Result'),visual(outputId(recipe),output.name+(quantity > 1?' × '+quantity:''),output.summary||output.desc));
   detail.append(parts,result,h('h3',null,'Requirements'));
   if(recipe.cls)detail.append(row('Profession',CLASSES[recipe.cls].name,s.cls===recipe.cls));
   if(recipe.kind==='fusion')detail.append(h('p','why','Permanent fusion: all listed equipment and materials are consumed. This cannot be reversed.'));
+  const risk = productionRisk(id);
+  if (risk) detail.append(h('p', 'why', `A failed rebuild keeps the emitter and consumes 1 ${MATERIALS[risk].name}.`));
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
   const siteOk=canFabricateAt(recipe,site);
   const names={sanctum:'Lattice Sanctum',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
   detail.append(row('Fabrication site',site?names[site]:'Outside workshop',siteOk));
-  const preview=previewRecipe(s,id);
+  const preview=previewProduction(s,id,quantity);
   const reason=ui.buildLock?'Unavailable during combat or defeat.':!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'';
   if(reason)detail.append(h('p','why',reason));
-  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,recipe.output.goods?s.utilityRev:undefined),'primary');
+  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,quantity,s.inventoryRev),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
   const catalogue = h('div', 'recipe-catalogue');
   catalogue.append(controls,list);
   body.append(catalogue,detail);
 }
+
+export function updateProduction(ui) {
+  const job = ui.production;
+  const body = ui.workshopBody;
+  if (!job || !body.querySelector('.workshop-cycle-progress')) return;
+  const cycle = body.querySelector('.workshop-cycle-progress');
+  cycle.max = job.total;
+  cycle.value = job.total - job.ms;
+  const batch = body.querySelector('.workshop-batch-progress');
+  if (batch) {
+    batch.max = job.cycles;
+    batch.value = job.complete + cycle.value / cycle.max;
+  }
+  const units = RECIPES[job.id].output.count || 1;
+  const text = `${job.complete * units} / ${job.quantity} produced`;
+  const status = body.querySelector('.workshop-production-status');
+  if (status.textContent !== text) status.textContent = text;
+}
+
 export function renderWorkshop(ui){
   if(!ui.sheet)return;
   const root=ui.workshopBody;
   const searchFocused = root.querySelector('.recipe-search') === document.activeElement;
   if (root.contains(ui.tipFor)) ui.tooltip.hidden = true;
   root.replaceChildren();
+  ui.workshopPanel.classList.toggle('producing', !!ui.production);
+  if (ui.production && Object.hasOwn(RECIPES, ui.production.id)) {
+    const recipe = RECIPES[ui.production.id];
+    const status = h('p', 'workshop-production-status');
+    status.setAttribute('role', 'status');
+    const cycle = h('progress', 'workshop-cycle-progress');
+    cycle.setAttribute('aria-label', 'Current production cycle');
+    root.append(h('h3', null, recipeOutput(recipe).name), status, cycle);
+    if (ui.production.cycles > 1) {
+      const batch = h('progress', 'workshop-batch-progress');
+      batch.setAttribute('aria-label', 'Overall production progress');
+      root.append(batch);
+    }
+    root.append(btn('Cancel production', () => ui.a.cancelProduction()));
+    updateProduction(ui);
+    return;
+  }
   const tabs=h('div','workshop-tabs');
   for(const [id,name] of [['planner','Build Planner'],['fabrication','Workshop']]){
     const b=btn(name,()=>{ui.workshopTab=id;renderWorkshop(ui);},ui.workshopTab===id?'active':'');

@@ -273,6 +273,7 @@ export function makeListeningStone() {
   let medallionAngle = null;
   return {
     group,
+    worldLight: lamp,
     height: 7.0,
     radius: 1.0,
     hover: 0,

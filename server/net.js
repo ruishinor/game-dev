@@ -4,8 +4,10 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, craftRecipe, cancelInscription } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
+import { disposeItem } from './sim/disposal.js';
+import { beginProduction, stopProduction } from './sim/production.js';
 import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
@@ -380,7 +382,12 @@ export class NetServer {
         reply(leaveParty(game, p));
         break;
       case 'craft':
-        reply(craftRecipe(game,p,msg.recipe,msg.rev));
+        if (msg.quantity === undefined) { reply({ ok: false, reason: 'Reload the page to use the updated Workshop.' }); break; }
+        if (typeof msg.recipe !== 'string' || msg.recipe.length > 80 || !isId(msg.quantity) || !isId(msg.rev)) return this.strike(conn);
+        reply(beginProduction(game,p,msg.recipe,msg.quantity,msg.rev));
+        break;
+      case 'production_cancel':
+        stopProduction(game, p);
         break;
       case 'use_utility':
         if(typeof msg.item!=='string'||msg.item.length>80||typeof msg.weapon!=='string'||msg.weapon.length>80||!isId(msg.rev))return this.strike(conn);
@@ -391,6 +398,11 @@ export class NetServer {
       case 'item_seen':
         if (typeof msg.item !== 'string' || msg.item.length > 80 || !isId(msg.rev)) return this.strike(conn);
         markItemSeen(game, p, msg.item, msg.rev);
+        break;
+      case 'item_dispose':
+        if (typeof msg.item !== 'string' || msg.item.length > 80 || !isId(msg.rev) ||
+          (msg.action !== 'destroy' && msg.action !== 'salvage')) return this.strike(conn);
+        reply(disposeItem(game, p, msg));
         break;
       case 'unequip':
         reply(unequipSlot(game, p, msg.slot));

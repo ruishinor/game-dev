@@ -82,8 +82,7 @@ export function itemTooltip(sheet, id, { owned, required } = {}) {
   if (sheet && item) out.push(...requirements(sheet, id));
   return out;
 }
-function bindItem(ui,el,id) {
-  bindSeen(ui,el,id);
+function bindItemMenu(ui,el,id) {
   el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();ui.openItemContext(id,e.clientX,e.clientY,el);});
   el.addEventListener('keydown',e=>{
     if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){
@@ -91,6 +90,10 @@ function bindItem(ui,el,id) {
       ui.openItemContext(id,r.left,r.bottom,el);
     }
   });
+}
+function bindItem(ui,el,id) {
+  bindSeen(ui,el,id);
+  bindItemMenu(ui,el,id);
   el.draggable=true;
   el.addEventListener('dragstart',e=>{
     if(ui.buildLock||!ui.sheet?.inventory.includes(id)){e.preventDefault();return;}
@@ -321,6 +324,7 @@ export function renderInventory(ui) {
       btn.type='button';if(kind==='material')btn.dataset.material=id;else btn.dataset.goods=id;
       btn.append(itemArt(id),h('span','stack-quantity',String(quantity)));
       bindSeen(ui,btn,id);
+      if(kind==='goods')bindItemMenu(ui,btn,id);
       btn.title=material.name+' × '+quantity;btn.setAttribute('aria-label',material.name+' × '+quantity);
       btn.addEventListener('click',()=>ui.toggleCodex(true,id));
       ui.hover(btn,()=>itemTooltip(s,id,{owned:quantity}));

@@ -102,6 +102,8 @@ test('http: serves the client, blocks traversal and unknown paths', async () => 
     assert.equal(publicContent.status, 200);
     assert.doesNotMatch(await publicContent.text(), /(?:\bloot:\s*\[|SENTINEL_GADGET_DROPS)/);
     assert.equal((await fetch(base + '/server/sim/loot-tables.js')).status, 404);
+    assert.equal((await fetch(base + '/server/sim/disposal.js')).status, 404);
+    assert.equal((await fetch(base + '/server/sim/production.js')).status, 404);
     assert.equal((await fetch(base + '/shared/..%2fserver/sim/loot-tables.js')).status, 404);
     const publicGadgets=await (await fetch(base + '/shared/gadgets.js')).text();
     assert.doesNotMatch(publicGadgets,/SENTINEL_GADGET_DROPS/);
@@ -632,8 +634,11 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
     p.x=0;p.z=8;
-    a.send({t:'craft',recipe:'matrix',owner:999,output:'wardstone_shard'});
-    await a.until(()=>a.sheet?.materials?.culture_matrix===1,3000,'workshop output');
+    await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
+    a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
+    await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');
+    assert.equal(a.sheet.materials.culture_matrix, undefined);
+    await a.until(()=>a.sheet?.materials?.culture_matrix===1,4000,'workshop output');
     assert.deepEqual(a.sheet.materials,{mire_fibre:1,culture_matrix:1});
     assert.ok(!a.sheet.inventory.includes('wardstone_shard'));
     p.x = 20;

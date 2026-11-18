@@ -20,6 +20,7 @@ import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 import { inventoryCounts, trackAcquisitions } from './inventory-seen.js';
+import { productionState, stopProduction, tickProduction } from './production.js';
 import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -138,6 +139,7 @@ export class Game {
     if (!p) return;
     this.syncChar(p);
     cancelInscription(this, p);
+    stopProduction(this, p);
     forgetLoot(this,p);
     removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
@@ -301,7 +303,10 @@ export class Game {
     tickRift(this);
     for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
-    for (const p of this.players.values()) tickInscription(this, p);
+    for (const p of this.players.values()) {
+      if (p.inscription) tickInscription(this, p);
+      if (p.production) tickProduction(this, p);
+    }
   }
 
   // --- snapshots ---------------------------------------------------------
@@ -392,6 +397,7 @@ export class Game {
       party: partyState(this, p),
       companions: companionRoster(this, p),
       inscription: inscriptionState(this, p),
+      production: productionState(this, p),
     };
     if(p.char.equipped.implant==='brine_rescue_lattice')y.rescueReady=!p.rescueSpent;
     if (p.brineTrial) y.brineTrial = { ms: Math.max(0,p.brineTrial.until-this.time), read:p.brineTrial.read };

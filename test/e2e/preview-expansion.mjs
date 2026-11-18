@@ -6,7 +6,7 @@ import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 
-const server = await startServer({ port: 0, dataFile: null });
+const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
 let browser;
 try {
   fs.mkdirSync('preview-evidence', { recursive: true });
