@@ -177,6 +177,7 @@ try {
     return s.sheet.brineStage===3 || !s.you.brineTrial?.ms;
   });
   assert.equal(p.char.brineStage,3,'Second reading must complete commissioning before the live test ends');
+  await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
   await page.locator('.field-record').waitFor({state:'visible'});
   assert.match(await page.locator('.field-record').innerText(),/SHIFT LEDGER 07/);
