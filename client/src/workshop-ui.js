@@ -216,7 +216,7 @@ function fabrication(ui,body){
   const knowledge = missingRecipeKnowledge(s, recipe);
   const reason=ui.buildLock?'Unavailable during combat or defeat.':knowledge || (!siteOk?'Approach '+(recipe.site?names[recipe.site]:'the Sanctum or commissioned '+recipe.discipline+' station')+'.':!preview.ok?preview.reason:'');
   if(reason)detail.append(h('p','why',reason));
-  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':'Fabricate',()=>ui.a.craft(id,quantity,s.inventoryRev),'primary');
+  const execute=btn(recipe.kind==='restore'?'Restore':recipe.kind==='upgrade'?'Fabricate variant':recipe.kind==='fusion'?'Fuse permanently':recipe.kind==='assembly'?'Assemble':'Fabricate',()=>ui.a.craft(id,quantity,s.inventoryRev),'primary');
   execute.disabled=!!reason;execute.dataset.craft=id;
   detail.append(execute);
   const catalogue = h('div', 'recipe-catalogue');

@@ -47,6 +47,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await page.waitForFunction(()=>window.__attune.state().you.x>200);
  assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
+ assert.ok(await page.evaluate(()=>window.__attune.state().ents.filter(e=>e.c==='rift_entry'||e.c==='rift_return').every(e=>e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
  await page.screenshot({path:'rift-evidence/04-annex.png'});
  await page.locator('#view').focus();await page.keyboard.press('KeyF');

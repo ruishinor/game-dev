@@ -852,15 +852,20 @@ function makeKestrelRecorder(){
   return {group,height:2.0,radius:0.8,hover:0,update(){},dispose(){for(const m of [dark,shell,brass,glass])m.dispose();}};
 }
 
-function buildPhaseGate(returning){
+export function buildPhaseGate(returning,assets){
  const group=new THREE.Group();group.name=returning?'rift:return-gate':'rift:entry-gate';
  const frame=std(0x475b63,{metal:.65}),light=lit(returning?0x83d5af:0x9cbce5);
- for(const x of [-.64,.64])group.add(part(BOX,frame,.24,2.6,.24,x,1.3,0),part(BOX,light,.065,2.3,.06,x,1.25,-.15));
- group.add(part(BOX,frame,1.55,.24,.34,0,2.6,0));
+ const donor=assets?.instance('sanctum','Door_Frame_Square');
+ let fitted=false;
+ if(donor){const box=new THREE.Box3().setFromObject(donor),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+  if([size.x,size.y,size.z].every(x=>Number.isFinite(x)&&x>0)){const sx=1.55/size.x,sy=2.72/size.y,sz=.34/size.z;
+   const mount=new THREE.Group();mount.scale.set(sx,sy,sz);donor.position.sub(new THREE.Vector3(center.x,box.min.y,center.z));mount.add(donor);mount.name='rift:licensed-frame';group.add(mount);fitted=true;}}
+ if(!fitted){for(const x of [-.64,.64])group.add(part(BOX,frame,.24,2.6,.24,x,1.3,0));group.add(part(BOX,frame,1.55,.24,.34,0,2.6,0));}
+ for(const x of [-.64,.64])group.add(part(BOX,light,.065,2.3,.06,x,1.25,-.15));
  group.add(part(BOX,light,1.1,.055,.08,0,2.46,-.18));
  const material=new THREE.MeshBasicMaterial({color:returning?0x58ca9f:0x778ddb,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
  const plane=new THREE.PlaneGeometry(1.05,2.2),membrane=new THREE.Mesh(plane,material);membrane.position.y=1.24;group.add(membrane);
- return {group,height:2.8,radius:.72,hover:0,update(){},dispose(){frame.dispose();light.dispose();plane.dispose();material.dispose();}};
+ return {kind:fitted?'glb':'procedural',group,height:2.8,radius:.72,hover:0,update(){},dispose(){frame.dispose();light.dispose();plane.dispose();material.dispose();}};
 }
 
 export const MODEL_FACTORIES = {

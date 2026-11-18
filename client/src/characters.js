@@ -24,7 +24,7 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -215,6 +215,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     fireWeapon(id,target){return weaponCarry.fire(id,target);},
     weaponOrigin(){return weaponCarry.muzzle();},
+    inspectWeaponPose(){return weaponCarry.inspect();},
     handOrigin(){return weaponCarry.hand();},
     update(dt, st) {
       torsoLayers.apply(st.cv,st.sv);
@@ -547,7 +548,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_entry'||meta.c==='rift_return') model=buildPhaseGate(meta.c==='rift_return',assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

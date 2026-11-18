@@ -37,7 +37,7 @@ export function shotProfile(id){
  return id==='longpoint'?{color:0x76c6ed,width:.045,life:.17,heavy:true}:id==='dense'?{color:0xe5a45b,width:.055,life:.15,heavy:false}:id==='tuned'?{color:0x85d7d2,width:.031,life:.12,heavy:false}:{color:0xdaa56c,width:.027,life:.10,heavy:false};
 }
 export function createWeaponCarry(T,assets,inst,holstered=false){
- const mounts=new Map(),saved=new Map();let active=null,age=Infinity,aim=null;
+ const mounts=new Map(),saved=new Map();let active=null,age=Infinity,aim=null,lastShot=null;
  const V=()=>new T.Vector3(),Q=()=>new T.Quaternion();
  const find=n=>inst.getObjectByName(n);
  const arms=['r','l'].map(side=>({upper:find('upperarm_'+side),lower:find('lowerarm_'+side),hand:find('hand_'+side)}));
@@ -76,7 +76,7 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
  function apply(id){
   const next=Object.hasOwn(WEAPON_MODELS,id)?mounts.get(id):null;
   if((next??null)===active)return;
-  restorePose();active?.anchor.removeFromParent();active=next??null;age=Infinity;aim=null;if(active)bone.add(active.anchor);
+  restorePose();active?.anchor.removeFromParent();active=next??null;age=Infinity;aim=null;lastShot=null;if(active)bone.add(active.anchor);
  }
  function pose(target){
   if(!active||holstered||!target||!arms[0].upper||!arms[0].lower||!arms[0].hand)return false;
@@ -101,18 +101,24 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
   active.anchor.position.set(0,0,0);
   active.anchor.quaternion.copy(orientation).premultiply(right.hand.getWorldQuaternion(Q()).invert());
   active.anchor.updateWorldMatrix(true,true);
+  let supportError=null;
   if(heavy&&left.hand&&left.upper&&left.lower){
    const support=active.supportPoint.getWorldPosition(V());
    const lw=solveArm(T,left.upper,left.lower,left.hand,support,side.clone().negate().add(new T.Vector3(0,-.85,0)));
    const finger=left.hand.children.find(b=>b.isBone&&/^(index|middle)_/.test(b.name));
-   if(lw&&finger)aimBone(T,left.hand,finger,lw.clone().addScaledVector(axis,.10));
+   if(lw){supportError=lw.distanceTo(support);if(finger)aimBone(T,left.hand,finger,lw.clone().addScaledVector(axis,.10));}
   }
+  const muzzle=active.muzzlePoint.getWorldPosition(V());
+  const grip=active.anchor.getWorldPosition(V());
+  const forwardDot=muzzle.clone().sub(grip).normalize().dot(f);
+  if(age===0)lastShot={id:active.id,forwardDot,supportError,recoil:kick,grip:grip.toArray(),muzzle:muzzle.toArray()};
   return true;
  }
  return {
   apply,restorePose,
-  fire(id,target){apply(id);if(!active||holstered)return false;age=0;aim=target.clone();pose(aim);return true;},
-  update(dt,st,stepped){age+=dt;if(st.dead||st.air||age>.52){if(saved.size)restorePose();return;}if(stepped&&aim)pose(st.aimAt??aim);},
+  fire(id,target){apply(id);if(!active||holstered)return false;age=0;aim=target.clone();return pose(aim);},
+  update(dt,st,stepped){age+=dt;if(st.dead||st.air||age>(st.combat&&st.aimAt?2.15:.52)){if(saved.size)restorePose();return;}if(stepped&&aim)pose(st.aimAt??aim);},
+  inspect(){return lastShot;},
   muzzle(){return active&&!holstered?active.muzzlePoint.getWorldPosition(V()):null;},
   hand(){return arms[0].hand?.getWorldPosition(V())??null;},
   dispose(){restorePose();active?.anchor.removeFromParent();active=null;mounts.clear();}
