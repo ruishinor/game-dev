@@ -154,6 +154,13 @@ try {
   await moveTo(38,-36.5);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 1);
+  // Capture the ledger art before arming the 30-second live test. Slow
+  // software WebGL screenshot work is not part of the player's timed route.
+  await moveTo(47,-30);
+  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:shift-ledger'));
+  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
+  await capture('preview-evidence/06a-shift-ledger.png');
+  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
   await moveTo(49,-36.5);
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.ms > 0);
@@ -162,12 +169,14 @@ try {
   await page.keyboard.press('f');
   await page.waitForFunction(() => window.__attune.state().you.brineTrial?.read === 1);
   await moveTo(47,-30);
-  await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('brine:shift-ledger'));
-  await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.70,pitch:.40,dist:6,face:Math.PI}));
-  await capture('preview-evidence/06a-shift-ledger.png');
-  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.25,dist:7,face:Math.PI}));
+  assert.ok(p.brineTrial?.read===1 && p.brineTrial.until>server.game.time,
+    'Live test expired or was interrupted before the second reading');
   await page.keyboard.press('f');
-  await page.waitForFunction(() => window.__attune.state().sheet.brineStage === 3);
+  await page.waitForFunction(() => {
+    const s=window.__attune.state();
+    return s.sheet.brineStage===3 || !s.you.brineTrial?.ms;
+  });
+  assert.equal(p.char.brineStage,3,'Second reading must complete commissioning before the live test ends');
   assert.ok(p.char.inventory.includes('brine_phase_filter'));
   await page.locator('.field-record').waitFor({state:'visible'});
   assert.match(await page.locator('.field-record').innerText(),/SHIFT LEDGER 07/);
