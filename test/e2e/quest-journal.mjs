@@ -20,11 +20,16 @@ try{
  assert.equal(await journal.locator('[data-quest][data-status="completed"]').count(),2);
  assert.equal(await journal.locator('[data-quest][data-status="active"]').count(),2);
  assert.equal(await journal.getByRole('button',{name:/The Vault Warden/}).count(),0);
+ await journal.locator('[data-quest="directive:field_trial"]').click();
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Listed quest rewards/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/30 XP/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Sentinel Servo Harness/);
  await journal.getByRole('button',{name:'Completed',exact:true}).click();
  assert.equal(await journal.locator('[data-quest]').count(),2);
  await journal.getByRole('button',{name:'All',exact:true}).click();
  await journal.locator('[data-quest="brine:investigation"]').click();
  assert.match(await journal.locator('.quest-journal-detail').innerText(),/return to Archivist Venn/i);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/35 XP/);
  assert.equal(await journal.getByRole('button',{name:'Untrack quest'}).count(),1);
  await journal.getByRole('button',{name:'Untrack quest'}).click();
  assert.ok(await page.locator('.quest-tracker-group [data-tracked-id=""]').last().isHidden());
@@ -64,6 +69,8 @@ try{
  await page.keyboard.press('KeyL');await journal.waitFor({state:'visible'});
  await journal.locator('[data-quest="field:residual_traces"]').click();
  assert.match(await journal.locator('.quest-journal-detail').innerText(),/0 \/ 2 readings/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Research allotment/);
+ assert.doesNotMatch(await journal.locator('.quest-rewards').innerText(),/Culture matrix|Kinetic coupler/);
  await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  for(const e of server.game.enemies){e.state='dead';e.deadAt=server.game.time;e.respawnAt=Infinity;e.threat.clear();}
  await moveForQuest(sampler,0,1.7);
@@ -76,6 +83,8 @@ try{
  await page.keyboard.press('Escape');await page.locator('#view').focus();await page.keyboard.press('KeyL');
  await journal.locator('[data-quest="field:residual_traces"]').click();
  assert.match(await journal.locator('.quest-journal-detail').innerText(),/strata-first/i);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/55 XP/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Culture matrix/i);
  await page.screenshot({path:'quest-evidence/03-residual-traces.png'});
  await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');

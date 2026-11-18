@@ -14,6 +14,7 @@ export const SURVEY = {
     report: 'Venn recognizes the crossed-out name. The workers concealed someone from the company auditors. This was not an empty station when it closed. We will look for their shelter.',
   },
 };
+export const BRINE_REWARD_XP = Object.freeze({ investigation: 35, commissioning: 55 });
 export const surveyState = value => ['signal', 'ledger', 'signal_done', 'ledger_done'].includes(value) ? value : null;
 export function surveyHint(value) {
   const state = surveyState(value);
