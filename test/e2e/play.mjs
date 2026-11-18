@@ -15,6 +15,7 @@ import { startServer } from '../../server/index.js';
 import { dealDamage } from '../../server/sim/combat.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
+import { SLOTS } from '../../shared/content.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
 
@@ -736,11 +737,14 @@ try {
   const independentClose=await B.page.locator('.inventory-window').isHidden();
   check('9. inventory excludes installed devices, stays open across panels, and has independent opacity/close controls',carriedOnly&&buildStillOpen&&codexWithInventory&&inventoryAfterEscape&&changedOpacity&&independentClose);
   await B.page.keyboard.press('KeyB');
-  const planner=await B.page.locator('.workshop-window').isVisible()&&await B.page.locator('.planner-slot select').count()===3;
+  const plannerSlots = await B.page.locator('.planner-slot select').evaluateAll((selects) => selects.map((select) => select.dataset.slot));
+  const expectedSlots = [...new Set(['device', 'implant', 'glyph', ...SLOTS])].sort();
+  const planner = await B.page.locator('.workshop-window').isVisible()
+    && JSON.stringify(plannerSlots.sort()) === JSON.stringify(expectedSlots);
   await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
   await B.page.keyboard.press('Escape');
-  check('9. Build opens independent planning and fabrication interfaces',planner&&fabrication);
+  check('9. Build opens independent planning and fabrication interfaces', planner && fabrication, `planner slots ${plannerSlots.join(', ')}; matrix recipe ${fabrication}`);
   await B.page.keyboard.press('KeyC');
   await equipVia(B, 'Myelin Lattice');
   await until(B, () => window.__attune.state().sheet.equipped.implant === 'myelin_lattice', null, 4000, 'implant equipped');
