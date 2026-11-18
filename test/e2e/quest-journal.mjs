@@ -118,6 +118,8 @@ try{
  assert.match(await journal.locator('.quest-journal-detail').innerText(),/strata-first/i);
  assert.match(await journal.locator('.quest-rewards').innerText(),/55 XP/);
  assert.match(await journal.locator('.quest-rewards').innerText(),/Culture matrix/i);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/Received at completion/);
+ assert.match(await journal.locator('.quest-rewards').innerText(),/55 XP credited/);
  await page.screenshot({path:'quest-evidence/03-residual-traces.png'});
  await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');

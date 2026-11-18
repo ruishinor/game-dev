@@ -18,6 +18,7 @@ import { equipmentAttributes, attributeChanges } from '../../shared/attributes.j
 import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
+import {recordFieldReceipt} from './field-receipts.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -292,7 +293,9 @@ function operateBrine(game,p,obj) {
     return ok;
   }
   p.brineTrial=null;p.char.brineStage=3;
-  grantItem(game,p,route.reward);grantXp(game,p,BRINE_REWARD_XP.commissioning);game.markDirty(p);
+  const item=grantItem(game,p,route.reward)?route.reward:null;
+  const xp=grantXp(game,p,BRINE_REWARD_XP.commissioning);
+  recordFieldReceipt(p.char,'commissioning',{xp,item});game.markDirty(p);
   transmitAuthored(game,p,'brine.commissioned');
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
@@ -395,8 +398,8 @@ export function interact(game, p, objectId) {
       p.char.survey = current + '_done'; // mark complete before granting XP
       p.outbox.push({ e: 'say', id: obj.id, n: obj.name, m: SURVEY[current].report });
       game.message(p, 'gain', 'Evidence reported: ' + SURVEY[current].title + '. Return to Brineworks to commission the site.');
-      grantXp(game, p, BRINE_REWARD_XP.investigation);
-      game.markDirty(p);
+      const xp=grantXp(game, p, BRINE_REWARD_XP.investigation);
+      recordFieldReceipt(p.char,'investigation',{xp});game.markDirty(p);
       return { ok: true };
     }
     if (p.cls === 'surveyor' && p.char.quest.step === 0) {

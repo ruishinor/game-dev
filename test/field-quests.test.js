@@ -28,6 +28,8 @@ for(const first of ['strata','recorder'])test('Residual Traces '+first+' route i
  assert.ok(action(g,restored,venn).ok);assert.equal(restored.char.materials[reward],1);assert.equal(restored.char.xp,before+55);
  assert.equal(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').status,'completed');
  assert.deepEqual(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').rewards,['55 XP',listed]);
+ assert.deepEqual(questLog(g.sheet(restored)).find(q=>q.id==='field:residual_traces').received,['55 XP credited',listed]);
+ assert.deepEqual(g.sheet(other).fieldRewardReceipts,[]);
 });
 test('eligibility, combat, actual sample ownership and malformed state fail closed',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard')),venn=g.objects.find(o=>o.type==='archivist'),sampler=g.objects.find(o=>o.type==='sinter_sampler');

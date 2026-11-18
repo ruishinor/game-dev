@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { makeGame, makeChar, place } from './helpers.js';
 import { interact, tickBrineTrial, craftRecipe } from '../server/sim/progress.js';
 import { BRINE_ROUTES, BRINE_TRIAL, brineHint, FIELD_RECORDS } from '../shared/survey.js';
+import {ITEMS,MAX_LEVEL} from '../shared/content.js';
+import {questLog} from '../client/src/quest-log.js';
 import { resolveCollisions, PLAYER_RADIUS } from '../shared/world.js';
 const positions={brine_research:[38,-36.5],brine_engineering:[49,-36.5],survey_signal:[39,-30],survey_ledger:[47,-30]};
 function fixture(route){
@@ -30,6 +32,7 @@ for(const name of ['signal','ledger'])test(name+' commissioning: correct sequenc
   assert.ok(use(route.read[0]).ok);assert.ok(use(route.read[1]).ok);
   assert.equal(p.char.brineStage,3);assert.equal(p.char.xp,55);
   assert.deepEqual(p.char.inventory,[route.reward]);
+  assert.deepEqual(questLog(game.sheet(p)).find(q=>q.id==='brine:commissioning').received,['55 XP credited',ITEMS[route.reward].name,'Access to Brineworks services and eligible fabrication']);
   assert.ok(use(route.read[1]).ok);assert.equal(p.char.xp,55);
   p.res=10;p.hp=20;
   assert.ok(use('brine_research').ok);assert.equal(p.res,45);
@@ -68,4 +71,16 @@ test('records and commissioned workshops are meaningful, gated by station and pr
  assert.equal(conductor.char.materials.culture_matrix,1);
  conductor.char.brineStage=2;
  assert.equal(game.privateState(conductor).workshop,null);
+});
+
+test('Brineworks at cap reports actual XP and prior ownership without another grant',()=>{
+ const {game,p,use,route}=fixture('signal');
+ p.char.survey='signal';p.char.level=MAX_LEVEL;p.char.inventory=[route.reward];game.refreshStats(p);
+ const venn=game.objects.find(o=>o.type==='archivist');place(p,venn.x+2,venn.z);
+ assert.ok(interact(game,p,venn.id).ok);
+ assert.deepEqual(questLog(game.sheet(p)).find(q=>q.id==='brine:investigation').received,['0 XP credited','Access to Brineworks commissioning']);
+ for(const type of [route.first,route.second,...route.read])assert.ok(use(type).ok);
+ assert.deepEqual(questLog(game.sheet(p)).find(q=>q.id==='brine:commissioning').received,['0 XP credited','No additional item granted','Access to Brineworks services and eligible fabrication']);
+ assert.deepEqual(p.char.inventory,[route.reward]);
+ assert.ok(use(route.read[1]).ok);assert.equal(p.char.fieldReceipts.commissioning.xp,0);
 });

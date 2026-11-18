@@ -15,6 +15,7 @@ import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
+import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
@@ -81,6 +82,7 @@ function sanitize(raw) {
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
   };
   c.directiveReceipts=sanitizeDirectiveReceipts(raw.directiveReceipts,c.cls,c.quest.step);
+  c.fieldReceipts=sanitizeFieldReceipts(raw.fieldReceipts,c);
   c.condition=sanitizeCondition(raw.condition,c.inventory);
   c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   c.companionDismissed = raw.companionDismissed === true;
@@ -184,6 +186,7 @@ export class CharacterStore {
       attunements: [],
       quest: { step: 0, progress: 0 },
       directiveReceipts: [],
+      fieldReceipts: {},
       survey: null,
       traceState:null,
       riftCalibration:null,

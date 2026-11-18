@@ -17,6 +17,17 @@ function fieldEntries(sheet){
  return out;
 }
 const investigationRewards=()=>[BRINE_REWARD_XP.investigation+' XP','Access to Brineworks commissioning'];
+// A receipt is display data for an already completed entry, never a quest.
+function withFieldReceipts(entries,sheet){
+ const rows=Array.isArray(sheet.fieldRewardReceipts)?sheet.fieldRewardReceipts.slice(0,4):[];
+ const known=new Map();
+ for(const row of rows){
+  if(!row||typeof row.id!=='string'||known.has(row.id)||!Array.isArray(row.received)||row.received.length<1||row.received.length>4)continue;
+  if(!row.received.every(value=>typeof value==='string'&&value.length>0&&value.length<=160))continue;
+  known.set(row.id,row.received.slice());
+ }
+ return entries.map(q=>q.status==='completed'&&!q.id.startsWith('directive:')&&known.has(q.id)?{...q,received:known.get(q.id)}:q);
+}
 function directiveRewards(d,cls){
  const rewards=[],item=d.reward.classItem?.[cls];
  if(d.reward.xp)rewards.push(d.reward.xp+' XP');
@@ -41,7 +52,7 @@ export function questLog(sheet,trial=null){
  const survey=surveyState(sheet.survey);
  if(!survey){
   entries.push({id:'brine:investigation',title:'Brineworks field investigation',group:'Field investigation',status:'available',text:brineHint(null,0,null),progress:'',rewards:investigationRewards()});
-  return entries.concat(fieldEntries(sheet));
+  return withFieldReceipts(entries.concat(fieldEntries(sheet)),sheet);
  }
  const reported=survey.endsWith('_done'),key=reported?survey.slice(0,-5):survey;
  entries.push({id:'brine:investigation',title:SURVEY[key].title,group:'Field investigation',status:reported?'completed':'active',text:reported?'Evidence reported to Archivist Venn.':brineHint(survey,0,null),progress:'',rewards:investigationRewards()});
@@ -49,5 +60,5 @@ export function questLog(sheet,trial=null){
   const stage=brineStage(sheet.brineStage);
   entries.push({id:'brine:commissioning',title:'Commission Brineworks',group:'Field investigation',status:stage===3?'completed':'active',text:brineHint(survey,stage,trial),progress:stage+' / 3 stages',rewards:[BRINE_REWARD_XP.commissioning+' XP',ITEMS[BRINE_ROUTES[key].reward].name,'Access to Brineworks services and eligible fabrication']});
  }
- return entries.concat(fieldEntries(sheet));
+ return withFieldReceipts(entries.concat(fieldEntries(sheet)),sheet);
 }
