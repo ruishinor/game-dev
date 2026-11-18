@@ -19,7 +19,7 @@ import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
 import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
-import { ownedCompanionType } from './sim/companion.js';
+import { ownedCompanionTypes } from './sim/companion.js';
 import { recoverySamples } from '../shared/recovery.js';
 import { sanitizeRecoveryReadyAt } from './sim/recovery.js';
 
@@ -86,8 +86,16 @@ function sanitize(raw) {
   c.condition=sanitizeCondition(raw.condition,c.inventory);
   c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   c.companionDismissed = raw.companionDismissed === true;
-  c.defaultCompanion = typeof raw.defaultCompanion === 'string' && raw.defaultCompanion === ownedCompanionType(c)
-    ? raw.defaultCompanion : null;
+  if (raw.spindle?.commissioned === true) {
+    c.spindle = {
+      commissioned: true,
+      name: validCompanionName(raw.spindle.name) ? raw.spindle.name : COMPANIONS.spindle.name,
+      mode: raw.spindle.mode === 'stay' ? 'stay' : 'follow',
+    };
+  }
+  const owned = ownedCompanionTypes(c);
+  c.defaultCompanion = owned.includes(raw.defaultCompanion) ? raw.defaultCompanion : null;
+  c.activeCompanion = !c.companionDismissed && owned.includes(raw.activeCompanion) ? raw.activeCompanion : null;
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };

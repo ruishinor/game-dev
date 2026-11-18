@@ -83,3 +83,12 @@ Choices, measured rather than assumed: Meshopt (decoder ships with three.js,
 compresses animation too) over Draco; WebP over KTX2 (KTX2 would cut GPU
 memory but needs an external encoder and a transcoder larger than several of
 these bundles — revisit if texture memory becomes a problem).
+
+## Spindle rigid companion
+
+Spindle is original procedural art, built independently with
+`npm run assets:build -- spindle`. Its shipped GLB contains full-detail
+(33,796 triangles) and distance (9,494 triangles) scenes sharing material and
+tool geometry. The runtime keeps the articulated pose continuous across camera
+LOD changes. See [the production and validation record](art/SPINDLE.md) for
+provenance, integration, metrics and outstanding browser validation.

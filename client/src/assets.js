@@ -97,7 +97,10 @@ export class Assets {
         bundle.pieces.set('', gltf.scene);
         bundle.clips.set('', new Map(gltf.animations.map((c) => [c.name, c])));
       }
-      gltf.scene.traverse((o) => {
+      // Spindle's optional ordinary glTF distance scene shares bundle ownership.
+      const distance = id === 'spindle' ? gltf.scenes.find(scene => scene.name === 'Distance') : null;
+      if (distance && distance !== gltf.scene) bundle.pieces.set('distance', distance);
+      for (const scene of new Set([gltf.scene, ...(distance ? [distance] : [])])) scene.traverse((o) => {
         if (!o.isMesh) return;
         o.geometry.userData.shared = true; // owned by the bundle, never by an entity
         o.castShadow = true;

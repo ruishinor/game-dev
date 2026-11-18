@@ -185,6 +185,14 @@ export const validCompanionName = (name) =>
   typeof name === 'string' && /^[A-Za-z][A-Za-z '-]{1,16}[A-Za-z]$/.test(name) && !/[ '-]{2}/.test(name);
 
 export const COMPANIONS = {
+  spindle: {
+    name: 'Spindle',
+    modes: {
+      inspect: { name: 'Inspect equipment', desc: 'Approaches you, gauges your equipped weapon and reports its condition and maintenance needs. Use outside combat.' },
+      follow: { name: 'Follow', desc: 'Rolls behind you along clear ground.' },
+      stay: { name: 'Stay', desc: 'Parks here until recalled or you move beyond its tether.' },
+    },
+  },
   survey_strider:{
     name:'Survey Strider',followDist:2.8,speed:8,leash:28,radius:.9,
     modes:{
