@@ -181,6 +181,9 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .inscription-status { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 9px; width: min(270px, calc(100vw - 24px)); padding: 6px 8px; margin-bottom: 6px; background: var(--panel); border: 1px solid #b8a0e0; border-radius: 5px; font-size: 12px; }
 .inscription-status[hidden] { display: none; }
 .inscription-status progress { width: 100%; grid-column: 1 / -1; height: 5px; accent-color: #b8a0e0; }
+.production-status { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 9px; width: min(270px, calc(100vw - 24px)); padding: 6px 8px; margin-bottom: 6px; background: var(--panel); border: 1px solid var(--cyan); border-radius: 5px; font-size: 12px; }
+.production-status[hidden] { display: none; }
+.production-status progress { width: 100%; grid-column: 1 / -1; height: 5px; accent-color: var(--cyan); }
 .auto-status { min-width: 0; font-size: 10px; line-height: 1.25; color: var(--muted); }
 .slot { position: relative; width: 52px; height: 52px; padding: 0; border-radius: 8px; background: linear-gradient(#22363e, #14232a); border: 1px solid var(--edge); overflow: hidden; }
 .slot.small { width: 40px; height: 40px; border-radius: 7px; }
@@ -470,7 +473,16 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 @media(max-width:720px){.panel.npc-panel,#hud.inventory-open .panel.npc-panel{left:50%;bottom:clamp(132px,25vh,190px);transform:translateX(-50%);width:min(320px,calc(100vw - 20px));}}
 
 /* Build planning and deterministic fabrication share the journal visual language. */
-.panel.workshop-window{width:min(820px,94vw);padding:38px 14px 14px;border-radius:5px;background:linear-gradient(145deg,#101f28fa,#071016fa);border-color:#315761;}
+ .panel.workshop-window{width:min(820px,94vw);padding:38px 14px 14px;border-radius:5px;background:linear-gradient(145deg,rgba(16,31,40,var(--window-alpha,1)),rgba(7,16,22,var(--window-alpha,1)));border-color:#315761;}
+.panel.managed-window{display:flex;flex-direction:column;overflow:hidden;container-type:inline-size;}
+.panel.managed-window[data-window-custom="true"]:not(.producing){left:var(--window-x);top:var(--window-y);width:var(--window-w);height:var(--window-h);max-height:none;transform:none;right:auto;bottom:auto;}
+.window-controls{display:flex;flex-wrap:wrap;gap:5px;padding:0 0 8px;flex:none;}
+.window-controls button{font-size:11px;padding:4px 7px;}
+.window-controls button:first-child,.window-controls button:nth-child(2){touch-action:none;cursor:grab;}
+.window-controls button:disabled{cursor:not-allowed;}
+.managed-window .workshop-body{min-height:0;overflow:auto;}
+.managed-window.producing .window-controls{display:none;}
+@container (max-width:560px){.workshop-layout,.workshop-layout.fabrication{grid-template-columns:1fr;}.workshop-recipes{max-height:180px;}.recipe-parts{grid-template-columns:1fr;}.workshop-row span:last-child{white-space:normal;}}
 #hud .workshop-window.producing { width: min(362px, calc(100vw - 24px)); top: auto; left: auto; right: 14px; bottom: 108px; transform: none; padding-top: 35px; }
 .workshop-window.producing progress { display: block; width: 100%; height: 9px; margin-bottom: 8px; accent-color: var(--cyan); }
 .workshop-window.producing h3, .workshop-window.producing p { margin: 0 0 8px; }
@@ -593,7 +605,10 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .quest-rewards {margin-top:12px;padding-top:10px;border-top:1px solid var(--edge);}
 .quest-rewards h4 {color:var(--gold);font-size:13px;margin:0 0 7px;}
 .quest-rewards ul {margin:0;padding-left:18px;font-size:13px;line-height:1.5;}
-.quest-rewards p {margin:6px 0;}
+ .quest-rewards p {margin:6px 0;}
+.material-uses {display:grid;gap:6px;margin-top:12px;}
+.material-uses button,.ability-guide {white-space:normal;text-align:left;}
+.ability-guide {display:block;width:100%;margin:4px 0;}
 @media(max-width:560px){.quest-journal-layout{grid-template-columns:1fr;}.quest-journal-nav{max-height:30vh;}.quest-journal-detail{max-height:30vh;}}
 
 /* Local quest tracking; use the existing HUD card visual language. */

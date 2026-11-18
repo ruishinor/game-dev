@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Focused Workshop playtest
-        if: github.base_ref == 'preview/playtest-pr4-5-6' || github.base_ref == 'preview/playtest-brineworks' || github.ref_name == 'feat/workshop-character-interactions'
+        if: github.base_ref == 'main' || github.base_ref == 'preview/playtest-pr4-5-6' || github.base_ref == 'preview/playtest-brineworks' || github.ref_name == 'feat/workshop-character-interactions'
         run: npm run e2e -- --workshop
       - name: Integrated two-player playtest
         if: always() && github.ref_name != 'feat/workshop-character-interactions'
