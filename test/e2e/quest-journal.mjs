@@ -37,6 +37,16 @@ try{
  await page.keyboard.press('Escape');assert.ok(await journal.isHidden());
  await page.getByRole('button',{name:'Minimize quest tracker'}).click();assert.ok(await page.locator('.quest-tracker-cards').isHidden());
  await page.getByRole('button',{name:'Expand quest tracker'}).click();assert.ok(await page.locator('.quest-tracker-cards').isVisible());
+ // Completed Brineworks must not hide an actionable field service.
+ p.char.brineStage=3;p.x=38;p.z=-36.5;server.game.markDirty(p);
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.brineStage===3&&s.you.workshop==='brine_research';});
+ assert.ok(await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).isVisible());
+ await page.getByRole('button',{name:'Minimize quest tracker'}).click();
+ assert.ok(await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).isVisible());
+ await page.getByRole('button',{name:'Expand quest tracker'}).click();
+ await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
+ await page.locator('.workshop-window').waitFor({state:'visible'});
+ await page.locator('#view').focus();await page.keyboard.press('Escape');
  await page.screenshot({path:'quest-evidence/02-tracker.png'});
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');
  assert.ok(await page.getByRole('dialog',{name:'Codex',exact:true}).isVisible());
