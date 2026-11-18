@@ -17,7 +17,8 @@ export class QuestJournal{
  reset(){this.dismiss();this.entries=[];this.signature='';this.selected=null;this.filter='all';}
  show(sheet,trial=null){if(!sheet)return;this.el.hidden=false;this.sync(sheet,trial,true);}
  sync(sheet,trial=null,force=false){
-  const entries=questLog(sheet,trial),sig=JSON.stringify(entries);
+  // Cap guidance depends on level even when the quest projection is unchanged.
+  const entries=questLog(sheet,trial),sig=JSON.stringify([entries,sheet?.level>=MAX_LEVEL]);
   if(!force&&sig===this.signature)return;
   this.entries=entries;this.signature=sig;
   if(!this.el.hidden)this.draw();
