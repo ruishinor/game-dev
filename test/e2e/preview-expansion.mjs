@@ -67,6 +67,11 @@ try {
   await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
   assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
   await capture('preview-evidence/01b-relay-mast.png');
+  // The tower view is staged for art. A pursuing Relay guard must not carry
+  // combat from that fixture into the independent Brineworks service checks.
+  for (const guard of server.game.enemies) {
+    if (guard.type === 'sentinel' && guard.threat.has(p.id)) resetEnemy(server.game, guard);
+  }
   await moveTo(43, -27);
   await page.evaluate(() => window.__attune.view({yaw: 0, pitch: 0.25, dist: 12, face: Math.PI}));
   await page.waitForFunction(() => document.querySelector('.zone-label')?.textContent.includes('Brineworks Cut'));
