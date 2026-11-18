@@ -897,11 +897,18 @@ try {
   const soloTarget = skitters.find((s) => s.state !== 'dead') || skitters[0];
   if (soloTarget.state === 'dead') soloTarget.respawnAt = 0;
   await sleep(300);
-  teleport('Lumen', soloTarget.x + 4, soloTarget.z + 12);
-  await settle(B, soloTarget.x + 4, soloTarget.z + 12);
+  // Start on a walkable, unobstructed line to the skitter. The fixed offset
+  // could put a mushroom collider between the player and the encounter.
+  const soloSpot = clearCombatSpot(soloTarget, 4, 6);
+  teleport('Lumen', soloSpot.x, soloSpot.z);
+  if (!await settle(B, soloSpot.x, soloSpot.z)) throw new Error('Solo combat fixture did not reach the clear approach');
   const xpBefore = (await state(B)).sheet;
-  await B.page.keyboard.press('Tab');
-  for (let i = 0; i < 6 && (await state(B)).target !== soloTarget.id; i++) await B.page.keyboard.press('Tab');
+  let soloSelected = false;
+  for (let i = 0; i < 7 && !soloSelected; i++) {
+    await B.page.keyboard.press('Tab');
+    soloSelected = await until(B, (id) => window.__attune.state().target === id, soloTarget.id, 800, 'solo Skitter selected');
+  }
+  if (!soloSelected) throw new Error(`Solo combat fixture could not select expected Skitter ${soloTarget.id}`);
   await B.page.keyboard.down('Shift');
   await B.page.keyboard.press('Digit3');
   await B.page.keyboard.up('Shift');
@@ -910,8 +917,11 @@ try {
     if (i % 6 === 0) await B.page.keyboard.press('Digit3');
     await sleep(500);
   }
-  const after = (await state(B)).sheet;
-  check('13. the support class wins a fight alone (symbiote set to Harry)', soloTarget.state === 'dead' && (after.xp !== xpBefore.xp || after.level !== xpBefore.level), `${serverPlayer('Lumen') ? Math.ceil(serverPlayer('Lumen').hp) : '?'} health left`);
+  const earnedProgress = await until(B, (before) => {
+    const after = window.__attune.state().sheet;
+    return after.xp !== before.xp || after.level !== before.level;
+  }, { xp: xpBefore.xp, level: xpBefore.level }, 5000, 'solo reward reached the browser');
+  check('13. the support class wins a fight alone (symbiote set to Harry)', soloTarget.state === 'dead' && earnedProgress, `Skitter ${soloTarget.id} ${soloTarget.state}, ${Math.ceil(soloTarget.hp)} HP, ${Math.ceil(serverPlayer('Lumen')?.hp ?? 0)} player HP`);
   await shot(B, '07-solo-symbiotech.png');
 
   check('no script errors in either browser', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));

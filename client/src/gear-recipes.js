@@ -70,8 +70,11 @@ export function vanguardKinetic(b) {
     b.add(fore, prim.block(0.05, 0.02, 0.06, 0.006), amber, [s * 0.575, 1.495, -0.068]);
   }
   // helmet: brow ridge, cheek guards and a short antenna
-  b.add('Head', prim.block(0.17, 0.035, 0.05, 0.012), plate, [0, 1.735, 0.115]);
-  for (const s of [-1, 1]) b.add('Head', prim.block(0.03, 0.08, 0.09, 0.01), orange, [s * 0.09, 1.66, 0.06]);
+  b.add('Head', prim.block(0.17, 0.035, 0.05, 0.012), plate, [0, 1.735, 0.115], [-.10,0,0]);
+  for (const s of [-1, 1]) {
+    b.add('Head', prim.block(0.033, 0.094, 0.09, 0.008), orange, [s * 0.092, 1.665, 0.063], [0,s*-.22,s*.10]);
+    b.add('Head', prim.cyl(.017,.012,8), plate, [s*.112,1.69,.048], [0,0,PI/2]);
+  }
   b.add('Head', prim.cyl(0.004, 0.14, 6), plate, [0.07, 1.84, -0.06], [0, 0, 0.15]);
   b.add('Head', prim.block(0.014, 0.014, 0.014, 0.004), amber, [0.06, 1.91, -0.06]);
 }
@@ -112,6 +115,9 @@ export function conductorCulture(b) {
   b.add('Head', prim.block(0.06, 0.05, 0.015, 0.006), medic, [0, 1.78, 0.1]);
   b.add('Head', prim.cyl(0.016, 0.03, 10), M.steel(), [0.09, 1.76, 0.06], [PI / 2, 0, 0]);
   b.add('Head', prim.disc(0.012, 12), green, [0.09, 1.76, 0.0765]);
+  // Low-profile cranial receiver, retained on the head bone.
+  b.add('Head',prim.lathe([[0,-.012],[.022,-.012],[.028,-.004],[.026,.011],[.019,.016],[0,.016]],12),frame,[-.10,1.748,.015],[0,0,PI/2]);
+  b.add('Head',prim.cyl(.017,.018,10),M.steel(),[-.119,1.748,.015],[0,0,PI/2]);
 }
 
 // --- Aegis Keeper: resonance apparatus ------------------------------------------------
@@ -148,6 +154,11 @@ export function keeperResonance(b) {
   // circlet with forward sensor
   b.add('Head', prim.torus(0.098, 0.008, 28, PI * 1.3), M.chrome(), [0, 1.73, 0.0], [PI / 2, 0, -PI * 0.15]);
   b.add('Head', prim.block(0.03, 0.012, 0.012, 0.003), cyan, [0, 1.735, 0.1]);
+  // Resonance circlet has two visible, restrained contact housings.
+  for(const s of [-1,1]){
+    b.add('Head',prim.lathe([[0,-.006],[.016,-.006],[.022,0],[.020,.011],[.013,.015],[0,.015]],12),M.chrome(),[s*.098,1.73,-.015],[0,0,PI/2]);
+    b.add('Head',prim.cyl(.008,.007,8),cyan,[s*.117,1.73,-.015],[0,0,PI/2]);
+  }
 }
 
 // --- Brine Surveyor: field power rig ------------------------------------------------
@@ -180,8 +191,9 @@ export function surveyorField(b) {
   b.add('lowerarm_l', prim.cyl(0.006, 0.12, 6), M.steel(), [0.66, 1.52, -0.11], [0, 0, -0.9]);
   // goggles: lens barrels over the existing visor
   for (const s of [-1, 1]) {
-    b.add('Head', prim.cyl(0.026, 0.04, 14), M.darkSteel(), [s * 0.035, 1.7, 0.135], [PI / 2, 0, 0]);
-    b.add('Head', prim.disc(0.02, 14), cyan, [s * 0.035, 1.7, 0.1555]);
+    b.add('Head', prim.lathe([[0,-.018],[.025,-.018],[.031,-.010],[.031,.011],[.027,.021],[.021,.025],[0,.025]],16), M.darkSteel(), [s*.035,1.7,.135], [PI/2,0,0]);
+    b.add('Head', prim.disc(.019,16),cyan,[s*.035,1.7,.161]);
+    b.add('Head', prim.torus(.022,.004,14),M.darkSteel(),[s*.035,1.7,.163]);
   }
   // sample canisters on the belt
   for (let i = 0; i < 3; i++) b.add('pelvis', prim.cyl(0.018, 0.08, 10), M.glass(), [-0.17 + i * 0.04, 0.96, 0.1]);

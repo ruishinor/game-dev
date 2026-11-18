@@ -57,8 +57,9 @@ function unpackZip(zipFile, destDir) {
   return count;
 }
 
-export async function fetchAll({ log = console.log } = {}) {
+export async function fetchAll({ log = console.log, sourceIds = null } = {}) {
   for (const f of ledgerFiles()) {
+    if (sourceIds && !sourceIds.has(f.id)) continue;
     const dir = path.join(CACHE, f.id);
     const dest = path.join(dir, f.file);
     fs.mkdirSync(dir, { recursive: true });

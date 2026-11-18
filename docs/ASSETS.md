@@ -1,13 +1,13 @@
 # Assets: provenance and pipeline
 
-Every third-party file the game uses is listed in
+Every third-party visual source the asset build uses is listed in
 [`assets/sources.json`](../assets/sources.json) with its creator, licence,
 source URL, size, SHA-256 and acquisition date. Nothing is used that is not in
 that ledger, and the build refuses an asset that names an unknown source.
 
 ## Credits
 
-All third-party sources are **CC0 1.0 (public domain dedication)**: no
+All entries in the visual ledger are **CC0 1.0 (public domain dedication)**: no
 attribution is required and redistribution, including of modified versions, is
 unrestricted. They are credited here by choice.
 
@@ -29,7 +29,7 @@ cut from the body mesh, the outfit textures in `client/assets/tex/look_*.webp`
 illustrations were used only to match proportions, colours and kit; they are
 not in this repository and were not sent to any external service.
 
-Modified status: every committed file under `client/assets/` is a derivative
+Modified status: every visual file in `client/assets/manifest.json` is a derivative
 (merged, re-textured, resized, compressed). Originals are never committed; they
 live in `.asset-cache/` (git-ignored) and are re-downloadable from the ledger.
 
@@ -46,7 +46,7 @@ npm run assets:build     # recipe -> client/assets/*.glb, tex/*.webp, manifest.j
 npm run assets:preview   # contact sheets through the real game loader -> docs/evidence/assets/
 ```
 
-`assets:build -- <id> …` rebuilds only the named outputs. The built files are
+`assets:build -- <id> …` validates the output IDs and fetches only the relevant sources. The Sanctum threshold and Sporefield colonies use pieces already in the committed kits. Audio has a separate [voice credit record](art/VOICE-CREDITS.md). The built files are
 committed, so playing the game never needs these commands.
 
 - **`assets/recipe.mjs`** — what to build: humanoid bodies and clips, clothing
