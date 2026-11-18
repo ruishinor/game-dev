@@ -41,7 +41,17 @@ const DISCHARGE = [
     v.burst({ at: core, count: 1, exact: true, cell: CELL.flare, color: 0xffe5bc, color2: 0xf39846, size: 1.18, sizeEnd: 0.48, life: 0.18, speed: 0, alpha: 0.65 });
     v.burst({ at: core, shape: 'ring', radius: 0.22, radial: true, up: 0.12, count: 23, cell: CELL.streak, color: 0xffd697, color2: 0xe66e2e, size: [0.045, 0.1], sizeEnd: 0.018, life: [0.25, 0.48], speed: [6, 11], stretch: 0.06, drag: 2, gravity: 5 });
   } },
-  { at: 0.045, emit({ v, feet, radius }) {
+  { at: 0.045, emit({ v, core, feet, radius }) {
+    // Capacitor discharge earths itself: short forked arcs from the core to the ground ring.
+    const f = typeof feet === 'function' ? feet() : feet;
+    const c = typeof core === 'function' ? core() : core;
+    if (f && c) for (let i = 0; i < 4; i++) {
+      // Short, close arcs: they earth beside the body, not across the whole radius.
+      const a = v.rand() * Math.PI * 2;
+      const r = Math.min(radius * 0.4, 1.8) * (0.55 + v.rand() * 0.45);
+      const cx = c.x ?? c[0], cy = c.y ?? c[1], cz = c.z ?? c[2];
+      v.lightning({ from: [cx, cy, cz], to: [f[0] + Math.cos(a) * r, f[1] + 0.05, f[2] + Math.sin(a) * r], color: 0xfff0d0, color2: 0xff9a3c, width: 0.04, life: 0.16 + i * 0.04, jag: 0.22, rate: 0.045, branches: 1 });
+    }
     v.shock({ at: feet, radius, color: 0xffaa54, life: 0.53, width: 0.055, filaments: true, alpha: 0.88 });
     v.shell({ at: feet, radius, height: 0.83, color: 0xd87839, kind: 'wall', life: 0.42, from: 0.13, growPart: 0.72, streak: 0.8, alpha: 0.38 });
   } },
@@ -97,11 +107,11 @@ export class CombatVfx {
   }
 
   dust(at, radius, count = 10, color = 0x8a7a6a) {
-    this.v.burst({ at, shape: 'ring', radius, ground: true, radial: true, up: 0.25, count, blend: 'alpha', cell: [CELL.smoke, CELL.dust], color, color2: 0x5a5048, size: [0.6, 1.1], sizeEnd: [1.6, 2.4], life: [0.9, 1.5], speed: [0.6, 1.6], drag: 1.5, alpha: 0.45, spin: [-0.6, 0.6] });
+    this.v.burst({ at, shape: 'ring', radius, ground: true, radial: true, up: 0.25, count, blend: 'alpha', cell: [CELL.smoke, CELL.dust], color, color2: 0x5a5048, size: [0.6, 1.1], sizeEnd: [1.6, 2.4], life: [0.9, 1.5], speed: [0.6, 1.6], drag: 1.5, alpha: 0.45, spin: [-0.6, 0.6], turb: 0.45, turbScale: 0.9, soft: 0.5 });
   }
 
   rising(at, radius, cell, color, count = 12, height = 1.8) {
-    this.v.burst({ at, shape: 'disc', radius, ground: true, lift: 0.15, count, cell, color: hot(color, 0.5), color2: color, size: [0.1, 0.2], sizeEnd: 0.03, life: [0.8, 1.4], speed: [height * 0.6, height], dir: [0, 1, 0], spread: 0.25, drag: 0.8, swirl: 1.4 });
+    this.v.burst({ at, shape: 'disc', radius, ground: true, lift: 0.15, count, cell, color: hot(color, 0.5), color2: color, size: [0.1, 0.2], sizeEnd: 0.03, life: [0.8, 1.4], speed: [height * 0.6, height], dir: [0, 1, 0], spread: 0.25, drag: 0.8, swirl: 1.4, turb: 0.6, turbScale: 2.2 });
   }
 
   // --- event recipes -----------------------------------------------------------
@@ -155,6 +165,14 @@ export class CombatVfx {
     const at = [0, 0, 0];
     const prev = [a.x, a.y, a.z];
     v.burst({ at: a, count: 3, cell: CELL.glow, color: hot(c, 0.5), color2: c, size: [0.25, 0.4], sizeEnd: 0.05, life: 0.18, speed: [0.3, 1] });
+    // A continuous trail gives each discipline a readable path shape:
+    // kinetic/hostile slugs leave hot streaks, symbiote spores a beaded
+    // organic filament, resonance a double ribbon, survey a thin trace.
+    const follow = () => at;
+    const style = cls === 'symbiotech' ? 2 : 0;
+    const width = cls === 'surveyor' ? 0.035 : cls === 'symbiotech' ? 0.07 : cls === 'keeper' ? 0.06 : 0.08;
+    v.trail({ follow, life, length: cls === 'symbiotech' ? 0.22 : 0.12, fade: 0.14, width, color: hot(c, 0.55), color2: c, style, alpha: 0.85 });
+    if (cls === 'keeper') v.trail({ follow: () => [at[0], at[1] + Math.sin(at[0] * 9 + at[2] * 9) * 0.06, at[2]], life, length: 0.18, fade: 0.18, width: 0.03, color: 0xd8ecff, color2: PALETTE.resonance, style: 0, alpha: 0.6 });
     v.emitter({
       life,
       tick: (k) => {
@@ -165,7 +183,7 @@ export class CombatVfx {
         const vel = [(at[0] - prev[0]) * 20, (at[1] - prev[1]) * 20, (at[2] - prev[2]) * 20];
         v.burst({ at, count: 1, exact: true, cell: head, color: hot(c, 0.6), size: cls === 'surveyor' ? 0.32 : 0.45, life: 0.05, speed: 0 });
         if (cls === 'keeper' || cls === 'surveyor' || cls === 'hostile') v.burst({ at, count: 1, exact: true, cell: CELL.streak, color: hot(c, 0.3), size: 0.18, life: 0.07, speed: 0, dir: vel });
-        v.burst({ at, count: 3, cell: cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? [CELL.runeA, CELL.runeB, CELL.ember] : CELL.ember, color: hot(c, 0.3), color2: c, size: [0.05, 0.12], sizeEnd: 0.01, life: [0.2, 0.45], speed: [0.1, 0.6], drag: 2, gravity: cls === 'symbiotech' ? -0.5 : 0.5 });
+        v.burst({ at, count: 2, cell: cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? [CELL.runeA, CELL.runeB, CELL.ember] : CELL.ember, color: hot(c, 0.3), color2: c, size: [0.05, 0.12], sizeEnd: 0.01, life: [0.2, 0.45], speed: [0.1, 0.6], drag: 2, gravity: cls === 'symbiotech' ? -0.5 : 0.5, turb: cls === 'symbiotech' ? 0.8 : 0.3, turbScale: 3 });
         if (k >= 1 && onArrive) {
           const f = onArrive;
           onArrive = null;
@@ -216,6 +234,8 @@ export class CombatVfx {
     const v = this.v;
     if (ab === 'graviton_tether' && d) {
       v.beam({ from: s.chest, to: d.chest, color: PALETTE.graviton, width: 0.17, life: 0.7, jitter: 0.28, grow: 0.2, flow: -4 });
+      // The tether crackles: forked discharge along the pull, re-struck rapidly.
+      v.lightning({ from: () => s.chest, to: () => d.chest, color: 0xe2d4ff, color2: PALETTE.graviton, width: 0.05, life: 0.55, jag: 0.1, rate: 0.06, branches: 2 });
       v.beam({ from: s.chest, to: d.chest, color: 0xe6d8ff, width: 0.05, life: 0.5, jitter: 0.1, grow: 0.2 });
       v.burst({ at: d.chest, shape: 'sphere', radius: 1.6, count: 30, cell: [CELL.glow, CELL.ember], color: hot(PALETTE.graviton, 0.4), color2: PALETTE.graviton, size: [0.08, 0.18], sizeEnd: 0.02, life: [0.4, 0.7], speed: 0.2, attract: s.chest, pull: 6, stretch: 0.03 });
       v.flash({ at: d.chest, color: PALETTE.graviton, intensity: 9, life: 0.4 });

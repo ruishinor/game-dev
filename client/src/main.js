@@ -120,6 +120,19 @@ try {
   console.warn('Effect engine unavailable; using basic effects.', err);
 }
 motionPreference.addEventListener?.('change', () => { if (vfx) vfx.reducedMotion = motionPreference.matches; });
+// Player effect comfort settings (presentation only; hostile telegraphs are never reduced).
+function readFxPrefs() {
+  let level = 1, calm = false;
+  try {
+    level = Number(localStorage.getItem('attunement.fxIntensity') || 1);
+    calm = localStorage.getItem('attunement.calmFlashes') === '1';
+  } catch {}
+  return { level: [1, 0.6, 0.3].includes(level) ? level : 1, calm };
+}
+{
+  const p = readFxPrefs();
+  vfx?.setIntensity(p.level, p.calm);
+}
 const rich = () => !!cvfx && quality > 0;
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
@@ -340,6 +353,14 @@ const ui = new UI({
     const next = new URL(location.href);
     next.searchParams.set('q', preset);
     location.assign(next.toString());
+  },
+  fxPrefs: () => readFxPrefs(),
+  setFxPrefs: (level, calm) => {
+    try {
+      localStorage.setItem('attunement.fxIntensity', String(level));
+      localStorage.setItem('attunement.calmFlashes', calm ? '1' : '0');
+    } catch {}
+    vfx?.setIntensity(level, calm);
   },
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   inspectCompanion: (id, point) => {

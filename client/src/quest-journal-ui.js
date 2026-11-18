@@ -1,4 +1,5 @@
 import {questLog} from './quest-log.js';
+import {MAX_LEVEL} from '../../shared/content.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const button=(label,fn)=>{const el=h('button',null,label);el.type='button';el.addEventListener('click',fn);return el;};
 const labels={active:'Active',completed:'Completed',available:'Available'};
@@ -21,6 +22,16 @@ export class QuestJournal{
   this.entries=entries;this.signature=sig;
   if(!this.el.hidden)this.draw();
  }
+ drawRewards(details,q){
+  const rewards=h('section','quest-rewards');
+  rewards.append(h('h4',null,q.status==='completed'?'Listed quest rewards':'Quest rewards'));
+  if(q.rewards?.length){
+   const list=h('ul');for(const reward of q.rewards)list.append(h('li',null,reward));rewards.append(list);
+  }else rewards.append(h('p','muted','Reward details not recorded.'));
+  if(q.status==='completed')rewards.append(h('p','muted','Listed rewards, not a historical record of grants.'));
+  else if(this.ui.sheet?.level>=MAX_LEVEL&&q.rewards?.some(r=>/^\d+ XP$/.test(r)))rewards.append(h('p','muted','XP is not awarded at the current level cap.'));
+  details.append(rewards);
+ }
  draw(){
   const focused=this.el.contains(document.activeElement)?document.activeElement?.dataset.focus:null;
   this.el.replaceChildren();
@@ -42,7 +53,7 @@ export class QuestJournal{
   }
   if(!visible.length)nav.append(h('p','muted','No quests in this category.'));
   const details=h('section','quest-journal-detail'),q=visible.find(q=>q.id===this.selected);
-  if(q){details.append(h('div','kicker',q.group+' · '+labels[q.status]),h('h3',null,q.title),h('p',null,q.text));if(q.progress)details.append(h('div','quest-progress',q.progress));if(q.status!=='completed'){const tracker=this.ui.questTracker,tracked=tracker.has(q),b=button(tracked?'Untrack quest':'Track quest',()=>{tracker.toggle(q);this.draw();});b.dataset.focus='tracking';b.setAttribute('aria-pressed',String(tracked));b.disabled=!tracked&&!tracker.canAdd();details.append(b,h('p','muted',tracker.selected().length+' / 3 quests tracked'));}}
+  if(q){details.append(h('div','kicker',q.group+' · '+labels[q.status]),h('h3',null,q.title),h('p',null,q.text));if(q.progress)details.append(h('div','quest-progress',q.progress));this.drawRewards(details,q);if(q.status!=='completed'){const tracker=this.ui.questTracker,tracked=tracker.has(q),b=button(tracked?'Untrack quest':'Track quest',()=>{tracker.toggle(q);this.draw();});b.dataset.focus='tracking';b.setAttribute('aria-pressed',String(tracked));b.disabled=!tracked&&!tracker.canAdd();details.append(b,h('p','muted',tracker.selected().length+' / 3 quests tracked'));}}
   else details.append(h('p','muted','Select a quest to view its objectives.'));
   layout.append(nav,details);this.el.append(layout);
   if(focused)[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focused)?.focus({preventScroll:true});

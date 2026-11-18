@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createVfx, point, MAX_ITEMS, MAX_TIMELINES, CAPACITY } from '../client/src/vfx/engine.js';
+import { createVfx, point, MAX_ITEMS, MAX_TIMELINES, MAX_RIBBONS, CAPACITY } from '../client/src/vfx/engine.js';
 import { CombatVfx } from '../client/src/vfx/combat.js';
 import { CLASSES } from '../shared/content.js';
 
@@ -321,3 +321,85 @@ test('coverage: every effect kind the server emits and every enemy special has a
 
  test('field maintenance uses a bounded and expiring engineering effect',()=>{const {v}=make(),c=new CombatVfx(v),s=entity(1,0,0);
  assert.ok(c.area({e:'fx',k:'field_maintenance',s:1},s));v.update(.1);assert.ok(v.stats().items>0);run(v,2);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);v.dispose();});
+
+test('vfx: ribbon trails follow a moving point, fade after it stops and are pooled', () => {
+  const { v } = make();
+  let x = 0;
+  const it = v.trail({ follow: () => [x, 1, 0], length: 0.2, life: 1, color: 0xffaa00 });
+  assert.ok(it);
+  for (let i = 0; i < 12; i++) { x += 0.2; v.update(1 / 30); }
+  const ribbon = v.root.children.find((o) => o.name === 'vfx-ribbon' && o.visible);
+  assert.ok(ribbon, 'a visible ribbon while the trail is alive');
+  const pos = ribbon.geometry.getAttribute('position').array;
+  // The head of the ribbon is where the point is now; the tail lags behind it.
+  assert.ok(Math.abs(pos[pos.length - 3] - x) < 0.25, `head ${pos[pos.length - 3]} vs ${x}`);
+  assert.ok(pos[0] < x - 0.5, 'tail trails behind');
+  run(v, 2);
+  assert.equal(v.stats().items, 0, 'trail retires once faded');
+  assert.ok(!v.root.children.some((o) => o.name === 'vfx-ribbon' && o.visible));
+  // Requests beyond the pool recycle the oldest instead of growing.
+  for (let i = 0; i < MAX_RIBBONS + 10; i++) v.trail({ follow: [i, 1, 0], life: 1 });
+  assert.ok(v.stats().ribbons <= MAX_RIBBONS);
+  assert.equal(v.trail({ follow: [NaN, 0, 0] }), null);
+});
+
+test('vfx: lightning strikes between two points, re-strikes and leaves nothing behind', () => {
+  const { v } = make();
+  const it = v.lightning({ from: [0, 1, 0], to: [4, 1, 0], life: 0.3, branches: 2 });
+  assert.ok(it);
+  v.update(1 / 30);
+  const live = v.root.children.filter((o) => o.name === 'vfx-ribbon' && o.visible);
+  assert.equal(live.length, 3, 'main channel plus two branches at high quality');
+  const pos = live[0].geometry.getAttribute('position').array;
+  assert.deepEqual([pos[0], pos[1], pos[2]], [0, 1, 0]);
+  run(v, 0.6);
+  assert.equal(v.stats().items, 0);
+  assert.ok(!v.root.children.some((o) => o.name === 'vfx-ribbon' && o.visible));
+  assert.equal(v.lightning({ from: [0, 0, 0], to: null }), null);
+  // Reduced motion: no branching forks.
+  v.reducedMotion = true;
+  v.lightning({ from: [0, 1, 0], to: [4, 1, 0] });
+  v.update(1 / 30);
+  assert.equal(v.root.children.filter((o) => o.name === 'vfx-ribbon' && o.visible).length, 1);
+});
+
+test('vfx: turbulence moves particles without changing their count or escaping bounds', () => {
+  const { v } = make({ seed: 3 });
+  const n = v.burst({ at: [0, 2, 0], count: 40, exact: true, speed: 0, life: 2, turb: 1.5, turbScale: 2 });
+  assert.equal(n, 40);
+  run(v, 1);
+  const pool = v.root.children.find((o) => o.name === 'vfx-particles' && o.geometry.instanceCount > 0);
+  const p = pool.geometry.getAttribute('iPos').array;
+  let moved = 0, far = 0;
+  for (let i = 0; i < pool.geometry.instanceCount; i++) {
+    const d = Math.hypot(p[i * 3], p[i * 3 + 1] - 2, p[i * 3 + 2]);
+    if (d > 0.05) moved++;
+    if (d > 4) far++;
+  }
+  assert.ok(moved > 30, `turbulence displaced ${moved} of 40`);
+  assert.equal(far, 0, 'bounded drift');
+});
+
+test('vfx: intensity scales emission and flashes; calm mode caps flashes but keeps telegraphs', () => {
+  const full = make({ seed: 5 }).v;
+  const low = make({ seed: 5 }).v;
+  low.setIntensity(0.3, true);
+  const a = full.burst({ at: [0, 1, 0], count: 100 });
+  const b = low.burst({ at: [0, 1, 0], count: 100 });
+  assert.ok(b < a * 0.7, `${b} < ${a}`);
+  assert.equal(low.intensity, 0.3);
+  assert.equal(low.calmFlashes, true);
+  assert.ok(low.telegraph({ at: [0, 0, 0], radius: 3, life: 1 }), 'hostile telegraphs are never suppressed');
+  low.setIntensity(5);
+  assert.equal(low.intensity, 1);
+});
+
+test('vfx: reduced intensity dims ability layers but never hostile telegraphs', () => {
+  const { v } = make();
+  v.setIntensity(0.3);
+  const s = v.sigil({ at: [0, 0, 0], radius: 2, life: 2 });
+  const t = v.telegraph({ at: [3, 0, 0], radius: 3, ms: 2000 });
+  run(v, 0.5);
+  assert.ok(s.mesh.material.uniforms.alpha.value <= 0.3 + 1e-6, `sigil alpha ${s.mesh.material.uniforms.alpha.value}`);
+  assert.equal(t.mesh.material.uniforms.alpha.value, 1, 'telegraph stays at full strength');
+});
