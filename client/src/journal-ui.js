@@ -206,8 +206,6 @@ export function renderLoadout(ui,body,stats) {
     const blueprint=ui.a.portrait({k:'p',c:s.cls,a:s.look},'sketch');
     if(blueprint){const img=h('img');img.src=blueprint;img.alt='';sketch.append(img);}
     grid.append(sketch);
-    const rows=Math.max(...tab.slots.map(t=>t.row));
-    grid.style.setProperty('--slot-rows',rows);
     for(const slot of tab.slots){
       const id=slot.slot?s.equipped[slot.slot]:null;
       const state=!slot.slot?'reserved':id?'installed':'empty';
