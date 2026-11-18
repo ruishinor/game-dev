@@ -216,16 +216,16 @@ export function attachEmissive(materialName, file, factor) {
  * materials, drop unused data, downscale textures to WebP and compress
  * geometry and animation with Meshopt.
  */
-export async function optimise(doc, { maxTexture = 1024, simplifyRatio = 0, textureQuality = 82 } = {}) {
-  const steps = [dedup(), prune({ keepAttributes: false, keepLeaves: true })];
+export async function optimise(doc, { maxTexture = 1024, simplifyRatio = 0, textureQuality = 82, keepAttributes = false, quantizationVolume = 'mesh' } = {}) {
+  const steps = [dedup(), prune({ keepAttributes, keepLeaves: true })];
   if (simplifyRatio) steps.push(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: simplifyRatio, error: 0.002 }));
   steps.push(
     resample(),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [maxTexture, maxTexture], slots: /normal/i, quality: 90, effort: 5 }),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [maxTexture, maxTexture], slots: /^(?!.*normal)/i, quality: textureQuality, effort: 5 }),
     dedup(),
-    prune({ keepAttributes: false, keepLeaves: true }),
-    meshopt({ encoder: MeshoptEncoder, level: 'medium' })
+    prune({ keepAttributes, keepLeaves: true }),
+    meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizationVolume })
   );
   await doc.transform(...steps);
   return doc;

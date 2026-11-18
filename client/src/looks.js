@@ -111,10 +111,10 @@ function cultureTank(ctx) {
   // mannequin silhouette without hiding the eyes or adding fantasy trim.
   const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
   const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
-  ctx.attach('Head', place(mask, 0, 1.635, 0.143, -0.12));
+  ctx.attach('Head', place(mask, 0, 1.612, 0.152, -0.12));
   for (const side of [-1, 1]) {
     const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
-    ctx.attach('Head', place(port, side * 0.085, 1.632, 0.153, Math.PI / 2));
+    ctx.attach('Head', place(port, side * 0.082, 1.61, 0.158, Math.PI / 2));
   }
 }
 
@@ -188,6 +188,7 @@ export const LOOK_DEFS = {
     // Veyran: smooth, featureless, naturally crimson. The mannequin's joint
     // panels take a slightly deeper red so the body reads as one skin.
     parts: { body: { color: 0xffffff, roughness: 0.55, map: 'look_red_rucker_body' }, joints: { color: 0xa81719, roughness: 0.55 } },
+    faceless: true,
     shells: {
       shorts: { color: 0xffffff, roughness: 0.85, map: 'look_red_rucker_shorts' },
       shoes: { color: 0xb51a1a, roughness: 0.7 },

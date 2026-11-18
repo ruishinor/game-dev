@@ -1484,7 +1484,20 @@ function updateEntities(dt, t, now) {
     if (svfx && rich() && ent.placed && ent.inView && !ent.dead) svfx.sync(ent, row?.b, dt * vfxTime);
     else svfx?.remove(ent.id);
     if (ent.rigModel) animateRig(ent, t);
+    // Presentation only: where a character's eyes and head turn, and whether
+    // the face is close enough to animate in detail.
+    let lookAt = null;
+    const camD = camera.position.distanceTo(cullSphere.center);
+    if (ent.model.kind === 'glb' && ent.inView && camD < 16 && !ent.dead) {
+      const meP = S.ents.get(S.myId);
+      const tgt = ent.id === S.myId ? S.ents.get(S.target) : meP && Math.hypot(meP.pos.x - x, meP.pos.z - z) < 6 ? meP : null;
+      if (tgt && tgt !== ent && tgt.placed) lookAt = (ent.lookVec ||= new THREE.Vector3()).set(tgt.pos.x, tgt.pos.y + (tgt.model.height || 1.8) * 0.88, tgt.pos.z);
+      else if (ent.id === S.myId && camD < 3.2) lookAt = (ent.lookVec ||= new THREE.Vector3()).copy(camera.position);
+    }
     ent.model.update(dt, {
+      lookAt,
+      faceDetail: ent.inView && camD < 16,
+      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
       dead: ent.dead,
