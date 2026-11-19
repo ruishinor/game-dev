@@ -118,6 +118,13 @@ try{
  await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
+ await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
+ await page.getByRole('button',{name:'Separate into dual batons',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
+ assert.equal(p.char.electricalRodMode,'dual');
+ await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
+ await page.getByRole('button',{name:'Join into combat rod',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
  await inventory.getByRole('button',{name:'Close inventory'}).click();
  const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
