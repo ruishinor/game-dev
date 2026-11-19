@@ -1144,7 +1144,20 @@ try {
   }, (await state(B)).myId, 5000, 'A sees recovered B');
   const secondState = await state(B);
   check('6/11. second player respawns using own UI, keeps level and remains visible', secondCanRespawn && secondRecovered && secondSeenByAlly && secondState.sheet.level === levelBeforeRecovery);
-  check('8. companion remains attached to the second player after recovery', secondState.compId > 0 && secondState.ents.some((e) => e.id === secondState.compId));
+  // Owner rule (2026-11-19): every teleport or change of area, including the
+  // return to the Sanctum, dismisses the active companion; buffs are kept.
+  const dismissedOnRecovery = await until(B, () => {
+    const s = window.__attune.state();
+    return !s.compId && !document.querySelector('.summon-pet').hidden;
+  }, null, 5000, 'companion dismissed by the return to the Sanctum');
+  check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
+  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  const recalled = await until(B, () => {
+    const s = window.__attune.state();
+    return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
+  }, null, 5000, 'companion re-summoned after recovery');
+  check('8. the companion can be summoned again after recovery', recalled);
+  const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
   await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
   const dismissed = await until(B, () => {
@@ -1155,7 +1168,7 @@ try {
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
-  }, secondState.compId, 5000, 'default companion summoned');
+  }, recalledId, 5000, 'default companion summoned');
   check('8. right-click dismisses the companion and the HUD summons its default', dismissed && resummoned);
 
   // --------------------------------------------- 15. appearance independent of class
