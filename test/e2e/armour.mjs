@@ -32,8 +32,30 @@ try {
     await page.evaluate((c) => document.querySelector(`.classcard[data-cls="${c}"]`).click(), cls);
     await page.waitForFunction((c) => document.querySelector(`.classcard[data-cls="${c}"]`)?.getAttribute('aria-pressed') === 'true', cls);
     await page.evaluate(() => document.querySelector('#enter').click());
-    await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });
+    await page.waitForFunction((c) => { const s = window.__attune?.state(); return s?.myId && s.sheet?.cls === c && s.drawn >= 2; }, cls, { polling: 100 });
+    if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(true));
     return page;
+  }
+  // Match the Longpoint gate: only one software-rendered client draws at a
+  // time. Simulation, networking and real player input remain live.
+  async function capture(page, path) {
+    await page.bringToFront();
+    if (SOFTWARE_GL) {
+      const before = await page.evaluate(() => {
+        const n = window.__attune.state().drawn;
+        window.__attune.pause(false);
+        return n;
+      });
+      try {
+        await page.waitForFunction(n => window.__attune.state().drawn > n + 3, before, { polling: 100 });
+      } finally {
+        await page.evaluate(() => window.__attune.pause(true));
+      }
+    } else {
+      const before = await page.evaluate(() => window.__attune.state().drawn);
+      await page.waitForFunction(n => window.__attune.state().drawn > n + 3, before);
+    }
+    await page.screenshot({ path });
   }
   const page = await join('Armour Wearer', 'vanguard');
   const p = await liveFixturePlayer(page, server, 'Armour Wearer');
@@ -58,6 +80,8 @@ try {
   // an observer in the same region
   const watcher = await join('Armour Watcher', 'keeper');
   const wearerId = p.id;
+  const observer = await liveFixturePlayer(watcher, server, 'Armour Watcher');
+  assert.notEqual(observer.id, wearerId);
   await watcher.waitForFunction((id) => window.__attune.state().ents.some((e) => e.id === id), wearerId);
   await page.bringToFront();
 
@@ -78,14 +102,14 @@ try {
     const seen = await (await watcher.waitForFunction(([wid, it]) => {
       const e = window.__attune.state().ents.find((x) => x.id === wid);
       return e && e.armourVisual === it && e.armourWorn === it ? e : null;
-    }, [wearerId, id], { timeout: 30000 })).jsonValue();
+    }, [wearerId, id], { timeout: 30000, polling: 100 })).jsonValue();
     await page.bringToFront();
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
     await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.2, face: Math.PI }));
-    const d0 = await page.evaluate(() => window.__attune.state().drawn);
-    await page.waitForFunction((n) => window.__attune.state().drawn > n + 3, d0);
-    await page.screenshot({ path: `${OUT}/${id}-worn.png` });
+    await capture(page, `${OUT}/${id}-worn.png`);
+    if(id===ARMOUR_VISUALS[0])await capture(watcher, `${OUT}/${id}-observer.png`);
+    await page.bringToFront();
     report.items[id] = { worn: worn.armourWorn, observerSees: seen.armourWorn, anim: worn.anim };
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isHidden()) await page.keyboard.press('KeyI');
@@ -99,6 +123,8 @@ try {
   await page.waitForFunction(() => { const s = window.__attune.state(); const me = s.ents.find((e) => e.id === s.myId); return me && !me.armourWorn; }, null, { timeout: 30000 });
   await watcher.bringToFront();
   await watcher.waitForFunction((wid) => { const e = window.__attune.state().ents.find((x) => x.id === wid); return e && !e.armourVisual && !e.armourWorn; }, wearerId, { timeout: 30000 });
+  assert.ok((await liveFixturePlayer(page, server, 'Armour Wearer')) === p, 'wearer remained on the original authenticated session');
+  assert.ok((await liveFixturePlayer(watcher, server, 'Armour Watcher')) === observer, 'observer remained on the original authenticated session');
   report.removal = true;
   assert.deepEqual(report.pageErrors, [], 'no page errors');
   assert.deepEqual(report.consoleErrors.filter((t) => /armour|\[models\]/.test(t)), [], 'no armour console errors');
@@ -111,7 +137,7 @@ try {
     const pages = browser ? browser.contexts().flatMap((c) => c.pages()) : [];
     for (const pg of pages) {
       const st = await pg.evaluate(() => { const s = window.__attune?.state(); const me = s?.ents.find((e) => e.id === s.myId);
-        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, equipped: s?.sheet?.equipped, assets: { loaded: s?.assets?.loaded, failed: s?.assets?.failed } }; }).catch((e) => String(e));
+        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, players: s?.ents.filter(e=>e.k==='p').map(e=>({id:e.id,x:e.x,z:e.z,model:e.model,armourVisual:e.armourVisual,armourWorn:e.armourWorn,inView:e.inView})), assets: { loaded: s?.assets?.loaded, failed: s?.assets?.failed } }; }).catch((e) => String(e));
       console.error('[armour-e2e] page state', JSON.stringify(st));
     }
   } catch (e) { console.error('[armour-e2e] diagnostics failed', e); }
