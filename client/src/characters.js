@@ -207,6 +207,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const rodHand=inst.getObjectByName('hand_r');
   const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
   const rodPalm=rodHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
+  const offHand=inst.getObjectByName('hand_l');
+  const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
+  const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
   let heldRod=null,rodEffects=null,rodEngine=null;
   const releaseRod=()=>{heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
 
@@ -241,12 +244,16 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       const step = throttle(lod, dt, st.interval);
       if (step) anim.update(step);
-      if(st.electricalRod&&!heldRod&&rodHand)heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm});
+      if(st.electricalRod&&!heldRod&&rodHand){
+        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
+        heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
+      }
       if(!st.electricalRod&&heldRod)releaseRod();
       if(heldRod){
         const active=!st.dead&&st.attack>.2;
         heldRod.group.visible=!st.dead;
-        heldRod.update(dt,{energized:!st.dead,activity:active?st.attack:0,reducedMotion:st.reducedMotion});
+        heldRod.setMode(st.electricalRod);
+        heldRod.update(dt,{energized:!st.dead,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead});
         if(st.electricalRodVfx!==rodEngine){rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
         rodEffects?.update(dt,{energized:active&&!st.reducedMotion,activity:active?st.attack:0});
       }
