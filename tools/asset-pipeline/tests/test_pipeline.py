@@ -25,6 +25,7 @@ from asset_pipeline.imaging import border_background_mask, hole_count, remove_sm
 from asset_pipeline.measure import split_body_and_legs  # noqa: E402
 from asset_pipeline.metrics import distance_report, iou, silhouette  # noqa: E402
 from asset_pipeline.texture import pad_islands, rasterise_uv  # noqa: E402
+from asset_pipeline.architecture import silhouette_rows  # noqa: E402
 
 
 def look_at(eye, target):
@@ -51,6 +52,23 @@ def sphere_mesh(r=0.5, n=24):
     import trimesh
 
     return trimesh.creation.icosphere(subdivisions=3, radius=r)
+
+
+class ArchitectureMeasure(unittest.TestCase):
+    def test_elevation_silhouette_on_blueprint_background(self):
+        # a stone trapezoid (16 wide at the base, 8 at the top) on a dark blue grid
+        img = np.zeros((100, 60, 3), np.uint8)
+        img[...] = (14, 22, 38)
+        img[::10, :] = (30, 44, 70)
+        for y in range(10, 90):
+            half = 4 + (y - 10) / 80 * 4
+            img[y, int(30 - half * 2):int(30 + half * 2)] = (70, 68, 66)
+        _, rows = silhouette_rows(img)
+        self.assertIsNone(rows[5])
+        a, b = rows[89]
+        self.assertAlmostEqual((b - a + 1) / 2, 16, delta=1.5)
+        a, b = rows[10]
+        self.assertAlmostEqual((b - a + 1) / 2, 8, delta=1.5)
 
 
 class Segmentation(unittest.TestCase):
