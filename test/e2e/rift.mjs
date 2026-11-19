@@ -48,23 +48,17 @@ try{
  assert.equal(f.phase,'stabilized');
  await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.some(q=>q.id==='field:rift_calibration'&&q.progress==='1 / 2 stages'));
  await move(f.core,3.6);
- // Recovery must occur during a safe phase, outside combat and with auto
- // attack disengaged. Check the synchronized UI snapshot before pressing F.
- // Do not bypass the real interaction or mutate the eligibility conditions.
- await page.waitForFunction(id=>{
-   const s=window.__attune.state(),self=s.ents.find(e=>e.id===s.myId),core=s.ents.find(e=>e.id===id);
-   if(!self||!core||self.dead||(self.row.f&8)||s.you.auto||!['stabilized','cooling','dormant'].includes(core.row.rf))return false;
-   const eligible=new Set((s.you.lootable??[]).map(x=>x.id));
-   const nearest=s.ents.filter(e=>e.row&&(e.k==='o'||(e.k==='e'&&e.dead&&eligible.has(e.id)))).map(e=>({id:e.id,d:Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)})).filter(e=>e.d<=5).sort((a,b)=>a.d-b.d||a.id-b.id)[0];
-   return nearest?.id===id;
- },f.core.id);
+ await page.waitForFunction(()=>{
+   const {you,ents,myId}=window.__attune.state();
+   const actor=ents.find(e=>e.id===myId);
+   return actor&&!actor.dead&&!(actor.row.f&8)&&you&&!you.auto&&['stabilized','cooling','dormant'].includes(ents.find(e=>e.c==='phase_scar')?.row.rf);
+ },null,{timeout:12000,polling:100}).catch(error=>{
+   throw new Error(`Recovery precondition failed (phase ${f.phase}, HP ${p.hp}, combat ${p.combatUntil-server.game.time}ms)`,{cause:error});
+ });
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- try{
-   await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1);
- }catch(error){
-   console.error('[rift] recovery failed',JSON.stringify({phase:f.phase,calibration:p.char.riftCalibration,dead:p.dead,combat:server.game.time<p.combatUntil,auto:p.autoOn,position:[p.x,p.z],active:server.game.players.get(p.id)===p,fragment:p.char.materials.resonance_fragment??0,client:await page.evaluate(()=>{const s=window.__attune.state();return {myId:s.myId,phase:s.ents.find(e=>e.c==='phase_scar')?.row.rf,material:s.sheet.materials.resonance_fragment??0};})}));
-   throw error;
- }
+ await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1,null,{timeout:12000,polling:100}).catch(error=>{
+   throw new Error(`Core recovery failed (phase ${f.phase}, calibration ${p.char.riftCalibration}, credits ${p.char.materials?.resonance_fragment ?? 0}, HP ${p.hp}, combat ${p.combatUntil-server.game.time}ms)`,{cause:error});
+ });
  assert.equal(p.char.materials.resonance_fragment,1);
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
  const journal=page.getByRole('dialog',{name:'Quest Journal'});
@@ -82,6 +76,11 @@ try{
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
  assert.ok(!server.game.objects.some(o=>o.type==='rift_entry'));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
+ assert.ok(await page.evaluate(()=>{
+   const cache=window.__attune.gfx.scene.getObjectByName('annex:recovery-cache');
+   let count=0;cache?.traverse(node=>{if(node.isMesh)count++});
+   return count>0;
+ }), 'The Annex cache has rendered geometry after travel');
  await page.screenshot({path:'rift-evidence/04-annex.png'});
  assert.equal(server.game.enemies.filter(e=>e.annexEncounter).length,11);
  assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));

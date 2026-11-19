@@ -6,7 +6,7 @@ import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop} from
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
-import {dist,hasLineOfSight,deepLineClear} from '../../shared/world.js';
+import {dist,hasLineOfSight,deepLineClear,sameTravelRegion} from '../../shared/world.js';
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
 
@@ -17,7 +17,7 @@ export function distributeCorpseLoot(game,e,credited){
  if(!active(game,e)||e.lootByPlayer instanceof Map)return;
  e.lootGeneration=(e.lootGeneration||0)+1;e.lootByPlayer=new Map();
  for(const id of new Set(credited)){
-  const p=game.players.get(id);if(!p||dist(p,e)>CREDIT_RANGE)continue;
+  const p=game.players.get(id);if(!p||!sameTravelRegion(p,e)||dist(p,e)>CREDIT_RANGE)continue;
   const entries=[],material=SALVAGE[e.type],goods=TRADE_SALVAGE[e.type];
   // Preserve starter material recovery; equipment and blueprints roll independently.
   // A corpse without salvage or another successful reward remains empty.
@@ -34,7 +34,7 @@ export function distributeCorpseLoot(game,e,credited){
  }
 }
 function available(game,p,e,generation,near=true){
- if(p.dead||!active(game,e)||e.lootGeneration!==generation)return null;
+ if(p.dead||!active(game,e)||!sameTravelRegion(p,e)||e.lootGeneration!==generation)return null;
  if(near&&(dist(p,e)>LOOT_RANGE||!hasLineOfSight(p,e)))return null;
  const entries=e.lootByPlayer?.get(p.id);
  return entries?.length?entries:null;

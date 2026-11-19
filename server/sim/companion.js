@@ -298,17 +298,17 @@ export function tickCompanion(game, c, dt) {
   if (d <= def.triage.range && game.time >= c.nextPulse) {
     c.nextPulse = game.time + def.triage.interval;
     applyHeal(game, owner, patient, def.triage.heal, 'triage', c.id);
-    game.events.push({ e: 'beam', s: c.id, d: patient.id });
+    game.emitWorldEvent({ e: 'beam', s: c.id, d: patient.id });
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || !companionCanSupport(game, owner, p) || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
         const budget = def.triage.heal * GLYPH.sharedPulse.pct;
         const repaired = repairAegis(game, owner, p, budget, c.id);
         if (repaired > 0) {
-          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+          game.emitWorldEvent({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
         } else {
           const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
-          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+          if (healed > 0) game.emitWorldEvent({ e: 'beam', s: patient.id, d: p.id });
         }
       }
     }
