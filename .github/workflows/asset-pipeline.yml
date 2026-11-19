@@ -1,0 +1,22 @@
+name: Asset pipeline unit tests
+on:
+  pull_request:
+    paths:
+      - 'tools/asset-pipeline/**'
+      - 'client/pipeline-preview.html'
+      - 'client/src/pipeline-preview.js'
+      - '.github/workflows/asset-pipeline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The runner's preinstalled Python 3 is enough: the tests do not need Blender (bpy) or pycolmap.
+      - run: python3 -m venv .venv && .venv/bin/pip install --quiet -r tools/asset-pipeline/requirements-test.txt
+      - run: sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: cd tools/asset-pipeline && ../../.venv/bin/python -m unittest discover -s tests -v
+      - run: node --check client/src/pipeline-preview.js && node --check tools/asset-pipeline/js/optimize.mjs && node --check tools/asset-pipeline/js/preview-capture.mjs

@@ -1,0 +1,103 @@
+{
+ "file": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/export/stillpoint.glb",
+ "bytes": 4487140,
+ "inputBytes": 19709404,
+ "triangles": 34380,
+ "meshes": 1,
+ "materials": [
+  "stillpoint_baked"
+ ],
+ "textures": [
+  {
+   "name": "normal",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 1358680
+  },
+  {
+   "name": "basecolor",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 637520
+  },
+  {
+   "name": "roughness",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 914870
+  }
+ ],
+ "skins": [
+  {
+   "joints": [
+    "root",
+    "body",
+    "leg_BL_upper",
+    "leg_BL_lower",
+    "leg_BR_upper",
+    "leg_BR_lower",
+    "leg_FL_upper",
+    "leg_FL_lower",
+    "leg_FR_upper",
+    "leg_FR_lower"
+   ]
+  }
+ ],
+ "animations": [
+  {
+   "name": "Idle",
+   "channels": 30,
+   "seconds": 4.0333333015441895
+  },
+  {
+   "name": "WeightShift",
+   "channels": 30,
+   "seconds": 4.0333333015441895
+  },
+  {
+   "name": "Walk",
+   "channels": 30,
+   "seconds": 1.6333333253860474
+  },
+  {
+   "name": "WalkStart",
+   "channels": 30,
+   "seconds": 1.6333333253860474
+  },
+  {
+   "name": "WalkStop",
+   "channels": 30,
+   "seconds": 1.6333333253860474
+  },
+  {
+   "name": "Turn",
+   "channels": 30,
+   "seconds": 1.6333333253860474
+  }
+ ],
+ "nodes": [
+  "socket_crystal_crown"
+ ],
+ "extensionsUsed": [
+  "EXT_texture_webp",
+  "KHR_mesh_quantization",
+  "EXT_meshopt_compression"
+ ],
+ "validator": {
+  "errors": 0,
+  "warnings": 1,
+  "infos": 2,
+  "messages": [
+   "W NODE_SKINNED_MESH_NON_ROOT /nodes/11 Node with a skinned mesh is not root. Parent transforms will not affect a skinned mesh."
+  ]
+ }
+}

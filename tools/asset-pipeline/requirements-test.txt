@@ -1,0 +1,9 @@
+# Blender-independent subset used by the unit tests (CI). bpy and pycolmap are
+# only needed to run the full pipeline: see requirements.txt.
+numpy==2.5.5
+scipy==1.18.1
+opencv-python-headless==5.1.0.95
+trimesh==5.2.1
+rtree==1.4.1
+scikit-image==0.26.0
+matplotlib

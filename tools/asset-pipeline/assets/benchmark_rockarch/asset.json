@@ -1,0 +1,25 @@
+{
+ "id": "benchmark_rockarch",
+ "kind": "controlled-benchmark",
+ "description": "Experiment A. A synthetic, deterministic test object (displaced boulder, through-arch, leaning slab, thin spike, crystal cluster; five textured materials) rendered in Blender. Reconstruction stages read only capture/; ground_truth/ is read only by evaluation.",
+ "capture": {
+  "generator": "asset_pipeline.blender.benchmark_scene",
+  "width": 800,
+  "height": 600,
+  "samples": 24,
+  "lens": 35,
+  "radius": 2.4,
+  "rings": [[12, 24, 0.0], [38, 24, 7.5], [66, 8, 22.5]]
+ },
+ "holdout": {"every": 8, "offset": 3},
+ "segment": {"method": "border-background", "threshold": 0.04, "min_area": 400, "open_px": 1, "close_px": 1},
+ "video": {"fps": 8, "crf": 20, "codec": "libx264"},
+ "extract": {"fps": 8, "min_sharpness_ratio": 0.35, "max_frames": 64},
+ "sfm": {"max_image_size": 1600, "matcher": "exhaustive"},
+ "dense": {"voxels": 200, "trunc_vox": 3.0, "neighbours": 3, "min_angle": 6.0, "max_angle": 22.0, "num_disparities": 128, "block_size": 5, "field_sigma_vox": 0.0, "hull_tolerance": 1, "agreement": 0.015},
+ "texture": {"size": 2048, "depth_scale": 0.5, "view_power": 3.0},
+ "experiments": {
+  "A1_known_cameras": {"cameras": "known", "images": "capture"},
+  "A2_estimated_cameras": {"cameras": "sfm", "images": "extracted-video"}
+ }
+}
