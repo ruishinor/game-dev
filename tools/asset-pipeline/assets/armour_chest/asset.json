@@ -1,0 +1,103 @@
+{
+ "id": "armour_chest",
+ "kind": "body-fitted-armour",
+ "description": "Wearable 3D chest armour for the three live chest items (Field Composite Vest, Reinforced Relay Vest, Resonance-Lined Vest), fitted to both project bodies, skinned to the shared 67-joint skeleton, with inventory icons rendered from the exported assets. Designs follow the existing vector inventory art (palette, plate layout, silhouette).",
+ "sources": [
+  {
+   "id": "body_m",
+   "path": "client/assets/humanoid_m.glb",
+   "sha256": "4d861bca31984d675354aa1400a9ca33329934f9490455829192f7466e6e48ec",
+   "provenance": "Project runtime body (built from CC0 sources, see assets/sources.json). Read-only fitting and skinning reference; none of its geometry is copied into the armour.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "body_f",
+   "path": "client/assets/humanoid_f.glb",
+   "sha256": "d19d78a6bf04f6ab81f9ec6341ea345b9081e39fee28444d0e03c527ff3bf90f",
+   "provenance": "As body_m.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "vector_art",
+   "path": "client/src/catalogue-portraits.js",
+   "provenance": "Original project vector inventory art (ART-07). Design reference only: palette, plate layout and silhouette per item.",
+   "role": "design reference"
+  }
+ ],
+ "armour": {
+  "bodies": {"m": "body_m", "f": "body_f"},
+  "inspect": {
+   "clip_body": "body_m",
+   "clips": ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Interact", "Spell_Simple_Shoot", "Punch_Cross"]
+  },
+  "design": {
+   "items": ["field_chest", "reinforced_chest", "resonant_chest"],
+   "samples": 120000,
+   "base_offset": 0.009,
+   "min_gap": 0.011,
+   "relax": 6
+  },
+  "materials": {
+   "field_chest": {
+    "vest": {"base": "#354748", "worn": "#5a6e6c", "roughness": 0.82, "noise": 30, "weave": true},
+    "yoke": {"base": "#a8af9d", "worn": "#d4d8c8", "metallic": 0.1, "roughness": 0.55, "noise": 18},
+    "panel": {"base": "#68746a", "worn": "#919c8e", "metallic": 0.05, "roughness": 0.62, "noise": 22},
+    "inset": {"base": "#455654", "worn": "#6c7f7b", "roughness": 0.66, "noise": 22},
+    "strap": {"base": "#9c916f", "worn": "#cfc5a3", "roughness": 0.86, "noise": 40, "weave": true},
+    "hardware": {"base": "#b49a62", "worn": "#e0cc98", "metallic": 0.85, "roughness": 0.34, "noise": 30}
+   },
+   "reinforced_chest": {
+    "vest": {"base": "#455460", "worn": "#68798a", "roughness": 0.8, "noise": 30, "weave": true},
+    "yoke": {"base": "#a5b0a8", "worn": "#d5ddd7", "metallic": 0.35, "roughness": 0.45, "noise": 18},
+    "plate": {"base": "#72838d", "worn": "#aebcc4", "metallic": 0.6, "roughness": 0.4, "noise": 20},
+    "inset": {"base": "#3b555e", "worn": "#5d7c85", "metallic": 0.3, "roughness": 0.5, "noise": 22},
+    "trim": {"base": "#cead74", "worn": "#ecd6a6", "metallic": 0.9, "roughness": 0.3, "noise": 30},
+    "hardware": {"base": "#2f3a40", "worn": "#6c7b84", "metallic": 0.7, "roughness": 0.42, "noise": 26}
+   },
+   "resonant_chest": {
+    "vest": {"base": "#515b70", "worn": "#757f96", "roughness": 0.8, "noise": 30, "weave": true},
+    "yoke": {"base": "#b8abc8", "worn": "#e0d7ea", "metallic": 0.2, "roughness": 0.45, "noise": 18},
+    "plate": {"base": "#31494f", "worn": "#527279", "metallic": 0.5, "roughness": 0.4, "noise": 20},
+    "core": {"base": "#6ca3a1", "worn": "#a8d8d4", "metallic": 0.3, "roughness": 0.28, "noise": 16, "emission": "#6ca3a1", "emission_strength": 1.5},
+    "lines": {"base": "#b7eadb", "worn": "#e4fbf3", "roughness": 0.3, "noise": 16, "emission": "#b7eadb", "emission_strength": 4.0}
+   }
+  },
+  "build": {"texture": 1024, "mottle": 0.06, "wear": 0.3},
+  "rig": {
+   "samples": 120000,
+   "k": 10,
+   "emissive_size": 512,
+   "arm_cap": {"yoke": 0.3, "pauldron": 0.4},
+   "weight_modes": {"chest_panel": ["band", "y", 0.05], "back_panel": ["band", "y", 0.05], "chest_plate": ["band", "y", 0.05],
+                    "back_plate": ["band", "y", 0.05], "plastron": ["band", "y", 0.05], "ab_plate_upper": ["band", "y", 0.04], "ab_plate_lower": ["band", "y", 0.04],
+                    "chest_inset": ["rigid"], "core": ["rigid"], "relay_housing": ["rigid"], "buckle": ["rigid"], "rivets": ["band", "y", 0.03],
+                    "piping": ["band", "y", 0.05], "piping_waist": ["rigid"], "resonance_lines": ["band", "y", 0.04],
+                    "yoke": ["band", "x", 0.025], "pauldron": ["band", "x", 0.025]},
+   "stiffness": {"vest": 0.5, "yoke": 2.5, "pauldron": 2.5, "chest_panel": 1.5, "chest_plate": 2.0, "ab_plate_upper": 1.5, "ab_plate_lower": 1.5,
+                 "back_panel": 1.5, "back_plate": 2.0, "plastron": 2.0, "core": 3.0, "chest_inset": 2.0, "relay_housing": 3.0, "rivets": 2.0,
+                 "buckle": 2.0, "piping": 1.5, "piping_waist": 1.5, "resonance_lines": 1.5}
+  },
+  "export": {"max_texture": 1024, "quality": 86},
+  "validate": {
+   "clips": ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Interact", "Spell_Simple_Shoot", "Punch_Cross"],
+   "frames": 8,
+   "surface_samples": 60000,
+   "under_shells": ["shell_chest", "shell_coat", "shell_belt", "shell_upperarms"],
+   "max_inside_body_fraction": 0.015,
+   "max_inside_shell_fraction": 0.03,
+   "min_clearance_p05_m": -0.015,
+   "max_edge_strain_p99": 0.15,
+   "strain_vs_body": 1.15,
+   "strict": true
+  },
+  "icons": {"body": "m", "size": 768, "samples": 96, "view": {"az": 24, "el": 10}, "export_sizes": [256, 128], "webp_quality": 90},
+  "evidence": {"samples": 16, "width": 1500, "height": 900,
+               "poses": [null, {"action": "Idle_Loop", "time": 0.5}, {"action": "Jog_Fwd_Loop", "time": 0.25}]},
+  "publish": {
+   "runtime": {"m": "client/assets/armour_chest_m.glb", "f": "client/assets/armour_chest_f.glb"},
+   "icons_dir": "client/assets/icons/armour",
+   "icons_module": "client/src/item-renders.js",
+   "icon_size": 256
+  }
+ }
+}

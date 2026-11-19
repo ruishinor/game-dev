@@ -18,13 +18,17 @@ test('refined motifs target only existing item IDs and remain distinct',()=>{
 });
 test('item-art DOM contract uses static fragments for every current item and material',()=>{
   const original=globalThis.document;
-  globalThis.document={createElement:()=>({dataset:{}})};
+  const el0=(tag)=>({tag,dataset:{},children:[],classList:{s:new Set(),add(c){this.s.add(c);},remove(c){this.s.delete(c);}},append(c){this.children.push(c);},addEventListener(){}});
+  globalThis.document={createElement:el0};
   try{
     const icons=[];
     for(const id of [...Object.keys(ITEMS),...Object.keys(MATERIALS),...Object.keys(GOODS)]){
       const el=itemArt(id);
       assert.equal(el.dataset.art,id);
       assert.ok(el.innerHTML.startsWith('<svg ')&&el.innerHTML.endsWith('</svg>'),id);
+      // a rendered 3D icon is a separate <img> child over the vector fallback
+      const url=renderedItemIcon(id);
+      assert.deepEqual(el.children.map((c)=>c.src),url?[url]:[],id);
       icons.push(el.innerHTML);
     }
     assert.equal(new Set(icons).size,icons.length,'all current items and materials must have distinct artwork');
@@ -33,6 +37,7 @@ test('item-art DOM contract uses static fragments for every current item and mat
 });
 
 import {cataloguePortrait,PORTRAIT_IDS} from '../client/src/catalogue-portraits.js';
+import {renderedItemIcon} from '../client/src/item-renders.js';
 test('every live catalogue identity has a distinct intentional object portrait',()=>{
  const ids=[...Object.keys(ITEMS),...Object.keys(MATERIALS),...Object.keys(GOODS)];
  const fragments=ids.map(id=>{const f=cataloguePortrait(id);assert.ok(f,'missing original portrait '+id);assert.ok(!/<(?:script|image|foreignObject)|\\bon\\w+=|href\\s*=/i.test(f));return f;});
