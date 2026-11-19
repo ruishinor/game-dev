@@ -66,3 +66,44 @@ test('anchors are bounded per wearer', () => {
   assert.ok(bones.spine_03.children.filter((c) => c.isSprite).length <= 14);
   h.dispose();
 });
+
+test('a worn piece hides the body shells it replaces, ref-counted across slots', async () => {
+  const { wearArmour } = await import('../client/src/armour-visual.js');
+  const skinned = (name, bones) => {
+    const m = new THREE.SkinnedMesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial());
+    m.name = name;
+    m.bind(new THREE.Skeleton(bones));
+    return m;
+  };
+  const bone = () => { const b = new THREE.Bone(); b.name = 'pelvis'; return b; };
+  const inst = new THREE.Group();
+  const ib = bone();
+  inst.add(ib);
+  inst.add(skinned('body', [ib]));
+  const shells = Object.fromEntries(['shell_coat', 'shell_forearms', 'shell_shorts'].map((n) => { const m = new THREE.Mesh(); m.name = n; inst.add(m); return [n, m]; }));
+  const source = (item, hides) => {
+    const g = new THREE.Group();
+    const b = bone();
+    g.add(b);
+    const piece = skinned(item, [b]);
+    piece.userData.hides = hides;
+    g.add(piece);
+    return g;
+  };
+  const srcs = {
+    vanguard_field_set_chest: ['shell_coat', 'shell_forearms'],
+    vanguard_field_set_gloves: ['shell_forearms'],
+  };
+  const wear = (item) => wearArmour({ instance: () => source(item, srcs[item]) }, inst, 'humanoid_m', item);
+  const chest = wear('vanguard_field_set_chest');
+  const gloves = wear('vanguard_field_set_gloves');
+  assert.deepEqual(chest.hidden.sort(), ['shell_coat', 'shell_forearms']);
+  assert.equal(shells.shell_coat.visible, false);
+  assert.equal(shells.shell_forearms.visible, false);
+  assert.equal(shells.shell_shorts.visible, true, 'shells not listed stay visible');
+  chest.dispose();
+  assert.equal(shells.shell_coat.visible, true, 'restored when its only wearer goes');
+  assert.equal(shells.shell_forearms.visible, false, 'still hidden by the gloves');
+  gloves.dispose();
+  assert.equal(shells.shell_forearms.visible, true);
+});
