@@ -1,10 +1,11 @@
+import {appearanceString} from '../../shared/appearance.js';
 // Character progression: experience, loot, directives, loadout changes and
 // world interactions. All mutations of persistent character state go
 // through here.
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
+import { dist, inSanctum, hasLineOfSight, COLLIDERS } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -299,6 +300,20 @@ function operateBrine(game,p,obj) {
   transmitAuthored(game,p,'brine.commissioned');
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
+}
+// In-world customization is cosmetic-only, and gated by the same actual
+// physical terminal as orientation. A stale client panel cannot edit remotely.
+export function changeInitiationAppearance(game,p,appearance){
+ const terminal=game.objects.find(o=>o.type==='initiation_terminal');
+ if(!terminal||p.dead||!inSanctum(p)||dist(p,terminal)>INTERACT_RANGE||!hasLineOfSight(p,terminal,COLLIDERS.filter(c=>c.type!=='arrival_terminal'))||inCombat(game,p)||p.autoOn||p.production||p.inscription)
+   return {ok:false,reason:'Stand near the initiation terminal, alive and disengaged.'};
+ if(typeof appearance!=='string'||appearance.length>48||appearanceString(appearance,p.char.look)!==appearance)
+   return {ok:false,reason:'Invalid appearance selection.'};
+ if(game.time<(p.appearanceReadyAt||0))return {ok:false,reason:'Wait briefly before changing your appearance again.'};
+ p.appearanceReadyAt=game.time+600;
+ if(p.char.appearance!==appearance){p.char.appearance=appearance;p.metaVer++;game.markDirty(p);}
+ p.outbox.push({e:'appearance_applied',appearance});
+ return {ok:true};
 }
 export function interact(game, p, objectId) {
   const obj = game.ents.get(objectId);

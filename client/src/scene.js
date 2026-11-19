@@ -307,6 +307,12 @@ const procedural = {
     g.add(mesh(new THREE.BoxGeometry(.08,2.55,.09),glow(0x80c7c4),0,1.85,.32,false));
     return g;
   },
+  arrival_wall(p){
+    const g=new THREE.Group();g.name='arrival:side-enclosure';
+    g.add(mesh(new THREE.BoxGeometry(p.hw*2,p.h,p.hd*2),mat(0x35434a,{metal:.48,rough:.68}),0,p.h/2,0));
+    for(const z of [-1.35,0,1.35]){g.add(mesh(new THREE.BoxGeometry(.41,2.55,.83),mat(0x4b5b60,{metal:.62,rough:.7}),0,1.64,z));g.add(mesh(new THREE.BoxGeometry(.43,.055,.72),glow(0x79c2c2),0,2.83,z,false));}
+    return g;
+  },
   arrival_terminal(){
     const g=new THREE.Group();g.name='arrival:orientation-terminal';
     g.add(mesh(new THREE.BoxGeometry(.88,.88,.72),mat(0x34454a,{metal:.55}),0,.44,0));

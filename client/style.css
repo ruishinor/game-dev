@@ -630,6 +630,14 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
 
+/* Physical arrival terminal customization; the world remains visible. */
+.initiation-controls{border-top:1px solid #726344;padding:11px 0 4px;margin-top:10px;display:grid;gap:8px;}
+.initiation-controls h3,.initiation-controls p{margin:0;}
+.initiation-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.initiation-fields label{display:grid;gap:4px;font-size:12px;}
+.initiation-fields select{min-width:0;width:100%;font:inherit;color:var(--ink);background:#162a33;border:1px solid var(--edge);padding:7px;border-radius:4px;}
+.initiation-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
 /* Item portraits: the object silhouette carries identity; rarity remains a border state. */
 .item-art{background:radial-gradient(ellipse at 45% 25%,#29373d,#10191f 85%);color:#a3b5b4}
 .item-art svg{width:86%;height:86%;filter:drop-shadow(0 2px 2px #0009)}

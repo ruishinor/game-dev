@@ -1,3 +1,4 @@
+import {FRAMES,RACES,HAIR_STYLES,HAIR_COLOURS,LOOK_RACE,normalizeAppearance,encodeAppearance} from '../../shared/appearance.js';
 // Heads-up display. Pure presentation over state the server sent; every
 // button just asks main.js to send an intent. Dynamic text (names, chat) is
 // only ever written with textContent.
@@ -1355,12 +1356,54 @@ export class UI {
     this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
   }
 
+  appearanceApplied(appearance){
+    const status=this.fieldRecordPanel.querySelector('[data-appearance-status]');
+    if(status)status.textContent='Applied to your in-world character and saved.';
+  }
+
+  initiationControls(panel){
+    if(!this.sheet)return;
+    const look=this.sheet.look;
+    let draft=normalizeAppearance(this.sheet.appearance,look);
+    const controls=h('section','initiation-controls');
+    controls.append(h('h3',null,'Character initiation'),h('p','muted','Customize the character standing in the arrival hall. Changes are cosmetic and apply to the actual world model. Profession and equipment remain unchanged.'));
+    const fields=h('div','initiation-fields'),status=h('p','muted','Choose your appearance, then apply.');status.dataset.appearanceStatus='true';status.setAttribute('role','status');
+    const render=()=>{
+      fields.replaceChildren();
+      const options=(key,label,values)=>{
+        const wrap=h('label',null,label),select=h('select');select.setAttribute('aria-label',label);
+        for(const [value,name] of values){const opt=h('option',null,name);opt.value=String(value);opt.selected=String(draft[key])===opt.value;select.append(opt);}
+        select.disabled=values.length<2;
+        select.addEventListener('change',()=>{
+          const value=key==='skin'||key==='hairColour'?Number(select.value):select.value;
+          draft={...draft,[key]:value};if(key==='race')draft.skin=0;
+          draft=normalizeAppearance(draft,look);status.textContent='Appearance changes not applied.';
+          render();fields.querySelector('[aria-label="'+label+'"]')?.focus();
+        });
+        wrap.append(select);fields.append(wrap);
+      };
+      const race=RACES[draft.race];
+      options('frame','Body frame',Object.values(FRAMES).map(v=>[v.id,v.name]));
+      options('race','Origin',Object.values(RACES).filter(v=>!LOOK_RACE[look]||v.id===LOOK_RACE[look]).map(v=>[v.id,v.name]));
+      options('skin','Skin tone',race.skins.map((v,i)=>[i,'Tone '+(i+1)]));
+      options('hair','Hair',race.hair.map(v=>[v,HAIR_STYLES[v].name]));
+      options('hairColour','Hair colour',HAIR_COLOURS.map((v,i)=>[i,v.name]));
+    };
+    render();
+    const actions=h('div','initiation-actions'),apply=h('button','primary','Apply appearance'),inspect=h('button',null,'Inspect in world');
+    apply.type=inspect.type='button';
+    apply.addEventListener('click',()=>{status.textContent='Submitting appearance…';this.a.changeAppearance(encodeAppearance(draft));});
+    inspect.addEventListener('click',()=>this.a.inspectAppearance());
+    actions.append(apply,inspect);controls.append(fields,actions,status);panel.append(controls);
+  }
+
   showFieldRecord(key) {
     const record=FIELD_RECORDS[key];if(!record)return;
     const panel=this.fieldRecordPanel;panel.replaceChildren();
     const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
     close.addEventListener('click',()=>{panel.hidden=true;});
     panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    if(key==='initiation_terminal')this.initiationControls(panel);
     const lines=h('div','field-record-lines');
     for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
     panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;

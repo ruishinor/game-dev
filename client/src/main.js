@@ -372,6 +372,8 @@ const ui = new UI({
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
+  changeAppearance:appearance=>net.send({t:'appearance_change',appearance}),
+  inspectAppearance:()=>{stopAutomaticMovement();cam.yaw=local.yaw+Math.PI;cam.pitch=.03;cam.want=cam.dist=3.3;},
   lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
   lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
   lootClose:()=>net.send({t:'loot_close'}),
@@ -670,7 +672,14 @@ if (net.accountToken || net.token) {
 function addEntity(meta) {
   let ent = S.ents.get(meta.i);
   if (ent) {
-    ent.meta = meta; // e.g. level changed
+    // Appearance updates must replace the actual rendered character on every
+    // observing client, while preserving interpolation, identity and targeting.
+    if(meta.k==='p'&&(meta.ap!==ent.meta.ap||meta.a!==ent.meta.a)){
+      const next=createModel(assets,meta,useGlb(meta)),old=ent.model;
+      ent.holder.remove(old.group);old.dispose?.();ent.model=next;ent.holder.add(next.group);
+      if(quality===0)lowSpec(next.group,true);
+    }
+    ent.meta = meta;
     return ent;
   }
   const model = createModel(assets, meta, useGlb(meta));
@@ -1231,6 +1240,8 @@ function onEvent(e) {
       ui.workshopTab='fabrication';ui.toggleWorkshop(true);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
+    case 'appearance_applied':
+      ui.appearanceApplied(e.appearance);break;
     case 'say':
       if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');

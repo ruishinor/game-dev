@@ -130,6 +130,9 @@ function buildProps() {
   // Open-sided arrival architecture preserves the existing north/south travel lane.
   for(const x of [-3.8,3.8])for(const z of [5.8,10])add({type:'arrival_pillar',x,z,r:.38,h:3.8});
   add({type:'arrival_terminal',x:INITIATION_SITE.terminalX,z:INITIATION_SITE.terminalZ,hw:.48,hd:.38,h:1.45});
+  // Side enclosure provides a dedicated physical initiation space, with
+  // open forward and rear exits and no change to the spawn position.
+  for(const x of [-4.55,4.55])add({type:'arrival_wall',x,z:7.9,hw:.18,hd:2.12,h:3.35});
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
     add({ type: 'pylon', x: Math.sin(a) * 11.5, z: Math.cos(a) * 11.5, r: 0.8, h: 5, rot: a });
