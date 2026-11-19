@@ -11,8 +11,8 @@ test('actual shared engine plays directional rod contact, local wake and bounded
   const handle=playElectricalStrike(v,{from:[0,1,0],target:[1,1,0],ground:[1,0,0],joined:true,active:()=>active,remember:h=>owned.push(h)});
   assert.ok(handle?.alive);assert.ok(v.root.getObjectByName('rod-strike:primary-sweep'));
   assert.ok(v.root.children.some(x=>x.name==='vfx-ribbon'&&x.visible));
-  const before=v.stats().emitted;v.update(.11);assert.ok(v.stats().emitted>before);
-  const mid=v.stats().emitted;v.update(.15);assert.ok(v.stats().emitted>mid);
+  const before=v.stats().emitted;v.update(.1);assert.ok(v.stats().emitted>before);
+  const mid=v.stats().emitted;v.update(.1);v.update(.05);assert.ok(v.stats().emitted>mid);
   for(let i=0;i<40;i++)v.update(.05);
   assert.equal(v.stats().timelines,0);assert.equal(v.stats().items,0);assert.equal(v.stats().particles,0);
   assert.ok(owned.length>=2);
