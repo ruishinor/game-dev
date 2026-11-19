@@ -164,7 +164,13 @@ test('a ground unit navigates around the quartermaster, remains parked, and can 
   assert.equal(petCommand(game, p, 'inspect').ok, false);
   game.time += 3000;
   assert.ok(game.respawn(p));
+  // Transit rule (owner, 2026-11-19): respawn dismisses the active companion
+  // instead of redeploying it; ownership and profile persist for re-summoning.
   assert.equal(game.ents.has(c.id), false);
+  assert.equal(p.companion, null);
+  assert.equal(p.char.companionDismissed, true);
+  assert.ok(p.char.spindle, 'the Spindle profile is kept');
+  assert.ok(manageCompanion(game, p, 'summon', 'spindle').ok);
   assert.ok(groundSegmentClear(p.companion, p.companion, SPINDLE_TUNING.radius));
 });
 

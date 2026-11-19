@@ -15,8 +15,8 @@ import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
-  tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
-  syncEquippedCompanion, redeployGroundCompanion,
+  tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion, dismissForTransit,
+  syncEquippedCompanion,
 } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
@@ -280,17 +280,9 @@ export class Game {
     cancelInscription(this,p);stopProduction(this,p);
     p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
-    if(p.companion){
-      const c=p.companion;for(const other of this.players.values())other.buffs=other.buffs.filter(b=>b.k!=='bond'||b.src!==c.id);
-      if(c.mode==='guard')c.mode='triage';c.host=0;c.act='idle';c.actTarget=0;
-    }
-    // A travelling host cannot keep a remote companion bond.
-    p.buffs=p.buffs.filter(b=>b.k!=='bond');
-    p.x=entering?RIFT_ANNEX.x:this.rift.entry.x;
-    p.z=entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-3.6;
+    // Changing area dismisses the active companion (transit rule) instead of carrying it along.
+    this.transit(p,entering?RIFT_ANNEX.x:this.rift.entry.x,entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-3.6,entering?'annex crossing':'return to the Reach');
     resolveCollisions(p,PLAYER_RADIUS);
-    if(['survey_strider','spindle'].includes(p.companion?.type))redeployGroundCompanion(this,p);
-    else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
     this.syncChar(p);this.markDirty(p);
     this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
     return {ok:true};
@@ -310,27 +302,33 @@ export class Game {
     return true;
   }
 
+  /**
+   * The single entry point for relocating a player other than by movement:
+   * respawn and Phase Annex gate travel today; any teleport or instance change added later must
+   * call this rather than assigning p.x/p.z. The active companion is
+   * dismissed (see dismissForTransit), never moved along.
+   */
+  transit(p, x, z, reason = 'transit') {
+    dismissForTransit(this, p, reason);
+    p.x = x;
+    p.z = z;
+    p.jy = 0;
+    p.vy = 0;
+  }
+
   respawn(p) {
     if (!p.dead) return false;
     if (this.time - p.deadAt < RESPAWN_DELAY_MS) return false;
     p.dead = false;
     this.stopFollow(p);
     clearLoot(p);
-    p.x = WORLD.spawn.x;
-    p.z = WORLD.spawn.z;
-    p.jy = 0;
-    p.vy = 0;
+    this.transit(p, WORLD.spawn.x, WORLD.spawn.z, 'return to the Sanctum');
     p.hp = p.maxHp;
     p.res = CLASSES[p.cls].resource.start;
     p.surveyKit = p.cls === 'surveyor' ? { mark: null, rig: null } : null;
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    if (['survey_strider', 'spindle'].includes(p.companion?.type)) redeployGroundCompanion(this, p);
-    else if (p.companion) {
-      p.companion.x = p.x + 1.5;
-      p.companion.z = p.z - 1.5;
-    }
     this.events.push({ e: 'fx', k: 'respawn', s: p.id });
     this.message(p, 'info', 'The Sanctum lattice reconstitutes you.');
     return true;

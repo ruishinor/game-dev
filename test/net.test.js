@@ -469,7 +469,11 @@ test('two-player recovery: either session can respawn independently and remain v
       assert.equal(player.char.level, level, 'respawn preserves progression');
       assert.equal(game.players.size, 2, 'neither recovery disconnects the other player');
     }
-    assert.ok(b.ent(wb.comp), 'companion remains present after its owner recovers');
+    // Transit rule: recovery dismisses the active companion; the owner can summon it again over the network.
+    assert.equal(pb.companion, null, 'companion dismissed when its owner recovers');
+    await b.until(() => !b.ent(wb.comp), 3000, 'dismissed companion leaves the ally view');
+    b.send({ t: 'pet_manage', action: 'summon' });
+    await b.until(() => pb.companion && b.ent(pb.companion.id), 3000, 'companion summoned again after recovery');
     assert.ok(a.me() && b.me(), 'both sessions are still usable');
   } finally {
     a.close();

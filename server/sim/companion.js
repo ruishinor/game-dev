@@ -81,6 +81,30 @@ export function syncEquippedCompanion(game, p) {
   if (p.companion?.type === 'survey_strider') syncSurveyStrider(game, p);
 }
 
+/**
+ * Every server-side relocation of a player that is not ordinary movement
+ * (respawn now; instance entry/exit and any future teleport) dismisses the
+ * active companion instead of carrying it along. Owner rule 2026-11-19: this
+ * avoids companions stranded, embedded or duplicated across a transit.
+ * Non-destructive: identical to the player's own dismiss (ownership, names,
+ * Spindle profile and pet modes persist; re-summon from the companion sheet),
+ * and it bypasses the alive/out-of-combat gate because the server initiates it.
+ * Buffs are not companions and are never removed here (owner rule); a bond
+ * whose source companion is gone simply stops being valid under the buff
+ * system's own rule (combat.js activeBondSource).
+ */
+export function dismissForTransit(game, p, reason = 'transit') {
+  const c = p.companion;
+  if (!c) return false;
+  removeActive(game, p);
+  p.char.companionDismissed = true;
+  p.char.activeCompanion = null;
+  p.deployRetryAt = null;
+  game.markDirty(p);
+  game.message(p, 'info', `${c.name} was dismissed for the ${reason}. Summon it again from your companion sheet.`);
+  return true;
+}
+
 export function redeployGroundCompanion(game, p) {
   const { type } = p.companion;
   removeActive(game, p);
