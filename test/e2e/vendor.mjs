@@ -15,7 +15,7 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
  await page.goto(url);await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
- await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb');});
+ await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb'&&e.halo?.role==='vendor');});
  const p=await liveFixturePlayer(page,server,'Vendor Tester');
  const vendor=server.game.objects.find(o=>o.type==='quartermaster');
  assert.ok(p&&vendor);
@@ -103,14 +103,29 @@ try{
   }
   requestAnimationFrame(sample);
  },SOFTWARE_GL);
+ // This checks live animation, not production latency (covered by simulation tests).
+ // Give the accepted, real job a bounded observation window even on slow renderers.
+ // No change to inputs, outputs, authority, or the production engine.
+ const originalTick=server.game.tick;
+ let observedJob=false;
+ server.game.tick=function(dt){
+  const job=p.production;
+  if(!observedJob&&job?.id==='field_maintenance_kit'){
+   observedJob=true;
+   job.duration+=8000;job.until+=8000;
+  }
+  return originalTick.call(this,dt);
+ };
  try{
   await workshop.locator('[data-craft="field_maintenance_kit"]').click();
   await page.waitForFunction(()=>{const o=window.__vendorProductionObservation;return o.machine&&o.tool;});
+  assert.ok(observedJob,'actual authoritative production job observed');
  }catch(error){
   const details=await page.evaluate(()=>{const a=window.__attune,s=a.state(),me=s.ents.find(e=>e.id===s.myId);return {observation:window.__vendorProductionObservation,production:s.you?.production,work:me?.row?.work,model:me?.model,speed:me?.speed,goods:s.sheet?.goods?.field_maintenance_kit};}).catch(()=>null);
   console.error('[vendor] production observation failed',JSON.stringify(details),{acceptedJob:!!p.production,output:p.char.goods.field_maintenance_kit??0});
   throw error;
  }finally{
+  server.game.tick=originalTick;
   await page.evaluate(()=>{window.__vendorProductionObservation.running=false;window.__attune.pause(false);});
  }
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
