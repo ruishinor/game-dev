@@ -782,23 +782,26 @@ export class UI {
   }
 
   hover(el, makeTip) {
-    const show = () => {
-      this.tipFor = el;
-      this.tooltip.replaceChildren(...makeTip());
-      this.tooltip.hidden = false;
-      const r = el.getBoundingClientRect();
-      const t = this.tooltip.getBoundingClientRect();
-      this.tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2))}px`;
-      const above = r.top - t.height - 10;
-      this.tooltip.style.top = `${above >= 8 ? above : Math.max(8, Math.min(window.innerHeight - t.height - 8, r.bottom + 8))}px`;
+    const position = (event) => {
+      const r=el.getBoundingClientRect(),t=this.tooltip.getBoundingClientRect();
+      const pointer=event&&event.type!=='focus'&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY);
+      const x=pointer?event.clientX:r.right,y=pointer?event.clientY:r.top;
+      const gap=16,margin=8;
+      const left=x+gap+t.width<=window.innerWidth-margin?x+gap:Math.max(margin,x-gap-t.width);
+      const top=y+gap+t.height<=window.innerHeight-margin?y+gap:Math.max(margin,y-gap-t.height);
+      this.tooltip.style.left=Math.max(margin,Math.min(window.innerWidth-t.width-margin,left))+'px';
+      this.tooltip.style.top=Math.max(margin,Math.min(window.innerHeight-t.height-margin,top))+'px';
     };
-    const hide = () => {
-      if (this.tipFor === el) this.tooltip.hidden = true;
+    const show=event=>{
+      this.tipFor=el;this.tooltip.replaceChildren(...makeTip());this.tooltip.hidden=false;position(event);
     };
-    el.addEventListener('mouseenter', show);
-    el.addEventListener('focus', show);
-    el.addEventListener('mouseleave', hide);
-    el.addEventListener('blur', hide);
+    const hide=()=>{if(this.tipFor===el){this.tooltip.hidden=true;this.tipFor=null;}};
+    el.addEventListener('mouseenter',show);
+    el.addEventListener('mousemove',event=>{if(this.tipFor===el&&!this.tooltip.hidden)position(event);});
+    el.addEventListener('focus',show);
+    el.addEventListener('mouseleave',hide);
+    el.addEventListener('blur',hide);
+    el.addEventListener('pointerdown',hide);
   }
 
   abilityTip(id) {
@@ -1774,7 +1777,7 @@ export class UI {
       set(this.deathBtn, 'text', wait > 0 ? `Reconstituting in ${Math.ceil(wait / 1000)}…` : 'Reconstitute at the Sanctum');
     }
 
-    set(this.interact, 'hidden', !st.nearObject);
+    set(this.interact, 'hidden', !st.nearObject || !!this.production || this.inscriptionActive);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);

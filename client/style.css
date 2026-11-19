@@ -629,3 +629,9 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .item-cell[data-rarity="Very rare"],.loot-entry[data-rarity="Very rare"]{border-color:#cbaf76}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
+
+/* Playtest remediation: readable transcript and pointer-following item inspection. */
+.radio-panel{width:min(290px,calc(100vw - 16px));}
+.radio-transcript{font-size:12px;line-height:1.4;}
+.radio-transcript[aria-expanded="true"]{max-height:min(210px,38vh);}
+.tooltip{max-height:calc(100vh - 16px);overflow:hidden;}
