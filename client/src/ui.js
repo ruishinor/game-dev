@@ -25,7 +25,7 @@ import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
-import { WorldAtlas } from './world-atlas.js';
+import { WorldAtlas, reachTerrain } from './world-atlas.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
@@ -300,8 +300,9 @@ export class UI {
 
     const side = h('div', 'side');
     this.minimap = document.createElement('canvas');
-    this.minimap.width = 168;
-    this.minimap.height = 168;
+    this.minimap.width = 256;
+    this.minimap.height = 256;
+    this.minimapZoom=1;
     this.minimap.className = 'minimap';
     this.minimap.setAttribute('role', 'img');
     this.minimap.setAttribute('aria-label', 'World minimap');
@@ -713,7 +714,9 @@ export class UI {
     root.append(this.settingsPanel);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
     this.zoneLabel.after(this.atlas.clock);
-    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());this.minimap.after(this.atlasButton);
+    const mapControls=h('div','map-controls');
+    for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
+    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (Shift+M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -2138,7 +2141,8 @@ export class UI {
     const annex=inRiftAnnex(st.me.pos.x,st.me.pos.z,2);
     const pocket=!annex&&inSeverancePocket(st.me.pos.x,st.me.pos.z,2);
     const area=annex?RIFT_ANNEX:pocket?SEVERANCE_POCKET:null;
-    const k = (R - 4) / (area?Math.hypot(area.hw,area.hd)*(pocket?.62:1):WORLD.radius);
+    const zoom=this.minimapZoom||1;
+    const k = (R - 4) / (area?Math.hypot(area.hw,area.hd)*(pocket?.62:1):WORLD.radius)*zoom;
     g.clearRect(0, 0, c.width, c.height);
     g.save();
     g.translate(R, R);
@@ -2149,9 +2153,10 @@ export class UI {
     g.clip();
     // Top-down with north (-Z) up and east (+X) to the right.
     // The pocket map follows the player; the Annex and the Reach are fixed.
-    const cx=annex?RIFT_ANNEX.x:pocket?st.me.pos.x:0,cz=annex?RIFT_ANNEX.z:pocket?st.me.pos.z:0;
+    const cx=zoom>1||pocket?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket?st.me.pos.z:annex?RIFT_ANNEX.z:0;
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
+    if(!area)g.drawImage(reachTerrain(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
     if(area){g.strokeStyle=pocket?'#9c7a63':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
     const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of area?[]:Object.keys(ZONES)) {
@@ -2225,13 +2230,14 @@ export class UI {
     g.restore();
     g.beginPath();
     g.arc(R, R, R - 2, 0, Math.PI * 2);
-    g.strokeStyle = 'rgba(111, 230, 255, 0.55)';
+    g.strokeStyle = '#a99a75';
     g.lineWidth = 2;
     g.stroke();
     g.fillStyle = '#cfefff';
-    g.font = 'bold 11px sans-serif';
+    g.font = 'bold 15px sans-serif';
     g.textAlign = 'center';
-    g.fillText('N', R, 13);
+    g.strokeStyle='#13191d';g.lineWidth=3;g.strokeText('N',R,20);
+    g.fillText('N', R, 20);
   }
 }
 
