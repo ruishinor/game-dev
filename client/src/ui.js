@@ -16,6 +16,7 @@ import { RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import { canSalvageEquipment } from '../../shared/item-actions.js';
 import { renderWorkshop, updateProduction } from './workshop-ui.js';
+import { createProductionClock } from './production-presentation.js';
 import { WindowLayout } from './window-layout.js';
 import { RadioPanel } from './radio.js';
 import { LootPanel } from './loot-ui.js';
@@ -151,6 +152,8 @@ function unitFrame(cls) {
 export class UI {
   constructor(actions) {
     this.a = actions;
+    this.productionClock=createProductionClock();
+    this.productionDisplay=null;
     this.sheet = null;
     this.unseenItems = new Set();
     this.workshopSite=null;
@@ -1776,15 +1779,17 @@ export class UI {
     const productionStarted=!!you.production&&!this.production;
     const inscriptionStarted=!!you.inscription&&!this.inscriptionActive;
     this.production = you.production;
+    this.productionDisplay=this.productionClock.sample(this.production,st.now);
     this.inscriptionActive=!!you.inscription;
     if(productionStarted||inscriptionStarted)this.dismissWorldActionPanels();
     set(this.productionStatus,'hidden',!this.production);
     if(this.production){
       const job=this.production,recipe=RECIPES[job.id];
       const units=recipe?.output.count||1;
-      set(this.productionName,'text',recipe?recipe.name+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
+      const display=this.productionDisplay;
+      set(this.productionName,'text',recipe?recipe.name+' · '+(display?.stage??'Working')+' · '+job.complete*units+'/'+job.quantity+' produced':'Fabricating');
       this.productionProgress.max=job.cycles;
-      this.productionProgress.value=job.complete+Math.max(0,Math.min(1,(job.total-job.ms)/job.total));
+      this.productionProgress.value=display?.overall??job.complete;
     }
     this.workshopSite=site;this.atSanctum=!!you.safe;
     set(this.brineWorkshop,'hidden',!site?.startsWith('brine_'));
@@ -2050,6 +2055,7 @@ export class UI {
     this.loadoutSlot = null;
     this.workshopTab='planner';this.plannedLoadout=null;this.recipeId=null;this.atSanctum=false;
     this.production = null;
+    this.productionClock.reset();this.productionDisplay=null;
     this.productionStatus.hidden = true;
     this.inscriptionActive = false;
     this.inscription.hidden = true;
