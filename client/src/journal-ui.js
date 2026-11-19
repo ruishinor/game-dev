@@ -178,8 +178,8 @@ const LOADOUT_TABS = [
   {id:'character',name:'Character',slots:[]},
   {id:'gear',name:'Gear',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
-    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Hands',3,2),
-    present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
+    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Gloves',3,2,'gloves'),
+    present('waist','Waist',1,3),present('legs','Greaves',2,3,'greaves'),present('feet','Boots',3,3,'boots'),
     present('device','Device',1,4,'device'),present('utility','Utility',2,4),
   ]},
   {id:'implants',name:'Implants',slots:[
@@ -226,7 +226,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...['chest','gloves','greaves','boots'].filter(slot=>s.equipped[slot])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();

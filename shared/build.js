@@ -1,7 +1,8 @@
 // Loadout rules: derived stats and equip validation. Shared so the client can
 // explain requirements, but only the server's result is ever applied.
 
-import { CLASSES, ITEMS, SLOTS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
+import { CLASSES, ITEMS, ARMOR_SETS, SLOTS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
+import { armorSetBonuses } from './armor-set-bonuses.js';
 
 /** Effective skills for a class/level with a given equipped loadout. */
 export function computeSkills(cls, level, equipped) {
@@ -23,14 +24,26 @@ export function computeSkills(cls, level, equipped) {
  */
 export function deriveStats(char) {
   const def = CLASSES[char.cls];
-  const skills = computeSkills(char.cls, char.level, char.equipped);
+  const hasSetPiece = SLOTS.some(slot => ITEMS[char.equipped[slot]]?.setId);
+  const equipped = hasSetPiece ? resolveLoadout(char, char.equipped).equipped : char.equipped;
+  const skills = computeSkills(char.cls, char.level, equipped);
   const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0, shieldMul: 1 };
   for (const slot of SLOTS) {
-    const item = ITEMS[char.equipped[slot]];
+    const item = ITEMS[equipped[slot]];
     if (!item || !item.mods) continue;
     for (const k of Object.keys(item.mods)) {
       if (k.endsWith('Mul')) mods[k] *= item.mods[k];
       else mods[k] += item.mods[k];
+    }
+  }
+  // Set effects are derived only from the owned, eligible loadout.
+  for (const set of armorSetBonuses(char.cls, equipped, ITEMS, ARMOR_SETS)) {
+    for (const { mods: bonus } of set.active) {
+      for (const [key, value] of Object.entries(bonus)) {
+        if (!Object.hasOwn(mods, key)) continue;
+        if (key.endsWith('Mul')) mods[key] *= value;
+        else mods[key] += value;
+      }
     }
   }
   // The primary skill directly scales everything the class does.
@@ -45,7 +58,7 @@ export function deriveStats(char) {
     chargeMul: mods.chargeMul,
     dischargeRadius: mods.dischargeRadius,
     shieldMul: mods.shieldMul,
-    glyph: char.equipped.glyph || null,
+    glyph: equipped.glyph || null,
   };
 }
 
