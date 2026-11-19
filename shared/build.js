@@ -1,7 +1,8 @@
 // Loadout rules: derived stats and equip validation. Shared so the client can
 // explain requirements, but only the server's result is ever applied.
 
-import { CLASSES, ITEMS, SLOTS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
+import { CLASSES, ITEMS, ARMOR_SETS, SLOTS, SKILL_NAMES, ATTUNEMENT_NAMES } from './content.js';
+import { armorSetBonuses } from './armor-set-bonuses.js';
 
 /** Effective skills for a class/level with a given equipped loadout. */
 export function computeSkills(cls, level, equipped) {
@@ -31,6 +32,17 @@ export function deriveStats(char) {
     for (const k of Object.keys(item.mods)) {
       if (k.endsWith('Mul')) mods[k] *= item.mods[k];
       else mods[k] += item.mods[k];
+    }
+  }
+  // Set effects are derived only from the owned, eligible loadout.
+  const eligible = resolveLoadout(char, char.equipped).equipped;
+  for (const set of armorSetBonuses(char.cls, eligible, ITEMS, ARMOR_SETS)) {
+    for (const { mods: bonus } of set.active) {
+      for (const [key, value] of Object.entries(bonus)) {
+        if (!Object.hasOwn(mods, key)) continue;
+        if (key.endsWith('Mul')) mods[key] *= value;
+        else mods[key] += value;
+      }
     }
   }
   // The primary skill directly scales everything the class does.
