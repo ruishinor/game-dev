@@ -1,0 +1,70 @@
+{
+ "top": {
+  "iou": 0.8474622583509802,
+  "params": {
+   "rot_deg": -0.0006100204160301809,
+   "px_per_m": 94.0311187221235
+  },
+  "role": "geometry source (self-consistency)"
+ },
+ "persp_a": {
+  "iou": 0.6521572203292221,
+  "params": {
+   "az": 88.7412380066316,
+   "el": 29.253290804398787,
+   "dist_x_size": 1.3638837125136845,
+   "focal_mm": 62.67823196519477,
+   "roll": 0.850346160059497,
+   "el_range": [
+    8,
+    30
+   ]
+  },
+  "role": "contributed height ratios only"
+ },
+ "persp_b": {
+  "iou": 0.6789465406057217,
+  "params": {
+   "az": 106.8367950593749,
+   "el": 21.202461672752754,
+   "dist_x_size": 1.3050378217600884,
+   "focal_mm": 73.21839131144351,
+   "roll": 1.5660316800246,
+   "el_range": [
+    8,
+    30
+   ]
+  },
+  "role": "validation (not used to derive geometry)"
+ },
+ "wire_a": {
+  "iou": 0.7143442727948146,
+  "params": {
+   "az": 85.38811854151828,
+   "el": 29.82102723809639,
+   "dist_x_size": 1.3362878510877332,
+   "focal_mm": 65.17155345366879,
+   "roll": -0.28187186915322365,
+   "el_range": [
+    8,
+    30
+   ]
+  },
+  "role": "validation (not used to derive geometry)"
+ },
+ "wire_b": {
+  "iou": 0.6284178187403994,
+  "params": {
+   "az": -100.08420751832811,
+   "el": 28.526230660266535,
+   "dist_x_size": 1.2403371719673237,
+   "focal_mm": 59.09214663852043,
+   "roll": -0.6720746820339163,
+   "el_range": [
+    8,
+    30
+   ]
+  },
+  "role": "validation (not used to derive geometry)"
+ }
+}

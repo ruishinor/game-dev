@@ -399,7 +399,8 @@ def main():
     sock.parent_bone = "body"
     sock.matrix_world = Matrix.Translation((0, -0.2, 2.6))
     sc["clips"] = json.dumps(meta)
-    bpy.ops.wm.save_as_mainfile(filepath=str(out / p["blend_name"]))
+    bpy.ops.file.pack_all()  # the rigged .blend must open with its baked maps anywhere
+    bpy.ops.wm.save_as_mainfile(filepath=str(out / p["blend_name"]), compress=True)
     bpy.ops.export_scene.gltf(filepath=str(out / p["glb_name"]), export_format="GLB", export_animations=True, export_animation_mode="NLA_TRACKS",
                               export_skins=True, export_def_bones=False, export_tangents=True, export_extras=True, export_yup=True, export_apply=False,
                               export_image_format="AUTO", export_force_sampling=True, export_frame_range=False)
