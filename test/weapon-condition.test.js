@@ -29,7 +29,7 @@ test('starter weapon acquisition, equipment, defeat wear, paid repair and QL upg
  const repair=req('repair','field_emitter');assert.ok(tradeVendor(g,p,repair).ok);assert.equal(p.char.credits,36);assert.equal(conditionOf(p.char,'field_emitter'),100);assert.equal(tradeVendor(g,p,repair).ok,false);
  assert.equal(tradeVendor(g,p,req('repair','field_emitter')).ok,false);
  assert.equal(tradeVendor(g,p,req('repair','wardstone_shard')).ok,false);
- assert.ok(unequipSlot(g,p,'weapon').ok);assert.ok(craftRecipe(g,p,'tune_emitter').ok);
+ const station=g.objects.find(o=>o.type==='sanctum_fabricator');place(p,station.x,station.z+2);assert.ok(unequipSlot(g,p,'weapon').ok);assert.ok(craftRecipe(g,p,'tune_emitter').ok);
  assert.ok(!p.char.inventory.includes('field_emitter'));assert.ok(p.char.inventory.includes('tuned_emitter'));assert.equal(ITEMS.tuned_emitter.ql,3);
  assert.ok(equipItem(g,p,'tuned_emitter').ok);assert.equal(weaponBonus(p.char),4);
 });

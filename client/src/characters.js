@@ -8,6 +8,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
@@ -21,8 +22,6 @@ const armBone = (bone) => /^(upperarm|lowerarm|hand)_/.test(bone);
 export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) - SHOULDER_X) * k);
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
-import { createSpindle } from './spindle.js';
-import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
@@ -194,6 +193,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -212,6 +212,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     hover: 0,
     accent: def.accent,
     update(dt, st) {
+      const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -233,7 +234,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if(step){work.restorePose();anim.update(step);if(working)work.pose(st.work,st.t,st.reducedMotion);}
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -259,6 +260,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       anim.dispose();
       face?.dispose();
+      work.dispose();
       disposeInstance(group);
     },
   };
@@ -515,7 +517,7 @@ export function makeMender(assets) {
 // --- registry ----------------------------------------------------------------
 
 /** Bundles that must be ready before characters can be drawn from GLB. */
-export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spindle', 'turret_drone'];
+export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures'];
 
 /**
  * Build the model for an entity. Uses the GLB assets when they are loaded and
@@ -527,8 +529,6 @@ export function createModel(assets, meta, glb = true) {
   if (glb) try {
     const look = lookFor(meta);
     if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
-    else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
-    else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {
       if (assets.menderPrototype) {
         try {
@@ -544,8 +544,6 @@ export function createModel(assets, meta, glb = true) {
     model = null;
   }
   if (model) return model;
-  if (meta.c === 'spindle') return createSpindle(null, disposeInstance);
-  if (meta.c === 'turret_drone') return createTurretDrone(null, disposeInstance);
   const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)(meta);
   fallback.kind = 'procedural';
   return fallback;

@@ -115,12 +115,15 @@ export function groundHeight(x, z) {
 // collider used by both sides: circle {r} or axis-aligned box {hw, hd}.
 // ---------------------------------------------------------------------------
 
+export const SANCTUM_FABRICATOR = Object.freeze({x:2.8,z:3.7,hw:1.4,hd:0.78,h:2.7,range:5});
+
 function buildProps() {
   const props = [];
   const add = (p) => props.push(p);
   const rnd = mulberry32(90210);
 
   // --- Lattice Sanctum (safe zone) ---
+  add({type:'sanctum_fabricator',...SANCTUM_FABRICATOR});
   add({ type: 'beacon', x: 0, z: 0, r: 1.5, h: 9 });
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
@@ -303,6 +306,7 @@ export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
 
 /** Interactive, non-hostile world objects. The server owns their state. */
 export const OBJECTS = [
+  {key:'sanctum_fabricator',type:'sanctum_fabricator',name:'Sanctum Precision Fabricator',x:SANCTUM_FABRICATOR.x,z:SANCTUM_FABRICATOR.z,r:0,embedded:true},
   { key: 'obelisk', type: 'obelisk', name: 'The Listening Stone', x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 1.0 },
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
   { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },

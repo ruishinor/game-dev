@@ -3,7 +3,7 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
+import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
@@ -13,7 +13,6 @@ import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
-import { signedWheelTravel } from './spindle.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -26,7 +25,7 @@ import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
-import { UI, companionCommandKeys } from './ui.js';
+import { UI } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -83,6 +82,7 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const fx = new Fx(scene);
 const legacyFx = fx;
 const liveAegis = new LiveAegis(THREE);
@@ -854,10 +854,10 @@ const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'v
 function nameOf(ent) {
   if (!ent) return 'Something';
   if (ent.id === S.myId) return 'You';
+  if (ent.id === S.compId) return ent.meta.c==='survey_strider'?'Your Strider':'Your symbiote';
   if (ent.meta.k === 'c') {
     const owner = S.ents.get(ent.meta.o);
-    const kind = ent.meta.c === 'survey_strider' ? 'Strider' : ent.meta.c === 'mender' ? 'symbiote' : ent.meta.n;
-    if (ent.id === S.compId) return ent.meta.c === 'spindle' ? ent.meta.n : `Your ${kind}`;
+    const kind=ent.meta.c==='survey_strider'?'Strider':'symbiote';
     return owner ? `${owner.meta.n}'s ${kind}` : `A ${kind}`;
   }
   return ent.meta.n;
@@ -1036,7 +1036,7 @@ function onEvent(e) {
         }
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
+      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1226,6 +1226,8 @@ function onEvent(e) {
     }
     case 'radio':
       ui.radio.receive(e.source,e.m,e.dialogueId);break;
+    case 'workshop_open':
+      ui.workshopTab='fabrication';ui.toggleWorkshop(true);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':
@@ -1345,9 +1347,9 @@ input.onAction = (code, e) => {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
-      const pet = S.ents.get(S.compId)?.meta.c;
-      const mode = companionCommandKeys(pet)[i];
-      if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
+      const mode = ['triage', 'guard', 'assist', 'follow', 'stay'][i];
+      const pet=S.ents.get(S.compId)?.meta.c;
+      if (mode && (pet==='survey_strider'?['assist','follow','stay'].includes(mode):def.companion)) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
   }
@@ -1578,11 +1580,9 @@ function updateEntities(dt, t, now) {
         yaw = host.yaw;
       }
     }
-    let travel = 0;
     if (ent.placed) {
       const mx = x - ent.pos.x;
       const mz = z - ent.pos.z;
-      if (ent.meta.c === 'spindle') travel = signedWheelTravel(mx, y - ent.pos.y, mz, yaw);
       const moved = Math.hypot(mx, mz);
       const inst = dt > 0 ? moved / dt : 0;
       ent.speed += (Math.min(inst, 14) - ent.speed) * Math.min(1, dt * 12);
@@ -1627,7 +1627,7 @@ function updateEntities(dt, t, now) {
     // the face is close enough to animate in detail.
     let lookAt = null;
     const camD = camera.position.distanceTo(cullSphere.center);
-    if (ent.model.kind === 'glb' && ent.meta.c !== 'turret_drone' && ent.inView && camD < 16 && !ent.dead) {
+    if (ent.model.kind === 'glb' && ent.inView && camD < 16 && !ent.dead) {
       const meP = S.ents.get(S.myId);
       const tgt = ent.id === S.myId ? S.ents.get(S.target) : meP && Math.hypot(meP.pos.x - x, meP.pos.z - z) < 6 ? meP : null;
       if (tgt && tgt !== ent && tgt.placed) lookAt = (ent.lookVec ||= new THREE.Vector3()).set(tgt.pos.x, tgt.pos.y + (tgt.model.height || 1.8) * 0.88, tgt.pos.z);
@@ -1639,8 +1639,6 @@ function updateEntities(dt, t, now) {
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
-      travel,
-      cameraDistance: camD,
       dead: ent.dead,
       attack: ent.attack,
       cast: ent.castAnim,
@@ -1650,6 +1648,7 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
@@ -1810,6 +1809,7 @@ function frame(now) {
   }
 
   if (!S.myId) {
+    machine?.userData.updateWork?.(dt,time,null,true);
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
@@ -1821,6 +1821,13 @@ function frame(now) {
 
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
+  if(machine?.userData.updateWork){
+    let working=null;
+    for(const actor of S.ents.values())if(actor.meta.k==='p'&&actor.row?.work?.site==='sanctum'){
+      const w=actor.row.work;if(!working||w.q>working.q)working=w;
+    }
+    machine.userData.updateWork(dt,time,working,motionPreference.matches||quality===0);
+  }
   const me = S.ents.get(S.myId);
   if (me && me.placed) {
     cam.update(me.pos, dt);

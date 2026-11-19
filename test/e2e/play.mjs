@@ -462,7 +462,7 @@ try {
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery'].includes(e.c)).map((e) => e.c);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery','sanctum_fabricator'].includes(e.c)).map((e) => e.c);
   check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
   const aByB = await drawn(B, sa.myId);

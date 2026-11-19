@@ -77,11 +77,15 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.condition.field_emitter===85&&!window.__attune.state().sheet.goods.field_maintenance_kit);
  assert.equal(p.char.condition.field_emitter,85);
  await inventory.getByRole('button',{name:'Close inventory'}).click();
+ const station=server.game.objects.find(o=>o.type==='sanctum_fabricator');p.x=station.x;p.z=station.z+2;
+ await page.waitForFunction(()=>window.__attune.state().you.workshop==='sanctum');
  await page.locator('#view').focus();await page.keyboard.press('KeyB');
  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
  await workshop.getByRole('button',{name:'Workshop',exact:true}).click();
  await workshop.locator('[data-recipe="field_maintenance_kit"]').click();
  await workshop.locator('[data-craft="field_maintenance_kit"]').click();
+ await page.waitForFunction(()=>window.__attune.gfx.scene.getObjectByName('sanctum-precision-fabricator')?.userData.working===true);
+ await page.waitForFunction(()=>!!window.__attune.gfx.scene.getObjectByName('production:right')?.visible);
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
  assert.equal(p.char.materials.mire_fibre,undefined);assert.equal(p.char.materials.sentinel_alloy,undefined);
  await workshop.waitFor({state:'hidden'});
@@ -93,6 +97,7 @@ try{
  assert.ok(await inventory.getByRole('button',{name:'Use Field Maintenance Kit',exact:true}).isDisabled());
  await page.screenshot({path:'vendor-evidence/05-field-maintenance.png'});
  await inventory.getByRole('button',{name:'Close inventory'}).click();
+ p.x=vendor.x;p.z=vendor.z+2;await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await panel.waitFor({state:'visible'});
  p.x=vendor.x-8;p.z=vendor.z;

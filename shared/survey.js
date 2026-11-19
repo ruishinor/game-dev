@@ -1,4 +1,4 @@
-import { OBJECTS, dist, inSanctum } from './world.js';
+import { OBJECTS, dist, inSanctum, SANCTUM_FABRICATOR } from './world.js';
 // Optional story branch. No changes to the original directive chain.
 export const SURVEY = {
   signal: {
@@ -61,7 +61,7 @@ export const FIELD_RECORDS = Object.freeze({
  brine_engineering:{title:'B / ENGINEERING STATION',subtitle:'East service deck · isolation and repair',lines:[['Function','Isolate the pump feed, recover structural records, perform field repair and engineering fabrication.'],['Commission','Prepare/arm as directed, then take ordered readings within 30 seconds. No waiting required.']]},
 });
 export function workshopSite(p){
- if(inSanctum(p))return 'sanctum';
+ if(inSanctum(p)&&dist(p,SANCTUM_FABRICATOR)<=SANCTUM_FABRICATOR.range)return 'sanctum';
  if(brineStage(p.char?.brineStage)!==3 || !surveyState(p.char?.survey)?.endsWith('_done'))return null;
  for(const o of OBJECTS)if(o.type.startsWith('brine_')&&dist(p,o)<=4.2)return o.type;
  return null;

@@ -21,7 +21,7 @@ const visual=(id,name,sub,met)=>{
 const LESSONS=[
   ['Plan before you commit','Choose a device, implant or glyph in Build Planner. Compare Current and Planned statistics. Unowned items can be previewed; the planner never equips or spends anything.','planner'],
   ['Recover components','Start with a field pulse emitter if you have no weapon, or field maintenance kits if you already own one. Both require mire fibre and sentinel alloy. Recover personal salvage from Mire Skitters and Rogue Sentinels, or buy components from the Sanctum Quartermaster. Inspect the selected recipe for exact quantities.','fabrication'],
-  ['Meet requirements','Check skills, attunement and location. Equip skill-boosting equipment in Character [C] if needed. General recipes can be assembled at the Sanctum. Commission Brineworks to access specialized Research (station A) and Engineering (station B); some recipes need those stations or additional knowledge.','fabrication'],
+  ['Meet requirements','Check skills, attunement and location. Equip skill-boosting equipment in Character [C] if needed. General recipes require the Precision Fabricator near the Sanctum arrival deck. Commission Brineworks to access specialized Research (station A) and Engineering (station B); some recipes need those stations or additional knowledge.','fabrication'],
   ['Fabricate and install','Target equipment must be carried, not installed. Fabrication spends materials; upgrades replace their target, and permanent fusion consumes both target items. Check the result, then fabricate and install it in Character [C].','fabrication'],
 ];
 function tutorial(ui){
@@ -210,7 +210,7 @@ function fabrication(ui,body){
   for(const [key,min] of Object.entries(recipe.requires||{}))detail.append(row(SKILL_NAMES[key],(s.stats.skills[key]||0)+' / '+min,(s.stats.skills[key]||0)>=min));
   if(recipe.attune)detail.append(row('Attunement: '+ATTUNEMENT_NAMES[recipe.attune],s.attunements.includes(recipe.attune)?'Met':'Missing',s.attunements.includes(recipe.attune)));
   const siteOk=canFabricateAt(recipe,site);
-  const names={sanctum:'Lattice Sanctum',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
+  const names={sanctum:'Sanctum Precision Fabricator',brine_research:'A · Research Station',brine_engineering:'B · Engineering Station'};
   detail.append(row('Fabrication site',site?names[site]:'Outside workshop',siteOk));
   const preview=previewProduction(s,id,quantity);
   const knowledge = missingRecipeKnowledge(s, recipe);

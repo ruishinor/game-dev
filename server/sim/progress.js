@@ -306,6 +306,10 @@ export function interact(game, p, objectId) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
+  if(obj.type==='sanctum_fabricator') {
+    if(workshopSite(p)!=='sanctum')return {ok:false,reason:'Approach the Precision Fabricator.'};
+    p.outbox.push({e:'workshop_open'});return {ok:true};
+  }
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});

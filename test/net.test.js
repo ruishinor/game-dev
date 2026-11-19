@@ -104,7 +104,6 @@ test('http: serves the client, blocks traversal and unknown paths', async () => 
     assert.equal((await fetch(base + '/server/sim/loot-tables.js')).status, 404);
     assert.equal((await fetch(base + '/server/sim/disposal.js')).status, 404);
     assert.equal((await fetch(base + '/server/sim/production.js')).status, 404);
-    assert.equal((await fetch(base + '/server/sim/spindle.js')).status, 404);
     assert.equal((await fetch(base + '/shared/..%2fserver/sim/loot-tables.js')).status, 404);
     const publicGadgets=await (await fetch(base + '/shared/gadgets.js')).text();
     assert.doesNotMatch(publicGadgets,/SENTINEL_GADGET_DROPS/);
@@ -194,40 +193,6 @@ test('looks: a cosmetic appearance is stored, relayed to other players, validate
   } finally {
     await srv.close();
   }
-});
-
-test('multiplayer: Spindle identity, action and removal replicate while service reports stay private', async () => {
-  const srv = await startServer({ port: 0, dataFile: null });
-  const a = new Client(srv.port), b = new Client(srv.port);
-  try {
-    const wa = await a.create('Operator', 'vanguard'), wb = await b.create('Observer', 'keeper');
-    a.send({ t: 'pet_manage', action: 'commission', type: 'spindle' });
-    await a.until(() => a.snap?.y.companions.some(c => c.type === 'spindle'));
-    a.send({ t: 'pet_manage', action: 'summon', type: 'spindle' });
-    const machine = await a.until(() => a.snap.y.comp);
-    await b.until(() => b.ent(machine) && b.meta.has(machine));
-    assert.equal(b.meta.get(machine).o, wa.id);
-    assert.equal(b.meta.get(machine).c, 'spindle');
-    assert.equal(b.snap.y.comp, 0);
-    b.send({ t: 'pet', c: 'stay' });
-    await b.until(() => b.events.some(e => /no companion/i.test(e.m)));
-    assert.equal(a.ent(machine).md, 'follow');
-    a.send({ t: 'pet', c: 'inspect' });
-    await b.until(() => b.ent(machine)?.a === 'inspecting');
-    assert.equal(b.ent(machine).t, wa.id);
-    await a.until(() => a.events.some(e => /inspection: No serviceable weapon/.test(e.m)), 5000);
-    assert.equal(b.events.some(e => /No serviceable weapon/.test(e.m)), false);
-    b.send({ t: 'pet_manage', action: 'commission', type: 'spindle' });
-    await b.until(() => b.snap.y.companions.some(c => c.type === 'spindle'));
-    b.send({ t: 'pet_manage', action: 'summon', type: 'spindle' });
-    const second = await b.until(() => b.snap.y.comp);
-    await a.until(() => a.ent(second));
-    assert.equal(a.meta.get(second).o, wb.id);
-    assert.ok(Math.hypot(a.ent(machine).x-a.ent(second).x, a.ent(machine).z-a.ent(second).z) > 1.5);
-    a.send({ t: 'pet_manage', action: 'dismiss' });
-    await b.until(() => !b.ent(machine));
-    assert.equal(b.snap.y.comp, second);
-  } finally { a.close(); b.close(); await srv.close(); }
 });
 
 test('multiplayer: two clients share one world, see each other, fight the same enemy and heal across players', async () => {
@@ -668,7 +633,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     // Exercise the actual authenticated craft command and persisted inventory.
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
-    p.x=0;p.z=8;
+    p.x=2.8;p.z=5.7; // Stand at the physical fabricator.
     await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
     a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
     await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');

@@ -41,6 +41,9 @@ export function productionState(game, p) {
     total: job.duration, ms: Math.max(0, job.until - game.time) } : null;
 }
 
+// Public presentation only: recipe identity and inputs stay private.
+export function productionVisualState(game,p){const j=p.production;if(!j)return null;return {m:j.method,site:j.site,q:Math.round(Math.min(1,Math.max(0,1-(j.until-game.time)/j.duration))*100)/100};}
+
 export function stopProduction(game, p, reason = 'Production cancelled.') {
   const job = p.production;
   if (!job) return;

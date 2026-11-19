@@ -14,6 +14,7 @@ import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
+import { buildSanctumFabricator } from './sanctum-fabricator.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -299,6 +300,7 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
+  sanctum_fabricator() { return buildSanctumFabricator(THREE); },
   deep_wall(p) {
     const g = new THREE.Group();
     const concrete = mat(0x525750, { rough: 0.94 });
@@ -1246,7 +1248,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type.startsWith('sinter_') || p.type.startsWith('deep_') ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || p.type.startsWith('deep_') ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
