@@ -16,6 +16,12 @@ export const HUMANOID_BASE = {
 
 // Ability / event id -> clip. `start` skips the wind-up so the visible impact
 // lands close to the moment the server resolved the hit.
+export const HUMANOID_MELEE_SEQUENCE = Object.freeze([
+  {clip:'Punch_Jab',start:.16,timeScale:1.35},
+  {clip:'Punch_Cross',start:.16,timeScale:1.25},
+  {clip:'Melee_Hook',start:.13,timeScale:1.2},
+]);
+
 export const HUMANOID_ACTIONS = {
   phase_needle:{clip:'Spell_Simple_Shoot',timeScale:1.1},
   hinge_field:{clip:'Spell_Simple_Enter',fadeOut:.4},

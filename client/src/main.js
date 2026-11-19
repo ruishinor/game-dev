@@ -12,6 +12,7 @@ import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { LONGPOINT_TRACE } from './longpoint.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
@@ -948,7 +949,12 @@ function onEvent(e) {
           s.faceUntil = now + 500;
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
+        if (e.k === 'bolt' && d) {
+          const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
+          if(!rich()&&e.wv==='longpoint'&&s.placed&&d.placed&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
+            legacyFx.beam(()=>muzzle,chestOf(d),LONGPOINT_TRACE.color,LONGPOINT_TRACE.life*1000,LONGPOINT_TRACE.width);
+          }else fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
+        }
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);

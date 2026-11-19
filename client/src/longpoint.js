@@ -1,5 +1,9 @@
 // Cosmetic pose adapter for the Longpoint asset. No character/weapon state or
 // gameplay mechanics are changed. Forward is local +X; all units are art units.
+import { recoilAmount } from './weapon-pose.js';
+
+export const LONGPOINT_TRACE = Object.freeze({color:0x86d8ff,width:.045,life:.21});
+
 export function poseLongpoint(group, deployment = 0) {
   const left=group?.getObjectByName('SupportLeft');
   const right=group?.getObjectByName('SupportRight');
@@ -20,7 +24,7 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
   const [grip,support,effect]=anchors;
   const v=()=>new T.Vector3(), q=()=>new T.Quaternion();
   const world=n=>n.getWorldPosition(v()), inBody=n=>humanoid.worldToLocal(world(n));
-  const saved=new Map();let active=false, closed=false;
+  const saved=new Map();let active=false, closed=false, shotAge=Infinity;
   prop.scale.setScalar(.43);prop.visible=false;humanoid.add(prop);poseLongpoint(prop,0);
   function restore(){if(!saved.size)return;for(const [bone,rotation] of saved)bone.quaternion.copy(rotation);saved.clear();humanoid.updateWorldMatrix(true,true);}
   function orient(bone,child,target){
@@ -44,21 +48,31 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     const bend=start.clone().addScaledVector(direction,along).addScaledVector(pole,height);
     return orient(a.upper,a.lower,bend)&&orient(a.lower,a.hand,target)&&world(a.hand).distanceTo(target)<.004;
   }
-  function update(st={}){
+  function update(st={},dt=0){
     if(closed)return false;restore();active=false;prop.visible=false;
-    if(st.dead||st.air||st.hideWeapon)return false;
+    if(st.dead||st.air||st.hideWeapon){shotAge=Infinity;return false;}
+    if(st.reducedMotion)shotAge=Infinity;
     const right=inBody(arms[0].upper), left=inBody(arms[1].upper);
     const mid=right.clone().add(left).multiplyScalar(.5);
-    // Across-body carried pose: the fictional prop remains steady, without recoil.
-    // Its anchors are art-space points, not real-world handling instructions.
+    // Preserve the existing carried pose; only a confirmed firing event
+    // adds a bounded local cosmetic recoil. Never change server aiming.
     const angle=.68;
     prop.rotation.set(0,-Math.PI/2+angle,0);
     prop.position.set(0,0,0);prop.updateWorldMatrix(true,true);
     const aim=mid.clone().add(new T.Vector3(-.065,-.18,.065));
-    const gripLocal=inBody(grip);prop.position.copy(aim.sub(gripLocal));prop.updateWorldMatrix(true,true);
-    const targets=[world(grip),world(support)];
-    if(!arms.every((a,i)=>fit(a,targets[i]))){restore();return false;}
+    const gripLocal=inBody(grip);
+    const neutral=aim.sub(gripLocal);
+    const kick=recoilAmount(shotAge,false);
+    if(Number.isFinite(dt)&&dt>0)shotAge+=Math.min(dt,.1);
+    const tryFit=offset=>{
+      prop.position.copy(neutral).addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset);
+      prop.updateWorldMatrix(true,true);
+      const targets=[world(grip),world(support)];
+      return arms.every((a,i)=>fit(a,targets[i]));
+    };
+    // Never sacrifice the verified two-hand fit for a recoil pose.
+    if(!tryFit(kick)){restore();if(!kick||!tryFit(0)){restore();return false;}}
     active=true;prop.visible=true;return true;
   }
-  return { update, restore, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
+  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
 }
