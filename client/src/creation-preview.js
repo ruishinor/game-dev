@@ -70,5 +70,6 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    return false;
   }
  }
- return {update,release,active};
+ function destroy(){observer.disconnect();release();renderer?.dispose();renderer?.forceContextLoss();renderer=null;failed=true;}
+ return {update,release,active,destroy};
 }

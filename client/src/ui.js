@@ -1415,8 +1415,17 @@ export class UI {
     const actions=h('div','initiation-actions'),apply=h('button','primary','Apply appearance'),inspect=h('button',null,'Inspect in world');
     apply.type=inspect.type='button';
     apply.addEventListener('click',()=>{status.textContent='Submitting appearance…';this.a.changeAppearance(encodeAppearance(draft));});
-    inspect.addEventListener('click',()=>this.a.inspectAppearance());
-    actions.append(apply,inspect);controls.append(fields,actions,status);panel.append(controls);
+    inspect.addEventListener('click',()=>{panel.hidden=true;this.a.inspectAppearance();this.a.focusView();});
+    const preview=h('section','hall-preview');preview.setAttribute('aria-label','Live appearance preview');
+    const canvas=h('canvas');canvas.tabIndex=0;canvas.setAttribute('aria-label','Full-body gameplay model. Drag or use arrow keys to rotate or zoom.');
+    const buttons=h('div','preview-controls');
+    for(const [attr,value,label,accessible] of [['data-preview-mode','body','Full body'],['data-preview-mode','face','Face'],['data-preview-left','','←','Rotate left'],['data-preview-right','','→','Rotate right'],['data-preview-out','','−','Zoom out'],['data-preview-in','','+','Zoom in'],['data-preview-reset','','Reset camera']]){
+      const b=h('button',null,label);b.type='button';b.setAttribute(attr,value);if(accessible)b.setAttribute('aria-label',accessible);buttons.append(b);
+    }
+    const previewStatus=h('p','muted','Loading gameplay model when visible.');previewStatus.dataset.previewStatus='';previewStatus.setAttribute('role','status');
+    preview.append(canvas,buttons,previewStatus);
+    actions.append(apply,inspect);controls.append(fields,preview,actions,status);panel.append(controls);
+    this.a.startAppearancePreview(preview,()=>encodeAppearance(draft));
   }
 
   showFieldRecord(key) {

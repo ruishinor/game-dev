@@ -331,17 +331,34 @@ const procedural = {
     }
     return g;
   },
+  arrival_floor() {
+    const g=new THREE.Group();g.name='arrival:floor';
+    const plate=mat(0x465052,{rough:.78,metal:.3}),seam=mat(0x28363a,{rough:.88}),bronze=mat(0x978464,{rough:.72,metal:.45});
+    for(let x=-3;x<=3;x+=1.5)for(let z=-1.5;z<=1.5;z+=1.5)g.add(mesh(new THREE.BoxGeometry(1.47,.035,1.47),plate,x,.025,z,false));
+    for(const x of [-3.7,3.7])g.add(mesh(new THREE.BoxGeometry(.16,.035,4.4),bronze,x,.046,0,false));
+    for(const z of [-2.25,2.25])g.add(mesh(new THREE.BoxGeometry(7.6,.035,.18),seam,0,.045,z,false));
+    for(let i=-2;i<=2;i++)g.add(mesh(new THREE.BoxGeometry(.38,.025,.2),bronze,i*.65,.049,-1.97,false));
+    return g;
+  },
+  arrival_arch() {
+    const g=new THREE.Group();g.name='arrival:threshold-arch';
+    const frame=mat(0x414d51,{rough:.62,metal:.58}),trim=mat(0x978464,{rough:.58,metal:.52});
+    g.add(mesh(new THREE.BoxGeometry(8.25,.34,.68),frame,0,3.72,0));
+    g.add(mesh(new THREE.BoxGeometry(7.4,.10,.72),trim,0,3.51,0));
+    for(const x of [-3.38,3.38])g.add(mesh(new THREE.BoxGeometry(.72,.44,.52),frame,x,3.39,0));
+    return g;
+  },
   arrival_pillar(p) {
     const g=new THREE.Group();g.name='arrival:column';
     g.add(mesh(new THREE.CylinderGeometry(.33,.38,p.h,8),mat(0x49545b,{metal:.6,rough:.6}),0,p.h/2,0));
     for(const y of [.18,p.h-.18])g.add(mesh(new THREE.CylinderGeometry(.38,.38,.19,8),mat(0xa18a59,{metal:.7}),0,y,0));
-    g.add(mesh(new THREE.BoxGeometry(.08,2.55,.09),glow(0x80c7c4),0,1.85,.32,false));
+    g.add(mesh(new THREE.BoxGeometry(.08,2.55,.09),mat(0x618b8b,{rough:.65,emissive:0x315153,ei:.20}),0,1.85,.32,false));
     return g;
   },
   arrival_wall(p){
     const g=new THREE.Group();g.name='arrival:side-enclosure';
     g.add(mesh(new THREE.BoxGeometry(p.hw*2,p.h,p.hd*2),mat(0x35434a,{metal:.48,rough:.68}),0,p.h/2,0));
-    for(const z of [-1.35,0,1.35]){g.add(mesh(new THREE.BoxGeometry(.41,2.55,.83),mat(0x4b5b60,{metal:.62,rough:.7}),0,1.64,z));g.add(mesh(new THREE.BoxGeometry(.43,.055,.72),glow(0x79c2c2),0,2.83,z,false));}
+    for(const z of [-1.35,0,1.35]){g.add(mesh(new THREE.BoxGeometry(.41,2.55,.83),mat(0x4b5b60,{metal:.62,rough:.7}),0,1.64,z));g.add(mesh(new THREE.BoxGeometry(.43,.055,.72),mat(0x618b8b,{rough:.65,emissive:0x315153,ei:.20}),0,2.83,z,false));}
     return g;
   },
   arrival_terminal(){

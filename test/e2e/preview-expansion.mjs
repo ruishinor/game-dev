@@ -74,6 +74,22 @@ try {
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
   }
+  await moveTo(-2.25,8.2);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  const hall=page.locator('.field-record'),hallPreview=hall.locator('.hall-preview');
+  await hallPreview.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.model==='glb');
+  const savedAppearance=p.char.appearance;
+  await hall.getByRole('combobox',{name:'Body frame'}).selectOption('m');
+  await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.appearance?.startsWith('m.'));
+  assert.equal(p.char.appearance,savedAppearance,'Draft does not mutate the world character');
+  const hallAppearance=await hallPreview.getAttribute('data-appearance');
+  await hall.getByRole('button',{name:'Apply appearance'}).click();
+  await page.waitForFunction(a=>window.__attune.state().sheet.appearance===a,hallAppearance);
+  assert.equal(p.char.appearance,hallAppearance);
+  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('arrival:floor')&&!!window.__attune.gfx.scene.getObjectByName('arrival:threshold-arch')));
+  await page.screenshot({path:'preview-evidence/01b-arrival-appearance.png'});
+  await hall.getByRole('button',{name:'Close field record'}).click();
   await moveTo(-5.5,-2.6);
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));

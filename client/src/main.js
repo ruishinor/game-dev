@@ -330,6 +330,7 @@ document.addEventListener('contextmenu', e=>{
 },true);
 
 const portraits = makePortraits(assets, useGlb);
+let hallPreview=null;
 const ui = new UI({
   portrait: portraits,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
@@ -374,7 +375,15 @@ const ui = new UI({
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
   changeAppearance:appearance=>net.send({t:'appearance_change',appearance}),
-  inspectAppearance:()=>{stopAutomaticMovement();cam.yaw=local.yaw+Math.PI;cam.pitch=.03;cam.want=cam.dist=3.3;},
+  inspectAppearance:()=>{stopAutomaticMovement();cam.yaw=local.yaw+Math.PI;cam.pitch=.06;cam.want=cam.dist=4.2;},
+  startAppearancePreview:(root,getAppearance)=>{
+    hallPreview?.preview.destroy();
+    const preview=createCreationPreview({root,assets,useGlb,motionPreference,getMeta:()=>{
+      const me=S.ents.get(S.myId);
+      return {...me.meta,ap:getAppearance()};
+    }});
+    hallPreview={root,preview};
+  },
   lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
   lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
   lootClose:()=>net.send({t:'loot_close'}),
@@ -1842,6 +1851,10 @@ function frame(now) {
     return;
   }
 
+  if(hallPreview){
+    if(!hallPreview.root.isConnected||hallPreview.root.closest('[hidden]')||!S.ents.get(S.myId)){hallPreview.preview.destroy();hallPreview=null;}
+    else if(!S.paused)hallPreview.preview.update(now,dt);
+  }
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
   if(machine?.userData.updateWork){

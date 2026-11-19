@@ -661,3 +661,8 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .preview-controls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .preview-controls button{font-size:12px;padding:5px 9px}
 .preview-controls button[aria-pressed=true]{border-color:var(--cyan);background:#26525f}
+
+.hall-preview{background:#111c22;padding:8px;border:1px solid #5a6564;border-radius:4px;min-width:0}
+.hall-preview canvas{display:block;width:100%;height:clamp(180px,34vh,285px);background:#132029;cursor:grab;touch-action:none}
+.hall-preview canvas:active{cursor:grabbing}
+.hall-preview canvas:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
