@@ -21,6 +21,7 @@ try{
  p.char.inventory.push('electrical_combat_rod');assert.ok(equipItem(server.game,p,'electrical_combat_rod').ok);
  await page.waitForFunction(()=>{const a=window.__attune,r=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return r?.visible&&[0,1].every(i=>r.getObjectByName('RodCorona'+i)?.visible);});
  await page.evaluate(()=>{window.__attune.view({yaw:2.2,pitch:.21,dist:4.5});});
+ await page.waitForFunction(()=>{const root=window.__attune.gfx.scene.getObjectByName('vfx-engine');return [0,1].every(i=>root?.children.some(o=>o.name==='rod-idle:plasma-'+i&&o.material?.isShaderMaterial&&o.material.uniforms.alpha.value>.08));});
  await page.evaluate(()=>{window.__attune.pause(true);window.__attune.effects.step(.1);});
  await page.screenshot({path:'rod-live-evidence/01-equipped-idle.png'});
  await page.evaluate(()=>window.__attune.pause(false));
@@ -47,8 +48,8 @@ try{
  assert.ok(enemy.hp<before,'real server damage occurred');
  assert.ok((await liveFixturePlayer(page,server,'Rod VFX Tester'))===p);
  await page.evaluate(()=>window.__attune.effects.step(.12));
- const visible=await page.evaluate(()=>{const a=window.__attune,r=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');let ribbons=0;a.gfx.scene.getObjectByName('vfx-engine')?.traverse(o=>{if(o.name==='vfx-ribbon'&&o.visible)ribbons++;});return {ribbons,contact:r?.userData.rodContactCount,quality:a.state().quality};});
- assert.ok(visible.quality===1&&visible.contact>0&&visible.ribbons>0,JSON.stringify(visible));
+ const visible=await page.evaluate(()=>{const a=window.__attune,r=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');let ribbons=0;a.gfx.scene.getObjectByName('vfx-engine')?.traverse(o=>{if(o.name==='vfx-ribbon'&&o.visible)ribbons++;});return {ribbons,contact:r?.userData.rodContactCount,sequences:r?.userData.rodStrikeSequences,sweep:!!a.gfx.scene.getObjectByName('rod-strike:primary-sweep')?.visible,quality:a.state().quality};});
+ assert.ok(visible.quality===1&&visible.contact>0&&visible.ribbons>0&&visible.sequences>0&&visible.sweep,JSON.stringify(visible));
  await page.screenshot({path:'rod-live-evidence/02-authoritative-contact.png'});
  assert.deepEqual(errors,[]);
  console.log('PASS live rod corona and real damage-triggered VFX at standard quality',visible);
