@@ -118,14 +118,22 @@ try{
  await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
- await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
- await page.getByRole('button',{name:'Separate into dual batons',exact:true}).click();
+ // Installed items leave carried inventory; use the real equipment slot.
+ assert.equal(await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').count(),0);
+ await inventory.getByRole('button',{name:'Close inventory'}).click();
+ await page.locator('#view').focus();await page.keyboard.press('KeyC');
+ const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
+ await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
+ const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
+ await installedRod.click({button:'right'});
+ await page.locator('.player-context').getByRole('button',{name:'Separate into dual batons',exact:true}).click();
  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
  assert.equal(p.char.electricalRodMode,'dual');
- await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
- await page.getByRole('button',{name:'Join into combat rod',exact:true}).click();
+ await installedRod.click({button:'right'});
+ await page.locator('.player-context').getByRole('button',{name:'Join into combat rod',exact:true}).click();
  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
- await inventory.getByRole('button',{name:'Close inventory'}).click();
+ assert.equal(p.char.electricalRodMode,'rod');
+ await loadout.getByRole('button',{name:'Close',exact:true}).click();
  const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
  await page.screenshot({path:'vendor-evidence/06-electrical-combat-rod.png'});
