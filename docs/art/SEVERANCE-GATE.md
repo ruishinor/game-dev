@@ -116,6 +116,44 @@ Fixed bounds: 240 embers, 260 column motes, three rings, three mist layers, one 
 - Independent visual acceptance against the concept art.
 - The Expanse beyond the approach: Expedition Outpost, patrols, resources and the Foundry interior (see [SEVERANCE-ROADMAP](SEVERANCE-ROADMAP.md) on the Severance branch). The Phase Annex stands in as the dungeon interior until the Foundry exists.
 
+## Time-of-day preview (prototype, 2026-11-19)
+
+This is a local presentation prototype for reviewing how the gate reads from the Expanse at different times of day. It is **not a game clock**: nothing is replicated, persisted or read by gameplay, and it is off unless a preview asks for it. Whether a live day/night cycle exists, and how it is driven, is still an open owner decision.
+
+- **Visual direction.**
+  - Day follows the owner's v1 capture: subdued, warm late-afternoon light that keeps the stairs, stonework and ruins readable.
+  - Night follows the indigo sky, stars and dark ridgelines of the v2 capture (0:03–0:11), while keeping v1's golden resonance on the inner arches, passage floor and upper steps (v1 0:13–0:15).
+  - The red sky in v1 after 0:16 is the Phase Annex after a transition, and it is deliberately not used as a reference.
+- **What changes:** sky gradient, star opacity, fog colour and range, sun direction, colour and intensity (moonlight at night), and hemisphere fill. A small multiplier (1.1–1.25) applies to the gate's existing warm portal light, which stays the only source of the golden spill.
+- **What does not change:**
+  - The gate model and layout.
+  - The gate's phase: time of day never changes the gate's dormant, resonating or active phase, and the phase never changes the time of day.
+  - Traversal and every effect layer. The emissive runes and crown beam are unlit, so they stay amber against the cooler night.
+- **Keyframes** (`client/src/severance-daylight.js`): `day` 0, `dusk` 0.25, `night` 0.5, `dawn` 0.75. They blend with smoothstep easing around a loop.
+- **Scope and restore:** the preview applies only while the camera is in the Expanse. Leaving (for example through the gate into the Phase Annex) first restores the regional Expanse preset, then the normal scene lighting, value for value. Returning reapplies the preview.
+- **Controls:**
+  - URL: `?tod=day|dusk|night|dawn|0..1`, or `?tod=loop&todperiod=28`.
+  - Console: `__attune.timeOfDay({ key: 'night' })`, `({ mode: 'loop', period: 28, t: 0 })` or `({ mode: 'off' })`.
+  - Review captures freeze the Expanse presentation clock with `__attune.severanceClock(true)` and advance it in exact steps with `__attune.severanceStep(dt)`. Steps are capped at 0.1 s and only run while drawing is paused. In this mode the random discharges and ring links are suppressed, so frames are reproducible.
+- **Review material:** `node tools/severance-daynight-capture.mjs <dir> [seconds=28] [fps=15]` writes:
+  - day, dusk, night and dawn doorway stills with identical framing;
+  - day and night control frames with the portal light off;
+  - wide day and night stills;
+  - dormant-at-night stills and a still after returning from the Annex;
+  - a fixed-camera loop video with the gate held active;
+  - `review.json`, with probe positions, lighting states and the round-trip checks.
+
+  Keep the output out of Git; `tmp/` is ignored.
+- **Tests:** `test/severance-daylight.test.js` covers:
+  - parsing, loop order and continuity;
+  - no effect while off or outside the Expanse;
+  - exact restoration on leaving;
+  - loop determinism;
+  - independence of time of day and gate phase;
+  - a dormant gate staying dormant at night;
+  - manual-clock stepping;
+  - the Annex round trip.
+
 ## Handoff (2026-11-19, 15:40)
 
 - **Branch and PR.** `feat/severance-gate`, [#131](https://github.com/ruishinor/game-dev/pull/131). Commits: `9d1c266` (the implementation), `15cb87d` (merged current main), and the roadmap and handoff documentation commits that follow.

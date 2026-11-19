@@ -7,6 +7,7 @@ import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
+import { parseTimeOfDay } from './severance-daylight.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
@@ -142,6 +143,8 @@ function readFxPrefs() {
 }
 const rich = () => !!cvfx && quality > 0;
 // The Severance Gate landmark reads the effect engine and the player's comfort settings.
+// Severance Expanse time-of-day review preview (?tod=day|dusk|night|dawn|loop|0..1). Off by default.
+world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
@@ -2019,6 +2022,23 @@ window.__attune = {
       renderer.render(scene, camera);
     },
   } }),
+  /**
+   * Severance Expanse time-of-day preview (presentation only, local, not a game clock).
+   * timeOfDay({key:'night'}) | ({mode:'loop', period:28, t:0}) | ({mode:'hold', t:0.37}) | ({mode:'off'})
+   */
+  timeOfDay(req) {
+    const tod = world.severancePocket?.timeOfDay;
+    return req ? tod?.configure(req) : tod?.state;
+  },
+  /** Review captures: freeze the Expanse presentation clock, then advance it by exact steps. */
+  severanceClock(manual) { world.severancePocket?.setManualClock(manual); },
+  severanceStep(seconds, render = true) {
+    if (!S.paused || !world.severancePocket?.step(seconds)) return false;
+    if (!render) return true;
+    camera.updateMatrixWorld();
+    renderer.render(scene, camera);
+    return true;
+  },
   /** Pose the camera (and the character's facing) for repeatable screenshots. Presentation only. */
   view({ yaw, pitch, dist, face } = {}) {
     if (yaw !== undefined) cam.yaw = yaw;
