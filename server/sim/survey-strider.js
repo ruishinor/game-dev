@@ -5,6 +5,7 @@ import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, inSanctum, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import {addBuff,getBuff} from './combat.js';
 import { groundSegmentClear, advanceGroundCompanion } from './ground-navigation.js';
+import {striderLootTarget,recoverStriderLoot} from './loot.js';
 const TYPE='survey_strider',def=COMPANIONS[TYPE],R=def.radius;
 const SCAN_RANGE=8,SCAN_INTERVAL=8000,SCAN_MS=6000,OWNER_RANGE=22;
 export function migrateSurveyStrider(char){
@@ -41,10 +42,21 @@ export function syncSurveyStrider(game,p,spotOverride){
  if(!wantsSurveyStrider(p)){dismiss(game,p);return;}
  if(p.companion||p.dead||p.char.companionDismissed)return;
  const spot=spotOverride??striderSpawnPoint(p);if(!spot)return;
- const mode=Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';
+ const mode=p.char.petMode!=='recover'&&Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';
  const c={id:game.nextId++,kind:'companion',type:TYPE,name:p.char.petName&&p.char.petName!==COMPANIONS.mender.name?p.char.petName:def.name,owner:p.id,...spot,yaw:p.yaw,mode,host:0,act:'idle',actTarget:0,nextPulse:game.time+1000,nextRegen:0,metaVer:1,nav:{}};
  p.companion=c;p.char.petMode=mode;p.char.petName=c.name;
  game.companions.push(c);game.ents.set(c.id,c);game.markDirty(p);
+}
+export function beginStriderRecovery(game,p,c){
+ const e=striderLootTarget(game,p,c);
+ if(!e)return {ok:false,reason:'No eligible personal remains within 18 metres while disengaged.'};
+ c.recoverId=e.id;c.recoverGeneration=e.lootGeneration;c.recoverUntil=game.time+12000;
+ c.mode='recover';c.act='recovering';c.actTarget=e.id;c.nav={};p.char.petMode='follow';
+ game.message(p,'info',c.name+' recovering personal remains.');return {ok:true};
+}
+function finishRecovery(game,p,c,reason){
+ c.mode='follow';c.act='idle';c.actTarget=0;c.recoverId=0;c.recoverGeneration=0;c.recoverUntil=0;c.nav={};p.char.petMode='follow';
+ game.message(p,'info',reason);
 }
 export function tickSurveyStrider(game,c,dt){
  const p=game.players.get(c.owner);if(!p||p.companion!==c)return;
@@ -53,6 +65,16 @@ export function tickSurveyStrider(game,c,dt){
  if(dist(c,p)>32){c.act='stranded';c.actTarget=0;return;}
  if(c.mode==='stay'){c.act='idle';c.actTarget=0;return;}
  const advance=goal=>goal&&advanceGroundCompanion(c,c.nav,goal,{now:game.time,dt,speed:def.speed,radius:R});
+ if(c.mode==='recover'){
+  const e=game.ents.get(c.recoverId);
+  if(!e||e.state!=='dead'||e.lootGeneration!==c.recoverGeneration||!e.lootByPlayer?.get(p.id)?.length||p.autoOn||p.combatUntil>game.time||dist(p,e)>18||game.time>=c.recoverUntil||!deepLineClear(p,e))return finishRecovery(game,p,c,'Recovery interrupted or no eligible remains.');
+  c.act='recovering';c.actTarget=e.id;
+  if(dist(c,e)<=3.2&&hasLineOfSight(c,e)){
+    const res=recoverStriderLoot(game,p,c,e.id,c.recoverGeneration);
+    return finishRecovery(game,p,c,res.ok?'Personal salvage recovered.':res.reason);
+  }
+  const goal=pointNear(e,2.6,Math.atan2(c.x-e.x,c.z-e.z),e);if(goal)advance(goal);return;
+ }
  if(c.mode==='screen'){
   const goal=pointNear(p,def.followDist,p.yaw+Math.PI);if(goal&&dist(c,goal)>.55)advance(goal);
   c.act=game.time<(c.screenUntil??0)?'screening':'idle';c.actTarget=c.act==='screening'?p.id:0;

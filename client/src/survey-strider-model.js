@@ -51,7 +51,7 @@ export function createSurveyStrider(){
    setLink(l.upper,hip,knee);setLink(l.lower,knee,foot.clone().add(new T.Vector3(0,.12,0)));
    const side=new T.Vector3(-l.axis.z,0,l.axis.x).multiplyScalar(.08);setLink(l.piston,hip.clone().add(side).add(new T.Vector3(0,-.12,0)),knee.clone().add(side));
   }
-  const working=s.act==='surveying'||s.act==='screening';head.rotation.y=working?(s.reducedMotion?0:Math.sin(sweep*3)*.6):0;
+  const working=s.act==='surveying'||s.act==='screening'||s.act==='recovering';head.rotation.y=working?(s.reducedMotion?0:Math.sin(sweep*3)*.6):0;
   signal.emissiveIntensity=active?(working?1.4:.65):.08;
  }
  update(0,{});

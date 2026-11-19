@@ -8,7 +8,7 @@ import { CLASSES, COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../s
 import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, hasLineOfSight, inSanctum } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
-import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider, striderSpawnPoint } from './survey-strider.js';
+import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider, striderSpawnPoint, beginStriderRecovery } from './survey-strider.js';
 import { commandSpindle, newSpindleProfile, spawnSpindle, spindleSpawnPoint, tickSpindle } from './spindle.js';
 import { companionCanSupport } from './party.js';
 
@@ -340,6 +340,7 @@ export function petCommand(game, p, cmd) {
   if (typeof cmd !== 'string' || !Object.hasOwn(def.modes, cmd)) return { ok: false, reason: 'Unknown command.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (c.type === 'spindle') return commandSpindle(game, p, c, cmd);
+  if(c.type==='survey_strider'&&cmd==='recover')return beginStriderRecovery(game,p,c);
   let host = 0;
   if (cmd === 'guard') {
     const t = game.ents.get(p.target);
