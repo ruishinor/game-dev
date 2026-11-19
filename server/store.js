@@ -103,6 +103,7 @@ function sanitize(raw) {
     c.equipped = resolveLoadout(c, eq).equipped;
     for(const slot of ['weapon','chest'])if(!c.equipped[slot])delete c.equipped[slot];
   }
+  if(c.cls==='vanguard'&&c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
   return c;
 }
 
