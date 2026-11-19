@@ -43,3 +43,5 @@ The Vanguard can use the equipped item's context menu to separate into two baton
 
 Vendor job 135459830272 on `eadea8e` failed at line 118 because the test requested the label `Equip` after the Field Pulse Emitter was already installed. The actual enabled context action is `Swap in`. Correct both swap interactions (rod and return to emitter); preserve all authority, mode and scene assertions. No gameplay change.
 Port the same bounded preview diagnostic workflow used by #115 and #118, because the preexisting preview source and workflow match byte-for-byte. Job 25 minutes, test 20 minutes, stage/cleanup logging, no gameplay assertions removed or individual timeout changes. Fresh applicable CI required.
+
+On `3c4815b`, eight of nine workflows succeeded. Vendor job 135470305884 matched two legitimate Swap in controls (inventory detail and context menu). Scope both swaps to the context menu, retaining exact labels and all outcome assertions. Reconcile merged retirement #118 (`cc7291e`), applying the active/archived race registry to the rod renderer without removing weapon functionality. Fresh exact-head validation required.

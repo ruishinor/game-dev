@@ -11,7 +11,7 @@ import { Animator } from './animator.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
-import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
+import { FRAMES, RENDER_RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
 // Arm reach differs by frame (hand_l x: 0.739 masculine, 0.645 feminine). Gear
 // authored for one frame is moved along the arm for the other (shoulder ~0.17).
@@ -131,7 +131,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // Name-derived identity (face shape, age, stubble) under the chosen
   // appearance; NPC looks pin a full preset when no appearance is stored.
   const chosen = opts.appearance || !def.face
-    ? { tone: RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
+    ? { tone: RENDER_RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
     : def.face;
   const ap = appearanceFor(opts.appearanceKey ?? lookId, female, chosen);
   const helmet = !!def.shells.helmet;

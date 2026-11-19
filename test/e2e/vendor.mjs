@@ -115,7 +115,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
  await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
- await page.getByRole('button',{name:'Swap in',exact:true}).click();
+ await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
  await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
@@ -132,7 +132,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
  await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
- await page.getByRole('button',{name:'Swap in',exact:true}).click();
+ await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.equipped.weapon==='field_emitter'&&!s.ents.find(e=>e.id===s.myId)?.row?.er&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod');});
  assert.deepEqual(errors,[]);
  console.log('PASS live quartermaster, private balance, sale, purchase, buyback and range dismissal');
