@@ -819,7 +819,7 @@ export class UI {
         b.el.addEventListener('click', () => this.a.pet(mode));
         this.hover(b.el, () => this.petTip(mode));
         this.petBar.append(b.el);
-        this.petButtons.push({ mode, ...b });
+        this.petButtons.push({ mode, bindingIndex:i, ...b });
       });
     }
     set(this.pet, 'hidden', !companionType);
@@ -831,7 +831,7 @@ export class UI {
 
   refreshHotkeys(){
     for(const [i,b] of this.abilityButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(i+1))??String(i+1);
-    for(const [i,b] of this.petButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('companion:'+(i+1))??'⇧'+(i+1);
+    for(const b of this.petButtons)b.el.querySelector('.key').textContent=this.a.bindings?.label('companion:'+(b.bindingIndex+1))??'⇧'+(b.bindingIndex+1);
     if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+1))??String(this.abilityButtons.length+1);
     for(const [j,b] of (this.emptySlots??[]).entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+j+2))??'';
     for(const [name,btn] of (this.bindingRows??new Map()))btn.textContent=this.a.bindings?.label(name)??'Unbound';
