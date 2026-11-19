@@ -496,3 +496,171 @@ STAGES = [
                                   REPO_ROOT / "client" / "assets" / "humanoid_m.glb", PIPELINE_DIR / "js" / "extract-rig.mjs"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig", "halo_construct_npc.glb"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
 ]
+
+
+# ---------------------------------------------------------------- validate
+
+
+def aperture_area(P, cell=0.002):
+    """Area (m^2) of the background region enclosed by the ring in a front (XY) projection."""
+    import cv2
+
+    lo = P[:, :2].min(0) - 0.01
+    hi = P[:, :2].max(0) + 0.01
+    W, H = (np.ceil((hi - lo) / cell).astype(int) + 1)
+    img = np.zeros((H, W), np.uint8)
+    ij = ((P[:, :2] - lo) / cell).astype(int)
+    img[ij[:, 1], ij[:, 0]] = 255
+    img = cv2.dilate(img, np.ones((3, 3), np.uint8), iterations=2)
+    flood = img.copy()
+    mask = np.zeros((H + 2, W + 2), np.uint8)
+    cv2.floodFill(flood, mask, (0, 0), 128)
+    return float((flood == 0).sum() * cell * cell)
+
+
+def stage_validate(asset, params):
+    from . import humanoid_rig as hr
+    from scipy.spatial import cKDTree
+
+    rig = read_json(asset.path("rig", "rig.json"))
+    rn = json.load(open(asset.path("rig", "rig_nodes.json")))
+    ref = read_json(asset.path("rig", "reference_rig.json"))
+    clips = {a["name"]: a for a in ref["animations"]}
+    clips["Guard_Watch_Loop"] = rn["guard"]
+    sk = hr.Skeleton(rn["nodes"])
+    d = np.load(asset.path("rig", "skin.npz"))
+    joints = ref["joints"]
+    jidx = np.array([sk.index[n] for n in joints])
+    IBM = np.zeros((len(sk.names), 4, 4))
+    IBM[jidx] = d["IBM"]
+    V, J, Wt = d["V"], d["J"], d["Wt"]
+    out = {"bind_reproduction_max_error_m": rig["bind_reproduction_max_error_m"]}
+    rigid = Wt[:, 0] > 0.999
+    out["rigid_vertex_fraction"] = float(rigid.mean())
+    F = d["F"]
+    E = np.unique(np.sort(np.r_[F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]], 1), axis=0)
+    same_bone = rigid[E[:, 0]] & rigid[E[:, 1]] & (J[E[:, 0], 0] == J[E[:, 1], 0])
+    L0 = np.linalg.norm(V[E[:, 0]] - V[E[:, 1]], axis=1)
+    # garments, by role
+    import numpy as _np
+    wd = read_json(asset.path("wardrobe", "wardrobe.json"))
+    meta = {m["name"]: m for m in read_json(asset.path("wardrobe", "pieces.json"))}
+    garments = {}
+    for set_name, info in wd["sets"].items():
+        arr = _np.load(asset.path("wardrobe", info["npz"]))
+        Ps = [arr[p + "_P"] for p in info["pieces"] if meta[p].get("core", True) and meta[p]["mat"] != "stave"]
+        Gp = np.concatenate(Ps)
+        Jg, Wg = hr.transfer_weights(Gp, V, J, Wt, joint_names=joints)
+        rigid_rule = np.concatenate([np.full(len(arr[p + "_P"]), meta[p]["skin"]) for p in info["pieces"] if meta[p].get("core", True) and meta[p]["mat"] != "stave"])
+        for i, rule in enumerate(rigid_rule):
+            if rule.startswith("rigid:"):
+                Jg[i] = [joints.index(rule.split(":", 1)[1]), 0, 0, 0]
+                Wg[i] = [1, 0, 0, 0]
+        garments[set_name] = (Gp, Jg, Wg)
+    roles = params["roles"]
+    out["clips"] = {}
+    Nb = vertex_normals(V, F)
+    for cname, role_list in params["clips"].items():
+        c = clips[cname]
+        T = hr.clip_length(c)
+        rec = {"min_body_y": 1e9, "max_coupling_strain": 0.0, "max_rigid_strain": 0.0, "garment_penetration": {}}
+        for t in np.linspace(0, T, params["frames"]):
+            pose = hr.pose_at(sk, c, float(t))
+            Vp = hr.skin(sk, IBM, jidx, V, J, Wt, pose)
+            rec["min_body_y"] = min(rec["min_body_y"], float(Vp[:, 1].min()))
+            L1 = np.linalg.norm(Vp[E[:, 0]] - Vp[E[:, 1]], axis=1)
+            strain = np.abs(L1 - L0) / np.maximum(L0, 1e-6)
+            rec["max_rigid_strain"] = max(rec["max_rigid_strain"], float(strain[same_bone].max()))
+            rec["max_coupling_strain"] = max(rec["max_coupling_strain"], float(np.percentile(strain[~same_bone], 99)))
+            tree = cKDTree(Vp)
+            Np = vertex_normals(Vp, F)
+            for role in role_list:
+                Gp, Jg, Wg = garments[roles[role]]
+                Gq = hr.skin(sk, IBM, jidx, Gp, Jg, Wg, pose)
+                dd, ii = tree.query(Gq)
+                inside = ((Gq - Vp[ii]) * Np[ii]).sum(1) < -params["penetration_tolerance"]
+                rec["garment_penetration"][role] = max(rec["garment_penetration"].get(role, 0.0), float(inside.mean()))
+        out["clips"][cname] = rec
+    # ring aperture: source vs both variants
+    head = V[:, 1] > 1.6
+    out["ring_aperture_m2"] = {"vertical": aperture_area(V[head]), "horizontal": aperture_area(d["Vh"][head])}
+    src_ap = params.get("source_aperture_reference")
+    checks = {
+        "bind_pose_exact": out["bind_reproduction_max_error_m"] < 1e-5,
+        "rigid_shells_do_not_stretch": all(r["max_rigid_strain"] < 1e-4 for r in out["clips"].values()),
+        "feet_on_ground": all(r["min_body_y"] > -params["ground_tolerance"] for r in out["clips"].values()),
+        "ring_aperture_open": min(out["ring_aperture_m2"].values()) > params["min_aperture_m2"],
+        "garment_penetration_below_limit": all(v <= params["max_penetration_fraction"] for r in out["clips"].values() for v in r["garment_penetration"].values()),
+    }
+    out["checks"] = checks
+    o = asset.dir("validate")
+    write_json(o / "validate.json", out)
+    failed = [k for k, v in checks.items() if not v]
+    if failed and params.get("strict", True):
+        raise StageError(f"validation failed: {failed} (see {o / 'validate.json'})")
+    return [o / "validate.json"], {"checks": checks}
+
+
+# ---------------------------------------------------------------- evidence
+
+
+def stage_evidence(asset, params):
+    glb = asset.path("export", "halo_construct_npc.glb")
+    dec = asset.dir("evidence") / "decoded.glb"
+    proc = subprocess.run(["node", str(PIPELINE_DIR / "js" / "decompress.mjs"), str(glb), str(dec)], cwd=REPO_ROOT, capture_output=True, text=True)
+    if proc.returncode:
+        raise StageError("decompress failed: " + proc.stderr[-1500:])
+    out = asset.dir("evidence")
+    res = run_blender("asset_pipeline.blender.humanoid_evidence", {"work": str(asset.work), "glb": str(dec), "out": str(out),
+                                                                    "samples": params["samples"], "shots": params["shots"]}, timeout=7200)
+    # source vs derivative, clay and wire comparisons reuse render_evidence on the source and on a decoded body-only file
+    src, _ = _src(asset)
+    cmp_dir = asset.dir("evidence", "source")
+    run_blender("asset_pipeline.blender.render_evidence", {"work": str(asset.work), "blend": str(src), "out": str(cmp_dir), "modes": ["lit", "clay", "wire"],
+                                                           "views": ["front", "left"], "width": 600, "height": 760, "samples": params["samples"]})
+    files = [Path(f) for f in res["renders"]] + sorted(cmp_dir.glob("*.png"))
+    return files, {"renders": len(files)}
+
+
+# ---------------------------------------------------------------- publish
+
+
+def stage_publish(asset, params):
+    outd = PIPELINE_DIR / "assets" / asset.id / "outputs"
+    outd.mkdir(parents=True, exist_ok=True)
+    glb = asset.path("export", "halo_construct_npc.glb")
+    dst = REPO_ROOT / params["runtime_path"]
+    shutil.copyfile(glb, dst)
+    exp = read_json(asset.path("export", "export.json"))
+    exp["file"] = params["runtime_path"]
+    exp["sha256"] = sha256_file(dst)
+    write_json(outd / "export.json", exp)
+    copies = {"rig/rig.json": "rig.json", "analyze/landmarks.json": "landmarks.json", "analyze/report.json": "analyze.json",
+              "clean/clean.json": "clean.json", "materials/report.json": "materials.json", "wardrobe/wardrobe.json": "wardrobe.json",
+              "validate/validate.json": "validate.json", "inspect/source.json": "source.json"}
+    for a, b in copies.items():
+        if asset.path(a).exists():
+            shutil.copyfile(asset.path(a), outd / b)
+    # editable Blender sources: the rigged runtime asset (armature, weights, actions, variant meshes)
+    run_blender("asset_pipeline.blender.humanoid_build", {"op": "blend", "work": str(asset.work), "imports": [str(asset.path("rig", "halo_construct_npc.glb"))],
+                                                          "out": str(outd / "halo_construct_rigged.blend"),
+                                                          "collections": {"body": ["body", "ring_"], "security": ["security", "equip_", "stave"], "vendor": ["vendor"]}})
+    shutil.copyfile(asset.path("wardrobe", "wardrobe_source.blend"), outd / "halo_construct_wardrobe_source.blend")
+    ev = outd / "evidence"
+    ev.mkdir(exist_ok=True)
+    import cv2
+
+    for f in params["evidence"]:
+        srcf = asset.path(f)
+        if srcf.exists():
+            im = cv2.imread(str(srcf))
+            cv2.imwrite(str(ev / (Path(f).stem.replace("/", "_") + ".jpg")), im, [cv2.IMWRITE_JPEG_QUALITY, 86])
+    files = [dst, outd / "export.json", outd / "halo_construct_rigged.blend", outd / "halo_construct_wardrobe_source.blend"]
+    return files, {"runtime": params["runtime_path"], "sha256": exp["sha256"], "bytes": exp["bytes"]}
+
+
+STAGES += [
+    ("validate", stage_validate, lambda a: [a.path("rig", "skin.npz"), a.path("rig", "rig_nodes.json"), HERE / "mech_humanoid.py"], lambda a: _cfg(a, "validate")),
+    ("evidence", stage_evidence, lambda a: [a.path("export", "halo_construct_npc.glb"), HERE / "blender" / "humanoid_evidence.py"], lambda a: _cfg(a, "evidence")),
+    ("publish", stage_publish, lambda a: [a.path("export", "halo_construct_npc.glb"), a.path("validate", "validate.json"), a.path("evidence")], lambda a: _cfg(a, "publish")),
+]

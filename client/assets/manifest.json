@@ -115,6 +115,31 @@
     "ph_aerial_grass_rock"
    ]
   },
+  "halo_construct": {
+   "kind": "skinned",
+   "url": "halo_construct.glb",
+   "bytes": 2845072,
+   "rawBytes": 18499948,
+   "hash": "afd7a4cab55c",
+   "tris": 72024,
+   "textures": 10,
+   "meshes": 9,
+   "clips": {
+    "Bind_Pose": 0,
+    "Idle_Loop": 2.5,
+    "Idle_FoldArms_Loop": 2.5,
+    "Idle_Talking_Loop": 2.933,
+    "Interact": 2,
+    "Walk_Loop": 1.333,
+    "Guard_Watch_Loop": 10
+   },
+   "sources": [
+    "halo_construct_owner",
+    "ual1",
+    "ual2"
+   ],
+   "note": "Produced by tools/asset-pipeline (imported-mechanical-humanoid); see docs/art/HALO-CONSTRUCT-NPC.md"
+  },
   "humanoid_f": {
    "kind": "humanoid",
    "url": "humanoid_f.glb",

@@ -869,6 +869,7 @@ export const MODEL_FACTORIES = {
   obelisk: makeListeningStone, // makeObelisk is kept as the minimal original
   archivist: makeArchivist,
   quartermaster: makeArchivist,
+  sanctum_guard: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
   brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),

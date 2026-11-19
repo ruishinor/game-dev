@@ -307,6 +307,7 @@ export function interact(game, p, objectId) {
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' }; // presentation only: no service
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {

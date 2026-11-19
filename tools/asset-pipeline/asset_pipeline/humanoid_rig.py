@@ -414,10 +414,14 @@ def body_weights(V, regions, region_names, rig, cfg):
     return w
 
 
-def pack_weights(wdict, joint_names, max_influences=4):
+def pack_weights(wdict, joint_names, max_influences=4, prune=0.02):
+    """Top influences per vertex; influences below `prune` (after normalising)
+    are dropped so rigid shells are bound to exactly one bone."""
     names = list(wdict)
     M = np.stack([wdict[b] for b in names], 1)
     M = np.clip(M, 0, None)
+    M = M / np.maximum(M.sum(1, keepdims=True), 1e-12)
+    M[M < prune] = 0
     order = np.argsort(-M, 1)[:, :max_influences]
     Wt = np.take_along_axis(M, order, 1)
     s = Wt.sum(1, keepdims=True)

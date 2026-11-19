@@ -194,6 +194,626 @@
   "export": {
    "max_texture": 2048,
    "quality": 86
+  },
+  "validate": {
+   "frames": 12,
+   "roles": {
+    "guard": "security",
+    "vendor": "vendor"
+   },
+   "clips": {
+    "Guard_Watch_Loop": [
+     "guard"
+    ],
+    "Idle_Loop": [
+     "guard",
+     "vendor"
+    ],
+    "Idle_Talking_Loop": [
+     "vendor"
+    ],
+    "Interact": [
+     "vendor"
+    ],
+    "Idle_FoldArms_Loop": [
+     "vendor"
+    ],
+    "Walk_Loop": [
+     "guard",
+     "vendor"
+    ]
+   },
+   "penetration_tolerance": 0.004,
+   "max_penetration_fraction": 0.08,
+   "ground_tolerance": 0.03,
+   "min_aperture_m2": 0.01,
+   "strict": false
+  },
+  "evidence": {
+   "samples": 20,
+   "shots": [
+    {
+     "name": "security_front",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 0,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "security_side",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 90,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "security_rear",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 180,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "security_three_quarter",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 35,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "vendor_front",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 0,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "vendor_side",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 90,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "vendor_rear",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 180,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "vendor_three_quarter",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 35,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "base_front",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 0,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "base_side",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 90,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "base_rear",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 180,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "base_three_quarter",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 35,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "together_guard",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 20,
+      "el": 6,
+      "dist_k": 0.95,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": -0.5,
+     "mode": "lit",
+     "group": "together"
+    },
+    {
+     "name": "together_vendor",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Loop",
+      "time": 1.0
+     },
+     "view": {
+      "az": 20,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.5,
+     "mode": "lit",
+     "group": "together"
+    },
+    {
+     "name": "pose_Idle_Talking_Loop",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Idle_Talking_Loop",
+      "time": 0.8
+     },
+     "view": {
+      "az": 25,
+      "el": 6,
+      "dist_k": 1.0,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": -1.4249999999999998,
+     "mode": "lit",
+     "group": "poses"
+    },
+    {
+     "name": "pose_Interact",
+     "variant": [
+      "body",
+      "ring_horizontal",
+      "vendor"
+     ],
+     "pose": {
+      "action": "Interact",
+      "time": 0.9
+     },
+     "view": {
+      "az": 25,
+      "el": 6,
+      "dist_k": 1.0,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": -0.475,
+     "mode": "lit",
+     "group": "poses"
+    },
+    {
+     "name": "pose_Walk_Loop",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Walk_Loop",
+      "time": 0.33
+     },
+     "view": {
+      "az": 25,
+      "el": 6,
+      "dist_k": 1.0,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.475,
+     "mode": "lit",
+     "group": "poses"
+    },
+    {
+     "name": "pose_Guard_Watch_Loop",
+     "variant": [
+      "body",
+      "ring_vertical",
+      "security",
+      "equip_pouches",
+      "equip_radio",
+      "equip_baton",
+      "stave"
+     ],
+     "pose": {
+      "action": "Guard_Watch_Loop",
+      "time": 3.0
+     },
+     "view": {
+      "az": 25,
+      "el": 6,
+      "dist_k": 1.0,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 1.4249999999999998,
+     "mode": "lit",
+     "group": "poses"
+    },
+    {
+     "name": "clay_base",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Bind_Pose",
+      "time": 0
+     },
+     "view": {
+      "az": 0,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "clay"
+    },
+    {
+     "name": "wire_base",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Bind_Pose",
+      "time": 0
+     },
+     "view": {
+      "az": 0,
+      "el": 6,
+      "dist_k": 1.15,
+      "target": [
+       0,
+       0,
+       0.95
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "wire"
+    },
+    {
+     "name": "head_vertical",
+     "variant": [
+      "body",
+      "ring_vertical"
+     ],
+     "pose": {
+      "action": "Bind_Pose",
+      "time": 0
+     },
+     "view": {
+      "az": 20,
+      "el": 6,
+      "dist_k": 0.28,
+      "target": [
+       0,
+       0,
+       1.7
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    },
+    {
+     "name": "head_horizontal",
+     "variant": [
+      "body",
+      "ring_horizontal"
+     ],
+     "pose": {
+      "action": "Bind_Pose",
+      "time": 0
+     },
+     "view": {
+      "az": 20,
+      "el": 6,
+      "dist_k": 0.28,
+      "target": [
+       0,
+       0,
+       1.68
+      ]
+     },
+     "offset_x": 0.0,
+     "mode": "lit"
+    }
+   ]
+  },
+  "publish": {
+   "runtime_path": "client/assets/halo_construct.glb",
+   "evidence": [
+    "evidence/security_front.png",
+    "evidence/security_side.png",
+    "evidence/security_rear.png",
+    "evidence/security_three_quarter.png",
+    "evidence/vendor_front.png",
+    "evidence/vendor_side.png",
+    "evidence/vendor_rear.png",
+    "evidence/vendor_three_quarter.png",
+    "evidence/base_front.png",
+    "evidence/base_side.png",
+    "evidence/base_rear.png",
+    "evidence/base_three_quarter.png",
+    "evidence/together.png",
+    "evidence/poses.png",
+    "evidence/clay_base.png",
+    "evidence/wire_base.png",
+    "evidence/head_vertical.png",
+    "evidence/head_horizontal.png",
+    "evidence/source/lit_front.png",
+    "evidence/source/clay_front.png",
+    "evidence/source/wire_front.png",
+    "evidence/source/lit_left.png"
+   ]
   }
  }
 }

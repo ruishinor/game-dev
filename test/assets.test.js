@@ -44,7 +44,19 @@ test('assets: every manifest entry is on disk with the recorded size and hash, a
 });
 
 test('assets: every asset has recorded provenance under a licence that allows redistribution', () => {
-  const sources = new Map(ledger.sources.map((s) => [s.id, s]));
+  const owner = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'owner-sources.json'), 'utf8'));
+  const sources = new Map([...ledger.sources, ...owner.sources].map((s) => [s.id, s]));
+  // Owner-authorised sources are a separate, deliberate category: never CC0,
+  // pinned to the exact in-repository file the owner approved, with the
+  // decision, provider terms and attribution recorded.
+  for (const s of owner.sources) {
+    assert.ok(!ledger.sources.some((c) => c.id === s.id), `${s.id}: listed in both ledgers`);
+    assert.notEqual(s.license, 'CC0-1.0', `${s.id}: an owner-authorised source is not CC0`);
+    assert.ok(s.owner_decisions?.length && s.attribution && s.provider_terms && s.redistribution, `${s.id}: owner decision, provider terms, attribution and redistribution are recorded`);
+    assert.match(s.sha256, /^[0-9a-f]{64}$/, `${s.id}: pinned by SHA-256`);
+    const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, s.file))).digest('hex');
+    assert.equal(actual, s.sha256, `${s.id}: ${s.file} is byte-identical to the file the owner approved`);
+  }
   for (const s of ledger.sources) {
     assert.equal(s.license, 'CC0-1.0', `${s.id}: only CC0 sources are in use; anything else needs a deliberate decision`);
     assert.ok(s.creator && s.page && s.acquired, `${s.id}: creator, page and acquisition date are recorded`);

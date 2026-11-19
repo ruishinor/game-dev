@@ -23,6 +23,7 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createTurretDrone } from './turret-drone.js';
+import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
@@ -515,7 +516,7 @@ export function makeMender(assets) {
 // --- registry ----------------------------------------------------------------
 
 /** Bundles that must be ready before characters can be drawn from GLB. */
-export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spindle', 'turret_drone'];
+export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spindle', 'turret_drone', HALO_BUNDLE];
 
 /**
  * Build the model for an entity. Uses the GLB assets when they are loaded and
@@ -524,9 +525,11 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  */
 export function createModel(assets, meta, glb = true) {
   let model = null;
+  const haloRole = haloRoleFor(meta);
   if (glb) try {
-    const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
+    const look = haloRole ? null : lookFor(meta);
+    if (haloRole) model = createHaloConstruct(assets, haloRole, { variant: meta.v || 0 });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {
@@ -546,7 +549,11 @@ export function createModel(assets, meta, glb = true) {
   if (model) return model;
   if (meta.c === 'spindle') return createSpindle(null, disposeInstance);
   if (meta.c === 'turret_drone') return createTurretDrone(null, disposeInstance);
+  // A Halo Construct that could not be built stays visibly a stand-in: the
+  // procedural NPC body, reported as 'procedural' and logged (never a creature).
+  if (haloRole && glb) console.error(`[models] ${meta.c}: Halo Construct unavailable, showing the procedural stand-in`);
   const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)(meta);
   fallback.kind = 'procedural';
+  if (haloRole) fallback.haloRole = 'fallback';
   return fallback;
 }
