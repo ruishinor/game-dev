@@ -749,6 +749,9 @@ export class UI {
       this.actionBar.append(b.el);
       return { id, ...b };
     });
+    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),String(def.abilities.length+1),'Summon default companion');
+    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet('summon'));
+    this.actionBar.append(this.summonSlot.el);
     this.petButtons = [];
     if (companionType) {
       const cdef = COMPANIONS[companionType];
@@ -938,7 +941,7 @@ export class UI {
     const body = this.companionSheetBody;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
-      const { type, name, active, available, needsLink, isDefault } = companion;
+      const { type, name, active, available, isDefault } = companion;
       const definition = COMPANIONS[type];
       const section = h('section', 'companion-sheet-entry');
       const portrait = this.a.portrait({ k: 'c', c: type });
@@ -950,7 +953,7 @@ export class UI {
       }
       section.append(h('h3', null, name));
       if (definition.name !== name) section.append(h('p', 'muted', definition.name));
-      section.append(h('p', null, active ? 'Active' : needsLink ? 'Equip the Survey Strider Link to summon' : available ? 'Ready to summon' : 'Unavailable during combat or defeat'));
+      section.append(h('p', null, active ? 'Active' : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
         const row = h('li');
@@ -960,7 +963,10 @@ export class UI {
       const useDefault = h('button', null, isDefault ? 'Default summon' : 'Set as default summon');
       useDefault.disabled = isDefault;
       useDefault.addEventListener('click', () => this.a.managePet('default', type));
-      section.append(modes, useDefault);
+      const deploy=h('button','primary',active?'Dismiss '+name:'Summon '+name);
+      deploy.disabled=!available||(!active&&!isDefault);
+      deploy.addEventListener('click',()=>this.a.managePet(active?'dismiss':'summon'));
+      section.append(modes,useDefault,deploy);
       body.append(section);
     }
     if (!body.children.length) body.append(h('p', 'muted', 'You have no acquired companions.'));
@@ -1671,7 +1677,12 @@ export class UI {
     const summon = roster.find(entry => entry.isDefault);
     this.summonPet.hidden = !!st.comp || !summon;
     this.summonPet.disabled = !summon?.available;
-    this.summonPet.title = summon?.needsLink ? 'Equip the Survey Strider Link first.' : summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
+    this.summonPet.title = summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
+    if(this.summonSlot){
+      this.summonSlot.el.hidden=!summon;
+      this.summonSlot.el.disabled=!!st.comp||!summon?.available;
+      this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;
+    }
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;

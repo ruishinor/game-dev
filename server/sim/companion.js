@@ -12,7 +12,7 @@ import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider } from './surv
 import { companionCanSupport } from './party.js';
 
 export function ownedCompanionType(char) {
-  return CLASSES[char.cls].companion || (char.cls === 'surveyor' && char.inventory.includes(STRIDER_LINK) ? 'survey_strider' : null);
+  return CLASSES[char.cls].companion || (char.cls === 'surveyor' && (char.striderLearned===true || char.inventory.includes(STRIDER_LINK)) ? 'survey_strider' : null);
 }
 
 export function companionRoster(game, p) {
@@ -26,7 +26,7 @@ export function companionRoster(game, p) {
     isDefault: (p.char.defaultCompanion || type) === type,
     active: p.companion?.type === type,
     available: eligible && game.time >= p.combatUntil,
-    needsLink: type === 'survey_strider' && !wantsSurveyStrider(p),
+    needsLink: false,
   }];
 }
 
@@ -70,7 +70,7 @@ export function manageCompanion(game, p, action, type) {
   if (action !== 'summon') return { ok: false, reason: 'Unknown companion action.' };
   if (p.companion) return { ok: false, reason: 'A companion is already active.' };
   if (!owned || (p.char.defaultCompanion && p.char.defaultCompanion !== owned)) return { ok: false, reason: 'Choose an acquired companion first.' };
-  if (owned === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Equip your Survey Strider Link first.' };
+  if (owned === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Learn Survey Strider deployment at a commissioned workshop first.' };
   p.char.companionDismissed = false;
   if (owned === 'mender') spawnMender(game, p);
   else syncSurveyStrider(game, p);

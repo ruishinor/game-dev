@@ -1348,6 +1348,7 @@ input.onAction = (code, e) => {
       const pet=S.ents.get(S.compId)?.meta.c;
       if (mode && (pet==='survey_strider'?['assist','follow','stay'].includes(mode):def.companion)) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
+    else if(i===def.abilities.length&&!S.compId&&S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
     return;
   }
   switch (code) {

@@ -19,7 +19,7 @@ import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
-import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
+import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider, migrateSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
@@ -84,6 +84,7 @@ export class Game {
 
   /** Bring a persisted character into the world. Returns the player entity. */
   addPlayer(char) {
+    migrateSurveyStrider(char);
     const def = CLASSES[char.cls];
     const stats = deriveStats(char);
     const fresh = !(char.hp > 0) || !char.pos;
@@ -426,6 +427,7 @@ export class Game {
       name: c.name,
       cls: c.cls,
       companion:p.companion?.type??null,
+      striderLearned:c.striderLearned===true,
       look: c.look,
       appearance: c.appearance,
       level: c.level,

@@ -1,13 +1,27 @@
-// One equipment-bound, non-combat survey companion. All acquisition,
+// One learned ground survey companion. All acquisition,
 // commands, movement and marks are authoritative. No Mender code is replaced.
-import { COMPANIONS, ENEMIES } from '../../shared/content.js';
+import { CLASSES, COMPANIONS, ENEMIES } from '../../shared/content.js';
 import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, inSanctum, hasLineOfSight, deepLineClear } from '../../shared/world.js';
 import { groundSegmentClear, advanceGroundCompanion } from './ground-navigation.js';
 const TYPE='survey_strider',def=COMPANIONS[TYPE],R=def.radius;
 const SCAN_RANGE=8,SCAN_INTERVAL=8000,SCAN_MS=6000,OWNER_RANGE=22;
+// Legacy physical links become a permanent learned capability. Preserve an
+// equipped owner's deployed preference and release the occupied device slot.
+export function migrateSurveyStrider(char){
+ if(char.cls!=='surveyor')return false;
+ const owned=char.striderLearned===true||char.inventory.includes(STRIDER_LINK);
+ if(!owned)return false;
+ if(char.striderLearned!==true){
+  char.companionDismissed=char.companionDismissed===true||char.equipped.device!==STRIDER_LINK;
+  char.striderLearned=true;
+ }
+ char.inventory=char.inventory.filter(id=>id!==STRIDER_LINK);
+ if(char.equipped.device===STRIDER_LINK)char.equipped={...char.equipped,device:null};
+ return true;
+}
 export function wantsSurveyStrider(p){
- return p.cls==='surveyor'&&p.char.equipped.device===STRIDER_LINK&&p.char.inventory.includes(STRIDER_LINK)&&p.char.attunements.includes('resonance')&&p.stats.skills.instrumentation>=13;
+ return p.cls==='surveyor'&&p.char.striderLearned===true;
 }
 function pointNear(ent,gap,angle,origin=ent){
  for(const offset of [0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2,3*Math.PI/4,-3*Math.PI/4,Math.PI]){
@@ -59,6 +73,9 @@ export function tickSurveyStrider(game,c,dt){
  if(dist(c,p)>def.leash||!p.surveyKit||p.surveyKit.mark?.until>game.time||game.time<Math.max(c.nextPulse,p.striderReadyAt??0))return;
  p.striderReadyAt=game.time+SCAN_INTERVAL;
  p.surveyKit.mark={id:target.id,until:game.time+SCAN_MS,source:c.id};
+ // Complement the stronger manual scan; cooldown survives dismissal/redeploy.
+ const before=p.res;p.res=Math.min(CLASSES[p.cls].resource.max,p.res+15);
+ if(p.res>before)game.message(p,'info',c.name+' transferred '+(p.res-before)+' Power Cells.');
  game.events.push({e:'cast',s:c.id,d:target.id,ab:'fault_scan'});
  game.message(p,'info',c.name+' analyzed '+target.name+'.');
 }

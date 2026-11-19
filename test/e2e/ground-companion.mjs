@@ -21,13 +21,11 @@ try{
  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
  await workshop.locator('[data-recipe="survey_strider_link"]').click();
  await workshop.locator('[data-craft="survey_strider_link"]').click();
- await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('survey_strider_link'));
+ await page.waitForFunction(()=>window.__attune.state().sheet.striderLearned===true);
  assert.deepEqual(p.char.materials,{});assert.equal(p.companion,null);
- await workshop.waitFor({state:'hidden'});await page.locator('.production-status').waitFor({state:'hidden'});await page.locator('#view').focus();await page.keyboard.press('KeyI');
- await page.locator('.inventory-window button.item-cell[aria-label="Survey Strider Link"]').click({button:'right'});
- await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
- await page.waitForFunction(()=>{const s=window.__attune.state();return s.compId&&s.ents.some(e=>e.id===s.compId&&e.c==='survey_strider'&&e.model==='glb')&&s.sheet.equipped.device==='survey_strider_link';});
- await page.getByRole('button',{name:'Close inventory'}).click();
+ await workshop.waitFor({state:'hidden'});await page.locator('.production-status').waitFor({state:'hidden'});await page.locator('#view').focus();
+ await page.keyboard.press('Digit5');
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.compId&&s.ents.some(e=>e.id===s.compId&&e.c==='survey_strider'&&e.model==='glb')&&!s.sheet.equipped.device;});
  assert.ok(p.companion);assert.equal(p.companion.owner,p.id);
  await page.getByRole('button',{name:'Stay',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='stay'));
@@ -39,11 +37,10 @@ try{
  // Actual command click; its scan logic and cover are separately unit tested.
  await page.getByRole('button',{name:'Analyze target',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='assist'));
- await page.locator('#view').focus();await page.keyboard.press('KeyC');
- await page.locator('.doll-tabs [data-tab="gear"]').click();
- await page.locator('.equipment-slot-grid [data-slot="device"]').click({button:'right'});
- await page.locator('.player-context button').filter({hasText:/^Unequip$/}).click();
- await page.waitForFunction(()=>{const s=window.__attune.state();return !s.compId&&!s.ents.some(e=>e.c==='survey_strider')&&!s.sheet.equipped.device;});
+ await page.getByRole('button',{name:'Menu [M]',exact:true}).click();
+ await page.getByRole('button',{name:'Companions',exact:false}).click();
+ await page.getByRole('button',{name:'Dismiss Survey Strider',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state();return !s.compId&&!s.ents.some(e=>e.c==='survey_strider')&&!s.sheet.equipped.device&&s.sheet.striderLearned;});
  assert.equal(p.companion,null);assert.deepEqual(errors,[]);
- console.log('PASS Survey Strider browser craft/equip, live rig/mast, owner commands and dismissal');
+ console.log('PASS Survey Strider browser learn/summon, live rig/mast, owner commands and dismissal');
 }finally{await browser?.close();await server.close();}
