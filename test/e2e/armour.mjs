@@ -25,8 +25,13 @@ try {
     await page.bringToFront();
     await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
     await page.fill('#name', name);
-    await page.click(`.classcard[data-cls="${cls}"]`);
-    await page.click('#enter');
+    // A second WebGL page under software GL can starve rAF long enough that the
+    // class card never reads as "stable"; the click itself is all that matters.
+    const card = page.locator(`.classcard[data-cls="${cls}"]`);
+    await card.waitFor({ state: 'visible' });
+    await card.click({ force: true });
+    await page.waitForFunction((c) => document.querySelector(`.classcard[data-cls="${c}"]`)?.getAttribute('aria-pressed') === 'true', cls);
+    await page.locator('#enter').click({ force: true });
     await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });
     return page;
   }
