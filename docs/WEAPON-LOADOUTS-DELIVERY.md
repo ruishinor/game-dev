@@ -1,0 +1,10 @@
+# Weapon loadouts and combat specialization
+
+Owner-approved independent delivery. Public high-level scope only; preserve AGENTS.md disclosure rules.
+
+1. Audit equipment slots, persistence, loadout validation, condition, crafting, stat derivation, protocol, ability authorization, rendering and hotkeys. Reconcile armor work and weapon-presentation branches without duplicating them.
+2. Introduce independent ranged/melee equipment and authoritative active weapon selection. Migrate legacy weapon saves deterministically without losing ownership or condition; retain class compatibility, unarmed fallback and repair/fabrication behavior. Only the active weapon contributes weapon-specific combat modifiers. Validate switching, death, disconnect, replay, concurrent actions, cooldown continuity and forged ability requests. Do not reset resources/cooldowns on swap.
+3. Implement primary action-bar selector, conflict-free keyboard shortcut, active equipment visuals, and weapon-dependent actions while retaining compatible class/utility actions. Show genuinely functional equipment slots and connect remaining anatomical and utility slots to validated content; do not mark empty content as implemented.
+4. Implement distinct skills/attacks for existing weapon families using server-side mechanics, appropriate animation and VFX. Preserve rod configurations, existing fixed class identity and progression. Avoid publishing undiscovered mechanics or exact hidden balance data. Coordinate with armor sets and weapon presentation work.
+5. Add migration, authority, persistence, combat, UI and live browser tests. Test both equipped weapons, switching and unavailable actions, cooldown continuity, reconnect, legacy saves, no equipment duplication, UI layout and existing functionality. Inspect visual evidence separately; no unsupported art acceptance claims.
+6. Deliver focused increments; reconcile current main and merge only on exact integrated green applicable gates. No owner approval checkpoints for routine decisions. No force push or failure waiver.
