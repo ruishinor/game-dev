@@ -4,6 +4,8 @@ import * as T from 'three';
 import { publicWeaponVisual } from '../shared/weapon-visual.js';
 import { makeGame, makeChar } from './helpers.js';
 import { CombatVfx } from '../client/src/vfx/combat.js';
+import { dealDamage } from '../server/sim/combat.js';
+import { isolate, enemyOf, place } from './helpers.js';
 
 test('Longpoint visual is allowlisted, owned, ranged-only and cleared on loadout changes',()=>{
  const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'},condition:{longpoint_emitter:17}});
@@ -40,4 +42,24 @@ test('real WebSocket observers receive the visual on equip and its removal on un
   p.char.equipped.weapon=null;server.game.refreshStats(p);server.game.markDirty(p);
   await until(()=>owner.meta.get(p.id)?.wv===undefined&&observer.meta.get(p.id)?.wv===undefined,'replicated removal');
  }finally{owner.ws.close();observer.ws.close();await server.close();}
+});
+
+test('confirmed rifle auto hit exposes only allowlisted presentation metadata',()=>{
+ const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'}});
+ const p=game.addPlayer(char),enemy=enemyOf(game,'skitter');isolate(game,enemy);
+ place(p,enemy.x+1,enemy.z);game.events.length=0;
+ assert.ok(dealDamage(game,p,enemy,1,'auto',{kind:'bolt'})>0);
+ const ev=game.events.find(x=>x.e==='dmg'&&x.s===p.id);assert.equal(ev.wv,'longpoint');
+ for(const key of ['inventory','condition','equipped','charId'])assert.equal(ev[key],undefined);
+ game.events.length=0;dealDamage(game,p,enemy,1,'core_bore',{kind:'bolt'});assert.equal(game.events.find(x=>x.e==='dmg'&&x.s===p.id)?.wv,undefined);
+ char.equipped.weapon=null;game.events.length=0;dealDamage(game,p,enemy,1,'auto',{kind:'bolt'});assert.equal(game.events.find(x=>x.e==='dmg'&&x.s===p.id)?.wv,undefined);
+});
+
+test('rifle trace starts at the mounted muzzle and preserves confirmed impact',()=>{
+ const beams=[],bursts=[],impacts=[];
+ const cvfx=new CombatVfx({beam:x=>beams.push(x),burst:x=>bursts.push(x),trail(){},emitter(){}});
+ cvfx.impact=(...a)=>impacts.push(a);
+ const muzzle=new T.Vector3(1,2,3),s={placed:true,chest:new T.Vector3(),model:{weaponEffectOrigin:()=>muzzle}},d={chest:new T.Vector3(8,2,9)};
+ const event={ab:'auto',k:'bolt',wv:'longpoint',a:2};
+ cvfx.hit(d,s,event);assert.equal(beams.length,1);assert.deepEqual(beams[0].from.toArray(),muzzle.toArray());assert.deepEqual(beams[0].to.toArray(),d.chest.toArray());assert.equal(impacts.length,1);assert.equal(impacts[0][2],event);
 });
