@@ -20,7 +20,7 @@
     "equip_baton",
     "stave"
    ],
-   "triangles": 19486,
+   "triangles": 19590,
    "images": {
     "basecolor": "security_basecolor.png",
     "roughness": "security_roughness.png",

@@ -118,10 +118,10 @@
   "halo_construct": {
    "kind": "skinned",
    "url": "halo_construct.glb",
-   "bytes": 2845072,
-   "rawBytes": 18499948,
-   "hash": "afd7a4cab55c",
-   "tris": 72024,
+   "bytes": 2108856,
+   "rawBytes": 18948940,
+   "hash": "b4185e3b4662",
+   "tris": 72074,
    "textures": 10,
    "meshes": 9,
    "clips": {

@@ -51,3 +51,7 @@ Thumbs.db
 # Browser-suite screenshot output and worktree dependency links
 /preview-evidence/
 /node_modules
+
+# Halo Construct scratch output and Blender autosave backups
+halo-evidence/
+*.blend1

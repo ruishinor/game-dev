@@ -1,8 +1,8 @@
 {
  "file": "client/assets/halo_construct.glb",
- "bytes": 2755248,
- "inputBytes": 18074072,
- "triangles": 72024,
+ "bytes": 2108856,
+ "inputBytes": 18948940,
+ "triangles": 72074,
  "meshes": 9,
  "materials": [
   "halo_body",
@@ -14,37 +14,37 @@
    "name": "body_basecolor",
    "mime": "image/webp",
    "size": [
-    2048,
-    2048
+    1024,
+    1024
    ],
-   "bytes": 449008
+   "bytes": 169914
   },
   {
    "name": "body_orm",
    "mime": "image/webp",
    "size": [
-    2048,
-    2048
+    1024,
+    1024
    ],
-   "bytes": 461140
+   "bytes": 190076
   },
   {
    "name": "body_normal",
    "mime": "image/webp",
    "size": [
-    2048,
-    2048
+    1024,
+    1024
    ],
-   "bytes": 156632
+   "bytes": 68490
   },
   {
    "name": "body_emissive",
    "mime": "image/webp",
    "size": [
-    2048,
-    2048
+    512,
+    512
    ],
-   "bytes": 14022
+   "bytes": 1434
   },
   {
    "name": "security_basecolor",
@@ -53,7 +53,7 @@
     1024,
     1024
    ],
-   "bytes": 133770
+   "bytes": 132644
   },
   {
    "name": "security_orm",
@@ -62,7 +62,7 @@
     1024,
     1024
    ],
-   "bytes": 147300
+   "bytes": 147568
   },
   {
    "name": "security_normal",
@@ -71,7 +71,7 @@
     1024,
     1024
    ],
-   "bytes": 22756
+   "bytes": 21888
   },
   {
    "name": "vendor_basecolor",
@@ -80,7 +80,7 @@
     1024,
     1024
    ],
-   "bytes": 89462
+   "bytes": 88476
   },
   {
    "name": "vendor_orm",
@@ -89,7 +89,7 @@
     1024,
     1024
    ],
-   "bytes": 101994
+   "bytes": 98360
   },
   {
    "name": "vendor_normal",
@@ -98,7 +98,7 @@
     1024,
     1024
    ],
-   "bytes": 176398
+   "bytes": 162694
   }
  ],
  "skins": [
@@ -801,5 +801,5 @@
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/8/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
   ]
  },
- "sha256": "73450a472b97703df56a8c742a7cfcb43456515e8b247badabbd9caca935f6de"
+ "sha256": "b4185e3b466260d9778afd9c0817085f13cc91403f196a6290a7aad7f87d984a"
 }

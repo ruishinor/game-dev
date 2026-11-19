@@ -1,9 +1,9 @@
 {
- "high_triangles": 633960,
- "low_triangles": 28234,
- "protected_fraction": 0.2750015773865859,
+ "high_triangles": 639812,
+ "low_triangles": 28290,
+ "protected_fraction": 0.27248629284852427,
  "decimate_ratios": [
-  0.08907584100961685,
+  0.0884355753660202,
   0.5
  ],
  "texture": 2048,

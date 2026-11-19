@@ -431,7 +431,12 @@ def stage_rig(asset, params):
     skin = w.skin("halo_skeleton", [nidx[n] for n in joints], IBM, skeleton=nidx["root"])
     m_dir = asset.path("materials")
     tex = lambda f, nm: w.image(Path(f).read_bytes(), nm)
-    t_body = {k: tex(m_dir / f"body_{k}.png", "body_" + k) for k in ("basecolor", "orm", "normal", "emissive")}
+    t_body = {k: tex(m_dir / f"body_{k}.png", "body_" + k) for k in ("basecolor", "orm", "normal")}
+    import cv2
+
+    em = cv2.imread(str(m_dir / "body_emissive.png"))[..., ::-1].astype(np.float32) / 255
+    es = params.get("emissive_size", 512)  # optics only: a small map is enough
+    t_body["emissive"] = w.image(gi.png_bytes(cv2.resize(em, (es, es), interpolation=cv2.INTER_AREA)), "body_emissive")
     mat_body = w.material("halo_body", base=t_body["basecolor"], orm=t_body["orm"], normal=t_body["normal"],
                           emissive=t_body["emissive"], emissive_factor=params["optics_default"])
     N_body = vertex_normals(V, F)

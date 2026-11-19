@@ -1,12 +1,12 @@
 {
  "root_scale_k": 0.938687613119741,
  "bind_reproduction_max_error_m": 4.440892098500626e-16,
- "bridge_faces_removed": 14,
+ "bridge_faces_removed": 52,
  "triangles": {
-  "body": 23634,
-  "ring_vertical": 4586,
-  "ring_horizontal": 4586,
-  "security": 18082,
+  "body": 23724,
+  "ring_vertical": 4514,
+  "ring_horizontal": 4514,
+  "security": 18186,
   "equip_pouches": 216,
   "equip_radio": 332,
   "equip_baton": 168,
@@ -25,16 +25,16 @@
  ],
  "ring_variant": {
   "source_ellipse": [
-   0.07743082381784916,
-   0.12504168272018434,
-   1.7174979853630066
+   0.07744724489748478,
+   0.1250418019294739,
+   1.7174979257583618
   ],
   "target_ellipse": [
    0.145,
    0.082,
-   1.6744563026428223
+   1.674456123828888
   ]
  },
- "bytes": 18074072,
+ "bytes": 18948940,
  "reference_rig": "client/assets/humanoid_m.glb"
 }

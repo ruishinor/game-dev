@@ -133,10 +133,10 @@
    "optics_emission": 0.8,
    "mechanism": {
     "couplings": {
-     "lowerarm": 0.03,
-     "hand": 0.022,
-     "calf": 0.035,
-     "foot": 0.03
+     "lowerarm": 0.018,
+     "hand": 0.014,
+     "calf": 0.022,
+     "foot": 0.02
     },
     "coupling_radius": 0.09,
     "neck": {
@@ -145,13 +145,6 @@
       1.6
      ],
      "max_abs_x": 0.075
-    },
-    "abdomen": {
-     "y": [
-      1.08,
-      1.255
-     ],
-     "max_abs_x": 0.055
     },
     "optics": [
      [
@@ -168,7 +161,12 @@
     "optic_radius": 0.035,
     "sole_height": 0.03,
     "dark_hi": 0.93,
-    "dark_lo": 0.74
+    "dark_lo": 0.74,
+    "color": [
+     0.16,
+     0.14,
+     0.13
+    ]
    }
   },
   "wardrobe": {
@@ -238,10 +236,11 @@
      "grip_fraction": 0.5,
      "bone": "pelvis"
     }
-   }
+   },
+   "emissive_size": 512
   },
   "export": {
-   "max_texture": 2048,
+   "max_texture": 1024,
    "quality": 86
   },
   "validate": {
