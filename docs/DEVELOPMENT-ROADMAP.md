@@ -245,3 +245,21 @@ Re-fetch main, AGENTS.md, branch heads and current PRs before writes. Stagger in
 6. Expanded long-term progression after supporting content, repeatable play and balance are demonstrated.
 
 Update the register after each verified merge using actual evidence. Do not mark work complete solely because a roadmap, concept or branch exists.
+
+### Current-main reconciliation checkpoint — 2026-11-19
+
+This checkpoint supersedes stale branch-only labels above without rewriting historical evidence. Verified main baseline: `08442f6` (merge of #119). Merged and tested do not imply owner visual acceptance or complete roadmap scope.
+
+| Scope | Current verified disposition | Remaining work |
+|---|---|---|
+| DEL-01/03, UX-01 | [#129](https://github.com/ruishinor/game-dev/pull/129) merged `4216e82`; legacy #95 closed after comparing all eight changed files and the intentional observer/stacking refinements. | Layout acceptance at all specified viewports remains separate. |
+| DEL-04, ART-05 | [#133](https://github.com/ruishinor/game-dev/pull/133) merged `833c021`; legacy #128 closed after checking its seven-file delta against the recovered current implementation. | Human review of natural locomotion, route and animation quality. |
+| DEL-02, ART-06 | [#138](https://github.com/ruishinor/game-dev/pull/138) merged `b29e472` with nine reported successful workflows, after #130. | Actual visual acceptance of persistent plasma and contact sweep; performance and combat readability review. |
+| SYS-01, EQ-02/08 | [#119](https://github.com/ruishinor/game-dev/pull/119) reconciled at `97630ab`, merged `08442f6` after 12 successful reported checks. Distinct class set slots and cumulative effects, owned-loadout validation, save migration and vector catalogue portraits. | Acquisition, recipe/blueprint art and fabrication, balancing, actual class-set 3D pieces and per-slot visual projection; other EQ-02 slots remain outstanding. |
+| SYS-04, EQ-07 | [#142](https://github.com/ruishinor/game-dev/pull/142), focused recovery of #89, candidate only. | Fresh main-target checks, actual wardrobe/preview and visual fit. Close #89 only after validated replacement. |
+| CB-01, ART-01 | [#135](https://github.com/ruishinor/game-dev/pull/135) merged `46bfd7d`, selective recovery of #92's Longpoint recoil, traces and hand motion. | Remaining generic weapon families, dual independent slots, weapon-specific actions, full visual review. Do not merge the old stacked #92 wholesale. |
+| ART-10 | [#136](https://github.com/ruishinor/game-dev/pull/136) merged `7af55f0`; three existing fitted chest models and rendered icons, with browser test repairs [#140](https://github.com/ruishinor/game-dev/pull/140) and [#141](https://github.com/ruishinor/game-dev/pull/141) merged. See [armour record](art/ARMOUR-3D.md). | Real worn visual quality, look coverage, class-set 3D work, LOD/budgets and other rendered icons. |
+| SYS-05/06, WORLD-01/02 | #115 and #131 preserve current multi-chamber Annex and Expanse entry. #137 is local presentation preview only. [#139](https://github.com/ruishinor/game-dev/pull/139) remains an unfinished draft. | New Expanse client geometry, minimap, kit HTTP allowlist/capture migration, four known failed old-pocket tests, full browser integration and visual review before promotion. Outpost, patrols, resources and Foundry remain separate. |
+| EQ-09, DEL-01 | #93 remains non-ancestral/blocked: recover modular weapon assembly independently. #91 and #96 are historical consolidation branches with overlapping already-recovered behavior and still-unmerged dependencies. | Validate unique behavior against main, preserve useful remaining deltas before retirement; no wholesale legacy merge. |
+
+The original #95 and #128 branches are retained; closing after equivalent recovery is not a claim that the old PR itself merged. No other legacy PR is retired at this checkpoint. Use current exact heads and integrated checks for every subsequent promotion; no routine owner decision is necessary.
