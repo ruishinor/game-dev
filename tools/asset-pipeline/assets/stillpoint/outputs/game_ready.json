@@ -1,7 +1,7 @@
 {
- "triangles_source": 138167,
- "triangles_runtime": 34380,
- "vertices_runtime": 17664,
+ "triangles_source": 141885,
+ "triangles_runtime": 40228,
+ "vertices_runtime": 20725,
  "bones": [
   "root",
   "body",
@@ -155,7 +155,11 @@
  "maps": {
   "basecolor": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/basecolor.png",
   "roughness": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/roughness.png",
-  "normal": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/normal.png"
+  "normal": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/normal.png",
+  "bake_fill": {
+   "missed_texels_filled": 60652,
+   "missed_fraction_of_covered": 0.020297460943317237
+  }
  },
  "legs": [
   {

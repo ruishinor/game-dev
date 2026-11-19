@@ -88,6 +88,39 @@ def join_and_skin(objs, arm):
 
 
 # ----------------------------------------------------------------------------- 4 bake
+def fill_bake_misses(obj, high, imgs, out_dir, margin):
+    """Selected-to-active rays that find no high-res surface leave black texels
+    (where reduction moved the surface further than the ray distance). Bake the
+    reduced mesh's own materials directly (no rays, so no misses) and use that
+    wherever the detailed bake missed."""
+    import cv2
+
+    high.select_set(False)
+    bpy.context.view_layer.objects.active = obj
+    for kind, btype, extra in [("basecolor", "DIFFUSE", {"pass_filter": {"COLOR"}}), ("roughness", "ROUGHNESS", {}), ("normal", "NORMAL", {"normal_space": "TANGENT"})]:
+        for m in obj.data.materials:
+            m.node_tree.nodes.active = m.node_tree.nodes[f"_bake_{kind}"]
+        bpy.ops.object.bake(type=btype, uv_layer="atlas", use_clear=True, margin=margin, **extra)
+        imgs[kind].filepath_raw = str(Path(out_dir) / f"{kind}_fallback.png")
+        imgs[kind].save()
+    det = cv2.imread(str(Path(out_dir) / "basecolor.png"))
+    fb = cv2.imread(str(Path(out_dir) / "basecolor_fallback.png"))
+    covered = fb.max(axis=2) > 0
+    miss = (det.max(axis=2) <= 2) & covered
+    miss = cv2.dilate(miss.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    miss &= covered
+    for kind in imgs:
+        d = cv2.imread(str(Path(out_dir) / f"{kind}.png"), cv2.IMREAD_UNCHANGED)
+        f = cv2.imread(str(Path(out_dir) / f"{kind}_fallback.png"), cv2.IMREAD_UNCHANGED)
+        d[miss] = f[miss]
+        cv2.imwrite(str(Path(out_dir) / f"{kind}.png"), d)
+        imgs[kind].filepath_raw = str(Path(out_dir) / f"{kind}.png")
+        imgs[kind].source = "FILE"
+        imgs[kind].filepath = str(Path(out_dir) / f"{kind}.png")
+        imgs[kind].reload()
+    return {"missed_texels_filled": int(miss.sum()), "missed_fraction_of_covered": float(miss.sum() / max(covered.sum(), 1))}
+
+
 def bake_atlas(obj, size, out_dir, margin=8, high=None, cage=0.012):
     """Bake colour/roughness/normal into one atlas. With `high`, detail is baked from the
     full-resolution source parts onto the reduced mesh (selected-to-active)."""
@@ -132,6 +165,9 @@ def bake_atlas(obj, size, out_dir, margin=8, high=None, cage=0.012):
         imgs[kind].filepath_raw = str(p)
         imgs[kind].file_format = "PNG"
         imgs[kind].save()
+    fill = {}
+    if high is not None:
+        fill = fill_bake_misses(obj, high, imgs, out_dir, margin)
     # replace all materials with one baked PBR material (one draw call)
     mat = bpy.data.materials.new(f"{ASSET_ID}_baked")
     mat.use_nodes = True
@@ -158,7 +194,7 @@ def bake_atlas(obj, size, out_dir, margin=8, high=None, cage=0.012):
     for layer in list(me.uv_layers):
         if layer.name != "atlas":
             me.uv_layers.remove(layer)
-    return {k: str(Path(out_dir) / f"{k}.png") for k in imgs}
+    return {**{k: str(Path(out_dir) / f"{k}.png") for k in imgs}, "bake_fill": fill}
 
 
 # ----------------------------------------------------------------------------- 5 gait

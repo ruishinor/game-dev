@@ -63,7 +63,8 @@ Synthetic object, 49 reconstruction views and 7 hold-out views at 800×600, boun
 | Surface error, median / mean | 3.3 / 11.6 mm | 3.8 / 16.1 mm |
 | F-score at 1% / 2% of diagonal | 0.873 / 0.924 | 0.836 / 0.912 |
 | Hold-out silhouette IoU | 0.983 | 0.984 |
-| Hold-out PSNR (unlit reprojection vs photo) | 26.1 dB | 24.8 dB |
+| Hold-out PSNR (unlit reprojection vs photo) | 25.9 dB | 25.2 dB |
+| Surface with source colour (texture) | 75% | 66% |
 
 Limitations, all measured: undersides no camera sees are closed by the hull, not observed. TSDF output has topological noise (genus 171 for A1). Gaussian smoothing of the field reduces it (σ 1.2 voxel: genus 14) but costs hold-out IoU (0.983 → 0.962), so it is off by default. Reprojected colour keeps the capture lighting; it is not albedo.
 

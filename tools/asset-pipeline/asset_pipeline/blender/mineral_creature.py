@@ -249,6 +249,20 @@ def mat_stone(name, pal, top_img, ochre_amt, base_key="stone_side"):
         L.new(color_out, mt.inputs["A"])
         L.new(ti.outputs["Color"], mt.inputs["B"])
         color_out = mt.outputs["Result"]
+    # cavity darkening: occluded crevices collect grime (bakes into the albedo atlas)
+    ao = N.new("ShaderNodeAmbientOcclusion")
+    ao.inputs["Distance"].default_value = 0.18
+    ao.only_local = True
+    cav = N.new("ShaderNodeMapRange")
+    cav.inputs["To Min"].default_value = 0.42
+    L.new(ao.outputs["AO"], cav.inputs["Value"])
+    mc = N.new("ShaderNodeMix")
+    mc.data_type = "RGBA"
+    mc.blend_type = "MULTIPLY"
+    mc.inputs["Factor"].default_value = 1.0
+    L.new(color_out, mc.inputs["A"])
+    L.new(cav.outputs["Result"], mc.inputs["B"])
+    color_out = mc.outputs["Result"]
     L.new(color_out, bsdf.inputs["Base Color"])
     # micro relief
     bump = N.new("ShaderNodeBump")
@@ -356,9 +370,9 @@ def build(p):
         return H_dorsal + 0.04 - 0.20 * r ** 2 + 0.03 * fbm((xy[0] * 0.8, xy[1] * 0.8, 0.5))
 
     M_plate = mat_stone("stone_plate", pal, top_img, ochre_amt=0.0, base_key="plate_top")
-    M_strata = mat_stone("stone_strata", pal, top_img, ochre_amt=0.6)
-    M_under = mat_stone("stone_underside", pal, None, ochre_amt=0.5, base_key="stone_side")
-    M_leg = mat_stone("stone_limb", pal, None, ochre_amt=0.9)
+    M_strata = mat_stone("stone_strata", pal, top_img, ochre_amt=1.1)
+    M_under = mat_stone("stone_underside", pal, None, ochre_amt=1.0, base_key="stone_side")
+    M_leg = mat_stone("stone_limb", pal, None, ochre_amt=1.4)
     cry = pal.get("crystal", {}).get("linear", [0.35, 0.33, 0.30])
     M_cry = mat_crystal([min(1, c * 1.15) for c in cry])
     mo = pal.get("moss", {}).get("linear", [0.07, 0.065, 0.025])
@@ -385,11 +399,11 @@ def build(p):
         Pt = c + (P - c) * max(0.5, 1 - gap / max(r_mean, 1e-3))
         if edge:  # shingle: outer plates overhang outward and droop
             out = (c - cen) / (np.linalg.norm(c - cen) + 1e-6)
-            Pt = Pt + out * 0.07
+            Pt = c + (Pt - c) * 1.05 + out * 0.10  # overhang and overlap the neighbours
         thick = (0.07 if not edge else 0.15) + 0.03 * RNG.random()
         tilt = RNG.normal(0, 0.018, 2)
         zc = z_top(c) + RNG.normal(0, 0.006)
-        top_z = [zc + (q - c) @ tilt - (0.06 * max(0, rn(q) - 0.7) if edge else 0) for q in Pt]
+        top_z = [zc + (q - c) @ tilt - (0.20 * max(0, rn(q) - 0.6) if edge else 0) for q in Pt]
         Pb = c + (Pt - c) * 0.97
         n = len(Pt)
         verts = [(*q, z) for q, z in zip(Pt, top_z)] + [(*q, z - thick) for q, z in zip(Pb, top_z)]
@@ -403,6 +417,31 @@ def build(p):
         displace_obj(o, 0.016, 3.0, i, cuts=2, sharp=0.9)
         set_uv_topproj(o, F)
         count("plates")
+
+    # ---- dorsal bed: a continuous surface just under the plates, so the gaps
+    # between plates read as thin dark fractures rather than trenches
+    from scipy.spatial import Delaunay
+    from matplotlib.path import Path as MPath
+
+    rim = resample_closed(cen + (outline - cen) * 0.99, 90)
+    gx, gy = np.meshgrid(np.arange(-half_w, half_w, 0.09), np.arange(-half_l, half_l, 0.09))
+    grid_pts = np.stack([gx.ravel(), gy.ravel()], 1) + cen
+    inner = MPath(rim)
+    grid_pts = grid_pts[inner.contains_points(grid_pts) & (np.array([rn(q) for q in grid_pts]) < 0.95)]
+    bed_xy = np.vstack([rim, grid_pts])
+    tri = Delaunay(bed_xy)
+    keep = [t for t in tri.simplices if inner.contains_point(bed_xy[t].mean(0))]
+    bed_v = [(*q, z_top(q) - 0.035) for q in bed_xy]
+    bed = make_obj("dorsal_bed", bed_v, [list(t) for t in keep], M_strata, "dorsal bed", "body", smooth=True)
+    bm = bmesh.new()
+    bm.from_mesh(bed.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if bm.faces and bm.faces[0].normal.z < 0:
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+    bm.to_mesh(bed.data)
+    bm.free()
+    set_uv_topproj(bed, F)
+    count("bed")
 
     # ---- layered strata under the plate brim, following the measured outline
     ring = resample_closed(outline, 72)
@@ -472,8 +511,16 @@ def build(p):
     count("keel")
 
     # ---- crystals from the top-view footprints
-    crys = top["crystals"]
+    crys = list(top["crystals"])
     rmax = max(c_["radius_px"] for c_ in crys)
+    # authored satellites: the references show principal crystals packed with
+    # smaller ones at their base; the top view cannot resolve those
+    for big in [c_ for c_ in crys if c_["radius_px"] / rmax > 0.6][:12]:
+        for k in range(int(RNG.integers(3, 6))):
+            a = RNG.uniform(0, 2 * math.pi)
+            d = big["radius_px"] * RNG.uniform(1.3, 2.1)
+            crys.append({"centre_px": [big["centre_px"][0] + d * math.cos(a), big["centre_px"][1] + d * math.sin(a)], "radius_px": big["radius_px"] * RNG.uniform(0.32, 0.5),
+                         "elongation": 1.0, "major_axis": [1.0, 0.0], "satellite": True})
     ccen = np.mean([F.to_world(c_["centre_px"]) for c_ in crys[:12]], 0)
     for i, c_ in enumerate(crys):
         q = F.to_world(c_["centre_px"])
@@ -481,6 +528,8 @@ def build(p):
         rel = c_["radius_px"] / rmax
         h = H_cry * rel ** 2.2 if rel > 0.45 else max(1.3 * rw, H_cry * 0.18 * rel)
         nodule = rel <= 0.45
+        if c_.get("satellite"):
+            h, nodule = H_cry * RNG.uniform(0.14, 0.34), False
         sides = int(RNG.choice([6, 6, 6, 5, 7]))
         maj = np.array(c_["major_axis"])
         maj_w = F.to_world(F.c + maj) - F.to_world(F.c)
@@ -514,7 +563,8 @@ def build(p):
             ia = 2 * sides
             for j in range(sides):
                 faces.append([sides + j, sides + (j + 1) % sides, ia])
-        o = make_obj(f"crystal_{i:02d}", verts, faces, M_cry, "dorsal crystal" if not nodule else "crystal nodule", "body")
+        o = make_obj(f"crystal_{i:02d}", verts, faces, M_cry, "satellite crystal (authored)" if c_.get("satellite") else "dorsal crystal" if not nodule else "crystal nodule",
+                     "body")
         # lean away from the cluster centre, plus a little randomness
         away = q - ccen
         lean = math.radians(4 + 9 * RNG.random())
