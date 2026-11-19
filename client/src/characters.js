@@ -27,7 +27,7 @@ import { createLongpointPresentation } from './longpoint.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
-import { wearArmour, ARMOUR_BUNDLES } from './armour-visual.js';
+import { wearArmour, armourBundle } from './armour-visual.js';
 import { createSocialTorso } from './social-torso.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
@@ -237,21 +237,28 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
-  // Worn chest armour (presentation metadata `av`): loaded on first use.
-  let armour = null, armourWanted = null, disposed = false;
+  // Worn armour (presentation metadata `av`: slot -> item, or a legacy chest
+  // id): each slot's piece is loaded on first use and bound to this skeleton.
+  const armours = new Map();
+  let disposed = false;
   function setArmourVisual(next) {
-    armourWanted = typeof next === 'string' ? next : null;
-    if (armour?.item === armourWanted) return;
-    armour?.dispose(); armour = null;
-    if (!armourWanted) return;
-    const bundle = ARMOUR_BUNDLES[body];
-    if (!bundle) return;
-    const apply = () => {
-      if (disposed || armour || !armourWanted) return;
-      armour = wearArmour(assets, inst, body, armourWanted);
-    };
-    if (assets.get(bundle)) apply();
-    else assets.bundle(bundle).then(apply);
+    const want = typeof next === 'string' ? { chest: next } : next && typeof next === 'object' ? next : {};
+    for (const [slot, h] of armours) {
+      if (h.wanted !== want[slot]) { h.handle?.dispose(); armours.delete(slot); }
+    }
+    for (const [slot, item] of Object.entries(want)) {
+      if (typeof item !== 'string' || armours.has(slot)) continue;
+      const bundle = armourBundle(body, item);
+      if (!bundle) continue;
+      const entry = { wanted: item, handle: null };
+      armours.set(slot, entry);
+      const apply = () => {
+        if (disposed || armours.get(slot) !== entry || entry.handle) return;
+        entry.handle = wearArmour(assets, inst, body, item);
+      };
+      if (assets.get(bundle)) apply();
+      else assets.bundle(bundle).then(apply);
+    }
   }
   setArmourVisual(opts.armourVisual);
 
@@ -266,7 +273,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
     setArmourVisual,
-    armourWorn: () => armour?.item || null,
+    // the worn chest piece (phase-1 contract) and every worn slot
+    armourWorn: () => armours.get('chest')?.handle?.item || null,
+    armourWornAll: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, h.handle.item])),
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
@@ -326,6 +335,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         for (const c of ctx.coils) c.scale.set(k, k, 1 + (st.charge ?? 0) * 1.5);
       }
       if (gearUpdate) gearUpdate(st);
+      for (const h of armours.values()) h.handle?.fx?.update(dt, st);
       if (face && (step || st.faceDetail)) face.update(step || dt, st);
       // Veyran tracery brightens with exertion and when struck.
       if (veyranMat) veyranMat.userData.face.trace.value = 0.18 + (st.combat ? 0.22 : 0) + (st.hit || 0) * 0.8;
@@ -333,6 +343,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     trigger(kind, id) {
       if (dead) return;
+      for (const h of armours.values()) h.handle?.fx?.surge(kind);
       if (kind === 'hit') {
         anim.react(HB.hit);
         return;
@@ -349,7 +360,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       releaseRod();
       weapon?.dispose();
       disposed = true;
-      armour?.dispose(); armour = null;
+      for (const h of armours.values()) h.handle?.dispose();
+      armours.clear();
       socialTorso.dispose();
       anim.dispose();
       face?.dispose();

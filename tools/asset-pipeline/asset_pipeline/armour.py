@@ -31,6 +31,7 @@ import subprocess
 from pathlib import Path
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 from .workspace import PIPELINE_DIR, REPO_ROOT, StageError, portable, read_json, run_blender, sha256_file, write_json
 
@@ -54,6 +55,17 @@ def _node(args):
     if proc.returncode:
         raise StageError(f"{Path(str(args[0])).name} failed: " + (proc.stderr or proc.stdout)[-2000:])
     return proc.stdout
+
+
+class _Mats(dict):
+    """Material slot -> per-item material name ("<item>_<slot>")."""
+
+    def __init__(self, item):
+        super().__init__()
+        self.item = item
+
+    def __missing__(self, k):
+        return f"{self.item}_{k}"
 
 
 def srgb_to_linear(hexstr):
@@ -103,6 +115,7 @@ def stage_inspect(asset, params):
 
 
 def stage_design(asset, params):
+    from . import armour_cinderlock  # noqa: F401  (registers the Cinderlock designs)
     from . import armour_design as ad
     from .humanoid_wardrobe import export_pieces
 
@@ -110,11 +123,12 @@ def stage_design(asset, params):
     rep = {"items": params["items"], "bodies": {}}
     files = []
     for key in _bodies(asset):
-        body = ad.FitBody(ad.load_body(asset.path("inspect", f"body_{key}.glb")), n=params["samples"])
+        body = ad.FitBody(ad.load_body(asset.path("inspect", f"body_{key}.glb")), n=params["samples"],
+                          **({"under": tuple(params["fit_surfaces"])} if params.get("fit_surfaces") else {}))
         pieces = []
         for item in params["items"]:
-            mats = {k: f"{item}_{k}" for k in ("vest", "yoke", "panel", "inset", "strap", "hardware", "plate", "trim", "core", "lines")}
-            pieces += ad.DESIGNS[item](body, params["base_offset"], mats)
+            mats = _Mats(item)
+            pieces += ad.DESIGNS[params.get("design_of", {}).get(item, item)](body, params["base_offset"], mats)
         # every piece clears the body + worn-under shells along the normal by
         # its layer height above the vest (radial lofts sit closer on slopes)
         # The vest is pushed first; every layered piece moves with the vest
@@ -123,7 +137,28 @@ def stage_design(asset, params):
         from scipy.spatial import cKDTree as _T
 
         for item in params["items"]:
-            vest = next(pc for pc in pieces if pc["name"] == f"{item}__vest")
+            if any(pc.get("hs") for pc in pieces if pc["set"] == item):
+                # hard-surface items are authored at explicit layers on the
+                # convex envelope; only their soft base layer is pushed clear
+                for pc in pieces:
+                    if pc["set"] == item and not pc.get("hs"):
+                        pc["V"] = ad.push_clear(body, ad.relax(pc["V"], pc["F"], params["relax"]), params["min_gap"])
+                        pc["even"] = False
+                continue
+            # the base layer of each item (the vest, a glove, a legging...) is
+            # pushed first; layered pieces carry its displacement
+            vest = next((pc for pc in pieces if pc["set"] == item and (pc.get("base") or pc["name"] == f"{item}__vest")), None)
+            if vest is None:
+                for pc in pieces:
+                    if pc["set"] == item:
+                        gap = pc.get("gap", params["min_gap"])
+                        if pc["F"] is None:
+                            pc["V"] = [(ad.push_clear(body, np.asarray(v, float), gap), f) for v, f in pc["V"]]
+                        else:
+                            V0 = ad.relax(pc["V"], pc["F"], params["relax"]) if pc.get("relax", True) else np.asarray(pc["V"], float)
+                            pc["V"] = ad.push_clear(body, V0, gap) if gap > 0 else V0
+                        pc["even"] = False
+                continue
             old_v = np.asarray(vest["V"], float)
             vest["V"] = ad.push_clear(body, ad.relax(old_v, vest["F"], params["relax"]), params["min_gap"])
             vest["even"] = False
@@ -141,16 +176,20 @@ def stage_design(asset, params):
                 if pc["F"] is None:
                     pc["V"] = [(carry(np.asarray(v, float)), f) for v, f in pc["V"]]
                 else:
-                    pc["V"] = carry(ad.relax(pc["V"], pc["F"], params["relax"]))
+                    pc["V"] = carry(ad.relax(pc["V"], pc["F"], params["relax"]) if pc.get("relax", True) else np.asarray(pc["V"], float))
                 pc["even"] = False
         cl = {}
         for pc in pieces:
             parts = pc["V"] if pc["F"] is None else [(pc["V"], pc["F"])]
             V = np.concatenate([np.asarray(v, float) for v, _ in parts])
+            if len(V) == 0:  # generated in Blender (e.g. the anchor soles)
+                continue
             d = ad.clearance(body, V)
             cl[pc["name"]] = {"min_m": round(float(d.min()), 4), "p05_m": round(float(np.percentile(d, 5)), 4)}
             # orientation hint for Blender: torso pieces push out from the
             # spine axis; shoulder pieces from a point under the shoulder
+            if "axis" in pc:
+                continue
             if "yoke" in pc["name"] or "pauldron" in pc["name"]:
                 side = "l" if pc["name"].endswith("_l") else "r"
                 sh = body.L["upperarm_" + side]
@@ -160,6 +199,15 @@ def stage_design(asset, params):
                 pc["axis"] = [0.0, float(body.y(0.6)), float(body.centre(body.y(0.6))[2])]
         d_dir = asset.dir("design", key)
         export_pieces(pieces, d_dir / "pieces.npz", d_dir / "pieces.json")
+        # bind-pose occluder for the bakes: body, hands, head, shoes
+        Vs, Fs, o = [], [], 0
+        for mname in ("body", "hands", "head", "shell_shoes"):
+            if mname in body.meshes:
+                Vs.append(body.meshes[mname]["V"])
+                Fs.append(body.meshes[mname]["F"] + o)
+                o += len(body.meshes[mname]["V"])
+        np.savez(d_dir / "body.npz", V=np.concatenate(Vs), F=np.concatenate(Fs))
+        files.append(d_dir / "body.npz")
         worst = min(v["min_m"] for v in cl.values())
         rep["bodies"][key] = {"pieces": len(pieces), "min_clearance_m": worst, "clearance": cl}
         files += [d_dir / "pieces.npz", d_dir / "pieces.json"]
@@ -189,6 +237,8 @@ def stage_build(asset, params):
     out_all = asset.dir("build")
     rep = {}
     files = []
+    if params.get("builder") == "hardsurface":
+        return _build_hardsurface(asset, params)
     for key in _bodies(asset):
         d_dir = asset.path("design", key)
         out = asset.dir("build", key)
@@ -196,6 +246,38 @@ def stage_build(asset, params):
             "op": "wardrobe", "work": str(asset.work), "out": str(out), "pieces_npz": str(d_dir / "pieces.npz"),
             "pieces_json": str(d_dir / "pieces.json"), "texture": params["texture"], "materials": blender_materials(asset),
             "blend_name": f"armour_{key}_source.blend"}, timeout=7200)
+        write_json(out / "build.json", res)
+        rep[key] = {k: v["triangles"] for k, v in res["sets"].items()}
+        files += [out / "build.json", out / res["blend"]]
+        for sset in res["sets"].values():
+            files += [out / sset["npz"]] + [out / f for f in sset["images"].values()]
+    write_json(out_all / "build.json", rep)
+    return files, rep
+
+
+def hs_material_specs(asset):
+    """Composite parameters per material (colours as linear RGB)."""
+    out = {}
+    for item, mats in asset.config["armour"]["materials"].items():
+        for slot, m in mats.items():
+            spec = {k: v for k, v in m.items() if k not in ("base", "edge", "worn", "emission")}
+            spec["base"] = srgb_to_linear(m["base"]).tolist()
+            spec["edge"] = srgb_to_linear(m.get("edge", m.get("worn", m["base"]))).tolist()
+            out[f"{item}_{slot}"] = spec
+    return out
+
+
+def _build_hardsurface(asset, params):
+    out_all = asset.dir("build")
+    rep, files = {}, []
+    for key in _bodies(asset):
+        d_dir = asset.path("design", key)
+        out = asset.dir("build", key)
+        res = run_blender("asset_pipeline.blender.armour_hardsurface", {
+            "work": str(asset.work), "out": str(out), "pieces_npz": str(d_dir / "pieces.npz"), "pieces_json": str(d_dir / "pieces.json"),
+            "body_npz": str(d_dir / "body.npz"), "materials": hs_material_specs(asset), "texture": params["texture"],
+            "samples": params.get("samples", 16), "blend_name": f"armour_{key}_source.blend"}, timeout=14400)
+        res["hardsurface"] = True
         write_json(out / "build.json", res)
         rep[key] = {k: v["triangles"] for k, v in res["sets"].items()}
         files += [out / "build.json", out / res["blend"]]
@@ -218,6 +300,47 @@ def vertex_normals(V, F):
 
 ARM = ("upperarm", "lowerarm", "hand", "thumb", "index", "middle", "ring", "pinky")
 LEG = ("thigh", "calf", "foot", "ball")
+
+
+def _policy_tree(body, surfaces):
+    cache = body.__dict__.setdefault("_policy_trees", {})
+    key = tuple(surfaces)
+    if key not in cache:
+        idx = np.nonzero(np.isin(body.src, [body.surfaces.index(s) for s in surfaces if s in body.surfaces]))[0]
+        cache[key] = (cKDTree(body.P[idx]), idx)
+    return cache[key]
+
+
+def limb_weights(body, P, joint_names, policy, k=10, smooth=0.0, mode=None):
+    """Weights for limb armour (gauntlets, greaves, boots): follow the limb's
+    own joints on one side only, sampled from the named fit surfaces."""
+    from .humanoid_rig import pack_weights
+
+    tree, idx = _policy_tree(body, policy.get("surfaces", body.surfaces))
+    d, i = tree.query(P, k=int(k * (1 + smooth)))
+    w = 1.0 / np.maximum(d, 1e-4) ** 2
+    w /= w.sum(1, keepdims=True)
+    Wd = np.einsum("nk,nkj->nj", w, body.Wd[idx[i]])
+    side = policy.get("side")
+    ok = np.array([n.startswith(tuple(policy["joints"])) and (side is None or n.endswith("_" + side)) for n in joint_names])
+    Wd[:, ~ok] = 0
+    if mode and mode[0] == "rigid":
+        Wd[:] = Wd.mean(0, keepdims=True)
+    elif mode and mode[0] == "band":
+        c = P @ np.asarray(mode[1], float) if isinstance(mode[1], list) else P[:, {"x": 0, "y": 1, "z": 2}[mode[1]]]
+        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
+        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+    s = Wd.sum(1, keepdims=True)
+    fallback = s[:, 0] < 1e-6
+    if fallback.any():  # no allowed joint nearby: the policy's first joint
+        Wd[fallback, joint_names.index(policy["joints"][0] + (f"_{side}" if side else ""))] = 1
+    Wd /= Wd.sum(1, keepdims=True)
+    J, W = pack_weights({n: Wd[:, j] for j, n in enumerate(joint_names) if Wd[:, j].max() > 0}, joint_names, max_influences=4, prune=0.02)
+    if J.shape[1] < 4:
+        pad = 4 - J.shape[1]
+        J = np.c_[J, np.zeros((len(J), pad), J.dtype)]
+        W = np.c_[W, np.zeros((len(W), pad), W.dtype)]
+    return J, W
 
 
 def piece_weights(body, P, joint_names, k=10, smooth=0.0, arm_cap=0.0, mode=None):
@@ -270,7 +393,8 @@ def stage_rig(asset, params):
     files = []
     for key in _bodies(asset):
         rig = read_json(asset.path("inspect", f"rig_{key}.json"))
-        body = ad.FitBody(ad.load_body(asset.path("inspect", f"body_{key}.glb")), n=params["samples"])
+        fs = asset.config["armour"]["design"].get("fit_surfaces")
+        body = ad.FitBody(ad.load_body(asset.path("inspect", f"body_{key}.glb")), n=params["samples"], **({"under": tuple(fs)} if fs else {}))
         joints = rig["joints"]
         assert joints == body.joints, "skeleton joint order differs between rig and body"
         IBM = np.asarray(rig["inverseBindMatrices"], float).reshape(-1, 4, 4).transpose(0, 2, 1)
@@ -316,14 +440,46 @@ def stage_rig(asset, params):
             mat = w.material(f"armour_{item}", base=tb, orm=to, normal=tn, emissive=em,
                              emissive_factor=(1.0, 1.0, 1.0) if em is not None else (0, 0, 0))
             arr = np.load(bdir / info["npz"])
+
+            def weights_for(pname, Pp):
+                kind = re.sub(r"_[lr]?\d*$", "", pname.split("__", 1)[1])
+                stiff = params["stiffness"].get(kind, 0.0)
+                pol = meta.get(pname, {}).get("weights")
+                wmode = meta.get(pname, {}).get("weight_mode") or params["weight_modes"].get(kind)
+                if pol:
+                    return limb_weights(body, Pp, joints, pol, k=params["k"], smooth=stiff, mode=wmode)
+                return piece_weights(body, Pp, joints, k=params["k"], smooth=stiff, arm_cap=params["arm_cap"].get(kind, 0.0), mode=wmode)
+
+            if build.get("hardsurface"):
+                # one joined mesh per item; a per-vertex piece id selects the
+                # weight policy; inlays are a second, emissive mesh (flow UVs)
+                def by_piece(P, PI):
+                    J = np.zeros((len(P), 4), np.int64)
+                    Wt = np.zeros((len(P), 4))
+                    for k, pname in enumerate(info["pieces"]):
+                        sel = PI == k
+                        if sel.any():
+                            J[sel], Wt[sel] = weights_for(pname, P[sel])
+                    return J, Wt
+                P, N, UV, I = arr["P"], arr["N"], arr["UV"], arr["I"]
+                J, Wt = by_piece(P, arr["piece"])
+                mi = w.mesh(item, P, I, normals=N, uvs=UV, joints=J, weights=Wt, material=mat)
+                w.node(item, mesh=mi, skin=skin)
+                tri[item] = int(len(I))
+                skin_store.update({f"{item}_P": P, f"{item}_I": I, f"{item}_J": J, f"{item}_W": Wt})
+                if "FX_P" in arr.files:
+                    fxmat = w.material(f"{params.get('fx_material', 'CL_Channel')}", base_factor=(0.05, 0.01, 0.01, 1), metallic=0.0, roughness=0.4,
+                                       emissive_factor=tuple(params.get("fx_emissive", (1.0, 0.16, 0.08))))
+                    FJ, FW = by_piece(arr["FX_P"], arr["FX_piece"])
+                    fi = w.mesh(f"{item}__fx", arr["FX_P"], arr["FX_I"], normals=arr["FX_N"], uvs=arr["FX_UV"], joints=FJ, weights=FW, material=fxmat)
+                    w.node(f"{item}__fx", mesh=fi, skin=skin)
+                    tri[item + "__fx"] = int(len(arr["FX_I"]))
+                continue
             Ps, Ns, UVs, Is, Js, Ws = [], [], [], [], [], []
             off = 0
             for pname in info["pieces"]:
                 Pp, Nn, UV, I = arr[pname + "_P"], arr[pname + "_N"], arr[pname + "_UV"], arr[pname + "_I"]
-                kind = re.sub(r"_[lr]?\d*$", "", pname.split("__", 1)[1])
-                stiff = params["stiffness"].get(kind, 0.0)
-                Jg, Wg = piece_weights(body, Pp, joints, k=params["k"], smooth=stiff, arm_cap=params["arm_cap"].get(kind, 0.0),
-                                       mode=params["weight_modes"].get(kind))
+                Jg, Wg = weights_for(pname, Pp)
                 Ps.append(Pp), Ns.append(Nn / np.maximum(np.linalg.norm(Nn, axis=1, keepdims=True), 1e-12)), UVs.append(UV)
                 Is.append(I + off), Js.append(Jg), Ws.append(Wg)
                 off += len(Pp)
@@ -332,7 +488,15 @@ def stage_rig(asset, params):
             w.node(item, mesh=mi, skin=skin)
             tri[item] = int(len(I))
             skin_store.update({f"{item}_P": P, f"{item}_I": I, f"{item}_J": J, f"{item}_W": Wt})
-        glb = out / f"armour_chest_{key}.glb"
+        if params.get("fx_anchors"):
+            from .armour_fx_anchors import compute as fx_anchors
+
+            jidx_of = {n: i for i, n in enumerate(joints)}
+            for item, lst in fx_anchors(body, list(build["sets"]), asset.config["armour"]["design"]["base_offset"]).items():
+                for k, (kind, p_, joint) in enumerate(lst):
+                    local = IBM[jidx_of[joint]] @ np.r_[p_, 1.0]
+                    w.node(f"fxa--{item}--{kind}--{k}", parent=nidx[joint], t=local[:3])
+        glb = out / f"{asset.id}_{key}.glb"
         size = w.write(glb)
         np.savez_compressed(out / f"skin_{key}.npz", IBM=IBM, **skin_store)
         rep[key] = {"triangles": tri, "bytes": size, "joints": len(joints)}
@@ -349,8 +513,8 @@ def stage_export(asset, params):
     rep = {}
     files = []
     for key in _bodies(asset):
-        src = asset.path("rig", f"armour_chest_{key}.glb")
-        dst = out / f"armour_chest_{key}.glb"
+        src = asset.path("rig", f"{asset.id}_{key}.glb")
+        dst = out / f"{asset.id}_{key}.glb"
         _node([PIPELINE_DIR / "js" / "optimize.mjs", src, dst, params["max_texture"], params["quality"]])
         r = read_json(Path(str(dst) + ".report.json"))
         r["file"] = portable(dst)
@@ -433,7 +597,9 @@ def stage_validate(asset, params):
                     Pp = hr.skin(sk, IBM, jidx, P, d[f"{it}_J"], d[f"{it}_W"], pose)
                     dist, i = tree.query(Pp)
                     sd = dist * np.sign(np.sum((Pp - Sp[i]) * Np[i], 1)) / scale - layer[i]
-                    on_arm = arm[i]  # the resting arm against the side: contact, reported apart
+                    # the resting arm against a torso piece's side is contact,
+                    # reported apart; limb pieces must clear their own limb
+                    on_arm = arm[i] if it in params.get("arm_contact_items", items) else np.zeros(len(i), bool)
                     r = res[it]
                     body_sd = sd[~on_arm]
                     r["min_clearance_m"] = min(r["min_clearance_m"], float(np.percentile(body_sd, 0.5)))
@@ -471,7 +637,7 @@ def stage_validate(asset, params):
 def _decoded(asset, key):
     out = asset.dir("icons")
     dec = out / f"decoded_{key}.glb"
-    _node([PIPELINE_DIR / "js" / "decompress.mjs", asset.path("export", f"armour_chest_{key}.glb"), dec])
+    _node([PIPELINE_DIR / "js" / "decompress.mjs", asset.path("export", f"{asset.id}_{key}.glb"), dec])
     return dec
 
 
@@ -524,7 +690,7 @@ def stage_publish(asset, params):
     for key, rel in params["runtime"].items():
         dst = REPO_ROOT / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(asset.path("export", f"armour_chest_{key}.glb"), dst)
+        shutil.copyfile(asset.path("export", f"{asset.id}_{key}.glb"), dst)
         exp[key]["file"] = rel
         exp[key]["sha256"] = sha256_file(dst)
         pub["runtime"][key] = {"file": rel, "sha256": exp[key]["sha256"], "bytes": dst.stat().st_size}
@@ -538,12 +704,17 @@ def stage_publish(asset, params):
         shutil.copyfile(f, dst)
         pub["icons"][item] = {"file": portable(dst), "sha256": sha256_file(dst), "bytes": dst.stat().st_size}
         files.append(dst)
-    # the client's synchronous icon lookup, content-hashed for cache busting
+    write_json(outd / "publish.json", pub)
+    # the client's synchronous icon lookup, content-hashed for cache busting;
+    # merged across every pipeline asset that publishes icons
+    allicons = {}
+    for rec in sorted((PIPELINE_DIR / "assets").glob("*/outputs/publish.json")):
+        allicons.update(read_json(rec).get("icons", {}))
     mod = REPO_ROOT / params["icons_module"]
-    lines = ["// Generated by tools/asset-pipeline (armour_chest publish); do not edit.",
+    lines = ["// Generated by tools/asset-pipeline (armour publish stages); do not edit.",
              "// Inventory icons rendered in Cycles from the exported 3D armour (docs/art/ARMOUR-3D.md).",
              "const ICONS = Object.freeze({"]
-    for item, info in sorted(pub["icons"].items()):
+    for item, info in sorted(allicons.items()):
         lines.append(f"  {item}: '/{info['file']}?v={info['sha256'][:12]}',")
     lines += ["});", "export const RENDERED_ICON_IDS = Object.freeze(Object.keys(ICONS));",
               "export function renderedItemIcon(id) { return typeof id === 'string' && Object.hasOwn(ICONS, id) ? ICONS[id] : null; }", ""]
@@ -573,10 +744,10 @@ def stage_publish(asset, params):
 STAGES = [
     ("inspect", stage_inspect, lambda a: [a.config_path, PIPELINE_DIR / "js" / "dequantize.mjs", PIPELINE_DIR / "js" / "extract-rig.mjs"]
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
-    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
+    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
     ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py"],
      lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"]}),
-    ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), HERE / "armour.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
+    ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
     ("validate", stage_validate, lambda a: [a.path("rig"), a.path("inspect"), HERE / "armour.py"], lambda a: _cfg(a, "validate")),
     ("icons", stage_icons, lambda a: [a.path("export"), HERE / "blender" / "armour_render.py"], lambda a: _cfg(a, "icons")),

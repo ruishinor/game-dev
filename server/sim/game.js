@@ -7,7 +7,7 @@ import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
-import { publicArmourVisual } from '../../shared/armour-visual.js';
+import { publicArmourVisual, sameArmourVisual } from '../../shared/armour-visual.js';
 import { publicSocialVisual } from '../../shared/social-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
@@ -200,7 +200,7 @@ export class Game {
     const visual = publicWeaponVisual(p.char);
     if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
     const armour = publicArmourVisual(p.char);
-    if (p.armourVisual !== armour) { p.armourVisual = armour; p.metaVer += 1; }
+    if (!sameArmourVisual(p.armourVisual, armour)) { p.armourVisual = armour; p.metaVer += 1; }
     const social = publicSocialVisual(p.char);
     if (p.socialVisual !== social) { p.socialVisual = social; p.metaVer += 1; }
   }

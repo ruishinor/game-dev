@@ -69,6 +69,15 @@ def op_icons(p):
         for o in objs:
             if o.type == "MESH" and o not in keep:
                 bpy.data.objects.remove(o, do_unlink=True)
+        half = p.get("keep_half", {}).get(item)
+        if half:  # a pair (gloves) is shown as one piece: keep the +x (left) half
+            import bmesh
+            for o in keep:
+                bm = bmesh.new()
+                bm.from_mesh(o.data)
+                bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.x < 0], context="VERTS")
+                bm.to_mesh(o.data)
+                bm.free()
         bpy.context.view_layer.update()
         lo, hi = scene_bounds(keep)
         centre = (lo + hi) / 2

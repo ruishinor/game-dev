@@ -1,10 +1,19 @@
-// Worn chest armour: the body-fitted, skinned pieces built by the asset
-// pipeline (tools/asset-pipeline route "body-fitted-armour"). Each body has
-// its own GLB whose skin uses the same joints and inverse binds as that
-// body, so a piece is re-bound to the character's own skeleton and follows
-// every animation without a second armature.
+// Worn armour: the body-fitted, skinned pieces built by the asset pipeline
+// (tools/asset-pipeline route "body-fitted-armour"). Each body has its own
+// GLB per armour asset whose skin uses the same joints and inverse binds as
+// that body, so every piece is re-bound to the character's own skeleton and
+// follows every animation without a second armature. Pieces with energy
+// channels get live effects (armour-fx.js).
 import * as THREE from 'three';
+import { ARMOUR_ASSETS } from '../../shared/armour-visual.js';
+import { CHANNEL_MATERIAL, createArmourFx } from './armour-fx.js';
 
+const BODY_KEY = { humanoid_m: 'm', humanoid_f: 'f' };
+export function armourBundle(body, item) {
+  const asset = ARMOUR_ASSETS[item], key = BODY_KEY[body];
+  return asset && key ? `${asset}_${key}` : null;
+}
+// Phase-1 name, kept for callers that only know the chest asset.
 export const ARMOUR_BUNDLES = Object.freeze({ humanoid_m: 'armour_chest_m', humanoid_f: 'armour_chest_f' });
 
 function bodyMesh(inst) {
@@ -24,39 +33,53 @@ function bodyMesh(inst) {
  * not loaded or the item has no model (the caller retries once loaded).
  */
 export function wearArmour(assets, inst, body, item) {
-  const bundle = ARMOUR_BUNDLES[body];
-  if (!bundle || !item) return null;
+  const bundle = armourBundle(body, item);
+  if (!bundle) return null;
   const src = assets.instance(bundle);
   if (!src) { console.error(`[armour] ${item}: ${bundle} is not loaded`); return null; }
-  let piece = null;
-  src.traverse((o) => { if (!piece && o.isSkinnedMesh && o.name === item) piece = o; });
   const host = bodyMesh(inst);
-  if (!piece || !host) {
+  if (!host) { console.error(`[armour] ${item}: character has no skinned body mesh`); return null; }
+  const pieces = [], anchors = [];
+  src.traverse((o) => {
+    if (o.isSkinnedMesh && (o.name === item || o.name.startsWith(item + '__'))) pieces.push(o);
+    const m = /^fxa--(.+?)--([a-z_]+)--\d+$/.exec(o.name);
+    if (m && m[1] === item && o.parent) anchors.push({ kind: m[2], joint: o.parent.name, position: o.position.clone() });
+  });
+  if (!pieces.length) {
     const names = [];
     src.traverse((o) => { if (o.isMesh) names.push(`${o.type}:${o.name}`); });
-    console.error(`[armour] ${item}: ${!piece ? `no skinned piece in ${bundle} (${names.join(', ')})` : 'character has no skinned body mesh'}`);
+    console.error(`[armour] ${item}: no skinned piece in ${bundle} (${names.join(', ')})`);
     return null;
   }
-  const bones = piece.skeleton.bones.map((b) => inst.getObjectByName(b.name));
-  if (bones.some((b) => !b)) {
-    console.error(`[armour] ${item}: skeleton of ${body} is missing joints`);
-    return null;
+  const meshes = [];
+  for (const piece of pieces) {
+    const bones = piece.skeleton.bones.map((b) => inst.getObjectByName(b.name));
+    if (bones.some((b) => !b)) {
+      console.error(`[armour] ${item}: skeleton of ${body} is missing joints`);
+      return null;
+    }
+    piece.removeFromParent();
+    piece.position.copy(host.position);
+    piece.quaternion.copy(host.quaternion);
+    piece.scale.copy(host.scale);
+    host.parent.add(piece);
+    piece.bind(new THREE.Skeleton(bones, piece.skeleton.boneInverses.map((m) => m.clone())), host.bindMatrix.clone());
+    piece.frustumCulled = false; // bind-pose bounds do not cover every pose
+    piece.castShadow = !piece.name.endsWith('__fx');
+    piece.userData.armour = item;
+    meshes.push(piece);
   }
-  piece.removeFromParent();
-  piece.position.copy(host.position);
-  piece.quaternion.copy(host.quaternion);
-  piece.scale.copy(host.scale);
-  host.parent.add(piece);
-  piece.bind(new THREE.Skeleton(bones, piece.skeleton.boneInverses.map((m) => m.clone())), host.bindMatrix.clone());
-  piece.frustumCulled = false; // bind-pose bounds do not cover every pose
-  piece.castShadow = true;
-  piece.userData.armour = item;
+  const fxMeshes = meshes.filter((m) => m.material?.name === CHANNEL_MATERIAL || m.name.endsWith('__fx'));
+  const resolved = anchors.map((a) => ({ ...a, bone: inst.getObjectByName(a.joint) })).filter((a) => a.bone);
+  const fx = fxMeshes.length || resolved.length ? createArmourFx(fxMeshes, resolved) : null;
   return {
     item,
-    mesh: piece,
+    mesh: meshes[0],
+    meshes,
+    fx,
     dispose() {
-      piece.removeFromParent();
-      piece.skeleton.dispose?.();
+      fx?.dispose();
+      for (const m of meshes) { m.removeFromParent(); m.skeleton.dispose?.(); }
     },
   };
 }

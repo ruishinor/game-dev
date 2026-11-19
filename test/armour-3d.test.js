@@ -7,10 +7,10 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import WebSocket from 'ws';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ARMOUR_VISUALS, publicArmourVisual } from '../shared/armour-visual.js';
+import { ARMOUR_ASSETS, ARMOUR_VISUALS, publicArmourVisual } from '../shared/armour-visual.js';
 import { ITEMS } from '../shared/content.js';
 import { RENDERED_ICON_IDS, renderedItemIcon } from '../client/src/item-renders.js';
-import { ARMOUR_BUNDLES } from '../client/src/armour-visual.js';
+
 import { equipItem, unequipSlot } from '../server/sim/progress.js';
 import { startServer } from '../server/index.js';
 import { makeGame, makeChar } from './helpers.js';
@@ -22,10 +22,11 @@ function glbJson(file) {
   return JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString('utf8'));
 }
 
-test('armour visual is the equipped, owned chest piece and nothing else', () => {
-  for (const id of ARMOUR_VISUALS) assert.equal(ITEMS[id]?.slot, 'chest', `${id} is a live chest item`);
+test('armour visual lists the equipped, owned modelled pieces per slot and nothing else', () => {
+  for (const id of ['field_chest', 'reinforced_chest', 'resonant_chest']) assert.equal(ITEMS[id]?.slot, 'chest', `${id} is a live chest item`);
+  for (const id of ARMOUR_VISUALS) if (ITEMS[id]) assert.ok(['chest', 'gloves', 'greaves', 'boots'].includes(ITEMS[id].slot), id);
   const char = makeChar('vanguard', { inventory: ['field_chest'], equipped: { chest: 'field_chest' } });
-  assert.equal(publicArmourVisual(char), 'field_chest');
+  assert.deepEqual(publicArmourVisual(char), { chest: 'field_chest' });
   assert.equal(publicArmourVisual({ ...char, inventory: [] }), null, 'not owned');
   assert.equal(publicArmourVisual({ ...char, equipped: { chest: 'untrusted/../path' } }), null);
   assert.equal(publicArmourVisual({ ...char, equipped: { chest: 'relay_carbine' } }), null);
@@ -40,11 +41,11 @@ test('server metadata carries `av` only through real equip/unequip and invalidat
   const v = p.metaVer;
   assert.equal(game.metaFor(p).av, undefined);
   assert.equal(equipItem(game, p, 'field_chest').ok, true);
-  assert.equal(game.metaFor(p).av, 'field_chest');
+  assert.deepEqual(game.metaFor(p).av, { chest: 'field_chest' });
   assert.ok(p.metaVer > v, 'metadata version bumped so observers rebuild');
   const v1 = p.metaVer;
   assert.equal(equipItem(game, p, 'reinforced_chest').ok, true);
-  assert.equal(game.metaFor(p).av, 'reinforced_chest');
+  assert.deepEqual(game.metaFor(p).av, { chest: 'reinforced_chest' });
   assert.ok(p.metaVer > v1);
   assert.equal(unequipSlot(game, p, 'chest').ok, true);
   assert.equal(game.metaFor(p).av, undefined);
@@ -58,8 +59,11 @@ test('server metadata carries `av` only through real equip/unequip and invalidat
 
 test('published armour GLBs: one skinned mesh per item on the shared 67-joint skeleton', () => {
   const manifest = JSON.parse(fs.readFileSync('client/assets/manifest.json', 'utf8'));
-  const report = JSON.parse(fs.readFileSync('tools/asset-pipeline/assets/armour_chest/outputs/export.json', 'utf8'));
-  for (const [body, bundle] of Object.entries(ARMOUR_BUNDLES)) {
+  const published = [...new Set(Object.values(ARMOUR_ASSETS))].filter((a) => fs.existsSync(`tools/asset-pipeline/assets/${a}/outputs/export.json`));
+  assert.ok(published.includes('armour_chest'));
+  for (const [asset, body, bundle] of published.flatMap((a) => [['humanoid_m', `${a}_m`], ['humanoid_f', `${a}_f`]].map(([b, n]) => [a, b, n]))) {
+    const report = JSON.parse(fs.readFileSync(`tools/asset-pipeline/assets/${asset}/outputs/export.json`, 'utf8'));
+    const items = Object.entries(ARMOUR_ASSETS).filter(([, a]) => a === asset).map(([id]) => id);
     const entry = manifest.assets[bundle];
     assert.ok(entry, `${bundle} in manifest`);
     assert.equal(entry.kind, 'skinned');
@@ -72,15 +76,18 @@ test('published armour GLBs: one skinned mesh per item on the shared 67-joint sk
     const jointNames = (j) => j.skins[0].joints.map((i) => j.nodes[i].name);
     assert.deepEqual(jointNames(g), jointNames(bodyG), `${bundle} uses ${body}'s joints in order`);
     const meshes = g.nodes.filter((n) => n.mesh !== undefined).map((n) => ({ name: n.name, skin: n.skin }));
-    assert.deepEqual(meshes.map((m) => m.name).sort(), [...ARMOUR_VISUALS].sort());
+    assert.deepEqual([...new Set(meshes.map((m) => m.name.split('__')[0]))].sort(), [...items].sort());
     for (const m of meshes) assert.notEqual(m.skin, undefined, `${m.name} is skinned`);
-    assert.ok(entry.bytes < 4_000_000, `${bundle} stays a modest download (${entry.bytes} B)`);
+    assert.ok(entry.bytes < 9_000_000, `${bundle} stays a bounded download (${entry.bytes} B)`);
     assert.ok(!/cc0/i.test(entry.note || ''), 'derived armour is not described as CC0');
   }
 });
 
 test('rendered inventory icons: every armour item, content-hashed, present on disk', () => {
-  assert.deepEqual([...RENDERED_ICON_IDS].sort(), [...ARMOUR_VISUALS].sort());
+  for (const id of RENDERED_ICON_IDS) assert.ok(ARMOUR_VISUALS.includes(id), id);
+  for (const [id, asset] of Object.entries(ARMOUR_ASSETS)) {
+    if (fs.existsSync(`tools/asset-pipeline/assets/${asset}/outputs/publish.json`)) assert.ok(RENDERED_ICON_IDS.includes(id), `${id} has a rendered icon`);
+  }
   for (const id of RENDERED_ICON_IDS) {
     const url = renderedItemIcon(id);
     const [pathPart, query] = url.split('?v=');
@@ -128,7 +135,7 @@ test('a real equip intent replicates the worn armour to observers without privat
     p.char.inventory.push('field_chest');
     server.game.markDirty(p);
     owner.ws.send(JSON.stringify({ t: 'equip', item: 'field_chest' }));
-    await until(() => owner.meta.get(p.id)?.av === 'field_chest' && observer.meta.get(p.id)?.av === 'field_chest', 'replicated worn vest');
+    await until(() => owner.meta.get(p.id)?.av?.chest === 'field_chest' && observer.meta.get(p.id)?.av?.chest === 'field_chest', 'replicated worn vest');
     const seen = observer.meta.get(p.id);
     assert.equal(seen.inventory, undefined);
     assert.equal(seen.equipped, undefined);
