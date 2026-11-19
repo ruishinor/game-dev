@@ -185,14 +185,25 @@ try{
   const context=page.locator('.player-context');
   await context.waitFor({state:'visible'});
   assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  await context.getByRole('button',{name:'Separate into dual batons',exact:true}).click();
-  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet?.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
+  assert.equal(await liveFixturePlayer(page,server,'Vendor Tester'),p,'Configuration must use the original authenticated player');
+  async function configure(label,mode,code){
+   const action=context.getByRole('button',{name:label,exact:true});
+   await action.focus();
+   await action.press('Enter');
+   try{
+    await page.waitForFunction(({mode,code})=>{const s=window.__attune.state();return s.sheet?.electricalRodMode===mode&&s.ents.find(e=>e.id===s.myId)?.row?.er===code;},{mode,code});
+   }catch(error){
+    const client=await page.evaluate(()=>{const s=window.__attune.state();return {id:s.myId,snaps:s.snaps,mode:s.sheet?.electricalRodMode,row:s.ents.find(e=>e.id===s.myId)?.row?.er,status:document.querySelector('#status')?.textContent,context:!document.querySelector('.player-context')?.hidden};}).catch(()=>null);
+    console.error('[rod configuration]',{mode,client,server:{mode:p.char.electricalRodMode,live:server.game.players.get(p.id)===p,dead:p.dead,combat:p.combatUntil-server.game.time,auto:p.autoOn,jump:p.jy},errors});
+    throw error;
+   }
+  }
+  await configure('Separate into dual batons','dual',2);
   assert.equal(p.char.electricalRodMode,'dual');
   await installedRod.press('Shift+F10');
   await context.waitFor({state:'visible'});
   assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  await context.getByRole('button',{name:'Join into combat rod',exact:true}).click();
-  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet?.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
+  await configure('Join into combat rod','rod',1);
   assert.equal(p.char.electricalRodMode,'rod');
   await loadout.getByRole('button',{name:'Close',exact:true}).click();
  }finally{
