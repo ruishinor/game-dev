@@ -185,7 +185,7 @@ try{
   const context=page.locator('.player-context');
   await context.waitFor({state:'visible'});
   assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  assert.equal(await liveFixturePlayer(page,server,'Vendor Tester'),p,'Configuration must use the original authenticated player');
+  assert.ok((await liveFixturePlayer(page,server,'Vendor Tester'))===p,'Configuration must use the original authenticated player');
   async function configure(label,mode,code){
    const action=context.getByRole('button',{name:label,exact:true});
    await action.focus();
