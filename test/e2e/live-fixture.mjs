@@ -9,7 +9,7 @@ function watchConnection(conn,p){
  // Only synthetic fixture diagnostics; never serialize the player/session,
  // authentication tokens, or character records into public CI logs.
  conn.ws.once('close',code=>{
-  console.log('[fixture] socket closed '+JSON.stringify({entity:p.id,code,alive:conn.alive,stalled:conn.stalledSince!=null,buffered:conn.ws.bufferedAmount,strikes:conn.strikes}));
+  console.log('[fixture] socket closed '+JSON.stringify({entity:p.id,code,alive:conn.alive,missedPongs:conn.missedPongs,cause:conn.closeCause??null,stalled:conn.stalledSince!=null,buffered:conn.ws.bufferedAmount,strikes:conn.strikes}));
  });
 }
 
