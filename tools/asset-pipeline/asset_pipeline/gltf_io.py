@@ -134,8 +134,9 @@ class GlbWriter:
         return len(self.j["meshes"]) - 1
 
     def skin(self, name, joints, inverse_bind, skeleton=None):
-        s = {"name": name, "joints": list(joints),
-             "inverseBindMatrices": self.accessor(np.asarray(inverse_bind, np.float32).reshape(-1, 16), FLOAT, "MAT4")}
+        # glTF matrices are column-major: flatten each matrix transposed
+        ibm = np.asarray(inverse_bind, np.float32).reshape(-1, 4, 4).transpose(0, 2, 1).reshape(-1, 16)
+        s = {"name": name, "joints": list(joints), "inverseBindMatrices": self.accessor(ibm, FLOAT, "MAT4")}
         if skeleton is not None:
             s["skeleton"] = skeleton
         self.j["skins"].append(s)

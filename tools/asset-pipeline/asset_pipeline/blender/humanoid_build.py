@@ -268,6 +268,254 @@ def op_clean(p):
                "low": "body_low.glb", "high": "body_high.glb"})
 
 
+# ---------------------------------------------------------------- wardrobe
+
+MATERIALS = {
+    # name: base colour, worn-edge colour, metallic, roughness, noise scale, weave
+    "bronze_plate": ((0.40, 0.26, 0.13), (0.72, 0.55, 0.33), 0.85, 0.36, 18.0, False),
+    "graphite_plate": ((0.085, 0.09, 0.095), (0.40, 0.40, 0.41), 0.70, 0.44, 22.0, False),
+    "leather": ((0.17, 0.11, 0.07), (0.30, 0.21, 0.14), 0.0, 0.62, 40.0, False),
+    "brass": ((0.70, 0.52, 0.25), (0.86, 0.72, 0.45), 1.0, 0.28, 30.0, False),
+    "ochre_trim": ((0.62, 0.42, 0.12), (0.80, 0.62, 0.30), 0.45, 0.42, 30.0, False),
+    "stave": ((0.16, 0.13, 0.10), (0.55, 0.42, 0.26), 0.75, 0.40, 25.0, False),
+    "navy_cloth": ((0.075, 0.09, 0.19), (0.16, 0.18, 0.30), 0.0, 0.92, 14.0, True),
+    "olive_plate": ((0.25, 0.28, 0.13), (0.52, 0.49, 0.40), 0.18, 0.55, 18.0, False),
+}
+
+
+def procedural_material(name):
+    """Principled material with noise mottling, convex-edge wear and cavity
+    darkening; returns (material, {"base","rough","metal"} output sockets)."""
+    base, worn, metal, rough, scale, weave = MATERIALS[name]
+    m = bpy.data.materials.new("wd_" + name)
+    m.use_nodes = True
+    nt = m.node_tree
+    N = nt.nodes.new
+    L = nt.links.new
+    bsdf = nt.nodes["Principled BSDF"]
+    tc = N("ShaderNodeTexCoord")
+    noise = N("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = 6.0
+    L(tc.outputs["Object"], noise.inputs["Vector"])
+    geo = N("ShaderNodeNewGeometry")
+    edge = N("ShaderNodeMapRange")  # pointiness -> convex edge mask
+    edge.inputs["From Min"].default_value = 0.52
+    edge.inputs["From Max"].default_value = 0.6
+    L(geo.outputs["Pointiness"], edge.inputs["Value"])
+    wear = N("ShaderNodeMath")
+    wear.operation = "MULTIPLY"
+    L(edge.outputs["Result"], wear.inputs[0])
+    L(noise.outputs["Fac"], wear.inputs[1])
+    mix = N("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs["A"].default_value = (*base, 1)
+    mix.inputs["B"].default_value = (*worn, 1)
+    L(wear.outputs[0], mix.inputs["Factor"])
+    mottle = N("ShaderNodeMix")
+    mottle.data_type = "RGBA"
+    mottle.blend_type = "MULTIPLY"
+    mottle.inputs["Factor"].default_value = 0.35
+    L(mix.outputs["Result"], mottle.inputs["A"])
+    L(noise.outputs["Color"], mottle.inputs["B"])
+    ao = N("ShaderNodeAmbientOcclusion")
+    ao.inputs["Distance"].default_value = 0.03
+    cav = N("ShaderNodeMix")
+    cav.data_type = "RGBA"
+    cav.blend_type = "MULTIPLY"
+    cav.inputs["Factor"].default_value = 0.6
+    L(mottle.outputs["Result"], cav.inputs["A"])
+    L(ao.outputs["AO"], cav.inputs["B"])
+    base_out = cav.outputs["Result"]
+    rr = N("ShaderNodeMapRange")
+    rr.inputs["To Min"].default_value = rough - 0.1
+    rr.inputs["To Max"].default_value = rough + 0.12
+    L(noise.outputs["Fac"], rr.inputs["Value"])
+    rough_out = rr.outputs["Result"]
+    mv = N("ShaderNodeValue")
+    mv.outputs[0].default_value = metal
+    metal_out = mv.outputs[0]
+    if weave:
+        wv = N("ShaderNodeTexWave")
+        wv.inputs["Scale"].default_value = 260.0
+        wv.inputs["Distortion"].default_value = 1.5
+        L(tc.outputs["Object"], wv.inputs["Vector"])
+        bump = N("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = 0.25
+        L(wv.outputs["Fac"], bump.inputs["Height"])
+        L(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    else:
+        bump = N("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = 0.08
+        L(noise.outputs["Fac"], bump.inputs["Height"])
+        L(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    L(base_out, bsdf.inputs["Base Color"])
+    L(rough_out, bsdf.inputs["Roughness"])
+    L(metal_out, bsdf.inputs["Metallic"])
+    return m, {"base": base_out, "rough": rough_out, "metal": metal_out}
+
+
+def mesh_arrays(ob):
+    """Triangulated evaluated mesh -> glTF-frame arrays with per-corner UV/normal splits."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = ob.evaluated_get(dg)
+    me = ev.to_mesh()
+    me.calc_loop_triangles()
+    uvl = me.uv_layers.active.data
+    co = np.array([v.co[:] for v in me.vertices])
+    M = np.array(ob.matrix_world)
+    co = co @ M[:3, :3].T + M[:3, 3]
+    try:
+        corner_n = np.array([cn.vector[:] for cn in me.corner_normals])
+    except AttributeError:  # Blender < 4.1
+        me.calc_normals_split()
+        corner_n = np.array([l.normal[:] for l in me.loops])
+    key, out_p, out_n, out_uv, idx = {}, [], [], [], []
+    for tri in me.loop_triangles:
+        for li in tri.loops:
+            vi = me.loops[li].vertex_index
+            uv = uvl[li].uv
+            n = corner_n[li]
+            k = (vi, round(uv[0], 5), round(uv[1], 5), round(n[0], 3), round(n[1], 3), round(n[2], 3))
+            if k not in key:
+                key[k] = len(out_p)
+                out_p.append(co[vi])
+                out_n.append(n)
+                out_uv.append((uv[0], 1 - uv[1]))
+            idx.append(key[k])
+    ev.to_mesh_clear()
+    P = np.array(out_p)
+    Nn = np.array(out_n) @ M[:3, :3].T
+    to_gltf = lambda A: np.stack([A[:, 0], A[:, 2], -A[:, 1]], 1)
+    return to_gltf(P), to_gltf(Nn), np.array(out_uv), np.array(idx).reshape(-1, 3)
+
+
+def op_wardrobe(p):
+    """Thickness, bevels and materials for designed pieces; one baked atlas per set."""
+    import json as _json
+
+    sc = reset_scene()
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    out = Path(p["out"])
+    out.mkdir(parents=True, exist_ok=True)
+    meta = _json.loads(Path(p["pieces_json"]).read_text())
+    data = np.load(p["pieces_npz"])
+    mats = {}
+    sets = {}
+    for pc in meta:
+        V = gltf_to_blender(data[pc["name"] + "_V"])
+        F = data[pc["name"] + "_F"]
+        ob = mesh_from_arrays(pc["name"], V, F)
+        # orient normals away from the body axis
+        select_only(ob)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.remove_doubles(threshold=1e-5)
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        cen = np.array(pc.get("axis", [0, 0, 1.2]))
+        cen_b = gltf_to_blender(cen[None])[0]
+        nrm = np.array([pl.normal[:] for pl in ob.data.polygons])
+        ctr = np.array([pl.center[:] for pl in ob.data.polygons])
+        rel = ctr - cen_b
+        rel[:, 2] = 0
+        if np.mean(np.sum(nrm * rel, 1)) < 0 and pc.get("thickness"):
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.flip_normals()
+            bpy.ops.object.mode_set(mode="OBJECT")
+        if pc.get("subdivide"):
+            sd = ob.modifiers.new("subd", "SUBSURF")
+            sd.levels = sd.render_levels = 1
+        if pc.get("thickness"):
+            so = ob.modifiers.new("solid", "SOLIDIFY")
+            so.thickness = pc["thickness"]
+            so.offset = 1.0
+            so.use_even_offset = True
+        if pc.get("bevel"):
+            bv = ob.modifiers.new("bevel", "BEVEL")
+            bv.width = pc["bevel"]
+            bv.segments = 2
+            bv.limit_method = "ANGLE"
+        select_only(ob)
+        bpy.ops.object.shade_smooth()
+        if hasattr(ob.data, "use_auto_smooth"):
+            ob.data.use_auto_smooth = True
+        for mod in list(ob.modifiers):
+            apply_modifier(ob, mod)
+        try:
+            bpy.ops.object.shade_auto_smooth(angle=math.radians(40))
+        except Exception:
+            pass
+        mk = pc["mat"]
+        if mk not in mats:
+            mats[mk] = procedural_material(mk)
+        ob.data.materials.append(mats[mk][0])
+        sets.setdefault(pc["set"], []).append(ob)
+    report = {"sets": {}}
+    size = p.get("texture", 1024)
+    for set_name, objs in sets.items():
+        select_only(*objs)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(55), island_margin=0.004, scale_to_bounds=False)
+        try:
+            bpy.ops.uv.pack_islands(margin=0.004, rotate=True, shape_method="CONCAVE")
+        except TypeError:
+            bpy.ops.uv.pack_islands(margin=0.004, rotate=True)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        used = {o.data.materials[0].name for o in objs}
+        set_mats = [mm for mm in mats.values() if mm[0].name in used]
+        images = {}
+        for kind, colorspace, socket in (("basecolor", "sRGB", "base"), ("roughness", "Non-Color", "rough"), ("metallic", "Non-Color", "metal")):
+            img = bpy.data.images.new(f"{set_name}_{kind}", size, size, alpha=False)
+            img.colorspace_settings.name = colorspace
+            for mat, socks in set_mats:
+                nt = mat.node_tree
+                out_node = nt.nodes["Material Output"]
+                em = nt.nodes.get("_bake_emit") or nt.nodes.new("ShaderNodeEmission")
+                em.name = "_bake_emit"
+                nt.links.new(socks[socket], em.inputs["Color"])
+                nt.links.new(em.outputs["Emission"], out_node.inputs["Surface"])
+                tex = nt.nodes.get("_bake_tex") or nt.nodes.new("ShaderNodeTexImage")
+                tex.name = "_bake_tex"
+                tex.image = img
+                nt.nodes.active = tex
+            sc.cycles.samples = 1
+            sc.render.bake.use_selected_to_active = False
+            sc.render.bake.margin = 6
+            sc.render.bake.use_clear = True
+            select_only(*objs)
+            bpy.ops.object.bake(type="EMIT")
+            save_image(img, out / f"{set_name}_{kind}.png")
+            images[kind] = f"{set_name}_{kind}.png"
+        for mat, socks in set_mats:  # restore the shader for the normal bake
+            nt = mat.node_tree
+            nt.links.new(nt.nodes["Principled BSDF"].outputs["BSDF"], nt.nodes["Material Output"].inputs["Surface"])
+        nimg = bpy.data.images.new(f"{set_name}_normal", size, size, alpha=False)
+        nimg.colorspace_settings.name = "Non-Color"
+        for mat, _ in set_mats:
+            mat.node_tree.nodes["_bake_tex"].image = nimg
+            mat.node_tree.nodes.active = mat.node_tree.nodes["_bake_tex"]
+        sc.cycles.samples = 4
+        select_only(*objs)
+        sc.render.bake.use_selected_to_active = False
+        bpy.ops.object.bake(type="NORMAL")
+        save_image(nimg, out / f"{set_name}_normal.png")
+        images["normal"] = f"{set_name}_normal.png"
+        arrays = {}
+        tris = 0
+        for o in objs:
+            Pp, Nn, UV, I = mesh_arrays(o)
+            arrays[o.name + "_P"], arrays[o.name + "_N"], arrays[o.name + "_UV"], arrays[o.name + "_I"] = Pp, Nn, UV, I
+            tris += len(I)
+        np.savez_compressed(out / f"{set_name}_pieces.npz", **arrays)
+        report["sets"][set_name] = {"pieces": [o.name for o in objs], "triangles": tris, "images": images, "npz": f"{set_name}_pieces.npz"}
+    bpy.ops.wm.save_as_mainfile(filepath=str(out / "wardrobe_source.blend"), compress=True)
+    report["blend"] = "wardrobe_source.blend"
+    finish(p, report)
+
+
 def op_blend(p):
     reset_scene()
     for f in p["imports"]:
@@ -287,7 +535,7 @@ def op_blend(p):
 
 def main():
     p = payload()
-    {"clean": op_clean, "blend": op_blend}[p["op"]](p)
+    {"clean": op_clean, "wardrobe": op_wardrobe, "blend": op_blend}[p["op"]](p)
 
 
 if __name__ == "__main__":

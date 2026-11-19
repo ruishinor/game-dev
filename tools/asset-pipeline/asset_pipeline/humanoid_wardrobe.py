@@ -429,13 +429,13 @@ def design_vendor(body):
     # waist wrap: folded band around the waist
     V, F = param_panel(body, 6, 72, lambda s, q: (2 * np.pi * q - np.pi, 1.035 + 0.085 * s + 0.008 * np.sin(6 * np.pi * q),
                                                    0.016 + 0.006 * np.sin(14 * np.pi * q + 3 * s) * np.sin(np.pi * s)), closed=True)
-    pieces.append({"name": "sash_wrap", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004})
+    pieces.append({"name": "sash_wrap", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004, "subdivide": True})
     # shoulder sash: back right hip -> over the left shoulder -> down the front to the wrap
     c = lambda y: body.torso_centre(y)
     path = [c(1.10) + [-0.10, 0, -0.16], c(1.28) + [-0.02, 0, -0.16], c(1.44) + [0.08, 0, -0.10], c(1.50) + [0.115, 0.0, -0.02],
             c(1.45) + [0.10, 0, 0.11], c(1.33) + [0.065, 0, 0.15], c(1.20) + [0.06, 0, 0.12], c(1.10) + [0.11, 0, 0.14]]
     V, F = ribbon(body, path, lambda t: 0.105 - 0.03 * np.exp(-((t - 0.45) / 0.12) ** 2), 0.017, n=48)
-    pieces.append({"name": "sash_shoulder", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004})
+    pieces.append({"name": "sash_shoulder", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004, "subdivide": True})
     th = deg(68)
     r = body.torso_radius(1.075, np.array([th]))[0] + 0.035
     k = c(1.075) + [r * np.sin(th), 0, r * np.cos(th)]
@@ -443,7 +443,7 @@ def design_vendor(body):
     pieces.append({"name": "sash_knot", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "rigid:pelvis", "V": V, "F": F})
     for i, (length, width, sway, ph) in enumerate(((0.44, 0.085, [0.03, 0, 0.02], 0.0), (0.35, 0.07, [0.045, 0, -0.025], 1.3))):
         V, F = hanging_ribbon(k + [0.012 * i, -0.025, 0.01 - 0.02 * i], length, width, np.array(sway), phase=ph)
-        pieces.append({"name": f"sash_tail{i}", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.003})
+        pieces.append({"name": f"sash_tail{i}", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.003, "subdivide": True})
     # olive shoulder plate on the right shoulder, two lames
     for kk, (t0, t1, half, off) in enumerate(((-0.45, 0.38, 1.8, 0.02), (-0.45, 0.05, 1.5, 0.034))):
         V, F = pauldron(body, "r", t0, t1, half, off)
@@ -456,3 +456,24 @@ def design_vendor(body):
     V, F = box(S + n * 0.006, (0.036, 0.03, 0.008), np.array([0, 1.0, 0]), n)
     pieces.append({"name": "sash_buckle", "set": "vendor", "core": True, "mat": "brass", "skin": "rigid:spine_03", "V": V, "F": F, "bevel": 0.002})
     return pieces
+
+
+def export_pieces(pieces, npz_path, json_path):
+    """Flatten piece geometry (multi-part pieces merged) for the Blender job."""
+    import json
+
+    arrays, meta = {}, []
+    for pc in pieces:
+        parts = pc["V"] if pc["F"] is None else [(pc["V"], pc["F"])]
+        Vs, Fs, off = [], [], 0
+        for v, f in parts:
+            Vs.append(np.asarray(v, float))
+            Fs.append(np.asarray(f, int) + off)
+            off += len(v)
+        arrays[pc["name"] + "_V"] = np.concatenate(Vs)
+        arrays[pc["name"] + "_F"] = np.concatenate(Fs)
+        meta.append({k: v for k, v in pc.items() if k not in ("V", "F")})
+    np.savez(npz_path, **arrays)
+    with open(json_path, "w") as f:
+        json.dump(meta, f, indent=1)
+    return meta

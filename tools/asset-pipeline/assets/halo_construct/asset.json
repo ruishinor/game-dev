@@ -1,0 +1,199 @@
+{
+ "id": "halo_construct",
+ "kind": "imported-mechanical-humanoid",
+ "description": "Halo Construct NPC race: productionisation of the owner-accepted Halo Construct GLB (cleaned base, security and vendor wardrobes, rig on the project humanoid skeleton). No reconstruction is performed.",
+ "sources": [
+  {
+   "id": "accepted_mesh",
+   "path": "client/character-assets/halo_construct.glb",
+   "sha256": "02853bfd536a53135225fc9353463feeed07fb4745ef2d261dbaeaa7d9a32036",
+   "provenance": "Owner-approved 2026-11-18 (PR #94). Reconstructed from owner-provided Meshy turntable footage; provider licence not independently verified. Read-only: never written by the pipeline.",
+   "role": "geometry + texture source"
+  },
+  {
+   "id": "references",
+   "path": "art-source/halo_construct/source",
+   "optional": true,
+   "provenance": "Owner-supplied 2026-11-19, git-ignored and not published: two Meshy viewer recordings of the accepted model, the Race Modeling Reference Lookbook (pp. 9-15), clean-base, head-variant, vendor-sash, security and role-variation sheets (AI-assisted concept art), and a generated pipeline illustration (not used for geometry or texture).",
+   "role": "segmentation and wardrobe direction only"
+  }
+ ],
+ "humanoid": {
+  "baseline": {
+   "width": 640,
+   "height": 800,
+   "samples": 16
+  },
+  "analyze": {
+   "landmarks": {
+    "band_windows": {
+     "elbow": [
+      0.55,
+      0.95
+     ],
+     "wrist": [
+      0.1,
+      0.45
+     ],
+     "knee": [
+      0.35,
+      0.85
+     ],
+     "ankle": [
+      0.08,
+      0.32
+     ]
+    },
+    "neck_top": 1.575,
+    "neck_base": 1.5,
+    "shoulder_lift": 0.09,
+    "hip_lift": 0.07,
+    "ball_fraction": 0.62,
+    "ball_height": 0.035
+   },
+   "flatten": {
+    "torso_bands": [
+     {
+      "y": [
+       0.8,
+       1.18
+      ],
+      "order": 5,
+      "outward_weight": 0.01
+     },
+     {
+      "y": [
+       1.24,
+       1.46
+      ],
+      "x_limit": 0.15
+     }
+    ],
+    "leg_band": [
+     0.54,
+     0.86
+    ],
+    "kit_threshold": 0.004
+   }
+  },
+  "clean": {
+   "voxel": 0.003,
+   "smooth_iterations": 4,
+   "target_triangles": 36000,
+   "protect_density": 2.0,
+   "texture": 2048,
+   "cage": 0.03,
+   "ray": 0.08,
+   "ao_samples": 32,
+   "protect": [
+    {
+     "z_min": 1.56
+    },
+    {
+     "abs_x_min": 0.27,
+     "z_max": 1.0
+    },
+    {
+     "z_max": 0.2
+    }
+   ]
+  },
+  "materials": {
+   "garments": {
+    "top": {
+     "y": [
+      1.255,
+      1.46
+     ],
+     "max_abs_x": 0.175,
+     "neckline": 1.43,
+     "color": [
+      0.5,
+      0.455,
+      0.41
+     ]
+    },
+    "shorts": {
+     "hem": 0.715,
+     "waist": 1.065,
+     "color": [
+      0.33,
+      0.31,
+      0.255
+     ]
+    }
+   },
+   "ivory_color": [
+    0.84,
+    0.78,
+    0.68
+   ],
+   "ivory_blend": 0.55,
+   "ao_unshade": 0.45,
+   "optics_emission": 0.8
+  },
+  "wardrobe": {
+   "texture": 1024
+  },
+  "rig": {
+   "reference_rig": "client/assets/humanoid_m.glb",
+   "clips": [
+    "Idle_Loop",
+    "Idle_FoldArms_Loop",
+    "Idle_Talking_Loop",
+    "Interact",
+    "Walk_Loop"
+   ],
+   "ground_clip": "Idle_Loop",
+   "weights": {
+    "blend_widths": {
+     "spine": 0.03,
+     "neck": 0.02,
+     "head": 0.012,
+     "hip": 0.06,
+     "elbow": 0.02,
+     "wrist": 0.015,
+     "knee": 0.02,
+     "ankle": 0.015,
+     "ball": 0.012
+    },
+    "shoulder": {
+     "y": [
+      1.28,
+      1.36
+     ],
+     "arm_x": [
+      0.15,
+      0.2
+     ],
+     "clav_x": [
+      0.07,
+      0.13
+     ]
+    }
+   },
+   "ring": {
+    "ring_bottom": 1.585,
+    "ring_half_width": 0.145,
+    "ring_half_height": 0.082,
+    "blend": [
+     1.575,
+     1.61
+    ]
+   },
+   "guard": {
+    "idle_repeats": 4,
+    "scan_degrees": 24
+   },
+   "optics_default": [
+    0.95,
+    0.72,
+    0.38
+   ]
+  },
+  "export": {
+   "max_texture": 2048,
+   "quality": 86
+  }
+ }
+}
