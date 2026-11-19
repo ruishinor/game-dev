@@ -1,8 +1,8 @@
 {
  "file": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/export/stillpoint.glb",
- "bytes": 4487140,
- "inputBytes": 19709404,
- "triangles": 34380,
+ "bytes": 4909052,
+ "inputBytes": 21058180,
+ "triangles": 40228,
  "meshes": 1,
  "materials": [
   "stillpoint_baked"
@@ -15,7 +15,7 @@
     2048,
     2048
    ],
-   "bytes": 1358680
+   "bytes": 1356602
   },
   {
    "name": "basecolor",
@@ -24,7 +24,7 @@
     2048,
     2048
    ],
-   "bytes": 637520
+   "bytes": 711264
   },
   {
    "name": "roughness",
@@ -33,7 +33,7 @@
     2048,
     2048
    ],
-   "bytes": 914870
+   "bytes": 1047770
   }
  ],
  "skins": [
