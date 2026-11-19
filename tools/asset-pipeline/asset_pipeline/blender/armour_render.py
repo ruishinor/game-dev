@@ -213,13 +213,15 @@ def op_worn(p):
                 top.location.x += dx
             if not pose:
                 # the importer leaves the first clip active on the body: show the true bind pose
-                for a in (arm_b, arm_a):
-                    if a.animation_data:
-                        for tr in list(a.animation_data.nla_tracks):
-                            a.animation_data.nla_tracks.remove(tr)
-                        a.animation_data.action = None
-                    for pb in a.pose.bones:
-                        pb.matrix_basis.identity()
+                # (the armour armature carries no clip, so its import pose is the bind)
+                if arm_b.animation_data:
+                    for tr in list(arm_b.animation_data.nla_tracks):
+                        arm_b.animation_data.nla_tracks.remove(tr)
+                    arm_b.animation_data.action = None
+                for pb in arm_b.pose.bones:
+                    src = arm_a.pose.bones.get(pb.name)
+                    if src is not None:
+                        pb.matrix_basis = src.matrix_basis.copy()
             if pose:
                 act = bpy.data.actions.get(pose["action"]) or next((x for x in bpy.data.actions if x.name.startswith(pose["action"])), None)
                 if act is None and p.get("clip_glb"):

@@ -526,11 +526,13 @@ def design_greaves(body, base, m):
             P.append(Plate(it, f"{nm}_{s}", m["under"], M, D([(-179.5, t0), (179.5, t0), (179.5, t1), (-179.5, t1)]), 0.004, thickness=0.003,
                            bevel=0.0, segs=0, res=0.012, weights=pol).export())
         for k, (t0, t1) in enumerate(((0.12, 0.5), (0.53, 0.86))):
-            pl = Plate(it, f"thigh_{k}_{s}", m["plate"], TM, D([(-70, t0), (70, t0), (76, (t0 + t1) / 2), (66, t1), (-66, t1), (-76, (t0 + t1) / 2)]),
-                       0.014 + 0.002 * k, dome=0.002, keel=0.005, lip1=0.004, thickness=0.009, bevel=0.003, weights=pt, weight_mode=["band", tax, 0.06],
+            w = 1.0 - 0.12 * k  # the lower plate narrows toward the knee
+            pl = Plate(it, f"thigh_{k}_{s}", m["plate"], TM, D([(-66 * w, t0), (66 * w, t0), (74 * w, (t0 + t1) / 2), (58 * w, t1 - 0.04), (0, t1 + 0.02),
+                                                               (-58 * w, t1 - 0.04), (-74 * w, (t0 + t1) / 2)]),
+                       0.014 + 0.002 * k, dome=0.0025, keel=0.009, lip1=0.004, thickness=0.009, bevel=0.003, weights=pt, weight_mode=["band", tax, 0.06],
                        flow_origin=th, flow_scale=1.0)
-            pl.groove(D([(-30, t0 + 0.05), (-36, t1 - 0.05)])).groove(D([(30, t0 + 0.05), (36, t1 - 0.05)]))
-            pl.bolt(deg(-58), t0 + 0.04).bolt(deg(58), t0 + 0.04)
+            pl.groove(D([(-30 * w, t0 + 0.05), (-36 * w, t1 - 0.08), (-14, t1 - 0.03)])).groove(D([(30 * w, t0 + 0.05), (36 * w, t1 - 0.08), (14, t1 - 0.03)]))
+            pl.bolt(deg(-56 * w), t0 + 0.04).bolt(deg(56 * w), t0 + 0.04)
             P.append(pl.export())
         pl = Plate(it, f"thigh_side_{s}", m["plate"], TM, D(sidep([(92, 0.2), (150, 0.24), (150, 0.8), (92, 0.84)])), 0.012, dome=0.004, thickness=0.008,
                    bevel=0.0026, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=1.0)
@@ -546,8 +548,8 @@ def design_greaves(body, base, m):
         pl.bolt(0.0, 0.5, r=0.0045, h=0.004)
         P.append(pl.export())
         for k, (t0, t1) in enumerate(((0.14, 0.52), (0.55, 0.9))):
-            pl = Plate(it, f"shin_{k}_{s}", m["plate"], CM, D([(-84, t0), (84, t0), (90, (t0 + t1) / 2), (80, t1), (-80, t1), (-90, (t0 + t1) / 2)]),
-                       0.013, dome=0.004, keel=0.008, lip1=0.004, thickness=0.009, bevel=0.003, weights=pc, weight_mode=["band", cax, 0.06],
+            pl = Plate(it, f"shin_{k}_{s}", m["plate"], CM, D([(-80, t0), (80, t0), (88, (t0 + t1) / 2), (70, t1 - 0.04), (0, t1 + 0.02), (-70, t1 - 0.04), (-88, (t0 + t1) / 2)]),
+                       0.013, dome=0.004, keel=0.011, lip1=0.004, thickness=0.009, bevel=0.003, weights=pc, weight_mode=["band", cax, 0.06],
                        flow_origin=th, flow_scale=1.0)
             pl.groove(D([(-62, t0 + 0.05), (-66, t1 - 0.05)])).groove(D([(62, t0 + 0.05), (66, t1 - 0.05)]))
             pl.bolt(deg(-74), (t0 + t1) / 2).bolt(deg(74), (t0 + t1) / 2)

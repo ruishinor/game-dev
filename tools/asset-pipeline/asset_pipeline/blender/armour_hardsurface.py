@@ -228,8 +228,10 @@ def build_piece(meta, arr, fx):
         delete([c])
         if g["inlay"]:
             inlay(g["pts"], g["nrm"], g["flow"], g["width"], g["depth"], fx)
+    # dissolve first: decimating after the bevel scrambles its hardened custom
+    # normals (the crumpled shading on small curved plates)
+    planar(o, 1.5)
     bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 1))
-    planar(o)
     parts = [o]
     for k, b in enumerate(meta.get("bolts", [])):
         parts.append(bolt_obj(f"{name}_bolt{k}", b["p"], b["n"], b["r"], b["h"]))
