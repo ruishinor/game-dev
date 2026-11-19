@@ -33,6 +33,7 @@ import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 import {createCreationPreview} from './creation-preview.js';
+import {CharacterRosterView} from './roster-view.js';
 import {createKestrelAlarm} from './kestrel-alarm.js';
 
 const INTERP_MS = 110;
@@ -298,7 +299,7 @@ const net = new Net({
   onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
   onAccountReady: showRoster,
   onAccountFail: (reason) => {
-    const el = net.accountLogged && !$('character-roster').hidden ? $('roster-error') : $('account-error');
+    const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
     el.textContent = reason;
     if (!net.accountToken && /session expired/i.test(reason)) {
       clearWorld();
@@ -432,7 +433,27 @@ const creationPreview=createCreationPreview({
     buildAppearance();
   },
 });
+let lastRoster=null;
+const selectionView=new CharacterRosterView({root:$('character-roster'),assets,useGlb,motionPreference,
+  onEnter:id=>net.selectCharacter(id),onCreate:showCharacterCreation,
+  onDelete:(id,name)=>net.deleteCharacter(id,name)
+});
 let titleDrawAt=-Infinity;
+function showCharacterCreation(){
+  if(!net.accountLogged||!lastRoster)return;
+  $('character-roster').hidden=true;
+  $('login-form').hidden=false;
+  $('creation-back').hidden=false;
+  $('enter').textContent='Create character';
+  $('enter').disabled=false;
+  $('login-error').textContent='';
+  document.body.classList.remove('character-selection-mode');
+  document.body.classList.add('character-create-mode');
+  creationPreview.release();
+  $('name').focus({preventScroll:true});
+}
+function backToRoster(){if(lastRoster&&net.accountLogged)showRoster(lastRoster);}
+
 function buildAppearance() {
   const pick = (id, items, current, onPick, label) => {
     const wrap = $(id);
@@ -538,6 +559,9 @@ function buildLogin() {
 }
 
 function showAccountLogin(message = '') {
+  selectionView.release();
+  document.body.classList.remove('character-selection-mode','character-create-mode');
+  $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
   $('account-auth').hidden = false;
@@ -556,62 +580,29 @@ function showAccountLogin(message = '') {
 }
 
 function showRoster(m) {
-  input.enabled = false;
-  $('login').hidden = false;
-  $('hud').hidden = true;
-  $('resuming').hidden = true;
-  $('account-auth').hidden = true;
-  $('guest-note').hidden = true;
-  $('character-roster').hidden = false;
-  $('login-form').hidden = false;
-  $('enter').textContent = 'Create character';
-  $('enter').disabled = false;
-  $('roster-error').textContent = '';
-  $('login-error').textContent = '';
-  $('roster-title').textContent = `${m.handle}'s characters`;
-  $('link-legacy').hidden = !net.token;
-
-  const rows = $('roster-list');
-  rows.replaceChildren();
-  if (!m.chars.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = 'No characters yet. Create one below or link a previous guest character.';
-    rows.append(empty);
-  }
-  for (const c of m.chars) {
-    const row = document.createElement('div');
-    row.className = 'roster-row';
-    const info = document.createElement('div');
-    const name = document.createElement('strong');
-    name.textContent = c.name;
-    const detail = document.createElement('div');
-    detail.className = 'muted';
-    detail.textContent = `Level ${c.level} · ${CLASSES[c.cls]?.name || c.cls}`;
-    info.append(name, detail);
-    const actions = document.createElement('div');
-    actions.className = 'roster-actions';
-    const play = document.createElement('button');
-    play.textContent = 'Play';
-    play.addEventListener('click', () => net.selectCharacter(c.id));
-    const remove = document.createElement('button');
-    remove.className = 'remove';
-    remove.textContent = 'Delete';
-    remove.title = 'Permanent. Requires a second click.';
-    remove.addEventListener('click', () => {
-      if (remove.dataset.confirm === '1') net.deleteCharacter(c.id, c.name);
-      else {
-        remove.dataset.confirm = '1';
-        remove.textContent = 'Confirm delete';
-      }
-    });
-    actions.append(play, remove);
-    row.append(info, actions);
-    rows.append(row);
-  }
+  lastRoster=m;
+  input.enabled=false;
+  $('login').hidden=false;
+  $('hud').hidden=true;
+  $('resuming').hidden=true;
+  $('account-auth').hidden=true;
+  $('guest-note').hidden=true;
+  $('character-roster').hidden=false;
+  $('login-form').hidden=true;
+  $('creation-back').hidden=true;
+  $('enter').textContent='Create character';
+  $('enter').disabled=false;
+  $('roster-error').textContent='';
+  $('login-error').textContent='';
+  $('link-legacy').hidden=!net.token;
+  document.body.classList.remove('character-create-mode');
+  document.body.classList.add('character-selection-mode');
+  creationPreview.release();
+  selectionView.render(m);
 }
 
 function buildAccountUI() {
+  $('creation-back').addEventListener('click',backToRoster);
   $('account-form').addEventListener('submit', (e) => {
     e.preventDefault();
     $('account-error').textContent = '';
@@ -809,6 +800,8 @@ function onWelcome(m) {
   local.seq = 0;
   local.err = { x: 0, z: 0 };
   creationPreview.release();
+  selectionView.release();
+  document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -1885,7 +1878,7 @@ function frame(now) {
 
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
-    const inspecting=creationPreview.update(now,dt);
+    const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
