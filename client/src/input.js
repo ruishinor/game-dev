@@ -34,8 +34,9 @@ export class Input {
       if (['INPUT','TEXTAREA','SELECT'].includes(el.tagName) || el.isContentEditable) return true;
       // Dialogs and binding capture own their keys. A clicked actionbar button
       // does NOT swallow future shortcuts, while Tab/Enter/Space remain native.
-      const dialog = el.closest?.('[role="dialog"]');
-      if (dialog && !dialog.hidden) return true;
+      // The hotkey editor captures bindings itself. Other gameplay panels
+      // must retain global I/B/J/O shortcuts even when their buttons focus.
+      if (el.closest?.('.keybindings-panel:not([hidden])')) return true;
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button')
         return e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space';
       return false;
