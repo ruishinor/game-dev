@@ -55,6 +55,8 @@ export function createElectricalRodVfx(rod,vfx){
  function contactDischarge(p,{ground=null,blocked=false}={}){
   if(!enabled()||!finite(p)||contactCooldown>0)return false;
   contactCooldown=.28;strikeWake();
+  // Presentation inspection only: counts accepted visual discharges, never damage.
+  rod.group.userData.rodContactCount=(rod.group.userData.rodContactCount??0)+1;
   const layered=rich(),long=joined(),scale=long?1.6:1.25;
   sparks(clone(p),layered?(long?64:36):16,scale);
   if(layered){
