@@ -1,0 +1,20 @@
+{
+ "m": {
+  "triangles": {
+   "field_chest": 20580,
+   "reinforced_chest": 22084,
+   "resonant_chest": 20000
+  },
+  "bytes": 10505844,
+  "joints": 67
+ },
+ "f": {
+  "triangles": {
+   "field_chest": 20154,
+   "reinforced_chest": 22008,
+   "resonant_chest": 19974
+  },
+  "bytes": 10774660,
+  "joints": 67
+ }
+}

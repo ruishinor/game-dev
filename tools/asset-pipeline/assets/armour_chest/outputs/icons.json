@@ -1,0 +1,15 @@
+{
+ "icons": {
+  "field_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_chest/icons/field_chest_hero.png",
+  "reinforced_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_chest/icons/reinforced_chest_hero.png",
+  "resonant_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_chest/icons/resonant_chest_hero.png"
+ },
+ "bytes": {
+  "field_chest_256.webp": 5968,
+  "field_chest_128.webp": 2706,
+  "reinforced_chest_256.webp": 7010,
+  "reinforced_chest_128.webp": 3054,
+  "resonant_chest_256.webp": 7018,
+  "resonant_chest_128.webp": 3094
+ }
+}

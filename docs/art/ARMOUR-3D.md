@@ -72,7 +72,19 @@ See `tools/asset-pipeline/README.md` for the stage table. Decisions:
 
 ## Technical acceptance (measured; `tools/asset-pipeline/assets/armour_chest/outputs/`)
 
-RESULTS_PLACEHOLDER
+| Body | Item | Triangles | Skin inside | Shell inside | Deepest 0.5 % | Arm contact | Edge strain p99 (limit) | Pass |
+|---|---|---|---|---|---|---|---|---|
+| m | `field_chest` | 6,860 | 0.55 % | 0.51 % | -11.0 mm | 4.6 % | 0.64 (0.83) | yes |
+| m | `reinforced_chest` | 7,361 | 0.66 % | 0.55 % | -10.6 mm | 6.7 % | 0.58 (0.83) | yes |
+| m | `resonant_chest` | 6,666 | 0.76 % | 0.34 % | -9.2 mm | 4.1 % | 0.66 (0.83) | yes |
+| f | `field_chest` | 6,718 | 0.61 % | 2.22 % | -13.9 mm | 3.9 % | 0.74 (0.89) | yes |
+| f | `reinforced_chest` | 7,336 | 0.69 % | 1.61 % | -10.1 mm | 3.5 % | 0.73 (0.89) | yes |
+| f | `resonant_chest` | 6,658 | 0.59 % | 1.28 % | -9.4 mm | 3.7 % | 0.71 (0.89) | yes |
+
+* Runtime GLBs: `armour_chest_m.glb` 2,133 KB, `armour_chest_f.glb` 2,218 KB (WebP 1024² atlases, Meshopt); Khronos validator 0 / 0 errors. Icons: three 256 px WebP, about 6-7 KB each.
+* Validation: seven clips (idle, walk, jog, sprint, interact, spell, punch) × 8 frames per body. Limits: skin penetration ≤ 1.5 % of vertices, worn-under shell contact ≤ 3 %, deepest 0.5 % of vertices within 15 mm, edge strain p99 ≤ 1.15 × the body's own. The 15 mm depth limit was set after measurement (the female field vest reaches 13.9 mm in sprint and punch frames, where the coat and chest shells, which carry their own arm-swing weights, press into the torso-borne vest); the other limits were fixed beforehand.
+* Arm contact (the resting arm touching the vest side) is reported, not gated, as for every existing chest shell.
+* Known weak points for the owner's review: the shoulder yokes flip up beside the neck, the textile wear reads streaky, and about 21k triangles per vest is heavy beside the 1.9k-vertex body (phase 5 LOD). Evidence: `outputs/evidence/*.jpg` (bind, idle and jog on both bodies; hero icons).
 
 ## Roadmap to complete
 

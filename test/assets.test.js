@@ -29,6 +29,13 @@ test('assets: every manifest entry is on disk with the recorded size and hash, a
     assert.equal(crypto.createHash('sha256').update(buf).digest('hex').slice(0, 12), a.hash, `${id}: content hash differs from the manifest`);
     listed.add(a.url);
   }
+  for (const [id, a] of Object.entries(manifest.icons || {})) {
+    const buf = fs.readFileSync(path.join(DIR, a.url));
+    assert.equal(buf.length, a.bytes, `icon ${id}: size differs from the manifest`);
+    assert.equal(crypto.createHash('sha256').update(buf).digest('hex').slice(0, 12), a.hash, `icon ${id}: hash differs`);
+    assert.ok(a.sources?.length && a.note, `icon ${id}: provenance recorded`);
+    listed.add(a.url);
+  }
   // Reviewed audio has a separate authored manifest and provenance gate.
   // Account for exact listed paths and full hashes, never exempt a directory.
   for (const [id,a] of Object.entries(APPROVED_RADIO_ASSETS)) {

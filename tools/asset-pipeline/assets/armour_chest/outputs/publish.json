@@ -1,0 +1,31 @@
+{
+ "runtime": {
+  "m": {
+   "file": "client/assets/armour_chest_m.glb",
+   "sha256": "c6ff4759da7f3a8240909f7e530d6fed2512d4290fb18d68355c06de777d10b9",
+   "bytes": 2183960
+  },
+  "f": {
+   "file": "client/assets/armour_chest_f.glb",
+   "sha256": "6fa1cd9945fbe627ed7fa16b60403a5f0a5c4c7b5cb34b8d1c84e92055fce70e",
+   "bytes": 2271524
+  }
+ },
+ "icons": {
+  "field_chest": {
+   "file": "client/assets/icons/armour/field_chest.webp",
+   "sha256": "b56cc93b21c34e9efcc42d76c5e5ea7e6d049a6bf3c53e556001132b4e98a039",
+   "bytes": 5968
+  },
+  "reinforced_chest": {
+   "file": "client/assets/icons/armour/reinforced_chest.webp",
+   "sha256": "ee2f9bfaae3f5cbb69e6d1e1d7c002f363d449870a8cab09ac84fa1a3f6a6caa",
+   "bytes": 7010
+  },
+  "resonant_chest": {
+   "file": "client/assets/icons/armour/resonant_chest.webp",
+   "sha256": "f1662ca942c2046a4f640cd2069b0b28273aaa16b4142a882d751f47503af3e1",
+   "bytes": 7018
+  }
+ }
+}

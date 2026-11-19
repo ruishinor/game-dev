@@ -1,0 +1,80 @@
+{
+ "clips": [
+  "Idle_Loop",
+  "Walk_Loop",
+  "Jog_Fwd_Loop",
+  "Sprint_Loop",
+  "Interact",
+  "Spell_Simple_Shoot",
+  "Punch_Cross"
+ ],
+ "bodies": {
+  "m": {
+   "items": {
+    "field_chest": {
+     "min_clearance_m": -0.01102771232871403,
+     "inside_fraction_max": 0.010612026963892412,
+     "inside_body_fraction_max": 0.005539611559767736,
+     "inside_shell_fraction_max": 0.005072415404124675,
+     "arm_contact_fraction_max": 0.04571848094507108,
+     "max_edge_strain": 0.6374982964842435,
+     "pass": true
+    },
+    "reinforced_chest": {
+     "min_clearance_m": -0.010570947128733264,
+     "inside_fraction_max": 0.010300481501798013,
+     "inside_body_fraction_max": 0.006582556226001097,
+     "inside_shell_fraction_max": 0.005485463521667581,
+     "arm_contact_fraction_max": 0.0668007557749741,
+     "max_edge_strain": 0.5828598611130376,
+     "pass": true
+    },
+    "resonant_chest": {
+     "min_clearance_m": -0.009163650449089435,
+     "inside_fraction_max": 0.009844416907613934,
+     "inside_body_fraction_max": 0.007572628390472257,
+     "inside_shell_fraction_max": 0.003373261737574005,
+     "arm_contact_fraction_max": 0.040547982927165084,
+     "max_edge_strain": 0.6648175582272466,
+     "pass": true
+    }
+   },
+   "body_edge_strain_p99": 0.7256999906285613,
+   "edge_strain_limit": 0.8345549892228454
+  },
+  "f": {
+   "items": {
+    "field_chest": {
+     "min_clearance_m": -0.013920672194017578,
+     "inside_fraction_max": 0.024464226838114077,
+     "inside_body_fraction_max": 0.006066600725354435,
+     "inside_shell_fraction_max": 0.022156280909990108,
+     "arm_contact_fraction_max": 0.03877349159248269,
+     "max_edge_strain": 0.7428545684801571,
+     "pass": true
+    },
+    "reinforced_chest": {
+     "min_clearance_m": -0.010057364509800598,
+     "inside_fraction_max": 0.022212729602733874,
+     "inside_body_fraction_max": 0.006895710014035516,
+     "inside_shell_fraction_max": 0.016110331360224567,
+     "arm_contact_fraction_max": 0.03460059803502777,
+     "max_edge_strain": 0.7262127779656549,
+     "pass": true
+    },
+    "resonant_chest": {
+     "min_clearance_m": -0.009398941961230667,
+     "inside_fraction_max": 0.017408637873754153,
+     "inside_body_fraction_max": 0.005913621262458472,
+     "inside_shell_fraction_max": 0.012757475083056479,
+     "arm_contact_fraction_max": 0.036943521594684385,
+     "max_edge_strain": 0.7128747534078342,
+     "pass": true
+    }
+   },
+   "body_edge_strain_p99": 0.7729270832833578,
+   "edge_strain_limit": 0.8888661457758614
+  }
+ },
+ "all_pass": true
+}
