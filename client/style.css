@@ -630,6 +630,10 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
 
+.discipline-track{display:grid;gap:5px;margin:8px 0;padding:9px;border:1px solid var(--edge);border-radius:5px;background:#13262f;}
+.discipline-track progress{width:100%;height:8px;accent-color:var(--cyan);}
+.discipline-track small{display:block;}
+
 /* Physical arrival terminal customization; the world remains visible. */
 .initiation-controls{border-top:1px solid #726344;padding:11px 0 4px;margin-top:10px;display:grid;gap:8px;}
 .initiation-controls h3,.initiation-controls p{margin:0;}

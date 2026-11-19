@@ -7,6 +7,7 @@ import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
+import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
@@ -498,6 +499,7 @@ export class Game {
       ...fieldQuestProjection(c),
       fieldRewardReceipts:fieldReceiptProjection(c),
       recoverySamples:recoverySamples(c.recoverySamples),
+      craftingDisciplines:sanitizeCraftingDisciplines(c.craftingDisciplines),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,

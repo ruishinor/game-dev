@@ -14,16 +14,20 @@ test('a batch commits only finished cycles and rejects obsolete requests after c
   assert.equal(start(2).ok, false);
   const rev = p.inventoryRev;
   run(g, 1050);
+  assert.equal(g.sheet(p).craftingDisciplines.Engineering,0);
   assert.equal(p.char.goods, undefined);
   run(g, 50);
   assert.equal(p.char.goods.field_maintenance_kit, 2);
   assert.deepEqual(p.char.materials, { mire_fibre: 4, sentinel_alloy: 4 });
+  assert.equal(g.sheet(p).craftingDisciplines.Engineering,14);
+  assert.equal(g.sheet(p).craftingDisciplines.Research,0);
   stopProduction(g, p);
   assert.equal(beginProduction(g, p, 'field_maintenance_kit', 2, rev).ok, false);
   assert.ok(start(2).ok);
   place(p, 0, 40);
   run(g, 1500);
   assert.equal(p.char.goods.field_maintenance_kit, 2);
+  assert.equal(g.sheet(p).craftingDisciplines.Engineering,14);
   assert.equal(g.privateState(p).production, null);
 });
 
@@ -67,6 +71,7 @@ test('advanced failure preserves equipment and consumes only its disclosed mater
   run(g, 1900);
   assert.deepEqual(p.char.inventory, ['tuned_emitter']);
   assert.equal(p.char.condition.tuned_emitter, 40);
+  assert.equal(g.sheet(p).craftingDisciplines.Engineering,0);
   assert.deepEqual(p.char.materials, { kinetic_coupler: 2, resonance_fragment: 1 });
   g.productionRoll = () => 99;
   assert.ok(begin().ok);
