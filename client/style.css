@@ -629,3 +629,5 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .item-cell[data-rarity="Very rare"],.loot-entry[data-rarity="Very rare"]{border-color:#cbaf76}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
+
+.kestrel-warning{position:absolute;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 32px);font-size:12px;text-align:center;font-weight:600;color:#ffb0a2;border:1px solid #ff6a5a;background:#311716;padding:6px 12px;border-radius:6px;pointer-events:none!important;}

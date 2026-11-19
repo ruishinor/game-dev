@@ -310,7 +310,9 @@ export class UI {
     this.errors.setAttribute('role', 'alert');
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
-    root.append(this.errors, this.toasts, this.banner);
+    this.kestrelWarning=h('div','kestrel-warning','CONTAINMENT ALARM · Resolve Custodian engagement');
+    this.kestrelWarning.hidden=true;this.kestrelWarning.setAttribute('role','status');
+    root.append(this.errors,this.toasts,this.banner,this.kestrelWarning);
     this.radio=new RadioPanel(root,{tracker:this.questTracker.el,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
@@ -670,6 +672,9 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
+    const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;
+    alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
+    alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
 
     // Help panel
@@ -1767,6 +1772,7 @@ export class UI {
     if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
+    set(this.kestrelWarning,'hidden',!you.kestrelAlarm||me.dead);
     set(this.death, 'hidden', !me.dead);
     if (me.dead) {
       const wait = you.dead || 0;

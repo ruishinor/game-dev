@@ -29,6 +29,7 @@ import { UI } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
+import {createKestrelAlarm} from './kestrel-alarm.js';
 
 const INTERP_MS = 110;
 const TURN_RATE = 2.9;
@@ -82,6 +83,7 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
 const legacyFx = fx;
 const liveAegis = new LiveAegis(THREE);
@@ -93,6 +95,7 @@ function authored(name,family,options){
   return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},fxClock);
 }
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+let alarmCalm=readFxPrefs().calm;
 // Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
 // rendering can photograph them mid-flight; simulation time is untouched.
 const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
@@ -328,6 +331,7 @@ document.addEventListener('contextmenu', e=>{
 
 const portraits = makePortraits(assets, useGlb);
 const ui = new UI({
+  alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
@@ -362,6 +366,7 @@ const ui = new UI({
       localStorage.setItem('attunement.calmFlashes', calm ? '1' : '0');
     } catch {}
     vfx?.setIntensity(level, calm);
+    alarmCalm=!!calm;
   },
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   inspectCompanion: (id, point) => {
@@ -1789,6 +1794,7 @@ function frame(now) {
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
   last = now;
   time += dt;
+  kestrelAlarm.update(!!S.myId&&!!S.you?.kestrelAlarm,time,motionPreference.matches||alarmCalm);
 
   frames++;
   if (now - fpsAt >= 1000) {

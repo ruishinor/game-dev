@@ -19,6 +19,7 @@ import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
+import {containmentAlarm} from './kestrel-alarm.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -325,7 +326,8 @@ export function interact(game, p, objectId) {
   if (obj.type.startsWith('brine_') || (obj.type.startsWith('survey_') && surveyState(p.char.survey)?.endsWith('_done'))) return operateBrine(game,p,obj);
   if (obj.type === 'deep_console') {
     if (!hasLineOfSight(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
-    if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
+    if (containmentAlarm(game)) return {ok:false,reason:'Containment alarm active. Defeat or disengage the Custodian before using the recorder.'};
+    if (inCombat(game,p)) return {ok:false,reason:'Disengage from combat before operating the recorder.'};
     traceRead(game,p,obj,'recorder',transmit);
     if (p.char.inventory.includes('phase_damper')) {
       transmitAuthored(game,p,'kestrel.implant.present');
