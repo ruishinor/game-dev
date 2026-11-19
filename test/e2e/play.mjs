@@ -934,7 +934,8 @@ try {
   const baseBio = 10 + sb.sheet.level - 1;
   await B.page.locator('.equipment-slot-grid [data-slot="device"]').click();
   const installedSlot = await B.page.locator('.equipment-slot-grid [data-slot="device"]').getAttribute('data-state') === 'installed'
-    && /Sporeglass Focus/.test(await B.page.locator('.loadout-detail').innerText());
+    && /Sporeglass Focus/.test(await B.page.locator('.equipment-slot-grid [data-slot="device"]').getAttribute('aria-label'))
+    && await B.page.locator('.loadout-list .slotcard').count()===0;
   check('9. equipping the Device updates its slot and raises the skill by 3', installedSlot && sb.sheet.stats.skills.biotech === baseBio + 3, `Biotech ${baseBio} → ${sb.sheet.stats.skills.biotech} at level ${sb.sheet.level}`);
   check('9. the next directive hands over the Implant that needs that skill', sb.sheet.inventory.includes('myelin_lattice'));
   await shot(B, '04-build-panel.png');
@@ -980,10 +981,12 @@ try {
   sb = await state(B);
   check('9. installing the Implant changes derived stats (+30% healing)', sb.sheet.stats.healMul === 1.3);
   await B.page.locator('.doll-tabs [data-tab="gear"]').click();
-  const focusCard = B.page.locator('.panel.build .slotcard', { hasText: 'Sporeglass Focus' });
-  check('9. removal previews which dependent equipment returns to inventory',
-    await focusCard.getByRole('button', { name: 'Remove' }).isEnabled() &&
-    await focusCard.getByText('Also removes Myelin Lattice.').isVisible());
+  await B.page.locator('.equipment-slot-grid [data-slot="device"]').click({button:'right'});
+  const focusMenu = B.page.locator('.player-context');
+  check('9. slot context previews which dependent equipment returns to inventory',
+    await focusMenu.getByRole('button', { name: 'Unequip' }).isEnabled() &&
+    await focusMenu.getByText('Also removes Myelin Lattice.').isVisible());
+  await B.page.keyboard.press('Escape');
   await B.page.keyboard.press('Escape');
 
   await equipVia(A, 'Sentinel Servo Harness');
