@@ -4,7 +4,7 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, cancelInscription } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
 import { disposeItem } from './sim/disposal.js';
 import { beginProduction, stopProduction } from './sim/production.js';
@@ -393,6 +393,9 @@ export class NetServer {
       case 'use_utility':
         if(typeof msg.item!=='string'||msg.item.length>80||typeof msg.weapon!=='string'||msg.weapon.length>80||!isId(msg.rev))return this.strike(conn);
         reply(useUtility(game,p,msg.item,msg.weapon,msg.rev));break;
+      case 'appearance_change':
+        if(typeof msg.appearance!=='string'||msg.appearance.length>48)return this.strike(conn);
+        reply(changeInitiationAppearance(game,p,msg.appearance));break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;
