@@ -170,7 +170,7 @@ def yoke(body, side, t_levels, phis, offset, start_x=0.075, end_k=1.0):
     up = np.array([0, 1.0, 0]) - u * u[1]
     up /= np.linalg.norm(up)
     fwd = np.cross(u, up) * sg
-    sel = ~body.head & ~((np.abs(body.P[:, 0]) < start_x + 0.01) & (body.P[:, 1] > sh[1] - 0.02))
+    sel = ~body.head & ~((np.abs(body.P[:, 0]) < start_x + 0.01) & (body.P[:, 1] > sh[1] - 0.02)) & (body.P[:, 1] < sh[1] + 0.07)
     d = body.P[sel] - a
     s = d @ u
     radial = np.linalg.norm(d - np.outer(s, u), axis=1)
@@ -242,19 +242,19 @@ def design_field(body, base, m):
     it, deg = "field_chest", np.radians
     P = [vest_body(body, it, m["vest"], base)]
     for s in ("l", "r"):
-        V, F = yoke(body, s, np.linspace(0.05, 1.0, 9), np.linspace(-deg(95), deg(95), 22), base + 0.012)
+        V, F = yoke(body, s, np.linspace(0.12, 1.0, 9), np.linspace(-deg(82), deg(82), 22), base + 0.011)
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
     P.append(plate(body, it, "chest_panel", m["panel"], 0.0, deg(46), 0.3, 0.82, base + 0.009, keel=0.004, ns=16))
-    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(20), 0.46, 0.7, base + 0.016, taper=0.1, ns=10, nq=10))
+    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(20), 0.46, 0.7, base + 0.021, taper=0.1, ns=10, nq=10))
     P.append(plate(body, it, "back_panel", m["panel"], np.pi, deg(50), 0.26, 0.84, base + 0.009, ns=16))
     for k, uu in enumerate((0.36, 0.6)):
         for s, sg in (("l", 1), ("r", -1)):
-            V, F = ribbon_around(body, uu, sg * deg(52), sg * deg(128), 0.035, base + 0.008, n=20)
+            V, F = ribbon_around(body, uu, sg * deg(52), sg * deg(128), 0.035, base + 0.009, n=20)
             P.append(_piece(f"strap_{s}{k}", it, m["strap"], V, F, thickness=0.003))
-            p, n = body.on_torso(sg * deg(90), uu, base + 0.014)
+            p, n = body.on_torso(sg * deg(90), uu, base + 0.016)
             V, F = box(p, (0.022, 0.026, 0.006), np.array([0, 1.0, 0]), n)
             P.append(_piece(f"buckle_{s}{k}", it, m["hardware"], V, F, bevel=0.0015))
-    V, F = ribbon_around(body, 0.175, -np.pi, np.pi, 0.024, base + 0.007, n=72)
+    V, F = ribbon_around(body, 0.175, -np.pi, np.pi, 0.024, base + 0.0085, n=72)
     P.append(_piece("hem_binding", it, m["strap"], V, F, thickness=0.003))
     return P
 
@@ -266,20 +266,20 @@ def design_reinforced(body, base, m):
     it, deg = "reinforced_chest", np.radians
     P = [vest_body(body, it, m["vest"], base, hem_u=0.13)]
     for s, big in (("l", 1.0), ("r", 0.82)):
-        V, F = yoke(body, s, np.linspace(0.0, 1.0 + 0.12 * big, 10), np.linspace(-deg(105), deg(105), 24),
+        V, F = yoke(body, s, np.linspace(0.1, 1.0 + 0.12 * big, 10), np.linspace(-deg(90), deg(90), 24),
                     lambda ph, t, big=big: base + 0.014 + 0.012 * big * _ss(0.6, 1.1, t))
         P.append(_piece("pauldron_" + s, it, m["yoke"], V, F, thickness=0.006, bevel=0.0025))
     P.append(plate(body, it, "chest_plate", m["plate"], 0.0, deg(52), 0.6, 0.86, base + 0.011, keel=0.006))
     P.append(plate(body, it, "ab_plate_upper", m["plate"], 0.0, deg(44), 0.42, 0.6, base + 0.012, taper=0.05, ns=6))
     P.append(plate(body, it, "ab_plate_lower", m["plate"], 0.0, deg(40), 0.22, 0.42, base + 0.013, taper=0.05, ns=6))
-    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(24), 0.63, 0.8, base + 0.019, taper=0.15, ns=8, nq=10))
+    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(24), 0.63, 0.8, base + 0.024, taper=0.15, ns=8, nq=10))
     P.append(plate(body, it, "back_plate", m["plate"], np.pi, deg(54), 0.28, 0.86, base + 0.011, ns=16))
     for k, th in enumerate((-deg(30), deg(30))):
-        V, F = vertical_strip(body, th, 0.6, 0.86, deg(1.6), base + 0.0175)
+        V, F = vertical_strip(body, th, 0.6, 0.86, deg(1.6), base + 0.0235)
         P.append(_piece(f"piping_{k}", it, m["trim"], V, F, thickness=0.002))
-    V, F = ribbon_around(body, 0.6, -deg(44), deg(44), 0.012, base + 0.018, n=24)
+    V, F = ribbon_around(body, 0.6, -deg(44), deg(44), 0.012, base + 0.0235, n=24)
     P.append(_piece("piping_waist", it, m["trim"], V, F, thickness=0.002))
-    p, n = body.on_torso(deg(32), 0.72, base + 0.032)
+    p, n = body.on_torso(deg(32), 0.72, base + 0.036)
     V, F = box(p, (0.05, 0.06, 0.022), np.array([0, 1.0, 0]), n)
     hw = [(V, F)]
     for dy in (-0.018, 0.0, 0.018):
@@ -289,7 +289,7 @@ def design_reinforced(body, base, m):
     rv = []
     for th in (-deg(40), -deg(14), deg(14), deg(40)):
         for uu in (0.27, 0.82):
-            p, n = body.on_torso(th, uu, base + 0.018)
+            p, n = body.on_torso(th, uu, base + 0.022)
             rv.append(cylinder(p, p + n * 0.006, 0.004, n=8))
     P.append({**_piece("rivets", it, m["trim"], None, None), "V": rv, "F": None})
     return P
@@ -302,7 +302,7 @@ def design_resonant(body, base, m):
     it, deg = "resonant_chest", np.radians
     P = [vest_body(body, it, m["vest"], base, hem_u=0.14, neck_front=0.8)]
     for s in ("l", "r"):
-        V, F = yoke(body, s, np.linspace(0.05, 1.04, 9), np.linspace(-deg(100), deg(100), 22),
+        V, F = yoke(body, s, np.linspace(0.12, 1.04, 9), np.linspace(-deg(85), deg(85), 22),
                     lambda ph, t: base + 0.013 + 0.006 * np.cos(ph))
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
 
@@ -319,16 +319,16 @@ def design_resonant(body, base, m):
         # diamond: half width shrinks to 0 at both ends
         u = 0.48 + 0.24 * s
         w = deg(13) * (1 - abs(2 * s - 1))
-        return (2 * q - 1) * max(w, deg(0.6)), u, base + 0.02
+        return (2 * q - 1) * max(w, deg(0.6)), u, base + 0.024
     V, F = torso_sheet(body, 9, 7, core)
     P.append(_piece("core", it, m["core"], V, F, thickness=0.004, bevel=0.0015))
     lines = []
     for th in (-deg(18), deg(18)):
-        lines.append(vertical_strip(body, th, 0.28, 0.8, deg(1.1), base + 0.0175))
+        lines.append(vertical_strip(body, th, 0.28, 0.8, deg(1.1), base + 0.0225))
     for k, uu in enumerate((0.32, 0.46)):
         for sg in (1, -1):
-            lines.append(ribbon_around(body, uu, sg * deg(24), sg * deg(70), 0.012, base + 0.004, n=18))
-    lines.append(vertical_strip(body, 0.0, 0.3, 0.46, deg(0.9), base + 0.0215))
+            lines.append(ribbon_around(body, uu, sg * deg(24), sg * deg(70), 0.012, base + 0.0075, n=18))
+    lines.append(vertical_strip(body, 0.0, 0.3, 0.46, deg(0.9), base + 0.0225))
     P.append({**_piece("resonance_lines", it, m["lines"], None, None, thickness=0.0015), "V": lines, "F": None})
     return P
 

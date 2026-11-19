@@ -290,6 +290,7 @@ def procedural_material(name):
     base, worn, metal, rough, scale, weave = spec[:6]
     emission = spec[6] if len(spec) > 6 and spec[6] else None  # (r, g, b, strength) or None
     mottle_k = spec[7] if len(spec) > 7 else 0.35
+    wear_k = spec[8] if len(spec) > 8 else 1.0
     m = bpy.data.materials.new("wd_" + name)
     m.use_nodes = True
     nt = m.node_tree
@@ -314,7 +315,11 @@ def procedural_material(name):
     mix.data_type = "RGBA"
     mix.inputs["A"].default_value = (*base, 1)
     mix.inputs["B"].default_value = (*worn, 1)
-    L(wear.outputs[0], mix.inputs["Factor"])
+    wear_amt = N("ShaderNodeMath")
+    wear_amt.operation = "MULTIPLY"
+    wear_amt.inputs[1].default_value = wear_k
+    L(wear.outputs[0], wear_amt.inputs[0])
+    L(wear_amt.outputs[0], mix.inputs["Factor"])
     mottle = N("ShaderNodeMix")
     mottle.data_type = "RGBA"
     mottle.blend_type = "MULTIPLY"

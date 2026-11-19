@@ -127,9 +127,16 @@ def op_worn(p):
                     top = top.parent
                 top.location.x += dx
             if pose:
-                act = bpy.data.actions.get(pose["action"]) or next(x for x in bpy.data.actions if x.name.startswith(pose["action"]))
+                act = bpy.data.actions.get(pose["action"]) or next((x for x in bpy.data.actions if x.name.startswith(pose["action"])), None)
+                if act is None and p.get("clip_glb"):
+                    # this body ships no clips; the game drives it with the male body's
+                    for o in import_glb(p["clip_glb"]):
+                        bpy.data.objects.remove(o, do_unlink=True)
+                    act = next(x for x in bpy.data.actions if x.name.startswith(pose["action"]))
                 for a in (arm_b, arm_a):
                     a.animation_data_create()
+                    for tr in list(a.animation_data.nla_tracks):  # imported clips arrive as NLA strips
+                        a.animation_data.nla_tracks.remove(tr)
                     a.animation_data.action = act
                 sc.frame_set(int(round(pose["time"] * sc.render.fps)) + int(act.frame_range[0]))
             groups.append(item)

@@ -180,6 +180,7 @@ def blender_materials(asset):
             spec = [base, worn, m.get("metallic", 0.0), m.get("roughness", 0.6), m.get("noise", 20.0), bool(m.get("weave", False))]
             spec.append([*srgb_to_linear(m["emission"]).tolist(), m.get("emission_strength", 3.0)] if m.get("emission") else None)
             spec.append(m.get("mottle", asset.config["armour"]["build"].get("mottle", 0.12)))
+            spec.append(m.get("wear", asset.config["armour"]["build"].get("wear", 0.3)))
             out[f"{item}_{slot}"] = spec
     return out
 
@@ -401,10 +402,12 @@ def stage_validate(asset, params):
             armv = (np.isin(ms["J"], arm_j) * ms["W"]).sum(1)
             surf.append((ms, ms["F"][fi], bary, (armv[ms["F"][fi]] * bary).sum(1) > 0.5))
         arm = np.concatenate([x[3] for x in surf])
+        is_shell = np.concatenate([np.full(len(x[1]), x[0] is not b["meshes"]["body"]) for x in surf])
         mb = b["meshes"]["body"]
         Eb = mb["F"][:, :2]
         items = sorted({k[:-2] for k in d.files if k.endswith("_P")})
-        res = {it: {"min_clearance_m": 1.0, "inside_fraction_max": 0.0, "arm_contact_fraction_max": 0.0, "max_edge_strain": 0.0} for it in items}
+        res = {it: {"min_clearance_m": 1.0, "inside_fraction_max": 0.0, "inside_body_fraction_max": 0.0, "inside_shell_fraction_max": 0.0,
+                    "arm_contact_fraction_max": 0.0, "max_edge_strain": 0.0} for it in items}
         body_strain = 0.0
         for cname in params["clips"]:
             c = clips[cname]
@@ -435,6 +438,9 @@ def stage_validate(asset, params):
                     body_sd = sd[~on_arm]
                     r["min_clearance_m"] = min(r["min_clearance_m"], float(np.percentile(body_sd, 0.5)))
                     r["inside_fraction_max"] = max(r["inside_fraction_max"], float((body_sd < -0.002).sum() / len(sd)))
+                    inside = (sd < -0.002) & ~on_arm
+                    r["inside_body_fraction_max"] = max(r["inside_body_fraction_max"], float((inside & ~is_shell[i]).mean()))
+                    r["inside_shell_fraction_max"] = max(r["inside_shell_fraction_max"], float((inside & is_shell[i]).mean()))
                     r["arm_contact_fraction_max"] = max(r["arm_contact_fraction_max"], float((on_arm & (sd < 0.004)).mean()))
                     E = np.unique(np.sort(np.r_[I[:, [0, 1]], I[:, [1, 2]], I[:, [2, 0]]], 1), axis=0)
                     L0 = np.linalg.norm(P[E[:, 0]] - P[E[:, 1]], axis=1)
@@ -444,7 +450,11 @@ def stage_validate(asset, params):
 
         limit = max(params["max_edge_strain_p99"], body_strain * params["strain_vs_body"])
         for it, r in res.items():
-            r["pass"] = bool(r["inside_fraction_max"] <= params["max_inside_fraction"] and r["max_edge_strain"] <= limit)
+            # skin and the cloth shells are judged separately: the shells carry
+            # their own arm-swing weights and may brush the torso-borne armour
+            r["pass"] = bool(r["inside_body_fraction_max"] <= params["max_inside_body_fraction"]
+                             and r["inside_shell_fraction_max"] <= params["max_inside_shell_fraction"]
+                             and r["min_clearance_m"] >= params["min_clearance_p05_m"] and r["max_edge_strain"] <= limit)
             ok &= r["pass"]
         rep["bodies"][key] = {"items": res, "body_edge_strain_p99": body_strain, "edge_strain_limit": limit}
     rep["all_pass"] = bool(ok)
@@ -494,6 +504,7 @@ def stage_evidence(asset, params):
         dec = _decoded(asset, key)
         res = run_blender("asset_pipeline.blender.armour_render", {"op": "worn", "work": str(asset.work), "glb": str(dec),
                                                                   "body": str(asset.path("inspect", f"body_{key}.glb")), "out": str(out),
+                                                                  "clip_glb": str(asset.path("inspect", "body_m.glb")),
                                                                   "prefix": key, "items": asset.config["armour"]["design"]["items"], **params}, timeout=7200)
         files += [Path(f) for f in res["renders"]]
     return files, {"renders": len(files)}

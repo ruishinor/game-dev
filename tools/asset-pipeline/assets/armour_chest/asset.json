@@ -62,7 +62,7 @@
     "lines": {"base": "#b7eadb", "worn": "#e4fbf3", "roughness": 0.3, "noise": 16, "emission": "#b7eadb", "emission_strength": 4.0}
    }
   },
-  "build": {"texture": 1024, "mottle": 0.12},
+  "build": {"texture": 1024, "mottle": 0.06, "wear": 0.3},
   "rig": {
    "samples": 120000,
    "k": 10,
@@ -83,14 +83,16 @@
    "frames": 8,
    "surface_samples": 60000,
    "under_shells": ["shell_chest", "shell_coat", "shell_belt", "shell_upperarms"],
-   "max_inside_fraction": 0.02,
+   "max_inside_body_fraction": 0.015,
+   "max_inside_shell_fraction": 0.03,
+   "min_clearance_p05_m": -0.012,
    "max_edge_strain_p99": 0.15,
    "strain_vs_body": 1.15,
    "strict": true
   },
   "icons": {"body": "m", "size": 768, "samples": 96, "view": {"az": 24, "el": 10}, "export_sizes": [256, 128], "webp_quality": 90},
   "evidence": {"samples": 16, "width": 1500, "height": 900,
-               "poses": [null]},
+               "poses": [null, {"action": "Idle_Loop", "time": 0.5}, {"action": "Jog_Fwd_Loop", "time": 0.25}]},
   "publish": {
    "runtime": {"m": "client/assets/armour_chest_m.glb", "f": "client/assets/armour_chest_f.glb"},
    "icons_dir": "client/assets/icons/armour",
