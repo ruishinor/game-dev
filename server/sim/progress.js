@@ -222,6 +222,14 @@ export function unequipSlot(game, p, slot) {
 }
 
 function applyLoadout(game, p, equipped, itemName, playEquip = true) {
+  // Stat-neutral clothing must not clear active shields or change combat stats.
+  // A cascade removing real gear still follows the full loadout path.
+  if (SLOTS.every(slot=>slot==='social_torso'||(p.char.equipped[slot]??null)===(equipped[slot]??null))) {
+    p.char.equipped=equipped;
+    game.refreshPresentation(p);
+    game.markDirty(p);
+    return;
+  }
   const before = equipmentAttributes(p.char, p.stats);
   p.char.equipped = equipped;
   game.refreshStats(p);

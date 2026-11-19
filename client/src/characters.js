@@ -27,6 +27,8 @@ import { createLongpointPresentation } from './longpoint.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
+import { wearArmour, ARMOUR_BUNDLES } from './armour-visual.js';
+import { createSocialTorso } from './social-torso.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
@@ -92,7 +94,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
 
   const mats = [];
   const shellMats = {};
-  const hidden = [];
+  const hidden = [], socialShells = [];
   // Face meshes (head, hands, eyes, lashes) are dressed by face.js.
   const faceNode = (o) => {
     for (let n = o; n && n !== inst; n = n.parent) if (/^(head|hands|eyes|lashes|teeth|hair_[a-z]+)(_\d+)?$/.test(n.name)) return n.name.replace(/_\d+$/, '');
@@ -110,24 +112,29 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     const name = shell ? o.name : o.material.name;
     // Faceless looks wear the mannequin's smooth head, shaded like the body.
     const spec = shell ? (shell === 'mannequin_head' && (def.faceless || veyran) ? def.parts.body : shell === 'hood' && hoodDown ? null : def.shells[shell]) : def.parts[name] || {};
-    if (!spec) {
+    const socialShell = opts.socialCapable && (shell === 'chest' || shell === 'coat');
+    if (!spec && !socialShell) {
       hidden.push(o);
       return;
     }
-    const m = new THREE.MeshStandardMaterial({ color: spec.color ?? 0x888888, roughness: spec.roughness ?? 0.7, metalness: spec.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
+    const shade = spec ?? {};
+    const m = new THREE.MeshStandardMaterial({ color: shade.color ?? 0x888888, roughness: shade.roughness ?? 0.7, metalness: shade.metalness ?? 0, side: shell ? THREE.DoubleSide : THREE.FrontSide });
     m.name = name;
-    if (spec.map) m.map = assets.texture(spec.map);
-    if (spec.emissiveMap) {
-      m.emissiveMap = assets.texture(spec.emissiveMap);
-      m.emissive.set(spec.emissive ?? 0xffffff);
+    if (shade.map) m.map = assets.texture(shade.map);
+    if (shade.emissiveMap) {
+      m.emissiveMap = assets.texture(shade.emissiveMap);
+      m.emissive.set(shade.emissive ?? 0xffffff);
     }
     o.material = m;
     o.castShadow = true;
     // Bind-pose bounds do not cover every pose; visibility is decided per entity.
     o.frustumCulled = false;
     mats.push(m);
-    if (shell) shellMats[shell] = m;
+    if (shell && spec) shellMats[shell] = m;
+    if (socialShell) { o.visible=!!spec; socialShells.push({mesh:o,shell,original:m,originalVisible:!!spec}); }
   });
+  const socialTorso=createSocialTorso(THREE,assets,socialShells);
+  socialTorso.apply(opts.socialVisual);
   for (const o of hidden) o.parent.remove(o);
   // A face for bodies that have one. Looks may pin an appearance (NPCs) or
   // hide the face (helmets, faceless characters); players get a stable face
@@ -230,6 +237,23 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
+  // Worn chest armour (presentation metadata `av`): loaded on first use.
+  let armour = null, armourWanted = null, disposed = false;
+  function setArmourVisual(next) {
+    armourWanted = typeof next === 'string' ? next : null;
+    if (armour?.item === armourWanted) return;
+    armour?.dispose(); armour = null;
+    if (!armourWanted) return;
+    const bundle = ARMOUR_BUNDLES[body];
+    if (!bundle) return;
+    const apply = () => {
+      if (disposed || armour || !armourWanted) return;
+      armour = wearArmour(assets, inst, body, armourWanted);
+    };
+    if (assets.get(bundle)) apply();
+    else assets.bundle(bundle).then(apply);
+  }
+  setArmourVisual(opts.armourVisual);
 
   return {
     kind: 'glb',
@@ -241,6 +265,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
+    setArmourVisual,
+    armourWorn: () => armour?.item || null,
+    setSocialVisual: socialTorso.apply,
+    socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
     rodContact(at,ground,blocked=false){
       return !!(heldRod?.group.visible&&rodEffects?.impact(at,{ground,blocked}));
@@ -320,6 +348,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       releaseRod();
       weapon?.dispose();
+      disposed = true;
+      armour?.dispose(); armour = null;
+      socialTorso.dispose();
       anim.dispose();
       face?.dispose();
       work.dispose();
@@ -593,7 +624,7 @@ export function createModel(assets, meta, glb = true) {
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {
@@ -605,7 +636,7 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (meta.c==='rift_return'||meta.c==='severance_return') model=buildPhaseGate(true,assets);
+    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);

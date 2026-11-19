@@ -9,6 +9,7 @@ import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
+import { renderedItemIcon } from './item-renders.js';
 import {cataloguePortrait} from './catalogue-portraits.js';
 import {characterPortraitMeta} from './portrait-identity.js';
 
@@ -70,6 +71,14 @@ export function itemArt(id) {
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
   e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="'+(slot==='glyph'||id==='location'?'currentColor':'#303c40')+'" stroke-width="'+(slot==='glyph'?'1.4':'.65')+'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(cataloguePortrait(id)||refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
+  // Items with a finished 3D model show its rendered icon; the vector art
+  // stays underneath as the fallback if the image cannot load.
+  const url=renderedItemIcon(id);
+  if(url){
+    const img=document.createElement('img');img.className='item-render';img.alt='';img.decoding='async';img.draggable=false;img.src=url;
+    img.addEventListener('error',()=>{img.remove();e.classList.remove('rendered');},{once:true});
+    e.classList.add('rendered');e.append(img);
+  }
   return e;
 }
 function requirements(s,id) {
@@ -169,8 +178,8 @@ const LOADOUT_TABS = [
   {id:'character',name:'Character',slots:[]},
   {id:'gear',name:'Gear',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
-    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Hands',3,2),
-    present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
+    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Gloves',3,2,'gloves'),
+    present('waist','Waist',1,3),present('legs','Greaves',2,3,'greaves'),present('feet','Boots',3,3,'boots'),
     present('device','Device',1,4,'device'),present('utility','Utility',2,4),
   ]},
   {id:'implants',name:'Implants',slots:[
@@ -186,7 +195,7 @@ const LOADOUT_TABS = [
   ]},
   {id:'social',name:'Social clothing',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('face','Face',3,1),
-    present('arms','Arms',1,2),present('torso','Torso',2,2),present('hands','Hands',3,2),
+    present('arms','Arms',1,2),present('torso','Torso',2,2,'social_torso'),present('hands','Hands',3,2),
     present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
   ]},
 ];
@@ -201,7 +210,7 @@ export function renderLoadout(ui,body,stats) {
     const btn=h('button',t.id===tab.id?'active':'',t.name);
     btn.type='button';
     btn.dataset.tab=t.id;
-    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon'}[t.id];
+    const slotFor={gear:'device',implants:'implant',glyphs:'glyph',weapons:'weapon',social:'social_torso'}[t.id];
     if(slotFor)btn.dataset.seenGroup=slotFor;
     btn.setAttribute('aria-pressed',String(t.id===tab.id));
     btn.addEventListener('click',()=>{
@@ -217,7 +226,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...['chest','gloves','greaves','boots','social_torso'].filter(slot=>s.equipped[slot])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
@@ -225,7 +234,13 @@ export function renderLoadout(ui,body,stats) {
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
     if(item&&s.equipped[item.slot]===id)detail.append(h('p','muted','Installed. Hover or focus the equipment for information; right-click or Shift+F10 for actions.'));
-    else if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+    else if(item){
+      detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+      if(item.slot==='social_torso'){
+        const preview=ui.a.portrait(characterPortraitMeta({...s,equipped:{...s.equipped,social_torso:id}}));
+        if(preview){const img=h('img','doll-image');img.src=preview;img.alt='Selected social clothing preview';detail.append(img);}
+      }
+    }
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
@@ -330,7 +345,7 @@ export function renderInventory(ui) {
   root.replaceChildren();
   itemDrop(ui,ui.inventoryPanel,id=>!ui.buildLock&&!!ITEMS[id]&&ui.sheet.equipped[ITEMS[id].slot]===id,id=>ui.itemAction(id,'remove'));
   const tabs=h('div','inventory-tabs');
-  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
+  for(const [id,name] of [['all','All'],['device','Gear'],['implant','Implants'],['glyph','Glyphs'],['weapon','Weapons'],['social_torso','Social'],['materials','Materials'],['utility','Utility'],['relic','Relics'],['blueprint','Blueprints'],['junk','Junk'],['quest','Quest items']]){
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.dataset.seenGroup=id;

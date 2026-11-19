@@ -9,6 +9,7 @@ export const BACK_SPEED_MUL = 0.62;
 export const JUMP_VELOCITY = 8.0;
 export const GRAVITY = 22.0;
 export const PLAYER_RADIUS = 0.45;
+export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
 import { SEVERANCE_POCKET, SEVERANCE_PROPS, GATE_THRESHOLD, inSeverancePocket, clampToPocket, pocketHeight, pocketArea } from './severance-gate.js';
 export { SEVERANCE_POCKET, SEVERANCE_GATE, inSeverancePocket } from './severance-gate.js';
@@ -391,7 +392,7 @@ function findRiftSite(){
 export const RIFT_SITE=findRiftSite();
 if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
-  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
+  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:PHASE_RIFT_RADIUS},
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
     {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
     {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72},
@@ -401,7 +402,8 @@ if(RIFT_SITE){
 // approach pocket's return beacon. The threshold is embedded in the gate's own
 // collision footprint, so it adds no collider.
 OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x:GATE_THRESHOLD.x,z:GATE_THRESHOLD.z,r:0,embedded:true},
-  {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:.72});
+  {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:PHASE_RIFT_RADIUS,
+    yaw:Math.atan2(SEVERANCE_POCKET.arrival.x-SEVERANCE_POCKET.beacon.x,SEVERANCE_POCKET.arrival.z-SEVERANCE_POCKET.beacon.z)});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 // Four Halo Construct wardens stand outside the Sanctum perimeter, one per

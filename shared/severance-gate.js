@@ -33,7 +33,9 @@ export const SEVERANCE_EXPANSE = Object.freeze({
   x: 0, z: -720, hw: 150, hd: 175,
   rim: 12,                                  // walkable limit inside the enclosing ridge
   arrival: Object.freeze({ x: 15, z: -866 }),
-  beacon: Object.freeze({ x: 15, z: -870.5 }),
+  // Owner-approved return-rift placement (#147): the shared Phase Scar rift stands
+  // beside the arrival terrace and faces it.
+  beacon: Object.freeze({ x: 11, z: -864 }),
   outpost: Object.freeze({ x: 62, z: -848, r: 17 }),
 });
 /** @deprecated name kept for existing callers; the pocket is now the full Expanse. */
@@ -212,6 +214,8 @@ export function pocketHeight(x, z) {
   h += massifLift(x, z);
   const edge = Math.min(P.hw - Math.abs(u), P.hd - Math.abs(v));
   if (edge < 22) h += (22 - edge) * (22 - edge) * 0.11 * (0.8 + 0.2 * Math.sin(x * 0.07 + z * 0.05));
+  // Seat the shared Phase Scar foundation and its approach on a local level pad.
+  h *= smooth((Math.hypot(x - P.beacon.x, z - P.beacon.z) - 5.5) / 4);
   return h;
 }
 

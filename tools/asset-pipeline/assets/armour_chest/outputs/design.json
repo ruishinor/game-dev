@@ -1,0 +1,301 @@
+{
+ "items": [
+  "field_chest",
+  "reinforced_chest",
+  "resonant_chest"
+ ],
+ "bodies": {
+  "m": {
+   "pieces": 35,
+   "min_clearance_m": 0.0103,
+   "clearance": {
+    "field_chest__vest": {
+     "min_m": 0.0103,
+     "p05_m": 0.0119
+    },
+    "field_chest__yoke_l": {
+     "min_m": 0.0139,
+     "p05_m": 0.0179
+    },
+    "field_chest__yoke_r": {
+     "min_m": 0.015,
+     "p05_m": 0.018
+    },
+    "field_chest__chest_panel": {
+     "min_m": 0.0171,
+     "p05_m": 0.0183
+    },
+    "field_chest__chest_inset": {
+     "min_m": 0.029,
+     "p05_m": 0.0306
+    },
+    "field_chest__back_panel": {
+     "min_m": 0.0113,
+     "p05_m": 0.0175
+    },
+    "field_chest__strap_l0": {
+     "min_m": 0.0111,
+     "p05_m": 0.0134
+    },
+    "field_chest__buckle_l0": {
+     "min_m": 0.0149,
+     "p05_m": 0.015
+    },
+    "field_chest__strap_r0": {
+     "min_m": 0.0145,
+     "p05_m": 0.0152
+    },
+    "field_chest__buckle_r0": {
+     "min_m": 0.0177,
+     "p05_m": 0.0177
+    },
+    "field_chest__strap_l1": {
+     "min_m": 0.0169,
+     "p05_m": 0.0174
+    },
+    "field_chest__buckle_l1": {
+     "min_m": 0.0373,
+     "p05_m": 0.0375
+    },
+    "field_chest__strap_r1": {
+     "min_m": 0.0158,
+     "p05_m": 0.0161
+    },
+    "field_chest__buckle_r1": {
+     "min_m": 0.0363,
+     "p05_m": 0.0365
+    },
+    "field_chest__hem_binding": {
+     "min_m": 0.019,
+     "p05_m": 0.0198
+    },
+    "reinforced_chest__vest": {
+     "min_m": 0.0103,
+     "p05_m": 0.012
+    },
+    "reinforced_chest__pauldron_l": {
+     "min_m": 0.0152,
+     "p05_m": 0.0213
+    },
+    "reinforced_chest__pauldron_r": {
+     "min_m": 0.0162,
+     "p05_m": 0.021
+    },
+    "reinforced_chest__chest_plate": {
+     "min_m": 0.0162,
+     "p05_m": 0.0201
+    },
+    "reinforced_chest__ab_plate_upper": {
+     "min_m": 0.0188,
+     "p05_m": 0.0197
+    },
+    "reinforced_chest__ab_plate_lower": {
+     "min_m": 0.0209,
+     "p05_m": 0.0221
+    },
+    "reinforced_chest__chest_inset": {
+     "min_m": 0.0317,
+     "p05_m": 0.0329
+    },
+    "reinforced_chest__back_plate": {
+     "min_m": 0.0172,
+     "p05_m": 0.0187
+    },
+    "reinforced_chest__piping_0": {
+     "min_m": 0.0295,
+     "p05_m": 0.0306
+    },
+    "reinforced_chest__piping_1": {
+     "min_m": 0.0283,
+     "p05_m": 0.0292
+    },
+    "reinforced_chest__piping_waist": {
+     "min_m": 0.033,
+     "p05_m": 0.0336
+    },
+    "reinforced_chest__relay_housing": {
+     "min_m": 0.0353,
+     "p05_m": 0.0524
+    },
+    "reinforced_chest__rivets": {
+     "min_m": 0.0319,
+     "p05_m": 0.0327
+    },
+    "resonant_chest__vest": {
+     "min_m": 0.0103,
+     "p05_m": 0.012
+    },
+    "resonant_chest__yoke_l": {
+     "min_m": 0.0161,
+     "p05_m": 0.0207
+    },
+    "resonant_chest__yoke_r": {
+     "min_m": 0.0156,
+     "p05_m": 0.0201
+    },
+    "resonant_chest__plastron": {
+     "min_m": 0.0191,
+     "p05_m": 0.0203
+    },
+    "resonant_chest__back_plate": {
+     "min_m": 0.0163,
+     "p05_m": 0.0187
+    },
+    "resonant_chest__core": {
+     "min_m": 0.0344,
+     "p05_m": 0.0367
+    },
+    "resonant_chest__resonance_lines": {
+     "min_m": 0.0165,
+     "p05_m": 0.0182
+    }
+   }
+  },
+  "f": {
+   "pieces": 35,
+   "min_clearance_m": 0.0103,
+   "clearance": {
+    "field_chest__vest": {
+     "min_m": 0.0106,
+     "p05_m": 0.012
+    },
+    "field_chest__yoke_l": {
+     "min_m": 0.0115,
+     "p05_m": 0.0163
+    },
+    "field_chest__yoke_r": {
+     "min_m": 0.0122,
+     "p05_m": 0.0166
+    },
+    "field_chest__chest_panel": {
+     "min_m": 0.0125,
+     "p05_m": 0.0176
+    },
+    "field_chest__chest_inset": {
+     "min_m": 0.0311,
+     "p05_m": 0.0318
+    },
+    "field_chest__back_panel": {
+     "min_m": 0.0156,
+     "p05_m": 0.0174
+    },
+    "field_chest__strap_l0": {
+     "min_m": 0.0149,
+     "p05_m": 0.0155
+    },
+    "field_chest__buckle_l0": {
+     "min_m": 0.0192,
+     "p05_m": 0.0192
+    },
+    "field_chest__strap_r0": {
+     "min_m": 0.0153,
+     "p05_m": 0.016
+    },
+    "field_chest__buckle_r0": {
+     "min_m": 0.0221,
+     "p05_m": 0.0222
+    },
+    "field_chest__strap_l1": {
+     "min_m": 0.0162,
+     "p05_m": 0.0167
+    },
+    "field_chest__buckle_l1": {
+     "min_m": 0.0258,
+     "p05_m": 0.0259
+    },
+    "field_chest__strap_r1": {
+     "min_m": 0.0161,
+     "p05_m": 0.0167
+    },
+    "field_chest__buckle_r1": {
+     "min_m": 0.0264,
+     "p05_m": 0.0264
+    },
+    "field_chest__hem_binding": {
+     "min_m": 0.0199,
+     "p05_m": 0.0208
+    },
+    "reinforced_chest__vest": {
+     "min_m": 0.0103,
+     "p05_m": 0.0118
+    },
+    "reinforced_chest__pauldron_l": {
+     "min_m": 0.0167,
+     "p05_m": 0.02
+    },
+    "reinforced_chest__pauldron_r": {
+     "min_m": 0.0125,
+     "p05_m": 0.0197
+    },
+    "reinforced_chest__chest_plate": {
+     "min_m": 0.0144,
+     "p05_m": 0.0187
+    },
+    "reinforced_chest__ab_plate_upper": {
+     "min_m": 0.0204,
+     "p05_m": 0.0217
+    },
+    "reinforced_chest__ab_plate_lower": {
+     "min_m": 0.0205,
+     "p05_m": 0.0212
+    },
+    "reinforced_chest__chest_inset": {
+     "min_m": 0.0352,
+     "p05_m": 0.0358
+    },
+    "reinforced_chest__back_plate": {
+     "min_m": 0.0163,
+     "p05_m": 0.0183
+    },
+    "reinforced_chest__piping_0": {
+     "min_m": 0.0316,
+     "p05_m": 0.0322
+    },
+    "reinforced_chest__piping_1": {
+     "min_m": 0.0297,
+     "p05_m": 0.0301
+    },
+    "reinforced_chest__piping_waist": {
+     "min_m": 0.0324,
+     "p05_m": 0.0339
+    },
+    "reinforced_chest__relay_housing": {
+     "min_m": 0.0239,
+     "p05_m": 0.0447
+    },
+    "reinforced_chest__rivets": {
+     "min_m": 0.0308,
+     "p05_m": 0.0321
+    },
+    "resonant_chest__vest": {
+     "min_m": 0.0103,
+     "p05_m": 0.0119
+    },
+    "resonant_chest__yoke_l": {
+     "min_m": 0.0154,
+     "p05_m": 0.0198
+    },
+    "resonant_chest__yoke_r": {
+     "min_m": 0.0116,
+     "p05_m": 0.0193
+    },
+    "resonant_chest__plastron": {
+     "min_m": 0.0134,
+     "p05_m": 0.0199
+    },
+    "resonant_chest__back_plate": {
+     "min_m": 0.0146,
+     "p05_m": 0.0178
+    },
+    "resonant_chest__core": {
+     "min_m": 0.0368,
+     "p05_m": 0.0376
+    },
+    "resonant_chest__resonance_lines": {
+     "min_m": 0.0173,
+     "p05_m": 0.0187
+    }
+   }
+  }
+ }
+}

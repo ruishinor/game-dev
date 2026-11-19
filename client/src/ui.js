@@ -1330,7 +1330,7 @@ export class UI {
     for (const el of this.root.querySelectorAll('[data-seen-group]')) {
       const group = el.dataset.seenGroup;
       const count = [...this.unseenItems].filter(id => group === 'all' ||
-        (ITEMS[id]?.slot==='chest'?'device':ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
+        (['chest','gloves','greaves','boots'].includes(ITEMS[id]?.slot)?'device':ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
       el.classList.toggle('new-equipment', count > 0);
       el.title = count ? `${count} new item(s)` : '';
       el.setAttribute('aria-label', el.textContent);

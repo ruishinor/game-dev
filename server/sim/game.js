@@ -7,6 +7,8 @@ import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
+import { publicArmourVisual } from '../../shared/armour-visual.js';
+import { publicSocialVisual } from '../../shared/social-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
 import { sanitizeGoods } from '../../shared/goods.js';
@@ -139,6 +141,8 @@ export class Game {
       outbox: [],
       sheetDirty: true,
       weaponVisual: publicWeaponVisual(char),
+      armourVisual: publicArmourVisual(char),
+      socialVisual: publicSocialVisual(char),
       metaVer: 1,
       companion: null,
       brineTrial: null,
@@ -191,11 +195,20 @@ export class Game {
     this.onCharChanged(p.char);
   }
 
+  /** Only presentation metadata crosses the public entity boundary. */
+  refreshPresentation(p) {
+    const visual = publicWeaponVisual(p.char);
+    if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
+    const armour = publicArmourVisual(p.char);
+    if (p.armourVisual !== armour) { p.armourVisual = armour; p.metaVer += 1; }
+    const social = publicSocialVisual(p.char);
+    if (p.socialVisual !== social) { p.socialVisual = social; p.metaVer += 1; }
+  }
+
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
     p.stats = deriveStats(p.char);
-    const visual = publicWeaponVisual(p.char);
-    if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
+    this.refreshPresentation(p);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
     syncEquippedCompanion(this, p);
@@ -284,7 +297,7 @@ export class Game {
     const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
       : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
     this.transferPlayer(p, destination);
-    this.message(p,'info',entering?(this.severance?'Severance Expanse. The Severance Gate stands at the end of the ruined approach; its portal opens onto the Phase Annex. The beacon behind you returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
+    this.message(p,'info',entering?(this.severance?'Severance Expanse. The Severance Gate stands at the end of the ruined approach; its portal opens onto the Phase Annex. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
   }
 
@@ -433,7 +446,7 @@ export class Game {
   metaFor(ent) {
     switch (ent.kind) {
       case 'player':
-        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}) };
+        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}), ...(ent.socialVisual ? { sv: ent.socialVisual } : ent.armourVisual ? { av: ent.armourVisual } : {}) };
       case 'enemy':
         return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
