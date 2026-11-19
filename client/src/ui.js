@@ -627,7 +627,7 @@ export class UI {
     this.workshopTutorialSeen=false;
     try{this.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}
     this.workshopLesson=0;
-    this.workshopTutorialOpen=false;
+    this.workshopTutorialOpen=!this.workshopTutorialSeen;
     this.atSanctum=false;
 
     this.partyPanel = h('div', 'panel party-panel');
@@ -1088,7 +1088,7 @@ export class UI {
     if(!open)return;
     if(recipeId&&Object.hasOwn(RECIPES,recipeId)){
       this.workshopTab='fabrication';this.recipeId=recipeId;this.productionQuantity=null;
-      this.workshopTutorialOpen=false;this.recipeReveal=recipeId;
+      this.recipeReveal=recipeId;
       // An explicit recipe link must not land on a hidden result.
       if(this.recipeFilter)Object.assign(this.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false});
     }
