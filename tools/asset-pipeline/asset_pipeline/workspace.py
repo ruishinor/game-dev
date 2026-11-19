@@ -5,10 +5,11 @@ and an untracked workspace at .asset-cache/pipeline/<id>/ for bulky
 intermediates. Original source material lives wherever the configuration
 points (normally the git-ignored /art-source/) and is never written to.
 
-A stage records the SHA-256 of its declared inputs, its parameters and its
-outputs in <workspace>/state.json. It is skipped when all of those still
-match, so a failed or edited stage can be rerun without restarting the
-pipeline.
+A stage records the SHA-256 of its declared inputs, its parameters, the
+shared pipeline infrastructure and the toolchain versions, plus its outputs,
+in <workspace>/state.json. It is skipped when all of those still match, so a
+failed or edited stage can be rerun without restarting the pipeline, and an
+edit to shared code or an upgraded tool reruns it.
 """
 from __future__ import annotations
 
@@ -25,6 +26,38 @@ PIPELINE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = PIPELINE_DIR.parent.parent
 ASSET_CONFIG_DIR = PIPELINE_DIR / "assets"
 CACHE_ROOT = Path(os.environ.get("ASSET_PIPELINE_CACHE", REPO_ROOT / ".asset-cache" / "pipeline"))
+
+
+# Modules every stage depends on implicitly. A stage declares its own job
+# scripts as inputs; these are added to every stage key so that a change to
+# shared infrastructure invalidates cached results too.
+SHARED_MODULES = ("asset_pipeline/workspace.py", "asset_pipeline/blender/common.py")
+TOOLCHAIN = ("bpy", "numpy", "scipy", "opencv-python-headless", "trimesh", "pycolmap", "scikit-image")
+
+
+def toolchain_versions() -> dict:
+    """Installed versions of the Python packages stages run with (cheap: no imports)."""
+    from importlib import metadata
+
+    out = {"python": sys.version.split()[0]}
+    for name in TOOLCHAIN:
+        try:
+            out[name] = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            out[name] = None
+    return out
+
+
+def portable(path, root=None) -> str:
+    """A path relative to the repository (or `root`) for committed reports."""
+    p = Path(path).resolve()
+    for base in ([Path(root).resolve()] if root else []) + [CACHE_ROOT.resolve(), REPO_ROOT]:
+        try:
+            rel = p.relative_to(base)
+        except ValueError:
+            continue
+        return ("<workspace>/" if base == CACHE_ROOT.resolve() else "") + rel.as_posix()
+    return p.name
 
 
 class StageError(RuntimeError):
@@ -128,6 +161,8 @@ class Asset:
         h = hashlib.sha256()
         h.update(sha256_paths(inputs).encode())
         h.update(json.dumps(params, sort_keys=True, default=str).encode())
+        h.update(sha256_paths([PIPELINE_DIR / m for m in SHARED_MODULES]).encode())
+        h.update(json.dumps(toolchain_versions(), sort_keys=True).encode())
         return h.hexdigest()
 
     def is_current(self, name: str, key: str) -> bool:

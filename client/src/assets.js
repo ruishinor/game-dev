@@ -136,7 +136,7 @@ export class Assets {
     const src = bundle && bundle.pieces.get(piece);
     if (!src) return null;
     const meta = bundle.entry.pieces ? bundle.entry.pieces[piece] : null;
-    const skinned = bundle.entry.kind === 'humanoid' || (meta && meta.skinned);
+    const skinned = bundle.entry.kind === 'humanoid' || bundle.entry.kind === 'skinned' || (meta && meta.skinned);
     const obj = skinned ? cloneSkinned(src) : src.clone(true);
     if (skinned) shareSkeletons(src, obj);
     obj.position.set(0, 0, 0);

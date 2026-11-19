@@ -71,3 +71,45 @@ Limitations, all measured: undersides no camera sees are closed by the hull, not
 ## Runtime preview
 
 `client/pipeline-preview.html` loads GLBs listed in `client/pipeline-assets/manifest.json` with the game's three.js loader. It plays their clips and moves the model at each clip's declared speed over a 0.5 m grid, so foot sliding is visible. `client/pipeline-assets/` is git-ignored: candidate outputs stay local until the owner decides to publish them (see `AGENTS.md`).
+
+## Imported mechanical humanoids (`imported-mechanical-humanoid`)
+
+The second asset family on this pipeline: it productionises an *existing*,
+accepted humanoid mesh instead of reconstructing one. First user:
+`assets/halo_construct` (the owner-accepted Halo Construct GLB, read-only).
+Production record, decisions and measurements: `docs/art/HALO-CONSTRUCT-NPC.md`.
+
+```sh
+python -m asset_pipeline all --asset halo_construct          # ~15 min on 2 CPU cores, mostly Blender renders
+python -m asset_pipeline rig --asset halo_construct --force  # one stage
+node tools/assets/build.mjs halo_construct                   # manifest entry (verifies the published hash)
+```
+
+| Stage | What it does | New / reused |
+|---|---|---|
+| inspect | verifies the configured source SHA-256, records structure, extracts the atlas | new (`humanoid_analysis.load_source`) |
+| baseline | lit / clay / wire renders of the untouched source, 10 views | reused `blender/render_evidence.py` |
+| analyze | slab clustering (arms, legs, torso), joint pivots from the dark coupling bands, flattening of baked-in accessories onto a fitted body envelope | new `humanoid_analysis.py` |
+| clean | voxel remesh to one manifold, two-pass protected decimation (ring, hands, feet keep 2× density), compact UVs, bakes: colour (sentinel-marked misses), mirrored donor colour, normals, AO, position | new `blender/humanoid_build.py` (op `clean`); bake helpers follow `game_ready.py` |
+| materials | UV-space synthesis: authored crop top and shorts, ivory shell cleanup, mechanism kept dark, inferred ORM and optics emission | new `humanoid_materials.py` |
+| wardrobe | security and vendor pieces lofted from dense body samples; Blender thickness, bevels, procedural PBR baked to one atlas per outfit | new `humanoid_wardrobe.py`, `blender/humanoid_build.py` (op `wardrobe`) |
+| rig | the project humanoid skeleton (same joint names and rest rotations) fitted to the landmarks; coupling-band skin weights; ring variant; clips (reference + authored `Guard_Watch_Loop`); GLB assembly | new `humanoid_rig.py`, `gltf_io.py`, `js/extract-rig.mjs` |
+| export | WebP + Meshopt + Khronos validator | reused `js/optimize.mjs` |
+| validate | bind reproduction, rigid-shell strain, ground contact, garment penetration, ring aperture — per clip | new |
+| evidence | role/pose renders of the exact optimised GLB (`js/decompress.mjs` undoes Meshopt for Blender only) | new `blender/humanoid_evidence.py` reusing `render_evidence` lighting/modes |
+| publish | runtime GLB to `client/assets/`, committed reports, editable `.blend` files, compact evidence | new |
+
+Shared infrastructure reused unchanged: `workspace.py` stage caching and
+`run_blender` isolation, `blender/common.py`, `blender/render_evidence.py`,
+`js/optimize.mjs`. Changed for every workflow: stage keys now also hash the
+shared modules (`workspace.py`, `blender/common.py`) and the installed
+toolchain versions, so editing shared code or upgrading `bpy` reruns cached
+stages (it previously did not). `portable()` keeps absolute paths out of
+committed reports.
+
+What this route does **not** do: reconstruct anything; recover true PBR
+channels from the source (they are inferred per material class); or make the
+pipeline universal. The landmark finder assumes an upright, arms-down
+humanoid with visible dark couplings at the joints; the flattening envelope
+can move points up to ~7 mm within ~6 cm of a large removed accessory (unit
+test `test_flatten_protrusions_is_continuous_and_local`).
