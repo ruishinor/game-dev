@@ -26,6 +26,7 @@ import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas, reachTerrain } from './world-atlas.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
@@ -162,6 +163,8 @@ export class UI {
     this.tipFor = null;
     this.buildLock = '';
     this.companionId = 0;
+    this.emptySlotMode='visible';
+    try{const v=localStorage.getItem('attunement.emptySlotMode');if(['visible','transparent','hidden'].includes(v))this.emptySlotMode=v;}catch{}
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
     this.build();
@@ -712,6 +715,7 @@ export class UI {
     alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
+    this.buildHotkeySettings(root);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
     this.zoneLabel.after(this.atlas.clock);
     const mapControls=h('div','map-controls');
@@ -789,21 +793,28 @@ export class UI {
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
     this.abilityButtons = def.abilities.map((id, i) => {
-      const b = this.slotButton(ICONS[id], String(i + 1), ABILITIES[id].name);
+      const b = this.slotButton(ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
       b.el.addEventListener('click', () => this.a.useAbility(id));
       this.hover(b.el, () => this.abilityTip(id));
       this.actionBar.append(b.el);
       return { id, ...b };
     });
-    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),String(def.abilities.length+1),'Summon default companion');
+    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),this.a.bindings?.label('ability:'+(def.abilities.length+1))??String(def.abilities.length+1),'Summon or dismiss companion');
     this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
     this.actionBar.append(this.summonSlot.el);
+    this.emptySlots=[];
+    for(let i=def.abilities.length+1;i<PRIMARY_SLOTS;i++){
+      const cell=this.slotButton('',this.a.bindings?.label('ability:'+(i+1))??'','Empty action slot');
+      cell.el.classList.add('empty');cell.el.disabled=true;cell.el.title='Unassigned action slot';
+      this.actionBar.append(cell.el);this.emptySlots.push(cell);
+    }
+    this.actionBar.dataset.emptyMode=this.emptySlotMode;
     this.petButtons = [];
     if (companionType) {
       const cdef = COMPANIONS[companionType];
       companionCommandKeys(companionType).forEach((mode, i) => {
         if(!Object.hasOwn(cdef.modes,mode))return;
-        const b = this.slotButton(ICONS[mode], `⇧${i + 1}`, cdef.modes[mode].name);
+        const b = this.slotButton(ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
         b.el.addEventListener('click', () => this.a.pet(mode));
         this.hover(b.el, () => this.petTip(mode));
@@ -815,7 +826,67 @@ export class UI {
     this.petBar.hidden = !companionType;
     this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
+    this.refreshHotkeys();
   }
+
+  refreshHotkeys(){
+    for(const [i,b] of this.abilityButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(i+1))??String(i+1);
+    for(const [i,b] of this.petButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('companion:'+(i+1))??'⇧'+(i+1);
+    if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+1))??String(this.abilityButtons.length+1);
+    for(const [j,b] of (this.emptySlots??[]).entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+j+2))??'';
+    for(const [name,btn] of (this.bindingRows??new Map()))btn.textContent=this.a.bindings?.label(name)??'Unbound';
+  }
+
+  buildHotkeySettings(root){
+    const section=h('div','hotkey-entry');
+    section.append(h('h3',null,'Action bar and hotkeys'));
+    const open=h('button',null,'Configure combat and companion hotkeys');
+    open.type='button';open.addEventListener('click',()=>this.openHotkeySettings());
+    section.append(open);
+    const label=h('label',null,'Empty action slots');
+    const select=h('select');select.id='empty-slot-mode';
+    for(const [value,text] of [['visible','Visible'],['transparent','Transparent'],['hidden','Invisible']]){
+      const option=h('option',null,text);option.value=value;select.append(option);
+    }
+    select.value=this.emptySlotMode;
+    select.addEventListener('change',()=>{this.emptySlotMode=select.value;this.actionBar.dataset.emptyMode=select.value;try{localStorage.setItem('attunement.emptySlotMode',select.value);}catch{}});
+    label.append(select);section.append(label,h('p','muted','Invisible slots keep their positions. Restore visibility here at any time.'));
+    this.settingsPanel.append(section);
+    const panel=h('div','panel keybindings-panel');panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Combat and companion keybindings');
+    const back=h('button','primary','Back to Settings');back.addEventListener('click',()=>this.closeHotkeySettings());
+    panel.append(h('h2',null,'Keybindings'),h('p','muted','Press a key or combination to assign it. Escape cancels; Delete clears. Movement, interface and browser shortcuts are reserved.'),back);
+    this.keyError=h('p','keybind-error');this.keyError.setAttribute('role','status');panel.append(this.keyError);
+    this.bindingRows=new Map();
+    const addRows=(title,prefix,total)=>{
+      panel.append(h('h3',null,title));
+      for(let i=1;i<=total;i++){
+        const action=prefix+':'+i,row=h('div','binding-row'),name=h('span',null,title==='Primary bar'?'Slot '+i:'Command '+i),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
+        button.type='button';button.setAttribute('aria-label','Change '+title+' '+i);
+        button.addEventListener('click',()=>{this.capturing=action;this.keyError.textContent='Press a key for '+title+' '+i+'…';button.textContent='Press key…';button.focus();});
+        button.addEventListener('blur',()=>{if(this.capturing===action)this.capturing=null;button.textContent=this.a.bindings?.label(action)??'Unbound';});
+        button.addEventListener('keydown',event=>{
+          if(this.capturing!==action)return;
+          if(event.key==='Tab')return;
+          event.preventDefault();event.stopPropagation();
+          if(event.key==='Escape'){this.capturing=null;this.keyError.textContent='Capture cancelled.';this.refreshHotkeys();return;}
+          const chord=event.code==='Backspace'||event.code==='Delete'?null:keyChord(event);
+          if(chord===null&&event.code!=='Backspace'&&event.code!=='Delete')return;
+          const result=this.a.bindings?.set(action,chord);
+          this.capturing=null;this.keyError.textContent=result?.ok?'Binding saved.':result?.reason??'Unable to save binding.';
+          this.refreshHotkeys();
+        });
+        row.append(name,button);panel.append(row);this.bindingRows.set(action,button);
+      }
+    };
+    addRows('Primary bar','ability',PRIMARY_SLOTS);
+    addRows('Companion bar','companion',COMPANION_SLOTS);
+    const reset=h('button',null,'Restore default hotkeys');
+    reset.addEventListener('click',()=>{this.a.bindings?.reset();this.refreshHotkeys();this.keyError.textContent='Default shortcuts restored.';});
+    panel.append(reset);this.keyPanel=panel;root.append(panel);
+    panel.addEventListener('keydown',e=>{if(e.key==='Escape'&&!this.capturing){e.stopPropagation();e.preventDefault();this.closeHotkeySettings();}});
+  }
+  openHotkeySettings(){this.settingsPanel.hidden=true;this.keyPanel.hidden=false;this.refreshHotkeys();this.keyPanel.querySelector('button')?.focus({preventScroll:true});}
+  closeHotkeySettings(){this.capturing=null;this.keyPanel.hidden=true;this.settingsPanel.hidden=false;this.settingsPanel.querySelector('button')?.focus({preventScroll:true});}
 
   slotButton(icon, key, label) {
     const el = h('button', 'slot');
@@ -966,6 +1037,7 @@ export class UI {
     this.fieldRecordPanel.hidden=true;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
+    if(this.keyPanel)this.keyPanel.hidden=true;
     this.menuItems.hidden = this.tooltip.hidden = true;
     this.closePlayerContext();
     this.closeCompanionDetails();
@@ -1614,8 +1686,9 @@ export class UI {
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
     if(this.atlas?.close())return true;
-    const any = !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.keyPanel.hidden || !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.companionSheet.hidden = true;
+    this.keyPanel.hidden = true;
     this.questJournal.dismiss();
     this.codexPanel.hidden = this.workshopPanel.hidden = true;
     this.closeNpc();
