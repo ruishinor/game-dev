@@ -38,7 +38,7 @@ try{
  await page.getByRole('button',{name:'Analyze target',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='assist'));
  await page.getByRole('button',{name:'Menu [M]',exact:true}).click();
- await page.getByRole('button',{name:'Companions',exact:false}).click();
+ await page.getByRole('button',{name:'Companion Sheet',exact:true}).click();
  await page.getByRole('button',{name:'Dismiss Survey Strider',exact:true}).click();
  await page.waitForFunction(()=>{const s=window.__attune.state();return !s.compId&&!s.ents.some(e=>e.c==='survey_strider')&&!s.sheet.equipped.device&&s.sheet.striderLearned;});
  assert.equal(p.companion,null);assert.deepEqual(errors,[]);
