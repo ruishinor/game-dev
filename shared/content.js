@@ -11,8 +11,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots' };
-export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest', 'gloves', 'greaves', 'boots'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots', social_torso:'Social torso' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest', 'gloves', 'greaves', 'boots', 'social_torso'];
 
 export const CLASSES = {
   vanguard: {
@@ -415,6 +415,8 @@ export const ARMOR_SETS = {
 };
 
 export const ITEMS = {
+  social_service_coat:{name:'Sanctum Service Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A sand-grey service coat worn by supply crews and civilian technicians. Overrides the visible torso layer without removing combat equipment.'},
+  social_relay_coat:{name:'Relay Technician Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A weathered, dark teal technician coat. Overrides the visible torso layer without changing combat equipment.'},
   vanguard_field_set_chest: {"name":"Bastion Circuit Chest","slot":"chest","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
   vanguard_field_set_gloves: {"name":"Bastion Circuit Gloves","slot":"gloves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
   vanguard_field_set_greaves: {"name":"Bastion Circuit Greaves","slot":"greaves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
