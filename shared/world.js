@@ -298,7 +298,14 @@ export function annexArea(x,z){
  if(!inRiftAnnex(x,z))return null;
  return z>12?'Arrival Gallery':z>-9?'Relay Workshop':'Null Chamber';
 }
-export const PROPS = [...buildProps(),...ANNEX_PARTITIONS];
+// Mineral intrusions into the old industrial deck. Their footprints are
+// deliberately outside the entry, return and offset bulkhead openings.
+export const ANNEX_FORMATIONS=Object.freeze([
+  [-13,24,1.45,2.5,81], [12,20,1.65,2.9,82], [-13,14,1.15,1.8,83],
+  [-12,8,1.7,2.8,84], [13,1,1.45,2.3,85], [11,-6,1.25,2.1,86],
+  [-13,-16,1.65,3.0,87], [13,-20,1.7,3.3,88], [-11,-30,1.35,2.4,89], [11,-31,1.1,1.9,90]
+].map(([dx,z,r,h,seed])=>Object.freeze({type:'annex_formation',x:RIFT_ANNEX.x+dx,z,r,h,seed})));
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS];
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
 // Conservative horizontal cover test against the same solid prop footprints

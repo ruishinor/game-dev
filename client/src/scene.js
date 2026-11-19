@@ -300,13 +300,33 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
+  annex_formation(p) {
+    const g=new THREE.Group(),rnd=mulberry32(p.seed);
+    g.name='annex:mineral-formation';
+    const stone=mat(0x39464c,{rough:.96}),seam=mat(0x627078,{rough:.84});
+    const crystal=mat(p.z<-9?0x9685b5:p.z>12?0x729b9e:0xb6a285,{rough:.32,metal:.15,emissive:p.z<-9?0x504061:0x28474a,ei:.12});
+    for(let i=0;i<4;i++){
+      const a=i*Math.PI/2+rnd()*.5,scale=p.r*(.40+rnd()*.18);
+      const chunk=scaled(rockGeos[(p.seed+i)%rockGeos.length],i===2?seam:stone,scale,p.h*(.22+rnd()*.15),scale,Math.cos(a)*p.r*.34,p.h*.18,Math.sin(a)*p.r*.34);
+      chunk.rotation.y=a;g.add(chunk);
+    }
+    for(let i=0;i<5;i++){
+      const a=i*2.4+rnd()*.3,hh=p.h*(.28+rnd()*.38),w=p.r*(.09+rnd()*.07);
+      const shard=new THREE.Group();
+      shard.add(mesh(new THREE.CylinderGeometry(w*.85,w,hh*.72,5),crystal,0,hh*.36,0));
+      shard.add(mesh(new THREE.ConeGeometry(w*.85,hh*.28,5),crystal,0,hh*.86,0));
+      shard.position.set(Math.cos(a)*p.r*.40,p.h*.25,Math.sin(a)*p.r*.40);
+      shard.rotation.set(Math.sin(a)*.25,a,Math.cos(a)*.25);g.add(shard);
+    }
+    return g;
+  },
   annex_wall(p) {
     const g=new THREE.Group();
     g.name='annex:bulkhead';
     g.add(mesh(new THREE.BoxGeometry(p.hw*2,p.h,p.hd*2),mat(0x41494a,{rough:.69,metal:.52}),0,p.h/2,0));
     for(const z of [-p.hd-.035,p.hd+.035]){
       for(const sign of [-1,1])g.add(mesh(new THREE.BoxGeometry(.22,p.h,.09),mat(0x827050,{metal:.6}),sign*(p.hw-.15),p.h/2,z));
-      g.add(mesh(new THREE.BoxGeometry(p.hw*2-.2,.07,.04),glow(0x6fb8bc),0,3.88,z,false));
+      g.add(mesh(new THREE.BoxGeometry(p.hw*2-.2,.07,.04),mat(0x527c80,{rough:.65,emissive:0x29464a,ei:.18}),0,3.88,z,false));
       for(let x=-p.hw+.7;x<p.hw-.3;x+=2.25)g.add(mesh(new THREE.BoxGeometry(.11,3.2,.10),mat(0x273237,{metal:.5}),x,1.75,z));
     }
     return g;
@@ -1289,7 +1309,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_') || p.type==='annex_wall') ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_') || p.type.startsWith('annex_')) ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
@@ -1328,19 +1348,19 @@ export function buildWorld(scene, assets = null, opts = {}) {
   for(const sign of [-1,1]){
     annexFloor.add(mesh(new THREE.BoxGeometry(.5,4.5,annex.hd*2+1),mat(0x303e45,{metal:.5}),ax+sign*(annex.hw+.25),2.25,az));
     annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2+1,4.5,.5),mat(0x303e45,{metal:.5}),ax,2.25,az+sign*(annex.hd+.25)));
-    annexFloor.add(mesh(new THREE.BoxGeometry(.055,.055,annex.hd*2),glow(0x75b6b9),ax+sign*annex.hw,1.1,az,false));
-    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2,.055,.055),glow(0x75b6b9),ax,1.1,az+sign*annex.hd,false));
+    annexFloor.add(mesh(new THREE.BoxGeometry(.055,.055,annex.hd*2),mat(0x577a7b,{rough:.65,emissive:0x345455,ei:.2}),ax+sign*annex.hw,1.1,az,false));
+    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2,.055,.055),mat(0x577a7b,{rough:.65,emissive:0x345455,ei:.2}),ax,1.1,az+sign*annex.hd,false));
   }
   if(kits)for(const sign of [-1,1])for(const z of [-14,-6,2,10,14]){
     // External supports remain outside the collision perimeter.
     c.single('sanctum','Column_Hollow',at(ax+sign*(annex.hw+1),az+z,{ground:false,s:[.85,1.04,.85]}));
   }
   // Variation is tied to the three actual rooms, not a loading-screen label.
-  for(const [z,color,power] of [[23,0x9fcbd4,95],[1,0xd4ae83,115],[-22,0xa79bde,125]]){
+  for(const [z,color,power] of [[23,0x9fcbd4,65],[1,0xd4ae83,78],[-22,0xa79bde,85]]){
     const lamp=new THREE.PointLight(color,power,24,1.7);lamp.position.set(ax,5.5,z);annexFloor.add(lamp);
     for(const x of [-12,12]){
       annexFloor.add(mesh(new THREE.BoxGeometry(1.8,.04,8),mat(color,{rough:.85}),ax+x,.025,z,false));
-      annexFloor.add(mesh(new THREE.BoxGeometry(.08,.06,6),glow(color),ax+x,.06,z,false));
+      annexFloor.add(mesh(new THREE.BoxGeometry(.08,.06,6),mat(color,{rough:.7,emissive:color,ei:.12}),ax+x,.06,z,false));
     }
   }
   // Wide, collision-free floor markings guide the offset route.

@@ -33,7 +33,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: 
 /* --- login --- */
 #login { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(8, 14, 20, 0.35), rgba(8, 14, 20, 0.82)); padding: 16px; overflow: auto; }
 .login-card { width: min(680px, 100%); background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 26px 28px; backdrop-filter: blur(6px); }
-.login-card h1 { font-size: 40px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan); text-shadow: 0 0 24px rgba(111, 230, 255, 0.45); }
+.login-card h1 { font-size: 40px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .tagline { color: var(--muted); margin: 6px 0 18px; }
 #login-form label, #login-form .label, #account-form label, .legacy-link label, #guest-note label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cyan); margin: 12px 0 6px; }
 #login-form input, #account-form input, #recovery-token, #guest-resume-key { width: 100%; min-width: 0; font: inherit; font-size: 15px; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--edge); background: rgba(6, 12, 16, 0.8); color: var(--ink); }
@@ -207,9 +207,9 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .slot.unusable .icon { color: #5d6f76; }
 .slot.far { border-color: rgba(255, 106, 90, 0.75); }
 .slot.far .icon { color: #ff9a8c; }
-.slot.active { border-color: var(--green); box-shadow: 0 0 10px rgba(125, 255, 196, 0.5), 0 0 0 1px var(--green) inset; }
+.slot.active { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
 .slot:active:not(:disabled) { transform: scale(0.94); }
-.tooltip { position: fixed; width: min(248px, calc(100vw - 16px)); background: rgba(8, 14, 18, 0.96); border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; font-size: 12.5px; line-height: 1.4; pointer-events: none !important; z-index: 40; }
+.tooltip { position: fixed; width: min(248px, calc(100vw - 16px)); background: rgba(8, 14, 18, 0.96); border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; font-size: 12.5px; line-height: 1.4; max-height: calc(100vh - 16px); overflow: hidden; pointer-events: none !important; z-index: 40; }
 .tip-title { font-weight: 600; font-size: 14px; }
 .tip-meta { color: var(--amber); font-size: 11.5px; margin: 2px 0 5px; }
 .tip-glyph { margin-top: 6px; color: var(--gold); }
@@ -219,7 +219,7 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 .menu-items { position: absolute; right: 0; bottom: calc(100% + 8px); width: 170px; display: flex; flex-direction: column; gap: 5px; padding: 9px; border: 1px solid var(--edge); border-radius: 8px; background: rgba(8, 16, 22, 0.96); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
 .menu-items button { width: 100%; text-align: left; }
 .menubtn.new { border-color: var(--gold); color: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 50% { box-shadow: 0 0 14px rgba(255, 210, 122, 0.8); } }
+@keyframes pulse { 50% { box-shadow: 0 0 5px rgba(255, 210, 122, 0.35); } }
 .net { font-size: 11px; color: var(--muted); min-width: 92px; text-align: right; text-shadow: 0 1px 2px #000; }
 
 /* --- panels --- */
@@ -536,7 +536,7 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .field-record{position:absolute;left:18px;top:120px;width:min(418px,calc(100vw - 36px));max-height:calc(100vh - 150px);overflow:auto;padding:12px 15px;background:rgba(19,26,29,.96);border:1px solid #8d7955;border-left:4px solid #ba9a62;color:#dce1d8;box-shadow:0 14px 40px #0008;z-index:42;pointer-events:auto}
 .field-record h2{font-size:1rem;letter-spacing:.075em;margin:8px 30px 4px 0}.field-record .close{top:8px;right:8px}.field-record-lines{margin-top:14px;border-top:1px solid #726344}.field-record-row{display:grid;grid-template-columns:70px 1fr;gap:10px;border-bottom:1px solid #72634455;padding:7px 0;font-size:12px;line-height:1.35}.field-record-row strong{color:#ddba77;font-variant-numeric:tabular-nums}.field-record-row p{margin:0}.field-record[hidden]{display:none}
 .brine-workshop{margin-top:7px;width:100%;font-size:11px;padding:6px}
-.doll-tabs button.new-equipment,.inventory-tabs button.new-equipment{border-color:#f1cb7a;box-shadow:0 0 11px #f1cb7a88,inset 0 0 7px #f1cb7a33;color:#f7dda3}
+.doll-tabs button.new-equipment,.inventory-tabs button.new-equipment{border-color:#f1cb7a;box-shadow:0 0 4px #f1cb7a55,inset 0 0 0 1px #f1cb7a33;color:#f7dda3}
 .new-equipment::after{content:' •';color:#f3d18c}
 
 /* Neutral fauna remain targetable. */

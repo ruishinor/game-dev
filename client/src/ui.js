@@ -801,23 +801,34 @@ export class UI {
   }
 
   hover(el, makeTip) {
+    let pointer=null;
+    const place = () => {
+      const r=el.getBoundingClientRect(),t=this.tooltip.getBoundingClientRect(),margin=8;
+      const clamp=(n,limit)=>Math.max(margin,Math.min(limit-margin,n));
+      const x=pointer?(pointer.x+t.width+16<=window.innerWidth?pointer.x+16:pointer.x-t.width-16):r.left+(r.width-t.width)/2;
+      const y=pointer?(pointer.y+t.height+18<=window.innerHeight?pointer.y+18:pointer.y-t.height-12):(r.top-t.height-10>=margin?r.top-t.height-10:r.bottom+8);
+      this.tooltip.style.left=clamp(x,window.innerWidth-t.width)+'px';
+      this.tooltip.style.top=clamp(y,window.innerHeight-t.height)+'px';
+    };
     const show = () => {
-      this.tipFor = el;
+      this.tipFor=el;
       this.tooltip.replaceChildren(...makeTip());
-      this.tooltip.hidden = false;
-      const r = el.getBoundingClientRect();
-      const t = this.tooltip.getBoundingClientRect();
-      this.tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2))}px`;
-      const above = r.top - t.height - 10;
-      this.tooltip.style.top = `${above >= 8 ? above : Math.max(8, Math.min(window.innerHeight - t.height - 8, r.bottom + 8))}px`;
+      this.tooltip.hidden=false;
+      place();
     };
     const hide = () => {
-      if (this.tipFor === el) this.tooltip.hidden = true;
+      if(this.tipFor===el){this.tooltip.hidden=true;this.tipFor=null;}
     };
-    el.addEventListener('mouseenter', show);
-    el.addEventListener('focus', show);
-    el.addEventListener('mouseleave', hide);
-    el.addEventListener('blur', hide);
+    const move=e=>{
+      if(e.pointerType==='touch')return;
+      pointer={x:e.clientX,y:e.clientY};
+      if(this.tipFor===el&&!this.tooltip.hidden)place();
+    };
+    el.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch'){move(e);show();}});
+    el.addEventListener('pointermove',move);
+    el.addEventListener('pointerleave',()=>{pointer=null;if(document.activeElement===el&&el.matches(':focus-visible'))show();else hide();});
+    el.addEventListener('focus',()=>{if(el.matches(':focus-visible'))pointer=null;show();});
+    el.addEventListener('blur',()=>{if(pointer&&el.matches(':hover'))show();else hide();});
   }
 
   abilityTip(id) {

@@ -263,7 +263,11 @@ export class Game {
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
     if(entering&&!this.annexOpened){
       // Persistent shared encounter, not an instance or a reset-on-entry farm.
-      for(const [type,dx,z,name] of [['skitter',-8,19,'Threshold Skitter'],['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',11,5,'Null Relay Stalker'],['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden']]){
+      for(const [type,dx,z,name] of [
+        ['skitter',-9,17,'Threshold Skitter'],['skitter',9,16,'Gallery Skitter'],['skitter',-3,14,'Gallery Burrower'],
+        ['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',10,5,'Null Relay Stalker'],['skitter',-8,-5,'Relay Burrower'],
+        ['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden'],['faultstalker',8,-14,'Null Stalker'],['skitter',-8,-17,'Null Burrower']
+      ]){
         const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true};
         resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
       }
