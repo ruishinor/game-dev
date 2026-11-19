@@ -19,6 +19,10 @@ try{
  await page.fill('#account-password','TemporaryUniqueRosterTestPassphrase2026!');
  await page.click('#account-register');
  await page.locator('#character-roster').waitFor({state:'visible'});
+ const rosterConn=[...server.net.conns].find(conn=>conn.account?.handle==='roster_validator');
+ assert.ok(rosterConn,'authenticated account connection exists before entering world');
+ await new Promise(resolve=>setTimeout(resolve,16000));
+ assert.ok(server.net.conns.has(rosterConn) && rosterConn.ws.readyState===1,'authenticated roster connection survives the unauthenticated 15-second timeout');
  assert.equal(await page.locator('#login-form').isHidden(),true);
  assert.equal(await page.locator('#roster-enter').isDisabled(),true);
  assert.match(await page.locator('#roster-capacity').textContent(),/0 \/ 6/);
