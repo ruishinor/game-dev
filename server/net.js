@@ -393,9 +393,15 @@ export class NetServer {
       case 'use_utility':
         if(typeof msg.item!=='string'||msg.item.length>80||typeof msg.weapon!=='string'||msg.weapon.length>80||!isId(msg.rev))return this.strike(conn);
         reply(useUtility(game,p,msg.item,msg.weapon,msg.rev));break;
-      case 'appearance_change':
+      case 'appearance_change': {
         if(typeof msg.appearance!=='string'||msg.appearance.length>48)return this.strike(conn);
-        reply(changeInitiationAppearance(game,p,msg.appearance));break;
+        const result=changeInitiationAppearance(game,p,msg.appearance,()=>{
+          this.store.markDirty();
+          this.store.flush();
+        });
+        if(!result.ok)p.outbox.push({e:'appearance_rejected',reason:result.reason});
+        break;
+      }
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;

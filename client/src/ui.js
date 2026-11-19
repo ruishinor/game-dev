@@ -1379,14 +1379,21 @@ export class UI {
   }
 
   appearanceApplied(appearance){
-    const status=this.fieldRecordPanel.querySelector('[data-appearance-status]');
-    if(status)status.textContent='Applied to your in-world character and saved.';
+    this.fieldRecordPanel.querySelector('[data-appearance-status]')
+      ?.dispatchEvent(new CustomEvent('appearance-result',{detail:{appearance}}));
+  }
+
+  appearanceRejected(reason){
+    this.fieldRecordPanel.querySelector('[data-appearance-status]')
+      ?.dispatchEvent(new CustomEvent('appearance-result',{detail:{reason}}));
   }
 
   initiationControls(panel){
     if(!this.sheet)return;
     const look=this.sheet.look;
-    let draft=normalizeAppearance(this.sheet.appearance,look);
+    let saved=encodeAppearance(normalizeAppearance(this.sheet.appearance,look));
+    let draft=normalizeAppearance(saved,look);
+    let pending=false;
     const controls=h('section','initiation-controls');
     controls.append(h('h3',null,'Character initiation'),h('p','muted','Customize the character standing in the arrival hall. Changes are cosmetic and apply to the actual world model. Profession and equipment remain unchanged.'));
     const fields=h('div','initiation-fields'),status=h('p','muted','Choose your appearance, then apply.');status.dataset.appearanceStatus='true';status.setAttribute('role','status');
@@ -1399,7 +1406,9 @@ export class UI {
         select.addEventListener('change',()=>{
           const value=key==='skin'||key==='hairColour'?Number(select.value):select.value;
           draft={...draft,[key]:value};if(key==='race')draft.skin=0;
-          draft=normalizeAppearance(draft,look);status.textContent='Appearance changes not applied.';
+          draft=normalizeAppearance(draft,look);
+          if(!pending)status.textContent=encodeAppearance(draft)===saved?'Current appearance.':'Appearance changes not applied.';
+          apply.disabled=pending||encodeAppearance(draft)===saved;
           render();fields.querySelector('[aria-label="'+label+'"]')?.focus();
         });
         wrap.append(select);fields.append(wrap);
@@ -1414,16 +1423,32 @@ export class UI {
     render();
     const actions=h('div','initiation-actions'),apply=h('button','primary','Apply appearance'),inspect=h('button',null,'Inspect in world');
     apply.type=inspect.type='button';
-    apply.addEventListener('click',()=>{status.textContent='Submitting appearance…';this.a.changeAppearance(encodeAppearance(draft));});
+    apply.disabled=true;
+    apply.addEventListener('click',()=>{
+      pending=true;
+      apply.disabled=true;
+      status.textContent='Saving appearance…';
+      this.a.changeAppearance(encodeAppearance(draft));
+    });
+    status.addEventListener('appearance-result',({detail})=>{
+      pending=false;
+      if(detail.appearance)saved=detail.appearance;
+      apply.disabled=encodeAppearance(draft)===saved;
+      status.textContent=detail.reason||(apply.disabled?'Applied to your in-world character and saved.':'Saved. New preview changes are still pending.');
+    });
     inspect.addEventListener('click',()=>{panel.hidden=true;this.a.inspectAppearance();this.a.focusView();});
     const preview=h('section','hall-preview');preview.setAttribute('aria-label','Live appearance preview');
     const canvas=h('canvas');canvas.tabIndex=0;canvas.setAttribute('aria-label','Full-body gameplay model. Drag or use arrow keys to rotate or zoom.');
     const buttons=h('div','preview-controls');
-    for(const [attr,value,label,accessible] of [['data-preview-mode','body','Full body'],['data-preview-mode','face','Face'],['data-preview-left','','←','Rotate left'],['data-preview-right','','→','Rotate right'],['data-preview-out','','−','Zoom out'],['data-preview-in','','+','Zoom in'],['data-preview-reset','','Reset camera']]){
+    for(const [attr,value,label,accessible] of [['data-preview-mode','body','Full body'],['data-preview-mode','face','Face'],['data-preview-mode','frames','Compare frames'],['data-preview-left','','←','Rotate left'],['data-preview-right','','→','Rotate right'],['data-preview-out','','−','Zoom out'],['data-preview-in','','+','Zoom in'],['data-preview-reset','','Reset camera']]){
       const b=h('button',null,label);b.type='button';b.setAttribute(attr,value);if(accessible)b.setAttribute('aria-label',accessible);buttons.append(b);
     }
     const previewStatus=h('p','muted','Loading gameplay model when visible.');previewStatus.dataset.previewStatus='';previewStatus.setAttribute('role','status');
-    preview.append(canvas,buttons,previewStatus);
+    const labels=h('div','preview-frame-labels');labels.dataset.previewFrames='';labels.hidden=true;
+    for(const {id,name} of Object.values(FRAMES)){
+      const label=h('span',null,name);label.dataset.frame=id;labels.append(label);
+    }
+    preview.append(canvas,labels,buttons,previewStatus);
     actions.append(apply,inspect);controls.append(fields,preview,actions,status);panel.append(controls);
     this.a.startAppearancePreview(preview,()=>encodeAppearance(draft));
   }

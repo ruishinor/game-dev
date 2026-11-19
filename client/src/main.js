@@ -1254,6 +1254,8 @@ function onEvent(e) {
       ui.showFieldRecord(e.key);break;
     case 'appearance_applied':
       ui.appearanceApplied(e.appearance);break;
+    case 'appearance_rejected':
+      ui.appearanceRejected(e.reason);break;
     case 'say':
       if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');

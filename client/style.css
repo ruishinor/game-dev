@@ -666,3 +666,6 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .hall-preview canvas{display:block;width:100%;height:clamp(180px,34vh,285px);background:#132029;cursor:grab;touch-action:none}
 .hall-preview canvas:active{cursor:grabbing}
 .hall-preview canvas:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+.preview-frame-labels:not([hidden]){display:grid;grid-template-columns:1fr 1fr;text-align:center;color:var(--muted);padding:6px}
+.preview-frame-labels [aria-current="true"]{color:var(--cyan);font-weight:700}

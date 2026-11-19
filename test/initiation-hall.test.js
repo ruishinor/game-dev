@@ -26,3 +26,23 @@ test('in-world appearance updates are location-gated, validated, cosmetic and re
  assert.equal(changeInitiationAppearance(g,p,'m.human.1.none.0').ok,false);
  g.time+=1000;p.combatUntil=g.time+1000;assert.equal(changeInitiationAppearance(g,p,'m.human.1.none.0').ok,false);
 });
+
+test('appearance is acknowledged only after persistence and can be retried after a write error',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('vanguard'));
+ const terminal=g.objects.find(o=>o.type==='initiation_terminal');
+ place(p,terminal.x+1.5,terminal.z);
+ const previous=p.char.appearance,version=p.metaVer;
+ const appearance='f.human.2.swept.3';
+ const failed=changeInitiationAppearance(g,p,appearance,()=>{throw Error('write failed');});
+ assert.equal(failed.ok,false);
+ assert.equal(p.char.appearance,previous);
+ assert.equal(p.metaVer,version);
+ assert.ok(!p.outbox.some(e=>e.e==='appearance_applied'));
+ assert.ok(changeInitiationAppearance(g,p,appearance,()=>{
+   assert.equal(p.char.appearance,appearance);
+   assert.equal(p.metaVer,version);
+   assert.ok(!p.outbox.some(e=>e.e==='appearance_applied'));
+ }).ok);
+ assert.equal(p.metaVer,version+1);
+ assert.ok(p.outbox.some(e=>e.e==='appearance_applied'&&e.appearance===appearance));
+});

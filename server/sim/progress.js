@@ -318,15 +318,24 @@ function operateBrine(game,p,obj) {
 }
 // In-world customization is cosmetic-only, and gated by the same actual
 // physical terminal as orientation. A stale client panel cannot edit remotely.
-export function changeInitiationAppearance(game,p,appearance){
+export function changeInitiationAppearance(game,p,appearance,persist=()=>{}){
  const terminal=game.objects.find(o=>o.type==='initiation_terminal');
  if(!terminal||p.dead||!inSanctum(p)||dist(p,terminal)>INTERACT_RANGE||!hasLineOfSight(p,terminal,COLLIDERS.filter(c=>c.type!=='arrival_terminal'))||inCombat(game,p)||p.autoOn||p.production||p.inscription)
    return {ok:false,reason:'Stand near the initiation terminal, alive and disengaged.'};
  if(typeof appearance!=='string'||appearance.length>48||appearanceString(appearance,p.char.look)!==appearance)
    return {ok:false,reason:'Invalid appearance selection.'};
  if(game.time<(p.appearanceReadyAt||0))return {ok:false,reason:'Wait briefly before changing your appearance again.'};
+ if(p.char.appearance!==appearance){
+   const previous=p.char.appearance;
+   p.char.appearance=appearance;
+   try{persist();}catch{
+     p.char.appearance=previous;
+     return {ok:false,reason:'Appearance could not be saved. Try applying it again.'};
+   }
+   p.metaVer++;
+   game.markDirty(p);
+ }
  p.appearanceReadyAt=game.time+600;
- if(p.char.appearance!==appearance){p.char.appearance=appearance;p.metaVer++;game.markDirty(p);}
  p.outbox.push({e:'appearance_applied',appearance});
  return {ok:true};
 }

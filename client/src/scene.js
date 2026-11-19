@@ -338,6 +338,12 @@ const procedural = {
     for(const x of [-3.7,3.7])g.add(mesh(new THREE.BoxGeometry(.16,.035,4.4),bronze,x,.046,0,false));
     for(const z of [-2.25,2.25])g.add(mesh(new THREE.BoxGeometry(7.6,.035,.18),seam,0,.045,z,false));
     for(let i=-2;i<=2;i++)g.add(mesh(new THREE.BoxGeometry(.38,.025,.2),bronze,i*.65,.049,-1.97,false));
+    // Recessed survey marks identify the editing bay without narrowing the corridor.
+    const bay=mesh(new THREE.RingGeometry(.66,.73,32),mat(0x9eb7a8,{metal:.35,rough:.62}),-2.35,.057,.30,false);
+    bay.rotation.x=-Math.PI/2;g.add(bay);
+    for(const x of [-2.88,-1.82])for(const z of [-.23,.83]){
+      g.add(mesh(new THREE.BoxGeometry(.23,.014,.075),bronze,x,.06,z,false));
+    }
     return g;
   },
   arrival_arch() {
@@ -364,9 +370,19 @@ const procedural = {
   arrival_terminal(){
     const g=new THREE.Group();g.name='arrival:orientation-terminal';
     g.add(mesh(new THREE.BoxGeometry(.88,.88,.72),mat(0x34454a,{metal:.55}),0,.44,0));
-    const screen=mesh(new THREE.BoxGeometry(.85,.42,.09),mat(0x254849,{emissive:0x287a78,ei:.55}),0,1.19,.1);
-    screen.rotation.x=-.25;g.add(screen);
-    for(let i=0;i<4;i++)g.add(mesh(new THREE.BoxGeometry(.13,.035,.1),mat(0xb8ac82,{metal:.5}),-.26+i*.17,.96,.29));
+    const console=new THREE.Group();
+    // Face the unobstructed aisle, away from the enclosure wall.
+    console.rotation.y=Math.PI/2;
+    const screen=mesh(new THREE.BoxGeometry(.69,.42,.09),mat(0x254849,{emissive:0x287a78,ei:.55}),0,1.19,.1);
+    screen.rotation.x=-.25;console.add(screen);
+    const trace=mat(0x84b6a9,{emissive:0x568674,ei:.48});
+    for(const x of [-.18,.18]){
+      console.add(mesh(new THREE.SphereGeometry(.037,8,6),trace,x,1.30,.144,false));
+      console.add(mesh(new THREE.BoxGeometry(.10,.096,.012),trace,x,1.21,.158,false));
+      for(const dx of [-.028,.028])console.add(mesh(new THREE.BoxGeometry(.026,.079,.012),trace,x+dx,1.13,.179,false));
+    }
+    for(let i=0;i<4;i++)console.add(mesh(new THREE.BoxGeometry(.10,.035,.1),mat(0xb8ac82,{metal:.5}),-.22+i*.145,.96,.29));
+    g.add(console);
     g.add(mesh(new THREE.BoxGeometry(.94,.11,.77),mat(0x677671,{metal:.6}),0,.88,0));return g;
   },
   sanctum_fabricator() { return buildSanctumFabricator(THREE); },
