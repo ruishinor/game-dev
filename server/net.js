@@ -4,7 +4,7 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance, setElectricalRodMode } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
 import { disposeItem } from './sim/disposal.js';
 import { beginProduction, stopProduction } from './sim/production.js';
@@ -407,6 +407,10 @@ export class NetServer {
         if(!result.ok)p.outbox.push({e:'appearance_rejected',reason:result.reason});
         break;
       }
+      case 'rod_mode':
+        if(msg.mode!=='rod'&&msg.mode!=='dual')return this.strike(conn);
+        reply(setElectricalRodMode(game,p,msg.mode));
+        break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;

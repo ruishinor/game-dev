@@ -28,6 +28,7 @@ import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
+import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
@@ -208,6 +209,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let dead = false;
   let moving = false;
   let landed = true;
+  // Capture the grip direction in bind pose, not an arbitrary live frame.
+  const rodHand=inst.getObjectByName('hand_r');
+  const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
+  const rodPalm=rodHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
+  const offHand=inst.getObjectByName('hand_l');
+  const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
+  const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
+  let heldRod=null,rodEffects=null,rodEngine=null;
+  const releaseRod=()=>{heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
   let weapon = null, visual = null;
   function setWeaponVisual(next) {
     next = next === 'longpoint' ? next : null;
@@ -264,6 +274,19 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
         weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy });
+      if(st.electricalRod&&!heldRod&&rodHand){
+        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
+        heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
+      }
+      if(!st.electricalRod&&heldRod)releaseRod();
+      if(heldRod){
+        const active=!st.dead&&st.attack>.2;
+        heldRod.group.visible=!st.dead&&!working;
+        heldRod.setMode(st.electricalRod);
+        heldRod.update(dt,{energized:!st.dead,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead});
+        if(st.electricalRodVfx!==rodEngine){rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
+        rodEffects?.update(dt,{energized:active&&!working&&!st.reducedMotion,activity:active?st.attack:0});
+      }
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -289,6 +312,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
+      releaseRod();
       weapon?.dispose();
       anim.dispose();
       face?.dispose();
