@@ -10,8 +10,16 @@ const out=path.resolve('longpoint-evidence');await fs.mkdir(out,{recursive:true}
 const server=await startServer({port:0,dataFile:null});let browser;const errors=[];
 try{
  browser=await launchBrowser();
- async function join(name){const page=await browser.newPage({viewport:{width:1280,height:800}});page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=2':''));await page.fill('#name',name);await page.click('.classcard[data-cls="surveyor"]');await page.click('#enter');await page.waitForFunction(()=>window.__attune?.state().sheet?.cls==='surveyor');return page;}
- const owner=await join('Longpoint Tester'),p=await liveFixturePlayer(owner,server,'Longpoint Tester'),observer=await join('Longpoint Witness');
+ async function join(name){const page=await browser.newPage({viewport:{width:1280,height:800}});page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await page.bringToFront();await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=2':''));await page.fill('#name',name);await page.click('.classcard[data-cls="surveyor"]');await page.click('#enter');await page.waitForFunction(()=>window.__attune?.state().sheet?.cls==='surveyor');return page;}
+ const owner=await join('Longpoint Tester'),p=await liveFixturePlayer(owner,server,'Longpoint Tester');
+ // The hosted software renderer shares CPU between browser contexts. Suspend
+ // only the first client's drawing during second-client bootstrap; both real
+ // clients resume for all replication assertions and screenshots.
+ if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(true));
+ let observer;
+ try{observer=await join('Longpoint Witness');}
+ catch(e){console.error('Second client bootstrap failed:',errors);throw e;}
+ finally{if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(false));}
  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id),p.id);
  p.char.inventory.push('longpoint_emitter');p.char.equipped.weapon='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
  const mounted=id=>window.__attune.state().ents.some(e=>e.id===id&&e.weaponVisual==='longpoint'&&e.weaponVisible);
