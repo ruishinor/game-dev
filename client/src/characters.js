@@ -83,8 +83,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const armK = HAND_X[app.frame] / HAND_X[lookFrame];
   const remap = armRemap(armK);
   const veyran = app.race === 'veyran';
-  // Hair (or the Mirekin crest) is worn with the hood lowered.
-  const hoodDown = !!opts.appearance && (app.hair !== 'none' || app.race === 'mirekin');
+  // A player's hairstyle is not a hood toggle. Keep customization faces
+  // exposed for all hair selections; NPC authored outfit defaults remain.
+  const hoodDown = !!opts.appearance;
 
   const mats = [];
   const shellMats = {};
