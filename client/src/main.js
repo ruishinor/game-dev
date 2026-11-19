@@ -1463,7 +1463,7 @@ input.onAction = (code, e) => {
       ui.toggleSettings();
       break;
     case 'KeyM':
-      ui.toggleMenu();
+      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -1951,7 +1951,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [] });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;
