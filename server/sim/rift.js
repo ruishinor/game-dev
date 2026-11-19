@@ -11,7 +11,7 @@ export function createRift(game){
  const entry=core,exit=game.objects.find(o=>o.type==='rift_return');
  return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,entry,exit,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
 }
-function effect(game,k,r){const s=game.rift.core;game.events.push({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
+function effect(game,k,r){const s=game.rift.core;game.emitWorldEvent({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
 function setPhase(game,phase,until){
  const f=game.rift;f.phase=phase;f.until=until;f.pulseAt=0;f.nextWarn=0;
 }
@@ -76,7 +76,7 @@ export function tickRift(game){
   if(!f.pulseAt&&now>=f.until){setPhase(game,'cooling',now+COOL_MS);effect(game,'rift_collapse',2.45);}
   else if(!f.pulseAt&&now>=f.nextWarn&&now+WARN_MS<=f.until){
    f.pulseAt=now+WARN_MS;
-   game.events.push({e:'tele',id:core.id,k:'rift_pulse',n:'Phase discharge',x:core.x,z:core.z,r:RIFT_SITE.hazard,ms:WARN_MS,g:1});
+   game.emitWorldEvent({e:'tele',id:core.id,k:'rift_pulse',n:'Phase discharge',x:core.x,z:core.z,r:RIFT_SITE.hazard,ms:WARN_MS,g:1});
   }
  }else if(f.phase==='stabilized'&&now>=f.until){setPhase(game,'cooling',now+COOL_MS);effect(game,'rift_collapse',2.45);}
  else if(f.phase==='cooling'&&now>=f.until)setPhase(game,'dormant',0);

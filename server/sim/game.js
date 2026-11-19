@@ -12,7 +12,7 @@ import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
@@ -56,6 +56,7 @@ export class Game {
     this.parties = new Map();
     this.nextPartyId = 1;
     this.events = [];
+    this.eventRegions = new WeakMap();
     /** Called with a character record whenever persistent state changes. */
     this.onCharChanged = () => {};
 
@@ -197,6 +198,13 @@ export class Game {
     p.outbox.push({ e: 'msg', k: kind, m: text });
   }
 
+  emitWorldEvent(event) {
+    const origin = this.ents.get(event.s || event.id || event.d || event.o);
+    if (!origin) return;
+    this.eventRegions.set(event, travelRegionAt(origin.x, origin.z));
+    this.events.push(event);
+  }
+
   // --- movement ----------------------------------------------------------
 
   moveSpeedMul(p) {
@@ -226,7 +234,7 @@ export class Game {
   setFollow(p,id) {
     if(id===0){this.stopFollow(p);return {ok:true};}
     const target=this.players.get(id);
-    if(p.dead||!target||target===p||target.dead||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
+    if(p.dead||!target||target===p||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
     // Prevent mutual or longer cyclic following chains.
     const seen=new Set([p.id]);
     for(let t=target;t;t=this.players.get(t.followId)){
@@ -239,7 +247,7 @@ export class Game {
   tickFollow(p,dt) {
     if(!p.followId)return;
     const target=this.players.get(p.followId);
-    if(p.dead||!target||target.dead||dist(p,target)>45){this.stopFollow(p);return;}
+    if(p.dead||!target||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45){this.stopFollow(p);return;}
     // Share the fixed-step movement budget with manual inputs.
     p.followAcc+=Math.min(.1,Math.max(0,dt))*MOVE_HZ;
     const steps=Math.min(6,Math.floor(p.followAcc+1e-9));p.followAcc=Math.max(0,p.followAcc-steps);
@@ -275,6 +283,16 @@ export class Game {
       }
       this.annexOpened=true;
     }
+    const destination = entering
+      ? { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }
+      : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    this.transferPlayer(p, destination);
+    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
+    return {ok:true};
+  }
+
+  // Call only after the server accepts a specific gate and destination.
+  transferPlayer(p, destination) {
     this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
     clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
     cancelInscription(this,p);stopProduction(this,p);
@@ -286,14 +304,12 @@ export class Game {
     }
     // A travelling host cannot keep a remote companion bond.
     p.buffs=p.buffs.filter(b=>b.k!=='bond');
-    p.x=entering?RIFT_ANNEX.x:this.rift.entry.x;
-    p.z=entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-3.6;
+    p.x=destination.x;
+    p.z=destination.z;
     resolveCollisions(p,PLAYER_RADIUS);
     if(['survey_strider','spindle'].includes(p.companion?.type))redeployGroundCompanion(this,p);
     else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
     this.syncChar(p);this.markDirty(p);
-    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
-    return {ok:true};
   }
 
   setTarget(p, id) {
@@ -331,7 +347,7 @@ export class Game {
       p.companion.x = p.x + 1.5;
       p.companion.z = p.z - 1.5;
     }
-    this.events.push({ e: 'fx', k: 'respawn', s: p.id });
+    this.emitWorldEvent({ e: 'fx', k: 'respawn', s: p.id });
     this.message(p, 'info', 'The Sanctum lattice reconstitutes you.');
     return true;
   }
@@ -370,7 +386,7 @@ export class Game {
 
   // --- snapshots ---------------------------------------------------------
 
-  /** Public per-entity rows, shared by every recipient this tick. */
+  /** Public per-entity rows before the network layer applies region visibility. */
   buildRows() {
     const rows = [];
     for (const p of this.players.values()) {
@@ -433,6 +449,7 @@ export class Game {
     }
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
+      region: travelRegionAt(p.x, p.z),
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       ...lootState(this,p),
