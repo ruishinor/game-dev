@@ -19,9 +19,10 @@ try{
   await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
   await page.fill('#name','Arrival Tester');
   const creation=page.locator('#creation-preview');
-  await creation.getByRole('button',{name:'Compare frames'}).click();
   await creation.locator('canvas').scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.model==='glb');
+  await creation.getByRole('button',{name:'Compare frames'}).click();
+  await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.mode==='frames');
   assert.deepEqual(await creation.locator('[data-preview-frames] button').allTextContents(),['Masculine','Feminine']);
   assert.equal(await creation.locator('[data-preview-frames] [aria-pressed="true"]').count(),1);
   await page.click('#enter');
