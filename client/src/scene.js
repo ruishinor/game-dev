@@ -1343,7 +1343,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (Object.hasOwn(STATIC_ART, p.type)) prototypeStates[p.type] = 'loading';
   }
   let fallbacks = 0;
-  let stillpointStatus='fallback',stillpoint=null;
+  let stillpointStatus='fallback',stillpoint=null,startStillpoint=null;
   for (const p of PROPS) {
     let obj;
     if (kits && kit[p.type]) {
@@ -1363,17 +1363,22 @@ export function buildWorld(scene, assets = null, opts = {}) {
     scene.add(obj);
     if(p.type==='stillpoint_rest'&&assets){
       const fallback=obj;
-      stillpointStatus='loading';
-      loadStillpoint(THREE,assets.loader,p).then(model=>{
-        // Keep the collision-matching mineral stand-in until a valid rig is ready.
-        scene.remove(fallback);
-        scene.add(model.group);
-        stillpoint=model;
-        stillpointStatus='ready';
-      }).catch(err=>{
-        stillpointStatus='fallback';
-        console.warn('[scene] Stillpoint unavailable; retaining mineral formation:',err.message||err);
-      });
+
+      // Defer the large skinned asset until a traveller enters the world;
+      // title/creation previews must not compete for texture decoding.
+      startStillpoint=()=>{
+        startStillpoint=null;
+        stillpointStatus='loading';
+        loadStillpoint(THREE,assets.loader,p).then(model=>{
+          scene.remove(fallback);
+          scene.add(model.group);
+          stillpoint=model;
+          stillpointStatus='ready';
+        }).catch(err=>{
+          stillpointStatus='fallback';
+          console.warn('[scene] Stillpoint unavailable; retaining mineral formation:',err.message||err);
+        });
+      };
     }
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
@@ -1493,6 +1498,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       for (const e of animators) e.a.update(dt);
+      if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);

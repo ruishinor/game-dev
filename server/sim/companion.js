@@ -51,9 +51,9 @@ export function spawnMender(game, p) {
   game.ents.set(c.id, c);
 }
 
-function removeActive(game, p) {
+function removeActive(game, p, {preserveBuffs=false}={}) {
   const c = p.companion;
-  if (c.mode === 'guard') release(game, c, p);
+  if (c.mode === 'guard' && !preserveBuffs) release(game, c, p);
   if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
   game.ents.delete(c.id);
   game.companions = game.companions.filter(active => active !== c);
@@ -70,6 +70,7 @@ function spawnSelected(game, p, type, point) {
 }
 
 export function restoreCompanion(game, p) {
+  if(p.char.companionDismissed)return;
   const owned = ownedCompanionTypes(p.char);
   const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned].find(t => owned.includes(t));
   spawnSelected(game, p, selected);
@@ -79,6 +80,30 @@ export function syncEquippedCompanion(game, p) {
   if (p.cls !== 'surveyor') return;
   // Learned deployment no longer follows equipment changes.
   if (p.companion?.type === 'survey_strider') syncSurveyStrider(game, p);
+}
+
+/**
+ * Every server-side relocation of a player that is not ordinary movement
+ * (respawn now; instance entry/exit and any future teleport) dismisses the
+ * active companion instead of carrying it along. Owner rule 2026-11-19: this
+ * avoids companions stranded, embedded or duplicated across a transit.
+ * Non-destructive: identical to the player's own dismiss (ownership, names,
+ * Spindle profile and pet modes persist; re-summon from the companion sheet),
+ * and it bypasses the alive/out-of-combat gate because the server initiates it.
+ * Buffs are not companions and are never removed here (owner rule); a bond
+ * whose source companion is gone simply stops being valid under the buff
+ * system's own rule (combat.js activeBondSource).
+ */
+export function dismissForTransit(game, p, reason = 'transit') {
+  const c = p.companion;
+  if (!c) return false;
+  removeActive(game, p, {preserveBuffs:true});
+  p.char.companionDismissed = true;
+  p.char.activeCompanion = null;
+  p.deployRetryAt = null;
+  game.markDirty(p);
+  game.message(p, 'info', `${c.name} was dismissed for the ${reason}. Summon it again from your companion sheet.`);
+  return true;
 }
 
 export function redeployGroundCompanion(game, p) {
