@@ -8,6 +8,7 @@ import {MeshoptDecoder} from 'meshoptimizer';
 import validator from 'gltf-validator';
 import {Group, Line3, Vector3} from 'three';
 import { createSpindle, signedWheelTravel, SPINDLE_LOD } from '../client/src/spindle.js';
+import { SPINDLE_TUNING } from '../shared/spindle.js';
 
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} differs from ${b}`);
 
@@ -18,15 +19,18 @@ test('Spindle rolls by signed ground distance and holds its axle still during a 
   close(signedWheelTravel(1, 0, 0, 0), 0);
   close(signedWheelTravel(0, 0, 0, Math.PI), 0);
   const model = createSpindle(null, () => {});
+  close(model.group.scale.x, .75); close(model.group.scale.y, .75); close(model.group.scale.z, .75);
+  close(model.height, .96); close(model.radius, .54);
   const roll = model.group.getObjectByName('Roll');
+  close(roll.getWorldPosition(new Vector3()).y, .48);
   const shoulder = model.group.getObjectByName('Shoulder');
-  model.update(2, { travel: .64, act: 'idle' });
+  model.update(2, { travel: .48, act: 'idle' });
   close(roll.rotation.x, 1);
   assert.ok(!roll.getObjectByName('Shoulder'));
   model.update(1, { travel: 0, act: 'idle', speed: 3 });
   close(roll.rotation.x, 1);
   assert.ok(shoulder.rotation.x < -.6, 'Arm retracts for transit');
-  model.update(.2, { travel: -.32, act: 'idle', interval: Infinity });
+  model.update(.2, { travel: -.24, act: 'idle', interval: Infinity });
   model.update(.2, { travel: 0, act: 'idle', interval: 0 });
   close(roll.rotation.x, .5);
 });
@@ -78,7 +82,7 @@ test('exported tool linkage clears the shoulder bearing through deployment and p
       const distal = new Line3(point('Wrist'), point('JawA'));
       const nearest = distal.closestPointToPoint(center, true, new Vector3());
       // 61 mm shoulder bearing plus 26 mm width of the precision wrist.
-      assert.ok(nearest.distanceTo(center) > .087, 'Wrist crossed the shoulder bearing');
+      assert.ok(nearest.distanceTo(center) > .087 * SPINDLE_TUNING.scale, 'Wrist crossed the shoulder bearing');
     }
   }
 });
@@ -126,6 +130,9 @@ test('exported near and distance hierarchies switch with hysteresis and preserve
   const near = exportedScene(doc.scene);
   const far = exportedScene(doc.scenes.findIndex(scene=>scene.name==='Distance'));
   const rig = createSpindle(near, () => {}, far);
+  close(rig.group.scale.x, .75); close(rig.group.scale.y, .75); close(rig.group.scale.z, .75);
+  close(near.getObjectByName('Roll').getWorldPosition(new Vector3()).y, .48);
+  close(far.getObjectByName('FarRoll').getWorldPosition(new Vector3()).y, .48);
   const angle = name => near.getObjectByName(name).rotation;
   const checkPose = () => {
     for (const name of ['Roll','Shoulder','Elbow','Wrist','JawA','JawB']) {
@@ -136,14 +143,14 @@ test('exported near and distance hierarchies switch with hysteresis and preserve
       close(nearP.distanceTo(farP),0);
     }
   };
-  rig.update(.5,{travel:.64,speed:2,cameraDistance:SPINDLE_LOD.near});
+  rig.update(.5,{travel:.48,speed:2,cameraDistance:SPINDLE_LOD.near});
   assert.equal(near.visible,true);assert.equal(far.visible,false);
-  rig.update(.1,{travel:.32,speed:2,cameraDistance:SPINDLE_LOD.far,interval:Infinity});
+  rig.update(.1,{travel:.24,speed:2,cameraDistance:SPINDLE_LOD.far,interval:Infinity});
   assert.equal(near.visible,false);assert.equal(far.visible,true);close(angle('Roll').x,1.5);checkPose();
   rig.update(.5,{act:'inspecting',cameraDistance:20,reducedMotion:true});
   assert.equal(far.visible,true);checkPose();
   assert.ok(angle('JawA').z>0);
-  rig.update(.1,{travel:-.32,act:'inspecting',cameraDistance:SPINDLE_LOD.near,interval:Infinity});
+  rig.update(.1,{travel:-.24,act:'inspecting',cameraDistance:SPINDLE_LOD.near,interval:Infinity});
   assert.equal(near.visible,true);assert.equal(far.visible,false);close(angle('Roll').x,1);checkPose();
   // Missing/incomplete optional distance scene retains the full rig.
   const legacy = createSpindle(exportedScene(doc.scene),()=>{},new Group());

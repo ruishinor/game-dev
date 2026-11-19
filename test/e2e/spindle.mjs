@@ -60,6 +60,7 @@ try {
     return rig?.getObjectByName('FarRollAssembly') && rig.children.some(scene=>scene.visible && scene.getObjectByName('Roll'));
   });
   assert.equal(await owner.evaluate(visibleTriangles),manifest.tris);
+  assert.deepEqual(await owner.evaluate(()=>window.__attune.gfx.scene.getObjectByName('spindle:precision-machine').scale.toArray()),[.75,.75,.75]);
   await owner.evaluate(()=>window.__attune.view({yaw:0,pitch:1.25,dist:24}));
   await owner.waitForFunction(()=>{
     const rig=window.__attune.gfx.scene.getObjectByName('spindle:precision-machine');

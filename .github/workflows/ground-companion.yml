@@ -19,6 +19,7 @@ on:
       - 'test/spindle*.test.js'
       - 'client/src/main.js'
       - 'client/src/ui.js'
+      - 'shared/spindle.js'
       - 'shared/content.js'
       - 'shared/gadgets.js'
       - 'shared/crafting.js'
