@@ -201,7 +201,7 @@ try {
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
-  assert.ok(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg path[fill="#203d40"]').count());
+  assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg path[d="M12 2 22 8v8l-10 6-10-6V8Z"][fill="#4c626b"]').count(),1);
   await capture('preview-evidence/06b-refined-item-artwork.png');
   assert.equal(await workshop.locator('[data-craft="aegis_rectifier"]').isDisabled(),true);
   await capture('preview-evidence/06b-workshop-tutorial.png');
