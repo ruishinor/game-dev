@@ -12,14 +12,16 @@ import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
 import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
-import { tickCompanion, spawnMender, companionRoster } from './companion.js';
+import {
+  tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
+  syncEquippedCompanion, redeployGroundCompanion,
+} from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
-import { syncSurveyStrider, redeploySurveyStrider, wantsSurveyStrider } from './survey-strider.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
@@ -135,8 +137,7 @@ export class Game {
     };
     this.players.set(p.id, p);
     this.ents.set(p.id, p);
-    spawnMender(this, p);
-    syncSurveyStrider(this,p);
+    restoreCompanion(this, p);
     checkDirective(this, p);
     return p;
   }
@@ -165,7 +166,7 @@ export class Game {
   syncChar(p) {
     p.char.pos = { x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
-    if (p.companion) {
+    if (p.companion && p.companion.type !== 'spindle') {
       p.char.petMode = p.companion.mode;
       p.char.petName = p.companion.name;
     }
@@ -182,7 +183,7 @@ export class Game {
     p.stats = deriveStats(p.char);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
-    syncSurveyStrider(this,p);
+    syncEquippedCompanion(this, p);
   }
 
   message(p, kind, text) {
@@ -276,7 +277,7 @@ export class Game {
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
+    if (['survey_strider', 'spindle'].includes(p.companion?.type)) redeployGroundCompanion(this, p);
     else if (p.companion) {
       p.companion.x = p.x + 1.5;
       p.companion.z = p.z - 1.5;
@@ -299,7 +300,8 @@ export class Game {
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
-      if(!p.companion&&!p.dead&&!p.char.companionDismissed&&wantsSurveyStrider(p)&&this.time>=(p.striderDeployAt??0))syncSurveyStrider(this,p);
+      if (!p.companion && !p.dead && p.deployRetryAt != null && this.time >= p.deployRetryAt)
+        restoreCompanion(this, p);
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -406,6 +408,7 @@ export class Game {
       workshop:workshopSite(p),
       party: partyState(this, p),
       companions: companionRoster(this, p),
+      canCommissionSpindle: canCommissionSpindle(this, p),
       inscription: inscriptionState(this, p),
       production: productionState(this, p),
     };
