@@ -2275,11 +2275,18 @@ export class UI {
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
       const big=ent.meta.el || ent.meta.k==='o';
-      const px=X(ent.pos.x),py=Z(ent.pos.z);
-      g.arc(px,py,big?5.8:4.3,0,Math.PI*2);
+      const px=X(ent.pos.x),py=Z(ent.pos.z),radius=big?6.5:5;
+      // Shape as well as hue: enemies are triangles, players circles,
+      // interactable objects squares. Useful for colour-blind readability.
+      if(ent.meta.k==='e'){
+        g.moveTo(px,py-radius);
+        g.lineTo(px+radius,py+radius*.75);
+        g.lineTo(px-radius,py+radius*.75);
+        g.closePath();
+      }else if(ent.meta.k==='o')g.rect(px-radius,py-radius,radius*2,radius*2);
+      else g.arc(px,py,radius,0,Math.PI*2);
       g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
-      g.fill();
-      g.lineWidth=1.7;g.strokeStyle='#102028';g.stroke();
+      g.fill();g.lineWidth=1.8;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
     const placed = [{ x: X(st.me.pos.x), z: Z(st.me.pos.z) }];
@@ -2314,7 +2321,7 @@ export class UI {
       g.textAlign = 'center';
       g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 4);
     }
-    const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));
