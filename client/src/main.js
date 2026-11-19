@@ -82,6 +82,7 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const fx = new Fx(scene);
 const legacyFx = fx;
 const liveAegis = new LiveAegis(THREE);
@@ -1647,6 +1648,7 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
@@ -1807,6 +1809,7 @@ function frame(now) {
   }
 
   if (!S.myId) {
+    machine?.userData.updateWork?.(dt,time,null,true);
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
@@ -1818,6 +1821,13 @@ function frame(now) {
 
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
+  if(machine?.userData.updateWork){
+    let working=null;
+    for(const actor of S.ents.values())if(actor.meta.k==='p'&&actor.row?.work?.site==='sanctum'){
+      const w=actor.row.work;if(!working||w.q>working.q)working=w;
+    }
+    machine.userData.updateWork(dt,time,working,motionPreference.matches||quality===0);
+  }
   const me = S.ents.get(S.myId);
   if (me && me.placed) {
     cam.update(me.pos, dt);

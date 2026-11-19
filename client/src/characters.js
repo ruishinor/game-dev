@@ -8,6 +8,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
@@ -192,6 +193,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -210,6 +212,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     hover: 0,
     accent: def.accent,
     update(dt, st) {
+      const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -231,7 +234,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if(step){work.restorePose();anim.update(step);if(working)work.pose(st.work,st.t,st.reducedMotion);}
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -257,6 +260,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       anim.dispose();
       face?.dispose();
+      work.dispose();
       disposeInstance(group);
     },
   };
