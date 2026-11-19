@@ -629,3 +629,13 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .item-cell[data-rarity="Very rare"],.loot-entry[data-rarity="Very rare"]{border-color:#cbaf76}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
+
+/* Item portraits: the object silhouette carries identity; rarity remains a border state. */
+.item-art{background:radial-gradient(ellipse at 45% 25%,#29373d,#10191f 85%);color:#a3b5b4}
+.item-art svg{width:86%;height:86%;filter:drop-shadow(0 2px 2px #0009)}
+.item-art.glyph svg{filter:drop-shadow(0 0 1px #8bb7a45c)}
+
+/* Consistent object portraits: no ornamental category halo; rarity stays at the cell edge. */
+.item-art svg{width:90%;height:90%;filter:drop-shadow(0 2px 1px #0009)}
+.item-art.glyph svg{filter:drop-shadow(0 2px 1px #0009)}
+.recipe-result .item-art svg,.recipe-entry .item-art svg,.fabrication-visual .item-art svg{width:90%;height:90%;}
