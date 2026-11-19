@@ -167,6 +167,8 @@ try{
  await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
+ // Check the actual equipped runtime geometry, not just a call to an effect mock.
+ await page.waitForFunction(()=>{const rod=window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod');return [0,1].every(i=>{const g=rod?.getObjectByName('RodCorona'+i),s=g?.children[0];return g?.visible&&s?.visible&&s.children[0]?.material.opacity>=.45;});});
  // Installed items leave carried inventory; use the real equipment slot.
  assert.equal(await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').count(),0);
  await inventory.getByRole('button',{name:'Close inventory'}).click();
@@ -213,6 +215,11 @@ try{
  const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
  await page.screenshot({path:'vendor-evidence/06-electrical-combat-rod.png'});
+ // Explicitly capture persistent corona at the normal camera after the joined mode is restored.
+ await page.evaluate(()=>window.__attune.view({yaw:2.2,pitch:.21,dist:4.5}));
+ const coronaDraw=await page.evaluate(()=>window.__attune.state().drawn);
+ await page.waitForFunction(n=>window.__attune.state().drawn>n,coronaDraw);
+ await page.screenshot({path:'vendor-evidence/07-electrical-rod-corona-close.png'});
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
  await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
