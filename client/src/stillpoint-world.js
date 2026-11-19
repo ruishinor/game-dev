@@ -49,7 +49,8 @@ export async function loadStillpoint(T,loader,site){
       current=next;
     }
     if(current==='Walk')actions.Walk.setEffectiveTimeScale(Math.max(.05,pose.speed/(.4*scale)));
-    if(current==='Walk'||!reducedMotion)mixer.update(Math.max(0,Math.min(.1,dt)));
+    // Keep ordinary creature locomotion and fade transitions coherent.
+    mixer.update(Math.max(0,Math.min(.1,dt)));
     group.userData.stillpointClip=current;
   }};
 }
