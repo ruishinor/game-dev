@@ -243,6 +243,20 @@ try {
   assert.equal(await workshop.locator('.recipe-part [data-art="sentinel_alloy"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="mire_fibre"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="kinetic_coupler"] svg').count(),1);
+  // The tutorial and catalogue coexist. Pagination must never leave a stale
+  // actionable recipe visible when its selection is on another page.
+  assert.ok(await workshop.locator('.workshop-tutorial').getByRole('heading',{name:'Recover components',exact:true}).isVisible());
+  assert.ok(await workshop.locator('.workshop-recipes .recipe-entry').count()<=6);
+  const nextRecipes=workshop.getByRole('button',{name:'Next recipes',exact:true});
+  const previousRecipes=workshop.getByRole('button',{name:'Previous recipes',exact:true});
+  assert.equal(await nextRecipes.count(),1,'Catalogue exposes more than one page');
+  await (await nextRecipes.isEnabled()?nextRecipes:previousRecipes).click();
+  assert.equal(await workshop.locator('[data-recipe="coupler"]').count(),0);
+  assert.ok(await workshop.locator('.recipe-detail').isHidden(),'Off-page recipe details and actions are hidden');
+  await revealRecipe(workshop,'coupler');
+  assert.ok(await workshop.locator('.recipe-entry[data-recipe="coupler"].active').isVisible());
+  assert.ok(await workshop.locator('.recipe-detail').isVisible());
+
   await (await revealRecipe(workshop,'aegis_rectifier')).click();
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
