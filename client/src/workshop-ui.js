@@ -90,6 +90,7 @@ function planner(ui,body){
 function fabrication(ui,body){
   const s=ui.sheet;
   const entries=Object.entries(RECIPES).filter(([,r])=>!r.blueprint||s.goods?.[r.blueprint]===1);
+  if(!entries.length){body.append(h('p','muted','No fabrication recipes available.'));return;}
   const id=entries.some(([key])=>key===ui.recipeId)?ui.recipeId:entries[0][0];
   ui.recipeId=id;
   const recipe=RECIPES[id],output=recipeOutput(recipe);
@@ -118,7 +119,7 @@ function fabrication(ui,body){
     const wrapper = h('label'), input = h('input');
     input.type = 'checkbox';
     input.checked = filter[key];
-    input.addEventListener('change', () => { filter[key] = input.checked; applyFilters(); });
+    input.addEventListener('change', () => { filter[key] = input.checked; ui.recipePage=0; applyFilters(); });
     wrapper.append(input, document.createTextNode(label));
     controls.append(wrapper);
   }
@@ -144,11 +145,32 @@ function fabrication(ui,body){
       && (!filter.learned || row.known)
       && (!filter.materials || row.hasMaterials));
     if (filter.prioritize) shown.sort((a, b) => Number(b.craftable) - Number(a.craftable));
-    list.replaceChildren(...shown.map(row => row.b));
-    detail.hidden = !shown.some(row => row.b.dataset.recipe === id);
+    const pageSize=6;
+    const pages=Math.max(1,Math.ceil(shown.length/pageSize));
+    const revealIndex=ui.recipeReveal?shown.findIndex(row=>row.b.dataset.recipe===ui.recipeReveal):-1;
+    ui.recipeReveal=null;
+    const page=Math.max(0,Math.min(pages-1,revealIndex>=0?Math.floor(revealIndex/pageSize):(ui.recipePage||0)));
+    ui.recipePage=page;
+    const visible=shown.slice(page*pageSize,(page+1)*pageSize);
+    list.replaceChildren(...visible.map(row=>row.b));
+    if(pages>1){
+      const nav=h('div','recipe-pagination');
+      const previous=btn('Previous recipes',()=>navigate(page-1,'previous'));
+      const next=btn('Next recipes',()=>navigate(page+1,'next'));
+      previous.dataset.pageNav='previous';next.dataset.pageNav='next';
+      previous.disabled=page===0;next.disabled=page===pages-1;
+      const status=h('span',null,(page+1)+' / '+pages);status.setAttribute('role','status');status.setAttribute('aria-label','Recipe page '+(page+1)+' of '+pages);
+      nav.append(previous,status,next);list.append(nav);
+    }
+    detail.hidden = !visible.some(row => row.b.dataset.recipe === id);
     if (!shown.length) list.append(h('p', 'muted', 'No recipes match these filters.'));
   }
-  search.addEventListener('input', () => { filter.query = search.value; applyFilters(); });
+  function navigate(page,direction){
+    ui.recipePage=page;applyFilters();
+    const control=list.querySelector('[data-page-nav="'+direction+'"]:not(:disabled)');
+    (control||list.querySelector('.recipe-entry'))?.focus({preventScroll:true});
+  }
+  search.addEventListener('input', () => { filter.query = search.value; ui.recipePage=0; applyFilters(); });
   search.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -156,7 +178,7 @@ function fabrication(ui,body){
     ui.toggleWorkshop(false);
     ui.a.focusView();
   });
-  discipline.addEventListener('change', () => { filter.discipline = discipline.value; applyFilters(); });
+  discipline.addEventListener('change', () => { filter.discipline = discipline.value; ui.recipePage=0; applyFilters(); });
   applyFilters();
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
   const mastery=disciplineProgress(s.craftingDisciplines,recipe.discipline);

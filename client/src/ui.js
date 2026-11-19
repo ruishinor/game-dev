@@ -547,7 +547,7 @@ export class UI {
     }catch{}
     this.inventoryOpacityButton.addEventListener('click',()=>{
       const levels=[100,80,60,40];
-      this.setInventoryOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
+      this.inventoryLayout.setOpacity(levels[(levels.indexOf(this.inventoryOpacity)+1)%levels.length]);
     });
     this.inventoryOpacityButton.addEventListener('keydown',e=>{
       if(e.key==='Enter'||e.key===' ')e.stopPropagation();
@@ -609,6 +609,17 @@ export class UI {
     this.workshopPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Build & Fabrication'),workshopClose,this.workshopBody);
     root.append(this.workshopPanel);
     this.workshopLayout=new WindowLayout(this.workshopPanel,this.workshopBody,'workshop');
+    this.inventoryLayout=new WindowLayout(this.inventoryPanel,this.inventoryBody,'inventory',{
+      min:{w:280,h:240},initialOpacity:this.inventoryOpacity,
+      onOpacity:value=>{if(value!==this.inventoryOpacity)this.setInventoryOpacity(value);}
+    });
+    this.characterLayout=new WindowLayout(this.panel,this.panelBody,'character',{min:{w:320,h:260}});
+    this.codexLayout=new WindowLayout(this.codexPanel,this.codexContent,'codex',{min:{w:320,h:260}});
+    this.companionLayout=new WindowLayout(this.companionSheet,this.companionSheetBody,'companions',{min:{w:280,h:240}});
+    this.questLayout=new WindowLayout(this.questJournal.el,this.questJournal.content,'quest',{min:{w:300,h:240}});
+    this.vendorLayout=new WindowLayout(this.vendor.el,this.vendor.content,'vendor',{min:{w:300,h:240}});
+    this.lootLayout=new WindowLayout(this.loot.el,this.loot.content,'loot',{min:{w:230,h:180}});
+    this.windowLayouts=[this.characterLayout,this.inventoryLayout,this.workshopLayout,this.codexLayout,this.companionLayout,this.questLayout,this.vendorLayout,this.lootLayout];
     this.workshopTab='planner';
     this.recipeId=null;
     this.plannedLoadout=null;
@@ -635,6 +646,9 @@ export class UI {
     this.settingsPanel.hidden = true;
     this.settingsPanel.setAttribute('role', 'dialog');
     this.settingsPanel.setAttribute('aria-label', 'Settings');
+    this.settingsPanel.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.toggleSettings(false);document.getElementById('view')?.focus({preventScroll:true});}
+    });
     const sc = h('button', 'close', '×');
     sc.setAttribute('aria-label', 'Close settings');
     sc.addEventListener('click', () => this.toggleSettings(false));
@@ -689,6 +703,9 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
+    const resetWindows=h('button',null,'Reset all window layouts');
+    resetWindows.type='button';resetWindows.addEventListener('click',()=>{for(const layout of this.windowLayouts)layout.reset();});
+    this.settingsPanel.append(resetWindows);
     const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;
     alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
@@ -724,7 +741,7 @@ export class UI {
       ['V', 'Reset the camera behind you'],
       ['C / I', 'Character & Loadout / independent Inventory (I or × closes it).'],
       ['B', 'Build Planner and Workshop: compare equipment or fabricate in the Sanctum.'],
-      ['Inventory opacity icon', 'Cycle window opacity: 100%, 80%, 60%, 40%.'],
+      ['Window layout', 'Drag titles or window edges; use individual opacity and layout controls. Reset all layouts from Settings.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
@@ -946,6 +963,17 @@ export class UI {
     this.closeCompanionDetails();
   }
 
+  // Non-modal gameplay windows coexist. Keep existing explicit dismissal
+  // policies for NPC conversations, modal screens and world actions.
+  prepareManagedWindow() {
+    this.closeNpc();
+    this.fieldRecordPanel.hidden=true;
+    this.help.hidden=this.partyPanel.hidden=this.settingsPanel.hidden=true;
+    this.menuItems.hidden=this.tooltip.hidden=true;
+    this.closePlayerContext();
+    this.closeCompanionDetails();
+  }
+
   openCompanionMenu(x, y) {
     if (!this.companionId) return;
     this.closePlayerContext();
@@ -963,7 +991,7 @@ export class UI {
   }
 
   toggleCompanionSheet(open) {
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.companionSheet.hidden = !open;
     if (open) {
       this.renderCompanionSheet();
@@ -1046,7 +1074,7 @@ export class UI {
 
   toggleBuild(force) {
     const open = force ?? this.panel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.panel.hidden = !open;
     if (open) {
       this.renderBuild();
@@ -1055,11 +1083,12 @@ export class UI {
 
   toggleWorkshop(force,recipeId=null) {
     const open=force??this.workshopPanel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.workshopPanel.hidden=!open;
     if(!open)return;
     if(recipeId&&Object.hasOwn(RECIPES,recipeId)){
       this.workshopTab='fabrication';this.recipeId=recipeId;this.productionQuantity=null;
+      this.recipeReveal=recipeId;
       // An explicit recipe link must not land on a hidden result.
       if(this.recipeFilter)Object.assign(this.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false});
     }
@@ -1090,13 +1119,13 @@ export class UI {
   toggleQuestJournal(force) {
     const open=force??this.questJournal.el.hidden;
     if(!open){this.questJournal.dismiss();return;}
-    this.hideJournalPanels();
+    this.prepareManagedWindow();
     this.questJournal.show(this.sheet,this.questTrial);
   }
 
   toggleCodex(force, id = null) {
     const open = force ?? this.codexPanel.hidden;
-    this.hideJournalPanels();
+    if(open)this.prepareManagedWindow();
     this.codexPanel.hidden = !open;
     if (!open) return;
     if (id) {

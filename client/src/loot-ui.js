@@ -15,7 +15,7 @@ export class LootPanel{
   this.auto=readAutoLoot(this.storage);
   this.el=h('section','panel loot-window');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','Corpse loot');
   this.el.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();this.dismiss();}else if(['Enter',' ','Tab','ArrowUp','ArrowDown'].includes(e.key))e.stopPropagation();});
-  ui.root.append(this.el);
+  this.content=h('div','managed-window-content');this.el.append(this.content);ui.root.append(this.el);
  }
  settings(){
   const label=h('label','loot-option'),box=h('input');box.type='checkbox';box.checked=!!this.auto;box.setAttribute('aria-label','Auto-loot corpses');
@@ -58,7 +58,7 @@ export class LootPanel{
   const previous=this.el.contains(document.activeElement)?document.activeElement:null;
   const priorId=previous?.dataset.lootId;
   const priorLabel=previous?.getAttribute('aria-label');
-  this.el.hidden=false;this.el.replaceChildren();
+  this.el.hidden=false;this.content.replaceChildren();
   const head=h('div','loot-title'),close=button('Close loot','×',()=>this.dismiss());close.className='close';
   head.append(h('div','kicker','RECOVERABLE LOOT'),h('h2',null,s.name),close);
   const list=h('div','loot-list');
@@ -73,7 +73,7 @@ export class LootPanel{
   const footer=h('div','loot-footer'),takeAll=button('Take all loot','Take all',()=>this.takeAll());
   takeAll.setAttribute('aria-keyshortcuts','F');takeAll.title='Take all [F]';
   footer.append(takeAll,button('Leave remaining loot','Leave',()=>this.dismiss()));
-  this.el.append(head,list,footer);
+  this.content.append(head,list,footer);
   if(previous){
     const controls=[...this.el.querySelectorAll('button')];
     const focus=controls.find(b=>priorId&&b.dataset.lootId===priorId)||controls.find(b=>!priorId&&b.getAttribute('aria-label')===priorLabel)||list.querySelector('button')||close;
