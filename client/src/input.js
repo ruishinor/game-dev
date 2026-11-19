@@ -30,13 +30,15 @@ export class Input {
 
     const typing = () => {
       const el = document.activeElement;
-      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'BUTTON' || el.isContentEditable);
     };
 
     window.addEventListener('keydown', (e) => {
       if (!this.enabled || typing()) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (MOVE_KEYS.has(e.code)) {
+      if (e.metaKey) return;
+      // Ctrl/Alt action-bar bindings may be handled by onAction; movement
+      // still uses the existing raw keys without modifiers.
+      if (MOVE_KEYS.has(e.code) && !e.ctrlKey && !e.altKey) {
         this.keys.add(e.code);
         e.preventDefault();
         return;
