@@ -1,6 +1,7 @@
 // The panel presents only the current scoped server quote. No pricing math
 // or balance mutation is accepted as authority from the browser.
 import {itemArt,itemTooltip} from './journal-ui.js';
+import {characterPortraitMeta} from './portrait-identity.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const button=(label,fn)=>{const el=h('button',null,label);el.type='button';el.addEventListener('click',fn);return el;};
 export class VendorPanel{
@@ -47,7 +48,7 @@ export class VendorPanel{
   const list=h('div','vendor-list');
   for(const row of s[this.tab]||[]){
    const item=h('div','vendor-row'),copy=h('div','vendor-copy');
-   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(this.tab==='sell'?' · × '+row.quantity:'')));
+   copy.append(h('strong',null,row.name),h('small','muted',this.tab==='buyback'?row.total+' credits · × '+row.quantity:this.tab==='repair'?row.condition+'% condition · '+row.price+' credits':row.price+' credits each'+(row.ql?' · QL '+row.ql:'')+(row.cosmetic?' · Cosmetic only':'')+(this.tab==='sell'?' · × '+row.quantity:'')));
    const artwork = itemArt(row.id);
    item.append(artwork,copy);
    copy.tabIndex=0;
@@ -56,7 +57,19 @@ export class VendorPanel{
    this.ui.hover(artwork,()=>itemTooltip(this.ui.sheet,row.id));
    const controls=h('div','vendor-actions');
    const make=(label,id,qty,disabled)=>{const b=button(label,()=>this.trade(this.tab,id,qty));b.dataset.focus=this.tab+'-'+id+'-'+qty;b.disabled=!!this.pending||disabled;controls.append(b);};
-   if(this.tab==='buy'){make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);}
+   if(this.tab==='buy'){
+    make('Buy 1',row.id,1,row.max<1);if(row.max>=5)make('Buy 5',row.id,5,false);
+    if(row.cosmetic){
+     const preview=button('Preview',()=>{
+      const sheet=this.ui.sheet;if(!sheet)return;
+      const prior=item.querySelector('.social-preview');if(prior){prior.remove();preview.setAttribute('aria-expanded','false');return;}
+      const src=this.ui.a.portrait(characterPortraitMeta({...sheet,equipped:{...sheet.equipped,social_torso:row.id}}));
+      if(!src)return;
+      const img=h('img','social-preview');img.src=src;img.alt=row.name+' on your character';img.style.maxWidth='120px';item.append(img);preview.setAttribute('aria-expanded','true');
+     });
+     preview.dataset.focus='preview-'+row.id;preview.setAttribute('aria-expanded','false');controls.append(preview);
+    }
+   }
    else if(this.tab==='sell'){make('Sell 1',row.id,1,false);if(row.quantity>1)make('Sell '+row.quantity,row.id,row.quantity,false);}
    else if(this.tab==='repair')make('Repair',row.id,1,row.max<1);
    else make('Buy back',row.receipt,row.quantity,row.max<row.quantity);
