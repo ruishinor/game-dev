@@ -21,7 +21,7 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     page.setDefaultTimeout(90000);
     page.on('pageerror', (e) => report.pageErrors.push(e.message));
-    page.on('console', (m) => { if (m.type() === 'error') report.consoleErrors.push(m.text()); });
+    page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /\[assets\]|\[armour\]/.test(m.text()))) report.consoleErrors.push(m.text()); });
     await page.bringToFront();
     await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
     await page.fill('#name', name);
@@ -102,7 +102,7 @@ try {
     const pages = browser ? browser.contexts().flatMap((c) => c.pages()) : [];
     for (const pg of pages) {
       const st = await pg.evaluate(() => { const s = window.__attune?.state(); const me = s?.ents.find((e) => e.id === s.myId);
-        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, equipped: s?.sheet?.equipped }; }).catch((e) => String(e));
+        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, equipped: s?.sheet?.equipped, assets: { loaded: s?.assets?.loaded, failed: s?.assets?.failed } }; }).catch((e) => String(e));
       console.error('[armour-e2e] page state', JSON.stringify(st));
     }
   } catch (e) { console.error('[armour-e2e] diagnostics failed', e); }
