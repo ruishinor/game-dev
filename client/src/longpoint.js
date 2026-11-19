@@ -2,6 +2,8 @@
 // gameplay mechanics are changed. Forward is local +X; all units are art units.
 import { recoilAmount } from './weapon-pose.js';
 
+export const LONGPOINT_TRACE = Object.freeze({color:0x86d8ff,width:.045,life:.21});
+
 export function poseLongpoint(group, deployment = 0) {
   const left=group?.getObjectByName('SupportLeft');
   const right=group?.getObjectByName('SupportRight');
