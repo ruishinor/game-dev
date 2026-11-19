@@ -27,6 +27,7 @@ import { createLongpointPresentation } from './longpoint.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
+import { wearArmour, ARMOUR_BUNDLES } from './armour-visual.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
@@ -220,6 +221,23 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
+  // Worn chest armour (presentation metadata `av`): loaded on first use.
+  let armour = null, armourWanted = null, disposed = false;
+  function setArmourVisual(next) {
+    armourWanted = typeof next === 'string' ? next : null;
+    if (armour?.item === armourWanted) return;
+    armour?.dispose(); armour = null;
+    if (!armourWanted) return;
+    const bundle = ARMOUR_BUNDLES[body];
+    if (!bundle) return;
+    const apply = () => {
+      if (disposed || armour || !armourWanted) return;
+      armour = wearArmour(assets, inst, body, armourWanted);
+    };
+    if (assets.get(bundle)) apply();
+    else assets.bundle(bundle).then(apply);
+  }
+  setArmourVisual(opts.armourVisual);
 
   return {
     kind: 'glb',
@@ -231,6 +249,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
+    setArmourVisual,
+    armourWorn: () => armour?.item || null,
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
@@ -290,6 +310,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     dispose() {
       weapon?.dispose();
+      disposed = true;
+      armour?.dispose(); armour = null;
       anim.dispose();
       face?.dispose();
       work.dispose();
@@ -563,7 +585,7 @@ export function createModel(assets, meta, glb = true) {
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {

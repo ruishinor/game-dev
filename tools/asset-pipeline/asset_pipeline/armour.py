@@ -125,7 +125,8 @@ def stage_design(asset, params):
         for item in params["items"]:
             vest = next(pc for pc in pieces if pc["name"] == f"{item}__vest")
             old_v = np.asarray(vest["V"], float)
-            vest["V"] = ad.push_clear(body, old_v, params["min_gap"])
+            vest["V"] = ad.push_clear(body, ad.relax(old_v, vest["F"], params["relax"]), params["min_gap"])
+            vest["even"] = False
             disp = vest["V"] - old_v
             vt = _T(old_v)
 
@@ -140,7 +141,8 @@ def stage_design(asset, params):
                 if pc["F"] is None:
                     pc["V"] = [(carry(np.asarray(v, float)), f) for v, f in pc["V"]]
                 else:
-                    pc["V"] = carry(np.asarray(pc["V"], float))
+                    pc["V"] = carry(ad.relax(pc["V"], pc["F"], params["relax"]))
+                pc["even"] = False
         cl = {}
         for pc in pieces:
             parts = pc["V"] if pc["F"] is None else [(pc["V"], pc["F"])]
@@ -176,8 +178,8 @@ def blender_materials(asset):
             base = srgb_to_linear(m["base"]).tolist()
             worn = srgb_to_linear(m.get("worn", m["base"])).tolist()
             spec = [base, worn, m.get("metallic", 0.0), m.get("roughness", 0.6), m.get("noise", 20.0), bool(m.get("weave", False))]
-            if m.get("emission"):
-                spec.append([*srgb_to_linear(m["emission"]).tolist(), m.get("emission_strength", 3.0)])
+            spec.append([*srgb_to_linear(m["emission"]).tolist(), m.get("emission_strength", 3.0)] if m.get("emission") else None)
+            spec.append(m.get("mottle", asset.config["armour"]["build"].get("mottle", 0.12)))
             out[f"{item}_{slot}"] = spec
     return out
 
@@ -213,10 +215,17 @@ def vertex_normals(V, F):
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
 
 
-def piece_weights(body, P, joint_names, k=10, smooth=0.0):
+ARM = ("upperarm", "lowerarm", "hand", "thumb", "index", "middle", "ring", "pinky")
+LEG = ("thigh", "calf", "foot", "ball")
+
+
+def piece_weights(body, P, joint_names, k=10, smooth=0.0, arm_cap=0.0, mode=None):
     """Skin weights for armour vertices from the k nearest body-surface samples
     (inverse-distance), so armour follows the body's own deformation. `smooth`
-    widens the neighbourhood for stiff plates."""
+    widens the neighbourhood for stiff plates. Armour is torso-borne: arm
+    influence is capped at `arm_cap` (0 for chest pieces, a share of the
+    upper arm for shoulder yokes), so the T-pose -> rest arm swing cannot
+    tear pieces that only sit near the armpit or over the shoulder."""
     from .humanoid_rig import pack_weights
 
     kk = int(k * (1 + smooth))
@@ -224,7 +233,30 @@ def piece_weights(body, P, joint_names, k=10, smooth=0.0):
     w = 1.0 / np.maximum(d, 1e-4) ** 2
     w /= w.sum(1, keepdims=True)
     Wd = np.einsum("nk,nkj->nj", w, body.Wd[i])
-    return pack_weights({n: Wd[:, j] for j, n in enumerate(joint_names) if Wd[:, j].max() > 0}, joint_names, max_influences=4, prune=0.02)
+    arm = np.array([n.startswith(ARM) or n.startswith(LEG) for n in joint_names])
+    upper = np.array([n.startswith("upperarm") for n in joint_names])
+    Wd[:, arm & ~upper] = 0  # legs (coat-skirt samples near the hem) and forearms/hands never drive armour
+    a = Wd[:, upper].sum(1, keepdims=True)
+    Wd[:, upper] *= np.minimum(1.0, arm_cap / np.maximum(a, 1e-9))
+    rest = Wd[:, ~arm].sum(1, keepdims=True)
+    target = 1 - Wd[:, upper].sum(1, keepdims=True)
+    Wd[:, ~arm] *= target / np.maximum(rest, 1e-9)
+    # plates move (nearly) as one: a single shared blend ("rigid"), or blends
+    # that vary only along one axis ("band": height for torso plates, across
+    # the shoulder for yokes) so they bend with the spine but do not shear
+    if mode and mode[0] == "rigid":
+        Wd[:] = Wd.mean(0, keepdims=True)
+    elif mode and mode[0] == "band":
+        ax = {"x": 0, "y": 1, "z": 2}[mode[1]]
+        c = np.abs(P[:, ax]) if ax == 0 else P[:, ax]
+        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
+        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+    J, W = pack_weights({n: Wd[:, j] for j, n in enumerate(joint_names) if Wd[:, j].max() > 0}, joint_names, max_influences=4, prune=0.02)
+    if J.shape[1] < 4:  # a piece influenced by fewer joints packs narrower
+        pad = 4 - J.shape[1]
+        J = np.c_[J, np.zeros((len(J), pad), J.dtype)]
+        W = np.c_[W, np.zeros((len(W), pad), W.dtype)]
+    return J, W
 
 
 def stage_rig(asset, params):
@@ -287,8 +319,10 @@ def stage_rig(asset, params):
             off = 0
             for pname in info["pieces"]:
                 Pp, Nn, UV, I = arr[pname + "_P"], arr[pname + "_N"], arr[pname + "_UV"], arr[pname + "_I"]
-                stiff = params["stiffness"].get(re.sub(r"_[lr]?\d*$", "", pname.split("__", 1)[1]), 0.0)
-                Jg, Wg = piece_weights(body, Pp, joints, k=params["k"], smooth=stiff)
+                kind = re.sub(r"_[lr]?\d*$", "", pname.split("__", 1)[1])
+                stiff = params["stiffness"].get(kind, 0.0)
+                Jg, Wg = piece_weights(body, Pp, joints, k=params["k"], smooth=stiff, arm_cap=params["arm_cap"].get(kind, 0.0),
+                                       mode=params["weight_modes"].get(kind))
                 Ps.append(Pp), Ns.append(Nn / np.maximum(np.linalg.norm(Nn, axis=1, keepdims=True), 1e-12)), UVs.append(UV)
                 Is.append(I + off), Js.append(Jg), Ws.append(Wg)
                 off += len(Pp)
@@ -353,30 +387,21 @@ def stage_validate(asset, params):
         clips = {a["name"]: a for a in rig["animations"]}
         ji = {n: i for i, n in enumerate(joints)}
         arm_j = [i for n, i in ji.items() if n.startswith(("upperarm", "lowerarm", "hand", "thumb", "index", "middle", "ring", "pinky"))]
-        mb = b["meshes"]["body"]
         import trimesh
 
-        def dense(m, n, seed):
-            tm = trimesh.Trimesh(m["V"], m["F"], process=False)
-            P0, fi = trimesh.sample.sample_surface(tm, n, seed=seed)
-            return m["F"][fi], trimesh.triangles.points_to_barycentric(tm.triangles[fi], P0), P0
-        Fs, bary, S0 = dense(mb, params["surface_samples"], 1)
-        armv = (np.isin(mb["J"], arm_j) * mb["W"]).sum(1)
-        arm = (armv[Fs] * bary).sum(1) > 0.5
-        # layer thickness over each body sample: the worn-under shells are open
-        # sheets, so their own normals cannot give a sign past their edges;
-        # clearance is measured from the closed body surface minus the
-        # thickest shell lying over that spot (bind-pose correspondence)
-        btree = cKDTree(S0)
-        layer = np.zeros(len(S0))
-        for sname in params["under_shells"]:
-            if sname not in b["meshes"]:
-                continue
-            _, _, Sh = dense(b["meshes"][sname], params["surface_samples"] // 3, 2)
-            dist, i = btree.query(Sh)
-            np.maximum.at(layer, i, dist)
-        _, nb = btree.query(S0, k=12)
-        layer = layer[nb].max(1)
+        # the surface the armour must clear: the body plus the worn-under
+        # shells (the body mesh is hollow under them), densely sampled and
+        # carried through skinning by barycentric coordinates
+        surf = []
+        for k, m in enumerate(["body"] + [x for x in params["under_shells"] if x in b["meshes"]]):
+            ms = b["meshes"][m]
+            tm = trimesh.Trimesh(ms["V"], ms["F"], process=False)
+            P0, fi = trimesh.sample.sample_surface(tm, max(4000, int(params["surface_samples"] * tm.area / 1.2)), seed=k + 1)
+            bary = trimesh.triangles.points_to_barycentric(tm.triangles[fi], P0)
+            armv = (np.isin(ms["J"], arm_j) * ms["W"]).sum(1)
+            surf.append((ms, ms["F"][fi], bary, (armv[ms["F"][fi]] * bary).sum(1) > 0.5))
+        arm = np.concatenate([x[3] for x in surf])
+        mb = b["meshes"]["body"]
         Eb = mb["F"][:, :2]
         items = sorted({k[:-2] for k in d.files if k.endswith("_P")})
         res = {it: {"min_clearance_m": 1.0, "inside_fraction_max": 0.0, "arm_contact_fraction_max": 0.0, "max_edge_strain": 0.0} for it in items}
@@ -386,15 +411,20 @@ def stage_validate(asset, params):
             T = hr.clip_length(c)
             for t in np.linspace(0, T, params["frames"]):
                 pose = hr.pose_at(sk, c, float(t))
-                Vp = hr.skin(sk, IBM, jidx, mb["V"], mb["J"], mb["W"], pose)
-                Nv = vertex_normals(Vp, mb["F"])
-                Sp = (Vp[Fs] * bary[..., None]).sum(1)
-                Np = (Nv[Fs] * bary[..., None]).sum(1)
-                ratio = (np.linalg.norm(Vp[Eb[:, 0]] - Vp[Eb[:, 1]], axis=1)
-                         / np.maximum(np.linalg.norm(mb["V"][Eb[:, 0]] - mb["V"][Eb[:, 1]], axis=1), 1e-9))
-                scale = float(np.median(ratio))  # the rig's world carries a global scale
-                body_strain = max(body_strain, float(np.percentile(np.abs(ratio / scale - 1), 99)))
+                Sps, Nps = [], []
+                for ms, Fs, bary, _ in surf:
+                    Vp = hr.skin(sk, IBM, jidx, ms["V"], ms["J"], ms["W"], pose)
+                    Nv = vertex_normals(Vp, ms["F"])
+                    Sps.append((Vp[Fs] * bary[..., None]).sum(1))
+                    Nps.append((Nv[Fs] * bary[..., None]).sum(1))
+                    if ms is mb:
+                        ratio = (np.linalg.norm(Vp[Eb[:, 0]] - Vp[Eb[:, 1]], axis=1)
+                                 / np.maximum(np.linalg.norm(mb["V"][Eb[:, 0]] - mb["V"][Eb[:, 1]], axis=1), 1e-9))
+                        scale = float(np.median(ratio))  # the rig's world carries a global scale
+                        body_strain = max(body_strain, float(np.percentile(np.abs(ratio / scale - 1), 99)))
+                Sp, Np = np.concatenate(Sps), np.concatenate(Nps)
                 tree = cKDTree(Sp)
+                layer = np.zeros(len(Sp))
                 for it in items:
                     P, I = d[f"{it}_P"], d[f"{it}_I"]
                     Pp = hr.skin(sk, IBM, jidx, P, d[f"{it}_J"], d[f"{it}_W"], pose)
@@ -497,6 +527,17 @@ def stage_publish(asset, params):
         shutil.copyfile(f, dst)
         pub["icons"][item] = {"file": portable(dst), "sha256": sha256_file(dst), "bytes": dst.stat().st_size}
         files.append(dst)
+    # the client's synchronous icon lookup, content-hashed for cache busting
+    mod = REPO_ROOT / params["icons_module"]
+    lines = ["// Generated by tools/asset-pipeline (armour_chest publish); do not edit.",
+             "// Inventory icons rendered in Cycles from the exported 3D armour (docs/art/ARMOUR-3D.md).",
+             "const ICONS = Object.freeze({"]
+    for item, info in sorted(pub["icons"].items()):
+        lines.append(f"  {item}: '/{info['file']}?v={info['sha256'][:12]}',")
+    lines += ["});", "export const RENDERED_ICON_IDS = Object.freeze(Object.keys(ICONS));",
+              "export function renderedItemIcon(id) { return typeof id === 'string' && Object.hasOwn(ICONS, id) ? ICONS[id] : null; }", ""]
+    mod.write_text("\n".join(lines))
+    files.append(mod)
     for a, b in {"inspect/inspect.json": "inspect.json", "design/design.json": "design.json", "build/build.json": "build.json",
                  "rig/rig.json": "rig.json", "validate/validate.json": "validate.json", "icons/icons.json": "icons.json"}.items():
         if asset.path(a).exists():

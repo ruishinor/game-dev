@@ -73,37 +73,36 @@ class FitBody:
 
         self.joints = body["joints"]
         self.L = {k: np.asarray(v, float) for k, v in body["bind"].items()}
-        mb = body["meshes"]["body"]
-        tm = trimesh.Trimesh(mb["V"], mb["F"], process=False)
-        P, fi = trimesh.sample.sample_surface(tm, n, seed=seed)
-        bary = trimesh.triangles.points_to_barycentric(tm.triangles[fi], P)
-        F = mb["F"][fi]
+        # The body mesh is hollow where clothing shells cover it (e.g. the
+        # lower back under the belt), so the fitting surface is the body plus
+        # the worn-under shells: armour goes over whatever the look wears.
+        names = ["body"] + [s for s in under if s in body["meshes"]]
+        tms = {m: trimesh.Trimesh(body["meshes"][m]["V"], body["meshes"][m]["F"], process=False) for m in names}
+        total = sum(t.area for t in tms.values())
         nj = len(self.joints)
-        Wd = np.zeros((len(P), nj))
-        for c in range(3):
-            for k in range(4):
-                np.add.at(Wd, (np.arange(len(P)), mb["J"][F[:, c], k]), bary[:, c] * mb["W"][F[:, c], k])
-        Nn = (mb["N"][F] * bary[..., None]).sum(1)
-        Nn /= np.linalg.norm(Nn, axis=1, keepdims=True)
-        self.P, self.N, self.Wd = P, Nn, Wd
+        Ps, Ns, Ws, src = [], [], [], []
+        for k, m in enumerate(names):
+            mb, tm = body["meshes"][m], tms[m]
+            P, fi = trimesh.sample.sample_surface(tm, max(2000, int(n * tm.area / total)), seed=seed + k)
+            bary = trimesh.triangles.points_to_barycentric(tm.triangles[fi], P)
+            F = mb["F"][fi]
+            Wd = np.zeros((len(P), nj))
+            for c in range(3):
+                for kk in range(4):
+                    np.add.at(Wd, (np.arange(len(P)), mb["J"][F[:, c], kk]), bary[:, c] * mb["W"][F[:, c], kk])
+            Nn = (mb["N"][F] * bary[..., None]).sum(1)
+            Nn /= np.linalg.norm(Nn, axis=1, keepdims=True)
+            Ps.append(P), Ns.append(Nn), Ws.append(Wd), src.append(np.full(len(P), k))
+        self.P, self.N, self.Wd, self.src = np.concatenate(Ps), np.concatenate(Ns), np.concatenate(Ws), np.concatenate(src)
+        self.surfaces = names
         ji = {n: i for i, n in enumerate(self.joints)}
-        torso = Wd[:, [ji[n] for n in TORSO_JOINTS]].sum(1)
-        arm = Wd[:, [i for n, i in ji.items() if n.startswith(ARM_PREFIX)]].sum(1)
-        head = Wd[:, [ji[n] for n in ("Head",) if n in ji]].sum(1)
+        torso = self.Wd[:, [ji[n] for n in TORSO_JOINTS]].sum(1)
+        arm = self.Wd[:, [i for n, i in ji.items() if n.startswith(ARM_PREFIX)]].sum(1)
+        head = self.Wd[:, [ji[n] for n in ("Head",) if n in ji]].sum(1)
         self.torso = (torso > 0.5) & (arm < 0.35)
         self.arm = arm >= 0.35
         self.head = head > 0.5
-        self.tree = cKDTree(P)
-        # the outer surface the armour must clear: body or worn-under shells
-        U = [mb["V"]]
-        Sh = []
-        for k, s in enumerate(under):
-            if s in body["meshes"]:
-                U.append(body["meshes"][s]["V"])
-                ms = body["meshes"][s]
-                Sh.append(trimesh.sample.sample_surface(trimesh.Trimesh(ms["V"], ms["F"], process=False), n // 6, seed=seed + 1 + k)[0])
-        self.outer = np.concatenate(U)
-        self.outer_shells = np.concatenate(Sh) if Sh else np.zeros((0, 3))
+        self.tree = cKDTree(self.P)
         self.y_p, self.y_n = self.L["pelvis"][1], self.L["neck_01"][1]
         self._cache = {}
 
@@ -124,7 +123,7 @@ class FitBody:
             if sel.sum() < 12:
                 sel = (~self.head) & (np.abs(self.P[:, 1] - y) < half * 2) & (np.abs(self.P[:, 0]) < (x_limit or 0.25))
             d = self.P[sel] - self.centre(y)
-            self._cache[key] = angular_envelope(np.arctan2(d[:, 0], d[:, 2]), np.hypot(d[:, 0], d[:, 2]), bins=96, smooth=3)
+            self._cache[key] = convex_envelope(d[:, 0], d[:, 2])
         cen, env = self._cache[key]
         return np.interp(thetas, cen, env, period=2 * np.pi)
 
@@ -133,6 +132,18 @@ class FitBody:
         r = self.radius(y, np.array([theta]), x_limit=x_limit)[0] + off
         c = self.centre(y)
         return np.array([c[0] + r * np.sin(theta), y, c[2] + r * np.cos(theta)]), np.array([np.sin(theta), 0.0, np.cos(theta)])
+
+
+def convex_envelope(x, z, bins=96, smooth=2):
+    """Polar radius of the convex hull of a cross-section: armour bridges the
+    body's concavities (spine groove, between the breasts) like a real plate."""
+    from scipy.spatial import ConvexHull
+
+    pts = np.c_[x, z]
+    h = pts[ConvexHull(pts).vertices]
+    h = np.r_[h, h[:1]]
+    dense = np.concatenate([np.linspace(h[i], h[i + 1], 24, endpoint=False) for i in range(len(h) - 1)])
+    return angular_envelope(np.arctan2(dense[:, 0], dense[:, 1]), np.hypot(dense[:, 0], dense[:, 1]), bins=bins, smooth=smooth)
 
 
 def torso_sheet(body, ns, nq, fn, closed=False, x_limit=0.2):
@@ -148,7 +159,7 @@ def torso_sheet(body, ns, nq, fn, closed=False, x_limit=0.2):
     return np.array(P), grid_faces(ns, nq, closed)
 
 
-def yoke(body, side, t_levels, phis, offset, start_x=0.055, end_k=1.12):
+def yoke(body, side, t_levels, phis, offset, start_x=0.075, end_k=1.0):
     """Saddle over the top of the shoulder: lofted along the neck->shoulder
     axis over the upper half of the cross-section (phi 0 = up, +90 = front)."""
     sg = 1.0 if side == "l" else -1.0
@@ -159,7 +170,7 @@ def yoke(body, side, t_levels, phis, offset, start_x=0.055, end_k=1.12):
     up = np.array([0, 1.0, 0]) - u * u[1]
     up /= np.linalg.norm(up)
     fwd = np.cross(u, up) * sg
-    sel = ~body.head
+    sel = ~body.head & ~((np.abs(body.P[:, 0]) < start_x + 0.01) & (body.P[:, 1] > sh[1] - 0.02))
     d = body.P[sel] - a
     s = d @ u
     radial = np.linalg.norm(d - np.outer(s, u), axis=1)
@@ -194,7 +205,7 @@ def _piece(name, item, mat, V, F, **kw):
     return d
 
 
-def vest_body(body, item, mat, base, hem_u=0.36, neck_front=0.84, neck_back=0.9, arm_u=0.74, top_u=0.95):
+def vest_body(body, item, mat, base, hem_u=0.16, neck_front=0.84, neck_back=0.9, arm_u=0.72, top_u=0.95):
     """The vest shell: closed below the armholes, neckline and armholes above."""
     deg = np.radians
 
@@ -205,11 +216,11 @@ def vest_body(body, item, mat, base, hem_u=0.36, neck_front=0.84, neck_back=0.9,
         neck = neck_front if front else neck_back
         # top edge: armhole low at the sides, shoulder line between, neckline at centre
         centre_w = np.exp(-((np.abs(th) if front else (np.pi - np.abs(th))) / deg(26)) ** 2)
-        top = top_u - (top_u - arm_u) * _ss(0.55, 0.92, side) - (top_u - neck) * centre_w
+        top = top_u - (top_u - arm_u) * _ss(0.8, 0.985, side) - (top_u - neck) * centre_w
         bot = hem_u - (0.03 if not front else 0.0) * (1 - side)
         u = bot + s * (top - bot)
         return th, u, base + 0.002 * s
-    V, F = torso_sheet(body, 16, 72, fn, closed=True, x_limit=0.2)
+    V, F = torso_sheet(body, 22, 72, fn, closed=True, x_limit=0.2)
     return _piece("vest", item, mat, V, F, thickness=0.006, bevel=0.0015)
 
 
@@ -233,17 +244,17 @@ def design_field(body, base, m):
     for s in ("l", "r"):
         V, F = yoke(body, s, np.linspace(0.05, 1.0, 9), np.linspace(-deg(95), deg(95), 22), base + 0.012)
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
-    P.append(plate(body, it, "chest_panel", m["panel"], 0.0, deg(46), 0.45, 0.8, base + 0.009, keel=0.004))
-    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(20), 0.52, 0.7, base + 0.016, taper=0.1, ns=8, nq=10))
-    P.append(plate(body, it, "back_panel", m["panel"], np.pi, deg(50), 0.42, 0.82, base + 0.009))
-    for k, uu in enumerate((0.52, 0.66)):
+    P.append(plate(body, it, "chest_panel", m["panel"], 0.0, deg(46), 0.3, 0.82, base + 0.009, keel=0.004, ns=16))
+    P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(20), 0.46, 0.7, base + 0.016, taper=0.1, ns=10, nq=10))
+    P.append(plate(body, it, "back_panel", m["panel"], np.pi, deg(50), 0.26, 0.84, base + 0.009, ns=16))
+    for k, uu in enumerate((0.36, 0.6)):
         for s, sg in (("l", 1), ("r", -1)):
             V, F = ribbon_around(body, uu, sg * deg(52), sg * deg(128), 0.035, base + 0.008, n=20)
             P.append(_piece(f"strap_{s}{k}", it, m["strap"], V, F, thickness=0.003))
             p, n = body.on_torso(sg * deg(90), uu, base + 0.014)
             V, F = box(p, (0.022, 0.026, 0.006), np.array([0, 1.0, 0]), n)
             P.append(_piece(f"buckle_{s}{k}", it, m["hardware"], V, F, bevel=0.0015))
-    V, F = ribbon_around(body, 0.37, -np.pi, np.pi, 0.022, base + 0.007, n=72)
+    V, F = ribbon_around(body, 0.175, -np.pi, np.pi, 0.024, base + 0.007, n=72)
     P.append(_piece("hem_binding", it, m["strap"], V, F, thickness=0.003))
     return P
 
@@ -253,16 +264,16 @@ def design_reinforced(body, base, m):
     plates, large asymmetric pale pauldron-yokes, a teal inset, amber piping
     and a relay housing on the left chest."""
     it, deg = "reinforced_chest", np.radians
-    P = [vest_body(body, it, m["vest"], base, hem_u=0.33)]
+    P = [vest_body(body, it, m["vest"], base, hem_u=0.13)]
     for s, big in (("l", 1.0), ("r", 0.82)):
         V, F = yoke(body, s, np.linspace(0.0, 1.0 + 0.12 * big, 10), np.linspace(-deg(105), deg(105), 24),
                     lambda ph, t, big=big: base + 0.014 + 0.012 * big * _ss(0.6, 1.1, t))
         P.append(_piece("pauldron_" + s, it, m["yoke"], V, F, thickness=0.006, bevel=0.0025))
     P.append(plate(body, it, "chest_plate", m["plate"], 0.0, deg(52), 0.6, 0.86, base + 0.011, keel=0.006))
-    P.append(plate(body, it, "ab_plate_upper", m["plate"], 0.0, deg(44), 0.47, 0.6, base + 0.012, taper=0.05, ns=6))
-    P.append(plate(body, it, "ab_plate_lower", m["plate"], 0.0, deg(40), 0.35, 0.47, base + 0.013, taper=0.05, ns=6))
+    P.append(plate(body, it, "ab_plate_upper", m["plate"], 0.0, deg(44), 0.42, 0.6, base + 0.012, taper=0.05, ns=6))
+    P.append(plate(body, it, "ab_plate_lower", m["plate"], 0.0, deg(40), 0.22, 0.42, base + 0.013, taper=0.05, ns=6))
     P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(24), 0.63, 0.8, base + 0.019, taper=0.15, ns=8, nq=10))
-    P.append(plate(body, it, "back_plate", m["plate"], np.pi, deg(54), 0.45, 0.86, base + 0.011))
+    P.append(plate(body, it, "back_plate", m["plate"], np.pi, deg(54), 0.28, 0.86, base + 0.011, ns=16))
     for k, th in enumerate((-deg(30), deg(30))):
         V, F = vertical_strip(body, th, 0.6, 0.86, deg(1.6), base + 0.0175)
         P.append(_piece(f"piping_{k}", it, m["trim"], V, F, thickness=0.002))
@@ -277,7 +288,7 @@ def design_reinforced(body, base, m):
     P.append({**_piece("relay_housing", it, m["hardware"], None, None, bevel=0.002), "V": hw, "F": None})
     rv = []
     for th in (-deg(40), -deg(14), deg(14), deg(40)):
-        for uu in (0.5, 0.82):
+        for uu in (0.27, 0.82):
             p, n = body.on_torso(th, uu, base + 0.018)
             rv.append(cylinder(p, p + n * 0.006, 0.004, n=8))
     P.append({**_piece("rivets", it, m["trim"], None, None), "V": rv, "F": None})
@@ -289,35 +300,35 @@ def design_resonant(body, base, m):
     yokes, a dark teal plastron with a resonant diamond core, and mint
     resonance lines (emissive) along the plastron and ribs."""
     it, deg = "resonant_chest", np.radians
-    P = [vest_body(body, it, m["vest"], base, hem_u=0.34, neck_front=0.8)]
+    P = [vest_body(body, it, m["vest"], base, hem_u=0.14, neck_front=0.8)]
     for s in ("l", "r"):
         V, F = yoke(body, s, np.linspace(0.05, 1.04, 9), np.linspace(-deg(100), deg(100), 22),
                     lambda ph, t: base + 0.013 + 0.006 * np.cos(ph))
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
 
     def plastron(s, q):
-        u = 0.4 + 0.42 * s
+        u = 0.24 + 0.58 * s
         w = deg(40) * (1 - 0.55 * _ss(0.55, 1.0, s)) * (0.75 + 0.25 * _ss(0.0, 0.3, s))
         x = 2 * q - 1
         return x * w, u, base + 0.01 + 0.006 * np.exp(-(x * 1.4) ** 2)
-    V, F = torso_sheet(body, 14, 20, plastron)
+    V, F = torso_sheet(body, 18, 20, plastron)
     P.append(_piece("plastron", it, m["plate"], V, F, thickness=0.005, bevel=0.002))
-    P.append(plate(body, it, "back_plate", m["plate"], np.pi, deg(46), 0.44, 0.84, base + 0.01))
+    P.append(plate(body, it, "back_plate", m["plate"], np.pi, deg(46), 0.28, 0.84, base + 0.01, ns=16))
 
     def core(s, q):
         # diamond: half width shrinks to 0 at both ends
-        u = 0.54 + 0.2 * s
+        u = 0.48 + 0.24 * s
         w = deg(13) * (1 - abs(2 * s - 1))
         return (2 * q - 1) * max(w, deg(0.6)), u, base + 0.02
     V, F = torso_sheet(body, 9, 7, core)
     P.append(_piece("core", it, m["core"], V, F, thickness=0.004, bevel=0.0015))
     lines = []
     for th in (-deg(18), deg(18)):
-        lines.append(vertical_strip(body, th, 0.42, 0.8, deg(1.1), base + 0.0175))
-    for k, uu in enumerate((0.48, 0.58)):
+        lines.append(vertical_strip(body, th, 0.28, 0.8, deg(1.1), base + 0.0175))
+    for k, uu in enumerate((0.32, 0.46)):
         for sg in (1, -1):
             lines.append(ribbon_around(body, uu, sg * deg(24), sg * deg(70), 0.012, base + 0.004, n=18))
-    lines.append(vertical_strip(body, 0.0, 0.48, 0.8, deg(0.9), base + 0.0215))
+    lines.append(vertical_strip(body, 0.0, 0.3, 0.46, deg(0.9), base + 0.0215))
     P.append({**_piece("resonance_lines", it, m["lines"], None, None, thickness=0.0015), "V": lines, "F": None})
     return P
 
@@ -325,37 +336,47 @@ def design_resonant(body, base, m):
 DESIGNS = {"field_chest": design_field, "reinforced_chest": design_reinforced, "resonant_chest": design_resonant}
 
 
-def shell_layer(body, P):
-    """Thickness of the worn-under layer (shells) above the body near P."""
-    if not hasattr(body, "_layer"):
-        t = cKDTree(body.P)
-        layer = np.zeros(len(body.P))
-        d, i = t.query(body.outer_shells) if len(body.outer_shells) else (np.zeros(0), np.zeros(0, int))
-        np.maximum.at(layer, i, d)
-        _, nb = t.query(body.P, k=24)
-        body._layer = layer[nb].max(1)
-    _, i = body.tree.query(P)
-    return body._layer[i]
+def relax(V, F, iters=4, lam=0.5):
+    """Laplacian smoothing of a sheet, open-boundary vertices pinned."""
+    V = np.asarray(V, float).copy()
+    E = np.r_[F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]
+    Es = np.sort(E, 1)
+    u, cnt = np.unique(Es, axis=0, return_counts=True)
+    boundary = np.zeros(len(V), bool)
+    boundary[u[cnt == 1].ravel()] = True
+    n = len(V)
+    for _ in range(iters):
+        acc = np.zeros_like(V)
+        deg = np.zeros(n)
+        np.add.at(acc, E[:, 0], V[E[:, 1]])
+        np.add.at(acc, E[:, 1], V[E[:, 0]])
+        np.add.at(deg, E[:, 0], 1)
+        np.add.at(deg, E[:, 1], 1)
+        L = acc / np.maximum(deg, 1)[:, None] - V
+        L[boundary] = 0
+        V += lam * L
+    return V
 
 
 def push_clear(body, V, gap):
-    """Move points out along the body normal until each clears the body by its
-    worn-under layer plus `gap` (radial lofts sit closer on sloped surfaces)."""
+    """Move points out along the surface normal until each clears the body and
+    worn-under shells by `gap` (radial lofts sit closer on sloped surfaces)."""
     V = np.asarray(V, float).copy()
-    for _ in range(3):
+    nb = cKDTree(V).query(V, k=min(16, len(V)))[1]
+    for _ in range(4):
         _, i = body.tree.query(V)
         sd = np.sum((V - body.P[i]) * body.N[i], 1)
-        need = shell_layer(body, V) + gap - sd
-        mv = need > 0
-        V[mv] += body.N[i[mv]] * need[mv, None]
+        need = np.maximum(gap - sd, 0)
+        # neighbour-max then mean keeps the push smooth across the sheet, so
+        # opposite normals in a groove cannot fold it
+        need = need[nb].max(1)
+        D = body.N[i] * need[:, None]
+        V += D[nb].mean(1)
     return V
 
 
 def clearance(body, V):
-    """Signed distance of points from the outer surface the armour clears
-    (body or worn-under shell), using the nearest body sample normal."""
-    t = cKDTree(body.outer)
-    d, _ = t.query(V)
-    _, i = body.tree.query(V)
-    side = np.sign(np.sum((V - body.P[i]) * body.N[i], 1))
-    return d * side
+    """Signed distance of points from the fitting surface (body + worn-under
+    shells), using the nearest sample's normal."""
+    d, i = body.tree.query(V)
+    return d * np.sign(np.sum((V - body.P[i]) * body.N[i], 1))

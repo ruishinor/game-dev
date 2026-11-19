@@ -701,8 +701,9 @@ function addEntity(meta) {
       const next=createModel(assets,meta,useGlb(meta)),old=ent.model;
       ent.holder.remove(old.group);old.dispose?.();ent.model=next;ent.holder.add(next.group);
       if(quality===0)lowSpec(next.group,true);
-    } else if (ent.meta.wv !== meta.wv) {
-      ent.model.setWeaponVisual?.(meta.wv);
+    } else {
+      if (ent.meta.wv !== meta.wv) ent.model.setWeaponVisual?.(meta.wv);
+      if (ent.meta.av !== meta.av) ent.model.setArmourVisual?.(meta.av);
     }
     ent.meta = meta;
     return ent;
@@ -1982,7 +1983,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView,
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, inView: e.inView,
         ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),

@@ -33,8 +33,9 @@
   "design": {
    "items": ["field_chest", "reinforced_chest", "resonant_chest"],
    "samples": 120000,
-   "base_offset": 0.028,
-   "min_gap": 0.006
+   "base_offset": 0.009,
+   "min_gap": 0.008,
+   "relax": 6
   },
   "materials": {
    "field_chest": {
@@ -61,11 +62,17 @@
     "lines": {"base": "#b7eadb", "worn": "#e4fbf3", "roughness": 0.3, "noise": 16, "emission": "#b7eadb", "emission_strength": 4.0}
    }
   },
-  "build": {"texture": 1024},
+  "build": {"texture": 1024, "mottle": 0.12},
   "rig": {
    "samples": 120000,
    "k": 10,
    "emissive_size": 512,
+   "arm_cap": {"yoke": 0.3, "pauldron": 0.4},
+   "weight_modes": {"chest_panel": ["band", "y", 0.05], "back_panel": ["band", "y", 0.05], "chest_plate": ["band", "y", 0.05],
+                    "back_plate": ["band", "y", 0.05], "plastron": ["band", "y", 0.05], "ab_plate_upper": ["band", "y", 0.04], "ab_plate_lower": ["band", "y", 0.04],
+                    "chest_inset": ["rigid"], "core": ["rigid"], "relay_housing": ["rigid"], "buckle": ["rigid"], "rivets": ["band", "y", 0.03],
+                    "piping": ["band", "y", 0.05], "piping_waist": ["rigid"], "resonance_lines": ["band", "y", 0.04],
+                    "yoke": ["band", "x", 0.025], "pauldron": ["band", "x", 0.025]},
    "stiffness": {"vest": 0.5, "yoke": 2.5, "pauldron": 2.5, "chest_panel": 1.5, "chest_plate": 2.0, "ab_plate_upper": 1.5, "ab_plate_lower": 1.5,
                  "back_panel": 1.5, "back_plate": 2.0, "plastron": 2.0, "core": 3.0, "chest_inset": 2.0, "relay_housing": 3.0, "rivets": 2.0,
                  "buckle": 2.0, "piping": 1.5, "piping_waist": 1.5, "resonance_lines": 1.5}
@@ -75,7 +82,7 @@
    "clips": ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Interact", "Spell_Simple_Shoot", "Punch_Cross"],
    "frames": 8,
    "surface_samples": 60000,
-   "under_shells": ["shell_chest", "shell_coat", "shell_belt"],
+   "under_shells": ["shell_chest", "shell_coat", "shell_belt", "shell_upperarms"],
    "max_inside_fraction": 0.02,
    "max_edge_strain_p99": 0.15,
    "strain_vs_body": 1.15,
@@ -87,6 +94,7 @@
   "publish": {
    "runtime": {"m": "client/assets/armour_chest_m.glb", "f": "client/assets/armour_chest_f.glb"},
    "icons_dir": "client/assets/icons/armour",
+   "icons_module": "client/src/item-renders.js",
    "icon_size": 256
   }
  }

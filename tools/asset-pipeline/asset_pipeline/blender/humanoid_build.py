@@ -288,7 +288,8 @@ def procedural_material(name):
     darkening; returns (material, {"base","rough","metal"} output sockets)."""
     spec = MATERIALS[name]
     base, worn, metal, rough, scale, weave = spec[:6]
-    emission = spec[6] if len(spec) > 6 else None  # (r, g, b, strength) or None
+    emission = spec[6] if len(spec) > 6 and spec[6] else None  # (r, g, b, strength) or None
+    mottle_k = spec[7] if len(spec) > 7 else 0.35
     m = bpy.data.materials.new("wd_" + name)
     m.use_nodes = True
     nt = m.node_tree
@@ -317,7 +318,7 @@ def procedural_material(name):
     mottle = N("ShaderNodeMix")
     mottle.data_type = "RGBA"
     mottle.blend_type = "MULTIPLY"
-    mottle.inputs["Factor"].default_value = 0.35
+    mottle.inputs["Factor"].default_value = mottle_k
     L(mix.outputs["Result"], mottle.inputs["A"])
     L(noise.outputs["Color"], mottle.inputs["B"])
     ao = N("ShaderNodeAmbientOcclusion")
@@ -441,7 +442,7 @@ def op_wardrobe(p):
             so = ob.modifiers.new("solid", "SOLIDIFY")
             so.thickness = pc["thickness"]
             so.offset = 1.0
-            so.use_even_offset = True
+            so.use_even_offset = pc.get("even", True)
         if pc.get("bevel"):
             bv = ob.modifiers.new("bevel", "BEVEL")
             bv.width = pc["bevel"]

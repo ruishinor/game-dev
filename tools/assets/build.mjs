@@ -159,7 +159,8 @@ async function buildTurretDrone(spec) {
 // its hash; this job only verifies the two agree and describes the file.
 async function buildPipelineAsset(spec) {
   const file = path.join(OUT, spec.out);
-  const report = JSON.parse(fs.readFileSync(path.join(ROOT, spec.report), 'utf8'));
+  const all = JSON.parse(fs.readFileSync(path.join(ROOT, spec.report), 'utf8'));
+  const report = spec.reportKey ? all[spec.reportKey] : all;
   const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   if (digest !== report.sha256) throw new Error(`${spec.id}: ${spec.out} does not match ${spec.report} (rerun the pipeline's publish stage)`);
   for (const id of spec.sources) {
@@ -183,6 +184,9 @@ async function main() {
     [{ id: 'turret_drone', out: 'turret_drone.glb', sources: [] }, buildTurretDrone],
     [{ id: 'halo_construct', out: 'halo_construct.glb', kind: 'skinned', report: 'tools/asset-pipeline/assets/halo_construct/outputs/export.json',
       sources: ['halo_construct_owner', 'ual1', 'ual2'], note: 'Produced by tools/asset-pipeline (imported-mechanical-humanoid); see docs/art/HALO-CONSTRUCT-NPC.md' }, buildPipelineAsset],
+    ...['m', 'f'].map((k) => [{ id: `armour_chest_${k}`, out: `armour_chest_${k}.glb`, kind: 'skinned', report: 'tools/asset-pipeline/assets/armour_chest/outputs/export.json', reportKey: k,
+      sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
+      note: `Original body-fitted chest armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),
     ...FACE_TEXTURES.map((s) => [s, buildFaceTexture]),
   ];
   const unknown = [...only].filter((id) => !jobs.some(([spec]) => spec.id === id));
