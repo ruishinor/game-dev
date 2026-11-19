@@ -718,6 +718,7 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .workshop-window .planner-slot select{padding:4px;margin-top:2px}
 .workshop-window .fabrication-visual{padding:2px 0;gap:6px}
 .workshop-window .fabrication-visual .item-art,.workshop-window .recipe-entry .item-art{width:30px;height:30px;flex-basis:30px}
+.workshop-window .recipe-result .item-art{width:50px;height:50px;flex-basis:50px}
 .workshop-window .workshop-row{padding:3px 0}
 .workshop-window .workshop-recipes{gap:3px;max-height:none}
 .workshop-window .recipe-entry{padding:4px 6px;gap:6px}
