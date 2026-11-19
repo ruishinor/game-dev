@@ -50,7 +50,7 @@ python -m unittest discover -s tests -v                        # unit tests (no 
 | `texture` | Visibility-tested multi-view colour reprojection onto a UV atlas, with confidence map and coverage |
 | `evaluate` | Surface accuracy and completeness, F-score, per-part completeness (exterior surface only), hold-out silhouette IoU and PSNR, camera error after similarity alignment |
 
-`reference-driven-creature` (`creature.py`): `ingest`, `segment`, `feasibility`, `measure`, `build`, `fit`, `game_ready`, `export`, `validate`, `preview`, `render`. The `feasibility` stage decides between photogrammetry and reference-constrained modelling from evidence (SIFT/RANSAC across views plus a real pycolmap attempt). It does not assume either.
+`reference-driven-creature` (`creature.py`, not yet in this repository: the first asset made with it is unreleased, so its stage module, builder and configuration are held back pending an owner decision): `ingest`, `segment`, `feasibility`, `measure`, `build`, `fit`, `game_ready`, `export`, `validate`, `preview`, `render`. The `feasibility` stage decides between photogrammetry and reference-constrained modelling from evidence (SIFT/RANSAC across views plus a real pycolmap attempt). It does not assume either.
 
 ## Experiment A baseline
 

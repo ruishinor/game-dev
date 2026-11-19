@@ -27,7 +27,12 @@ def stages_for(asset: Asset):
     kind = asset.config.get("kind")
     if kind not in KINDS:
         raise StageError(f"unknown asset kind '{kind}'")
-    return importlib.import_module(KINDS[kind]).STAGES
+    try:
+        return importlib.import_module(KINDS[kind]).STAGES
+    except ModuleNotFoundError as e:
+        if e.name != KINDS[kind]:
+            raise
+        raise StageError(f"asset kind '{kind}' needs {KINDS[kind]}, which is not in this checkout") from None
 
 
 def inspect(asset: Asset) -> None:
