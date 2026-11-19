@@ -164,12 +164,19 @@ try{
   const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
   await installedRod.hover();
   await page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('electrical_combat_rod'));
-  await installedRod.click({button:'right'});
-  await page.locator('.player-context').getByRole('button',{name:'Separate into dual batons',exact:true}).click();
+  // Exercise the documented keyboard context-menu path on the equipped slot.
+  // Pointer context menus are still exercised by both real inventory swaps.
+  await installedRod.press('Shift+F10');
+  const context=page.locator('.player-context');
+  await context.waitFor({state:'visible'});
+  assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
+  await context.getByRole('button',{name:'Separate into dual batons',exact:true}).click();
   await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
   assert.equal(p.char.electricalRodMode,'dual');
-  await installedRod.click({button:'right'});
-  await page.locator('.player-context').getByRole('button',{name:'Join into combat rod',exact:true}).click();
+  await installedRod.press('Shift+F10');
+  await context.waitFor({state:'visible'});
+  assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
+  await context.getByRole('button',{name:'Join into combat rod',exact:true}).click();
   await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
   assert.equal(p.char.electricalRodMode,'rod');
   await loadout.getByRole('button',{name:'Close',exact:true}).click();
