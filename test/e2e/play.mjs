@@ -284,7 +284,9 @@ async function workshopPlaytest(){
   await device.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:'Upgrade'}).click();
   const blocked=await page.locator('[data-craft="calibrate_servo"]').isDisabled();
-  await page.keyboard.press('KeyC');
+  // Window coexistence is intentional. Close Workshop before using the loadout.
+  if(await page.locator('.workshop-window').isVisible()){await page.locator('#view').focus();await page.keyboard.press('KeyB');}
+  if(await device.isHidden()){await page.locator('#view').focus();await page.keyboard.press('KeyC');}
   await device.click({button:'right'});
   await page.locator('.player-context button').filter({hasText:/^Unequip$/}).click();
   await page.waitForFunction(()=>!window.__attune.state().sheet.equipped.device,null,{timeout:10000});

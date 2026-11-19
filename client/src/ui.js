@@ -1368,6 +1368,13 @@ export class UI {
       equip.disabled=!!this.buildLock||!res.ok;
       equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,installed?'remove':'equip');});
       this.playerContext.append(equip);
+      if(id==='electrical_combat_rod'&&installed){
+        const dual=s.electricalRodMode==='dual';
+        const mode=h('button',null,dual?'Join into combat rod':'Separate into dual batons');
+        mode.disabled=!!this.buildLock;
+        mode.addEventListener('click',()=>{this.closePlayerContext();this.a.rodMode(dual?'rod':'dual');});
+        this.playerContext.append(mode);
+      }
       if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
       if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
     }
