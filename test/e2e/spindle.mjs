@@ -8,20 +8,21 @@ import {liveFixturePlayer} from './live-fixture.mjs';
 const out = path.resolve('docs/evidence/spindle/gameplay');
 await fs.mkdir(out,{recursive:true});
 const server=await startServer({port:0,dataFile:null});
-let browser, owner;
+let browser, owner, observer;
 const errors=[];
 try {
   browser=await launchBrowser();
-  async function join(name,width,height) {
-    const page=await browser.newPage({viewport:{width,height}});
-    page.setDefaultTimeout(60000);
+  async function join(name,width,height,slot,quality=1) {
+    const ctx=await browser.newContext({viewport:{width,height},deviceScaleFactor:1});
+    const page=await ctx.newPage();
+    page.setDefaultTimeout(90000);
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',msg=>{if(msg.type()==='error') errors.push(msg.text());});
-    await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=2':''));
+    await page.goto('http://127.0.0.1:'+server.port+'/?q='+quality+'&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=1':''));
     await page.fill('#name',name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
-    await page.waitForFunction(()=>window.__attune?.state().sheet?.cls==='vanguard');
+    await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>0;},null,{polling:100});
     return page;
   }
   async function openSheet(page) {
@@ -29,7 +30,7 @@ try {
     await page.getByRole('button',{name:'Companion Sheet',exact:true}).click();
     return page.getByRole('dialog',{name:'Companion Sheet'});
   }
-  owner=await join('Gauge Tester',1280,800);
+  owner=await join('Gauge Tester',1280,800,'spindle-owner');
   const p=await liveFixturePlayer(owner,server,'Gauge Tester');
   const sheet=await openSheet(owner);
   const commission=sheet.getByRole('button',{name:'Commission Spindle'});
@@ -79,15 +80,20 @@ try {
   await owner.keyboard.press('Shift+4');
   await owner.waitForFunction(()=>window.__attune.state().ents.some(e=>e.c==='spindle'&&e.row.md==='follow'));
 
-  const observer=await join('Gauge Witness',800,600);
-  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&e.c==='spindle'&&e.model==='glb'),id);
+  // Match the integrated browser suite: software WebGL clients must not
+  // compete for expensive draws during initial asset loading. Simulation,
+  // networking and articulation continue while rendering is paused.
+  if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(true));
+  observer=await join('Gauge Witness',800,600,'spindle-observer',SOFTWARE_GL?0:1);
+  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&e.c==='spindle'&&e.model==='glb'),id,{polling:100});
   assert.equal(await observer.evaluate(()=>window.__attune.state().compId),0);
-  await observer.evaluate(()=>window.__attune.pause(true));
+  if(SOFTWARE_GL) await observer.evaluate(()=>window.__attune.pause(true));
   console.log('Second browser resolved the authoritative companion.');
   // Both clients have rendered the same authoritative companion. Move the
   // owner with ordinary input and sample the real wheel on the other client.
   const phase=await observer.evaluate(()=>window.__attune.gfx.scene.getObjectByName('Roll').rotation.x);
   await owner.bringToFront();
+  if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(false));
   await owner.locator('#view').focus();
   const before={x:p.companion.x,z:p.companion.z};
   await owner.keyboard.down('KeyW');
@@ -124,6 +130,7 @@ try {
   console.log('PASS Spindle commission, keyboard operation, summoning, portrait, stay/follow, signed travel on observer, inspection, owner-only report and remote dismissal');
 } catch(error) {
   if(owner) await owner.screenshot({path:path.join(out,'diagnostic.png'),timeout:10000}).catch(()=>{});
+  if(observer) await observer.screenshot({path:path.join(out,'observer-diagnostic.png'),timeout:10000}).catch(()=>{});
   console.error('Browser errors:',errors);
   throw error;
 } finally {
