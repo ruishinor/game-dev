@@ -2,6 +2,7 @@
 // Pure presentation: no inventory, attack, damage or stun authority.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import {createRodCorona} from './vfx/rod-corona.js';
 export {createElectricalRodVfx} from './vfx/electrical-rod.js';
 
 export const ROD = Object.freeze({ halfLength: .76, splitOffset: .27, duration: .95 });
@@ -114,6 +115,8 @@ export function createElectricalRod({independentEmission=false}={}) {
     }
     return h;
   });
+  // Render-only detail, intentionally excluded from the structural GLB export.
+  const corona=independentEmission?createRodCorona(halves):null;
   let p=0,target=0,disposed=false;
   function apply(){
     const pose=rodPose(p);
@@ -124,13 +127,14 @@ export function createElectricalRod({independentEmission=false}={}) {
     if(mode!=='dual'&&mode!=='rod')throw Error('Unknown rod presentation mode');
     target=mode==='rod'?1:0;
   }
-  function update(dt,{reducedMotion=false,energized=true,activity=0}={}){
+  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false}={}){
     if(disposed)return;
     const step=Number.isFinite(dt)&&dt>0?dt/ROD.duration:0;
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
-    for(const m of channels){m.inlay.emissiveIntensity=k*(.55+.38*clamp(Number.isFinite(activity)?activity:0));m.blue.emissiveIntensity=k*.24;}
+    for(const m of channels){m.inlay.emissiveIntensity=k*(independentEmission?2.2:.55)+k*.38*clamp(Number.isFinite(activity)?activity:0);m.blue.emissiveIntensity=k*(independentEmission?1.1:.24);}
+    corona?.update(dt,{energized,activity,quality,intensity,calm,reducedMotion});
   }
   function setEnergy(right,left=right){
     if(disposed)return;
@@ -142,7 +146,7 @@ export function createElectricalRod({independentEmission=false}={}) {
     return marker.getWorldPosition(into);
   }
   return {group,halves,setMode,update,setEnergy,anchor,get progress(){return p;},
-    dispose(){if(disposed)return;disposed=true;group.removeFromParent();
+    dispose(){if(disposed)return;disposed=true;corona?.dispose();group.removeFromParent();
       geometry.forEach(g=>g.dispose());new Set(channels.flatMap(Object.values)).forEach(m=>m.dispose());}};
 }
 

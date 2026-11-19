@@ -41,7 +41,7 @@ test('idle VFX remains local and bounded; reduced motion suppresses arcs',()=>{
  const rod=createElectricalRod();
  try{
   let n=0,bursts=0;
-  const vfx={quality:2,reducedMotion:false,lightning(o){n++;assert.ok(o.life<.2&&o.width<.02);assert.ok(o.from().distanceTo(o.to())<.2);},burst(){bursts++;}};
+  const vfx={quality:2,reducedMotion:false,lightning(o){n++;assert.ok(o.life<=.6&&o.width<=.03);assert.ok(o.from().distanceTo(o.to())<.6);},burst(){bursts++;}};
   const fx=createElectricalRodVfx(rod,vfx);
   fx.update(.01);assert.equal(n,2);fx.update(.01);assert.equal(n,2);
   fx.update(.6,{energized:false});assert.equal(n,2);
@@ -117,7 +117,7 @@ test('ability-grade impact is bounded, mode-dependent, and cancels remaining han
   assert.equal(calls.find(c=>c.name==='burst').o.count,64);
   assert.ok(calls.find(c=>c.name==='shock').o.radius>1);
   for(const c of calls.filter(c=>c.name==='lightning')){
-   assert.ok(c.o.life<=.3&&c.o.branches<=2&&c.o.width<=.025);
+   assert.ok(c.o.life<=.85&&c.o.branches<=2&&c.o.width<=.06);
    assert.ok(c.o.from().toArray().every(Number.isFinite));assert.ok(c.o.to().toArray().every(Number.isFinite));
   }
   assert.equal(fx.impact(new Vector3(NaN,0,0)),false);
@@ -136,7 +136,9 @@ test('comfort and quality tiers suppress intense layers; power and visibility ga
  const fx=createElectricalRodVfx(rod,vfx),p=new Vector3(),ground=new Vector3();
  try{
   assert.equal(fx.impact(p,{ground}),true);
-  assert.ok(calls.every(c=>['lightning','burst'].includes(c.name)));
+  assert.ok(calls.some(c=>c.name==='trail'),'standard quality retains strike silhouette');
+  assert.ok(calls.some(c=>c.name==='shock'),'standard quality retains impact ripple');
+  assert.ok(calls.every(c=>c.name!=='flash'));
   assert.ok(calls.filter(c=>c.name==='lightning').every(c=>c.o.branches===0));
   for(let i=0;i<4;i++)fx.update(.1);
   calls.length=0;vfx.quality=2;vfx.calmFlashes=true;
@@ -162,4 +164,21 @@ test('transform discharges remain bounded and connection flashes only once',()=>
   for(let i=0;i<12;i++)fx.update(.1);
   assert.equal(calls.filter(c=>c.name==='flash').length,1);
  }finally{fx.dispose();rod.dispose();}
+});
+
+test('persistent corona is attached to both runtime halves even at quality zero; comfort and disposal are bounded',()=>{
+ const rod=createElectricalRod({independentEmission:true});
+ const a=rod.halves.map((h,i)=>h.getObjectByName('RodCorona'+i));
+ try{
+  rod.update(.1,{quality:1});assert.ok(a.every(g=>g.visible&&g.children.every(s=>s.visible)));
+  const angle=a[0].children[0].rotation.y;
+  rod.update(.1,{quality:1,activity:1});assert.notEqual(a[0].children[0].rotation.y,angle);
+  assert.ok(a[0].children[0].scale.x>1);
+  for(const g of a)for(const s of g.children)assert.ok(s.children[0].material.opacity>=.9);
+  rod.update(.1,{quality:0,calm:true});assert.ok(a.every(g=>g.visible&&g.children[0].visible&&!g.children[1].visible));
+  const stable=a[0].children[0].rotation.y;
+  rod.update(.1,{quality:0,calm:true});assert.equal(a[0].children[0].rotation.y,stable);
+  rod.update(.1,{energized:false});assert.ok(a.every(g=>!g.visible));
+ }finally{rod.dispose();}
+ assert.ok(a.every(g=>g.parent===null));
 });
