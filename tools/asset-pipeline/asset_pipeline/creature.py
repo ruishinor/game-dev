@@ -306,7 +306,7 @@ def _game_ready(asset: Asset, params):
     res = run_blender("asset_pipeline.blender.game_ready", {"work": str(asset.work), "blend": str(asset.path("blender", f"{asset.id}_source.blend")), "out": str(out),
                                                             "blend_name": f"{asset.id}_rigged.blend", "glb_name": f"{asset.id}_unoptimized.glb", "asset_id": asset.id, **params}, timeout=7200)
     write_json(out / "game_ready.json", res)
-    return [out / f"{asset.id}_rigged.blend", out / f"{asset.id}_unoptimized.glb", out / "game_ready.json"], {k: v for k, v in res.items() if k not in ("legs", "maps")}
+    return [out / f"{asset.id}_rigged.blend", out / f"{asset.id}_unoptimized.glb", out / "game_ready.json"], {**{k: v for k, v in res.items() if k not in ("legs", "maps")}, "bake_fill": res["maps"].get("bake_fill")}
 
 
 # --------------------------------------------------------------------------- optimise + validate
