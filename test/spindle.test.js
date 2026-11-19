@@ -9,7 +9,9 @@ import { useAbility } from '../server/sim/combat.js';
 import { equipItem, unequipSlot } from '../server/sim/progress.js';
 import { groundSegmentClear } from '../server/sim/ground-navigation.js';
 import { tickSpindle } from '../server/sim/spindle.js';
-import { WORLD, dist } from '../shared/world.js';
+import { WORLD, dist, RUN_SPEED } from '../shared/world.js';
+import { CLASSES } from '../shared/content.js';
+import { SPINDLE_TUNING } from '../shared/spindle.js';
 import { makeChar, makeGame } from './helpers.js';
 
 function commission(game, p) { assert.ok(manageCompanion(game, p, 'commission', 'spindle').ok); }
@@ -20,6 +22,27 @@ function deploy(game, p, type = 'spindle') {
 function tickMachine(game, c, ms) {
   for (let t = 0; t < ms; t += 50) { game.time += 50; tickSpindle(game, c, .05); }
 }
+
+test('Spindle commissions and summons for every registered class without equipment', () => {
+  for (const cls of Object.keys(CLASSES)) {
+    const game = makeGame(), p = game.addPlayer(makeChar(cls));
+    const before = {...p.char.equipped};
+    assert.equal(game.privateState(p).canCommissionSpindle, true, cls);
+    commission(game, p);
+    const c = deploy(game, p);
+    assert.equal(c.type, 'spindle', cls);
+    assert.deepEqual(p.char.equipped, before, cls);
+    assert.equal(game.companions.filter(unit => unit.owner === p.id).length, 1, cls);
+  }
+});
+
+test('Spindle tune preserves player catch-up and reduces size and movement caps', () => {
+  assert.equal(SPINDLE_TUNING.scale, .75);
+  assert.equal(SPINDLE_TUNING.radius, .54);
+  assert.equal(SPINDLE_TUNING.followSpeed, 7.5);
+  assert.ok(SPINDLE_TUNING.followSpeed > RUN_SPEED);
+  assert.equal(SPINDLE_TUNING.inspectSpeed, 5.5);
+});
 
 test('commissioning is an opt-in, site-checked ownership transition and switching is atomic', () => {
   const game = makeGame(), p = game.addPlayer(makeChar('symbiotech')), mender = p.companion;
@@ -111,15 +134,15 @@ test('a ground unit navigates around the quartermaster, remains parked, and can 
   const game = makeGame(), p = game.addPlayer(makeChar('keeper'));
   commission(game, p);
   const c = deploy(game, p);
-  assert.ok(groundSegmentClear(c, c, .72));
+  assert.ok(groundSegmentClear(c, c, SPINDLE_TUNING.radius));
   Object.assign(c, { x: -8, z: -1.8 });
   Object.assign(p, { x: -.8, z: -1.8, yaw: -Math.PI / 2 + .3 });
-  assert.equal(groundSegmentClear(c, p, .72), false);
+  assert.equal(groundSegmentClear(c, p, SPINDLE_TUNING.radius), false);
   for (let i = 0; i < 120; i++) {
     const before = { x: c.x, z: c.z };
     tickMachine(game, c, 50);
-    assert.ok(dist(before, c) <= .401);
-    assert.ok(groundSegmentClear(before, c, .72));
+    assert.ok(dist(before, c) <= SPINDLE_TUNING.followSpeed * .05 + .001);
+    assert.ok(groundSegmentClear(before, c, SPINDLE_TUNING.radius));
   }
   assert.ok(c.x > -3.5, 'cleared the quartermaster footprint');
   assert.ok(petCommand(game, p, 'stay').ok);
@@ -142,7 +165,7 @@ test('a ground unit navigates around the quartermaster, remains parked, and can 
   game.time += 3000;
   assert.ok(game.respawn(p));
   assert.equal(game.ents.has(c.id), false);
-  assert.ok(groundSegmentClear(p.companion, p.companion, .72));
+  assert.ok(groundSegmentClear(p.companion, p.companion, SPINDLE_TUNING.radius));
 });
 
 test('on disk, selection, active type and individual names survive reload independently', t => {
