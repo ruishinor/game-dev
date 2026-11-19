@@ -35,7 +35,7 @@ function tutorial(ui){
   panel.append(h('div','kicker','Lesson '+(n+1)+' / '+LESSONS.length),h('h3',null,title),h('p',null,copy));
   const actions=h('div','tutorial-actions');
   const back=btn('Previous',()=>{ui.workshopLesson=n-1;renderWorkshop(ui);});back.disabled=n===0;
-  const view=btn(tab==='planner'?'Show Planner':'Show Workshop',()=>{ui.workshopTab=tab;ui.workshopTutorialOpen=false;renderWorkshop(ui);});
+  const view=btn(tab==='planner'?'Show Planner':'Show Workshop',()=>{ui.workshopTab=tab;renderWorkshop(ui);});
   const next=btn(n===LESSONS.length-1?'Finish tutorial':'Next',()=>{if(n===LESSONS.length-1){ui.workshopTutorialOpen=false;ui.workshopTutorialSeen=true;try{localStorage.setItem('attunement.workshopTutorial','1');}catch{}}else{ui.workshopLesson=n+1;ui.workshopTab=LESSONS[n+1][2];}renderWorkshop(ui);},'primary');
   actions.append(back,view,next);panel.append(actions);return panel;
 }
@@ -90,6 +90,7 @@ function planner(ui,body){
 function fabrication(ui,body){
   const s=ui.sheet;
   const entries=Object.entries(RECIPES).filter(([,r])=>!r.blueprint||s.goods?.[r.blueprint]===1);
+  if(!entries.length){body.append(h('p','muted','No fabrication recipes available.'));return;}
   const id=entries.some(([key])=>key===ui.recipeId)?ui.recipeId:entries[0][0];
   ui.recipeId=id;
   const recipe=RECIPES[id],output=recipeOutput(recipe);
@@ -150,16 +151,24 @@ function fabrication(ui,body){
     ui.recipeReveal=null;
     const page=Math.max(0,Math.min(pages-1,revealIndex>=0?Math.floor(revealIndex/pageSize):(ui.recipePage||0)));
     ui.recipePage=page;
-    list.replaceChildren(...shown.slice(page*pageSize,(page+1)*pageSize).map(row=>row.b));
+    const visible=shown.slice(page*pageSize,(page+1)*pageSize);
+    list.replaceChildren(...visible.map(row=>row.b));
     if(pages>1){
       const nav=h('div','recipe-pagination');
-      const previous=btn('Previous recipes',()=>{ui.recipePage=page-1;applyFilters();list.querySelector('button')?.focus({preventScroll:true});});
-      const next=btn('Next recipes',()=>{ui.recipePage=page+1;applyFilters();list.querySelector('button')?.focus({preventScroll:true});});
+      const previous=btn('Previous recipes',()=>navigate(page-1,'previous'));
+      const next=btn('Next recipes',()=>navigate(page+1,'next'));
+      previous.dataset.pageNav='previous';next.dataset.pageNav='next';
       previous.disabled=page===0;next.disabled=page===pages-1;
-      nav.append(previous,h('span',null,(page+1)+' / '+pages),next);list.append(nav);
+      const status=h('span',null,(page+1)+' / '+pages);status.setAttribute('role','status');status.setAttribute('aria-label','Recipe page '+(page+1)+' of '+pages);
+      nav.append(previous,status,next);list.append(nav);
     }
-    detail.hidden = !shown.some(row => row.b.dataset.recipe === id);
+    detail.hidden = !visible.some(row => row.b.dataset.recipe === id);
     if (!shown.length) list.append(h('p', 'muted', 'No recipes match these filters.'));
+  }
+  function navigate(page,direction){
+    ui.recipePage=page;applyFilters();
+    const control=list.querySelector('[data-page-nav="'+direction+'"]:not(:disabled)');
+    (control||list.querySelector('.recipe-entry'))?.focus({preventScroll:true});
   }
   search.addEventListener('input', () => { filter.query = search.value; ui.recipePage=0; applyFilters(); });
   search.addEventListener('keydown', event => {
@@ -290,10 +299,8 @@ export function renderWorkshop(ui){
     const b=btn(name,()=>{ui.workshopTab=id;renderWorkshop(ui);},ui.workshopTab===id?'active':'');
     b.dataset.tab=id;b.setAttribute('aria-pressed',String(ui.workshopTab===id));tabs.append(b);
   }
-  if(ui.workshopTutorialOpen===undefined){try{ui.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}ui.workshopTutorialOpen=false;}
+  if(ui.workshopTutorialOpen===undefined){try{ui.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}ui.workshopTutorialOpen=!ui.workshopTutorialSeen;}
   root.append(tabs,tutorial(ui));
-  // Keep the manual available without stacking its expanded lesson above the workspace.
-  if(ui.workshopTutorialOpen)return;
   const content=h('div','workshop-layout'+(ui.workshopTab==='fabrication'?' fabrication':''));
   if(ui.workshopTab==='fabrication')fabrication(ui,content);else planner(ui,content);
   root.append(content);
