@@ -164,3 +164,20 @@ Integration order: diagnose the #109 collision failure and pre-existing Rift/Spi
 
 - #118 merged as `cc7291e` after all seven applicable workflow jobs passed. Reconcile the archived Red Rucker/Veyran registries, legacy migration and tests into #115, preserving the original archival renderer, existing live character-preview work and all gameplay changes. Add a test that the arrival terminal refuses even a formerly canonical Veyran appearance. Vanguard remains playable. The merged archive policy is not a deletion of historical assets.
 - On `e4deea7`, eight workflow runs succeeded; asset-pipeline job 135465235496 was cancelled while downloading FFmpeg dependencies from the Ubuntu mirror, before Python or JavaScript tests executed. Ensure the two actual executables are available and print their versions; only install if missing, with finite download retries/timeouts and a bounded 25-minute dependency step / 35-minute job. Preserve every test invocation. No artistic acceptance is implied; require fresh checks on the new reconciled head.
+
+### Severance Gate checkpoint — 2026-11-19
+
+Owner direction, 2026-11-19: this line of work now leads Severance Expanse zone and dungeon development. The integration is self-contained and anchored: the gate is positioned from a single anchor, so it can move into the full Expanse map without footprint changes.
+
+| Scope | Delivery | Status and outstanding gate |
+|---|---|---|
+| SE-03, ART-06 | [#131](https://github.com/ruishinor/game-dev/pull/131), `feat/severance-gate` | Severance Gate asset built through the new `reference-driven-architecture` pipeline kind: a 28 m boolean-carved monolith with a traversable 4.4 × 9.8 m passage, segmented plinth, ceremonial stair, ruins and fragments. Near/Mid/Far scenes, 4.4 MB, validator clean. Measured and built proportions agree within 0.8 %. Software-WebGL captures (18 views) were reviewed and corrected. Real-GPU profiling and owner visual acceptance remain. See [Severance Gate](art/SEVERANCE-GATE.md). |
+| SE-01, SE-02, SE-11 | #131 | A provisional bounded `severance_expanse` approach area (87 m approach with ruins, outcrops and ridge). Route: Phase Scar → Expanse → gate → Phase Annex, with the Annex return leading to the gate and a beacon back to the Reach. Reconnect returns to the Reach. Server-owned gate phase, passage-only travel validation and a throttled traversal cue, all with Node coverage; the rift browser flow walks through the passage with real input. Still to do: full landscape, outpost, patrols, and the Foundry interior replacing the Annex stand-in. |
+| SE-21 | #131 | Severance minimap framing and interaction prompts. Positional audio is outstanding because the audio system has no positional sources. |
+
+#### Severance and world presentation — sequence after the Gate
+
+1. Expand the provisional approach into the full Severance Expanse: landscape, Expedition Outpost and vendor, patrols and resources (SE-02, SE-04 to SE-10).
+2. Build the Foundry interior to replace the Phase Annex stand-in behind the gate (SE-11 to SE-14).
+3. Run real-GPU profiling and owner visual review of the gate and the Expanse (SE-23).
+4. **Last stage (owner request, 2026-11-19): upgrade the Lattice Sanctum, its structure and its environment.** Extrapolate from the Sanctum's purposes (safe arrival hall, initiation, fabrication, quartermaster, lattice reconstitution) and its setting in the Verdigris Reach. Introduce some awe through quality visuals and VFX. Reuse the gate's pipeline methods: reference-constrained Blender modelling, baked atlases, detail bands, and bounded, phase-driven effects. Preserve the safe-zone layout, colliders, arrival flow and existing services.

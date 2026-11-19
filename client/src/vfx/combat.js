@@ -27,7 +27,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse','field_maintenance','field_recovery',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_recovery',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -296,6 +296,14 @@ export class CombatVfx {
       v.shell({at:f,radius:pulse?e.r:2.15,height:pulse?1.15:4.1,kind:'wall',color:colour,life:pulse?.65:1.1,from:closing?1:.26,to:closing?.22:1,alpha:.45,streak:1.2});
       v.burst({at:[f[0],f[1]+1.9,f[2]],shape:'sphere',radius:1.2,count:pulse?26:18,cell:[CELL.shard,CELL.streak],color:hot(colour,.36),color2:colour,size:[.06,.18],sizeEnd:.025,life:[.55,1.2],speed:[.9,2.7],gravity:pulse?2:0,spin:[-3,3]});
       if(pulse)v.flash({at:[f[0],f[1]+1.2,f[2]],color:colour,intensity:7,life:.25});
+      return;
+    }
+    if(e.k==='severance_traverse'){
+      // The Severance Gate landmark plays the coordinated response; this adds
+      // only a bounded spark bloom at the threshold (smaller when throttled).
+      if(!Number.isFinite(e.x)||!Number.isFinite(e.z))return;
+      const f=[e.x,groundHeightOr(e,s)+4.2,e.z];
+      v.burst({at:f,shape:'sphere',radius:1.1,count:e.m?6:16,cell:[CELL.shard,CELL.streak],color:0xffd2a0,color2:0xff8a2c,size:[.04,.12],sizeEnd:.02,life:[.4,.9],speed:[.8,2.4],drag:1.2});
       return;
     }
     if (e.k === 'fault_shear' || e.k === 'containment_sweep') {
