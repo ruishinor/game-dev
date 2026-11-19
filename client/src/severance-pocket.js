@@ -6,6 +6,7 @@
 // built at the moved anchor instead.
 import { SEVERANCE_POCKET, SEVERANCE_RUINS, SEVERANCE_OUTCROPS, SEVERANCE_GATE, inSeverancePocket, worldToGate } from '../../shared/severance-gate.js';
 import { createSeveranceGateLandmark } from './severance-gate.js';
+import { createTimeOfDay } from './severance-daylight.js';
 
 const smooth = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
 const POCKET_FOG = { color: 0x31282f, near: 38, far: 300 };
@@ -62,7 +63,7 @@ function terrain(T, assets, ground) {
 /**
  * @param T three namespace
  * @param scene the world scene
- * @param o {assets, ground, single(bundle,name,matrix), rockGeo(seed)}
+ * @param o {assets, ground, rockGeo(seed), lighting?: {sky, ambient, sun, dir}}
  */
 export function buildSeverancePocket(T, scene, o) {
   const group = new T.Group();
@@ -127,17 +128,22 @@ export function buildSeverancePocket(T, scene, o) {
   const landmark = createSeveranceGateLandmark(T, { scene, loader: o.assets?.loader, groundHeight: o.ground, url: o.url });
   let ruinsPlaced = false;
   let fogSaved = null;
-  return {
-    group, landmark,
-    get ruinsPlaced() { return ruinsPlaced; },
-    update(dt, t, eye) {
+  // Time-of-day preview (off unless asked for); see severance-daylight.js.
+  const tod = createTimeOfDay(T, { scene, landmark, ...(o.lighting || {}) });
+  // Manual clock: review captures advance the Expanse presentation by explicit
+  // steps only, so frames are reproducible. Live play never uses it.
+  let manual = false, lastEye = null, lastT = 0;
+  function frame(dt, t, eye) {
       const inside = !!eye && inSeverancePocket(eye.x, eye.z, 40);
       group.visible = inside;
-      landmark.update(dt, t, eye);
+      landmark.update(dt, t, eye, { deterministic: manual });
       if (inside && !ruinsPlaced && landmark.status === 'ready') {
         ruinsPlaced = landmark.placeRuins(ruins, o.ground)(SEVERANCE_RUINS);
         fallbackRuins.visible = !ruinsPlaced;
       }
+      // Leaving: the time-of-day preview restores first (to the regional preset), then
+      // the preset restores the Reach. Entering: preset first, then the preview on top.
+      if (!inside) tod.update(dt, false, SEVERANCE_POCKET);
       // a darker, warmer atmosphere inside the pocket; restored on leaving
       const fog = scene.fog;
       if (fog && inside && !fogSaved) {
@@ -147,6 +153,23 @@ export function buildSeverancePocket(T, scene, o) {
         fog.color.setHex(fogSaved.color); fog.near = fogSaved.near; fog.far = fogSaved.far;
         fogSaved = null;
       }
+      if (inside) tod.update(dt, true, SEVERANCE_POCKET);
+  }
+  return {
+    group, landmark, timeOfDay: tod,
+    get ruinsPlaced() { return ruinsPlaced; },
+    get manualClock() { return manual; },
+    update(dt, t, eye) {
+      lastEye = eye; lastT = t;
+      frame(manual ? 0 : dt, t, eye);
+    },
+    /** Review captures: freeze the Expanse presentation clock (true) or release it. */
+    setManualClock(on) { manual = !!on; },
+    /** Advance the frozen presentation by exactly dt seconds, at most 0.1 per step (manual clock only). */
+    step(dt) {
+      if (!manual || !lastEye || !(dt >= 0)) return false;
+      frame(Math.min(0.1, dt), lastT, lastEye);
+      return true;
     },
     gateAnchor: SEVERANCE_GATE,
   };

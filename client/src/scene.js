@@ -1250,7 +1250,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   const detail = opts.detail ?? 1;
   const kits = !!(assets && assets.get('sanctum') && assets.get('nature'));
   scene.fog = new THREE.Fog(0x4c4868, 60, 260);
-  scene.add(buildSky());
+  const skyGroup = buildSky();
+  scene.add(skyGroup);
   scene.add(buildGround(kits ? assets : null));
 
   const ambient = kits ? new THREE.HemisphereLight(0xb0bcff, 0x5c4c6a, 1.55) : new THREE.HemisphereLight(0x9db4ff, 0x3a2c44, 1.35);
@@ -1268,6 +1269,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.4;
   scene.add(sun, sun.target);
+  // Direction toward the sun; the shadow camera follows the player along it.
+  const dir = new THREE.Vector3(-0.55, 0.72, 0.42).normalize();
 
   const anim = [];
   const occluders = new Occluders();
@@ -1431,7 +1434,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   for(const [x,z] of [[6,12],[-6,-9]])for(let i=-2;i<=2;i++)annexFloor.add(mesh(new THREE.BoxGeometry(.24,.035,2.2),mat(0xb9a36b,{rough:.9}),ax+x+i*.8,.035,z,false));
   scene.add(annexFloor);
   // Severance Gate and its (provisional) approach pocket: a separate region.
-  const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length] });
+  const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length],
+    lighting: { sky: skyGroup, ambient, sun, dir } });
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
@@ -1478,7 +1482,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
     batches++;
   }
 
-  const dir = new THREE.Vector3(-0.55, 0.72, 0.42).normalize();
   const points = [];
   const coverRange = 30 + 55 * detail;
   return {
