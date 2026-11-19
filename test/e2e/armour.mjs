@@ -97,6 +97,17 @@ try {
 } catch (err) {
   report.error = String(err.stack || err);
   console.error(err);
+  // diagnostics in the CI log: the wearer as the client sees it
+  try {
+    const pages = browser ? browser.contexts().flatMap((c) => c.pages()) : [];
+    for (const pg of pages) {
+      const st = await pg.evaluate(() => { const s = window.__attune?.state(); const me = s?.ents.find((e) => e.id === s.myId);
+        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, equipped: s?.sheet?.equipped }; }).catch((e) => String(e));
+      console.error('[armour-e2e] page state', JSON.stringify(st));
+    }
+  } catch (e) { console.error('[armour-e2e] diagnostics failed', e); }
+  console.error('[armour-e2e] console errors', JSON.stringify(report.consoleErrors.slice(0, 20)));
+  console.error('[armour-e2e] page errors', JSON.stringify(report.pageErrors.slice(0, 20)));
 } finally {
   fs.writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 1));
   await browser?.close();
