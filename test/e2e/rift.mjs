@@ -65,7 +65,7 @@ try{
  await page.waitForFunction(()=>{
    const {you,ents,myId}=window.__attune.state();
    const actor=ents.find(e=>e.id===myId);
-   return actor&&!actor.dead&&!(actor.row.f&8)&&you&&['stabilized','cooling','dormant'].includes(ents.find(e=>e.c==='phase_scar')?.row.rf);
+   return actor&&!actor.dead&&!(actor.row.f&8)&&you&&!you.auto&&['stabilized','cooling','dormant'].includes(ents.find(e=>e.c==='phase_scar')?.row.rf);
  },null,{timeout:12000,polling:100}).catch(error=>{
    throw new Error(`Recovery precondition failed (phase ${f.phase}, HP ${p.hp}, combat ${p.combatUntil-server.game.time}ms)`,{cause:error});
  });
@@ -85,6 +85,7 @@ try{
  // The calibrated gate can be used in dormant, cooling or stabilized phases.
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await page.waitForFunction(()=>window.__attune.state().you.x>200);
+ assert.equal(p.char.materials.resonance_fragment,1,'travel must not grant the calibration reward again');
  assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
  assert.ok(!server.game.objects.some(o=>o.type==='rift_entry'));
@@ -98,9 +99,26 @@ try{
  assert.equal(server.game.enemies.filter(e=>e.annexEncounter).length,11);
  assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));
   assert.equal(await page.evaluate(()=>{let n=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:mineral-formation')n++});return n;}),10);
- await move(f.exit,-1.7);
- await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().you.x<100);
+ // Stage inside the Annex on the far side of the return gate, away from
+ // gallery enemies. Do not reset aggro, buffs or combat timers.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ try{
+  await move(f.exit,1.7);
+  await page.waitForFunction(id=>{
+   const s=window.__attune.state(),self=s.ents.find(e=>e.id===s.myId);
+   if(!self||self.dead||(self.row.f&8)||self.row.b?.includes('root')||!s.you||s.you.auto)return false;
+   const eligible=new Set((s.you.lootable??[]).map(e=>e.id));
+   const nearest=s.ents.filter(e=>e.row&&(e.k==='o'||(e.k==='e'&&e.dead&&eligible.has(e.id))))
+     .map(e=>({id:e.id,d:Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)}))
+     .filter(e=>e.d<=5).sort((a,b)=>a.d-b.d||a.id-b.id)[0];
+   return nearest?.id===id;
+  },f.exit.id,{timeout:20000,polling:100});
+  assert.ok((await liveFixturePlayer(page,server,'Rift Tester'))===p,'Annex return must use the original live player');
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  await page.waitForFunction(()=>window.__attune.state().you.x<100);
+ }catch(error){
+  throw new Error(`Annex return failed (HP ${p.hp}, phase ${f.phase}, combat ${Math.round(p.combatUntil-server.game.time)}ms, auto ${p.autoOn}, root ${p.buffs.some(b=>b.k==='root'&&b.until>server.game.time)}, distance ${Math.hypot(p.x-f.exit.x,p.z-f.exit.z).toFixed(2)})`,{cause:error});
+ }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
  assert.deepEqual(errors,[]);
  console.log('PASS actual rift interaction, synchronized phases and Three membrane');
 }finally{await browser?.close();await server.close();}
