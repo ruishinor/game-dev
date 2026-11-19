@@ -1,3 +1,4 @@
+import {FRAMES,RACES,HAIR_STYLES,HAIR_COLOURS,LOOK_RACE,normalizeAppearance,encodeAppearance} from '../../shared/appearance.js';
 // Heads-up display. Pure presentation over state the server sent; every
 // button just asks main.js to send an intent. Dynamic text (names, chat) is
 // only ever written with textContent.
@@ -6,7 +7,7 @@ import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NE
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
-import { WORLD, ZONES, COLLIDERS } from '../../shared/world.js';
+import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
 import { conditionOf, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
@@ -25,9 +26,12 @@ import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
+import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  recover:svg('<path d="M4 9h16v12H4zM8 9V6a4 4 0 0 1 8 0v3M9 14h6M12 11v6"/>'),
+  screen:svg('<path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7zM8 12h8M12 8v8"/>'),
   phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
   hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
   resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
@@ -75,10 +79,11 @@ const GLYPH_NOTES = {
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', screening:'Projecting screen', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
-export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : PET_KEYS;
+const STRIDER_KEYS=['screen','recover','assist','follow','stay'];
+export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
@@ -319,7 +324,9 @@ export class UI {
     this.errors.setAttribute('role', 'alert');
     this.toasts = h('div', 'toasts');
     this.banner = h('div', 'banner');
-    root.append(this.errors, this.toasts, this.banner);
+    this.kestrelWarning=h('div','kestrel-warning','CONTAINMENT ALARM · Resolve Custodian engagement');
+    this.kestrelWarning.hidden=true;this.kestrelWarning.setAttribute('role','status');
+    root.append(this.errors,this.toasts,this.banner,this.kestrelWarning);
     this.radio=new RadioPanel(root,{tracker:this.questTracker.el,portrait:key=>{const ent=[...(this.liveEntities?.values()??[])].find(e=>e.meta?.k==='o'&&e.meta?.c===key);return ent?this.a.portrait(ent.meta):null;}});
 
     // Log + chat
@@ -682,6 +689,9 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
+    const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;
+    alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
+    alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
 
     // Help panel
@@ -761,6 +771,9 @@ export class UI {
       this.actionBar.append(b.el);
       return { id, ...b };
     });
+    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),String(def.abilities.length+1),'Summon default companion');
+    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet('summon'));
+    this.actionBar.append(this.summonSlot.el);
     this.petButtons = [];
     if (companionType) {
       const cdef = COMPANIONS[companionType];
@@ -794,23 +807,34 @@ export class UI {
   }
 
   hover(el, makeTip) {
+    let pointer=null;
+    const place = () => {
+      const r=el.getBoundingClientRect(),t=this.tooltip.getBoundingClientRect(),margin=8;
+      const clamp=(n,limit)=>Math.max(margin,Math.min(limit-margin,n));
+      const x=pointer?(pointer.x+t.width+16<=window.innerWidth?pointer.x+16:pointer.x-t.width-16):r.left+(r.width-t.width)/2;
+      const y=pointer?(pointer.y+t.height+18<=window.innerHeight?pointer.y+18:pointer.y-t.height-12):(r.top-t.height-10>=margin?r.top-t.height-10:r.bottom+8);
+      this.tooltip.style.left=clamp(x,window.innerWidth-t.width)+'px';
+      this.tooltip.style.top=clamp(y,window.innerHeight-t.height)+'px';
+    };
     const show = () => {
-      this.tipFor = el;
+      this.tipFor=el;
       this.tooltip.replaceChildren(...makeTip());
-      this.tooltip.hidden = false;
-      const r = el.getBoundingClientRect();
-      const t = this.tooltip.getBoundingClientRect();
-      this.tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2))}px`;
-      const above = r.top - t.height - 10;
-      this.tooltip.style.top = `${above >= 8 ? above : Math.max(8, Math.min(window.innerHeight - t.height - 8, r.bottom + 8))}px`;
+      this.tooltip.hidden=false;
+      place();
     };
     const hide = () => {
-      if (this.tipFor === el) this.tooltip.hidden = true;
+      if(this.tipFor===el){this.tooltip.hidden=true;this.tipFor=null;}
     };
-    el.addEventListener('mouseenter', show);
-    el.addEventListener('focus', show);
-    el.addEventListener('mouseleave', hide);
-    el.addEventListener('blur', hide);
+    const move=e=>{
+      if(e.pointerType==='touch')return;
+      pointer={x:e.clientX,y:e.clientY};
+      if(this.tipFor===el&&!this.tooltip.hidden)place();
+    };
+    el.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch'){move(e);show();}});
+    el.addEventListener('pointermove',move);
+    el.addEventListener('pointerleave',()=>{pointer=null;if(document.activeElement===el&&el.matches(':focus-visible'))show();else hide();});
+    el.addEventListener('focus',()=>{if(el.matches(':focus-visible'))pointer=null;show();});
+    el.addEventListener('blur',()=>{if(pointer&&el.matches(':hover'))show();else hide();});
   }
 
   abilityTip(id) {
@@ -952,7 +976,7 @@ export class UI {
     const focusedAction = document.activeElement?.dataset.companionAction;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
-      const { type, name, active, available, needsLink, isDefault } = companion;
+      const { type, name, active, available, isDefault } = companion;
       const definition = COMPANIONS[type];
       const section = h('section', 'companion-sheet-entry');
       const portrait = this.a.portrait({ k: 'c', c: type });
@@ -964,7 +988,7 @@ export class UI {
       }
       section.append(h('h3', null, name));
       if (definition.name !== name) section.append(h('p', 'muted', definition.name));
-      section.append(h('p', null, active ? 'Active' : needsLink ? 'Equip the Survey Strider Link to summon' : available ? 'Ready to summon' : 'Unavailable during combat or defeat'));
+      section.append(h('p', null, active ? 'Active' : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
         const row = h('li');
@@ -982,6 +1006,10 @@ export class UI {
         summon.dataset.companionAction = 'summon-' + type;
         summon.addEventListener('click', () => this.a.managePet('summon', type));
         section.append(summon);
+      } else {
+        const dismiss=h('button',null,'Dismiss '+name);dismiss.disabled=!available;
+        dismiss.dataset.companionAction='dismiss-'+type;
+        dismiss.addEventListener('click',()=>this.a.managePet('dismiss'));section.append(dismiss);
       }
       section.append(useDefault);
       body.append(section);
@@ -1362,12 +1390,94 @@ export class UI {
     this.playerContext.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
   }
 
+  appearanceApplied(appearance){
+    this.fieldRecordPanel.querySelector('[data-appearance-status]')
+      ?.dispatchEvent(new CustomEvent('appearance-result',{detail:{appearance}}));
+  }
+
+  appearanceRejected(reason){
+    this.fieldRecordPanel.querySelector('[data-appearance-status]')
+      ?.dispatchEvent(new CustomEvent('appearance-result',{detail:{reason}}));
+  }
+
+  initiationControls(panel){
+    if(!this.sheet)return;
+    const look=this.sheet.look;
+    let saved=encodeAppearance(normalizeAppearance(this.sheet.appearance,look));
+    let draft=normalizeAppearance(saved,look);
+    let pending=false;
+    const controls=h('section','initiation-controls');
+    controls.append(h('h3',null,'Character initiation'),h('p','muted','Customize the character standing in the arrival hall. Changes are cosmetic and apply to the actual world model. Profession and equipment remain unchanged.'));
+    const fields=h('div','initiation-fields'),status=h('p','muted','Choose your appearance, then apply.');status.dataset.appearanceStatus='true';status.setAttribute('role','status');
+    const updateDraft=(key,value)=>{
+      draft={...draft,[key]:value};
+      if(key==='race')draft.skin=0;
+      draft=normalizeAppearance(draft,look);
+      if(!pending)status.textContent=encodeAppearance(draft)===saved?'Current appearance.':'Appearance changes not applied.';
+      apply.disabled=pending||encodeAppearance(draft)===saved;
+      render();
+    };
+    const render=()=>{
+      fields.replaceChildren();
+      const options=(key,label,values)=>{
+        const wrap=h('label',null,label),select=h('select');select.setAttribute('aria-label',label);
+        for(const [value,name] of values){const opt=h('option',null,name);opt.value=String(value);opt.selected=String(draft[key])===opt.value;select.append(opt);}
+        select.disabled=values.length<2;
+        select.addEventListener('change',()=>{
+          const value=key==='skin'||key==='hairColour'?Number(select.value):select.value;
+          updateDraft(key,value);
+          fields.querySelector('[aria-label="'+label+'"]')?.focus();
+        });
+        wrap.append(select);fields.append(wrap);
+      };
+      const race=RACES[draft.race];
+      options('frame','Body frame',Object.values(FRAMES).map(v=>[v.id,v.name]));
+      options('race','Origin',Object.values(RACES).filter(v=>!LOOK_RACE[look]||v.id===LOOK_RACE[look]).map(v=>[v.id,v.name]));
+      options('skin','Skin tone',race.skins.map((v,i)=>[i,'Tone '+(i+1)]));
+      options('hair','Hair',race.hair.map(v=>[v,HAIR_STYLES[v].name]));
+      options('hairColour','Hair colour',HAIR_COLOURS.map((v,i)=>[i,v.name]));
+    };
+    render();
+    const actions=h('div','initiation-actions'),apply=h('button','primary','Apply appearance'),inspect=h('button',null,'Inspect in world');
+    apply.type=inspect.type='button';
+    apply.disabled=true;
+    apply.addEventListener('click',()=>{
+      pending=true;
+      apply.disabled=true;
+      status.textContent='Saving appearance…';
+      this.a.changeAppearance(encodeAppearance(draft));
+    });
+    status.addEventListener('appearance-result',({detail})=>{
+      pending=false;
+      if(detail.appearance)saved=detail.appearance;
+      apply.disabled=encodeAppearance(draft)===saved;
+      status.textContent=detail.reason||(apply.disabled?'Applied to your in-world character and saved.':'Saved. New preview changes are still pending.');
+    });
+    inspect.addEventListener('click',()=>{panel.hidden=true;this.a.inspectAppearance();this.a.focusView();});
+    const preview=h('section','hall-preview');preview.setAttribute('aria-label','Live appearance preview');
+    const canvas=h('canvas');canvas.tabIndex=0;canvas.setAttribute('aria-label','Full-body gameplay model. Drag or use arrow keys to rotate or zoom.');
+    const buttons=h('div','preview-controls');
+    for(const [attr,value,label,accessible] of [['data-preview-mode','body','Full body'],['data-preview-mode','face','Face'],['data-preview-mode','frames','Compare frames'],['data-preview-left','','←','Rotate left'],['data-preview-right','','→','Rotate right'],['data-preview-out','','−','Zoom out'],['data-preview-in','','+','Zoom in'],['data-preview-reset','','Reset camera']]){
+      const b=h('button',null,label);b.type='button';b.setAttribute(attr,value);if(accessible)b.setAttribute('aria-label',accessible);buttons.append(b);
+    }
+    const previewStatus=h('p','muted','Loading gameplay model when visible.');previewStatus.dataset.previewStatus='';previewStatus.setAttribute('role','status');
+    const labels=h('div','preview-frame-labels');labels.dataset.previewFrames='';labels.hidden=true;
+    labels.setAttribute('role','group');labels.setAttribute('aria-label','Select body frame');
+    for(const {id,name} of Object.values(FRAMES)){
+      const label=h('button',null,name);label.type='button';label.dataset.frame=id;labels.append(label);
+    }
+    preview.append(canvas,labels,buttons,previewStatus);
+    actions.append(apply,inspect);controls.append(fields,preview,actions,status);panel.append(controls);
+    this.a.startAppearancePreview(preview,()=>encodeAppearance(draft),frame=>updateDraft('frame',frame));
+  }
+
   showFieldRecord(key) {
     const record=FIELD_RECORDS[key];if(!record)return;
     const panel=this.fieldRecordPanel;panel.replaceChildren();
     const close=h('button','close','×');close.type='button';close.setAttribute('aria-label','Close field record');
     close.addEventListener('click',()=>{panel.hidden=true;});
     panel.append(h('div','kicker','LOCAL ARCHIVE'),h('h2',null,record.title),h('p','muted',record.subtitle),close);
+    if(key==='initiation_terminal')this.initiationControls(panel);
     const lines=h('div','field-record-lines');
     for(const [time,note] of record.lines){const row=h('div','field-record-row');row.append(h('strong',null,time),h('p',null,note));lines.append(row);}
     panel.append(lines,h('p','muted','Esc / close to dismiss. Continue field interactions with F.'));panel.hidden=false;
@@ -1582,6 +1692,12 @@ export class UI {
     }
     c1.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
 
+    c1.append(h('h3',null,'Crafting disciplines'));
+    for(const name of CRAFTING_DISCIPLINES){
+      const mastery=disciplineProgress(s.craftingDisciplines,name);
+      stat(name,'Level '+mastery.level,false,mastery.speedBonus+'% faster production. Gain experience through successfully committed crafting.');
+      c1.append(h('div','muted',mastery.required===null?'Maximum level':mastery.progress+' / '+mastery.required+' XP'));
+    }
     c1.append(h('h3',null,'Field disciplines'));
     const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
     stat('Field Recovery','Rank '+rank,false,'Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');
@@ -1626,7 +1742,7 @@ export class UI {
     set(this.surveyText,'text',brineHint(this.sheet.survey,this.sheet.brineStage,you.brineTrial));
 
     const lock = me.dead ? 'dead' : (me.row.f & 8) ? 'combat' : '';
-    const site=you.workshop??(you.safe?'sanctum':null);
+    const site=you.workshop??null;
     const workshopChanged=site!==this.workshopSite||lock!==this.buildLock||you.production?.id!==this.production?.id;
     const productionStarted=!!you.production&&!this.production;
     const inscriptionStarted=!!you.inscription&&!this.inscriptionActive;
@@ -1716,7 +1832,8 @@ export class UI {
     const summon = roster.find(entry => entry.isDefault);
     this.summonPet.hidden = !!st.comp || !summon;
     this.summonPet.disabled = !summon?.available;
-    this.summonPet.title = summon?.needsLink ? 'Equip the Survey Strider Link first.' : summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
+    this.summonPet.title = summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
+    if(this.summonSlot){this.summonSlot.el.hidden=!summon;this.summonSlot.el.disabled=!!st.comp||!summon?.available;this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;}
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;
@@ -1812,6 +1929,7 @@ export class UI {
     if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
+    set(this.kestrelWarning,'hidden',!you.kestrelAlarm||me.dead);
     set(this.death, 'hidden', !me.dead);
     if (me.dead) {
       const wait = you.dead || 0;
@@ -1822,7 +1940,10 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
-    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    else if(st.nearObject?.meta.c==='rift_return')set(this.interact,'text',lock?'Phase gate · disengage first':'[F] Return to the Reach');
+    else if(st.nearObject?.meta.c==='phase_scar')set(this.interact,'text',lock?'Phase Scar · disengage first':'[F] Inspect / traverse Phase Scar');
+    else if(st.nearObject?.meta.c==='annex_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Null Chamber cache');
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_') || ['sanctum_fabricator','initiation_terminal'].includes(st.nearObject.meta.c)) ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }
@@ -1954,7 +2075,8 @@ export class UI {
     const c = this.minimap;
     const g = c.getContext('2d');
     const R = c.width / 2;
-    const k = (R - 4) / WORLD.radius;
+    const annex=inRiftAnnex(st.me.pos.x,st.me.pos.z,2);
+    const k = (R - 4) / (annex?Math.hypot(RIFT_ANNEX.hw,RIFT_ANNEX.hd):WORLD.radius);
     g.clearRect(0, 0, c.width, c.height);
     g.save();
     g.translate(R, R);
@@ -1964,10 +2086,11 @@ export class UI {
     g.fill();
     g.clip();
     // Top-down with north (-Z) up and east (+X) to the right.
-    const X = (x) => x * k;
-    const Z = (z) => z * k;
+    const X = (x) => (x-(annex?RIFT_ANNEX.x:0)) * k;
+    const Z = (z) => (z-(annex?RIFT_ANNEX.z:0)) * k;
+    if(annex){g.strokeStyle='#638e9c';g.strokeRect(X(RIFT_ANNEX.x-RIFT_ANNEX.hw),Z(RIFT_ANNEX.z-RIFT_ANNEX.hd),2*RIFT_ANNEX.hw*k,2*RIFT_ANNEX.hd*k);}
     const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
-    for (const key of Object.keys(ZONES)) {
+    for (const key of annex?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
@@ -1975,13 +2098,13 @@ export class UI {
       g.fill();
     }
     g.fillStyle = 'rgba(160, 175, 185, 0.5)';
-    for (const col of COLLIDERS) {
+    for (const col of annex?[]:COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
     }
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
-      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)) continue;
+      if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
       const big = ent.meta.el || ent.meta.k === 'o';
@@ -1996,7 +2119,7 @@ export class UI {
       if (member.id === st.me.id) continue;
       number++;
       const ent = st.ents.get(member.id);
-      if (ent?.meta.k !== 'p') continue;
+      if (ent?.meta.k !== 'p'||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       const x = X(ent.pos.x), z = Z(ent.pos.z);
       const marker = placePartyMarker(x, z, R - 9, placed);
       placed.push(marker);
@@ -2022,7 +2145,7 @@ export class UI {
       g.textAlign = 'center';
       g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
     }
-    const mapLabel = ['World minimap', ...partyLabels].join('. ');
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));

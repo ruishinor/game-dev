@@ -8,6 +8,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
@@ -22,10 +23,11 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
+import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -82,8 +84,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const armK = HAND_X[app.frame] / HAND_X[lookFrame];
   const remap = armRemap(armK);
   const veyran = app.race === 'veyran';
-  // Hair (or the Mirekin crest) is worn with the hood lowered.
-  const hoodDown = !!opts.appearance && (app.hair !== 'none' || app.race === 'mirekin');
+  // A player's hairstyle is not a hood toggle. Keep customization faces
+  // exposed for all hair selections; NPC authored outfit defaults remain.
+  const hoodDown = !!opts.appearance;
 
   const mats = [];
   const shellMats = {};
@@ -195,6 +198,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -222,6 +226,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     hover: 0,
     accent: def.accent,
     update(dt, st) {
+      const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -243,7 +248,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if(step){work.restorePose();anim.update(step);if(working)work.pose(st.work,st.t,st.reducedMotion);}
       if(st.electricalRod&&!heldRod&&rodHand){
         heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
         heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
@@ -251,11 +256,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       if(!st.electricalRod&&heldRod)releaseRod();
       if(heldRod){
         const active=!st.dead&&st.attack>.2;
-        heldRod.group.visible=!st.dead;
+        heldRod.group.visible=!st.dead&&!working;
         heldRod.setMode(st.electricalRod);
         heldRod.update(dt,{energized:!st.dead,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead});
         if(st.electricalRodVfx!==rodEngine){rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
-        rodEffects?.update(dt,{energized:active&&!st.reducedMotion,activity:active?st.attack:0});
+        rodEffects?.update(dt,{energized:active&&!working&&!st.reducedMotion,activity:active?st.attack:0});
       }
       flash(st.hit);
       if (ctx.coils.length) {
@@ -283,6 +288,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       releaseRod();
       anim.dispose();
       face?.dispose();
+      work.dispose();
       disposeInstance(group);
     },
   };
@@ -547,6 +553,7 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  * or broken asset never removes an entity from the world.
  */
 export function createModel(assets, meta, glb = true) {
+  if(meta.c==='survey_strider')return createSurveyStrider();
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
@@ -562,7 +569,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

@@ -1,10 +1,11 @@
+import {appearanceString} from '../../shared/appearance.js';
 // Character progression: experience, loot, directives, loadout changes and
 // world interactions. All mutations of persistent character state go
 // through here.
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
+import { dist, inSanctum, hasLineOfSight, COLLIDERS } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -19,6 +20,8 @@ import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
+import {creditDiscipline} from './crafting-disciplines.js';
+import {containmentAlarm} from './kestrel-alarm.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -109,6 +112,12 @@ export function onEnemyKilled(game, enemy, creditedIds) {
     const p = game.players.get(id);
     if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
+    if(enemy.annexEncounter){
+      const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;
+      p.char.annexProgress=prior|bit;
+      if(prior!==p.char.annexProgress){game.markDirty(p);game.message(p,'info',p.char.annexProgress===3?'Null Chamber cache authorized. Claim your recovery at the far end.':'Annex encounter recorded.');}
+      continue; // The recycled archetypes must not complete Reach directives remotely.
+    }
     const d = directiveFor(p.cls, p.char.quest.step);
     if (d && d.goal.kill === enemy.type) {
       p.char.quest.progress += 1;
@@ -142,8 +151,16 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
+  creditDiscipline(game,p,RECIPES[id]);
+  if(out.item==='survey_strider_link'){
+    p.char.striderLearned=true;
+    if(!p.companion)p.char.companionDismissed=true;
+    if(!p.char.defaultCompanion)p.char.defaultCompanion='survey_strider';
+    p.char.inventory=p.char.inventory.filter(key=>key!==out.item);
+    game.message(p,'gain','Learned: Survey Strider deployment. Summon from your hotbar or Companion Sheet.');
+  }
   if (!quiet) {
-    if(out.item)p.outbox.push({e:'loot',item:out.item});
+    if(out.item&&out.item!=='survey_strider_link')p.outbox.push({e:'loot',item:out.item});
     game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
   }
   game.markDirty(p);
@@ -311,14 +328,55 @@ function operateBrine(game,p,obj) {
   game.events.push({e:'fx',k:'brine_service',s:p.id});
   return ok;
 }
+// In-world customization is cosmetic-only, and gated by the same actual
+// physical terminal as orientation. A stale client panel cannot edit remotely.
+export function changeInitiationAppearance(game,p,appearance,persist=()=>{}){
+ const terminal=game.objects.find(o=>o.type==='initiation_terminal');
+ if(!terminal||p.dead||!inSanctum(p)||dist(p,terminal)>INTERACT_RANGE||!hasLineOfSight(p,terminal,COLLIDERS.filter(c=>c.type!=='arrival_terminal'))||inCombat(game,p)||p.autoOn||p.production||p.inscription)
+   return {ok:false,reason:'Stand near the initiation terminal, alive and disengaged.'};
+ if(typeof appearance!=='string'||appearance.length>48||appearanceString(appearance,p.char.look)!==appearance)
+   return {ok:false,reason:'Invalid appearance selection.'};
+ if(game.time<(p.appearanceReadyAt||0))return {ok:false,reason:'Wait briefly before changing your appearance again.'};
+ if(p.char.appearance!==appearance){
+   const previous=p.char.appearance;
+   p.char.appearance=appearance;
+   try{persist();}catch{
+     p.char.appearance=previous;
+     return {ok:false,reason:'Appearance could not be saved. Try applying it again.'};
+   }
+   p.metaVer++;
+   game.markDirty(p);
+ }
+ p.appearanceReadyAt=game.time+600;
+ p.outbox.push({e:'appearance_applied',appearance});
+ return {ok:true};
+}
 export function interact(game, p, objectId) {
   const obj = game.ents.get(objectId);
   if (!obj || obj.kind !== 'object') return { ok: false, reason: 'Nothing to interact with.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
+  if(obj.type==='initiation_terminal'){
+    if(!inSanctum(p))return {ok:false,reason:'Return to the arrival hall.'};
+    if(p.char.initiationSeen!==true){p.char.initiationSeen=true;game.markDirty(p);}
+    return {ok:true};
+  }
+  if(obj.type==='sanctum_fabricator') {
+    if(workshopSite(p)!=='sanctum')return {ok:false,reason:'Approach the Precision Fabricator.'};
+    p.outbox.push({e:'workshop_open'});return {ok:true};
+  }
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
+  if(obj.type==='rift_return')return game.travelRift(p,obj);
+  if(obj.type==='annex_cache'){
+    if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
+    if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};
+    if(p.char.annexProgress!==3)return {ok:false,reason:'Participate in an Annex encounter and defeat the Null Chamber Warden first.'};
+    p.char.annexClaimed=true;
+    if(!grantSalvage(game,p,'resonance_fragment',3)){p.char.annexClaimed=false;return {ok:false,reason:'Clear space for three Resonance fragments.'};}
+    game.markDirty(p);game.message(p,'gain','Null Chamber recovery cache claimed: 3 Resonance fragments.');return {ok:true};
+  }
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {
@@ -336,7 +394,8 @@ export function interact(game, p, objectId) {
   if (obj.type.startsWith('brine_') || (obj.type.startsWith('survey_') && surveyState(p.char.survey)?.endsWith('_done'))) return operateBrine(game,p,obj);
   if (obj.type === 'deep_console') {
     if (!hasLineOfSight(p,obj)) return { ok: false, reason: 'Approach through the open laboratory entrance.' };
-    if (inCombat(game,p)) return { ok: false, reason: 'Resolve the containment alarm before operating the recorder.' };
+    if (containmentAlarm(game)) return {ok:false,reason:'Containment alarm active. Defeat or disengage the Custodian before using the recorder.'};
+    if (inCombat(game,p)) return {ok:false,reason:'Disengage from combat before operating the recorder.'};
     traceRead(game,p,obj,'recorder',transmit);
     if (p.char.inventory.includes('phase_damper')) {
       transmitAuthored(game,p,'kestrel.implant.present');

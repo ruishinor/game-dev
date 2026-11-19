@@ -68,8 +68,7 @@ export const RENDER_RACES = { ...RACES, ...ARCHIVED_RACES };
 const LOOK_DEFAULTS = {
   vanguard_plate: 'm.human.3.crop.1',
   red_rucker: 'm.veyran.0.none.0',
-  // Hooded outfits default to no hair so the hood stays up, as before;
-  // choosing hair lowers the hood (client/src/characters.js).
+  // Preserve the original shaved defaults for these outfits.
   aegis_keeper: 'f.human.6.none.0',
   conductor: 'f.human.2.none.3',
   brine_surveyor: 'f.human.4.none.2',
