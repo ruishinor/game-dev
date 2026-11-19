@@ -40,7 +40,7 @@ export class WorldAtlas{
  this.search=el('input');this.search.type='search';this.search.placeholder='Search visible places and entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();tools.append(this.search,el('h3',null,'Map layers'));
  for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['enemies','Enemies (visible)'],['objects','Objects (visible)']]){
  const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));tools.append(l);}
- this.details=el('p','atlas-details','Select an entry to locate it.');this.results=el('div','atlas-results');tools.append(this.details,this.results,el('p','muted','Current region only. Drag to pan; scroll to zoom.'));
+ this.details=el('p','atlas-details','Select an entry to locate it.');this.results=el('div','atlas-results');tools.append(el('p','atlas-legend','▲ Enemies   ● Players   ◆ Objects   ◉ Party'),this.details,this.results,el('p','muted','Current region only. Drag to pan; scroll to zoom.'));
  this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const b=el('button',null,label);b.onclick=fn;controls.append(b);}
@@ -91,7 +91,23 @@ export class WorldAtlas{
  g.strokeStyle='#b8ac8050';g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  if(!r.area){g.fillStyle='#b4a58a80';for(const o of COLLIDERS){if(Math.hypot(o.x,o.z)>WORLD.radius)continue;const a=Math.max(1,(o.r??Math.max(o.hw,o.hd))*p.k);g.fillRect(p.X(o.x)-a,p.Z(o.z)-a,a*2,a*2);}}
  const party=new Set(st.party.map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[];
- const mark=(name,x,z,category,color,shape='dot')=>{if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;entries.push({name,x,z,category});const px=p.X(x),py=p.Z(z);g.fillStyle=color;g.beginPath();g.arc(px,py,shape==='place'?3:4,0,Math.PI*2);g.fill();if(shape==='place'||term){g.font='12px sans-serif';g.textAlign='center';g.strokeStyle='#10171b';g.lineWidth=3;g.strokeText(name,px,py-9);g.fillStyle='#e9e0cc';g.fillText(name,px,py-9);}};
+ const mark=(name,x,z,category,color,shape='dot')=>{
+  if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
+  entries.push({name,x,z,category});
+  const px=p.X(x),py=p.Z(z),sz=shape==='place'?5:6;
+  g.fillStyle=color;g.beginPath();
+  if(category==='enemies'){
+    g.moveTo(px,py-sz);g.lineTo(px+sz,py+sz*.75);g.lineTo(px-sz,py+sz*.75);g.closePath();
+  }else if(category==='objects'||category==='places'){
+    g.moveTo(px,py-sz);g.lineTo(px+sz,py);g.lineTo(px,py+sz);g.lineTo(px-sz,py);g.closePath();
+  }else g.arc(px,py,sz,0,Math.PI*2);
+  g.fill();g.strokeStyle='#111c22';g.lineWidth=2;g.stroke();
+  if(category==='party'){g.beginPath();g.arc(px,py,sz+3,0,Math.PI*2);g.strokeStyle='#bce9f2';g.lineWidth=1.5;g.stroke();}
+  if(shape==='place'||term){
+    g.font='bold 15px sans-serif';g.textAlign='center';g.strokeStyle='#10171b';g.lineWidth=4;
+    g.strokeText(name,px,py-12);g.fillStyle='#f2e8d4';g.fillText(name,px,py-12);
+  }
+ };
  if(!r.area)for(const z of Object.values(ZONES))mark(z.name,z.x,z.z,'places','#e4cc93','place');
  for(const e of st.ents.values()){if(e.id===st.me.id||!sameTravelRegion(st.me.pos,e.pos))continue;const k=e.meta.k,category=k==='p'?(party.has(e.id)?'party':'players'):k==='e'&&!e.dead?'enemies':k==='o'?'objects':null;if(category)mark(e.meta.n||'Unknown',e.pos.x,e.pos.z,category,{party:'#73d6ee',players:'#8be0a8',enemies:'#e69a83',objects:'#e4cc93'}[category]);}
  g.save();g.translate(p.X(st.me.pos.x),p.Z(st.me.pos.z));g.rotate(Math.PI-st.yaw);g.fillStyle='#fff';g.beginPath();g.moveTo(0,-8);g.lineTo(5,6);g.lineTo(0,3);g.lineTo(-5,6);g.closePath();g.fill();g.restore();g.fillStyle='#f3e7c3';g.font='bold 14px sans-serif';g.textAlign='left';g.fillText('N ↑',12,21);
