@@ -261,8 +261,8 @@ export class Game {
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
     if(entering&&!this.annexOpened){
       // Persistent shared encounter, not an instance or a reset-on-entry farm.
-      for(const [type,dx,z] of [['sentinel',-6,-8],['skitter',6,-6]]){
-        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name:type==='sentinel'?'Displaced Sentinel':'Phase Skitter',level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1};
+      for(const [type,dx,z,name] of [['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden']]){
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1};
         resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
       }
       this.annexOpened=true;
@@ -284,7 +284,7 @@ export class Game {
     if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
     else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
     this.syncChar(p);this.markDirty(p);
-    this.message(p,'info',entering?'Phase Annex: shared hostile encounter. The return gate remains available outside combat.':'You returned to the Reach.');
+    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
     return {ok:true};
   }
 

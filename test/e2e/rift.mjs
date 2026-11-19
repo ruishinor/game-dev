@@ -50,6 +50,8 @@ try{
  assert.ok(await page.evaluate(()=>window.__attune.state().ents.filter(e=>e.c==='rift_entry'||e.c==='rift_return').every(e=>e.model==='glb')&&!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
  await page.screenshot({path:'rift-evidence/04-annex.png'});
+ assert.equal(server.game.enemies.filter(e=>e.home.x>200).length,4);
+ assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await page.waitForFunction(()=>window.__attune.state().you.x<100);
  assert.deepEqual(errors,[]);

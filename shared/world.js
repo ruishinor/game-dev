@@ -18,7 +18,7 @@ export const WORLD = {
 };
 
 // Disconnected shared encounter deck. No movement input can bridge the gap.
-export const RIFT_ANNEX=Object.freeze({name:'Phase Annex',x:220,z:0,hw:16,hd:18,arrivalZ:12,exitZ:15.5});
+export const RIFT_ANNEX=Object.freeze({name:'Phase Annex',x:220,z:0,hw:16,hd:34,arrivalZ:27,exitZ:30.5});
 export function inRiftAnnex(x,z,pad=0){
  return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
 }
@@ -276,7 +276,18 @@ function buildProps() {
   return retained;
 }
 
-export const PROPS = buildProps();
+// Three connected chambers. Offset openings prevent a straight firing lane.
+export const ANNEX_PARTITIONS=Object.freeze([
+ ...[[12,6],[-9,-6]].flatMap(([z,gap])=>{
+  const left=gap-2.7,right=gap+2.7;
+  return [[-16,left],[right,16]].map(([a,b])=>Object.freeze({type:'annex_wall',x:RIFT_ANNEX.x+(a+b)/2,z,hw:(b-a)/2,hd:.55,h:4.5}));
+ })
+]);
+export function annexArea(x,z){
+ if(!inRiftAnnex(x,z))return null;
+ return z>12?'Arrival Gallery':z>-9?'Relay Workshop':'Null Chamber';
+}
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS];
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
 // Conservative horizontal cover test against the same solid prop footprints
@@ -351,7 +362,7 @@ if(RIFT_SITE){
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
-const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
+const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall'||p.type==='annex_wall');
 
 /** Exact segment/rectangle test limited to the new enclosed research deck.
  * Old outdoor obstacles retain their existing planar combat semantics.
@@ -481,7 +492,7 @@ export function inSanctum(p) {
 }
 
 export function zoneAt(x, z) {
-  if(inRiftAnnex(x,z,2))return RIFT_ANNEX.name;
+  if(inRiftAnnex(x,z,2))return annexArea(x,z)?RIFT_ANNEX.name+' · '+annexArea(x,z):RIFT_ANNEX.name;
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;
