@@ -13,13 +13,14 @@ import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
   syncEquippedCompanion, dismissForTransit,
 } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
+import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
@@ -86,6 +87,7 @@ export class Game {
       this.ents.set(e.id, e);
     }
     this.rift=createRift(this);
+    this.severance=createSeveranceGate(this);
     this.annexOpened=false;
   }
 
@@ -97,7 +99,7 @@ export class Game {
     const def = CLASSES[char.cls];
     const stats = deriveStats(char);
     const fresh = !(char.hp > 0) || !char.pos;
-    const savedInAnnex=char.pos&&inRiftAnnex(char.pos.x,char.pos.z,4);
+    const savedInAnnex=char.pos&&inDisconnectedRegion(char.pos.x,char.pos.z,4);
     const pos = fresh || savedInAnnex ? { ...WORLD.spawn } : { x: char.pos.x, z: char.pos.z };
     resolveCollisions(pos, PLAYER_RADIUS);
     const p = {
@@ -175,7 +177,7 @@ export class Game {
   /** Copy live state that should survive a reconnect onto the record. */
   syncChar(p) {
     // Reconnects from the annex return safely to the Reach; HP is not restored.
-    p.char.pos = inRiftAnnex(p.x,p.z,2)?{...WORLD.spawn}:{ x: r2(p.x), z: r2(p.z) };
+    p.char.pos = inDisconnectedRegion(p.x,p.z,2)?{...WORLD.spawn}:{ x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
     if (p.companion && p.companion.type !== 'spindle') {
       p.char.petMode = p.companion.mode;
@@ -276,8 +278,19 @@ export class Game {
     if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
     if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
-    if(entering&&!this.annexOpened){
-      // Persistent shared encounter, not an instance or a reset-on-entry farm.
+    if(entering&&!this.severance)this.openAnnex();
+    // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
+    // The Annex arrival gate returns travellers to the foot of the Severance Gate.
+    const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
+      : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    this.transferPlayer(p, destination);
+    this.message(p,'info',entering?(this.severance?'Severance Expanse. The Severance Gate stands at the end of the ruined approach; its portal opens onto the Phase Annex. The beacon behind you returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
+    return {ok:true};
+  }
+
+  /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
+  openAnnex() {
+    if(!this.annexOpened){
       for(const [type,dx,z,name] of [
         ['skitter',-9,17,'Threshold Skitter'],['skitter',9,16,'Gallery Skitter'],['skitter',-3,14,'Gallery Burrower'],
         ['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',10,5,'Null Relay Stalker'],['skitter',-8,-5,'Relay Burrower'],
@@ -288,12 +301,6 @@ export class Game {
       }
       this.annexOpened=true;
     }
-    const destination = entering
-      ? { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }
-      : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
-    this.transferPlayer(p, destination);
-    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
-    return {ok:true};
   }
 
   // Call only after the server accepts a specific gate and destination.
@@ -370,6 +377,7 @@ export class Game {
       }
     }
     tickRift(this);
+    tickSeveranceGate(this);
     for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
     for (const p of this.players.values()) {
@@ -418,7 +426,7 @@ export class Game {
     for (const c of this.companions) {
       rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host });
     }
-    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o) });
+    for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o), ...severanceRow(this,o) });
     return rows;
   }
 

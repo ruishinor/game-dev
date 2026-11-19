@@ -17,6 +17,7 @@ import { buildSinterHabitat } from './sinter-habitat.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
+import { buildSeverancePocket } from './severance-pocket.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -1435,6 +1436,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   // Wide, collision-free floor markings guide the offset route.
   for(const [x,z] of [[6,12],[-6,-9]])for(let i=-2;i<=2;i++)annexFloor.add(mesh(new THREE.BoxGeometry(.24,.035,2.2),mat(0xb9a36b,{rough:.9}),ax+x+i*.8,.035,z,false));
   scene.add(annexFloor);
+  // Severance Gate and its (provisional) approach pocket: a separate region.
+  const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length] });
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
@@ -1488,7 +1491,9 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; } },
+    severance: severance.landmark,
+    severancePocket: severance,
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); } },
     occluders,
     /**
      * @param focus the player's feet
@@ -1500,6 +1505,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false);
+      severance.update(dt, t, view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
       if (view) {

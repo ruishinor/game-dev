@@ -1,0 +1,19 @@
+{
+ "view": "front",
+ "pixels_per_m": 22.04,
+ "assumed_height_m": 28.0,
+ "silhouette_width_m": {
+  "0.03": 18.15,
+  "0.10": 17.74,
+  "0.18": 15.93,
+  "0.25": 15.02,
+  "0.50": 12.43,
+  "0.75": 9.71,
+  "0.97": 7.4
+ },
+ "plinth_top_m": 4.67,
+ "body_base_width_m": 15.97,
+ "crown_width_m": 7.4,
+ "taper_ratio": 0.463,
+ "method": "blueprint background segmentation (blue-dominant, dark) and per-row extent; scale from the declared total height"
+}
