@@ -33,7 +33,7 @@ try {
   const page = await join('Armour Wearer', 'vanguard');
   const p = await liveFixturePlayer(page, server, 'Armour Wearer');
   p.char.inventory.push(...ARMOUR_VISUALS);
-  p.char.attune = 'resonance'; // the resonant vest requires Resonance
+  p.char.attunements = [...new Set([...(p.char.attunements || []), 'resonance'])]; // the resonant vest requires Resonance
   server.game.refreshStats(p);
   server.game.markDirty(p);
   await page.waitForFunction((ids) => ids.every((id) => window.__attune.state().sheet.inventory.includes(id)), ARMOUR_VISUALS);
