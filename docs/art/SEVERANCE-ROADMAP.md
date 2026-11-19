@@ -1,7 +1,27 @@
 # Severance Expanse and Foundry — delivery roadmap
 
-2026-11-19 | Branch: feat/severance-expanse | Status: design baseline only.
-Companion documents: [environment direction](SEVERANCE-EXPANSE.md), [canonical roadmap](../DEVELOPMENT-ROADMAP.md), [engineering rules](../../AGENTS.md). Canonical main and owner rules take precedence. This is a public high-level register, not a private encounter or loot specification. All work packages below are outstanding unless explicitly evidenced.
+2026-11-19 | Branch: feat/severance-expanse | Status: region foundation merged, private playtest candidate.
+Companion documents: [environment direction](SEVERANCE-EXPANSE.md), [canonical roadmap](../DEVELOPMENT-ROADMAP.md), [engineering rules](../../AGENTS.md). Canonical main and owner rules take precedence. This public register records implementation evidence and remaining gates.
+
+## Delivery checkpoint
+
+The authoritative region foundation merged through [PR #120](https://github.com/ruishinor/game-dev/pull/120). GitHub returned and the repository confirmed canonical merge `e4454cf71f4576cd9447e621b7e4766a02c8dd24`. All eight applicable Actions jobs passed at `eab93ed3dd406c7b39346ee7f6b56a026c022e8e`, including [Node](https://github.com/ruishinor/game-dev/actions/runs/44508655821), [Phase Annex browser travel](https://github.com/ruishinor/game-dev/actions/runs/44508656161), [integrated browser play](https://github.com/ruishinor/game-dev/actions/runs/44508655854) and [playable inspection](https://github.com/ruishinor/game-dev/actions/runs/44508656071). The foundation scopes world snapshots, entity metadata, immediate and buffered world cues, and gameplay interactions. Its scope includes existing-world regression and Annex geometry in the correct region.
+
+| Packages | Current evidence | Remaining gate |
+|---|---|---|
+| SE-00 | Reconciled current main, active worktrees, #115, #116 and #119, and the Stillpoint, Halo Construct, Spindle and Survey Strider pipelines. No reusable Foundry entrance was found in the inspected sources. | Refresh heads and ownership before further promotion. |
+| SE-01, SE-11 | Region isolation merged. Local loopback prototype runs both new destinations through the existing travel and recovery lifecycle. | Verify in the access-controlled release environment. |
+| SE-02, SE-03, SE-04, SE-05, SE-09 | Private landscape and architecture checkpoint `200f930`. Traversal and LOD exercised with Chromium. The original entrance and shelter exports passed Khronos glTF validation. | Final scene composition, camera/geometry fit at varied approaches, asset publication and visual acceptance. |
+| SE-06, SE-07 | Private quartermaster and one class-neutral ampoule. Valid purchase/use and four-class transaction, failure, capacity and cooldown coverage. | Representative affordability and balance review. |
+| SE-08, SE-20 | Existing repair reused. Extra consumables, service NPCs and quest chains deferred. | Evaluate after the core loop ships. |
+| SE-10, SE-12, SE-13, SE-14 | Private outdoor ecology, four traversable Foundry areas, distinct encounter mechanics and original runtime models. | Final art, movement and collision review, encounter density and human balance. |
+| SE-15, SE-17, SE-18 | Private recovery, personal blueprint awards, permanent learning and fabrication through existing Workshop and discipline paths. | Private content release and economy validation. |
+| SE-16, SE-19 | [PR #119](https://github.com/ruishinor/game-dev/pull/119) remains the canonical armor dependency. Local integration reuses its contracts and adds piece artwork and equipped meshes. | Canonical armor promotion, in-motion fit across supported looks and final enemy art. |
+| SE-21 | Private minimap, interaction labels, healing cooldown and directional warning presentation. | Human accessibility review and environmental audio. |
+| SE-22, SE-23 | Public foundation passed hosted regression. Private test and visual evidence stays in the local handoff. | Private release-candidate validation, hardware profiling, final visual acceptance and solo/small-party play. |
+| SE-24 | Open. | Approved access-controlled delivery destination, current-head verification, release and handoff. |
+
+Private checkpoint `ce91d4b405190862febe95b7be9ec4b50a1ba2a9` incorporates the canonical foundation. Its full local Node regression passed 376 tests. Chromium exercised two-session visibility, the complete round trip, shelter and ramp movement, purchase and consumption, personal blueprint collection, learning, Workshop production, and a visible equipped Bastion Circuit chest. Scripted encounter probes covered 16 solo family/class combinations and four three-enemy duo scenarios. These scenarios establish a playable checkpoint. Human balance, equipped fit across all looks, and release readiness remain open.
 
 ## Objective and boundaries
 Deliver a distinctive outdoor PvE destination reached by a dedicated rift, an optional safe expedition outpost, monumental Foundry entrance, four differentiated interior encounter areas, and a repeatable rare armor blueprint-to-fabrication loop. Preserve Phase Annex, existing characters, accounts, quests, companions and economy. No level-cap increase, new class, mandatory raid, PvP, auction house or player trading prerequisite. Existing active classes only. AO Temple of Three Winds informs pacing and location identity, not copied assets, maps or protected designs. Owner reference sheets guide original entrance and shelter production. WoW/Ashes of Creation are aspirational art references, not acceptance claims.
