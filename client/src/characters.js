@@ -287,7 +287,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         const active=!st.dead&&st.attack>.2;
         heldRod.group.visible=!st.dead&&!working;
         heldRod.setMode(st.electricalRod);
-        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm});
+        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm});
         if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
         rodEffects?.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0});
       }

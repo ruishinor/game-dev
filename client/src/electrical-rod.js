@@ -117,7 +117,7 @@ export function createElectricalRod({independentEmission=false}={}) {
   });
   // Render-only detail, intentionally excluded from the structural GLB export.
   const corona=independentEmission?createRodCorona(halves):null;
-  let p=0,target=0,disposed=false;
+  let p=0,target=0,disposed=false,coronaEnergy=0;
   function apply(){
     const pose=rodPose(p);
     halves.forEach((h,i)=>{const v=i?pose.left:pose.right;h.position.set(v.x,0,v.z);h.rotation.set(0,0,v.angle);});
@@ -127,17 +127,19 @@ export function createElectricalRod({independentEmission=false}={}) {
     if(mode!=='dual'&&mode!=='rod')throw Error('Unknown rod presentation mode');
     target=mode==='rod'?1:0;
   }
-  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false}={}){
+  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion}={}){
     if(disposed)return;
     const step=Number.isFinite(dt)&&dt>0?dt/ROD.duration:0;
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
     for(const m of channels){m.inlay.emissiveIntensity=k*(independentEmission?2.2:.55)+k*.38*clamp(Number.isFinite(activity)?activity:0);m.blue.emissiveIntensity=k*(independentEmission?1.1:.24);}
-    corona?.update(dt,{energized,activity,quality,intensity,calm,reducedMotion});
+    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.58)/.42)),quality,intensity,calm,reducedMotion:coronaReducedMotion});
+    if(!energized)coronaEnergy=0;
   }
   function setEnergy(right,left=right){
     if(disposed)return;
+    coronaEnergy=Math.max(clamp(Number.isFinite(right)?right:0),clamp(Number.isFinite(left)?left:0));
     [right,left].forEach((n,i)=>{const k=clamp(Number.isFinite(n)?n:0);channels[i].inlay.emissiveIntensity=3.6*k;channels[i].blue.emissiveIntensity=1.8*k;});
   }
   function anchor(i,name,into=new THREE.Vector3()){

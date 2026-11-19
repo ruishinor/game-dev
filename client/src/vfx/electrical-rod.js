@@ -44,7 +44,7 @@ export function createElectricalRodVfx(rod,vfx){
   if(!enabled())return;
   const layered=rich(),long=joined();energy=1;
   for(let i=0;i<2;i++){
-   arc(i,'Collar',i,'Tip',{width:long?.06:.045,life:.85,alpha:1,branches:layered?(long?2:1):0,jag:.28});
+   arc(i,'Collar',i,'Tip',{width:layered?(long?.06:.045):.02,life:layered?.85:.35,alpha:layered?1:.4,branches:layered?(long?2:1):0,jag:.28});
    if(layered){
     arc(i,'Mid',i,'Emitter',{width:.028,life:.65,alpha:.85,branches:1,jag:.32});
     remember(vfx.trail?.({follow:at(i,'Tip'),length:.22,life:.65,fade:.35,width:long?.24:.16,color:C.ice,color2:C.blue,alpha:.9,style:0}));
@@ -74,7 +74,7 @@ export function createElectricalRodVfx(rod,vfx){
    const moving=Math.abs(rod.progress-previous)>1e-5,locked=previous<.995&&rod.progress>=.995;
    previous=rod.progress;
    visible=!!energized&&rod.group.visible;
-   if(!enabled()){stop();rod.setEnergy?.(energized?0.18:0,energized?0.18:0);return;}
+   if(!enabled()){stop();rod.setEnergy?.(energized?0.30:0,energized?0.30:0);return;}
    energy=Math.max(0,energy-step*.80);
    if(moving&&transformCooldown===0){transformCooldown=.29;transformDischarge();}
    if(locked&&moving&&full()){
