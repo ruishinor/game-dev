@@ -2,6 +2,7 @@
 // Pure presentation: no inventory, attack, damage or stun authority.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+export {createElectricalRodVfx} from './vfx/electrical-rod.js';
 
 export const ROD = Object.freeze({ halfLength: .76, splitOffset: .27, duration: .95 });
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -87,7 +88,7 @@ function makeHalfGeometry() {
   return merged;
 }
 
-export function createElectricalRod() {
+export function createElectricalRod({independentEmission=false}={}) {
   const group=new THREE.Group();group.name='ElectricalCombatRod';
   const geometry=makeHalfGeometry();
   const mats={
@@ -100,13 +101,15 @@ export function createElectricalRod() {
     blue:makeMaterial('Cobalt inlay',{color:0x1764aa,metalness:.47,roughness:.3,emissive:0x1464aa,emissiveIntensity:.29}),
     inlay:makeMaterial('Energy channel',{color:0x4fa1bc,metalness:.33,roughness:.24,emissive:0x41bde8,emissiveIntensity:.65}),
   };
-  const halves=['RodRight','RodLeft'].map(name=>{
+  // Export retains eight shared meshes; runtime opts into independent emissive material instances.
+  const channels=independentEmission?[mats,{...mats,blue:mats.blue.clone(),inlay:mats.inlay.clone()}]:[mats,mats];
+  const halves=['RodRight','RodLeft'].map((name,i)=>{
     const h=new THREE.Group();h.name=name;group.add(h);
     for(const [key,geo] of geometry){
-      const mesh=new THREE.Mesh(geo,mats[key]);mesh.name=name+'_'+key;
+      const mesh=new THREE.Mesh(geo,channels[i][key]);mesh.name=name+'_'+key;
       mesh.castShadow=true;mesh.receiveShadow=true;h.add(mesh);
     }
-    for(const [n,y] of [['Coupler',0],['Grip',.13],['Tip',.75],['Channel',.59]]){
+    for(const [n,y] of [['Coupler',0],['Grip',.13],['Tip',.75],['Channel',.59],['Collar',.245],['Mid',.46],['Emitter',.71]]){
       const marker=new THREE.Object3D();marker.name=name+n;marker.position.y=y;h.add(marker);
     }
     return h;
@@ -127,23 +130,26 @@ export function createElectricalRod() {
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
-    mats.inlay.emissiveIntensity=k*(.55+.38*clamp(Number.isFinite(activity)?activity:0));
-    mats.blue.emissiveIntensity=k*.24;
+    for(const m of channels){m.inlay.emissiveIntensity=k*(.55+.38*clamp(Number.isFinite(activity)?activity:0));m.blue.emissiveIntensity=k*.24;}
+  }
+  function setEnergy(right,left=right){
+    if(disposed)return;
+    [right,left].forEach((n,i)=>{const k=clamp(Number.isFinite(n)?n:0);channels[i].inlay.emissiveIntensity=3.6*k;channels[i].blue.emissiveIntensity=1.8*k;});
   }
   function anchor(i,name,into=new THREE.Vector3()){
     const h=halves[i];if(!h)throw Error('Unknown rod half');
     const marker=h.getObjectByName(h.name+name);if(!marker)throw Error('Unknown rod anchor');
     return marker.getWorldPosition(into);
   }
-  return {group,halves,setMode,update,anchor,get progress(){return p;},
+  return {group,halves,setMode,update,setEnergy,anchor,get progress(){return p;},
     dispose(){if(disposed)return;disposed=true;group.removeFromParent();
-      geometry.forEach(g=>g.dispose());Object.values(mats).forEach(m=>m.dispose());}};
+      geometry.forEach(g=>g.dispose());new Set(channels.flatMap(Object.values)).forEach(m=>m.dispose());}};
 }
 
 // Joined field configuration. Grip is centered at the supplied palm in the
 // hand's local frame; existing character animation drives the attachment.
 export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3(),offHand=null,offAxis=new THREE.Vector3(0,0,1),offPalm=new THREE.Vector3()}={}){
-  const rod=createElectricalRod();
+  const rod=createElectricalRod({independentEmission:true});
   rod.setMode('rod');rod.update(0,{reducedMotion:true});
   rod.group.name='HeldElectricalCombatRod';
   rod.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis.clone().normalize());
@@ -173,26 +179,4 @@ export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm
   };
   rod.update(0,{reducedMotion:true});
   return rod;
-}
-
-// Existing Attunement lightning pool. No scene light, full-shaft aura or projectile.
-// Short local pulses follow actual mesh nodes, including during a transform.
-export function createElectricalRodVfx(rod,vfx) {
-  let cooldown=0;
-  return {
-    update(dt,{energized=true,activity=0}={}){
-      if(!Number.isFinite(dt)||dt<0)return;
-      cooldown=Math.max(0,cooldown-dt);
-      if(!vfx||vfx.quality<=0||vfx.reducedMotion||!energized||cooldown>0)return;
-      cooldown=activity>.25?.18:.48;
-      for(let i=0;i<2;i++){
-        vfx.lightning({from:()=>rod.anchor(i,'Channel'),to:()=>rod.anchor(i,'Tip'),
-          color:0x74d6ef,color2:0x258ad5,width:.009,life:.17,jag:.14,
-          alpha:activity>.25?.63:.34,branches:activity>.25?1:0});
-      }
-    },
-    impact(at){if(!vfx||vfx.quality<=0)return;
-      vfx.burst({at,count:9,color:0xc4f4ff,color2:0x438edf,cell:13,life:.23,
-        size:.038,speed:[.3,1.5],drag:3});}
-  };
 }
