@@ -6,11 +6,11 @@ import {petCommand,renameCompanion,manageCompanion,companionRoster} from '../ser
 import {tickSurveyStrider} from '../server/sim/survey-strider.js';
 import {groundSegmentClear} from '../server/sim/ground-navigation.js';
 const id='survey_strider_link';
-const eligible=()=>makeChar('surveyor',{level:4,attunements:['resonance'],inventory:[id,'brine_calibrator'],equipped:{device:'brine_calibrator',implant:null,glyph:null},survey:'signal_done',brineStage:3});
+const eligible=()=>makeChar('surveyor',{level:4,attunements:['resonance'],inventory:[id,'survey_calibrator'],equipped:{device:'survey_calibrator',implant:null,glyph:null},survey:'signal_done',brineStage:3});
 test('legacy ownership migrates to permanent learned deployment without replacing gear',()=>{
  const g=makeGame(),m=g.addPlayer(makeChar('symbiotech')),p=g.addPlayer(eligible()),other=g.addPlayer(makeChar('vanguard',{inventory:[id]}));const original=m.companion;
  assert.equal(p.companion,null);assert.equal(p.char.striderLearned,true);assert.equal(p.char.inventory.includes(id),false);
- assert.equal(p.char.equipped.device,'brine_calibrator');
+ assert.equal(p.char.equipped.device,'survey_calibrator');
  assert.equal(manageCompanion(g,other,'summon').ok,false);
  assert.ok(manageCompanion(g,p,'summon').ok);const c=p.companion;assert.equal(c.type,'survey_strider');assert.ok(groundSegmentClear(c,c,.9));
  assert.equal(g.privateState(p).comp,c.id);assert.equal(g.metaFor(c).o,p.id);
@@ -41,4 +41,10 @@ test('scan supplies bounded power once per interval; keeps manual marks and neut
  g.time+=9000;const neutral=enemyOf(g,'sinter_grazer');neutral.state='idle';neutral.threat.clear();neutral.x=4;neutral.z=25;p.target=neutral.id;tickSurveyStrider(g,c,.05);assert.equal(p.surveyKit.mark,null);
  p.target=e.id;p.res=95;tickSurveyStrider(g,c,.05);assert.equal(p.res,100);
  p.dead=true;tickSurveyStrider(g,c,.05);assert.equal(c.act,'dormant');
+});
+
+test('equipped legacy strider link becomes deployed knowledge and releases its slot',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{level:4,inventory:[id],equipped:{device:id,implant:null,glyph:null},attunements:['resonance']}));
+ assert.equal(p.char.striderLearned,true);assert.equal(p.char.inventory.includes(id),false);assert.equal(p.char.equipped.device,null);
+ assert.equal(p.companion?.type,'survey_strider');assert.ok(companionRoster(g,p)[0].active);
 });
