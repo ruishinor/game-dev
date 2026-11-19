@@ -223,7 +223,8 @@ export function renderLoadout(ui,body,stats) {
     const slot=tab.slots.find(t=>t.key===ui.loadoutSlot);
     const id=allowed(ui.loadoutSelection)?ui.loadoutSelection:slot?.slot?s.equipped[slot.slot]:null;
     const item=ITEMS[id];
-    if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
+    if(item&&s.equipped[item.slot]===id)detail.append(h('p','muted','Installed. Hover or focus the equipment for information; right-click or Shift+F10 for actions.'));
+    else if(item)detail.append(h('div','kicker',SLOT_NAMES[item.slot]),h('div','iname',item.name),h('p','idesc',item.desc),...requirements(s,id));
     else if(slot&&!slot.slot)detail.append(h('div','kicker','Reserved slot'),h('div','iname',slot.label),h('p','idesc','Not yet available. This slot is reserved for a future equipment system.'));
     else if(slot)detail.append(h('div','kicker','Empty slot'),h('div','iname',slot.label),h('p','idesc','No item installed. Choose compatible equipment from the loadout list.'));
     else detail.append(h('div','muted',tab.id==='character'?'Choose an installed item.':'Select a slot or item.'));
@@ -274,7 +275,7 @@ export function renderLoadout(ui,body,stats) {
         if(id)ui.acknowledgeItem(id);
         renderDetail();
       });
-      if(id)bindItem(ui,btn,id);
+      if(id){bindItem(ui,btn,id);ui.hover(btn,()=>itemTooltip(s,id));}
       if(slot.slot)itemDrop(ui,btn,itemId=>!ui.buildLock&&ITEMS[itemId]?.slot===slot.slot&&ui.sheet.inventory.includes(itemId)&&ui.sheet.equipped[slot.slot]!==itemId,itemId=>ui.itemAction(itemId,'equip'));
       buttons.set(slot.key,btn);
       grid.append(btn);
@@ -283,15 +284,20 @@ export function renderLoadout(ui,body,stats) {
     legend.append(h('span','legend-installed','Installed'),h('span','legend-empty','Empty'),h('span','legend-reserved','Reserved'));
     doll.append(grid,legend);
   }
-  column.append(h('h3',null,'Loadout'),list,h('h3',null,'Details'),detail);
+  column.append(h('h3',null,tab.id==='character'?'Loadout':'Available equipment'),list,h('h3',null,'Details'),detail);
   if(actualSlots.length){
-    for(const slot of actualSlots){
+    // Category tabs already show each installed item at its anatomical slot.
+    // The adjacent list is exclusively for compatible carried alternatives.
+    if(tab.id==='character')for(const slot of actualSlots){
       const id=s.equipped[slot];
       if(id)list.append(equipmentCard(ui,id,true,selectItem));
       else {const card=h('div','card slotcard empty');card.append(h('div','kicker',SLOT_NAMES[slot]),h('div','muted','Not installed'));list.append(card);}
     }
     const spare=s.inventory.filter(id=>ITEMS[id]&&actualSlots.includes(ITEMS[id].slot)&&s.equipped[ITEMS[id].slot]!==id);
-    if(tab.id!=='character'&&spare.length){list.append(h('h3',null,'Available equipment'));for(const id of spare)list.append(equipmentCard(ui,id,false,selectItem));}
+    if(tab.id!=='character'){
+      for(const id of spare)list.append(equipmentCard(ui,id,false,selectItem));
+      if(!spare.length)list.append(h('p','muted','No compatible unequipped items carried.'));
+    }
     if(!tab.slots.some(t=>t.key===ui.loadoutSlot))ui.loadoutSlot=null;
     if(!allowed(ui.loadoutSelection))ui.loadoutSelection=null;
     if(!ui.loadoutSlot&&!ui.loadoutSelection){
