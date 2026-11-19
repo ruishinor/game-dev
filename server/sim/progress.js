@@ -172,6 +172,17 @@ function inCombat(game, p) {
   return game.time < p.combatUntil;
 }
 
+// Explicit configuration intent, not a toggle: replaying the same request is harmless.
+export function setElectricalRodMode(game,p,mode) {
+  if(mode!=='rod'&&mode!=='dual')return {ok:false,reason:'Unknown electrical rod configuration.'};
+  if(p.cls!=='vanguard'||p.char.equipped.weapon!=='electrical_combat_rod'||!p.char.inventory.includes('electrical_combat_rod'))return {ok:false,reason:'Equip your Electrical Combat Rod first.'};
+  if(p.dead||inCombat(game,p)||p.autoOn||p.inscription||p.production||p.jy>.05)return {ok:false,reason:'Disengage and finish your current action before changing configuration.'};
+  if((p.char.electricalRodMode||'rod')===mode)return {ok:true};
+  p.char.electricalRodMode=mode;
+  game.markDirty(p);
+  return {ok:true};
+}
+
 export function equipItem(game, p, itemId) {
   if (typeof itemId !== 'string' || !Object.hasOwn(ITEMS, itemId)) return { ok: false, reason: 'Unknown item.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
@@ -357,6 +368,7 @@ export function interact(game, p, objectId) {
     p.outbox.push({e:'workshop_open'});return {ok:true};
   }
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='rift_return')return game.travelRift(p,obj);
   if(obj.type==='severance_gate'||obj.type==='severance_return')return travelSeverance(game,p,obj);

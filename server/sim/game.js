@@ -64,6 +64,7 @@ export class Game {
 
     for (const o of OBJECTS) {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
+      if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -401,6 +402,7 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
+        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:p.char.electricalRodMode==='dual'?2:1}:{}),
         ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
@@ -437,7 +439,7 @@ export class Game {
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
-        return { i: ent.id, k: 'o', n: ent.name, c: ent.type };
+        return { i: ent.id, k: 'o', n: ent.name, c: ent.type, ...(ent.yaw !== undefined ? { y: ent.yaw, v: ent.variant } : {}) };
     }
   }
 
@@ -513,6 +515,7 @@ export class Game {
       credits: sanitizeCredits(c.credits),
       condition:sanitizeCondition(c.condition,c.inventory),
       equipped: { ...c.equipped },
+      ...(c.equipped.weapon==='electrical_combat_rod'&&c.inventory.includes('electrical_combat_rod')?{electricalRodMode:c.electricalRodMode==='dual'?'dual':'rod'}:{}),
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
       directiveReceipts:sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step),

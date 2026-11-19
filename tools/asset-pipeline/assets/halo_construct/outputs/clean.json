@@ -1,0 +1,19 @@
+{
+ "high_triangles": 639812,
+ "low_triangles": 28290,
+ "protected_fraction": 0.27248629284852427,
+ "decimate_ratios": [
+  0.0884355753660202,
+  0.5
+ ],
+ "texture": 2048,
+ "images": {
+  "color": "bake_color.png",
+  "donor": "bake_donor.png",
+  "normal": "bake_normal.png",
+  "ao": "bake_ao.png",
+  "position": "bake_position.png"
+ },
+ "low": "body_low.glb",
+ "high": "body_high.glb"
+}

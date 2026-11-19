@@ -13,6 +13,8 @@ import { gateToWorld, SEVERANCE_POCKET } from '../shared/severance-gate.js';
 import { liveFixturePlayer } from '../test/e2e/live-fixture.mjs';
 
 const out = process.argv[2] || 'docs/evidence/severance';
+// optional comma-separated name prefixes: only those views are written
+const only = (process.argv[3] || '').split(',').filter(Boolean);
 fs.mkdirSync(out, { recursive: true });
 const server = await startServer({ port: 0, dataFile: null });
 let browser;
@@ -45,6 +47,7 @@ try {
 
   console.log('landmark ready');
   async function shot(name, at, face, cam, settle = 2500) {
+    if (only.length && !only.some((o) => name.startsWith(o))) return;
     const t0 = Date.now();
     p.x = at.x; p.z = at.z; p.yaw = face;
     await page.waitForFunction(([x, z]) => { const s = window.__attune.state(); return Math.hypot(s.pos.x - x, s.pos.z - z) < 0.6; }, [at.x, at.z], { polling: 250 });
@@ -71,6 +74,7 @@ try {
   await page.waitForTimeout(6000);
   await shot('05-stairs-active', gateToWorld(0, -22), north, { yaw: north, pitch: 0.28, dist: 11 });
   await shot('06-arrival-active-long-distance', SEVERANCE_POCKET.arrival, north, { yaw: north, pitch: 0.2, dist: 7 });
+  await shot('06b-column-from-arrival', SEVERANCE_POCKET.arrival, north, { yaw: north, pitch: -0.18, dist: 4 });
   await shot('07-approach-active-mid', { x: -300, z: -10 }, north, { yaw: north, pitch: 0.3, dist: 10 });
   await shot('08-three-quarter', { x: -276, z: 26 }, -0.75, { yaw: -0.75, pitch: 0.3, dist: 14 });
   await shot('09-side', { x: -270, z: 52 }, -Math.PI / 2, { yaw: -Math.PI / 2, pitch: 0.18, dist: 12 });

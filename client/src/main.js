@@ -400,6 +400,7 @@ const ui = new UI({
   cancelProduction: () => net.send({ t: 'production_cancel' }),
   useUtility: (item,weapon,rev)=>net.send({t:'use_utility',item,weapon,rev}),
   equip: (item) => net.send({ t: 'equip', item }),
+  rodMode: mode => net.send({ t:'rod_mode',mode }),
   itemSeen: (item, rev) => net.send({ t: 'item_seen', item, rev }),
   disposeItem: (item, action, rev) => net.send({ t: 'item_dispose', item, action, rev }),
   cancelInscription: () => net.send({ t: 'inscription_cancel' }),
@@ -881,6 +882,10 @@ function onSnapshot(m) {
   // Private loot state must be current before keyboard input, even if rendering lags.
   ui.loot.sync(y.lootable,y.loot);
   ui.vendor.sync(y.vendor);
+  // Presentation only: a vendor acknowledges a newly opened trade.
+  const vendorId = y.vendor?.id ?? null;
+  if (vendorId && vendorId !== S.lastVendorId) S.ents.get(vendorId)?.model.trigger?.('interact');
+  S.lastVendorId = vendorId;
   ui.syncNpc();
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
@@ -911,6 +916,9 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
+      // Only a confirmed equipped Vanguard melee auto hit can discharge the rod.
+      // Other abilities retain their existing VFX and no extra damage is implied.
+      const rodImpact = e.ab==='auto'&&e.k==='melee'&&s?.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -925,7 +933,7 @@ function onEvent(e) {
           const reach=d.model.radius*.68;
           fx.faunaImpact([d.chest.x+nx*reach,d.chest.y,d.chest.z+nz*reach],[nx,0,nz],
             {radius:d.model.radius*.62,reducedMotion:motionPreference.matches||quality===0});
-        }else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        }else if (e.k !== 'bolt' && !e.sh && !rodImpact) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -1609,8 +1617,10 @@ function updateEntities(dt, t, now) {
       yaw = sm.r;
       if (ent.meta.k === 'o') {
         // Characters in the world turn to face a nearby traveller.
-        yaw = me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
-        yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
+        // Posts with an authored facing (the Sanctum wardens) never turn.
+        yaw = ent.meta.y !== undefined ? ent.meta.y
+          : me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
+        if (ent.meta.y === undefined) yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
       }
     }
     let y = groundHeight(x, z) + j + ent.model.hover;
@@ -1643,12 +1653,12 @@ function updateEntities(dt, t, now) {
     ent.jy = j;
     ent.placed = true;
     ent.holder.position.set(x, y, z);
-    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5
+    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5 && ent.meta.y === undefined
       ? S.ents.get(ent.faceTo) : null;
     const faceYaw = facingTarget && facingTarget.placed
       ? Math.atan2(facingTarget.pos.x - x, facingTarget.pos.z - z) : yaw;
     // Smooth presentation yaw separately from the authoritative movement yaw.
-    ent.displayYaw = ent.displayYaw === undefined ? faceYaw
+    ent.displayYaw = ent.displayYaw === undefined || ent.meta.y !== undefined ? faceYaw
       : lerpAngle(ent.displayYaw, faceYaw, Math.min(1, dt * 13));
     ent.holder.rotation.y = ent.displayYaw;
     ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);
@@ -1697,6 +1707,8 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
+      electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
       work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
@@ -1979,7 +1991,8 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView,
+        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

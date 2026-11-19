@@ -1,0 +1,22 @@
+{
+ "note": "Owner-authorised source material that is neither original procedural art nor CC0. Each entry records the owner's decision, the exact file it covers (SHA-256) and what is known about third-party terms. These files live in the repository; nothing here is fetched. Derivatives list the entry id in client/assets/manifest.json. Never relabel an entry as CC0.",
+ "sources": [
+  {
+   "id": "halo_construct_owner",
+   "title": "Halo Construct (accepted source mesh)",
+   "file": "client/character-assets/halo_construct.glb",
+   "sha256": "02853bfd536a53135225fc9353463feeed07fb4745ef2d261dbaeaa7d9a32036",
+   "bytes": 7861284,
+   "origin": "Reconstructed from owner-provided Meshy turntable footage of an owner-generated Meshy model (PR #94).",
+   "owner_decisions": [
+    "2026-11-18: exact runtime asset authorised for this public development repository (docs/art/HALO-CONSTRUCT-ASSET.md).",
+    "2026-11-19: owner directed production of derivatives (cleaned base, security and vendor wardrobes, rig) as Attunement's primary NPC race and their in-game use."
+   ],
+   "license": "owner-authorised; provider licence not independently verified",
+   "provider_terms": "Meshy's published terms permit derivative works and redistribution on both plans: paid-plan assets belong to the user; free-plan assets are CC BY 4.0. The plan used is not recorded, so the CC BY attribution is carried.",
+   "attribution": "Model created with Meshy (meshy.ai), CC BY 4.0 where applicable. Credited in docs/ASSETS.md.",
+   "redistribution": "Owner-authorised for this repository and the game build; not an open licence. Do not reuse elsewhere without the owner.",
+   "use": "Source geometry and texture of the Halo Construct NPC race (client/assets/halo_construct.glb)."
+  }
+ ]
+}

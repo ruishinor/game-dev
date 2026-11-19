@@ -404,6 +404,22 @@ OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x
   {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:.72});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
+// Four Halo Construct wardens stand outside the Sanctum perimeter, one per
+// sector between the three roads, facing away from the centre. Positions were
+// solved against this module's roads, colliders, objects and ground slope
+// (>= 5.9 m from every road centreline, flat ground, nothing within 1.4 m) and
+// are appended after the rift-site search so no existing placement moves.
+// Yaw follows the game convention (0 faces +Z; forward = (sin yaw, cos yaw)),
+// so the outward yaw is the bearing from the centre.
+export const SANCTUM_GUARD_RADIUS = 16;
+export const SANCTUM_GUARDS = Object.freeze([15, 105, 200, 280].map((deg, i) => {
+  const a = deg * Math.PI / 180;
+  const x = Math.round((WORLD.sanctum.x + Math.sin(a) * SANCTUM_GUARD_RADIUS) * 1000) / 1000;
+  const z = Math.round((WORLD.sanctum.z + Math.cos(a) * SANCTUM_GUARD_RADIUS) * 1000) / 1000;
+  return Object.freeze({ key: `sanctum_guard_${i + 1}`, type: 'sanctum_guard', name: 'Sanctum Warden', x, z, r: 0.45,
+    yaw: Math.atan2(x - WORLD.sanctum.x, z - WORLD.sanctum.z), variant: i });
+}));
+OBJECTS.push(...SANCTUM_GUARDS);
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall'||p.type==='annex_wall');
 
