@@ -119,11 +119,7 @@ export function buildSeverancePocket(T, scene, o) {
   const ruins = new T.Group();
   ruins.name = 'severance-pocket:ruins';
   group.add(ruins);
-  // the return beacon stands on a small dais at the arrival terrace
-  const dais = new T.Mesh(new T.CylinderGeometry(2.4, 2.8, 0.35, 10), new T.MeshStandardMaterial({ color: 0x3f3d40, roughness: 0.85, metalness: 0.15 }));
-  dais.position.set(SEVERANCE_POCKET.beacon.x, o.ground(SEVERANCE_POCKET.beacon.x, SEVERANCE_POCKET.beacon.z) + 0.1, SEVERANCE_POCKET.beacon.z);
-  dais.receiveShadow = true;
-  group.add(dais);
+  // The return Phase Scar entity carries its own foundation; no stacked dais.
 
   const landmark = createSeveranceGateLandmark(T, { scene, loader: o.assets?.loader, groundHeight: o.ground, url: o.url });
   let ruinsPlaced = false;
