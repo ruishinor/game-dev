@@ -1,0 +1,340 @@
+{
+ "asset": "stillpoint",
+ "sources": [
+  {
+   "id": "concept_sheet",
+   "path": "art-source/stillpoint/source/stillpoint_concept_sheet.webp",
+   "provenance": "Owner-supplied isolated Stillpoint concept sheet (attached to the 2026-11-18 assignment). AI-generated concept art.",
+   "role": "primary geometry + texture reference",
+   "sha256": "25d890cbfc3038ad4b73f62de8abb5ec03ba928c7bf27c3922064b5ce91eeb0b",
+   "bytes": 125158,
+   "native_image": {
+    "path": "/home/user/game-dev/art-source/stillpoint/source/stillpoint_concept_sheet.webp",
+    "sha256": "25d890cbfc3038ad4b73f62de8abb5ec03ba928c7bf27c3922064b5ce91eeb0b",
+    "width": 1024,
+    "height": 572
+   }
+  },
+  {
+   "id": "lookbook_pdf",
+   "path": "art-source/stillpoint/source/ATTUNEMENT_Extraordinary_Kinship_Companion_Lookbook_Revised.pdf",
+   "provenance": "Owner-supplied lookbook. Page 14 is a crop of an embedded 1536x1024 'Anomalous Life' sheet; the native image is extracted losslessly with pdfimages.",
+   "pdf_page": 14,
+   "role": "primary illustration + structural studies",
+   "sha256": "aa19682023532f74f12c3468eee5b2b075494b2d6cb7e5a304091260adff1fca",
+   "bytes": 24140257,
+   "native_image": {
+    "path": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/refs/_extracted/lookbook_pdf_p14/img-000.png",
+    "sha256": "a46f0ba528ce4f1d5827487a4a1d0fb0defd186248b62c661fd068a4d8844ac8",
+    "width": 1536,
+    "height": 1024
+   }
+  },
+  {
+   "id": "pipeline_illustration",
+   "path": "art-source/stillpoint/source/stillpoint_pipeline_illustration.webp",
+   "provenance": "Owner-supplied illustration of a reconstruction pipeline. Generated artwork depicting a process, not evidence of any implementation.",
+   "role": "not used for geometry or texture",
+   "sha256": "337722f69c12c6f68e4958d8d32622bd743b0cdec84ff75601d0757eaf28ebda",
+   "bytes": 151492,
+   "native_image": {
+    "path": "/home/user/game-dev/art-source/stillpoint/source/stillpoint_pipeline_illustration.webp",
+    "sha256": "337722f69c12c6f68e4958d8d32622bd743b0cdec84ff75601d0757eaf28ebda",
+    "width": 1024,
+    "height": 572
+   }
+  }
+ ],
+ "views": {
+  "persp_a": {
+   "source": "concept_sheet",
+   "box": [
+    38,
+    12,
+    330,
+    258
+   ],
+   "class": "primary textured concept",
+   "role": [
+    "silhouette",
+    "proportion",
+    "side colour"
+   ],
+   "notes": "elevated 3/4 view; blueprint background with dimension lines and callout arrows",
+   "file": "refs/persp_a.png",
+   "width": 330,
+   "height": 258,
+   "sha256": "cfa7f587e367931e6c7deb8a099eee4205652cdd91488ba0fa3ae6b03790a0bb",
+   "camera": "unknown (illustration)",
+   "geometry_reference": true,
+   "texture_reference": true
+  },
+  "persp_b": {
+   "source": "concept_sheet",
+   "box": [
+    35,
+    282,
+    330,
+    262
+   ],
+   "class": "alternate viewpoint",
+   "role": [
+    "silhouette",
+    "proportion"
+   ],
+   "notes": "near-duplicate of persp_a with different details (crystal sizes, apparent fifth leg)",
+   "file": "refs/persp_b.png",
+   "width": 330,
+   "height": 262,
+   "sha256": "23060e3a599483a19644adc96b0ac16a9ceaed555250eb2d466b98293ff5d8d5",
+   "camera": "unknown (illustration)",
+   "geometry_reference": true,
+   "texture_reference": false
+  },
+  "top": {
+   "source": "concept_sheet",
+   "box": [
+    700,
+    12,
+    300,
+    315
+   ],
+   "class": "alternate viewpoint (dorsal, near-orthographic)",
+   "role": [
+    "outline",
+    "plate layout",
+    "crystal layout",
+    "moss layout",
+    "dorsal colour"
+   ],
+   "file": "refs/top.png",
+   "width": 300,
+   "height": 315,
+   "sha256": "e33137300f0aa3d49f7632baf01ccf350e095e3ba5be9d45b5b3f783b11c9192",
+   "camera": "unknown (illustration)",
+   "geometry_reference": true,
+   "texture_reference": true
+  },
+  "wire_a": {
+   "source": "concept_sheet",
+   "box": [
+    388,
+    36,
+    300,
+    262
+   ],
+   "class": "wireframe-overlaid view",
+   "role": [
+    "plate boundaries"
+   ],
+   "file": "refs/wire_a.png",
+   "width": 300,
+   "height": 262,
+   "sha256": "3194d348dabec9f286db61cbd4162bf58c7f7bc3eb87523edcb6fd8405b3ab3b",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "wire_b": {
+   "source": "concept_sheet",
+   "box": [
+    388,
+    300,
+    300,
+    268
+   ],
+   "class": "wireframe-overlaid view",
+   "role": [
+    "plate boundaries"
+   ],
+   "file": "refs/wire_b.png",
+   "width": 300,
+   "height": 268,
+   "sha256": "e1e661537a4ecc6446aee1b9947b194324b87788d5fc07367d3bdc21b07c3969",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "details": {
+   "source": "concept_sheet",
+   "box": [
+    694,
+    322,
+    330,
+    250
+   ],
+   "class": "articulation and material details",
+   "role": [
+    "joint design",
+    "leg segment design",
+    "crystal detail"
+   ],
+   "file": "refs/details.png",
+   "width": 330,
+   "height": 250,
+   "sha256": "be607fa5ce90dd0b4d44495a16f61c4aca9cf5deca2c53266a28a420327fdd7f",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "lookbook_main": {
+   "source": "lookbook_pdf",
+   "box": [
+    1008,
+    118,
+    335,
+    305
+   ],
+   "class": "primary textured concept (lookbook)",
+   "role": [
+    "silhouette",
+    "proportion",
+    "colour"
+   ],
+   "exclude": [
+    [
+     0,
+     0,
+     170,
+     42
+    ]
+   ],
+   "file": "refs/lookbook_main.png",
+   "width": 335,
+   "height": 305,
+   "sha256": "636e830d40292dbe94d9332c794c5eb35d64a9c92339c93ce539c1c5418b7f37",
+   "camera": "unknown (illustration)",
+   "geometry_reference": true,
+   "texture_reference": true
+  },
+  "structure_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1345,
+    92,
+    190,
+    115
+   ],
+   "class": "skeletal / structural study",
+   "role": [
+    "limb count",
+    "hip placement"
+   ],
+   "file": "refs/structure_sketch.png",
+   "width": 190,
+   "height": 115,
+   "sha256": "016d7d1bc8192f388b26b6695c378471cb1b90f3b5fe3365f03582b60496873e",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "joint_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1385,
+    212,
+    135,
+    95
+   ],
+   "class": "articulation study",
+   "role": [
+    "joint design"
+   ],
+   "file": "refs/joint_sketch.png",
+   "width": 135,
+   "height": 95,
+   "sha256": "a7d02683c0b8303013d4aa8e83362ecc65ed69030c1bb8b0bf3d90c5534ca7e0",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "coupling_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1375,
+    298,
+    160,
+    135
+   ],
+   "class": "mechanical study",
+   "role": [
+    "joint coupling",
+    "segment stacking"
+   ],
+   "file": "refs/coupling_sketch.png",
+   "width": 160,
+   "height": 135,
+   "sha256": "10c380c8e40ab7477eab5137eeece98584db099d16fbe9fda482429f067f0c73",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "walk_cycle": {
+   "source": "lookbook_pdf",
+   "box": [
+    1008,
+    425,
+    255,
+    60
+   ],
+   "class": "locomotion study",
+   "role": [
+    "gait"
+   ],
+   "file": "refs/walk_cycle.png",
+   "width": 255,
+   "height": 60,
+   "sha256": "3a777a97024df9d1d886037c3ee968ebe66edb509f111917d083cbdc4967e1b5",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  },
+  "orthos": {
+   "source": "lookbook_pdf",
+   "box": [
+    1266,
+    412,
+    270,
+    85
+   ],
+   "class": "silhouette studies (front / 3/4 / side)",
+   "role": [
+    "silhouette"
+   ],
+   "file": "refs/orthos.png",
+   "width": 270,
+   "height": 85,
+   "sha256": "134030ccc68ae181055c831eebef70d7f8f5e8c477dcd8b543d785bc82327ccc",
+   "camera": "unknown (illustration)",
+   "geometry_reference": true,
+   "texture_reference": false
+  },
+  "scale_lineup": {
+   "source": "lookbook_pdf",
+   "box": [
+    20,
+    912,
+    640,
+    110
+   ],
+   "class": "scale lineup (side elevations on a common ground line, with a human figure)",
+   "role": [
+    "scale",
+    "side proportion"
+   ],
+   "file": "refs/scale_lineup.png",
+   "width": 640,
+   "height": 110,
+   "sha256": "fed79214bacb130efd496faf3f1f97a3765a8f5330682c458cadc88241f6186a",
+   "camera": "unknown (illustration)",
+   "geometry_reference": false,
+   "texture_reference": false
+  }
+ },
+ "limitations": [
+  "All Stillpoint references are illustrations (AI-generated concept art), not photographs: no camera metadata, and different views need not depict one consistent physical object.",
+  "The lookbook page is a crop of a 1536x1024 sheet; its Stillpoint panel is ~535x400 native pixels. The concept sheet (1024x572) has the highest-resolution textured views (~300x250 px each).",
+  "persp_a and persp_b are nearly the same viewpoint, so they offer almost no stereo baseline.",
+  "The pipeline illustration depicts a process and is excluded from geometry and texture use."
+ ]
+}

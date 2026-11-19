@@ -1,0 +1,96 @@
+{
+ "clips": {
+  "Idle": {
+   "frames": 121,
+   "foot_slide_total_m": {
+    "FL": 0.0,
+    "FR": 0.0,
+    "BL": 0.0,
+    "BR": 0.0
+   },
+   "max_slide_per_planted_frame_mm": 0.0,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.0,
+   "min_feet_planted": 4,
+   "body_z_range_m": 0.028,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  },
+  "WeightShift": {
+   "frames": 121,
+   "foot_slide_total_m": {
+    "FL": 0.0,
+    "FR": 0.0,
+    "BL": 0.0,
+    "BR": 0.0
+   },
+   "max_slide_per_planted_frame_mm": 0.001,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.0,
+   "min_feet_planted": 4,
+   "body_z_range_m": 0.033,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  },
+  "Walk": {
+   "frames": 49,
+   "foot_slide_total_m": {
+    "FL": 0.0,
+    "FR": 0.0,
+    "BL": 0.0,
+    "BR": 0.0
+   },
+   "max_slide_per_planted_frame_mm": 0.0,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.159,
+   "min_feet_planted": 3,
+   "body_z_range_m": 0.0485,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  },
+  "WalkStart": {
+   "frames": 49,
+   "foot_slide_total_m": {
+    "FL": 0.0104,
+    "FR": 0.0099,
+    "BL": 0.0133,
+    "BR": 0.0074
+   },
+   "max_slide_per_planted_frame_mm": 0.555,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.159,
+   "min_feet_planted": 3,
+   "body_z_range_m": 0.0344,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  },
+  "WalkStop": {
+   "frames": 49,
+   "foot_slide_total_m": {
+    "FL": 0.0104,
+    "FR": 0.0099,
+    "BL": 0.0133,
+    "BR": 0.0074
+   },
+   "max_slide_per_planted_frame_mm": 0.555,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.159,
+   "min_feet_planted": 3,
+   "body_z_range_m": 0.0344,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  },
+  "Turn": {
+   "frames": 49,
+   "foot_slide_total_m": {
+    "FL": 0.005,
+    "FR": 0.0049,
+    "BL": 0.0049,
+    "BR": 0.005
+   },
+   "max_slide_per_planted_frame_mm": 0.136,
+   "min_foot_z_m": -0.0,
+   "max_foot_lift_m": 0.128,
+   "min_feet_planted": 3,
+   "body_z_range_m": 0.0386,
+   "measured_in": "world: root moved at the clip's declared speed / turn rate"
+  }
+ },
+ "failures": [],
+ "thresholds": {}
+}

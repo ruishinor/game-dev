@@ -1,0 +1,236 @@
+{
+ "pairs": [
+  {
+   "pair": [
+    "persp_a",
+    "persp_b"
+   ],
+   "features": [
+    2530,
+    2943
+   ],
+   "ratio_matches": 87,
+   "fundamental_inliers": 43,
+   "homography_inliers": 24,
+   "parallax_evidence": "some"
+  },
+  {
+   "pair": [
+    "persp_a",
+    "top"
+   ],
+   "features": [
+    2530,
+    3596
+   ],
+   "ratio_matches": 37,
+   "fundamental_inliers": 12,
+   "homography_inliers": 6,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_a",
+    "wire_a"
+   ],
+   "features": [
+    2530,
+    3335
+   ],
+   "ratio_matches": 50,
+   "fundamental_inliers": 12,
+   "homography_inliers": 7,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_a",
+    "wire_b"
+   ],
+   "features": [
+    2530,
+    3447
+   ],
+   "ratio_matches": 55,
+   "fundamental_inliers": 14,
+   "homography_inliers": 7,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_a",
+    "lookbook_main"
+   ],
+   "features": [
+    2530,
+    4000
+   ],
+   "ratio_matches": 51,
+   "fundamental_inliers": 12,
+   "homography_inliers": 6,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_b",
+    "top"
+   ],
+   "features": [
+    2943,
+    3596
+   ],
+   "ratio_matches": 56,
+   "fundamental_inliers": 13,
+   "homography_inliers": 6,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_b",
+    "wire_a"
+   ],
+   "features": [
+    2943,
+    3335
+   ],
+   "ratio_matches": 57,
+   "fundamental_inliers": 12,
+   "homography_inliers": 6,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_b",
+    "wire_b"
+   ],
+   "features": [
+    2943,
+    3447
+   ],
+   "ratio_matches": 64,
+   "fundamental_inliers": 13,
+   "homography_inliers": 7,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "persp_b",
+    "lookbook_main"
+   ],
+   "features": [
+    2943,
+    4000
+   ],
+   "ratio_matches": 85,
+   "fundamental_inliers": 46,
+   "homography_inliers": 28,
+   "parallax_evidence": "some"
+  },
+  {
+   "pair": [
+    "top",
+    "wire_a"
+   ],
+   "features": [
+    3596,
+    3335
+   ],
+   "ratio_matches": 61,
+   "fundamental_inliers": 14,
+   "homography_inliers": 8,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "top",
+    "wire_b"
+   ],
+   "features": [
+    3596,
+    3447
+   ],
+   "ratio_matches": 69,
+   "fundamental_inliers": 12,
+   "homography_inliers": 6,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "top",
+    "lookbook_main"
+   ],
+   "features": [
+    3596,
+    4000
+   ],
+   "ratio_matches": 31,
+   "fundamental_inliers": 10,
+   "homography_inliers": 4,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "wire_a",
+    "wire_b"
+   ],
+   "features": [
+    3335,
+    3447
+   ],
+   "ratio_matches": 70,
+   "fundamental_inliers": 14,
+   "homography_inliers": 7,
+   "parallax_evidence": "weak"
+  },
+  {
+   "pair": [
+    "wire_a",
+    "lookbook_main"
+   ],
+   "features": [
+    3335,
+    4000
+   ],
+   "ratio_matches": 59,
+   "fundamental_inliers": 12,
+   "homography_inliers": 10,
+   "parallax_evidence": "none (homography explains the matches)"
+  },
+  {
+   "pair": [
+    "wire_b",
+    "lookbook_main"
+   ],
+   "features": [
+    3447,
+    4000
+   ],
+   "ratio_matches": 55,
+   "fundamental_inliers": 12,
+   "homography_inliers": 7,
+   "parallax_evidence": "weak"
+  }
+ ],
+ "sfm": {
+  "attempted": true,
+  "models": 0,
+  "registered_images": 0,
+  "of": 6,
+  "registered": [],
+  "sparse_points": 0
+ },
+ "decision": {
+  "mode": "C (reference-constrained Blender modelling) with Mode-B elements (silhouette constraints, approximate cameras, top-view texture reprojection)",
+  "photogrammetry_supported": false,
+  "evidence": {
+   "pairs_with_triangulable_parallax": 2,
+   "pairs_total": 15,
+   "sfm_registered": 0
+  },
+  "reasoning": [
+   "Only illustrations are available; persp_a/persp_b share almost the same viewpoint, so matches between them fit a homography and carry no usable depth baseline.",
+   "Matches between genuinely different viewpoints (top vs 3/4, lookbook vs concept sheet) are few or geometrically inconsistent, as expected for independently generated artwork.",
+   "Mode A would require consistent multi-view imagery (turntable footage or a consistent orthographic set), which was not supplied."
+  ]
+ }
+}
