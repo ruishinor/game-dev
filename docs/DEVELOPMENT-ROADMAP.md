@@ -180,6 +180,8 @@ Owner direction, 2026-11-19: this line of work now leads Severance Expanse zone 
 1. Expand the provisional approach into the full Severance Expanse: landscape, Expedition Outpost and vendor, patrols and resources (SE-02, SE-04 to SE-10).
 2. Build the Foundry interior to replace the Phase Annex stand-in behind the gate (SE-11 to SE-14).
 3. Run real-GPU profiling and owner visual review of the gate and the Expanse (SE-23).
+   - Live world clock (owner, 2026-11-19): a server-owned world time that drives the merged day/night presentation, so players see every phase without a preview flag. Keep the deterministic `?tod=` preview and capture controls for review.
+   - Expanse landscape work in progress on `feat/severance-expanse-landscape`; see [Severance Expanse handoff](art/SEVERANCE-EXPANSE-HANDOFF.md).
 4. **Last stage (owner request, 2026-11-19): upgrade the Lattice Sanctum, its structure and its environment.** Extrapolate from the Sanctum's purposes (safe arrival hall, initiation, fabrication, quartermaster, lattice reconstitution) and its setting in the Verdigris Reach. Introduce some awe through quality visuals and VFX. Reuse the gate's pipeline methods: reference-constrained Blender modelling, baked atlases, detail bands, and bounded, phase-driven effects. Preserve the safe-zone layout, colliders, arrival flow and existing services.
 
 
