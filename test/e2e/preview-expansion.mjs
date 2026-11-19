@@ -6,6 +6,7 @@ import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
+import { revealRecipe } from './recipe-catalogue.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
 let browser;
@@ -238,11 +239,11 @@ try {
   assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Lesson 1 \/ 4/i);
   await workshop.getByRole('button',{name:'Next',exact:true}).click();
   assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Recover components/i);
-  await workshop.locator('[data-recipe="coupler"]').click();
+  await (await revealRecipe(workshop,'coupler')).click();
   assert.equal(await workshop.locator('.recipe-part [data-art="sentinel_alloy"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="mire_fibre"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="kinetic_coupler"] svg').count(),1);
-  await workshop.locator('[data-recipe="aegis_rectifier"]').click();
+  await (await revealRecipe(workshop,'aegis_rectifier')).click();
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
@@ -520,7 +521,7 @@ try {
   if(await page.getByRole('button',{name:'Dismiss transmission'}).isVisible())await page.getByRole('button',{name:'Dismiss transmission'}).click();
   if(await page.getByRole('button',{name:'Close field record'}).isVisible())await page.getByRole('button',{name:'Close field record'}).click();
   await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
-  await workshop.locator('[data-recipe="longpoint_emitter"]').click();
+  await (await revealRecipe(workshop,'longpoint_emitter')).click();
   await workshop.locator('[data-craft="longpoint_emitter"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('longpoint_emitter'));
   assert.ok(!p.char.inventory.includes('tuned_emitter'));
@@ -566,7 +567,7 @@ try {
   await bio.waitForFunction(()=>{const s=window.__attune.state();return s.you.workshop==='brine_research'&&s.sheet.inventory.includes('conductive_membrane')&&s.sheet.level===4;});
   await bio.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
   const bioWorkshop=bio.getByRole('dialog',{name:'Build Planner and Workshop'});
-  await bioWorkshop.locator('[data-recipe="bloom_relay"]').click();
+  await (await revealRecipe(bioWorkshop,'bloom_relay')).click();
   assert.ok(await bioWorkshop.locator('[data-craft="bloom_relay"]').isEnabled());
   await bioWorkshop.locator('[data-craft="bloom_relay"]').click();
   await bio.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('bloom_relay'));
