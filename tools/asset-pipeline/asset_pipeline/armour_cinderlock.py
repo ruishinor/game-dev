@@ -76,7 +76,7 @@ class LimbMap:
     """(t, phi) along the bone a->b: phi from `ref` toward u x ref; radius from
     convex cross-sections of `cloud` precomputed on a fine t grid."""
 
-    def __init__(self, a, b, ref, cloud, t_range=(-0.4, 1.6), step=0.02, half=0.012, rmax=0.14, facets=0):
+    def __init__(self, a, b, ref, cloud, t_range=(-0.4, 1.6), step=0.02, half=0.012, rmax=0.14, facets=0, tsmooth=0.0):
         self.K = facets
         self.a, self.b = np.asarray(a, float), np.asarray(b, float)
         self.u = (self.b - self.a) / np.linalg.norm(self.b - self.a)
@@ -100,6 +100,13 @@ class LimbMap:
         for i in range(len(env)):  # extend the nearest valid section into gaps
             if env[i] is None:
                 env[i] = env[i - 1] if i and env[i - 1] is not None else first
+        if tsmooth and len({len(e[0]) for e in env}) == 1:
+            # smooth the sections along the bone (sigma in t units): a clean
+            # lofted surface instead of one that follows every toe and knuckle
+            from scipy.ndimage import gaussian_filter1d
+
+            R = gaussian_filter1d(np.array([e[1] for e in env]), tsmooth / step, axis=0, mode="nearest")
+            env = [(e[0], R[i]) for i, e in enumerate(env)]
         self.env = env
 
     def radius(self, t, phi):
@@ -159,11 +166,12 @@ class Plate:
     """One authored plate: a convex polygon in a map's parameter space."""
 
     def __init__(self, item, name, mat, m, poly, off, *, thickness=0.008, bevel=0.0026, segs=1, dome=0.0, keel=0.0,
-                 res=0.013, weights=None, weight_mode=None, flow_origin=None, flow_scale=1.2):
+                 res=0.013, weights=None, weight_mode=None, flow_origin=None, flow_scale=1.2, lip0=0.0, lip1=0.0):
         self.item, self.name, self.mat, self.m = item, name, mat, m
         self.poly = [(float(a), float(b)) for a, b in poly]
         self.off, self.thickness, self.bevel, self.segs = off, thickness, bevel, segs
         self.dome, self.keel, self.res = dome, keel, res
+        self.lip0, self.lip1 = lip0, lip1  # raised rolled edge at the b-min / b-max end
         self.weights, self.weight_mode = weights, weight_mode
         self.flow_origin = None if flow_origin is None else np.asarray(flow_origin, float)
         self.flow_scale = flow_scale
@@ -176,7 +184,8 @@ class Plate:
         fa = (a - self.amin) / max(self.amax - self.amin, 1e-9)
         fb = (b - self.bmin) / max(self.bmax - self.bmin, 1e-9)
         return (self.off + self.dome * np.sin(np.pi * np.clip(fa, 0, 1)) * np.sin(np.pi * np.clip(fb, 0, 1))
-                + self.keel * np.exp(-((fa - 0.5) / 0.12) ** 2))
+                + self.keel * np.exp(-((fa - 0.5) / 0.12) ** 2)
+                + self.lip0 * np.exp(-(fb / 0.12) ** 2) + self.lip1 * np.exp(-((1 - fb) / 0.12) ** 2))
 
     def surf(self, a, b, lift=0.0):
         h = self.height(a, b) + lift
@@ -318,7 +327,7 @@ def design_cuirass(body, base, m):
     it = "vanguard_field_set_chest"
     T = TorsoMap(body, facets=26)
     core = T.point(0.0, 0.7, base + 0.03)
-    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=-0.03, neck_front=0.92, neck_back=0.95, arm_u=0.76, top_u=0.98)]
+    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=0.03, neck_front=0.92, neck_back=0.95, arm_u=0.76, top_u=0.98)]
     pls = []
 
     def plate(name, poly, layer, mat="plate", **kw):
@@ -442,11 +451,11 @@ def design_gauntlets(body, base, m):
             return hm["V"][side_v & (w > 0.5)]
         on_skin = np.isin(body.src, [body.surfaces.index(x) for x in ("body", "hands") if x in body.surfaces])
         fa = body.P[(joint_weight(body, ["lowerarm"], s) > 0.5) & on_skin]
-        VM = LimbAdapter(LimbMap(body.L["lowerarm_" + s], body.L["hand_" + s], Dn, fa, t_range=(-0.1, 1.15), half=0.014, rmax=0.075, facets=14))
+        VM = LimbAdapter(LimbMap(body.L["lowerarm_" + s], body.L["hand_" + s], Dn, fa, t_range=(-0.1, 1.15), half=0.014, rmax=0.075, facets=14, tsmooth=0.04))
         ax = (body.L["hand_" + s] - body.L["lowerarm_" + s])
         ax = list(map(float, ax / np.linalg.norm(ax)))
         for k, (t0, t1) in enumerate(((0.16, 0.54), (0.58, 0.98))):
-            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.0055 + 0.0015 * k, thickness=0.006,
+            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.0055 + 0.0015 * k, thickness=0.006, lip0=0.0035,
                        bevel=0.0024, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05], flow_origin=origin, flow_scale=0.6)
             pl.groove(D([(-150, t0 + 0.05), (150, t0 + 0.05)]), width=0.0035)
             P.append(pl.export())
@@ -505,8 +514,8 @@ def design_greaves(body, base, m):
         ins = np.isin(body.src, [body.surfaces.index(x) for x in surf if x in body.surfaces])
         mt = body.P[(joint_weight(body, ["thigh"], s) > 0.45) & ins]
         mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & ins]
-        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.1, 1.15), facets=12))
-        CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(-0.25, 1.1), facets=12))
+        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.1, 1.15), facets=12, tsmooth=0.04))
+        CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(-0.25, 1.1), facets=12, tsmooth=0.04))
         tax = list(map(float, (ca - th) / np.linalg.norm(ca - th)))
         cax = list(map(float, (ft - ca) / np.linalg.norm(ft - ca)))
         pt = {"joints": ["thigh", "calf"], "side": s, "surfaces": surf}
@@ -518,7 +527,7 @@ def design_greaves(body, base, m):
                            bevel=0.0, segs=0, res=0.012, weights=pol).export())
         for k, (t0, t1) in enumerate(((0.12, 0.5), (0.53, 0.86))):
             pl = Plate(it, f"thigh_{k}_{s}", m["plate"], TM, D([(-70, t0), (70, t0), (76, (t0 + t1) / 2), (66, t1), (-66, t1), (-76, (t0 + t1) / 2)]),
-                       0.014 + 0.002 * k, dome=0.002, keel=0.005, thickness=0.009, bevel=0.003, weights=pt, weight_mode=["band", tax, 0.06],
+                       0.014 + 0.002 * k, dome=0.002, keel=0.005, lip1=0.004, thickness=0.009, bevel=0.003, weights=pt, weight_mode=["band", tax, 0.06],
                        flow_origin=th, flow_scale=1.0)
             pl.groove(D([(-30, t0 + 0.05), (-36, t1 - 0.05)])).groove(D([(30, t0 + 0.05), (36, t1 - 0.05)]))
             pl.bolt(deg(-58), t0 + 0.04).bolt(deg(58), t0 + 0.04)
@@ -538,7 +547,7 @@ def design_greaves(body, base, m):
         P.append(pl.export())
         for k, (t0, t1) in enumerate(((0.14, 0.52), (0.55, 0.9))):
             pl = Plate(it, f"shin_{k}_{s}", m["plate"], CM, D([(-84, t0), (84, t0), (90, (t0 + t1) / 2), (80, t1), (-80, t1), (-90, (t0 + t1) / 2)]),
-                       0.013, dome=0.004, keel=0.008, thickness=0.009, bevel=0.003, weights=pc, weight_mode=["band", cax, 0.06],
+                       0.013, dome=0.004, keel=0.008, lip1=0.004, thickness=0.009, bevel=0.003, weights=pc, weight_mode=["band", cax, 0.06],
                        flow_origin=th, flow_scale=1.0)
             pl.groove(D([(-62, t0 + 0.05), (-66, t1 - 0.05)])).groove(D([(62, t0 + 0.05), (66, t1 - 0.05)]))
             pl.bolt(deg(-74), (t0 + t1) / 2).bolt(deg(74), (t0 + t1) / 2)
@@ -578,12 +587,12 @@ def design_boots(body, base, m):
         xc = float(np.median(cloud[:, 0]))
         heel = np.array([xc, y0 + 0.05, zc.min() + 0.012])
         toe = np.array([xc, y0 + 0.032, zc.max() - 0.008])
-        BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.01, rmax=0.13, facets=10))
+        BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.02, rmax=0.13, facets=12, tsmooth=0.06))
         bax = list(map(float, (toe - heel) / np.linalg.norm(toe - heel)))
         pb = {**pol, "joints": ["foot", "ball"]}
-        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-118, 0.0), (118, 0.0), (118, 0.84), (78, 1.02), (-78, 1.02), (-118, 0.84)]), 0.006,
+        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-150, -0.02), (150, -0.02), (150, 0.86), (96, 1.05), (-96, 1.05), (-150, 0.86)]), 0.006,
                    thickness=0.007, bevel=0.0026, res=0.011, weights=pb, weight_mode=["band", bax, 0.05], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-104, 0.08), (-104, 0.8), (-70, 0.97)]), width=0.0036).groove(D([(104, 0.08), (104, 0.8), (70, 0.97)]), width=0.0036)
+        pl.groove(D([(-112, 0.1), (-112, 0.78), (-76, 0.96)]), width=0.0036).groove(D([(112, 0.1), (112, 0.78), (76, 0.96)]), width=0.0036)
         P.append(pl.export())
         pl = Plate(it, f"instep_{s}", m["plate"], BM, D([(-52, 0.36), (52, 0.36), (60, 0.55), (48, 0.74), (-48, 0.74), (-60, 0.55)]), 0.0145, dome=0.003,
                    keel=0.004, thickness=0.008, bevel=0.0026, res=0.008, weights=pb, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
@@ -598,10 +607,10 @@ def design_boots(body, base, m):
                        res=0.008, weights=pb, weight_mode=["rigid"]).export())
         ca = body.L["calf_" + s]
         ins = np.isin(body.src, [body.surfaces.index(x) for x in ("body", "shell_shins", "shell_shoes") if x in body.surfaces])
-        mc = body.P[(joint_weight(body, ["calf", "foot"], s) > 0.45) & ins]
-        CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(0.5, 1.15)))
+        mc = body.P[(joint_weight(body, ["calf", "foot"], s) > 0.45) & ins & (body.P[:, 1] > ft[1] - 0.025)]
+        CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(0.5, 1.15), half=0.015, rmax=0.085, facets=12, tsmooth=0.05))
         cax = list(map(float, (ft - ca) / np.linalg.norm(ft - ca)))
-        pl = Plate(it, f"cuff_{s}", m["plate"], CM, D([(-179, 0.74), (179, 0.74), (179, 1.03), (-179, 1.03)]), 0.014, thickness=0.009, bevel=0.003,
+        pl = Plate(it, f"cuff_{s}", m["plate"], CM, D([(-179, 0.74), (179, 0.74), (179, 1.03), (-179, 1.03)]), 0.011, lip0=0.005, thickness=0.008, bevel=0.003,
                    weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["band", cax, 0.04], flow_origin=origin, flow_scale=0.6)
         pl.groove(D([(-150, 0.8), (150, 0.8)]), width=0.0036)
         P.append(pl.export())

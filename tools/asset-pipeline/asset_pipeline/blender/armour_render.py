@@ -211,6 +211,15 @@ def op_worn(p):
                 while top.parent:
                     top = top.parent
                 top.location.x += dx
+            if not pose:
+                # the importer leaves the first clip active on the body: show the true bind pose
+                for a in (arm_b, arm_a):
+                    if a.animation_data:
+                        for tr in list(a.animation_data.nla_tracks):
+                            a.animation_data.nla_tracks.remove(tr)
+                        a.animation_data.action = None
+                    for pb in a.pose.bones:
+                        pb.matrix_basis.identity()
             if pose:
                 act = bpy.data.actions.get(pose["action"]) or next((x for x in bpy.data.actions if x.name.startswith(pose["action"])), None)
                 if act is None and p.get("clip_glb"):
