@@ -304,3 +304,15 @@ The prompt is an implementation handoff, not evidence of completed work. All ite
 ## Owner UI modernization direction — 2026-11-19
 
 See [HUD, character selection and cartography delivery register](art/UI-CARTOGRAPHY-ROADMAP.md) and [original composition sketches](art/UI-LAYOUT-CONCEPT.svg) for the accepted visual references, implementation scope and outstanding acceptance. This work is independent of the reserved Expanse/Silent Foundry terrain and environment. The planned Expanse day/night cycle must drive the game-time display and lighting from one production source; the present local daylight preview is not replicated game time.
+
+### REC concept illustrations and Expanse return-rift clarification — 2026-11-19
+
+The following original schematic illustrations express owner-requested design direction; they are not screenshots, final art, private loot tables or proof of implementation. Preserve the accepted Longpoint setup. Actual item/source availability and validation are tracked in REC-01.
+
+![Modular weapon assembly concept: special enemy loot, specialist vendor stock and fabrication converge into components and weapon assembly.](art/concepts/modular-weapon-assembly.svg)
+
+**Expanse return entrance:** owner proposes using the same animated Phase Scar as the Reach endpoint instead of the skewed elevated door frame. Read-only inspection confirms that `phase_scar` currently instantiates `buildRift` from `client/src/rift-visual.js`, whereas `severance_return` instantiates `buildPhaseGate(true)` in `client/src/models.js`. The return is a distinct server object handled by `travelSeverance`; an art swap does not require changing its destination, calibration rules or return authority.
+
+![Return-rift replacement concept: matching Phase Scar presentation at both ends, upright foundation and walkable approach.](art/concepts/severance-return-rift.svg)
+
+For Claude (or an explicitly owner-authorized narrow intervention): reuse the existing Phase Scar model and membrane as a stable return-rift variant, without importing the Reach's hazard, calibration instruments, warning ring or encounter state. Keep the existing `severance_return` identity and region-scoped interaction. Derive the variant's actual footprint (Reach renderer radius 2.45 m versus present return anchor radius 0.72 m) and align shared collision, interaction radius/line of sight, ground, visual orientation and arrival clearance. The expanded track already changes the beacon coordinates; use its actual current anchor/terrain rather than hardcoding the old pocket. Level the foundation/approach locally if needed; avoid redundant beacon dais/cliff clipping, inaccessible edges, and spawn inside the larger footprint. Verify return to Reach, companion dismissal, combat/root/death checks, regional isolation, reconnect, and actual visible approach from arrival. The monumental Severance Gate and other Expanse/Foundry elements remain unchanged. This is a concept/handoff record only; the Claude-exclusive boundary in AGENTS.md remains in force.
