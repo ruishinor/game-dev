@@ -142,13 +142,36 @@ export function createElectricalRod() {
 
 // Joined field configuration. Grip is centered at the supplied palm in the
 // hand's local frame; existing character animation drives the attachment.
-export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3()}={}){
+export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3(),offHand=null,offAxis=new THREE.Vector3(0,0,1),offPalm=new THREE.Vector3()}={}){
   const rod=createElectricalRod();
   rod.setMode('rod');rod.update(0,{reducedMotion:true});
   rod.group.name='HeldElectricalCombatRod';
   rod.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis.clone().normalize());
   rod.group.position.copy(palm).sub(new THREE.Vector3(0,.13,0).applyQuaternion(rod.group.quaternion));
   hand.add(rod.group);
+  // Both halves stay in a single rig. In dual mode the off-hand half is
+  // driven by the live palm transform, converted into the right-hand root.
+  // No reparenting, so an in-flight reversal has no discontinuity.
+  const [right,left]=rod.halves;
+  const baseUpdate=rod.update;
+  const qOff=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),offAxis.clone().normalize());
+  const qWorld=new THREE.Quaternion(),qRoot=new THREE.Quaternion(),qLocal=new THREE.Quaternion(),qJoined=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),Math.PI);
+  const seam=new THREE.Vector3(),offset=new THREE.Vector3(),grip=new THREE.Vector3(0,.13,0);
+  rod.update=(dt,opts={})=>{
+    baseUpdate(dt,opts);
+    right.position.set(0,0,0);right.quaternion.identity();
+    if(!offHand){left.position.set(0,0,0);left.quaternion.copy(qJoined);return;}
+    offHand.updateWorldMatrix(true,false);rod.group.updateWorldMatrix(true,false);
+    offHand.getWorldQuaternion(qWorld).multiply(qOff);
+    rod.group.getWorldQuaternion(qRoot).invert();
+    qLocal.copy(qRoot).multiply(qWorld);
+    seam.copy(offPalm);offHand.localToWorld(seam);rod.group.worldToLocal(seam);
+    seam.sub(offset.copy(grip).applyQuaternion(qLocal));
+    const k=smooth(rod.progress);
+    left.position.copy(seam).multiplyScalar(1-k);
+    left.quaternion.copy(qLocal).slerp(qJoined,k);
+  };
+  rod.update(0,{reducedMotion:true});
   return rod;
 }
 
