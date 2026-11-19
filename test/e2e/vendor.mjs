@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
+import { revealRecipe } from './recipe-catalogue.mjs';
 const server=await startServer({port:0,dataFile:null});
 let browser;
 try{
@@ -82,7 +83,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyB');
  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
  await workshop.getByRole('button',{name:'Workshop',exact:true}).click();
- await workshop.locator('[data-recipe="field_maintenance_kit"]').click();
+ await (await revealRecipe(workshop,'field_maintenance_kit')).click();
  // A normal Engineering cycle lasts 1100ms. Arm observation before the
  // authenticated click; separate round trips can miss both transient states.
  // On software GL, use the existing capture hook to skip expensive draws
