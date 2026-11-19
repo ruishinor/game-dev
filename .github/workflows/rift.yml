@@ -7,6 +7,12 @@ on:
       - 'server/sim/progress.js'
       - 'shared/world.js'
       - 'client/src/rift-visual.js'
+      - 'client/src/severance-gate.js'
+      - 'client/src/severance-pocket.js'
+      - 'client/src/scene.js'
+      - 'shared/severance-gate.js'
+      - 'server/sim/severance-gate.js'
+      - 'tools/asset-pipeline/assets/severance_gate/outputs/severance_gate.glb'
       - 'client/src/main.js'
       - 'client/src/models.js'
       - 'client/src/vfx/combat.js'
@@ -18,7 +24,7 @@ permissions:
 jobs:
   rift:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

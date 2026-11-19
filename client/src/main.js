@@ -141,6 +141,8 @@ function readFxPrefs() {
   vfx?.setIntensity(p.level, p.calm);
 }
 const rich = () => !!cvfx && quality > 0;
+// The Severance Gate landmark reads the effect engine and the player's comfort settings.
+world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
@@ -1035,6 +1037,7 @@ function onEvent(e) {
       if (!handled) fx = legacyFx;
       // Rich recipes supersede the ecology fallback only when handled.
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
         if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
           const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
@@ -1710,7 +1713,7 @@ function updateEntities(dt, t, now) {
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
       work:row?.work,
       ecology: row?.ec,
-      riftPhase:row?.rf,riftWarning:row?.rw??0,
+      riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),

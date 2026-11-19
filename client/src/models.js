@@ -7,6 +7,7 @@ import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
+import { severanceLink } from './severance-gate.js';
 
 const std = (color, o = {}) =>
   new THREE.MeshStandardMaterial({
@@ -908,4 +909,8 @@ export const MODEL_FACTORIES = {
     return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
   },
   rift_return:()=>buildPhaseGate(true),
+  severance_return:()=>buildPhaseGate(true),
+  // The gate's architecture and effects belong to the scene landmark; this
+  // interaction anchor forwards the replicated phase to it.
+  severance_gate:()=>({group:new THREE.Group(),height:3,radius:1.2,hover:0,update(dt,st){severanceLink.controller?.setPhase(st.gatePhase);}}),
 };

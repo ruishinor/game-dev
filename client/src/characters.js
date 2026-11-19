@@ -603,7 +603,7 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    } else if (meta.c==='rift_return'||meta.c==='severance_return') model=buildPhaseGate(true,assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);

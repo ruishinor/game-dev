@@ -1,0 +1,105 @@
+{
+ "id": "severance_gate",
+ "kind": "reference-driven-architecture",
+ "description": "The Severance Gate, Attunement's monumental dungeon entrance for the Severance Expanse. Reference-constrained architectural model from the owner's concept sheets; geometry, materials and effects are original authored work. No donor mesh or photogrammetry.",
+ "sources": [
+  {
+   "id": "concept_sheet",
+   "path": "art-source/severance-gate/source/severance_gate_concept_sheet.png",
+   "sha256": "513db62307b0a62d0cde79a3237009f6ecdf135cb38f5d510644b77e9ead2c48",
+   "provenance": "Owner-supplied concept sheet attached to the 2026-11-19 assignment (front, rear, three-quarter and top views, material close-ups, active-state illustration). AI-generated concept art.",
+   "role": "primary proportion, silhouette and material reference"
+  },
+  {
+   "id": "blueprint",
+   "path": "art-source/severance-gate/source/severance_gate_blueprint.png",
+   "sha256": "b864ee84b5eaa169387a05f8b792b2309ddeab19eaa4bbbe7ccf7eea619d5fce",
+   "provenance": "Owner-supplied blueprint sheet (front, back and side elevations, plan, cross-section, crown studies). AI-generated concept art.",
+   "role": "side and section reference; dimension ranges"
+  },
+  {
+   "id": "pipeline_a",
+   "path": "art-source/severance-gate/source/pipeline_illustration_a.png",
+   "sha256": "b0531cb86baefc7006cd5af7e23ab52a09533dd59b597e5b8dabeeeaef40e968",
+   "provenance": "Owner-supplied illustration of a reconstruction pipeline. Depicts a process, not evidence of any implementation.",
+   "role": "not used for geometry or texture"
+  },
+  {
+   "id": "pipeline_b",
+   "path": "art-source/severance-gate/source/pipeline_illustration_b.png",
+   "sha256": "b6a52fbe67d9c662247dbbf5ee2210ac78a3130e2a9f01dd543e107bda06a708",
+   "provenance": "Owner-supplied illustration of texturing/material stages. Depicts a process.",
+   "role": "not used for geometry or texture"
+  }
+ ],
+ "views": {
+  "front": {
+   "source": "concept_sheet",
+   "box": [
+    40,
+    30,
+    430,
+    640
+   ],
+   "role": [
+    "silhouette",
+    "proportion",
+    "panel layout"
+   ]
+  },
+  "rear": {
+   "source": "concept_sheet",
+   "box": [
+    465,
+    30,
+    405,
+    640
+   ],
+   "role": [
+    "silhouette",
+    "rear slot and chevrons"
+   ]
+  },
+  "side": {
+   "source": "blueprint",
+   "box": [
+    560,
+    20,
+    140,
+    410
+   ],
+   "role": [
+    "side channel",
+    "courses"
+   ]
+  },
+  "top": {
+   "source": "concept_sheet",
+   "box": [
+    895,
+    410,
+    210,
+    245
+   ],
+   "role": [
+    "hollow crown",
+    "stair projection"
+   ]
+  }
+ },
+ "measure": {
+  "view": "front",
+  "height_m": 28.0
+ },
+ "build": {
+  "bake": 2048,
+  "normal": 4096
+ },
+ "optimize": {
+  "max_texture": 2048,
+  "quality": 86
+ },
+ "render": {
+  "samples": 24
+ }
+}
