@@ -1,14 +1,15 @@
 // Live placement of the owner-approved pipeline export. No combat,
 // companion ownership, quest, reward or network mechanics are introduced.
 import {groundHeight} from '../../shared/world.js';
+import {stillpointPose} from '../../shared/stillpoint-roam.js';
 
 export const STILLPOINT_URL='/client/assets/stillpoint.glb?v=230506ecfb78';
 
 export async function loadStillpoint(T,loader,site){
   const gltf=await loader.loadAsync(STILLPOINT_URL);
   const root=gltf.scene;
-  const idle=gltf.animations.find(clip=>clip.name==='Idle');
-  if(!idle||!idle.tracks.length)throw new Error('Missing Stillpoint Idle animation');
+  const clips=Object.fromEntries(['Idle','Walk','WeightShift'].map(name=>[name,gltf.animations.find(c=>c.name===name)]));
+  for(const [name,clip] of Object.entries(clips))if(!clip?.tracks.length)throw new Error('Missing Stillpoint '+name+' animation');
   root.updateMatrixWorld(true);
   const bounds=new T.Box3().setFromObject(root);
   const center=bounds.getCenter(new T.Vector3());
@@ -28,10 +29,28 @@ export async function loadStillpoint(T,loader,site){
     if(o.isMesh){o.castShadow=o.receiveShadow=true;if(o.isSkinnedMesh)o.frustumCulled=false;}
   });
   const mixer=new T.AnimationMixer(root);
-  mixer.clipAction(idle).play();
-  return {group,update(dt,focus,reducedMotion=false){
-    const near=Math.hypot(focus.x-site.x,focus.z-site.z)<40;
+  const actions=Object.fromEntries(Object.entries(clips).map(([name,clip])=>[name,mixer.clipAction(clip)]));
+  let current='Idle';actions.Idle.play();
+  function place(p){
+    group.position.set(p.x,groundHeight(p.x,p.z)+.04,p.z);
+    group.rotation.y=p.yaw;
+  }
+  place(stillpointPose(0));
+  return {group,update(dt,focus,reducedMotion=false,serverSeconds=0){
+    const pose=stillpointPose(serverSeconds);
+    place(pose);
+    const near=Math.hypot(focus.x-pose.x,focus.z-pose.z)<40;
     group.visible=near;
-    if(near&&!reducedMotion)mixer.update(Math.max(0,Math.min(.1,dt)));
+    if(!near)return;
+    const next=reducedMotion&&pose.clip==='WeightShift'?'Idle':pose.clip;
+    if(next!==current){
+      const previous=actions[current];const action=actions[next];
+      action.reset().setEffectiveWeight(1).play().crossFadeFrom(previous,.35,false);
+      current=next;
+    }
+    if(current==='Walk')actions.Walk.setEffectiveTimeScale(Math.max(.05,pose.speed/(.4*scale)));
+    // Keep ordinary creature locomotion and fade transitions coherent.
+    mixer.update(Math.max(0,Math.min(.1,dt)));
+    group.userData.stillpointClip=current;
   }};
 }
