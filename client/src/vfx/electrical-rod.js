@@ -1,11 +1,12 @@
 // Ability-grade electrical weapon presentation. All timings and budgets are
 // visual only; contact is supplied by an existing confirmed combat event.
+import {playElectricalStrike} from './electrical-strike.js';
 const C={ice:0xcaf7ff,cyan:0x61d7ff,blue:0x2675ef,deep:0x344bcc};
 const clamp=x=>Math.max(0,Math.min(1,Number.isFinite(x)?x:0));
 const finite=p=>p&&[p.x,p.y,p.z].every(Number.isFinite);
 const clone=p=>p.clone?p.clone():{x:p.x,y:p.y,z:p.z};
 export function createElectricalRodVfx(rod,vfx){
- let cooldown=0,contactCooldown=0,transformCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true;
+ let cooldown=0,contactCooldown=0,transformCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true,sequence=null;
  const handles=new Set();
  const remember=h=>{if(!h)return;for(const old of handles)if(old.done||old.age>=old.life)handles.delete(old);
   // Retired or evicted handles may still be referenced. Keep a hard bound.
@@ -58,6 +59,13 @@ export function createElectricalRodVfx(rod,vfx){
   // Presentation inspection only: counts accepted visual discharges, never damage.
   rod.group.userData.rodContactCount=(rod.group.userData.rodContactCount??0)+1;
   const layered=rich(),long=joined(),scale=long?1.6:1.25;
+  if(layered){
+   const tips=[rod.anchor(0,'Tip'),rod.anchor(1,'Tip')].filter(finite);
+   const tip=tips.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y,a.z-p.z)-Math.hypot(b.x-p.x,b.y-p.y,b.z-p.z))[0];
+   sequence?.cancel();
+   sequence=playElectricalStrike(vfx,{from:tip,target:p,ground,joined:long,blocked,active:rich,remember});
+   if(sequence)rod.group.userData.rodStrikeSequences=(rod.group.userData.rodStrikeSequences??0)+1;
+  }
   sparks(clone(p),layered?(long?64:36):16,scale);
   if(layered){
    vfx.burst?.({at:clone(p),count:long?15:9,color:C.cyan,color2:C.deep,cell:[0,1],life:[.35,.65],size:[.15,.36],sizeEnd:.05,speed:[.1,.8],alpha:.92});
@@ -66,7 +74,7 @@ export function createElectricalRodVfx(rod,vfx){
   }
   return true;
  }
- function stop(){for(const h of handles)h.done=true;handles.clear();energy=0;}
+ function stop(){sequence?.cancel();sequence=null;for(const h of handles)h.done=true;handles.clear();energy=0;}
  return {
   charge:chargeSurge,impact:contactDischarge,
   update(dt,{energized=true,activity=0}={}){

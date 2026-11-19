@@ -47,8 +47,8 @@ try{
  assert.ok(enemy.hp<before,'real server damage occurred');
  assert.ok((await liveFixturePlayer(page,server,'Rod VFX Tester'))===p);
  await page.evaluate(()=>window.__attune.effects.step(.12));
- const visible=await page.evaluate(()=>{const a=window.__attune,r=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');let ribbons=0;a.gfx.scene.getObjectByName('vfx-engine')?.traverse(o=>{if(o.name==='vfx-ribbon'&&o.visible)ribbons++;});return {ribbons,contact:r?.userData.rodContactCount,quality:a.state().quality};});
- assert.ok(visible.quality===1&&visible.contact>0&&visible.ribbons>0,JSON.stringify(visible));
+ const visible=await page.evaluate(()=>{const a=window.__attune,r=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');let ribbons=0;a.gfx.scene.getObjectByName('vfx-engine')?.traverse(o=>{if(o.name==='vfx-ribbon'&&o.visible)ribbons++;});return {ribbons,contact:r?.userData.rodContactCount,sequences:r?.userData.rodStrikeSequences,sweep:!!a.gfx.scene.getObjectByName('rod-strike:primary-sweep')?.visible,quality:a.state().quality};});
+ assert.ok(visible.quality===1&&visible.contact>0&&visible.ribbons>0&&visible.sequences>0&&visible.sweep,JSON.stringify(visible));
  await page.screenshot({path:'rod-live-evidence/02-authoritative-contact.png'});
  assert.deepEqual(errors,[]);
  console.log('PASS live rod corona and real damage-triggered VFX at standard quality',visible);
