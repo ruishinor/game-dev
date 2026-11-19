@@ -1,6 +1,6 @@
 # Stillpoint — pipeline outputs (prototype, not live)
 
-Committed at the owner's request (2026-11-19) so the work survives independently of the authoring session. This is unreleased companion material in a public repository by owner decision. It is **not** wired into the game. It scored 74/100 against an 85 target before the 2026-11-19 visual pass (dorsal bed, shingled brim, satellite crystals, cavity grime, bake-miss fill); re-scoring against the new evidence renders is recorded in the owner's report. Do not promote it without an owner art sign-off.
+Committed at the owner's request (2026-11-19) so the work survives independently of the authoring session. This is unreleased companion material in a public repository by owner decision. It is **not** wired into the game. It scores 77/100 against an 85 target (74 before the 2026-11-19 visual pass: dorsal bed, shingled brim, satellite crystals, cavity grime, bake-miss fill), so it has not passed the visual gate; materials (71) are the weakest criterion. Scores are the author's own judgement. Do not promote it without an owner art sign-off.
 
 | File | What it is |
 |---|---|

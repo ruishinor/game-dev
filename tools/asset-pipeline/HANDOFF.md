@@ -8,7 +8,7 @@ Read [AGENTS.md](../../AGENTS.md) first. This covers `tools/asset-pipeline/`, th
 |---|---|
 | Pipeline (`asset_pipeline/`) | Working, CPU-only, Blender 5.3 as a Python module. Stages are resumable and cached on input, parameter and output hashes. 12 unit tests, run in CI (`asset-pipeline.yml`). |
 | Experiment A, `benchmark_rockarch` | Validated. Images-only reconstruction of a synthetic object: median surface error 3.3 mm with known cameras, 3.8 mm with cameras estimated by SfM from video frames (49/49 registered, 0.035° rotation error). Hold-out silhouette IoU 0.98. See `README.md`. |
-| Stillpoint, `assets/stillpoint` | Reference-constrained Blender model (not photogrammetry; the art registered 0/6 views). Rigged with 6 clips, baked, exported: `outputs/stillpoint.glb`, 4.91 MB, 40,228 triangles, glTF-valid. **Not wired into the game.** Visual gate: 74/100 against an 85 target before the 2026-11-19 visual pass; re-scoring against the new evidence renders is in the owner's report. |
+| Stillpoint, `assets/stillpoint` | Reference-constrained Blender model (not photogrammetry; the art registered 0/6 views). Rigged with 6 clips, baked, exported: `outputs/stillpoint.glb`, 4.91 MB, 40,228 triangles, glTF-valid. **Not wired into the game.** Visual gate: not passed: 77/100 against an 85 target (74 before the 2026-11-19 visual pass). Weakest: materials 71, brim geology 76, silhouette 76. Author's own scoring, not an independent review. |
 | Runtime preview | `npm run preview:pipeline`, then open the printed address. Loads committed pipeline GLBs in the game's three.js runtime with root motion over a 0.5 m grid. |
 
 ## Run it
