@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {writeFile} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
 import {AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack} from 'three';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {validateBytes} from 'gltf-validator';
@@ -12,6 +12,9 @@ globalThis.FileReader ??= class {
     this.onloadend();
   }
 };
+
+const output=new URL('../asset-pipeline/assets/survey-strider/outputs/',import.meta.url);
+await mkdir(output,{recursive:true});
 
 async function exportStrider(distance, filename){
   const model=createSurveyStrider();
@@ -65,7 +68,7 @@ async function exportStrider(distance, filename){
     }));
     const report=await validateBytes(binary,{uri:filename});
     assert.equal(report.issues.numErrors,0,JSON.stringify(report.issues.messages));
-    await writeFile(new URL('../../client/assets/'+filename,import.meta.url),binary);
+    await writeFile(new URL(filename,output),binary);
     return binary.byteLength;
   }finally{
     model.dispose();
