@@ -1,7 +1,7 @@
 // Server-only, bounded planar navigation for future ground companions.
 // The current airborne Mender never calls this module. No new live entity,
 // movement override, teleport, baked navmesh or client authority is introduced.
-import { WORLD, COLLIDERS, OBJECTS } from '../../shared/world.js';
+import { WORLD, COLLIDERS, OBJECTS, RIFT_ANNEX, SEVERANCE_POCKET } from '../../shared/world.js';
 
 const OBSTACLES=Object.freeze([...COLLIDERS,...OBJECTS.filter(o=>!o.embedded)].map(o=>Object.freeze(o.r!==undefined?{x:o.x,z:o.z,r:o.r}:{x:o.x,z:o.z,hw:o.hw,hd:o.hd})));
 const LIMIT=WORLD.radius-6, PAD=.035, CELL=.8, MAX_DISTANCE=32, MAX_NODES=1400, REPLAN_MS=900;
@@ -9,7 +9,11 @@ const valid=p=>!!p&&Number.isFinite(p.x)&&Number.isFinite(p.z);
 const radiusOk=r=>Number.isFinite(r)&&r>=.15&&r<=1.5;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const copy=p=>({x:p.x,z:p.z});
-const inWorld=(p,r)=>valid(p)&&Math.hypot(p.x,p.z)<=LIMIT-r-PAD;
+// Walkable regions: the Reach basin and the disconnected areas reached by travel
+// (Phase Annex, Severance Expanse). Each is bounded the way movement clamps it.
+const inRect=(p,r,x,z,hw,hd)=>Math.abs(p.x-x)<=hw-r-PAD&&Math.abs(p.z-z)<=hd-r-PAD;
+const P=SEVERANCE_POCKET,A=RIFT_ANNEX;
+const inWorld=(p,r)=>valid(p)&&(Math.hypot(p.x,p.z)<=LIMIT-r-PAD||inRect(p,r,P.x,P.z,P.hw-P.rim,P.hd-P.rim)||inRect(p,r,A.x,A.z,A.hw,A.hd));
 function nearObstacles(a,b,r,obstacles){
  const pad=r+PAD;
  return obstacles.filter(o=>{
