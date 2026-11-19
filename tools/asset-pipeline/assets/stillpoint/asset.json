@@ -381,36 +381,42 @@
   "poses": [
    [
     "Walk",
-    1
+    8
    ],
    [
     "Walk",
-    13
+    20
    ],
    [
     "Walk",
-    25
+    32
    ],
    [
     "Walk",
-    37
+    44
    ],
    [
     "Turn",
-    25
+    20
    ],
    [
     "WeightShift",
     31
    ],
    [
-    "WalkStop",
-    45
+    "WalkStart",
+    40
    ],
    [
-    "Idle",
-    60
+    "WalkStop",
+    20
    ]
-  ]
+  ],
+  "pose_view": {
+   "az": -90,
+   "el": 6,
+   "dist_k": 1.15
+  },
+  "pose_note": "Walk frames 8/20/32/44 are each leg's mid-swing (1.6 s cycle, lateral sequence); side view shows the fore-aft stride."
  }
 }

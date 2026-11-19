@@ -104,6 +104,7 @@ def set_mode(objs, mode, saved):
                 o.material_slots[-1].material = dark
                 w = o.modifiers.new("_wire", "WIREFRAME")
                 w.thickness = 0.006
+                w.use_even_offset = False  # even offset extrudes spikes from thin, sharp-angled faces
                 w.use_replace = False
                 w.material_offset = len(o.material_slots) - 1
         return

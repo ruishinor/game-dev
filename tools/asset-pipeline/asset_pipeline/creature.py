@@ -398,7 +398,8 @@ def _render(asset: Asset, params):
                     str(ev / "turntable_lit.mp4")], check=True)
     poses = []
     for clip, frame in params["poses"]:
-        r = preview(asset, rigged, ev / "poses" / f"{clip}_{frame}", [{"name": "pose", "az": -70, "el": 12, "dist_k": 1.2}], ["lit"], width=params["width"] // 2,
+        r = preview(asset, rigged, ev / "poses" / f"{clip}_{frame}", [{"name": "pose", **params.get("pose_view", {"az": -70, "el": 12, "dist_k": 1.2})}], ["lit"],
+                    width=params["width"] // 2,
                     height=params["height"] // 2, samples=params["samples"] // 2, pose={"action": clip, "frame": frame})
         poses.append(r["written"][0])
     contact_sheet(poses, ev / "articulation_poses.jpg", cols=4, thumb=360, labels=[f"{c} frame {f} (baked keys, Blender)" for c, f in params["poses"]])
