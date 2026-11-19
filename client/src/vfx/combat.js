@@ -120,7 +120,7 @@ export class CombatVfx {
   hit(d, s, e) {
     // Projectiles land when they arrive; everything else lands now.
     if (e.k === 'bolt' && s?.placed && s !== d) {
-      this.bolt(s, d, () => this.impact(d, s, e));
+      this.bolt(s, d, () => this.impact(d, s, e), e.ab === 'auto' ? s.model?.weaponEffectOrigin?.() : null);
       return;
     }
     this.impact(d, s, e);
@@ -154,15 +154,16 @@ export class CombatVfx {
   }
 
   /** A projectile from s to d; class decides its form. */
-  bolt(s, d, onArrive) {
+  bolt(s, d, onArrive, weaponOrigin = null) {
     const v = this.v;
-    const a = s.chest.clone();
+    const a = weaponOrigin?.isVector3 && [weaponOrigin.x, weaponOrigin.y, weaponOrigin.z].every(Number.isFinite) ? weaponOrigin.clone() : s.chest.clone();
     const len = a.distanceTo(d.chest);
     const life = Math.min(0.42, Math.max(0.12, len / 45));
     const c = s.meta.k === 'e' ? PALETTE.hostile : this.colour(s);
     const cls = s.meta.k === 'e' ? 'hostile' : s.meta.c;
     const head = cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? CELL.diamond : CELL.glow;
-    const at = [0, 0, 0];
+    // trail() samples follow() synchronously: seed at the actual emitter.
+    const at = [a.x, a.y, a.z];
     const prev = [a.x, a.y, a.z];
     v.burst({ at: a, count: 3, cell: CELL.glow, color: hot(c, 0.5), color2: c, size: [0.25, 0.4], sizeEnd: 0.05, life: 0.18, speed: [0.3, 1] });
     // A continuous trail gives each discipline a readable path shape:

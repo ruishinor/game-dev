@@ -6,7 +6,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
-import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
+import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
@@ -30,6 +30,8 @@ import { UI, companionCommandKeys } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
+import {createCreationPreview} from './creation-preview.js';
+import {createKestrelAlarm} from './kestrel-alarm.js';
 
 const INTERP_MS = 110;
 const TURN_RATE = 2.9;
@@ -66,7 +68,7 @@ const params = new URLSearchParams(location.search);
 const glbOnly = params.get('glb');
 const assets = new Assets();
 await assets.init();
-await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
+await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
 // Original carapace is opt-in until actual visual/motion review; no
@@ -83,6 +85,8 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const machine=scene.getObjectByName('sanctum-precision-fabricator');
+const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
 const legacyFx = fx;
 const liveAegis = new LiveAegis(THREE);
@@ -94,6 +98,7 @@ function authored(name,family,options){
   return liveCasts.spawn(name,family,{...options,reducedMotion:motionPreference.matches},fxClock);
 }
 const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+let alarmCalm=readFxPrefs().calm;
 // Effect clock. ?vfxt=<0.02..1> slows presentation-only effects so software
 // rendering can photograph them mid-flight; simulation time is untouched.
 const vfxTime = Math.min(1, Math.max(0.02, Number(new URLSearchParams(location.search).get('vfxt')) || 1));
@@ -328,7 +333,9 @@ document.addEventListener('contextmenu', e=>{
 },true);
 
 const portraits = makePortraits(assets, useGlb);
+let hallPreview=null;
 const ui = new UI({
+  alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
@@ -363,6 +370,7 @@ const ui = new UI({
       localStorage.setItem('attunement.calmFlashes', calm ? '1' : '0');
     } catch {}
     vfx?.setIntensity(level, calm);
+    alarmCalm=!!calm;
   },
   autoAttack: () => net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 }),
   inspectCompanion: (id, point) => {
@@ -371,6 +379,16 @@ const ui = new UI({
   closeInspect: () => { S.inspect = null; },
   target: (id) => setTarget(id),
   interact: id=>net.send({t:'act',id}),
+  changeAppearance:appearance=>net.send({t:'appearance_change',appearance}),
+  inspectAppearance:()=>{stopAutomaticMovement();cam.yaw=local.yaw+Math.PI;cam.pitch=.06;cam.want=cam.dist=4.2;},
+  startAppearancePreview:(root,getAppearance,selectFrame)=>{
+    hallPreview?.preview.destroy();
+    const preview=createCreationPreview({root,assets,useGlb,motionPreference,selectFrame,getMeta:()=>{
+      const me=S.ents.get(S.myId);
+      return {...me.meta,ap:getAppearance()};
+    }});
+    hallPreview={root,preview};
+  },
   lootOpen:(id,generation,auto)=>net.send({t:'loot_open',id,generation,auto}),
   lootTake:(id,generation,item)=>net.send({t:'loot_take',id,generation,item}),
   lootClose:()=>net.send({t:'loot_close'}),
@@ -398,6 +416,16 @@ let chosenLook = defaultLook(chosenClass);
 // Cosmetic appearance chosen at creation (validated again by the server).
 let chosenAp = defaultAppearance(chosenLook);
 let apTouched = false;
+const creationPreview=createCreationPreview({
+  root:$('creation-preview'),assets,useGlb,motionPreference,
+  getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))}),
+  selectFrame:frame=>{
+    apTouched=true;
+    chosenAp=normalizeAppearance({...chosenAp,frame},chosenLook);
+    buildAppearance();
+  },
+});
+let titleDrawAt=-Infinity;
 function buildAppearance() {
   const pick = (id, items, current, onPick, label) => {
     const wrap = $(id);
@@ -438,10 +466,8 @@ function buildAppearance() {
 function buildLooks() {
   const list = LOOKS[chosenClass];
   chosenLook = defaultLook(chosenClass);
-  if (!apTouched) {
-    chosenAp = defaultAppearance(chosenLook);
-    if ($('ap-frame')) buildAppearance();
-  }
+  chosenAp=apTouched?normalizeAppearance(chosenAp,chosenLook):defaultAppearance(chosenLook);
+  buildAppearance();
   $('look-row').hidden = list.length < 2;
   const wrap = $('looks');
   wrap.replaceChildren();
@@ -669,7 +695,16 @@ if (net.accountToken || net.token) {
 function addEntity(meta) {
   let ent = S.ents.get(meta.i);
   if (ent) {
-    ent.meta = meta; // e.g. level changed
+    // Appearance updates must replace the actual rendered character on every
+    // observing client, while preserving interpolation, identity and targeting.
+    if(meta.k==='p'&&(meta.ap!==ent.meta.ap||meta.a!==ent.meta.a)){
+      const next=createModel(assets,meta,useGlb(meta)),old=ent.model;
+      ent.holder.remove(old.group);old.dispose?.();ent.model=next;ent.holder.add(next.group);
+      if(quality===0)lowSpec(next.group,true);
+    } else if (ent.meta.wv !== meta.wv) {
+      ent.model.setWeaponVisual?.(meta.wv);
+    }
+    ent.meta = meta;
     return ent;
   }
   const model = createModel(assets, meta, useGlb(meta));
@@ -764,6 +799,7 @@ function onWelcome(m) {
   local.outbox = [];
   local.seq = 0;
   local.err = { x: 0, z: 0 };
+  creationPreview.release();
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -792,6 +828,7 @@ function onSnapshot(m) {
     ent.row = row;
     if (ent.meta.c === 'surveyor') syncRig(ent);
     ent.dead = !!(row.f & 1);
+    const prev=ent.buf.at(-1);if(prev&&!sameTravelRegion(prev,row))ent.buf.length=0;
     ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
     if (ent.buf.length > 12) ent.buf.shift();
   }
@@ -902,7 +939,7 @@ function onEvent(e) {
           s.faceUntil = now + 500;
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (e.k === 'bolt' && d) fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);
@@ -1230,8 +1267,14 @@ function onEvent(e) {
     }
     case 'radio':
       ui.radio.receive(e.source,e.m,e.dialogueId);break;
+    case 'workshop_open':
+      ui.workshopTab='fabrication';ui.toggleWorkshop(true);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
+    case 'appearance_applied':
+      ui.appearanceApplied(e.appearance);break;
+    case 'appearance_rejected':
+      ui.appearanceRejected(e.reason);break;
     case 'say':
       if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');
@@ -1353,6 +1396,7 @@ input.onAction = (code, e) => {
       const mode = companionCommandKeys(pet)[i];
       if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
+    else if(i===def.abilities.length&&!S.compId&&S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
     return;
   }
   switch (code) {
@@ -1656,6 +1700,7 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
@@ -1800,6 +1845,7 @@ function frame(now) {
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
   last = now;
   time += dt;
+  kestrelAlarm.update(!!S.myId&&!!S.you?.kestrelAlarm,time,motionPreference.matches||alarmCalm);
 
   frames++;
   if (now - fpsAt >= 1000) {
@@ -1816,6 +1862,10 @@ function frame(now) {
   }
 
   if (!S.myId) {
+    machine?.userData.updateWork?.(dt,time,null,true);
+    const inspecting=creationPreview.update(now,dt);
+    if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
+    titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
@@ -1825,8 +1875,19 @@ function frame(now) {
     return;
   }
 
+  if(hallPreview){
+    if(!hallPreview.root.isConnected||hallPreview.root.closest('[hidden]')||!S.ents.get(S.myId)){hallPreview.preview.destroy();hallPreview=null;}
+    else if(!S.paused)hallPreview.preview.update(now,dt);
+  }
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
+  if(machine?.userData.updateWork){
+    let working=null;
+    for(const actor of S.ents.values())if(actor.meta.k==='p'&&actor.row?.work?.site==='sanctum'){
+      const w=actor.row.work;if(!working||w.q>working.q)working=w;
+    }
+    machine.userData.updateWork(dt,time,working,motionPreference.matches||quality===0);
+  }
   const me = S.ents.get(S.myId);
   if (me && me.placed) {
     cam.update(me.pos, dt);
@@ -1921,7 +1982,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView,
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView,
         ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),

@@ -8,10 +8,11 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
-import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
+import { FRAMES, RENDER_RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
 // Arm reach differs by frame (hand_l x: 0.739 masculine, 0.645 feminine). Gear
 // authored for one frame is moved along the arm for the other (shoulder ~0.17).
@@ -22,10 +23,12 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
+import { createLongpointPresentation } from './longpoint.js';
+import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -82,8 +85,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const armK = HAND_X[app.frame] / HAND_X[lookFrame];
   const remap = armRemap(armK);
   const veyran = app.race === 'veyran';
-  // Hair (or the Mirekin crest) is worn with the hood lowered.
-  const hoodDown = !!opts.appearance && (app.hair !== 'none' || app.race === 'mirekin');
+  // A player's hairstyle is not a hood toggle. Keep customization faces
+  // exposed for all hair selections; NPC authored outfit defaults remain.
+  const hoodDown = !!opts.appearance;
 
   const mats = [];
   const shellMats = {};
@@ -131,7 +135,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // Name-derived identity (face shape, age, stubble) under the chosen
   // appearance; NPC looks pin a full preset when no appearance is stored.
   const chosen = opts.appearance || !def.face
-    ? { tone: RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
+    ? { tone: RENDER_RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
     : def.face;
   const ap = appearanceFor(opts.appearanceKey ?? lookId, female, chosen);
   const helmet = !!def.shells.helmet;
@@ -195,6 +199,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -203,6 +208,18 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let dead = false;
   let moving = false;
   let landed = true;
+  let weapon = null, visual = null;
+  function setWeaponVisual(next) {
+    next = next === 'longpoint' ? next : null;
+    if (next === visual) return;
+    weapon?.dispose(); weapon = null; visual = next;
+    if (!next) return;
+    const prop = assets.instance(next);
+    if (!prop) return;
+    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
+    if (!weapon) disposeInstance(prop);
+  }
+  setWeaponVisual(opts.weaponVisual);
 
   return {
     kind: 'glb',
@@ -212,7 +229,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     radius: 0.45,
     hover: 0,
     accent: def.accent,
+    setWeaponVisual,
+    weaponEffectOrigin: () => weapon?.origin() || null,
     update(dt, st) {
+      const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -234,7 +254,16 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      // Both cosmetic systems own the arm rotations. Restore before sampling
+      // animation, and give fabrication exclusive priority over weapon carry.
+      if (step) {
+        weapon?.restore();
+        work.restorePose();
+        anim.update(step);
+        if (working) work.pose(st.work, st.t, st.reducedMotion);
+      }
+      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
+        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy });
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -253,13 +282,17 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         anim.react(HB.hit);
         return;
       }
+      // A mounted Longpoint holds a steady presentation pose for ranged auto attacks.
+      if (kind === 'cast' && id === 'auto' && weapon?.origin()) return;
       // A ranged class's basic attack is a bolt, not a punch.
       const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
+      weapon?.dispose();
       anim.dispose();
       face?.dispose();
+      work.dispose();
       disposeInstance(group);
     },
   };
@@ -524,12 +557,13 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  * or broken asset never removes an entity from the world.
  */
 export function createModel(assets, meta, glb = true) {
+  if(meta.c==='survey_strider')return createSurveyStrider();
   let model = null;
-  const haloRole = haloRoleFor(meta);
+  const haloRole=haloRoleFor(meta);
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
-    if (haloRole) model = createHaloConstruct(assets, haloRole, { variant: meta.v || 0 });
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
+    if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {
@@ -541,7 +575,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;
@@ -549,11 +584,9 @@ export function createModel(assets, meta, glb = true) {
   if (model) return model;
   if (meta.c === 'spindle') return createSpindle(null, disposeInstance);
   if (meta.c === 'turret_drone') return createTurretDrone(null, disposeInstance);
-  // A Halo Construct that could not be built stays visibly a stand-in: the
-  // procedural NPC body, reported as 'procedural' and logged (never a creature).
   if (haloRole && glb) console.error(`[models] ${meta.c}: Halo Construct unavailable, showing the procedural stand-in`);
   const fallback = (PROCEDURAL[meta.c] || PROCEDURAL.skitter)(meta);
   fallback.kind = 'procedural';
-  if (haloRole) fallback.haloRole = 'fallback';
+  if(haloRole)fallback.haloRole='fallback';
   return fallback;
 }

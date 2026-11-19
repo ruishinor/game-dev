@@ -1,3 +1,4 @@
+import {migrateSurveyStrider} from './survey-strider.js';
 // Authoritative world simulation. No I/O here: the network layer feeds
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
@@ -5,12 +6,14 @@
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
+import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
@@ -22,12 +25,13 @@ import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
+import {kestrelAlarmFor} from './kestrel-alarm.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
 import { partyState, removePartyPlayer } from './party.js';
 import { inventoryCounts, trackAcquisitions } from './inventory-seen.js';
-import { productionState, stopProduction, tickProduction } from './production.js';
+import { productionState, productionVisualState, stopProduction, tickProduction } from './production.js';
 import { lootState, tickLoot, forgetLoot, clearLoot } from './loot.js';
 
 const MOVE_BUDGET_MAX = 30; // movement steps a client may bank (0.5s)
@@ -53,6 +57,7 @@ export class Game {
     this.parties = new Map();
     this.nextPartyId = 1;
     this.events = [];
+    this.eventRegions = new WeakMap();
     /** Called with a character record whenever persistent state changes. */
     this.onCharChanged = () => {};
 
@@ -81,16 +86,19 @@ export class Game {
       this.ents.set(e.id, e);
     }
     this.rift=createRift(this);
+    this.annexOpened=false;
   }
 
   // --- players -----------------------------------------------------------
 
   /** Bring a persisted character into the world. Returns the player entity. */
   addPlayer(char) {
+    migrateSurveyStrider(char);
     const def = CLASSES[char.cls];
     const stats = deriveStats(char);
     const fresh = !(char.hp > 0) || !char.pos;
-    const pos = fresh ? { ...WORLD.spawn } : { x: char.pos.x, z: char.pos.z };
+    const savedInAnnex=char.pos&&inRiftAnnex(char.pos.x,char.pos.z,4);
+    const pos = fresh || savedInAnnex ? { ...WORLD.spawn } : { x: char.pos.x, z: char.pos.z };
     resolveCollisions(pos, PLAYER_RADIUS);
     const p = {
       id: this.nextId++,
@@ -128,6 +136,7 @@ export class Game {
       inventoryCounts: inventoryCounts(char),
       outbox: [],
       sheetDirty: true,
+      weaponVisual: publicWeaponVisual(char),
       metaVer: 1,
       companion: null,
       brineTrial: null,
@@ -165,7 +174,8 @@ export class Game {
 
   /** Copy live state that should survive a reconnect onto the record. */
   syncChar(p) {
-    p.char.pos = { x: r2(p.x), z: r2(p.z) };
+    // Reconnects from the annex return safely to the Reach; HP is not restored.
+    p.char.pos = inRiftAnnex(p.x,p.z,2)?{...WORLD.spawn}:{ x: r2(p.x), z: r2(p.z) };
     p.char.hp = p.dead ? 0 : Math.max(1, Math.round(p.hp));
     if (p.companion && p.companion.type !== 'spindle') {
       p.char.petMode = p.companion.mode;
@@ -182,6 +192,8 @@ export class Game {
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
     p.stats = deriveStats(p.char);
+    const visual = publicWeaponVisual(p.char);
+    if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
     syncEquippedCompanion(this, p);
@@ -189,6 +201,13 @@ export class Game {
 
   message(p, kind, text) {
     p.outbox.push({ e: 'msg', k: kind, m: text });
+  }
+
+  emitWorldEvent(event) {
+    const origin = this.ents.get(event.s || event.id || event.d || event.o);
+    if (!origin) return;
+    this.eventRegions.set(event, travelRegionAt(origin.x, origin.z));
+    this.events.push(event);
   }
 
   // --- movement ----------------------------------------------------------
@@ -220,7 +239,7 @@ export class Game {
   setFollow(p,id) {
     if(id===0){this.stopFollow(p);return {ok:true};}
     const target=this.players.get(id);
-    if(p.dead||!target||target===p||target.dead||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
+    if(p.dead||!target||target===p||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
     // Prevent mutual or longer cyclic following chains.
     const seen=new Set([p.id]);
     for(let t=target;t;t=this.players.get(t.followId)){
@@ -233,7 +252,7 @@ export class Game {
   tickFollow(p,dt) {
     if(!p.followId)return;
     const target=this.players.get(p.followId);
-    if(p.dead||!target||target.dead||dist(p,target)>45){this.stopFollow(p);return;}
+    if(p.dead||!target||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45){this.stopFollow(p);return;}
     // Share the fixed-step movement budget with manual inputs.
     p.followAcc+=Math.min(.1,Math.max(0,dt))*MOVE_HZ;
     const steps=Math.min(6,Math.floor(p.followAcc+1e-9));p.followAcc=Math.max(0,p.followAcc-steps);
@@ -248,6 +267,56 @@ export class Game {
     }
   }
 
+  // The only gameplay route into the disconnected deck. The interaction
+  // checks the actual server-owned gate, range, calibration and combat.
+  travelRift(p,obj) {
+    const entering=obj===this.rift?.entry,exiting=obj===this.rift?.exit;
+    if(!entering&&!exiting)return {ok:false,reason:'Unknown phase gate.'};
+    if(p.dead||dist(p,obj)>5||!hasLineOfSight(p,obj))return {ok:false,reason:'Approach the gate while alive.'};
+    if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
+    if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
+    if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
+    if(entering&&!this.annexOpened){
+      // Persistent shared encounter, not an instance or a reset-on-entry farm.
+      for(const [type,dx,z,name] of [
+        ['skitter',-9,17,'Threshold Skitter'],['skitter',9,16,'Gallery Skitter'],['skitter',-3,14,'Gallery Burrower'],
+        ['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',10,5,'Null Relay Stalker'],['skitter',-8,-5,'Relay Burrower'],
+        ['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden'],['faultstalker',8,-14,'Null Stalker'],['skitter',-8,-17,'Null Burrower']
+      ]){
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true};
+        resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
+      }
+      this.annexOpened=true;
+    }
+    const destination = entering
+      ? { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }
+      : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    this.transferPlayer(p, destination);
+    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
+    return {ok:true};
+  }
+
+  // Call only after the server accepts a specific gate and destination.
+  transferPlayer(p, destination) {
+    this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
+    clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
+    cancelInscription(this,p);stopProduction(this,p);
+    p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
+    if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
+    if(p.companion){
+      const c=p.companion;for(const other of this.players.values())other.buffs=other.buffs.filter(b=>b.k!=='bond'||b.src!==c.id);
+      if(c.mode==='guard')c.mode='triage';c.host=0;c.act='idle';c.actTarget=0;
+    }
+    // A travelling host cannot keep a remote companion bond.
+    p.buffs=p.buffs.filter(b=>b.k!=='bond');
+    p.x=destination.x;
+    p.z=destination.z;
+    resolveCollisions(p,PLAYER_RADIUS);
+    if(['survey_strider','spindle'].includes(p.companion?.type))redeployGroundCompanion(this,p);
+    else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
+    this.syncChar(p);this.markDirty(p);
+  }
+
   setTarget(p, id) {
     if (id === 0) {
       p.target = 0;
@@ -255,7 +324,7 @@ export class Game {
       return true;
     }
     const t = this.ents.get(id);
-    if (!t || t.kind === 'object') return false;
+    if (!t || t.kind === 'object'||!sameTravelRegion(p,t)) return false;
     if (t.kind === 'enemy' && t.state === 'dead') return false;
     if (p.target !== id) p.autoOn = false;
     p.target = id;
@@ -283,7 +352,7 @@ export class Game {
       p.companion.x = p.x + 1.5;
       p.companion.z = p.z - 1.5;
     }
-    this.events.push({ e: 'fx', k: 'respawn', s: p.id });
+    this.emitWorldEvent({ e: 'fx', k: 'respawn', s: p.id });
     this.message(p, 'info', 'The Sanctum lattice reconstitutes you.');
     return true;
   }
@@ -322,7 +391,7 @@ export class Game {
 
   // --- snapshots ---------------------------------------------------------
 
-  /** Public per-entity rows, shared by every recipient this tick. */
+  /** Public per-entity rows before the network layer applies region visibility. */
   buildRows() {
     const rows = [];
     for (const p of this.players.values()) {
@@ -336,6 +405,7 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
+        ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });
@@ -365,7 +435,7 @@ export class Game {
   metaFor(ent) {
     switch (ent.kind) {
       case 'player':
-        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance };
+        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}) };
       case 'enemy':
         return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
@@ -384,6 +454,7 @@ export class Game {
     }
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
+      region: travelRegionAt(p.x, p.z),
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       ...lootState(this,p),
@@ -406,6 +477,7 @@ export class Game {
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
       workshop:workshopSite(p),
+      kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),
       companions: companionRoster(this, p),
       canCommissionSpindle: canCommissionSpindle(this, p),
@@ -430,6 +502,8 @@ export class Game {
       name: c.name,
       cls: c.cls,
       companion:p.companion?.type??null,
+      striderLearned:c.striderLearned===true,
+      initiationSeen:c.initiationSeen===true,
       look: c.look,
       appearance: c.appearance,
       level: c.level,
@@ -449,6 +523,7 @@ export class Game {
       ...fieldQuestProjection(c),
       fieldRewardReceipts:fieldReceiptProjection(c),
       recoverySamples:recoverySamples(c.recoverySamples),
+      craftingDisciplines:sanitizeCraftingDisciplines(c.craftingDisciplines),
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,
