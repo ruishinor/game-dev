@@ -115,3 +115,20 @@ Fixed bounds: 240 embers, 260 column motes, three rings, three mist layers, one 
 - Environmental audio for the landmark is not implemented. The existing audio system has no positional sources yet.
 - Independent visual acceptance against the concept art.
 - The Expanse beyond the approach: Expedition Outpost, patrols, resources and the Foundry interior (see [SEVERANCE-ROADMAP](SEVERANCE-ROADMAP.md) on the Severance branch). The Phase Annex stands in as the dungeon interior until the Foundry exists.
+
+## Handoff (2026-11-19, 15:40)
+
+- **Branch and PR.** `feat/severance-gate`, [#131](https://github.com/ruishinor/game-dev/pull/131). Commits: `9d1c266` (the implementation), `15cb87d` (merged current main), and the roadmap and handoff documentation commits that follow.
+- **Checks on `15cb87d`.** Ten of eleven jobs passed: Node, asset pipeline, Rift browser (with the Severance traversal), integrated playtest, playable preview, Longpoint, Halo, Quest Journal, follow/inventory and ground companion.
+  - Vendor browser failed at `Configuration must use the original authenticated player` (a live-session fixture check in the electrical-rod configuration step).
+  - The same assertion failed on `fix/electrical-rod-live-visual-readability` (`11203cf`), which does not contain this work. The failure is attributed to the rod step merged in #126, not to the gate.
+  - The failed job has been rerun once.
+- **Uncommitted local state.** None in the repository.
+  - The bake intermediates (`.asset-cache/`, git-ignored) and the owner references (`art-source/`, git-ignored) are local to this session only. To rebuild, put the four reference files back at the paths in `asset.json`; their hashes are recorded there.
+  - `{"recomposite": true}` needs the saved `*_fields.npz` files from a previous build.
+- **How to resume.**
+  1. Re-check #131: CI on the exact head and whether it is mergeable.
+  2. Merge once the vendor job passes, or once its failure is shown to occur on main without this change.
+  3. Then continue with the roadmap's *Severance and world presentation* sequence.
+  4. Re-capture the tuned portal glow and ground mask with `node tools/severance-capture.mjs <dir> 05,06b,11,13,14,17` (about 15 minutes in SwiftShader).
+  5. Deliver captures to the owner privately.
