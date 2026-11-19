@@ -351,8 +351,18 @@ try {
   shieldback.x=3;shieldback.z=65;
   await moveTo(5.5,48);
   adult.x=5.5;adult.z=51.5;adult.wanderAt=Infinity;
-  server.game.setTarget(p,adult.id);
-  await page.waitForFunction(id=>window.__attune.state().target===id,adult.id);
+  assert.equal(adult.state,'idle','Controlled grazer must be idle before selection');
+  assert.equal(adult.threat.size,0,'Controlled grazer must have no combat threat');
+  assert.ok(server.game.setTarget(p,adult.id));
+  // The snapshot updates target identity before the next animation-frame HUD
+  // update. Wait for both; an incorrect neutral classification still fails.
+  await page.waitForFunction(id=>{
+    const s=window.__attune.state(),e=s.ents.find(e=>e.id===id);
+    const frame=document.querySelector('.frame.target');
+    return s.target===id&&e&&frame&&!frame.hidden&&
+      frame.querySelector('.name')?.textContent===e.n&&
+      frame.classList.contains('neutral')&&/Neutral/.test(frame.querySelector('.sub')?.textContent||'');
+  },adult.id,{polling:100});
   assert.ok(/Neutral/.test(await page.locator('.frame.target .sub').innerText()));
   dealDamage(server.game,p,adult,9999,'fixture');
   await page.waitForFunction(()=>document.querySelector('.frame.target .sub')?.textContent.includes('Defeated'));

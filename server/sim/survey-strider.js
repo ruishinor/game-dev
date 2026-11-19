@@ -9,6 +9,9 @@ const SCAN_RANGE=8,SCAN_INTERVAL=8000,SCAN_MS=6000,OWNER_RANGE=22;
 export function wantsSurveyStrider(p){
  return p.cls==='surveyor'&&p.char.equipped.device===STRIDER_LINK&&p.char.inventory.includes(STRIDER_LINK)&&p.char.attunements.includes('resonance')&&p.stats.skills.instrumentation>=13;
 }
+export function striderSpawnPoint(p){
+ return pointNear(p,def.followDist,p.yaw+Math.PI);
+}
 function pointNear(ent,gap,angle,origin=ent){
  for(const offset of [0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2,3*Math.PI/4,-3*Math.PI/4,Math.PI]){
   const a=angle+offset,q={x:ent.x+Math.sin(a)*gap,z:ent.z+Math.cos(a)*gap};
@@ -23,19 +26,15 @@ function dismiss(game,p){
  game.companions=game.companions.filter(x=>x!==c);game.ents.delete(c.id);p.companion=null;
  game.markDirty(p);
 }
-export function syncSurveyStrider(game,p){
+export function syncSurveyStrider(game,p,spotOverride){
  if(p.cls!=='surveyor')return;
  if(!wantsSurveyStrider(p)){dismiss(game,p);return;}
  if(p.companion||p.dead||p.char.companionDismissed)return;
- p.striderDeployAt=game.time+1000;
- const spot=pointNear(p,def.followDist,p.yaw+Math.PI);if(!spot)return;
+ const spot=spotOverride??striderSpawnPoint(p);if(!spot)return;
  const mode=Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';
  const c={id:game.nextId++,kind:'companion',type:TYPE,name:p.char.petName&&p.char.petName!==COMPANIONS.mender.name?p.char.petName:def.name,owner:p.id,...spot,yaw:p.yaw,mode,host:0,act:'idle',actTarget:0,nextPulse:game.time+1000,nextRegen:0,metaVer:1,nav:{}};
  p.companion=c;p.char.petMode=mode;p.char.petName=c.name;
  game.companions.push(c);game.ents.set(c.id,c);game.markDirty(p);
-}
-export function redeploySurveyStrider(game,p){
- dismiss(game,p);p.char.petMode='follow';syncSurveyStrider(game,p);
 }
 export function tickSurveyStrider(game,c,dt){
  const p=game.players.get(c.owner);if(!p||p.companion!==c)return;

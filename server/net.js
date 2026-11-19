@@ -366,8 +366,9 @@ export class NetServer {
         reply(renameCompanion(game, p, msg.name));
         break;
       case 'pet_manage':
-        if (!['default', 'dismiss', 'summon'].includes(msg.action) ||
-          (msg.action === 'default' && (typeof msg.type !== 'string' || msg.type.length > 40))) return this.strike(conn);
+        if (!['commission', 'default', 'dismiss', 'summon'].includes(msg.action) ||
+          ((msg.action === 'default' || msg.action === 'commission' || (msg.action === 'summon' && msg.type != null)) &&
+            (typeof msg.type !== 'string' || msg.type.length > 40))) return this.strike(conn);
         reply(manageCompanion(game, p, msg.action, msg.type));
         break;
       case 'party_invite':

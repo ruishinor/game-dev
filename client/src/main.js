@@ -3,7 +3,7 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { CLASSES, ABILITIES, LOOKS, defaultLook } from '../../shared/content.js';
+import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
@@ -13,6 +13,7 @@ import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
+import { signedWheelTravel } from './spindle.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -25,7 +26,7 @@ import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
-import { UI } from './ui.js';
+import { UI, companionCommandKeys } from './ui.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -853,10 +854,10 @@ const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'v
 function nameOf(ent) {
   if (!ent) return 'Something';
   if (ent.id === S.myId) return 'You';
-  if (ent.id === S.compId) return ent.meta.c==='survey_strider'?'Your Strider':'Your symbiote';
   if (ent.meta.k === 'c') {
     const owner = S.ents.get(ent.meta.o);
-    const kind=ent.meta.c==='survey_strider'?'Strider':'symbiote';
+    const kind = ent.meta.c === 'survey_strider' ? 'Strider' : ent.meta.c === 'mender' ? 'symbiote' : ent.meta.n;
+    if (ent.id === S.compId) return ent.meta.c === 'spindle' ? ent.meta.n : `Your ${kind}`;
     return owner ? `${owner.meta.n}'s ${kind}` : `A ${kind}`;
   }
   return ent.meta.n;
@@ -1344,9 +1345,9 @@ input.onAction = (code, e) => {
     const i = Number(digit[1]) - 1;
     const def = CLASSES[S.sheet.cls];
     if (e.shiftKey) {
-      const mode = ['triage', 'guard', 'assist', 'follow', 'stay'][i];
-      const pet=S.ents.get(S.compId)?.meta.c;
-      if (mode && (pet==='survey_strider'?['assist','follow','stay'].includes(mode):def.companion)) net.send({ t: 'pet', c: mode });
+      const pet = S.ents.get(S.compId)?.meta.c;
+      const mode = companionCommandKeys(pet)[i];
+      if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
     return;
   }
@@ -1577,9 +1578,11 @@ function updateEntities(dt, t, now) {
         yaw = host.yaw;
       }
     }
+    let travel = 0;
     if (ent.placed) {
       const mx = x - ent.pos.x;
       const mz = z - ent.pos.z;
+      if (ent.meta.c === 'spindle') travel = signedWheelTravel(mx, y - ent.pos.y, mz, yaw);
       const moved = Math.hypot(mx, mz);
       const inst = dt > 0 ? moved / dt : 0;
       ent.speed += (Math.min(inst, 14) - ent.speed) * Math.min(1, dt * 12);
@@ -1636,6 +1639,8 @@ function updateEntities(dt, t, now) {
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
+      travel,
+      cameraDistance: camD,
       dead: ent.dead,
       attack: ent.attack,
       cast: ent.castAnim,

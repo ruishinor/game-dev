@@ -347,7 +347,7 @@ export function useAbility(game, p, abilityId) {
     target = t && t.kind === 'player' && !t.dead ? t : p;
     if (target !== p && dist(p, target) > ab.range) return fail('Out of range.');
   }
-  if (abilityId === 'overgrowth_surge' && !p.companion) return fail('You have no symbiote.');
+  if (abilityId === 'overgrowth_surge' && p.companion?.type !== 'mender') return fail('You have no symbiote.');
 
   if (p.cls === 'surveyor') {
     if (inSanctum(p)) return fail('Field instruments cannot operate in the Sanctum.');
