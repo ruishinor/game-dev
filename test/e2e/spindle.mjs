@@ -60,6 +60,7 @@ try {
     return rig?.getObjectByName('FarRollAssembly') && rig.children.some(scene=>scene.visible && scene.getObjectByName('Roll'));
   });
   assert.equal(await owner.evaluate(visibleTriangles),manifest.tris);
+  assert.deepEqual(await owner.evaluate(()=>window.__attune.gfx.scene.getObjectByName('spindle:precision-machine').scale.toArray()),[.75,.75,.75]);
   await owner.evaluate(()=>window.__attune.view({yaw:0,pitch:1.25,dist:24}));
   await owner.waitForFunction(()=>{
     const rig=window.__attune.gfx.scene.getObjectByName('spindle:precision-machine');
@@ -115,10 +116,24 @@ try {
   p.char.condition={...p.char.condition,field_emitter:63};
   server.game.refreshStats(p);
   server.game.markDirty(p);
+  assert.equal(await liveFixturePlayer(owner,server,'Gauge Tester'),p,'Owner session changed during playtest');
+  assert.equal(p.companion?.id,id,'Companion changed during playtest');
+  assert.ok(!p.dead && server.game.time>=p.combatUntil,'Inspection requires a living owner outside combat');
+  // The inspection animation is a short-lived authoritative state. Start the
+  // observer before sending input, and do not let software WebGL draws stall
+  // either client's snapshot/DOM processing during this timing-sensitive step.
+  if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(true));
   await owner.locator('#view').focus();
-  await owner.keyboard.press('Shift+1');
-  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&e.row.a==='inspecting'),id);
-  await owner.getByText(/Spindle inspection:.*63% condition/).first().waitFor({state:'attached'});
+  try {
+    await Promise.all([
+      observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&e.row.a==='inspecting'),id,{polling:100,timeout:20000}),
+      owner.keyboard.press('Shift+1'),
+      owner.getByText(/Spindle inspection:.*63% condition/).first().waitFor({state:'attached',timeout:20000}),
+    ]);
+  } catch(error) {
+    console.error('Inspection diagnostic:',JSON.stringify({owner:{x:p.x,z:p.z,jy:p.jy,dead:p.dead,combatUntil:p.combatUntil},companion:p.companion&&{id:p.companion.id,x:p.companion.x,z:p.companion.z,mode:p.companion.mode,act:p.companion.act,serviceEnd:p.companion.serviceEnd},time:server.game.time,outbox:p.outbox?.slice(-8)}));
+    throw error;
+  } finally {if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(false));}
   assert.equal(p.char.condition.field_emitter,63);
   assert.equal(await observer.getByText(/Spindle inspection:/).count(),0);
   await owner.screenshot({path:path.join(out,'inspection-result.png')});

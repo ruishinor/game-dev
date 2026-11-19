@@ -1,12 +1,15 @@
 import { COMPANIONS, ITEMS } from '../../shared/content.js';
 import { conditionOf } from '../../shared/condition.js';
 import { dist } from '../../shared/world.js';
+import { SPINDLE_TUNING } from '../../shared/spindle.js';
 import { advanceGroundCompanion, groundSegmentClear } from './ground-navigation.js';
 
 // Gameplay dimensions, in metres. The swept circle includes the stowed tool.
-const RADIUS = .72, FOLLOW_GAP = 2.4, SPEED = 8, STAY_LEASH = 24;
-const INSPECT_GAP = 1, INSPECT_REACH = 1.1, INSPECT_MS = 1800;
-const CALIPER_OFFSET = .41;
+const { radius: RADIUS, followSpeed: SPEED, inspectSpeed: INSPECT_SPEED } = SPINDLE_TUNING;
+const FOLLOW_GAP = 2.4, STAY_LEASH = 24;
+// The owner has not been scaled. Keep a small clearance allowance around their feet.
+const INSPECT_GAP = .85, INSPECT_MIN = .7, INSPECT_REACH = .95, INSPECT_MS = 1800;
+const CALIPER_OFFSET = .41 * SPINDLE_TUNING.scale;
 const TURN_OFFSETS = [0, 1, -1, 2, -2, 3, -3, 4].map(n => n * Math.PI / 4);
 
 function servicePoint(game, owner, angle, gap) {
@@ -93,17 +96,20 @@ export function tickSpindle(game, c, dt) {
   c.actTarget = 0;
   c.act = 'idle';
   if (c.mode === 'stay') return;
-  const advance = goal => {
-    if (goal && dist(c, goal) > .04)
-      return advanceGroundCompanion(c, c.nav, goal, { now: game.time, dt, speed: SPEED, radius: RADIUS });
+  const advance = (goal, maxSpeed = SPEED) => {
+    if (goal && dist(c, goal) > .04) {
+      // Ease into the final metre instead of rushing every small reposition.
+      const speed = Math.min(maxSpeed, 3 + 4.5 * dist(c, goal));
+      return advanceGroundCompanion(c, c.nav, goal, { now: game.time, dt, speed, radius: RADIUS });
+    }
     return 0;
   };
   if (c.mode === 'inspect') {
     c.actTarget = p.id;
-    if (gap < .8 || gap > INSPECT_REACH || p.jy > .35 || !groundSegmentClear(c, p, .15)) {
+    if (gap < INSPECT_MIN || gap > INSPECT_REACH || p.jy > .35 || !groundSegmentClear(c, p, .15)) {
       c.act = 'approaching';
       c.serviceEnd = 0;
-      advance(servicePoint(game, p, Math.atan2(c.x - p.x, c.z - p.z), INSPECT_GAP));
+      advance(servicePoint(game, p, Math.atan2(c.x - p.x, c.z - p.z), INSPECT_GAP), INSPECT_SPEED);
       return;
     }
     c.act = 'inspecting';

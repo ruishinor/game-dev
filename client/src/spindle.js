@@ -1,7 +1,9 @@
 // Rigid presentation rig. The axle stays level while the rim accumulates
 // travel on its local X axis. Units match the game world and the authored GLB.
 import * as THREE from 'three';
+import { SPINDLE_TUNING } from '../../shared/spindle.js';
 
+// Authored geometry stays unchanged; gameplay scales the complete rigid rig.
 const RADIUS = .64;
 const TAU = Math.PI * 2;
 
@@ -90,11 +92,12 @@ export function createSpindle(template, disposeInstance, distanceTemplate = null
     rigs.push(farJoints);
   }
   group.name = 'spindle:precision-machine';
+  group.scale.multiplyScalar(SPINDLE_TUNING.scale);
   let phase = 0, folded = 1, inspection = 0, elapsed = 0, measuring = 0, distant = false;
   return {
-    kind: template ? 'glb' : 'procedural', group, height: RADIUS * 2, radius: .72, hover: 0,
+    kind: template ? 'glb' : 'procedural', group, height: RADIUS * 2 * SPINDLE_TUNING.scale, radius: SPINDLE_TUNING.radius, hover: 0,
     update(dt, state) {
-      phase = (phase + (state.travel || 0) / RADIUS) % TAU;
+      phase = (phase + (state.travel || 0) / (RADIUS * SPINDLE_TUNING.scale)) % TAU;
       const inspecting = state.act === 'inspecting';
       measuring = inspecting ? measuring + dt : 0;
       const stowed = state.act === 'dormant' || state.act === 'stranded' || state.mode === 'stay';

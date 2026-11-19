@@ -19,6 +19,7 @@ on:
       - 'test/spindle*.test.js'
       - 'client/src/main.js'
       - 'client/src/ui.js'
+      - 'shared/spindle.js'
       - 'shared/content.js'
       - 'shared/gadgets.js'
       - 'shared/crafting.js'
@@ -47,4 +48,10 @@ jobs:
         with:
           name: strider-evidence
           path: strider-evidence/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: spindle-evidence
+          path: docs/evidence/spindle/gameplay/
           if-no-files-found: ignore
