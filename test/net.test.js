@@ -633,7 +633,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     // Exercise the actual authenticated craft command and persisted inventory.
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
-    p.x=0;p.z=8;
+    p.x=2.8;p.z=5.7; // Stand at the physical fabricator.
     await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
     a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
     await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');
