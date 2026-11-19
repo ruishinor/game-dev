@@ -54,14 +54,14 @@ def camera(sc, target, dist, az, el, lens=50):
     return cam
 
 
-def studio(sc, centre, size, strength=0.7, rig="soft"):
+def studio(sc, centre, size, strength=0.7, rig="soft", scale=1.0):
     if rig != "hard":
         world_color(sc, (0.40, 0.42, 0.45), strength)
         lights(sc, centre, size)
         return
     # hard-surface rig: dark world, warm key, two cool rims, a softbox above
     # whose reflections define the metal planes (Cycles area lights reflect)
-    world_color(sc, (0.05, 0.055, 0.065), 1.0)
+    world_color(sc, (0.05, 0.055, 0.065), scale)
     c = Vector(tuple(map(float, centre)))
     k = max(size, 0.5) ** 2
     for name, off, energy, col, sz in (("key", (-1.1, -1.6, 1.0), 260, (1.0, 0.94, 0.86), 1.0),
@@ -70,7 +70,7 @@ def studio(sc, centre, size, strength=0.7, rig="soft"):
                                         ("box", (0.3, -0.8, 1.9), 300, (1.0, 1.0, 1.0), 2.0),
                                         ("fill", (1.6, -1.2, -0.2), 70, (0.9, 0.92, 1.0), 1.4)):
         ld = bpy.data.lights.new(name, "AREA")
-        ld.energy = energy * k
+        ld.energy = energy * k * scale
         ld.color = col
         ld.size = sz * max(size, 0.5)
         lo = bpy.data.objects.new(name, ld)
@@ -80,6 +80,7 @@ def studio(sc, centre, size, strength=0.7, rig="soft"):
 
 
 def add_glare(sc, threshold=0.85, size=0.78, strength=0.9):
+    """Fog-glow bloom on the emissive channels only (threshold above the lit metal)."""
     tree = bpy.data.node_groups.new("_glare", "CompositorNodeTree")
     tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     rl = tree.nodes.new("CompositorNodeRLayers")
@@ -139,12 +140,10 @@ def op_icons(p):
         size = float(np.linalg.norm(hi - lo))
         setup_cycles(sc, p["size"], p["size"], samples=p["samples"], denoise=True, transparent=True)
         rig = p.get("rig", "soft")
-        studio(sc, centre, max(size, 0.6) * (1.0 if rig == "hard" else 1.4), 0.9, rig=rig)
+        studio(sc, centre, max(size, 0.6) * (1.0 if rig == "hard" else 1.4), 0.9, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
             boost_channels(p["channel_strength"])
-        if p.get("glare"):
-            add_glare(sc)
-            sc.view_settings.view_transform = "AgX"
+        glare_from(sc, p)
         v = p["view"]
         # frame the silhouette: distance from the bounding radius and lens
         lens = 60
@@ -158,13 +157,26 @@ def op_icons(p):
     finish(p, {"icons": icons})
 
 
-def mannequin_material():
+def mannequin_material(rgb=(0.42, 0.43, 0.44), roughness=0.7):
     m = bpy.data.materials.new("_mannequin")
     m.use_nodes = True
     b = m.node_tree.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = (0.42, 0.43, 0.44, 1)
-    b.inputs["Roughness"].default_value = 0.7
+    b.inputs["Base Color"].default_value = (*rgb, 1)
+    b.inputs["Roughness"].default_value = roughness
     return m
+
+
+def glare_from(sc, p):
+    g = p.get("glare")
+    if not g:
+        return
+    add_glare(sc, **(g if isinstance(g, dict) else {}))
+    sc.view_settings.view_transform = "AgX"
+    try:
+        sc.view_settings.look = p.get("look", "AgX - Medium High Contrast")
+    except TypeError:
+        pass
+    sc.view_settings.exposure = float(p.get("exposure", 0.0))
 
 
 def op_worn(p):
@@ -172,7 +184,7 @@ def op_worn(p):
     written = []
     for k, pose in enumerate(p["poses"]):
         sc = fresh()
-        mm = mannequin_material()
+        mm = mannequin_material(tuple(p.get("mannequin_rgb", (0.42, 0.43, 0.44))), p.get("mannequin_roughness", 0.7))
         groups = []
         items = p["items"][:1] if p.get("together") else p["items"]
         n = len(items)
@@ -185,6 +197,8 @@ def op_worn(p):
                     if base_name(o) in MANNEQUIN_KEEP:
                         o.data.materials.clear()
                         o.data.materials.append(mm)
+                        for slot in o.material_slots:
+                            slot.material = mm
                     else:
                         bpy.data.objects.remove(o, do_unlink=True)
             armour = import_glb(p["glb"])
@@ -209,6 +223,10 @@ def op_worn(p):
                     for tr in list(a.animation_data.nla_tracks):  # imported clips arrive as NLA strips
                         a.animation_data.nla_tracks.remove(tr)
                     a.animation_data.action = act
+                    slots = getattr(act, "slots", None)
+                    if slots and hasattr(a.animation_data, "action_slot"):
+                        # Blender 5 layered actions: a second armature needs the slot too
+                        a.animation_data.action_slot = slots[0]
                 sc.frame_set(int(round(pose["time"] * sc.render.fps)) + int(act.frame_range[0]))
             groups.append(item)
         bpy.context.view_layer.update()
@@ -218,18 +236,23 @@ def op_worn(p):
         size = float(np.linalg.norm(hi - lo))
         setup_cycles(sc, p["width"], p["height"], samples=p["samples"], denoise=True)
         rig = p.get("rig", "soft")
-        studio(sc, centre, max(size, 2.0) * (0.55 if rig == "hard" else 1.0), 0.55, rig=rig)
+        studio(sc, centre, max(size, 2.0) * (0.55 if rig == "hard" else 1.0), 0.55, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
             boost_channels(p["channel_strength"])
-        if p.get("glare"):
-            add_glare(sc)
-            sc.view_settings.view_transform = "AgX"
-        ground(sc, float(lo[2]), max(size, 2.0))
+        glare_from(sc, p)
+        g = ground(sc, float(lo[2]), max(size, 2.0))
+        if p.get("ground_rgb"):
+            gb = g.data.materials[0].node_tree.nodes["Principled BSDF"]
+            gb.inputs["Base Color"].default_value = (*p["ground_rgb"], 1)
+            gb.inputs["Roughness"].default_value = 0.6
         tag = "bind" if not pose else pose["action"].lower()
         for view, az in (("front", 0), ("back", 180), ("three_quarter", 35)):
             if pose and view == "back":
                 continue
-            cam = camera(sc, np.array([centre[0], centre[1], lo[2] + (hi[2] - lo[2]) * 0.62]), size * 0.95, az, 8, 50)
+            # frame the figure by its height (posed arms change the bounding box)
+            hgt = float(hi[2] - lo[2])
+            fit = hgt * 0.56 * 50 / 18  # portrait frame: the 36 mm sensor spans the height
+            cam = camera(sc, np.array([centre[0], centre[1], lo[2] + hgt * 0.5]), fit, az, 6, 50)
             f = out / f"{p['prefix']}_{tag}_{view}.png"
             sc.render.filepath = str(f)
             bpy.ops.render.render(write_still=True)

@@ -55,15 +55,8 @@
     "vanguard_field_set_boots": "cinderlock_boots"
    },
    "fit_surfaces": [
-    "shell_chest",
-    "shell_coat",
-    "shell_belt",
-    "shell_upperarms",
-    "shell_forearms",
-    "shell_thighs",
-    "shell_shins",
-    "shell_shoes",
     "shell_shorts",
+    "shell_shoes",
     "hands"
    ],
    "samples": 160000,
@@ -74,9 +67,9 @@
   "materials": {
    "vanguard_field_set_chest": {
     "under": {
-     "base": "#151618",
-     "edge": "#34363a",
-     "roughness": 0.84,
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
      "metallic": 0.0,
      "wear": 0.2,
      "tone": 0.12,
@@ -84,22 +77,22 @@
      "soot": 0.55
     },
     "plate": {
-     "base": "#1e2024",
-     "edge": "#a3a9b2",
-     "roughness": 0.42,
-     "metallic": 0.72,
-     "wear": 0.8,
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
      "tone": 0.16,
-     "scratch": 0.35,
-     "soot": 0.8,
-     "edge_polish": 0.2
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
     },
     "trim": {
-     "base": "#24262a",
-     "edge": "#6d737c",
-     "roughness": 0.4,
-     "metallic": 0.85,
-     "wear": 0.45,
+     "base": "#1d1f22",
+     "edge": "#565b62",
+     "roughness": 0.44,
+     "metallic": 0.75,
+     "wear": 0.3,
      "tone": 0.1,
      "scratch": 0.2,
      "soot": 0.9
@@ -117,9 +110,9 @@
    },
    "vanguard_field_set_gloves": {
     "under": {
-     "base": "#151618",
-     "edge": "#34363a",
-     "roughness": 0.84,
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
      "metallic": 0.0,
      "wear": 0.2,
      "tone": 0.12,
@@ -127,15 +120,15 @@
      "soot": 0.55
     },
     "plate": {
-     "base": "#1e2024",
-     "edge": "#a3a9b2",
-     "roughness": 0.42,
-     "metallic": 0.72,
-     "wear": 0.8,
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
      "tone": 0.16,
-     "scratch": 0.35,
-     "soot": 0.8,
-     "edge_polish": 0.2
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
     },
     "vent": {
      "base": "#060607",
@@ -150,9 +143,9 @@
    },
    "vanguard_field_set_greaves": {
     "under": {
-     "base": "#151618",
-     "edge": "#34363a",
-     "roughness": 0.84,
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
      "metallic": 0.0,
      "wear": 0.2,
      "tone": 0.12,
@@ -160,15 +153,15 @@
      "soot": 0.55
     },
     "plate": {
-     "base": "#1e2024",
-     "edge": "#a3a9b2",
-     "roughness": 0.42,
-     "metallic": 0.72,
-     "wear": 0.8,
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
      "tone": 0.16,
-     "scratch": 0.35,
-     "soot": 0.8,
-     "edge_polish": 0.2
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
     },
     "vent": {
      "base": "#060607",
@@ -183,9 +176,9 @@
    },
    "vanguard_field_set_boots": {
     "under": {
-     "base": "#151618",
-     "edge": "#34363a",
-     "roughness": 0.84,
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
      "metallic": 0.0,
      "wear": 0.2,
      "tone": 0.12,
@@ -193,15 +186,15 @@
      "soot": 0.55
     },
     "plate": {
-     "base": "#1e2024",
-     "edge": "#a3a9b2",
-     "roughness": 0.42,
-     "metallic": 0.72,
-     "wear": 0.8,
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
      "tone": 0.16,
-     "scratch": 0.35,
-     "soot": 0.8,
-     "edge_polish": 0.2
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
     },
     "sole": {
      "base": "#0d0d0f",
@@ -340,7 +333,23 @@
     0.16,
     0.08
    ],
-   "fx_anchors": true
+   "fx_anchors": true,
+   "hides": {
+    "vanguard_field_set_chest": [
+     "shell_chest",
+     "shell_coat",
+     "shell_belt",
+     "shell_upperarms",
+     "shell_hood"
+    ],
+    "vanguard_field_set_gloves": [
+     "shell_forearms"
+    ],
+    "vanguard_field_set_greaves": [
+     "shell_thighs",
+     "shell_shins"
+    ]
+   }
   },
   "export": {
    "max_texture": 1024,
@@ -359,13 +368,6 @@
    "frames": 8,
    "surface_samples": 60000,
    "under_shells": [
-    "shell_chest",
-    "shell_coat",
-    "shell_belt",
-    "shell_upperarms",
-    "shell_forearms",
-    "shell_thighs",
-    "shell_shins",
     "shell_shoes",
     "shell_shorts",
     "hands"
@@ -397,8 +399,14 @@
     "vanguard_field_set_gloves": true
    },
    "rig": "hard",
-   "glare": true,
-   "channel_strength": 28
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.7,
+    "strength": 0.55
+   },
+   "channel_strength": 28,
+   "light_scale": 0.7,
+   "exposure": -0.2
   },
   "evidence": {
    "samples": 24,
@@ -416,9 +424,26 @@
     }
    ],
    "rig": "hard",
-   "glare": true,
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.75,
+    "strength": 0.6
+   },
    "channel_strength": 28,
-   "together": true
+   "together": true,
+   "light_scale": 0.12,
+   "exposure": -0.3,
+   "mannequin_rgb": [
+    0.055,
+    0.057,
+    0.062
+   ],
+   "mannequin_roughness": 0.6,
+   "ground_rgb": [
+    0.03,
+    0.031,
+    0.034
+   ]
   },
   "publish": {
    "runtime": {

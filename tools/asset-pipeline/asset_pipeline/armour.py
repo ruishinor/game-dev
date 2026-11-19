@@ -466,7 +466,9 @@ def stage_rig(asset, params):
                 P, N, UV, I = arr["P"], arr["N"], arr["UV"], arr["I"]
                 J, Wt = by_piece(P, arr["piece"])
                 mi = w.mesh(item, P, I, normals=N, uvs=UV, joints=J, weights=Wt, material=mat)
-                w.node(item, mesh=mi, skin=skin)
+                # body shells this piece replaces (the runtime hides them while it is worn)
+                hides = params.get("hides", {}).get(item)
+                w.node(item, mesh=mi, skin=skin, **({"extras": {"hides": list(hides)}} if hides else {}))
                 tri[item] = int(len(I))
                 skin_store.update({f"{item}_P": P, f"{item}_I": I, f"{item}_J": J, f"{item}_W": Wt})
                 if "FX_P" in arr.files:

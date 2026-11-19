@@ -440,24 +440,25 @@ def design_gauntlets(body, base, m):
             c = [i for i, n in enumerate(jn) if n in names]
             w = (np.isin(hm["J"], c) * hm["W"]).sum(1)
             return hm["V"][side_v & (w > 0.5)]
-        fa = body.P[joint_weight(body, ["lowerarm"], s) > 0.5]
-        VM = LimbAdapter(LimbMap(body.L["lowerarm_" + s], body.L["hand_" + s], Dn, fa, t_range=(-0.1, 1.15), half=0.014, facets=10))
+        on_skin = np.isin(body.src, [body.surfaces.index(x) for x in ("body", "hands") if x in body.surfaces])
+        fa = body.P[(joint_weight(body, ["lowerarm"], s) > 0.5) & on_skin]
+        VM = LimbAdapter(LimbMap(body.L["lowerarm_" + s], body.L["hand_" + s], Dn, fa, t_range=(-0.1, 1.15), half=0.014, rmax=0.075, facets=14))
         ax = (body.L["hand_" + s] - body.L["lowerarm_" + s])
         ax = list(map(float, ax / np.linalg.norm(ax)))
         for k, (t0, t1) in enumerate(((0.16, 0.54), (0.58, 0.98))):
-            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.012 + 0.002 * k, thickness=0.007,
+            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.0055 + 0.0015 * k, thickness=0.006,
                        bevel=0.0024, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05], flow_origin=origin, flow_scale=0.6)
             pl.groove(D([(-150, t0 + 0.05), (150, t0 + 0.05)]), width=0.0035)
             P.append(pl.export())
-        pl = Plate(it, f"vambrace_plate_{s}", m["plate"], VM, D([(-50, 0.22), (50, 0.22), (58, 0.6), (44, 0.95), (-44, 0.95), (-58, 0.6)]), 0.022,
-                   dome=0.006, keel=0.004, thickness=0.008, bevel=0.0028, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05],
+        pl = Plate(it, f"vambrace_plate_{s}", m["plate"], VM, D([(-50, 0.22), (50, 0.22), (58, 0.6), (44, 0.95), (-44, 0.95), (-58, 0.6)]), 0.0135,
+                   dome=0.004, keel=0.003, thickness=0.008, bevel=0.0028, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05],
                    flow_origin=origin, flow_scale=0.6)
         pl.groove(D([(-28, 0.28), (-34, 0.62), (-26, 0.9)])).groove(D([(28, 0.28), (34, 0.62), (26, 0.9)]))
         pl.hole(D([(-12, 0.4), (12, 0.4), (14, 0.5), (12, 0.6), (-12, 0.6), (-14, 0.5)]))
         for a, b in ((-44, 0.3), (44, 0.3), (-38, 0.88), (38, 0.88)):
             pl.bolt(deg(a), b, r=0.0026)
         P.append(pl.export())
-        P.append(Plate(it, f"vambrace_core_{s}", m["vent"], VM, D([(-14, 0.38), (14, 0.38), (16, 0.5), (14, 0.62), (-14, 0.62), (-16, 0.5)]), 0.015,
+        P.append(Plate(it, f"vambrace_core_{s}", m["vent"], VM, D([(-14, 0.38), (14, 0.38), (16, 0.5), (14, 0.62), (-14, 0.62), (-16, 0.5)]), 0.0095,
                        thickness=0.005, bevel=0.0008, weights=pol(["lowerarm"]), weight_mode=["rigid"]).export())
         HM = LimbAdapter(LimbMap(body.L["hand_" + s], body.L[f"middle_01_{s}"], Dn, cloud_for([f"hand_{s}"]), t_range=(-0.2, 1.25), half=0.01, rmax=0.08, facets=8))
         pl = Plate(it, f"hand_plate_{s}", m["plate"], HM, D([(-62, 0.12), (62, 0.12), (70, 0.6), (58, 0.92), (-58, 0.92), (-70, 0.6)]), 0.006, dome=0.004,

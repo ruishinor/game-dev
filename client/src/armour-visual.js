@@ -69,6 +69,19 @@ export function wearArmour(assets, inst, body, item) {
     piece.userData.armour = item;
     meshes.push(piece);
   }
+  // Body shells (coat, sleeves, ...) the piece replaces are hidden while it is
+  // worn; a shell hidden by several pieces is restored when the last one goes.
+  const hides = new Set(pieces.flatMap((o) => (Array.isArray(o.userData?.hides) ? o.userData.hides : [])));
+  const hidden = [];
+  if (hides.size) {
+    inst.traverse((o) => {
+      if (!o.isMesh || o.userData.armour || !hides.has(o.name.replace(/_\d+$/, ''))) return;
+      if (!o.userData.armourHides) o.userData.armourShown = o.visible;
+      o.userData.armourHides = (o.userData.armourHides || 0) + 1;
+      o.visible = false;
+      hidden.push(o);
+    });
+  }
   const fxMeshes = meshes.filter((m) => m.material?.name === CHANNEL_MATERIAL || m.name.endsWith('__fx'));
   const resolved = anchors.map((a) => ({ ...a, bone: inst.getObjectByName(a.joint) })).filter((a) => a.bone);
   const fx = fxMeshes.length || resolved.length ? createArmourFx(fxMeshes, resolved) : null;
@@ -77,8 +90,13 @@ export function wearArmour(assets, inst, body, item) {
     mesh: meshes[0],
     meshes,
     fx,
+    hidden: hidden.map((o) => o.name),
     dispose() {
       fx?.dispose();
+      for (const o of hidden) {
+        o.userData.armourHides -= 1;
+        if (!o.userData.armourHides) o.visible = o.userData.armourShown !== false;
+      }
       for (const m of meshes) { m.removeFromParent(); m.skeleton.dispose?.(); }
     },
   };
