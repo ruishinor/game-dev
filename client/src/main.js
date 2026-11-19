@@ -84,7 +84,7 @@ const environment = glbOnly === 'none' ? null : makeEnvironment(renderer);
 scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
-const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0', reducedMotion: () => motionPreference.matches || params.get('q') === '0' });
 const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);

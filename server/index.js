@@ -66,6 +66,8 @@ const ASSET_PREFIX = '/client/assets/';
 
 function resolveStatic(urlPath) {
   if (urlPath === '/' || urlPath === '/index.html') return path.join(ROOT, 'client', 'index.html');
+  // Owner-approved runtime export only; never mount pipeline sources or reports.
+  if (urlPath === '/client/assets/stillpoint.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'stillpoint', 'outputs', 'stillpoint.glb');
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);
