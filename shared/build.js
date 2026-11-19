@@ -35,7 +35,8 @@ export function deriveStats(char) {
     }
   }
   // Set effects are derived only from the owned, eligible loadout.
-  const eligible = resolveLoadout(char, char.equipped).equipped;
+  const hasSetPiece = SLOTS.some(slot => ITEMS[char.equipped[slot]]?.setId);
+  const eligible = hasSetPiece ? resolveLoadout(char, char.equipped).equipped : {};
   for (const set of armorSetBonuses(char.cls, eligible, ITEMS, ARMOR_SETS)) {
     for (const { mods: bonus } of set.active) {
       for (const [key, value] of Object.entries(bonus)) {
