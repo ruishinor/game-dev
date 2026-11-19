@@ -465,7 +465,7 @@ try {
   const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery','sanctum_fabricator','initiation_terminal','annex_cache'].includes(e.c)).map((e) => e.c);
   check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
-  check('14. procedural Annex cache has actual rendered geometry',await A.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('annex:recovery-cache');let meshes=0;g?.traverse(o=>{if(o.isMesh)meshes++});return meshes>0;}));
+  check('14. procedural Annex cache has actual rendered geometry',await A.page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('annex:recovery-cache');let meshes=0;g?.traverse(o=>{if(o.isMesh)meshes++});return meshes>0;}));
   const aByB = await drawn(B, sa.myId);
   const bByA = await drawn(A, sb.myId);
   check('14. each session draws the other with its own look, standing idle', aByB.look === 'vanguard_plate' && bByA.look === 'conductor' && aByB.base === 'Idle_Loop' && bByA.base === 'Idle_Loop', `A as seen by B: ${JSON.stringify(aByB)}`);

@@ -24,6 +24,20 @@ try {
   await page.goto(url);
   await page.fill('#name', 'Brine Tester');
   await page.click('.classcard[data-cls="surveyor"]');
+  const creation=page.locator('#creation-preview');await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.model==='glb');
+  const initialAppearance=await creation.getAttribute('data-appearance');
+  await page.locator('#ap-frame button[data-value="m"]').click();await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(a=>document.querySelector('#creation-preview').dataset.appearance!==a&&document.querySelector('#creation-preview').dataset.appearance?.startsWith('m.'),initialAppearance);
+  await creation.getByRole('button',{name:'Face',exact:true}).click();
+  await creation.getByRole('button',{name:'Rotate right'}).click();
+  await creation.getByRole('button',{name:'Zoom in'}).click();
+  assert.equal(await creation.getAttribute('data-mode'),'face');assert.notEqual(await creation.getAttribute('data-yaw'),'0.36');assert.ok(Number(await creation.getAttribute('data-zoom'))>1);
+  await creation.getByRole('button',{name:'Reset camera'}).click();assert.equal(await creation.getAttribute('data-mode'),'body');
+  await page.locator('#ap-frame button[data-value="f"]').click();await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.appearance?.startsWith('f.'));
+  const previewAppearance=await creation.getAttribute('data-appearance');
+  await page.screenshot({path:'preview-evidence/00-live-creation.png'});
   await page.click('#enter');
   await page.waitForFunction(() => {
     const s = window.__attune?.state();
@@ -40,6 +54,8 @@ try {
   const p = [...server.game.players.values()].find(x => x.name === 'Brine Tester');
   assert.ok(p);
   assert.equal(p.cls, 'surveyor');
+  assert.equal(p.char.appearance,previewAppearance,'Preview appearance must equal authoritative gameplay appearance');
+  assert.equal(await creation.getAttribute('data-model'),null,'Creation model released on entering world');
   assert.equal(p.companion, null);
   assert.equal(await page.getByRole('button', { name: 'Fault Scan', exact: true }).count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);

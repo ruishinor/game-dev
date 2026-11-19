@@ -651,3 +651,13 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .item-art svg{width:90%;height:90%;filter:drop-shadow(0 2px 1px #0009)}
 .item-art.glyph svg{filter:drop-shadow(0 2px 1px #0009)}
 .recipe-result .item-art svg,.recipe-entry .item-art svg,.fabrication-visual .item-art svg{width:90%;height:90%;}
+
+/* REAL-TIME CREATION INSPECTION */
+#creation-preview{margin:12px 0;border:1px solid var(--edge);border-radius:8px;padding:12px;background:#101b22}
+#creation-preview h2{margin-bottom:8px;font-size:14px;color:var(--cyan)}
+#creation-preview canvas{display:block;width:100%;height:clamp(230px,44vh,350px);border-radius:6px;cursor:grab;touch-action:none;background:#132029}
+#creation-preview canvas:active{cursor:grabbing}
+#creation-preview canvas:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.preview-controls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.preview-controls button{font-size:12px;padding:5px 9px}
+.preview-controls button[aria-pressed=true]{border-color:var(--cyan);background:#26525f}
