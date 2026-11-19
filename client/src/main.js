@@ -66,7 +66,7 @@ const params = new URLSearchParams(location.search);
 const glbOnly = params.get('glb');
 const assets = new Assets();
 await assets.init();
-await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
+await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
 // Original carapace is opt-in until actual visual/motion review; no
@@ -669,7 +669,8 @@ if (net.accountToken || net.token) {
 function addEntity(meta) {
   let ent = S.ents.get(meta.i);
   if (ent) {
-    ent.meta = meta; // e.g. level changed
+    if (ent.meta.wv !== meta.wv) ent.model.setWeaponVisual?.(meta.wv);
+    ent.meta = meta; // e.g. level or public weapon visual changed
     return ent;
   }
   const model = createModel(assets, meta, useGlb(meta));
@@ -898,7 +899,7 @@ function onEvent(e) {
           s.faceUntil = now + 500;
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) fx.bolt(chestOf(s), chestOf(d), sourceColour(s));
+        if (e.k === 'bolt' && d) fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
           const a=pointOf(s),b=pointOf(d);
@@ -1915,7 +1916,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

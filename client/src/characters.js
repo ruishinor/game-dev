@@ -22,6 +22,7 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
+import { createLongpointPresentation } from './longpoint.js';
 import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
@@ -202,6 +203,18 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let dead = false;
   let moving = false;
   let landed = true;
+  let weapon = null, visual = null;
+  function setWeaponVisual(next) {
+    next = next === 'longpoint' ? next : null;
+    if (next === visual) return;
+    weapon?.dispose(); weapon = null; visual = next;
+    if (!next) return;
+    const prop = assets.instance(next);
+    if (!prop) return;
+    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
+    if (!weapon) disposeInstance(prop);
+  }
+  setWeaponVisual(opts.weaponVisual);
 
   return {
     kind: 'glb',
@@ -211,6 +224,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     radius: 0.45,
     hover: 0,
     accent: def.accent,
+    setWeaponVisual,
+    weaponEffectOrigin: () => weapon?.origin() || null,
     update(dt, st) {
       if (st.dead !== dead) {
         dead = st.dead;
@@ -233,7 +248,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) anim.update(step);
+      if (step) { weapon?.restore(); anim.update(step); }
+      if (weapon && (step || st.dead || st.air || st.casting || anim.busy)) weapon.update({ ...st, hideWeapon: st.casting || anim.busy });
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -252,11 +268,14 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         anim.react(HB.hit);
         return;
       }
+      // A mounted Longpoint holds a steady presentation pose for ranged auto attacks.
+      if (kind === 'cast' && id === 'auto' && weapon?.origin()) return;
       // A ranged class's basic attack is a bolt, not a punch.
       const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
+      weapon?.dispose();
       anim.dispose();
       face?.dispose();
       disposeInstance(group);
@@ -526,7 +545,7 @@ export function createModel(assets, meta, glb = true) {
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
-    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap });
+    if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {
