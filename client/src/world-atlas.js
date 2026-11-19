@@ -21,7 +21,7 @@ export function formatMinutes(minutes,format='24'){
  return format==='12'?(hours%12||12)+':'+m+' '+(hours<12?'AM':'PM'):String(hours).padStart(2,'0')+':'+m;
 }
 let terrain;
-function reachTerrain(){
+export function reachTerrain(){
  if(terrain)return terrain;
  const c=el('canvas');c.width=c.height=192;const g=c.getContext('2d'),a=g.createImageData(192,192),r=WORLD.radius,s=2*r/192;
  for(let j=0;j<192;j++)for(let i=0;i<192;i++){
@@ -60,7 +60,7 @@ export class WorldAtlas{
  settings.append(section);this.clocks();
  }
  save(k,v){try{localStorage.setItem('attunement.map.'+k,v);}catch{}}
- clocks(){const s=this.state?.daylight,d=daylightDisplay(s),n=new Date();this.day.hidden=!this.prefs.phase.checked||!d;this.day.textContent=d?.phase==='day'?'☀':'☾';this.day.title=d?'Lighting preview · '+d.phase:'';this.game.hidden=!this.prefs.game.checked;this.game.textContent=d?'Preview '+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time —';this.real.hidden=!this.prefs.real.checked;this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;}
+ clocks(){const s=this.state?.daylight,d=this.region?.area===SEVERANCE_POCKET?daylightDisplay(s):null,n=new Date();this.day.hidden=!this.prefs.phase.checked||!d;this.day.textContent=d?.phase==='day'?'☀':'☾';this.day.title=d?'Lighting preview · '+d.phase:'';this.game.hidden=!this.prefs.game.checked;this.game.textContent=d?'Preview '+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time —';this.real.hidden=!this.prefs.real.checked;this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;}
  open(){this.el.hidden=false;this.draw();this.el.querySelector('button')?.focus();}
  close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
  scale(f){this.zoom=clamp(this.zoom*f,1,5);this.draw();}
