@@ -46,7 +46,7 @@ function frame(now){
  // Showcase study only; the future humanoid clips must follow hand anchors.
  const swing=reduced?0:(mode==='rod'?1.08:.64)*Math.sin(phase*Math.PI*2)*active;
  pivot.rotation.set(-.11*active,mode==='rod'?swing*.65:0,swing);
- rod.update(dt,{reducedMotion:reduced,energized,activity:active});
+ rod.update(dt,{reducedMotion:reduced,energized,activity:active,quality:vfx.quality,intensity:vfx.intensity,calm:vfx.calmFlashes});
  if(energized&&before<.44&&phase>=.44){rodVfx.impact(rod.anchor(0,'Tip'),{ground:new THREE.Vector3(0,0,0)});}
  rodVfx.update(dt,{energized,activity:active});vfx.update(dt);
  const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h){
