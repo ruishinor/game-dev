@@ -81,7 +81,7 @@ export function tickSurveyStrider(game,c,dt){
   const old=getBuff(p,'shield');
   if(!inSanctum(p)&&p.combatUntil>game.time&&p.hp<p.maxHp*.5&&dist(c,p)<=5&&hasLineOfSight(c,p)&&deepLineClear(c,p)&&(!old||old.until<=game.time||old.v<=0)&&game.time>=Math.max(c.nextPulse,p.striderScreenReadyAt??0)){
    p.striderScreenReadyAt=game.time+24000;c.screenUntil=game.time+6000;c.act='screening';c.actTarget=p.id;
-   addBuff(p,{k:'shield',v:20,cap:20,until:c.screenUntil,src:c.id});game.events.push({e:'shield',s:c.id,d:p.id,a:20});game.message(p,'info',c.name+' projected an emergency screen.');
+   addBuff(p,{k:'shield',v:20,cap:20,until:c.screenUntil,src:c.id});game.emitWorldEvent({e:'shield',s:c.id,d:p.id,a:20});game.message(p,'info',c.name+' projected an emergency screen.');
   }return;
  }
  const target=game.ents.get(p.target);
@@ -101,6 +101,6 @@ export function tickSurveyStrider(game,c,dt){
  p.surveyKit.mark={id:target.id,until:game.time+SCAN_MS,source:c.id};
  const before=p.res;p.res=Math.min(CLASSES[p.cls].resource.max,p.res+15);
  if(p.res>before)game.message(p,'info',c.name+' transferred '+(p.res-before)+' Power Cells.');
- game.events.push({e:'cast',s:c.id,d:target.id,ab:'fault_scan'});
+ game.emitWorldEvent({e:'cast',s:c.id,d:target.id,ab:'fault_scan'});
  game.message(p,'info',c.name+' analyzed '+target.name+'.');
 }
