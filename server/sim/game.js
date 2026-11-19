@@ -24,6 +24,7 @@ import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
+import {kestrelAlarmFor} from './kestrel-alarm.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
 import { checkDirective, tickBrineTrial, tickInscription, cancelInscription, inscriptionState } from './progress.js';
@@ -454,6 +455,7 @@ export class Game {
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSanctum(p) ? 1 : 0,
       workshop:workshopSite(p),
+      kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),
       companions: companionRoster(this, p),
       canCommissionSpindle: canCommissionSpindle(this, p),
