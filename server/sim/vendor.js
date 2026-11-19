@@ -8,7 +8,7 @@ import {sanitizeCredits,walletAfter} from './wallet.js';
 import {ITEMS} from '../../shared/content.js';
 import {sanitizeCondition,conditionOf} from '../../shared/condition.js';
 import {repairPrice} from './condition.js';
-const BUY=Object.freeze({mire_fibre:8,sentinel_alloy:12});
+const BUY=Object.freeze({mire_fibre:8,sentinel_alloy:12,pulse_housing:14});
 const BUY_EQUIPMENT=Object.freeze({field_emitter:12,electrical_combat_rod:24,social_service_coat:8,social_relay_coat:12});
 const BUY_UTILITIES=Object.freeze({field_maintenance_kit:12});
 const SELL=Object.freeze({mire_husk:2,spent_contact:3});
