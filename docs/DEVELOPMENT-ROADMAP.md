@@ -73,6 +73,8 @@ Milestone B exit: player can understand and use rewards, construct a differentia
 | ART-07 | Review prior 15 deliverables and 19 visual reviews | Partial; 56 vector item portraits rendered for review, final in-context review pending | See art/ASSET-PRODUCTION-PLAN.md and art/reviews; verify actual in-game usage, not just file presence; reference archive remains incomplete. |
 | ART-08 | Asset sourcing and licensing feasibility | Investigated; AO direct reuse blocked absent permission | See section 7. Prefer legally reusable donors and original adaptation; no ripped models. |
 
+| ART-09 | Halo Construct NPC race (wardens, vendor) | Implemented on `feat/halo-construct-npcs`: four outward-facing Sanctum Wardens and the quartermaster as the Halo vendor, from the accepted source via the asset pipeline's `imported-mechanical-humanoid` route; technical validation recorded in art/HALO-CONSTRUCT-NPC.md. Owner visual acceptance granted; integrated CI pending | Preserve accepted anatomy, open ring and optics; distinct security/vendor wardrobes; rigid shells, flexible couplings; exactly four outward wardens outside the perimeter; vendor services unchanged; actual GLB in game. Further roles (artisan/crafting with the original utility kit, researcher, mediator) are separate decisions. |
+
 ## 6. Milestone D — Expansion (deferred until coherence gate)
 
 | ID | Work | Baseline / status | Acceptance |
