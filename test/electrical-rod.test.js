@@ -62,3 +62,24 @@ test('joined equipped model follows its hand and disposes independently',()=>{
  }finally{rod.dispose();}
  assert.equal(hand.getObjectByName('HeldElectricalCombatRod'),undefined);
 });
+
+test('dual hand anchors track independent hands; join and reverse without replacing meshes',()=>{
+ const scene=new Group(),right=new Bone(),left=new Bone();
+ scene.add(right,left);right.position.set(.32,1.1,.2);left.position.set(-.32,1.15,.3);
+ left.rotation.set(.4,.2,-.3);
+ const palm=new Vector3(.02,.04,.03),offPalm=new Vector3(-.02,.03,.04);
+ const rod=createHeldElectricalRod(right,{palm,offHand:left,offPalm});
+ try{
+  rod.setMode('dual');rod.update(1.5);
+  near(rod.anchor(0,'Grip').distanceTo(right.localToWorld(palm.clone())),0);
+  near(rod.anchor(1,'Grip').distanceTo(left.localToWorld(offPalm.clone())),0);
+  left.position.x-=.12;left.rotation.y+=.4;rod.update(0);
+  near(rod.anchor(1,'Grip').distanceTo(left.localToWorld(offPalm.clone())),0);
+  rod.setMode('rod');rod.update(.3);
+  const mid=rod.anchor(1,'Tip');rod.setMode('dual');rod.update(0);
+  near(mid.distanceTo(rod.anchor(1,'Tip')),0);
+  rod.setMode('rod');rod.update(2);
+  near(rod.anchor(0,'Coupler').distanceTo(rod.anchor(1,'Coupler')),0);
+  near(rod.anchor(0,'Tip').distanceTo(rod.anchor(1,'Tip')),1.5);
+ }finally{rod.dispose();}
+});
