@@ -8,9 +8,14 @@ import * as THREE from 'three';
 export const ARMOUR_BUNDLES = Object.freeze({ humanoid_m: 'armour_chest_m', humanoid_f: 'armour_chest_f' });
 
 function bodyMesh(inst) {
-  let found = null;
-  inst.traverse((o) => { if (!found && o.isSkinnedMesh && o.name === 'body') found = o; });
-  return found;
+  // the body mesh (any skinned mesh of the character shares its skeleton and bind)
+  let found = null, any = null;
+  inst.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    if (!found && /^body(_\d+)?$/.test(o.name)) found = o;
+    if (!any) any = o;
+  });
+  return found || any;
 }
 
 /**
@@ -22,11 +27,16 @@ export function wearArmour(assets, inst, body, item) {
   const bundle = ARMOUR_BUNDLES[body];
   if (!bundle || !item) return null;
   const src = assets.instance(bundle);
-  if (!src) return null;
+  if (!src) { console.error(`[armour] ${item}: ${bundle} is not loaded`); return null; }
   let piece = null;
   src.traverse((o) => { if (!piece && o.isSkinnedMesh && o.name === item) piece = o; });
   const host = bodyMesh(inst);
-  if (!piece || !host) return null;
+  if (!piece || !host) {
+    const names = [];
+    src.traverse((o) => { if (o.isMesh) names.push(`${o.type}:${o.name}`); });
+    console.error(`[armour] ${item}: ${!piece ? `no skinned piece in ${bundle} (${names.join(', ')})` : 'character has no skinned body mesh'}`);
+    return null;
+  }
   const bones = piece.skeleton.bones.map((b) => inst.getObjectByName(b.name));
   if (bones.some((b) => !b)) {
     console.error(`[armour] ${item}: skeleton of ${body} is missing joints`);
