@@ -23,7 +23,7 @@ test('social purchase is unique, owned, class-independent and does not change ar
  assert.equal(p.char.credits,12);
  const stats=p.stats,buff={k:'shield',v:10,until:g.time+1000};p.buffs.push(buff);
  const version=p.metaVer;
- assert.equal(g.metaFor(p).av,'field_chest');
+ assert.deepEqual(g.metaFor(p).av,{chest:'field_chest'});
  assert.ok(equipItem(g,p,order.id).ok);
  assert.equal(p.stats,stats);assert.ok(p.buffs.includes(buff));
  assert.equal(p.char.equipped.chest,'field_chest');assert.equal(g.metaFor(p).sv,'service');
@@ -33,7 +33,7 @@ test('social purchase is unique, owned, class-independent and does not change ar
  assert.equal(publicSocialVisual({equipped:{social_torso:order.id},inventory:[]}),null);
  for(const id of ['constructor','__proto__','x/../y'])assert.equal(socialVisualForItem(id),null);
  assert.ok(unequipSlot(g,p,'social_torso').ok);
- assert.equal(g.metaFor(p).sv,undefined);assert.equal(g.metaFor(p).av,'field_chest');assert.ok(p.buffs.includes(buff));assert.equal(p.stats,stats);
+ assert.equal(g.metaFor(p).sv,undefined);assert.deepEqual(g.metaFor(p).av,{chest:'field_chest'});assert.ok(p.buffs.includes(buff));assert.equal(p.stats,stats);
 });
 test('owned social equipment survives reload while an unowned social value is removed',t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attunement-social-'));

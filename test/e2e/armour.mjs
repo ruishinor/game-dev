@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import { startServer } from '../../server/index.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 import { liveFixturePlayer } from './live-fixture.mjs';
-import { ARMOUR_VISUALS } from '../../shared/armour-visual.js';
+import { ARMOUR_VISUALS, ARMOUR_ASSETS, ARMOUR_SLOTS } from '../../shared/armour-visual.js';
 import { ITEMS } from '../../shared/content.js';
 
 const OUT = 'armour-evidence';
@@ -85,24 +85,33 @@ try {
   await watcher.waitForFunction((id) => window.__attune.state().ents.some((e) => e.id === id), wearerId);
   await page.bringToFront();
 
-  for (const id of ARMOUR_VISUALS) {
-    const name = ITEMS[id].name;
-    // equip with the inventory's own context action, validated by the server
-    const cell = page.locator(`.inventory-window button.item-cell[aria-label="${name}"]`);
+  // equip with the inventory's own context action, validated by the server
+  async function equip(id) {
+    const cell = page.locator(`.inventory-window button.item-cell[aria-label="${ITEMS[id].name}"]`);
     await cell.click({ button: 'right' });
     await page.getByRole('button', { name: /^(Equip|Swap in)$/ }).first().click();
-    await page.waitForFunction((it) => window.__attune.state().sheet.equipped.chest === it, id, { timeout: 15000 });
-    const worn = await (await page.waitForFunction((it) => {
+    await page.waitForFunction(([it, slot]) => window.__attune.state().sheet.equipped[slot] === it, [id, ITEMS[id].slot], { timeout: 15000 });
+  }
+  // wearer and observer both build the worn piece in every slot of `want`
+  async function wornBoth(want) {
+    const worn = await (await page.waitForFunction((w) => {
       const s = window.__attune.state();
-      const me = s.ents.find((e) => e.id === s.myId);
-      return me && me.armourVisual === it && me.armourWorn === it ? me : null;
-    }, id, { timeout: 30000 })).jsonValue();
+      const e = s.ents.find((x) => x.id === s.myId);
+      return e && Object.entries(w).every(([slot, it]) => e.armourVisual?.[slot] === it && e.armourWornAll?.[slot] === it) ? e : null;
+    }, want, { timeout: 30000 })).jsonValue();
     // background tabs pause requestAnimationFrame: let the observer run
     await watcher.bringToFront();
-    const seen = await (await watcher.waitForFunction(([wid, it]) => {
+    const seen = await (await watcher.waitForFunction(([wid, w]) => {
       const e = window.__attune.state().ents.find((x) => x.id === wid);
-      return e && e.armourVisual === it && e.armourWorn === it ? e : null;
-    }, [wearerId, id], { timeout: 30000, polling: 100 })).jsonValue();
+      return e && Object.entries(w).every(([slot, it]) => e.armourVisual?.[slot] === it && e.armourWornAll?.[slot] === it) ? e : null;
+    }, [wearerId, want], { timeout: 30000, polling: 100 })).jsonValue();
+    return { worn, seen };
+  }
+  const chests = ARMOUR_VISUALS.filter((id) => ARMOUR_ASSETS[id] === 'armour_chest');
+  const cinder = ARMOUR_VISUALS.filter((id) => ARMOUR_ASSETS[id] === 'armour_vanguard_set');
+  for (const id of chests) {
+    await equip(id);
+    const { worn, seen } = await wornBoth({ chest: id });
     await page.bringToFront();
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
@@ -115,14 +124,32 @@ try {
     if (await page.locator('.inventory-window').isHidden()) await page.keyboard.press('KeyI');
     await page.locator('.inventory-window').waitFor({ state: 'visible' });
   }
+  // the four-piece Cinderlock Regalia set: every slot is built for the wearer
+  // and the observer, with its emissive channel FX
+  const want = {};
+  for (const id of cinder) {
+    await equip(id);
+    want[ITEMS[id].slot] = id;
+  }
+  const full = await wornBoth(want);
+  await page.bringToFront();
+  const fx = full.worn.armourFx;
+  for (const slot of ARMOUR_SLOTS) assert.equal(fx?.[slot]?.fx, true, `${slot}: emissive channel FX running`);
+  await page.locator('#view').focus();
+  if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
+  await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.4, face: Math.PI }));
+  await capture(page, `${OUT}/cinderlock-worn.png`);
+  report.cinderlock = { worn: full.worn.armourWornAll, observerSees: full.seen.armourWornAll, fx };
+  assert.deepEqual(Object.keys(full.seen.armourWornAll).sort(), [...ARMOUR_SLOTS].sort());
   // removal (the server's own unequip, as the slot's Remove action does)
   // clears the piece for the wearer and the observer
-  const res = (await import('../../server/sim/progress.js')).unequipSlot(server.game, p, 'chest');
-  assert.equal(res.ok, true);
+  const { unequipSlot } = await import('../../server/sim/progress.js');
+  for (const slot of ARMOUR_SLOTS) assert.equal(unequipSlot(server.game, p, slot).ok, true);
   server.game.markDirty(p);
-  await page.waitForFunction(() => { const s = window.__attune.state(); const me = s.ents.find((e) => e.id === s.myId); return me && !me.armourWorn; }, null, { timeout: 30000 });
+  await page.bringToFront();
+  await page.waitForFunction(() => { const s = window.__attune.state(); const e = s.ents.find((x) => x.id === s.myId); return e && !e.armourVisual && !e.armourWorn && !Object.keys(e.armourWornAll || {}).length; }, null, { timeout: 30000 });
   await watcher.bringToFront();
-  await watcher.waitForFunction((wid) => { const e = window.__attune.state().ents.find((x) => x.id === wid); return e && !e.armourVisual && !e.armourWorn; }, wearerId, { timeout: 30000 });
+  await watcher.waitForFunction((wid) => { const e = window.__attune.state().ents.find((x) => x.id === wid); return e && !e.armourVisual && !e.armourWorn && !Object.keys(e.armourWornAll || {}).length; }, wearerId, { timeout: 30000 });
   assert.ok((await liveFixturePlayer(page, server, 'Armour Wearer')) === p, 'wearer remained on the original authenticated session');
   assert.ok((await liveFixturePlayer(watcher, server, 'Armour Watcher')) === observer, 'observer remained on the original authenticated session');
   report.removal = true;
