@@ -313,7 +313,9 @@ export const ANNEX_FORMATIONS=Object.freeze([
   [-12,8,1.7,2.8,84], [13,1,1.45,2.3,85], [11,-6,1.25,2.1,86],
   [-13,-16,1.65,3.0,87], [13,-20,1.7,3.3,88], [-11,-30,1.35,2.4,89], [11,-31,1.1,1.9,90]
 ].map(([dx,z,r,h,seed])=>Object.freeze({type:'annex_formation',x:RIFT_ANNEX.x+dx,z,r,h,seed})));
-export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS];
+// One resting Stillpoint in the safe Sanctum, clear of the arrival and gate lanes.
+export const STILLPOINT_SITE=Object.freeze({type:'stillpoint_rest',x:8,z:-1.5,r:2,h:1.9,seed:107});
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE];
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
 // Conservative horizontal cover test against the same solid prop footprints
@@ -389,6 +391,22 @@ if(RIFT_SITE){
 }
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
+// Four Halo Construct wardens stand outside the Sanctum perimeter, one per
+// sector between the three roads, facing away from the centre. Positions were
+// solved against this module's roads, colliders, objects and ground slope
+// (>= 5.9 m from every road centreline, flat ground, nothing within 1.4 m) and
+// are appended after the rift-site search so no existing placement moves.
+// Yaw follows the game convention (0 faces +Z; forward = (sin yaw, cos yaw)),
+// so the outward yaw is the bearing from the centre.
+export const SANCTUM_GUARD_RADIUS = 16;
+export const SANCTUM_GUARDS = Object.freeze([15, 105, 200, 280].map((deg, i) => {
+  const a = deg * Math.PI / 180;
+  const x = Math.round((WORLD.sanctum.x + Math.sin(a) * SANCTUM_GUARD_RADIUS) * 1000) / 1000;
+  const z = Math.round((WORLD.sanctum.z + Math.cos(a) * SANCTUM_GUARD_RADIUS) * 1000) / 1000;
+  return Object.freeze({ key: `sanctum_guard_${i + 1}`, type: 'sanctum_guard', name: 'Sanctum Warden', x, z, r: 0.45,
+    yaw: Math.atan2(x - WORLD.sanctum.x, z - WORLD.sanctum.z), variant: i });
+}));
+OBJECTS.push(...SANCTUM_GUARDS);
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall'||p.type==='annex_wall');
 
