@@ -52,9 +52,9 @@ try {
 
   // an observer in the same region
   const watcher = await join('Armour Watcher', 'keeper');
-  await page.bringToFront();
   const wearerId = p.id;
   await watcher.waitForFunction((id) => window.__attune.state().ents.some((e) => e.id === id), wearerId);
+  await page.bringToFront();
 
   for (const id of ARMOUR_VISUALS) {
     const name = ITEMS[id].name;
@@ -68,10 +68,13 @@ try {
       const me = s.ents.find((e) => e.id === s.myId);
       return me && me.armourVisual === it && me.armourWorn === it ? me : null;
     }, id, { timeout: 30000 })).jsonValue();
+    // background tabs pause requestAnimationFrame: let the observer run
+    await watcher.bringToFront();
     const seen = await (await watcher.waitForFunction(([wid, it]) => {
       const e = window.__attune.state().ents.find((x) => x.id === wid);
       return e && e.armourVisual === it && e.armourWorn === it ? e : null;
     }, [wearerId, id], { timeout: 30000 })).jsonValue();
+    await page.bringToFront();
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
     await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.2, face: Math.PI }));
@@ -89,6 +92,7 @@ try {
   assert.equal(res.ok, true);
   server.game.markDirty(p);
   await page.waitForFunction(() => { const s = window.__attune.state(); const me = s.ents.find((e) => e.id === s.myId); return me && !me.armourWorn; }, null, { timeout: 30000 });
+  await watcher.bringToFront();
   await watcher.waitForFunction((wid) => { const e = window.__attune.state().ents.find((x) => x.id === wid); return e && !e.armourVisual && !e.armourWorn; }, wearerId, { timeout: 30000 });
   report.removal = true;
   assert.deepEqual(report.pageErrors, [], 'no page errors');
