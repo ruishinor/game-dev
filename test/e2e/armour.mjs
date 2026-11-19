@@ -25,13 +25,13 @@ try {
     await page.bringToFront();
     await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
     await page.fill('#name', name);
-    // A second WebGL page under software GL can starve rAF long enough that the
-    // class card never reads as "stable"; the click itself is all that matters.
-    const card = page.locator(`.classcard[data-cls="${cls}"]`);
-    await card.waitFor({ state: 'visible' });
-    await card.click({ force: true });
+    // A second WebGL page under software GL can starve layout and rAF long
+    // enough that Playwright never sees the class card as visible/stable; the
+    // join only needs the DOM clicks, so dispatch them directly.
+    await page.waitForFunction((c) => !!document.querySelector(`.classcard[data-cls="${c}"]`), cls);
+    await page.evaluate((c) => document.querySelector(`.classcard[data-cls="${c}"]`).click(), cls);
     await page.waitForFunction((c) => document.querySelector(`.classcard[data-cls="${c}"]`)?.getAttribute('aria-pressed') === 'true', cls);
-    await page.locator('#enter').click({ force: true });
+    await page.evaluate(() => document.querySelector('#enter').click());
     await page.waitForFunction((c) => { const s = window.__attune?.state(); return s?.myId && s.sheet?.cls === c && s.drawn >= 2; }, cls, { polling: 100 });
     if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(true));
     return page;
@@ -102,13 +102,14 @@ try {
     const seen = await (await watcher.waitForFunction(([wid, it]) => {
       const e = window.__attune.state().ents.find((x) => x.id === wid);
       return e && e.armourVisual === it && e.armourWorn === it ? e : null;
-    }, [wearerId, id], { timeout: 30000 })).jsonValue();
+    }, [wearerId, id], { timeout: 30000, polling: 100 })).jsonValue();
     await page.bringToFront();
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
     await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.2, face: Math.PI }));
     await capture(page, `${OUT}/${id}-worn.png`);
-    await capture(watcher, `${OUT}/${id}-observer.png`);
+    if(id===ARMOUR_VISUALS[0])await capture(watcher, `${OUT}/${id}-observer.png`);
+    await page.bringToFront();
     report.items[id] = { worn: worn.armourWorn, observerSees: seen.armourWorn, anim: worn.anim };
     await page.locator('#view').focus();
     if (await page.locator('.inventory-window').isHidden()) await page.keyboard.press('KeyI');
@@ -136,7 +137,7 @@ try {
     const pages = browser ? browser.contexts().flatMap((c) => c.pages()) : [];
     for (const pg of pages) {
       const st = await pg.evaluate(() => { const s = window.__attune?.state(); const me = s?.ents.find((e) => e.id === s.myId);
-        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, equipped: s?.sheet?.equipped, assets: { loaded: s?.assets?.loaded, failed: s?.assets?.failed } }; }).catch((e) => String(e));
+        return { myId: s?.myId, me: me && { model: me.model, armourVisual: me.armourVisual, armourWorn: me.armourWorn }, players: s?.ents.filter(e=>e.k==='p').map(e=>({id:e.id,x:e.x,z:e.z,model:e.model,armourVisual:e.armourVisual,armourWorn:e.armourWorn,inView:e.inView})), assets: { loaded: s?.assets?.loaded, failed: s?.assets?.failed } }; }).catch((e) => String(e));
       console.error('[armour-e2e] page state', JSON.stringify(st));
     }
   } catch (e) { console.error('[armour-e2e] diagnostics failed', e); }
