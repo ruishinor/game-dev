@@ -1225,6 +1225,8 @@ function onEvent(e) {
     }
     case 'radio':
       ui.radio.receive(e.source,e.m,e.dialogueId);break;
+    case 'workshop_open':
+      ui.workshopTab='fabrication';ui.toggleWorkshop(true);break;
     case 'field_record':
       ui.showFieldRecord(e.key);break;
     case 'say':

@@ -870,6 +870,7 @@ export const MODEL_FACTORIES = {
   archivist: makeArchivist,
   quartermaster: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
+  sanctum_fabricator: () => ({group:new THREE.Group(),height:2.7,radius:0.5,hover:0,update(){}}),
   brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   survey_signal: () => makeSurveyTerminal(false),
