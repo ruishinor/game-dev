@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Box3,Vector3} from 'three';
-import {createElectricalRod,createElectricalRodVfx,rodPose,ROD} from '../client/src/electrical-rod.js';
+import {Box3,Vector3,Bone,Group} from 'three';
+import {createElectricalRod,createHeldElectricalRod,createElectricalRodVfx,rodPose,ROD} from '../client/src/electrical-rod.js';
 const near=(a,b,eps=1e-6)=>assert.ok(Math.abs(a-b)<eps,`${a} vs ${b}`);
 test('two matching original meshes share geometry and form a centered continuous rod',()=>{
  const rod=createElectricalRod();
@@ -48,4 +48,17 @@ test('short local VFX only, bounded emission, no light or gameplay mutation',()=
   vfx.reducedMotion=true;fx.update(.6);assert.equal(n,2);
   vfx.quality=0;fx.impact(new Vector3());assert.equal(bursts,0);
  }finally{rod.dispose();}
+});
+
+test('joined equipped model follows its hand and disposes independently',()=>{
+ const scene=new Group(),hand=new Bone();hand.name='hand_r';scene.add(hand);
+ const palm=new Vector3(.02,.04,.03),axis=new Vector3(0,0,1),rod=createHeldElectricalRod(hand,{axis,palm});
+ try{
+  near(rod.progress,1);assert.equal(rod.group.parent,hand);
+  near(rod.anchor(0,'Grip').distanceTo(hand.localToWorld(palm.clone())),0);
+  hand.position.set(2,1,3);hand.rotation.set(.4,.2,1.2);scene.updateMatrixWorld(true);
+  near(rod.anchor(0,'Grip').distanceTo(hand.localToWorld(palm.clone())),0);
+  near(rod.anchor(0,'Coupler').distanceTo(rod.anchor(1,'Coupler')),0);
+ }finally{rod.dispose();}
+ assert.equal(hand.getObjectByName('HeldElectricalCombatRod'),undefined);
 });

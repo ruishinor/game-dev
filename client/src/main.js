@@ -1650,6 +1650,8 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      electricalRod: ent.meta.k==='p'&&row?.er===1,
+      electricalRodVfx: ent.inView ? vfx : null,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,

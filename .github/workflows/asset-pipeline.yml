@@ -19,4 +19,4 @@ jobs:
       - run: python3 -m venv .venv && .venv/bin/pip install --quiet -r tools/asset-pipeline/requirements-test.txt
       - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - run: cd tools/asset-pipeline && ../../.venv/bin/python -m unittest discover -s tests -v
-      - run: node --check client/src/pipeline-preview.js && node --check tools/asset-pipeline/js/optimize.mjs && node --check tools/asset-pipeline/js/preview-capture.mjs
+      - run: node --check client/src/pipeline-preview.js && node --check tools/asset-pipeline/js/optimize.mjs && node --check tools/asset-pipeline/js/preview-capture.mjs && node --check tools/asset-pipeline/js/serve-preview.mjs

@@ -1,6 +1,6 @@
 # Electrical combat rod — original art candidate
 
-Status: source and isolated runtime inspection; gameplay integration, rendered evidence and production promotion are not yet complete. The owner's two supplied concept boards remain outside Git. No donor weapon, external model or proprietary game mesh is used.
+Status: original asset plus purchasable joined-configuration gameplay candidate. Fresh integrated validation, human fitting/visual acceptance and production promotion remain outstanding. The owner's two supplied concept boards remain outside Git. No donor weapon, external model or proprietary game mesh is used.
 
 ## Reference interpretation
 
@@ -30,3 +30,7 @@ Open `/client/electrical-rod-preview.html` on the running local game server. Ins
 - Publish only approved original deliverables; do not commit the owner's source boards, private design notes or unapproved capture material.
 
 No browser render, local dependency installation or multiplayer check is asserted in this record.
+
+## Purchasable gameplay candidate — 2026-11-19
+
+Owner requested vendor acquisition. Provisional playtest values: Sanctum quartermaster, 24 credits, QL 2, Common, Vanguard only, +3 base melee auto-attack damage at full condition. Existing unique weapon ownership, quote revision, range, combat, balance, repair and equip eligibility rules remain authoritative. No real stun, new range, crowd-control or alternate combat mode is introduced. Other classes cannot purchase or equip it. The client uses an equipped-appearance bit in the public player row, never another player's wallet/inventory or condition. This bit only attaches/detaches the original joined mesh to the currently loaded right-hand rig; existing melee animation drives it. Electrical pulses are bounded and emitted only during visible attack presentation under the existing effect quality/comfort policy. Joined equipment, vendor transaction, swap-away, disposal and pose attachment are tested; fresh CI and actual captures are still required. Dual configuration and Join/Split remain in the isolated preview/export, not live equipment. Full two-hand IK, authored weapon-specific attacks, live switching, multiplayer visual review, clipping and performance work remain outstanding. The original preview and asset geometry are retained. No owner reference boards are added.

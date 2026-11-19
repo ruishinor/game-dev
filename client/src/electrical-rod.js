@@ -140,6 +140,18 @@ export function createElectricalRod() {
       geometry.forEach(g=>g.dispose());Object.values(mats).forEach(m=>m.dispose());}};
 }
 
+// Joined field configuration. Grip is centered at the supplied palm in the
+// hand's local frame; existing character animation drives the attachment.
+export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3()}={}){
+  const rod=createElectricalRod();
+  rod.setMode('rod');rod.update(0,{reducedMotion:true});
+  rod.group.name='HeldElectricalCombatRod';
+  rod.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis.clone().normalize());
+  rod.group.position.copy(palm).sub(new THREE.Vector3(0,.13,0).applyQuaternion(rod.group.quaternion));
+  hand.add(rod.group);
+  return rod;
+}
+
 // Existing Attunement lightning pool. No scene light, full-shaft aura or projectile.
 // Short local pulses follow actual mesh nodes, including during a transform.
 export function createElectricalRodVfx(rod,vfx) {

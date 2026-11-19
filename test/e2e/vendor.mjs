@@ -98,6 +98,35 @@ try{
  p.x=vendor.x-8;p.z=vendor.z;
  await panel.waitFor({state:'hidden'});
  assert.equal(p.vendor,null);
+ // Fixture provides earned funds; the real authenticated vendor and
+ // inventory actions purchase and equip the original joined rod.
+ p.char.credits=40;p.x=vendor.x;p.z=vendor.z+2;server.game.markDirty(p);
+ await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.25&&s.sheet.credits===40;},[p.x,p.z]);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await panel.waitFor({state:'visible'});
+ const rodRow=panel.locator('.vendor-row').filter({hasText:'Electrical Combat Rod'});
+ assert.match(await rodRow.innerText(),/24 credits/);
+ await rodRow.getByRole('button',{name:'Buy 1',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.credits===16&&s.sheet.inventory.includes('electrical_combat_rod');});
+ assert.equal(p.char.credits,16);
+ assert.ok(await rodRow.getByRole('button',{name:'Buy 1',exact:true}).isDisabled());
+ await panel.getByRole('button',{name:'Close vendor'}).click();
+ await page.waitForFunction(()=>!window.__attune.state().you.vendor);
+ await page.locator('#view').focus();await page.keyboard.press('KeyI');
+ await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
+ await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
+ await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
+ await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
+ assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
+ await inventory.getByRole('button',{name:'Close inventory'}).click();
+ const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
+ await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
+ await page.screenshot({path:'vendor-evidence/06-electrical-combat-rod.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyI');
+ await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
+ await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
+ await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
+ await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.equipped.weapon==='field_emitter'&&!s.ents.find(e=>e.id===s.myId)?.row?.er&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod');});
  assert.deepEqual(errors,[]);
  console.log('PASS live quartermaster, private balance, sale, purchase, buyback and range dismissal');
 }finally{await browser?.close();await server.close();}

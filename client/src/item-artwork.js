@@ -1,6 +1,7 @@
 // Public, decorative artwork for existing item identities. Static fragments only;
 // no acquisition data, stats, price, or content discovery decisions.
 const motifs=Object.freeze({
+  electrical_combat_rod:'<path d="M3 20 20 3" stroke="#182a36" stroke-width="4.4"/><path d="M3 20 20 3" stroke="#586974" stroke-width="2.7"/><path d="m4 19 5-5m6-6 5-5" stroke="#48a9d8" stroke-width="1.2"/><path d="m9.5 13.5 4-4" stroke="#141c24" stroke-width="3.2"/><path d="m10 11 3 3m-1-5 3 3" stroke="#b4bdc3" stroke-width=".75"/><path d="m2.2 20.8 1.6-1.6m15.5-15.5 1.6-1.6" stroke="#8ce9f1" stroke-width="1.3"/>',
   field_emitter:'<path d="M3 8h5l3-3h7l3 3v4l-5 3h-4l-2 6H6l2-8H3Z" fill="#566968"/><path d="M11 8h7v4h-7Z" fill="#233b3c"/><path d="M12 10h5m-8 4 3 1m-5 4h3" stroke="#c7b482"/><path d="M3 8v5" stroke="#88c8c1"/>',
   tuned_emitter:'<path d="M2 8h5l4-4h8l3 4v5l-5 3h-4l-2 5H6l2-7H2Z" fill="#667878"/><path d="M10 7h9v6h-9Z" fill="#20383f"/><path d="M12 9h5m-5 2h5M7 17h4" stroke="#dec390"/><path d="M2 9v4m18-6 2 2" stroke="#b4fff0" stroke-width="2"/><path d="m9 5 1 9m8-10 1 4" stroke="#a8b5b0"/>',
   dense_pulse_core:'<path d="M5 4h14l3 5-3 11H5L2 9Z" fill="#626e6c" stroke="#b4bcb1"/><path d="M7 5v13m10-13v13M4 10h16" stroke="#a7a99a"/><path d="m12 6-4 7h5l-1 5 5-8h-5Z" fill="#c99b61" stroke="#f3d6a4"/>',
