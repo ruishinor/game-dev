@@ -674,3 +674,7 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .radio-panel{width:min(290px,calc(100vw - 16px));}
 .radio-transcript{font-size:12px;line-height:1.4;}
 .radio-transcript[aria-expanded="true"]{max-height:min(210px,38vh);}
+
+/* A modal defeat/recovery action takes priority over persistent radio. */
+#hud:has(.death:not([hidden])) .radio-panel{visibility:hidden;pointer-events:none;}
+#hud .death{z-index:60;}
