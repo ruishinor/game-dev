@@ -477,7 +477,7 @@ def main():
             a = o.data.attributes.new("matid", "INT", "FACE")
             a.data.foreach_set("value", [o["mat_idx"] + 1] * len(o.data.polygons))  # 0 = bake margin
         main_o = join(objs, item)
-        smooth_by_angle(main_o)
+        smooth_by_angle(main_o, 24)  # facet creases (30 deg at 12 sides) stay crisp
         size = int(p["texture"].get(item, 1024))
         unwrap(main_o)
         # bakes (the body occludes; other items are not in the scene)

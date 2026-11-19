@@ -183,9 +183,13 @@ class Plate:
     def height(self, a, b):
         fa = (a - self.amin) / max(self.amax - self.amin, 1e-9)
         fb = (b - self.bmin) / max(self.bmax - self.bmin, 1e-9)
-        return (self.off + self.dome * np.sin(np.pi * np.clip(fa, 0, 1)) * np.sin(np.pi * np.clip(fb, 0, 1))
-                + self.keel * np.exp(-((fa - 0.5) / 0.12) ** 2)
-                + self.lip0 * np.exp(-(fb / 0.12) ** 2) + self.lip1 * np.exp(-((1 - fb) / 0.12) ** 2))
+        fa, fb = np.clip(fa, 0, 1), np.clip(fb, 0, 1)
+        # hard-surface profile: a flat plateau with chamfered margins (not a
+        # pillow), a V ridge down the middle and ramped lips at the ends
+        plateau = np.minimum(1, 4 * np.minimum(fa, 1 - fa)) * np.minimum(1, 4 * np.minimum(fb, 1 - fb))
+        return (self.off + self.dome * plateau
+                + self.keel * np.maximum(0, 1 - np.abs(fa - 0.5) / 0.22)
+                + self.lip0 * np.clip(1 - fb / 0.1, 0, 1) + self.lip1 * np.clip(1 - (1 - fb) / 0.1, 0, 1))
 
     def surf(self, a, b, lift=0.0):
         h = self.height(a, b) + lift

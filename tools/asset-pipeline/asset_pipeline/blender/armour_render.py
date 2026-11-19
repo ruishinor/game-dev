@@ -219,9 +219,17 @@ def op_worn(p):
                         arm_b.animation_data.nla_tracks.remove(tr)
                     arm_b.animation_data.action = None
                 for pb in arm_b.pose.bones:
-                    src = arm_a.pose.bones.get(pb.name)
-                    if src is not None:
-                        pb.matrix_basis = src.matrix_basis.copy()
+                    pb.matrix_basis.identity()
+                bpy.context.view_layer.update()
+                # the two importers' rests differ: match the armour's bones to the
+                # body's in world space, parents first
+                rel = arm_a.matrix_world.inverted() @ arm_b.matrix_world
+                order = sorted(arm_a.pose.bones, key=lambda b: len(b.parent_recursive))
+                for pa in order:
+                    pbb = arm_b.pose.bones.get(pa.name)
+                    if pbb is not None:
+                        pa.matrix = rel @ pbb.matrix
+                        bpy.context.view_layer.update()
             if pose:
                 act = bpy.data.actions.get(pose["action"]) or next((x for x in bpy.data.actions if x.name.startswith(pose["action"])), None)
                 if act is None and p.get("clip_glb"):
@@ -262,7 +270,9 @@ def op_worn(p):
                 continue
             # frame the figure by its height (posed arms change the bounding box)
             hgt = float(hi[2] - lo[2])
-            fit = hgt * 0.56 * 50 / 18  # portrait frame: the 36 mm sensor spans the height
+            wid = float(max(hi[0] - lo[0], hi[1] - lo[1]))
+            # portrait frame: the 36 mm sensor spans the height; T-poses also fit the arm span
+            fit = max(hgt * 0.56 * 50 / 18, wid * 0.54 * 50 / (18 * p["width"] / p["height"]))
             cam = camera(sc, np.array([centre[0], centre[1], lo[2] + hgt * 0.5]), fit, az, 6, 50)
             f = out / f"{p['prefix']}_{tag}_{view}.png"
             sc.render.filepath = str(f)
