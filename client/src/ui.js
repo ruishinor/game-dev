@@ -25,6 +25,7 @@ import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
+import { WorldAtlas } from './world-atlas.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
@@ -710,6 +711,9 @@ export class UI {
     alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
+    this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
+    this.zoneLabel.after(this.atlas.clock);
+    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());this.minimap.after(this.atlasButton);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -948,6 +952,7 @@ export class UI {
   }
 
   hideJournalPanels() {
+    this.atlas?.close(false);
     this.questJournal.dismiss();
     if(document.activeElement === this.codexSearch) this.codexSearch.blur();
     this.panel.hidden = this.codexPanel.hidden = this.workshopPanel.hidden = true;
@@ -966,6 +971,7 @@ export class UI {
   // Non-modal gameplay windows coexist. Keep existing explicit dismissal
   // policies for NPC conversations, modal screens and world actions.
   prepareManagedWindow() {
+    this.atlas?.close(false);
     this.closeNpc();
     this.fieldRecordPanel.hidden=true;
     this.help.hidden=this.partyPanel.hidden=this.settingsPanel.hidden=true;
@@ -1142,6 +1148,11 @@ export class UI {
     this.hideJournalPanels();
     this.partyPanel.hidden = !open;
     if (open) this.partySignature = '';
+  }
+
+  toggleAtlas(force) {
+    const open=force??this.atlas.el.hidden;
+    if(open){this.hideJournalPanels();this.a.cancelMovement();this.atlas.open();}else this.atlas.close();
   }
 
   toggleSettings(force) {
@@ -1599,6 +1610,7 @@ export class UI {
 
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
+    if(this.atlas?.close())return true;
     const any = !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.companionSheet.hidden = true;
     this.questJournal.dismiss();
@@ -1736,6 +1748,16 @@ export class UI {
 
   // --- per-frame ------------------------------------------------------------
 
+  unitPortrait(element,meta,style='bust') {
+    if(!meta)return;
+    const signature=JSON.stringify([meta.k,meta.c,meta.n,meta.a,meta.ap,meta.sv]);
+    if(element._portraitSignature===signature)return;
+    element._portraitSignature=signature;
+    let img=element.querySelector(':scope > .unit-portrait');
+    if(!img){img=h('img','unit-portrait');img.alt='';element.prepend(img);}
+    const src=this.a.portrait(meta,style);img.hidden=!src;if(src)img.src=src;else img.removeAttribute('src');
+  }
+
   frameBars(f, hp, max) {
     set(f.hp.fill, 'width', `${max > 0 ? Math.max(0, Math.min(100, (hp / max) * 100)) : 0}%`);
     set(f.hp.label, 'text', `${hp} / ${max}`);
@@ -1747,7 +1769,8 @@ export class UI {
     el._sig = sig;
     el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
       const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
-      if(k==='shield')chip.title='Damage absorption; finite capacity, not a solid collision wall.';
+      chip.dataset.effect=k;chip.setAttribute('aria-label',chip.textContent);chip.title=chip.textContent;
+      if(k==='shield')chip.title+=' · Damage absorption; finite capacity, not a solid collision wall.';
       return chip;
     }));
   }
@@ -1799,6 +1822,7 @@ export class UI {
     else if (this.production && !this.workshopPanel.hidden) updateProduction(this);
     set(this.player.name, 'text', this.sheet.name);
     set(this.player.sub, 'text', `Level ${this.sheet.level} ${def.name}${you.safe ? ' · Sanctum' : ''}`);
+    this.unitPortrait(this.player.el,me.meta);
     this.frameBars(this.player, me.row.h, me.row.m);
     set(this.player.res.fill, 'width', `${(you.res / def.resource.max) * 100}%`);
     set(this.player.res.label, 'text', `${def.resource.name} ${you.res}`);
@@ -1865,6 +1889,7 @@ export class UI {
     if(this.summonSlot){this.summonSlot.el.hidden=!summon;this.summonSlot.el.disabled=!!st.comp||!summon?.available;this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;}
     if (st.comp) {
       const c = st.comp.row;
+      this.unitPortrait(this.pet,st.comp.meta,st.comp.meta.c==='spindle'?'portrait':'bust');
       this.activePetMode = c.md;
       const cdef = COMPANIONS[st.comp.meta.c];
       set(this.petName, 'text', st.comp.meta.n);
@@ -1937,6 +1962,7 @@ export class UI {
         row.el.setAttribute('role', 'button');
         row.el.addEventListener('click', () => this.a.target(ent.id));
         row.el.tabIndex=0;
+        row.el.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.a.target(ent.id);}});
         this.bindPlayerContext(row.el,()=>ent.id);
         this.party.append(row.el);
         this.partyRows.set(ent.id, row);
@@ -1945,6 +1971,8 @@ export class UI {
       set(row.sub, 'text', `Level ${ent.meta.l} ${CLASSES[ent.meta.c].name}`);
       this.frameBars(row, ent.row.h, ent.row.m);
       this.buffChips(row.buffs, ent.row.b || []);
+      this.unitPortrait(row.el,ent.meta);
+      row.el.classList.toggle('party-member-live',!!you.party?.members?.some(m=>m.id===ent.id));
       row.el.classList.toggle('selected', !!target && target.id === ent.id);
       row.el.classList.toggle('dead', ent.dead);
     }
@@ -2103,6 +2131,7 @@ export class UI {
   // --- minimap --------------------------------------------------------------
 
   drawMinimap(st) {
+    this.atlas?.update(st);
     const c = this.minimap;
     const g = c.getContext('2d');
     const R = c.width / 2;
