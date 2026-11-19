@@ -72,22 +72,23 @@ try {
       const e = window.__attune.state().ents.find((x) => x.id === wid);
       return e && e.armourVisual === it && e.armourWorn === it ? e : null;
     }, [wearerId, id], { timeout: 30000 })).jsonValue();
-    await page.keyboard.press('Escape');
+    await page.locator('#view').focus();
+    if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
     await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.2, face: Math.PI }));
     const d0 = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction((n) => window.__attune.state().drawn > n + 3, d0);
     await page.screenshot({ path: `${OUT}/${id}-worn.png` });
     report.items[id] = { worn: worn.armourWorn, observerSees: seen.armourWorn, anim: worn.anim };
     await page.locator('#view').focus();
-    await page.keyboard.press('KeyI');
+    if (await page.locator('.inventory-window').isHidden()) await page.keyboard.press('KeyI');
     await page.locator('.inventory-window').waitFor({ state: 'visible' });
   }
-  // removal clears the piece for the wearer and the observer
-  await page.locator('.equipment-slot-grid [data-slot="chest"], .inventory-window').first().waitFor();
-  server.game.refreshStats(p);
+  // removal (the server's own unequip, as the slot's Remove action does)
+  // clears the piece for the wearer and the observer
   const res = (await import('../../server/sim/progress.js')).unequipSlot(server.game, p, 'chest');
   assert.equal(res.ok, true);
   server.game.markDirty(p);
+  await page.waitForFunction(() => { const s = window.__attune.state(); const me = s.ents.find((e) => e.id === s.myId); return me && !me.armourWorn; }, null, { timeout: 30000 });
   await watcher.waitForFunction((wid) => { const e = window.__attune.state().ents.find((x) => x.id === wid); return e && !e.armourVisual && !e.armourWorn; }, wearerId, { timeout: 30000 });
   report.removal = true;
   assert.deepEqual(report.pageErrors, [], 'no page errors');

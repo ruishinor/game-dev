@@ -242,7 +242,7 @@ def design_field(body, base, m):
     it, deg = "field_chest", np.radians
     P = [vest_body(body, it, m["vest"], base)]
     for s in ("l", "r"):
-        V, F = yoke(body, s, np.linspace(0.12, 1.0, 9), np.linspace(-deg(82), deg(82), 22), base + 0.011)
+        V, F = yoke(body, s, np.linspace(0.12, 1.0, 9), np.linspace(-deg(82), deg(82), 22), base + 0.017)
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
     P.append(plate(body, it, "chest_panel", m["panel"], 0.0, deg(46), 0.3, 0.82, base + 0.009, keel=0.004, ns=16))
     P.append(plate(body, it, "chest_inset", m["inset"], 0.0, deg(20), 0.46, 0.7, base + 0.021, taper=0.1, ns=10, nq=10))
@@ -254,7 +254,7 @@ def design_field(body, base, m):
             p, n = body.on_torso(sg * deg(90), uu, base + 0.016)
             V, F = box(p, (0.022, 0.026, 0.006), np.array([0, 1.0, 0]), n)
             P.append(_piece(f"buckle_{s}{k}", it, m["hardware"], V, F, bevel=0.0015))
-    V, F = ribbon_around(body, 0.175, -np.pi, np.pi, 0.024, base + 0.0085, n=72)
+    V, F = ribbon_around(body, 0.195, -np.pi, np.pi, 0.024, base + 0.0095, n=72)
     P.append(_piece("hem_binding", it, m["strap"], V, F, thickness=0.003))
     return P
 
@@ -267,7 +267,7 @@ def design_reinforced(body, base, m):
     P = [vest_body(body, it, m["vest"], base, hem_u=0.13)]
     for s, big in (("l", 1.0), ("r", 0.82)):
         V, F = yoke(body, s, np.linspace(0.1, 1.0 + 0.12 * big, 10), np.linspace(-deg(90), deg(90), 24),
-                    lambda ph, t, big=big: base + 0.014 + 0.012 * big * _ss(0.6, 1.1, t))
+                    lambda ph, t, big=big: base + 0.019 + 0.012 * big * _ss(0.6, 1.1, t))
         P.append(_piece("pauldron_" + s, it, m["yoke"], V, F, thickness=0.006, bevel=0.0025))
     P.append(plate(body, it, "chest_plate", m["plate"], 0.0, deg(52), 0.6, 0.86, base + 0.011, keel=0.006))
     P.append(plate(body, it, "ab_plate_upper", m["plate"], 0.0, deg(44), 0.42, 0.6, base + 0.012, taper=0.05, ns=6))
@@ -303,7 +303,7 @@ def design_resonant(body, base, m):
     P = [vest_body(body, it, m["vest"], base, hem_u=0.14, neck_front=0.8)]
     for s in ("l", "r"):
         V, F = yoke(body, s, np.linspace(0.12, 1.04, 9), np.linspace(-deg(85), deg(85), 22),
-                    lambda ph, t: base + 0.013 + 0.006 * np.cos(ph))
+                    lambda ph, t: base + 0.018 + 0.005 * np.cos(ph))
         P.append(_piece("yoke_" + s, it, m["yoke"], V, F, thickness=0.005, bevel=0.002))
 
     def plastron(s, q):
