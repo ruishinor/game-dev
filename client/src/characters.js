@@ -31,7 +31,7 @@ import { wearArmour, ARMOUR_BUNDLES } from './armour-visual.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
-import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
+import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
 const UPPER_BODY = /^(spine_|neck_|Head|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_)/;
@@ -209,7 +209,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const lod = { acc: 0 };
   let dead = false;
   let moving = false;
-  let landed = true;
+  let landed = true, meleeIndex=0;
   // Capture the grip direction in bind pose, not an arbitrary live frame.
   const rodHand=inst.getObjectByName('hand_r');
   const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
@@ -297,7 +297,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         if (working) work.pose(st.work, st.t, st.reducedMotion);
       }
       if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
-        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy });
+        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy },step||dt);
       if(st.electricalRod&&!heldRod&&rodHand){
         heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
         heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
@@ -329,10 +329,12 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         anim.react(HB.hit);
         return;
       }
-      // A mounted Longpoint holds a steady presentation pose for ranged auto attacks.
-      if (kind === 'cast' && id === 'auto' && weapon?.origin()) return;
-      // A ranged class's basic attack is a bolt, not a punch.
-      const a = (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
+      // A mounted rifle retains its two-hand fit and reacts to a confirmed auto hit.
+      if (kind === 'cast' && id === 'auto' && weapon?.fire()) return;
+      // Keep electrical rod animation unchanged. Alternate hand-combat poses.
+      const combo = kind==='attack'&&id==='auto'&&!heldRod
+        ? HUMANOID_MELEE_SEQUENCE[meleeIndex++%HUMANOID_MELEE_SEQUENCE.length] : null;
+      const a = combo || (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {

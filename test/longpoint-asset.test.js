@@ -46,7 +46,13 @@ test('Longpoint fit reaches both named anchors on actual masculine and feminine 
     const position=n=>n.getWorldPosition(new Vector3());let removed=0;
     const p=createLongpointPresentation(THREE,rig,prop,()=>removed++);assert.ok(p,frame);assert.equal(p.update({}),true,frame);
     assert.ok(position(r).distanceTo(position(prop.getObjectByName('GripAnchor')))<.004,frame+' grip');assert.ok(position(l).distanceTo(position(prop.getObjectByName('SupportAnchor')))<.004,frame+' support');
-    assert.ok(p.origin().distanceTo(position(prop.getObjectByName('EffectAnchor')))<1e-8);assert.equal(p.update({dead:true}),false);assert.equal(p.origin(),null);assert.equal(prop.visible,false);assert.ok(q.angleTo(rig.getObjectByName('upperarm_r').quaternion)<1e-6);assert.equal(p.update({}),true);p.dispose();p.dispose();assert.equal(removed,1);assert.equal(prop.parent,null);
+    assert.ok(p.origin().distanceTo(position(prop.getObjectByName('EffectAnchor')))<1e-8);
+    const neutral=p.origin();assert.equal(p.fire(),true);assert.equal(p.update({},.016),true);
+    assert.ok(position(r).distanceTo(position(prop.getObjectByName('GripAnchor')))<.004,frame+' recoil grip');
+    assert.ok(position(l).distanceTo(position(prop.getObjectByName('SupportAnchor')))<.004,frame+' recoil support');
+    assert.ok(p.origin().distanceTo(neutral)>.005,frame+' visible recoil');
+    assert.equal(p.update({reducedMotion:true}),true);assert.ok(p.origin().distanceTo(neutral)<1e-6,frame+' reduced motion');
+    assert.equal(p.update({dead:true}),false);assert.equal(p.fire(),false);assert.equal(p.origin(),null);assert.equal(prop.visible,false);assert.ok(q.angleTo(rig.getObjectByName('upperarm_r').quaternion)<1e-6);assert.equal(p.update({}),true);p.dispose();p.dispose();assert.equal(removed,1);assert.equal(prop.parent,null);
   }
 });
 

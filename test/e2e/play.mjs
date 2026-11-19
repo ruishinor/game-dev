@@ -651,13 +651,13 @@ try {
   const swingSelf = await drawn(A, sa.myId);
   const swingSeen = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.anim && e.anim.played > 0 && /Punch/.test(e.anim.last);
+    return e && e.anim && e.anim.played > 0 && /^(Punch_Jab|Punch_Cross|Melee_Hook)$/.test(e.anim.last);
   }, sa.myId, 5000, 'B to see the attack animation');
   const flinch = await until(A, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
     return e && e.anim && e.anim.reacted > 0;
   }, sk.id, 3000, 'enemy hit reaction');
-  check('14. the attack animates for both sessions and the enemy visibly reacts', /Punch/.test(swingSelf.last) && swingSeen && flinch, `attacker ${JSON.stringify(swingSelf)}, observer ${JSON.stringify(await drawn(B,sa.myId))}`);
+  check('14. the attack animates for both sessions and the enemy visibly reacts', /^(Punch_Jab|Punch_Cross|Melee_Hook)$/.test(swingSelf.last) && swingSeen && flinch, `attacker ${JSON.stringify(swingSelf)}, observer ${JSON.stringify(await drawn(B,sa.myId))}`);
   await A.page.keyboard.press('KeyR');
   const autoStopped = await until(A, () => window.__attune.state().you.auto === 0 && document.querySelector('.auto-toggle')?.getAttribute('aria-pressed') === 'false', null, 3000, 'auto-attack OFF in HUD');
   await A.page.keyboard.press('KeyR');
