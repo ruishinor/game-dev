@@ -1,0 +1,54 @@
+{
+ "sets": {
+  "security": {
+   "pieces": [
+    "cuirass_front",
+    "cuirass_back",
+    "insignia",
+    "pauldron_l0",
+    "pauldron_l1",
+    "vambrace_l",
+    "pauldron_r0",
+    "pauldron_r1",
+    "vambrace_r",
+    "duty_belt",
+    "tasset_l",
+    "tasset_r",
+    "buckle",
+    "equip_pouches",
+    "equip_radio",
+    "equip_baton",
+    "stave"
+   ],
+   "triangles": 19486,
+   "images": {
+    "basecolor": "security_basecolor.png",
+    "roughness": "security_roughness.png",
+    "metallic": "security_metallic.png",
+    "normal": "security_normal.png"
+   },
+   "npz": "security_pieces.npz"
+  },
+  "vendor": {
+   "pieces": [
+    "sash_wrap",
+    "sash_shoulder",
+    "sash_knot",
+    "sash_tail0",
+    "sash_tail1",
+    "shoulder_plate0",
+    "shoulder_plate1",
+    "sash_buckle"
+   ],
+   "triangles": 19732,
+   "images": {
+    "basecolor": "vendor_basecolor.png",
+    "roughness": "vendor_roughness.png",
+    "metallic": "vendor_metallic.png",
+    "normal": "vendor_normal.png"
+   },
+   "npz": "vendor_pieces.npz"
+  }
+ },
+ "blend": "wardrobe_source.blend"
+}

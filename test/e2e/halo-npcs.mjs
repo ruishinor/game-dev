@@ -22,11 +22,19 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') report.consoleErrors.push(m.text()); });
   await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
   await page.fill('#name', 'Halo Witness');
-  await page.click('.classcard[data-cls="surveyor"]');
+  await page.click('.classcard[data-cls="vanguard"]');
   await page.click('#enter');
   await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });
   report.graphics = await describeGraphics(page);
-  const p = await liveFixturePlayer(page, server, 'Halo Witness');
+  // Re-resolve the live fixture before every move (play.mjs pattern) and wait
+  // for the browser to render the authoritative position.
+  const teleport = async (x, z) => {
+    const p = await liveFixturePlayer(page, server, 'Halo Witness');
+    p.x = x; p.z = z; p.jy = 0; p.vy = 0;
+    if (p.companion) { p.companion.x = x + 1.5; p.companion.z = z - 1.5; }
+    server.game.markDirty(p);
+    await page.waitForFunction(([tx, tz]) => { const s = window.__attune.state(); return !!s.you && Math.hypot(s.you.x - tx, s.you.z - tz) < 1.0; }, [x, z]);
+  };
 
   // --- the server owns exactly four wardens outside the perimeter
   const guards = server.game.objects.filter((o) => o.type === 'sanctum_guard');
@@ -37,9 +45,7 @@ try {
   // --- walk the fixture player to each warden in turn; the client must draw the Halo GLB facing outward
   for (const def of SANCTUM_GUARDS) {
     const out = Math.hypot(def.x, def.z);
-    p.x = def.x + (def.x / out) * 4.5; p.z = def.z + (def.z / out) * 4.5; // outside, in front of the warden
-    server.game.markDirty(p);
-    await page.waitForFunction(([x, z]) => { const s = window.__attune.state(); return !!s.you && Math.hypot(s.you.x - x, s.you.z - z) < 0.3; }, [p.x, p.z]);
+    await teleport(def.x + (def.x / out) * 4.5, def.z + (def.z / out) * 4.5); // outside, in front of the warden
     const ent = await page.waitForFunction((name) => {
       const s = window.__attune.state();
       const near = s.ents.filter((e) => e.c === 'sanctum_guard' && e.halo && e.halo.yaw !== undefined && e.halo.yaw !== null);
@@ -65,8 +71,7 @@ try {
   assert.equal(new Set(report.guards.map((g) => g.variant)).size, 4, 'four distinct warden variants');
 
   // --- overview: all four from above the Sanctum
-  p.x = 0; p.z = 7.5; server.game.markDirty(p);
-  await page.waitForFunction(() => { const s = window.__attune.state(); return !!s.you && Math.hypot(s.you.x, s.you.z - 7.5) < 0.3; });
+  await teleport(0, 7.5);
   await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 1.05, dist: 30 }));
   let d0 = await page.evaluate(() => window.__attune.state().drawn);
   await page.waitForFunction((n) => window.__attune.state().drawn > n + 3, d0);
@@ -77,8 +82,7 @@ try {
 
   // --- the vendor: Halo Construct with the sash, at the established quartermaster position
   const qm = server.game.objects.find((o) => o.type === 'quartermaster');
-  p.x = qm.x; p.z = qm.z + 2.2; server.game.markDirty(p);
-  await page.waitForFunction(([x, z]) => { const s = window.__attune.state(); return !!s.you && Math.hypot(s.you.x - x, s.you.z - z) < 0.3; }, [p.x, p.z]);
+  await teleport(qm.x, qm.z + 2.2);
   const vendor = await (await page.waitForFunction(() => window.__attune.state().ents.find((e) => e.c === 'quartermaster' && e.halo) || null)).jsonValue();
   assert.equal(vendor.model, 'glb');
   assert.equal(vendor.halo.role, 'vendor');

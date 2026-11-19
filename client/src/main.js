@@ -1569,7 +1569,7 @@ function updateEntities(dt, t, now) {
         // Posts with an authored facing (the Sanctum wardens) never turn.
         yaw = ent.meta.y !== undefined ? ent.meta.y
           : me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
-        yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
+        if (ent.meta.y === undefined) yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
       }
     }
     let y = groundHeight(x, z) + j + ent.model.hover;
@@ -1607,7 +1607,7 @@ function updateEntities(dt, t, now) {
     const faceYaw = facingTarget && facingTarget.placed
       ? Math.atan2(facingTarget.pos.x - x, facingTarget.pos.z - z) : yaw;
     // Smooth presentation yaw separately from the authoritative movement yaw.
-    ent.displayYaw = ent.displayYaw === undefined ? faceYaw
+    ent.displayYaw = ent.displayYaw === undefined || ent.meta.y !== undefined ? faceYaw
       : lerpAngle(ent.displayYaw, faceYaw, Math.min(1, dt * 13));
     ent.holder.rotation.y = ent.displayYaw;
     ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);

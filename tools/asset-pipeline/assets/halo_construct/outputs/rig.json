@@ -1,0 +1,40 @@
+{
+ "root_scale_k": 0.938687613119741,
+ "bind_reproduction_max_error_m": 4.440892098500626e-16,
+ "bridge_faces_removed": 14,
+ "triangles": {
+  "body": 23634,
+  "ring_vertical": 4586,
+  "ring_horizontal": 4586,
+  "security": 18082,
+  "equip_pouches": 216,
+  "equip_radio": 332,
+  "equip_baton": 168,
+  "stave": 688,
+  "vendor": 19732
+ },
+ "joints": 67,
+ "clips": [
+  "Bind_Pose",
+  "Idle_Loop",
+  "Idle_FoldArms_Loop",
+  "Idle_Talking_Loop",
+  "Interact",
+  "Walk_Loop",
+  "Guard_Watch_Loop"
+ ],
+ "ring_variant": {
+  "source_ellipse": [
+   0.07743082381784916,
+   0.12504168272018434,
+   1.7174979853630066
+  ],
+  "target_ellipse": [
+   0.145,
+   0.082,
+   1.6744563026428223
+  ]
+ },
+ "bytes": 18074072,
+ "reference_rig": "client/assets/humanoid_m.glb"
+}

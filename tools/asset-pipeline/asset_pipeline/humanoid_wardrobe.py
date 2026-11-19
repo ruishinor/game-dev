@@ -418,7 +418,7 @@ def design_security(body):
     for yb in (0.06, hand[1] + 0.09, hand[1] - 0.09, 1.78):
         parts.append(cylinder(base + [0, yb - 0.02, 0], base + [0, yb + 0.02, 0], 0.019, n=12))
     parts.append(torus(top + [0, 0.07, 0], np.array([0, 0, 1.0]), 0.065, 0.011, n=28, m=8, scale=(0.72, 1.0)))
-    pieces.append({"name": "stave", "set": "security", "core": False, "mat": "stave", "skin": "rigid:hand_r", "V": parts, "F": None})
+    pieces.append({"name": "stave", "set": "security", "core": False, "mat": "stave", "skin": "anchored", "V": parts, "F": None})
     return pieces
 
 

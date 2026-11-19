@@ -184,6 +184,8 @@ def complete_landmarks(L, ref: Skeleton, Wref):
     """Spine and clavicle positions from the reference proportions."""
     P = {k: np.asarray(v, float) for k, v in L.items()}
     pos = {n: Wref[i][:3, 3] for i, n in enumerate(ref.names)}
+    if not all(k in pos for k in ("pelvis", "neck_01", "spine_03")) or not all(k in P for k in ("pelvis", "neck_01")):
+        return P  # not the humanoid reference: nothing to derive
     yp, yn = pos["pelvis"][1], pos["neck_01"][1]
     for b in ("spine_01", "spine_02", "spine_03"):
         f = (pos[b][1] - yp) / (yn - yp)

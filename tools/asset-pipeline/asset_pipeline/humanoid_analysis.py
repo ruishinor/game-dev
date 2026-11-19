@@ -283,21 +283,29 @@ def _fourier_basis(theta, order):
     return np.stack(cols, 1)
 
 
-def lower_envelope(theta, r, order=6, iters=12, outward_weight=0.04):
+def lower_envelope(theta, r, order=6, iters=12, outward_weight=0.04, trim=0.008):
     """Smooth radius r(theta) fitted from inside: outward residuals are downweighted.
 
     Accessories sit outside the body surface, so an asymmetric reweighted
-    least-squares fit (inliers on or under the curve dominate) recovers the
-    body cross-section beneath them.
+    least-squares fit (inliers on or under the curve dominate) first finds
+    the body cross-section beneath them. A low-order fit still rings around
+    a large step, which would dent the rest of the section, so points more
+    than `trim` outside that fit are then dropped as outliers and the curve
+    is refitted to the remaining points by ordinary least squares.
     """
     B = _fourier_basis(theta, order)
-    w = np.ones_like(r)
     coef = np.linalg.lstsq(B, r, rcond=None)[0]
     for _ in range(iters):
         res = r - B @ coef
         w = np.where(res > 0, outward_weight, 1.0)
         sw = np.sqrt(w)
         coef = np.linalg.lstsq(B * sw[:, None], r * sw, rcond=None)[0]
+    if trim:
+        for _ in range(3):
+            keep = (r - B @ coef) <= trim
+            if keep.sum() < B.shape[1] * 2:
+                break
+            coef = np.linalg.lstsq(B[keep], r[keep], rcond=None)[0]
     return coef
 
 

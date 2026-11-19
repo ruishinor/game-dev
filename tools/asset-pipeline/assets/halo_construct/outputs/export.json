@@ -1,7 +1,7 @@
 {
  "file": "client/assets/halo_construct.glb",
- "bytes": 2845072,
- "inputBytes": 18499948,
+ "bytes": 2755248,
+ "inputBytes": 18074072,
  "triangles": 72024,
  "meshes": 9,
  "materials": [
@@ -17,7 +17,7 @@
     2048,
     2048
    ],
-   "bytes": 519478
+   "bytes": 449008
   },
   {
    "name": "body_orm",
@@ -26,7 +26,7 @@
     2048,
     2048
    ],
-   "bytes": 481152
+   "bytes": 461140
   },
   {
    "name": "body_normal",
@@ -801,5 +801,5 @@
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/8/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
   ]
  },
- "sha256": "afd7a4cab55cbd5288450aa5636444877543489fe409f8032cba11abe145aef1"
+ "sha256": "73450a472b97703df56a8c742a7cfcb43456515e8b247badabbd9caca935f6de"
 }

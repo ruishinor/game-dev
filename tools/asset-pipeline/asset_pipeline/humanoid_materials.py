@@ -116,7 +116,38 @@ def soft_mask(m, sigma=1.2):
     return cv2.GaussianBlur(m.astype(np.float32), (0, 0), sigma)
 
 
-def synthesize(paths, cfg, kit_points):
+def mechanism_mask(pos, covered, L, cfg):
+    """Texels that are genuine mechanism and keep their dark source colour:
+    coupling bands around the elbow/wrist/knee/ankle pivots (measured along
+    the limb axis), the neck mechanism, the central abdominal struts, the
+    optical units in the ring and the soles. Everything else on the shell is
+    ceramic."""
+    m = np.zeros(pos.shape[:2], bool)
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    mc = cfg["mechanism"]
+    chains = {"lowerarm": ("upperarm", "hand"), "hand": ("lowerarm", "hand_tip"),
+              "calf": ("thigh", "foot"), "foot": ("calf", "ball")}
+    for joint, half in mc["couplings"].items():
+        prev, nxt = chains[joint]
+        for s in ("l", "r"):
+            J = np.asarray(L[f"{joint}_{s}"])
+            axis = np.asarray(L[f"{nxt}_{s}"]) - np.asarray(L[f"{prev}_{s}"])
+            axis /= np.linalg.norm(axis)
+            d = pos - J
+            along = d @ axis
+            radial = np.linalg.norm(d - along[..., None] * axis, axis=-1)
+            m |= (np.abs(along) < half) & (radial < mc["coupling_radius"])
+    n = mc["neck"]
+    m |= (y > n["y"][0]) & (y < n["y"][1]) & (np.abs(x) < n["max_abs_x"])
+    a = mc["abdomen"]
+    m |= (y > a["y"][0]) & (y < a["y"][1]) & (np.abs(x) < a["max_abs_x"])
+    for e in mc["optics"]:
+        m |= np.linalg.norm(pos - np.asarray(e), axis=-1) < mc["optic_radius"]
+    m |= y < mc["sole_height"]
+    return m & covered
+
+
+def synthesize(paths, cfg, kit_points, landmarks=None):
     """Build base colour, ORM, normal and emissive maps. Returns dict of arrays + report."""
     col = read_rgb(paths["color"])
     donor = read_rgb(paths["donor"])
@@ -183,6 +214,32 @@ def synthesize(paths, cfg, kit_points):
     warm = iv[None, None] * rel[..., None]
     a = cfg.get("ivory_blend", 0.55) * soft_mask(ivory)
     out = lit * (1 - a[..., None]) + warm * a[..., None]
+    # 1b) ceramic shell: dark blotches that are not mechanism become ivory.
+    # The source's dark streaks on the shell read as damage; the owner asked
+    # for a clean, smoothly varying ivory there (2026-11-19). The fill is the
+    # local average of the surrounding ivory (normalised convolution in UV
+    # space), so tone still varies gently across the body.
+    shell_clean = np.zeros(pos.shape[:2], np.float32)
+    if landmarks is not None and cfg.get("mechanism"):
+        keep = mechanism_mask(pos, covered, landmarks, cfg)
+        not_garment = ~((y > g["top"]["y"][0]) & (y < g["top"]["y"][1]) & (np.abs(x) < g["top"]["max_abs_x"])) & ~((y > g["shorts"]["hem"]) & (y < g["shorts"]["waist"]))
+        target = covered & ~keep & not_garment
+        ivw = (ivory & covered).astype(np.float32)
+        fill = np.zeros_like(out)
+        for sigma in (6, 18, 48):
+            num = cv2.GaussianBlur(out * ivw[..., None], (0, 0), sigma)
+            den = cv2.GaussianBlur(ivw, (0, 0), sigma)[..., None]
+            est = num / np.maximum(den, 1e-4)
+            fill = np.where((fill.sum(-1, keepdims=True) == 0) & (den > 0.15), est, fill)
+        fill = np.where(fill.sum(-1, keepdims=True) == 0, iv[None, None], fill)
+        fill = cv2.GaussianBlur(fill, (0, 0), 3)
+        Lf = out @ np.array([0.3, 0.59, 0.11], np.float32)
+        dark = smoothstep(cfg["mechanism"].get("dark_hi", 0.62), cfg["mechanism"].get("dark_lo", 0.45), Lf / max(float(np.median(Lf[ivory & covered])), 1e-3))
+        shell_clean = soft_mask(target, 2.0) * dark
+        out = out * (1 - shell_clean[..., None]) + fill * shell_clean[..., None]
+        keep_frac = float(keep[covered].mean())
+    else:
+        keep_frac = 0.0
     # 2) donor colour where an accessory covered body that no base garment covers
     use_donor = kit * (1 - np.maximum(top_w, sh_w))
     out = out * (1 - use_donor[..., None]) + donor * use_donor[..., None]
@@ -205,7 +262,7 @@ def synthesize(paths, cfg, kit_points):
     textile_w = np.maximum(top_w, sh_w)
     lum2 = out @ np.array([0.3, 0.59, 0.11], np.float32)
     dirt = np.clip((cv2.GaussianBlur(lum2, (0, 0), 6) - lum2) * 4, 0, 1)
-    dark_mech = (~ivory) & (lum < 0.33)
+    dark_mech = (~ivory) & (lum < 0.33) & (shell_clean < 0.5)
     H2 = hsv(col)
     optics = (y > cfg.get("optics_min_y", 1.6)) & (H2[..., 0] > 0.03) & (H2[..., 0] < 0.13) & (H2[..., 1] > 0.45) & (H2[..., 2] > 0.35)
     optics = soft(optics) > 0.35
@@ -224,6 +281,8 @@ def synthesize(paths, cfg, kit_points):
     report = {
         "covered_fraction": float(covered.mean()),
         "bake_misses_filled": int(miss.sum()),
+        "shell_texels_cleaned_to_ivory": float((shell_clean > 0.5)[covered].mean()),
+        "mechanism_texels_kept": keep_frac,
         "texel_fractions": {
             "crop_top": float((top_w > 0.5)[covered].mean()), "shorts": float((sh_w > 0.5)[covered].mean()),
             "donor": float((use_donor > 0.5)[covered].mean()), "shell": float(ivory[covered].mean()),

@@ -130,7 +130,46 @@
    ],
    "ivory_blend": 0.55,
    "ao_unshade": 0.45,
-   "optics_emission": 0.8
+   "optics_emission": 0.8,
+   "mechanism": {
+    "couplings": {
+     "lowerarm": 0.03,
+     "hand": 0.022,
+     "calf": 0.035,
+     "foot": 0.03
+    },
+    "coupling_radius": 0.09,
+    "neck": {
+     "y": [
+      1.46,
+      1.6
+     ],
+     "max_abs_x": 0.075
+    },
+    "abdomen": {
+     "y": [
+      1.08,
+      1.255
+     ],
+     "max_abs_x": 0.055
+    },
+    "optics": [
+     [
+      0.0774,
+      1.7175,
+      0.04
+     ],
+     [
+      -0.0774,
+      1.7175,
+      0.04
+     ]
+    ],
+    "optic_radius": 0.035,
+    "sole_height": 0.03,
+    "dark_hi": 0.93,
+    "dark_lo": 0.74
+   }
   },
   "wardrobe": {
    "texture": 1024
@@ -189,7 +228,17 @@
     0.95,
     0.72,
     0.38
-   ]
+   ],
+   "anchored_props": {
+    "stave": {
+     "clip": "Guard_Watch_Loop",
+     "time": 0.0,
+     "follow": "hand_r",
+     "grip": "hand_tip_r",
+     "grip_fraction": 0.5,
+     "bone": "pelvis"
+    }
+   }
   },
   "export": {
    "max_texture": 2048,

@@ -1,0 +1,67 @@
+{
+ "bind_reproduction_max_error_m": 4.440892098500626e-16,
+ "rigid_vertex_fraction": 0.7862916439104315,
+ "clips": {
+  "Guard_Watch_Loop": {
+   "min_body_y": 0.00609977580373032,
+   "max_coupling_strain": 1.0497767606641497,
+   "max_rigid_strain": 3.3749409595744355e-07,
+   "garment_penetration": {
+    "guard": 0.01665749980356722
+   }
+  },
+  "Idle_Loop": {
+   "min_body_y": 0.00609977580373032,
+   "max_coupling_strain": 0.947336182081983,
+   "max_rigid_strain": 3.3749409595744355e-07,
+   "garment_penetration": {
+    "guard": 0.01665749980356722,
+    "vendor": 0.03323456394650436
+   }
+  },
+  "Idle_Talking_Loop": {
+   "min_body_y": 0.006272291595106831,
+   "max_coupling_strain": 1.103960041097236,
+   "max_rigid_strain": 1.4977423316341865e-07,
+   "garment_penetration": {
+    "vendor": 0.04764955553775927
+   }
+  },
+  "Interact": {
+   "min_body_y": 0.0060721382800444715,
+   "max_coupling_strain": 1.3974694280010085,
+   "max_rigid_strain": 8.106708919674163e-08,
+   "garment_penetration": {
+    "vendor": 0.037799311283735086
+   }
+  },
+  "Idle_FoldArms_Loop": {
+   "min_body_y": -0.005128940442610079,
+   "max_coupling_strain": 1.7861048822761691,
+   "max_rigid_strain": 2.9110673264969377e-07,
+   "garment_penetration": {
+    "vendor": 0.06550812845359173
+   }
+  },
+  "Walk_Loop": {
+   "min_body_y": -0.0022039772024496918,
+   "max_coupling_strain": 1.0547772368556252,
+   "max_rigid_strain": 2.811008052139593e-07,
+   "garment_penetration": {
+    "guard": 0.021764752101830754,
+    "vendor": 0.045567390085689115
+   }
+  }
+ },
+ "ring_aperture_m2": {
+  "vertical": 0.015452,
+  "horizontal": 0.018612000000000004
+ },
+ "checks": {
+  "bind_pose_exact": true,
+  "rigid_shells_do_not_stretch": true,
+  "feet_on_ground": true,
+  "ring_aperture_open": true,
+  "garment_penetration_below_limit": true
+ }
+}

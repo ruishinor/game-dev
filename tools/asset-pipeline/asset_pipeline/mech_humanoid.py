@@ -171,7 +171,8 @@ def stage_materials(asset, params):
 
     c = asset.path("clean")
     imgs = read_json(c / "clean.json")["images"]
-    maps, rep = hm.synthesize({k: c / v for k, v in imgs.items()}, params, np.load(asset.path("analyze", "kit_points.npy")))
+    L = read_json(asset.path("analyze", "landmarks.json"))
+    maps, rep = hm.synthesize({k: c / v for k, v in imgs.items()}, params, np.load(asset.path("analyze", "kit_points.npy")), landmarks=L)
     out = asset.dir("materials")
     files = []
     for k in ("basecolor", "orm", "normal", "emissive"):
@@ -372,6 +373,22 @@ def stage_rig(asset, params):
     ring_faces = head_v[F].all(1)
     Fcore, Fring = F[~ring_faces], F[ring_faces]
     Vh, ring_rep = ring_variant(V, head_v, params["ring"])
+    # ---- props authored in a held pose: e.g. the warden's stave stands upright
+    # through the right hand's grip *in the guard clip*, then is bound rigidly
+    # to the pelvis so idle sway cannot tilt it (a hand-bound staff swings).
+    guard = guard_clip(sk, hr, clips["Idle_Loop"], Wb, params)
+    anchors = {}
+    for name, a in params.get("anchored_props", {}).items():
+        clip = guard if a["clip"] == "Guard_Watch_Loop" else clips[a["clip"]]
+        Wp = sk.world(*hr.pose_at(sk, clip, a["time"]))
+        fi, gi_ = sk.index[a["follow"]], a["grip"]
+        hand_bind = Wb[fi][:3, 3]
+        tip_bind = L[gi_]
+        grip_bind = hand_bind + a["grip_fraction"] * (tip_bind - hand_bind)
+        # grip point carried into the posed frame by the hand bone
+        grip_pose = (Wp[fi] @ np.linalg.inv(Wb[fi]) @ np.r_[grip_bind, 1])[:3]
+        bi = sk.index[a["bone"]]
+        anchors[name] = {"shift_xz": (grip_pose - grip_bind)[[0, 2]], "to_bind": Wb[bi] @ np.linalg.inv(Wp[bi]), "bone": a["bone"]}
     # ---- wardrobe
     wd = read_json(asset.path("wardrobe", "wardrobe.json"))
     meta = {m["name"]: m for m in read_json(asset.path("wardrobe", "pieces.json"))}
@@ -384,6 +401,15 @@ def stage_rig(asset, params):
             m = meta[pname]
             P, Nn, UVp, I = arr[pname + "_P"], arr[pname + "_N"], arr[pname + "_UV"], arr[pname + "_I"]
             rule = m["skin"]
+            if rule == "anchored":
+                an = anchors[pname]
+                Pp = P.copy()
+                Pp[:, 0] += an["shift_xz"][0]
+                Pp[:, 2] += an["shift_xz"][1]
+                Pp[:, 1] -= Pp[:, 1].min()  # grounded in the held pose
+                P = (np.c_[Pp, np.ones(len(Pp))] @ an["to_bind"].T)[:, :3]
+                Nn = Nn @ an["to_bind"][:3, :3].T
+                rule = "rigid:" + an["bone"]
             if rule.startswith("rigid:"):
                 Jg, Wg = hr.transfer_weights(P, None, None, None, rigid=rule.split(":", 1)[1], joint_names=joints)
             else:
@@ -393,7 +419,7 @@ def stage_rig(asset, params):
         sets[set_name] = groups
     # ---- clips
     out_clips = [bind] + [clips[c] for c in params["clips"]]
-    out_clips.append(guard_clip(sk, hr, clips["Idle_Loop"], Wb, params))
+    out_clips.append(guard)
     # ---- write
     w = gi.GlbWriter()
     root = w.node("HaloConstruct")
@@ -488,7 +514,7 @@ STAGES = [
     ("baseline", stage_baseline, lambda a: [_src(a)[0], HERE / "blender" / "render_evidence.py"], lambda a: _cfg(a, "baseline")),
     ("analyze", stage_analyze, lambda a: [_src(a)[0], HERE / "humanoid_analysis.py"], lambda a: _cfg(a, "analyze")),
     ("clean", stage_clean, lambda a: [a.path("analyze"), HERE / "blender" / "humanoid_build.py"], lambda a: _cfg(a, "clean")),
-    ("materials", stage_materials, lambda a: [a.path("clean"), HERE / "humanoid_materials.py"], lambda a: _cfg(a, "materials")),
+    ("materials", stage_materials, lambda a: [a.path("clean"), a.path("analyze", "landmarks.json"), HERE / "humanoid_materials.py"], lambda a: _cfg(a, "materials")),
     ("wardrobe", stage_wardrobe, lambda a: [a.path("clean", "body_low.glb"), a.path("analyze", "landmarks.json"), HERE / "humanoid_wardrobe.py",
                                             HERE / "blender" / "humanoid_build.py"], lambda a: _cfg(a, "wardrobe")),
     ("rig", stage_rig, lambda a: [a.path("clean", "body_low.glb"), a.path("materials"), a.path("wardrobe", "wardrobe.json"),

@@ -1,0 +1,19 @@
+{
+ "covered_fraction": 0.7352001667022705,
+ "bake_misses_filled": 159287,
+ "shell_texels_cleaned_to_ivory": 0.18293368287547268,
+ "mechanism_texels_kept": 0.17214647692201424,
+ "texel_fractions": {
+  "crop_top": 0.08040301551439154,
+  "shorts": 0.17476544864159488,
+  "donor": 0.042354635881534014,
+  "shell": 0.43350273198702965,
+  "dark_mechanism": 0.31639260318849105,
+  "optics": 0.0004306580539379755
+ },
+ "method": {
+  "base_colour": "source projection atlas re-baked onto the new UVs; shell cavity shading partly divided out with AO (k=0.45); garments authored",
+  "roughness_metallic": "inferred from material classes, not recovered",
+  "emissive": "optics mask x source colour x 0.80"
+ }
+}
