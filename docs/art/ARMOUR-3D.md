@@ -100,6 +100,21 @@ Asset: `tools/asset-pipeline/assets/armour_vanguard_set` → `client/assets/armo
 * *Runtime* (`client/src/armour-fx.js`): the channel shader animates the flow UVs, additive halos and ember points ride the anchors, a combat surge brightens them, quality and reduced motion are honoured. `wearArmour` hides the replaced shells while a piece is worn (ref-counted across slots) and restores them on removal.
 * *Evidence*: dark studio (AgX, fog-glow bloom on the channels only), the whole set on one mannequin, bind / idle / jog on both bodies.
 
+**Measured** (`validate`, seven clips × 8 frames; the phase-1 limits are *not yet met*, so the set validates with `strict: false` and is reported, not gated):
+
+| Body | Piece | Min clearance | Inside body (max frame) | Inside kept shells | Edge strain max (limit) |
+|---|---|---|---|---|---|
+| m | chest | -27 mm | 2.9 % | 0.6 % | 0.56 (0.83) |
+| m | gloves | -5 mm | 0.6 % | 4.1 % | 1.15 (0.83) |
+| m | greaves | -35 mm | 4.1 % | 2.0 % | 0.45 (0.83) |
+| m | boots | -17 mm | 0.1 % | 8.4 % | 0.39 (0.83) |
+| f | chest | -23 mm | 3.7 % | 0.8 % | 0.64 (0.89) |
+| f | gloves | -5 mm | 0.4 % | 3.1 % | 0.72 (0.89) |
+| f | greaves | -30 mm | 3.1 % | 2.0 % | 0.39 (0.89) |
+| f | boots | -23 mm | 0.9 % | 9.5 % | 0.34 (0.89) |
+
+Body penetration concentrates where rigid plates cross deforming joints in sprint and punch frames; the shoe and hand shells sit under the boot and glove liners. The gloves' strain on the male body exceeds the limit.
+
 **Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (≈100k triangles per full set), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
 
 ## Roadmap to complete
