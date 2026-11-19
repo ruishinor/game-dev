@@ -9,15 +9,24 @@ export function createSurveyStrider(){
  const enamel=mat(0xb3b6a0,.25,.64),frame=mat(0x2c3b40,.65,.55),bronze=mat(0xa27840,.62,.43),steel=mat(0x91a2a0,.78,.38),dark=mat(0x151e20,.2,.82);
  const signal=new T.MeshStandardMaterial({color:0x5daeb0,emissive:0x207c84,emissiveIntensity:.65,roughness:.42});
  const parts=(g,geo,m,x=0,y=0,z=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;g.add(o);return o;};
+ const distanceParts=[],distanceGeometry=[];
  const box=(g,w,h,d,m,x,y,z)=>parts(g,new T.BoxGeometry(w,h,d),m,x,y,z);
- const cyl=(g,r1,r2,h,m,x,y,z,n=12)=>parts(g,new T.CylinderGeometry(r1,r2,h,n),m,x,y,z);
- const sphere=(g,r,m,x,y,z)=>parts(g,new T.SphereGeometry(r,12,8),m,x,y,z);
+ const cyl=(g,r1,r2,h,m,x,y,z,n=12)=>{
+  const mesh=parts(g,new T.CylinderGeometry(r1,r2,h,n),m,x,y,z);
+  if(n>6)distanceGeometry.push({mesh,near:mesh.geometry,far:new T.CylinderGeometry(r1,r2,h,6)});
+  return mesh;
+ };
+ const sphere=(g,r,m,x,y,z)=>{
+  const mesh=parts(g,new T.SphereGeometry(r,12,8),m,x,y,z);
+  distanceGeometry.push({mesh,near:mesh.geometry,far:new T.SphereGeometry(r,7,4)});
+  return mesh;
+ };
  cyl(body,.42,.32,.26,frame,0,1.16,0,6);cyl(body,.44,.38,.33,enamel,0,1.43,0,6);cyl(body,.30,.42,.12,bronze,0,1.65,0,6);
  box(body,.54,.20,.19,frame,0,1.43,.37);box(body,.26,.10,.025,signal,0,1.45,.48);
  for(const side of [-1,1]){
   box(body,.20,.29,.48,frame,side*.43,1.43,-.03);
   box(body,.15,.23,.40,enamel,side*.49,1.46,-.03);
-  for(let i=0;i<3;i++)box(body,.018,.045,.22,dark,side*.573,1.37+i*.065,-.03);
+  for(let i=0;i<3;i++)distanceParts.push(box(body,.018,.045,.22,dark,side*.573,1.37+i*.065,-.03));
   box(body,.12,.06,.10,bronze,side*.46,1.62,.05);
  }
  const kit=new T.Group();kit.name='strider:survey-instruments';kit.position.set(0,1.69,-.08);body.add(kit);
@@ -34,11 +43,21 @@ export function createSurveyStrider(){
   const hip=sphere(group,.12,bronze,0,0,0),knee=sphere(group,.10,frame,0,0,0);
   const upper=link(.085,enamel),lower=link(.061,frame),piston=link(.028,steel);
   const foot=new T.Group();foot.name='strider:foot-'+i;group.add(foot);
-  box(foot,.19,.09,.23,frame,0,.055,0);box(foot,.16,.05,.19,bronze,0,.12,0);box(foot,.2,.035,.25,dark,0,.018,0);
+  box(foot,.19,.09,.23,frame,0,.055,0);box(foot,.16,.05,.19,bronze,0,.12,0);
+  distanceParts.push(box(foot,.2,.035,.25,dark,0,.018,0));
+  distanceParts.push(piston);
   legs.push({axis,hip,knee,upper,lower,piston,foot,angle});
  }
- let phase=0,motion=0,sweep=0;
+ let phase=0,motion=0,sweep=0,distant=false;
+ function setDistance(cameraDistance){
+  const next=cameraDistance>(distant?18:22);
+  if(next===distant)return;
+  distant=next;
+  for(const mesh of distanceParts)mesh.visible=!distant;
+  for(const {mesh,near,far} of distanceGeometry)mesh.geometry=distant?far:near;
+ }
  function update(dt,s={}){
+  if(Number.isFinite(s.cameraDistance))setDistance(s.cameraDistance);
   const active=s.act!=='dormant'&&s.act!=='stranded',speed=Math.max(0,Math.min(8,s.speed||0));motion+=(Number(active&&speed>.13)-motion)*(1-Math.exp(-dt*9));
   phase=(phase+speed*dt*6.4)%TAU;sweep+=dt;
   const bob=active?Math.sin(phase*3)*.027*motion:0;body.position.y=bob;
@@ -55,5 +74,5 @@ export function createSurveyStrider(){
   signal.emissiveIntensity=active?(working?1.4:.65):.08;
  }
  update(0,{});
- return {kind:'procedural',group,height:2.23,radius:.9,hover:0,update,dispose(){const g=new Set(),m=new Set();group.traverse(o=>{if(o.isMesh){g.add(o.geometry);m.add(o.material);}});g.forEach(x=>x.dispose());m.forEach(x=>x.dispose());}};
+ return {kind:'procedural',group,height:2.23,radius:.9,hover:0,update,dispose(){const g=new Set(distanceGeometry.flatMap(({near,far})=>[near,far])),m=new Set();group.traverse(o=>{if(o.isMesh){g.add(o.geometry);m.add(o.material);}});g.forEach(x=>x.dispose());m.forEach(x=>x.dispose());}};
 }
