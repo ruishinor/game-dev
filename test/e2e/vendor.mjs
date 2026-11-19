@@ -225,6 +225,33 @@ try{
  await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
  await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.equipped.weapon==='field_emitter'&&!s.ents.find(e=>e.id===s.myId)?.row?.er&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod');});
+ // Recover the social wardrobe independently of combat equipment through real purchases and equipment UI.
+ await inventory.getByRole('button',{name:'Close inventory'}).click();
+ p.x=vendor.x;p.z=vendor.z+2;
+ await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');await panel.waitFor({state:'visible'});
+ const social=panel.locator('.vendor-row').filter({hasText:'Sanctum Service Coat'});
+ await social.getByRole('button',{name:'Preview',exact:true}).click();
+ await social.locator('.social-preview').waitFor({state:'visible'});
+ await social.getByRole('button',{name:'Buy 1',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('social_service_coat')&&window.__attune.state().sheet.credits===8);
+ assert.ok((await liveFixturePlayer(page,server,'Vendor Tester'))===p);
+ await panel.getByRole('button',{name:'Close vendor'}).click();
+ await page.waitForFunction(()=>!window.__attune.state().you.vendor);
+ await page.locator('#view').focus();await page.keyboard.press('KeyC');
+ const socialLoadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
+ await socialLoadout.getByRole('button',{name:'Character',exact:true}).click();
+ const originalPortrait=await socialLoadout.locator('.doll-portrait .doll-image').getAttribute('src');
+ await socialLoadout.getByRole('button',{name:'Social clothing',exact:true}).click();
+ await socialLoadout.locator('.compact-item').filter({hasText:'Sanctum Service Coat'}).getByRole('button',{name:'Equip',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return s.sheet.equipped.social_torso==='social_service_coat'&&s.sheet.equipped.weapon==='field_emitter'&&me.socialVisual==='service'&&me.socialWorn==='service';});
+ await socialLoadout.getByRole('button',{name:'Character',exact:true}).click();
+ await page.waitForFunction(previous=>{const img=document.querySelector('.doll-portrait .doll-image');return img?.getAttribute('src')&&img.getAttribute('src')!==previous;},originalPortrait);
+ await page.screenshot({path:'vendor-evidence/08-social-wardrobe.png'});
+ await socialLoadout.getByRole('button',{name:'Social clothing',exact:true}).click();
+ await socialLoadout.getByRole('button',{name:'Torso: Sanctum Service Coat',exact:true}).press('Shift+F10');
+ await page.locator('.player-context').getByRole('button',{name:'Unequip',exact:true}).click();
+ await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return !s.sheet.equipped.social_torso&&!me.socialWorn&&!me.socialVisual;});
  assert.deepEqual(errors,[]);
- console.log('PASS live quartermaster, private balance, sale, purchase, buyback and range dismissal');
+ console.log('PASS live quartermaster, private balance, sale, purchase, buyback, range dismissal and fitted social wardrobe');
 }finally{await browser?.close();await server.close();}

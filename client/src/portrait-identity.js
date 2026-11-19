@@ -1,14 +1,16 @@
 // The static paperdoll must use the same cosmetic identity as the live model.
 // No gameplay state, client authority or new network fields are introduced.
+import {socialVisualForItem} from '../../shared/social-visual.js';
 export const PORTRAIT_CACHE_LIMIT=32;
 
 export function characterPortraitMeta(sheet){
- return {k:'p',c:sheet.cls,a:sheet.look,n:sheet.name,ap:sheet.appearance};
+ const sv=socialVisualForItem(sheet.equipped?.social_torso);
+ return {k:'p',c:sheet.cls,a:sheet.look,n:sheet.name,ap:sheet.appearance,...(sv?{sv}:{})};
 }
 export function portraitCacheKey(meta,style,glb){
  const humanoid=meta.k==='p'||meta.c==='archivist'||meta.c==='quartermaster';
  return JSON.stringify([meta.k,meta.c,meta.a??null,humanoid?meta.n??null:null,
-  humanoid?meta.ap??null:null,style,!!glb]);
+  humanoid?meta.ap??null:null,meta.sv??null,style,!!glb]);
 }
 export function createPortraitCache(limit=PORTRAIT_CACHE_LIMIT){
  const entries=new Map();
