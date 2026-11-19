@@ -21,6 +21,7 @@ KINDS = {
     "controlled-benchmark": "asset_pipeline.benchmark",
     "reference-driven-creature": "asset_pipeline.creature",
     "imported-mechanical-humanoid": "asset_pipeline.mech_humanoid",
+    "body-fitted-armour": "asset_pipeline.armour",
 }
 
 
