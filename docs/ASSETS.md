@@ -41,6 +41,15 @@ chibi/toy proportions that fit neither Attunement nor Red Rucker); Mixamo
 (needs an Adobe login and its redistribution terms are unclear); anything from
 World of Warcraft or Anarchy Online (proprietary; reference only).
 
+### Owner-authorised assets (not CC0)
+
+Recorded separately in `assets/owner-sources.json`; never relabelled CC0 and
+not covered by the statement above.
+
+| Asset | Source | Terms | Used for |
+| --- | --- | --- | --- |
+| `client/assets/halo_construct.glb` | Owner-accepted Halo Construct (`client/character-assets/halo_construct.glb`, SHA-256 `02853bfd…a32036`), reconstructed from owner-provided Meshy footage; skeleton and five clips from the Universal Animation Library (CC0) | Owner-authorised for this repository and the game build; provider licence not independently verified. Model created with Meshy (meshy.ai), CC BY 4.0 where applicable. | Halo Construct NPC race: Sanctum Wardens and the quartermaster ([record](art/HALO-CONSTRUCT-NPC.md)) |
+
 ## Pipeline
 
 ```bash

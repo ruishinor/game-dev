@@ -1,0 +1,28 @@
+{
+ "source": "client/character-assets/halo_construct.glb",
+ "sha256": "02853bfd536a53135225fc9353463feeed07fb4745ef2d261dbaeaa7d9a32036",
+ "bytes": 7861284,
+ "vertices": 109786,
+ "triangles": 167664,
+ "meshes": 1,
+ "materials": 1,
+ "textures": 1,
+ "texture_size": [
+  3192,
+  2808
+ ],
+ "skins": 0,
+ "animations": 0,
+ "bounds_min": [
+  -0.4002,
+  0.0,
+  -0.1801
+ ],
+ "bounds_max": [
+  0.4002,
+  1.85,
+  0.1801
+ ],
+ "height": 1.85,
+ "texcoord_v_convention": "glTF (row = v * height)"
+}

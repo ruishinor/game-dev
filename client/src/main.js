@@ -84,7 +84,7 @@ const environment = glbOnly === 'none' ? null : makeEnvironment(renderer);
 scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
-const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0' });
+const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0', reducedMotion: () => motionPreference.matches || params.get('q') === '0' });
 const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
@@ -880,6 +880,10 @@ function onSnapshot(m) {
   // Private loot state must be current before keyboard input, even if rendering lags.
   ui.loot.sync(y.lootable,y.loot);
   ui.vendor.sync(y.vendor);
+  // Presentation only: a vendor acknowledges a newly opened trade.
+  const vendorId = y.vendor?.id ?? null;
+  if (vendorId && vendorId !== S.lastVendorId) S.ents.get(vendorId)?.model.trigger?.('interact');
+  S.lastVendorId = vendorId;
   ui.syncNpc();
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
@@ -1610,8 +1614,10 @@ function updateEntities(dt, t, now) {
       yaw = sm.r;
       if (ent.meta.k === 'o') {
         // Characters in the world turn to face a nearby traveller.
-        yaw = me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
-        yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
+        // Posts with an authored facing (the Sanctum wardens) never turn.
+        yaw = ent.meta.y !== undefined ? ent.meta.y
+          : me && ent.meta.c === 'archivist' && Math.hypot(me.pos.x - x, me.pos.z - z) < 9 ? Math.atan2(me.pos.x - x, me.pos.z - z) : 0.9;
+        if (ent.meta.y === undefined) yaw = lerpAngle(ent.yaw, yaw, Math.min(1, dt * 4));
       }
     }
     let y = groundHeight(x, z) + j + ent.model.hover;
@@ -1644,12 +1650,12 @@ function updateEntities(dt, t, now) {
     ent.jy = j;
     ent.placed = true;
     ent.holder.position.set(x, y, z);
-    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5
+    const facingTarget = now < (ent.faceUntil || 0) && !ent.dead && ent.speed < 1.5 && ent.meta.y === undefined
       ? S.ents.get(ent.faceTo) : null;
     const faceYaw = facingTarget && facingTarget.placed
       ? Math.atan2(facingTarget.pos.x - x, facingTarget.pos.z - z) : yaw;
     // Smooth presentation yaw separately from the authoritative movement yaw.
-    ent.displayYaw = ent.displayYaw === undefined ? faceYaw
+    ent.displayYaw = ent.displayYaw === undefined || ent.meta.y !== undefined ? faceYaw
       : lerpAngle(ent.displayYaw, faceYaw, Math.min(1, dt * 13));
     ent.holder.rotation.y = ent.displayYaw;
     ent.chest.set(x, y + ent.model.height * (ent.model.hover ? 0 : 0.62), z);
@@ -1982,7 +1988,8 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView, speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), inView: e.inView,
+        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },
