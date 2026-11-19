@@ -728,6 +728,51 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .recipe-pagination{display:flex;gap:4px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:11px}
 .recipe-pagination button{font-size:11px;padding:4px 6px}
 
+/* Cinematic account character selection, shared gameplay model preview. */
+.character-selection-mode #login{padding:10px;background:radial-gradient(ellipse at 50% 45%,#101d25db,#04080ced 80%);}
+.character-selection-mode #login .login-card{width:min(1500px,100%);max-height:calc(100vh - 20px);padding:14px 24px 18px;overflow:auto;background:linear-gradient(145deg,#151c22f0,#0a1015ee 80%);border:1px solid #786c52;border-radius:3px;}
+.character-selection-mode #login h1{font-family:Georgia,serif;font-size:28px;color:#e6d9ba;letter-spacing:.11em;text-shadow:none;}
+.character-selection-mode #login .tagline{font-size:11px;color:#afb2ae;margin:0 0 7px;}
+#character-roster{border:0;background:none;padding:0;margin:0;}
+#character-roster .roster-head{padding:7px 5px 11px;border-bottom:1px solid #75684d;}
+#character-roster .roster-head h2{font:22px Georgia,serif;color:#eadbbd;}
+.roster-stage{min-height:280px;height:min(62vh,620px);display:grid;grid-template-columns:minmax(175px,22%) minmax(270px,1fr) minmax(190px,25%);gap:12px;align-items:stretch;background:radial-gradient(ellipse at 50% 42%,#28394282,#0b1218aa);}
+.roster-facts{display:flex;flex-direction:column;justify-content:flex-end;padding:26px 12px;color:#e9dfca;}
+.roster-level{font-size:12px;color:#cfbd94;letter-spacing:.08em;text-transform:uppercase;}
+#character-roster h3.roster-character-name{font:28px Georgia,serif;color:#f0dfb9;text-transform:none;letter-spacing:.02em;margin:7px 0 16px;}
+.roster-fact{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #5f635c80;font-size:12px;}
+.roster-fact strong{font-weight:500;text-align:right;}
+#roster-preview{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+#roster-preview canvas{display:block;flex:1;min-height:0;width:100%;height:100%;outline:none;touch-action:none;cursor:grab;}
+#roster-preview canvas:active{cursor:grabbing;}
+#roster-preview .roster-preview-controls{position:absolute;bottom:33px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;max-width:98%;}
+#roster-preview .roster-preview-controls button{font-size:11px;padding:4px 7px;background:#19262acc;border-color:#89795c;border-radius:2px;color:#d9d0b9;}
+#roster-preview [data-preview-status]{position:absolute;bottom:1px;left:0;width:100%;font-size:10px;text-align:center;pointer-events:none;text-shadow:0 1px 4px #000;color:#c3c7c1;}
+.roster-cards{overflow-y:auto;padding:15px 5px 12px;}
+.roster-cards h3{font:16px Georgia,serif;color:#e4d5b1;text-transform:none;letter-spacing:0;margin:5px 0 15px;}
+.roster-cards .roster-row{border:1px solid #70654c;background:linear-gradient(90deg,#35372f,#171f24);padding:5px;gap:4px;margin:0 0 7px;border-radius:2px;}
+.roster-select{min-width:0;flex:1;display:grid;gap:3px;text-align:left;border:0;background:none;padding:8px 10px;color:#e9dfc9;}
+.roster-select strong{font:16px Georgia,serif;color:inherit;}
+.roster-select[aria-pressed=true]{outline:1px solid #c6ad7e;outline-offset:-2px;background:linear-gradient(90deg,#66513c88,#383b3666);}
+.roster-select .muted{font-size:10px;color:#c2c3b7;}
+.roster-direct-play{flex:0 0 auto;padding:6px 8px;font-size:11px;border-color:#786a50;}
+#roster-capacity{margin:15px 6px 0;font-size:12px;color:#bfb9a5;text-align:right;}
+.roster-footer{display:flex;justify-content:center;align-items:center;gap:12px;padding:14px 0 5px;}
+.roster-footer button{min-width:135px;border-radius:3px;border-color:#98805a;background:#242e31;color:#e8d7b4;}
+.roster-footer #roster-enter{background:linear-gradient(180deg,#62553e,#312d27);font:17px Georgia,serif;padding:10px 22px;color:#fae7c2;}
+.roster-footer .danger{margin-top:0;color:#f4b1aa;}
+.roster-delete-confirm{margin:9px auto 0;padding:13px 16px;border:1px solid #ab7770;background:#291f22;max-width:580px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.roster-delete-confirm p{width:100%;margin:0;color:#f0c0b0;}
+.roster-delete-confirm label{font-size:12px;}
+.roster-delete-confirm input{background:#111a20;color:#f7e9e0;border:1px solid #a58b7a;padding:6px;min-width:125px;}
+.roster-delete-confirm .danger{margin:0;}
+#character-roster .legacy-link{margin:9px 0 0;max-width:520px;color:#aeb6b4;font-size:12px;}
+#character-roster .legacy-link summary{cursor:pointer;}
+.character-create-mode #login .login-card{max-height:calc(100vh - 20px);overflow:auto;}
+#creation-back{display:block;margin:0 0 12px;background:#1a2529;border-color:#8f7d5e;}
+@media(max-width:790px){.roster-stage{grid-template-columns:minmax(150px,1fr) minmax(220px,2fr);height:auto;min-height:440px}.roster-facts{grid-column:1;grid-row:1;padding:12px;justify-content:center}.roster-cards{grid-column:1;grid-row:2;max-height:200px}.roster-stage #roster-preview{grid-column:2;grid-row:1 / span 2;min-height:440px}.roster-footer{flex-wrap:wrap}.roster-footer button{min-width:110px;}}
+@media(max-width:520px){.roster-stage{display:flex;flex-direction:column;min-height:0;}.roster-facts{order:2;padding:8px 12px}.roster-stage #roster-preview{order:1;min-height:325px;height:45vh;flex:none}.roster-cards{order:3;max-height:200px;padding:8px}.roster-footer button{flex:1;min-width:105px}.character-selection-mode #login .login-card{padding:9px;}}
+
 /* HUD / cartography foundation. Original Attunement materials, no donor UI art. */
 #hud .frame.player,#hud .frame.pet,#hud .frame.ally{
  --unit-metal:#a99770;position:relative;background:linear-gradient(145deg,#303433ed,#10171ce8 55%,#1a2529ed);
