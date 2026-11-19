@@ -217,7 +217,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
   const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
   let heldRod=null,rodEffects=null,rodEngine=null;
-  const releaseRod=()=>{heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
+  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
   let weapon = null, visual = null;
   function setWeaponVisual(next) {
     next = next === 'longpoint' ? next : null;
@@ -241,6 +241,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
+    rodContact(at,ground,blocked=false){
+      return !!(heldRod?.group.visible&&rodEffects?.impact(at,{ground,blocked}));
+    },
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
@@ -283,9 +286,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         const active=!st.dead&&st.attack>.2;
         heldRod.group.visible=!st.dead&&!working;
         heldRod.setMode(st.electricalRod);
-        heldRod.update(dt,{energized:!st.dead,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead});
-        if(st.electricalRodVfx!==rodEngine){rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
-        rodEffects?.update(dt,{energized:active&&!working&&!st.reducedMotion,activity:active?st.attack:0});
+        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead});
+        if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
+        rodEffects?.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0});
       }
       flash(st.hit);
       if (ctx.coils.length) {
