@@ -335,7 +335,7 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
-        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:1}:{}),
+        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:p.char.electricalRodMode==='dual'?2:1}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius } } : {}),
       });
@@ -443,6 +443,7 @@ export class Game {
       credits: sanitizeCredits(c.credits),
       condition:sanitizeCondition(c.condition,c.inventory),
       equipped: { ...c.equipped },
+      ...(c.equipped.weapon==='electrical_combat_rod'&&c.inventory.includes('electrical_combat_rod')?{electricalRodMode:c.electricalRodMode==='dual'?'dual':'rod'}:{}),
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
       directiveReceipts:sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step),
