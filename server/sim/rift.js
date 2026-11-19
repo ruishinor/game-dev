@@ -8,9 +8,10 @@ const OPEN_MS=4000,ACTIVE_MS=22000,WARN_MS=2300,REST_MS=4600,STABLE_MS=15000,COO
 const deny=reason=>({ok:false,reason});const ok={ok:true};
 export function createRift(game){
  const core=game.objects.find(o=>o.type==='phase_scar'),indexer=game.objects.find(o=>o.type==='rift_indexer'),regulator=game.objects.find(o=>o.type==='rift_regulator');
- return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
+ const entry=core,exit=game.objects.find(o=>o.type==='rift_return');
+ return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,entry,exit,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
 }
-function effect(game,k,r){const s=game.rift.core;game.events.push({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
+function effect(game,k,r){const s=game.rift.core;game.emitWorldEvent({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
 function setPhase(game,phase,until){
  const f=game.rift;f.phase=phase;f.until=until;f.pulseAt=0;f.nextWarn=0;
 }
@@ -36,7 +37,8 @@ export function interactRift(game,p,obj,{grantSalvage}={}){
    recordFieldReceipt(p.char,'calibration',true);game.markDirty(p);
    game.message(p,'gain','Phase Scar calibration complete. Resonance sample recovered.');return ok;
   }
-  game.message(p,'info',state==='completed'?'Calibration sample already recovered. You may assist further calibrations.':'Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;
+  if(state==='completed')return game.travelRift(p,obj);
+  game.message(p,'info','Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;
  }
  if(!p.char.attunements.includes('resonance'))return deny('Requires Resonance attunement.');
  if(p.char.level<3)return deny('The field instruments require level 3.');
@@ -74,7 +76,7 @@ export function tickRift(game){
   if(!f.pulseAt&&now>=f.until){setPhase(game,'cooling',now+COOL_MS);effect(game,'rift_collapse',2.45);}
   else if(!f.pulseAt&&now>=f.nextWarn&&now+WARN_MS<=f.until){
    f.pulseAt=now+WARN_MS;
-   game.events.push({e:'tele',id:core.id,k:'rift_pulse',n:'Phase discharge',x:core.x,z:core.z,r:RIFT_SITE.hazard,ms:WARN_MS,g:1});
+   game.emitWorldEvent({e:'tele',id:core.id,k:'rift_pulse',n:'Phase discharge',x:core.x,z:core.z,r:RIFT_SITE.hazard,ms:WARN_MS,g:1});
   }
  }else if(f.phase==='stabilized'&&now>=f.until){setPhase(game,'cooling',now+COOL_MS);effect(game,'rift_collapse',2.45);}
  else if(f.phase==='cooling'&&now>=f.until)setPhase(game,'dormant',0);

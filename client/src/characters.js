@@ -8,10 +8,11 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
 import { appearanceFor, setupFace, veyranMaterial } from './face.js';
-import { FRAMES, RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
+import { FRAMES, RENDER_RACES, HAIR_COLOURS, normalizeAppearance, defaultAppearance } from '../../shared/appearance.js';
 
 // Arm reach differs by frame (hand_l x: 0.739 masculine, 0.645 feminine). Gear
 // authored for one frame is moved along the arm for the other (shoulder ~0.17).
@@ -23,9 +24,10 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
+import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -82,8 +84,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const armK = HAND_X[app.frame] / HAND_X[lookFrame];
   const remap = armRemap(armK);
   const veyran = app.race === 'veyran';
-  // Hair (or the Mirekin crest) is worn with the hood lowered.
-  const hoodDown = !!opts.appearance && (app.hair !== 'none' || app.race === 'mirekin');
+  // A player's hairstyle is not a hood toggle. Keep customization faces
+  // exposed for all hair selections; NPC authored outfit defaults remain.
+  const hoodDown = !!opts.appearance;
 
   const mats = [];
   const shellMats = {};
@@ -131,7 +134,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // Name-derived identity (face shape, age, stubble) under the chosen
   // appearance; NPC looks pin a full preset when no appearance is stored.
   const chosen = opts.appearance || !def.face
-    ? { tone: RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
+    ? { tone: RENDER_RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
     : def.face;
   const ap = appearanceFor(opts.appearanceKey ?? lookId, female, chosen);
   const helmet = !!def.shells.helmet;
@@ -195,6 +198,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     }
   }
 
+  const work=createProductionWork(THREE,inst);
   const anim = new Animator(inst, clips, { isUpper: isUpperBone });
   const idle = opts.idle && anim.has(opts.idle) ? opts.idle : HB.idle;
   anim.setBase(idle, { fade: 0 });
@@ -227,6 +231,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
     update(dt, st) {
+      const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
         dead = st.dead;
         if (dead) anim.play(HB.death, { kind: 'death', hold: true, fadeIn: 0.12 });
@@ -248,8 +253,16 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         landed = true;
       }
       const step = throttle(lod, dt, st.interval);
-      if (step) { weapon?.restore(); anim.update(step); }
-      if (weapon && (step || st.dead || st.air || st.casting || anim.busy)) weapon.update({ ...st, hideWeapon: st.casting || anim.busy });
+      // Both cosmetic systems own the arm rotations. Restore before sampling
+      // animation, and give fabrication exclusive priority over weapon carry.
+      if (step) {
+        weapon?.restore();
+        work.restorePose();
+        anim.update(step);
+        if (working) work.pose(st.work, st.t, st.reducedMotion);
+      }
+      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
+        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy });
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -278,6 +291,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       weapon?.dispose();
       anim.dispose();
       face?.dispose();
+      work.dispose();
       disposeInstance(group);
     },
   };
@@ -542,6 +556,7 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  * or broken asset never removes an entity from the world.
  */
 export function createModel(assets, meta, glb = true) {
+  if(meta.c==='survey_strider')return createSurveyStrider();
   let model = null;
   if (glb) try {
     const look = lookFor(meta);
@@ -557,7 +572,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

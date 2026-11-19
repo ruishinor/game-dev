@@ -317,13 +317,17 @@ export function makeListeningStone() {
       // 0 far away -> 1 within ~3 m; eased so it never snaps.
       const want = Math.min(1, Math.max(0, (12 - near) / 9));
       wake += (want - wake) * Math.min(1, (dt || 0) * 1.5);
-      const k = wake + (st?.cast || 0);
+      const cast = st?.cast || 0;
+      const k = wake + cast;
+      const calm = !!st?.reducedMotion;
       // Integrate angular speed. Multiplying the whole elapsed time by the
       // wake impulse made a late interaction jump much faster than an early one.
       const motion = k / (1 + 0.18 * k);
-      ringTime = (ringTime ?? t) + dt * (1 + motion * 2);
-      orbitTime = (orbitTime ?? t) + dt * (1 + motion);
-      medallionAngle = (medallionAngle ?? t * 0.15) + dt * (0.15 + motion * 0.4);
+      const proximityMotion = wake / (1 + 0.18 * wake);
+      const angularMotion = calm ? proximityMotion : motion + 0.3 * (motion - proximityMotion);
+      ringTime = (ringTime ?? t) + dt * (1 + angularMotion * 2);
+      orbitTime = (orbitTime ?? t) + dt * (1 + angularMotion);
+      medallionAngle = (medallionAngle ?? t * 0.15) + dt * (0.15 + angularMotion * 0.4);
       stoneMat.emissiveIntensity = 0.35 + 0.15 * Math.sin(t * 0.9) + k * 0.9;
       if (stoneMat.emissiveMap) stoneMat.emissiveMap.offset.y = Math.sin(t * 0.15) * 0.01 * (1 + k);
       gold.emissiveIntensity = 0.2 + k * 0.6;
@@ -345,7 +349,7 @@ export function makeListeningStone() {
       debris.instanceMatrix.needsUpdate = true;
       for (let i = 0; i < MOTES; i++) {
         const m = motes[i];
-        m.y += dt * m.v * (1 + motion);
+        m.y += dt * m.v * (1 + (calm ? proximityMotion : motion));
         if (m.y > 6.5) m.y = 0;
         const a = m.a + t * 0.2;
         // Lazy curl drift layered on the orbit so motes eddy rather than march.
@@ -357,7 +361,6 @@ export function makeListeningStone() {
       moteGeo.getAttribute('position').needsUpdate = true;
       moteMat.opacity = 0.35 + 0.55 * k;
       // Waves and column (reduced-motion players get the column only, still).
-      const calm = !!st?.reducedMotion;
       const kk = Math.min(1, k);
       waveIn -= dt || 0;
       if (!calm && kk > 0.25 && waveIn <= 0) {
@@ -368,7 +371,7 @@ export function makeListeningStone() {
       for (const w of waves) {
         w.age += dt || 0;
         const life = 2.8;
-        w.m.visible = w.age < life;
+        w.m.visible = !calm && w.age < life;
         if (!w.m.visible) continue;
         const p = w.age / life;
         w.m.scale.setScalar(1.5 + 6 * (1 - Math.pow(1 - p, 2)));

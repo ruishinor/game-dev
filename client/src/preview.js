@@ -14,7 +14,7 @@ import { poseLongpoint } from './longpoint.js';
 import { makeEnvironment } from './scene.js';
 
 const q = new URLSearchParams(location.search);
-const items = (q.get('items') || 'look:vanguard_plate,look:red_rucker,look:aegis_keeper,look:conductor,look:brine_surveyor,look:archivist,mender,skitter,sentinel,warden').split(',').filter(Boolean);
+const items = (q.get('items') || 'look:vanguard_plate,look:aegis_keeper,look:conductor,look:brine_surveyor,look:archivist,mender,skitter,sentinel,warden').split(',').filter(Boolean);
 const cols = Number(q.get('cols')) || Math.min(4, items.length);
 const cell = Number(q.get('cell')) || 320;
 const yaw = Number(q.get('yaw') ?? 0.55);

@@ -75,7 +75,6 @@ export const CLASSES = {
 export const LOOKS = {
   vanguard: [
     { id: 'vanguard_plate', name: 'Capacitor Plate', blurb: 'Standard-issue kinetic harness: storage plates and gauntlet coils.' },
-    { id: 'red_rucker', name: 'Red Rucker', blurb: 'Veyran Burdenkeeper. A faceless crimson endurance fighter who carries the load for others.' },
   ],
   symbiotech: [
     { id: 'conductor', name: 'Conductor Suit', blurb: 'Bio-lab field suit with a symbiote culture tank.' },
@@ -196,7 +195,9 @@ export const COMPANIONS = {
   survey_strider:{
     name:'Survey Strider',followDist:2.8,speed:8,leash:28,radius:.9,
     modes:{
-      assist:{name:'Analyze target',desc:'Approaches your selected hostile target and applies a 6s analysis if you have no active scan. No damage or Power Cells. Cover and tether limit its reach.'},
+      recover:{name:'Salvage recovery',desc:'Collects your existing personal corpse loot within 18 metres outside combat. The Strider must reach the remains; returns to Follow after one attempt.'},
+      screen:{name:'Emergency screen',desc:'Follows you and projects a 20-point barrier for 6 seconds when you are below half health in combat. 24-second cooldown; cannot replace an active barrier.'},
+      assist:{name:'Analyze target',desc:'Approaches your selected hostile target and applies a 6s analysis if you have no active scan. Transfers 15 Power Cells, but deals no damage. Cover and tether limit its reach.'},
       follow:{name:'Follow',desc:'Walks near you along clear ground routes without scanning.'},
       stay:{name:'Stay',desc:'Holds position; attempts to follow when you leave its tether. Cannot teleport through obstacles.'}
     }

@@ -4,7 +4,7 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, cancelInscription } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
 import { disposeItem } from './sim/disposal.js';
 import { beginProduction, stopProduction } from './sim/production.js';
@@ -12,6 +12,7 @@ import { inviteParty, answerParty, leaveParty } from './sim/party.js';
 import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
 import { useUtility } from './sim/utility.js';
+import { sameTravelRegion, travelRegionAt } from '../shared/world.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -32,6 +33,10 @@ const VISUAL_EVENT_TTL_MS=500;
 const replayable=e=>e.e==='hit'||e.e==='cast';
 function recentVisual(events,now){
  return events.filter(x=>now-x.time<=VISUAL_EVENT_TTL_MS).slice(-VISUAL_EVENT_LIMIT);
+}
+
+function visibleEvent(event, ids) {
+  return [event.s, event.d, event.id, event.o].every(id => !id || ids.has(id));
 }
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -393,6 +398,15 @@ export class NetServer {
       case 'use_utility':
         if(typeof msg.item!=='string'||msg.item.length>80||typeof msg.weapon!=='string'||msg.weapon.length>80||!isId(msg.rev))return this.strike(conn);
         reply(useUtility(game,p,msg.item,msg.weapon,msg.rev));break;
+      case 'appearance_change': {
+        if(typeof msg.appearance!=='string'||msg.appearance.length>48)return this.strike(conn);
+        const result=changeInitiationAppearance(game,p,msg.appearance,()=>{
+          this.store.markDirty();
+          this.store.flush();
+        });
+        if(!result.ok)p.outbox.push({e:'appearance_rejected',reason:result.reason});
+        break;
+      }
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;
@@ -473,7 +487,7 @@ export class NetServer {
             }
           }else{
             for(const recipient of game.players.values()){
-              if(Math.hypot(recipient.x-p.x,recipient.z-p.z)<=VICINITY_CHAT_RANGE)recipient.outbox.push(event);
+              if(sameTravelRegion(p,recipient)&&Math.hypot(recipient.x-p.x,recipient.z-p.z)<=VICINITY_CHAT_RANGE)recipient.outbox.push(event);
             }
           }
         }
@@ -490,20 +504,38 @@ export class NetServer {
   /** Send this tick's snapshot to every player, then clear tick events. */
   broadcast() {
     const game = this.game;
-    const rows = game.buildRows();
-    const rowsJson = JSON.stringify(rows);
-    const evJson = JSON.stringify(game.events);
-    const liveIds = new Set(rows.map((row) => row.i));
+    const regions = new Map();
+    for (const row of game.buildRows()) {
+      const region = travelRegionAt(row.x, row.z);
+      if (!regions.has(region)) regions.set(region, { rows: [], ids: new Set(), events: [] });
+      const snapshot = regions.get(region);
+      snapshot.rows.push(row);
+      snapshot.ids.add(row.i);
+    }
+    for (const event of game.events) {
+      const snapshot = regions.get(game.eventRegions.get(event));
+      if (snapshot && visibleEvent(event, snapshot.ids)) snapshot.events.push(event);
+    }
+    for (const snapshot of regions.values()) {
+      for (const row of snapshot.rows) {
+        if (row.t && !snapshot.ids.has(row.t)) row.t = 0;
+        if (row.hs && !snapshot.ids.has(row.hs)) row.hs = 0;
+      }
+      snapshot.rowsJson = JSON.stringify(snapshot.rows);
+      snapshot.evJson = JSON.stringify(snapshot.events);
+    }
     for (const conn of this.conns) {
       if (conn.ws.readyState !== 1 || !this.validAccountSession(conn)) continue;
       const p = conn.player;
       if (!p) continue;
+      const region = travelRegionAt(p.x, p.z);
+      const { rows, ids: liveIds, events, rowsJson, evJson } = regions.get(region);
       // Replaceable position snapshots may be skipped; private messages are retained.
       if(p.outbox.length>PRIVATE_EVENT_LIMIT){conn.ws.terminate();continue;}
       if(conn.ws.bufferedAmount>SNAPSHOT_BACKPRESSURE){
         conn.stalledSince??=game.time;
         if(game.time-conn.stalledSince>STALL_LIMIT_MS){conn.ws.terminate();continue;}
-        conn.pendingVisual=recentVisual([...(conn.pendingVisual||[]),...game.events.filter(replayable).map(event=>({time:game.time,event}))],game.time);
+        conn.pendingVisual=recentVisual([...conn.pendingVisual.filter(item=>item.region===region),...events.filter(replayable).map(event=>({time:game.time,region,event}))],game.time);
         continue;
       }
       conn.stalledSince=null;
@@ -519,8 +551,8 @@ export class NetServer {
           meta.push(game.metaFor(ent));
         }
       }
-      const delayed=recentVisual(conn.pendingVisual||[],game.time).map(x=>x.event).filter(e=>(!e.s||liveIds.has(e.s))&&(!e.d||liveIds.has(e.d)));
-      const deliveredEvents=delayed.length?JSON.stringify([...delayed,...game.events]):evJson;
+      const delayed=recentVisual(conn.pendingVisual,game.time).filter(item=>item.region===region&&visibleEvent(item.event,liveIds)).map(item=>item.event);
+      const deliveredEvents=delayed.length?JSON.stringify([...delayed,...events]):evJson;
       let out = `{"t":"s","time":${Math.round(game.time)},"ents":${rowsJson},"ev":${deliveredEvents},"y":${JSON.stringify(game.privateState(p))}`;
       if (meta.length) out += `,"meta":${JSON.stringify(meta)}`;
       if (p.outbox.length) out += `,"pv":${JSON.stringify(p.outbox)}`;

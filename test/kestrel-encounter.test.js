@@ -67,3 +67,15 @@ test('recorder requires an existing field sample and attunement, refuses combat 
   assert.equal(p.char.inventory.filter(x=>x==='phase_damper').length,1);
   assert.equal(p.char.xp,0);
 });
+
+test('local containment alarm follows custodian engagement and blocks recorder until clear',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('vanguard')),outside=g.addPlayer(makeChar('keeper'));
+ const e=g.enemies.find(e=>e.type==='quarantine_custodian'),rec=g.objects.find(o=>o.type==='deep_console');
+ place(p,-59,-8);place(e,-55,-8);
+ assert.equal(g.privateState(p).kestrelAlarm,false);
+ e.state='combat';e.threat.set(p.id,1);
+ assert.equal(g.privateState(p).kestrelAlarm,true);assert.equal(g.privateState(outside).kestrelAlarm,false);
+ assert.match(interact(g,p,rec.id).reason,/Containment alarm active/);
+ dealDamage(g,p,e,9999,'test');p.combatUntil=0;
+ assert.equal(g.privateState(p).kestrelAlarm,false);assert.ok(interact(g,p,rec.id).ok);
+});

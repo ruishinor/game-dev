@@ -149,7 +149,7 @@ test('http: built assets and the loader modules are served narrowly, with the ri
   }
 });
 
-test('looks: a cosmetic appearance is stored, relayed to other players, validated, and never changes rules', async () => {
+test('looks: retired Red Rucker cannot be created, legacy saves migrate, cosmetic identity never changes rules', async () => {
   const file = tmpFile();
   let srv = await startServer({ port: 0, dataFile: file });
   let token;
@@ -164,14 +164,14 @@ test('looks: a cosmetic appearance is stored, relayed to other players, validate
     const wd = await d.create('Junk', 'vanguard', { toString: 1 }); // not even a string
     token = wa.token;
     await b.until(() => b.meta.has(wa.id) && b.meta.has(wc.id) && b.meta.has(wd.id), 3000, 'meta for the others');
-    assert.equal(b.meta.get(wa.id).a, 'red_rucker', 'another player is told the chosen look');
+    assert.equal(b.meta.get(wa.id).a, 'vanguard_plate', 'retired look falls back on creation and replication');
     assert.equal(b.meta.get(wa.id).c, 'vanguard', 'the look does not replace the class');
     await a.until(() => a.meta.has(wb.id), 3000, 'meta for b');
     assert.equal(a.meta.get(wb.id).a, 'vanguard_plate', 'no choice means the class default');
     assert.equal(b.meta.get(wc.id).a, 'conductor', "another class's look falls back to the default");
     assert.equal(b.meta.get(wd.id).a, 'vanguard_plate', 'junk falls back to the default');
     await a.until(() => a.sheet && b.sheet, 3000, 'sheets');
-    assert.equal(a.sheet.look, 'red_rucker');
+    assert.equal(a.sheet.look, 'vanguard_plate');
     assert.deepEqual(a.sheet.stats, b.sheet.stats, 'two vanguards with different looks have identical stats');
     for (const x of [a, b, c, d]) x.close();
   } finally {
@@ -179,7 +179,10 @@ test('looks: a cosmetic appearance is stored, relayed to other players, validate
   }
   // The look survives a restart; a tampered value on disk is corrected on load.
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.equal(saved.characters.find((ch) => ch.name === 'Rucker').look, 'red_rucker');
+  const legacy = saved.characters.find((ch) => ch.name === 'Rucker');
+  assert.equal(legacy.look, 'vanguard_plate');
+  // Emulate a save from before retirement, including unrelated progression.
+  Object.assign(legacy,{look:'red_rucker',appearance:'f.veyran.1.none.0',level:3,xp:17,credits:42,inventory:['field_emitter']});
   saved.characters.find((ch) => ch.name === 'Plain').look = '<script>';
   fs.writeFileSync(file, JSON.stringify(saved));
   srv = await startServer({ port: 0, dataFile: file });
@@ -188,7 +191,9 @@ test('looks: a cosmetic appearance is stored, relayed to other players, validate
     const w = await a.resume(token);
     assert.equal(w.t, 'welcome');
     await a.until(() => a.sheet, 3000, 'sheet');
-    assert.equal(a.sheet.look, 'red_rucker');
+    assert.equal(a.sheet.look, 'vanguard_plate');
+    assert.equal(a.sheet.appearance,'f.human.3.crop.1');
+    assert.equal(a.sheet.level,3);assert.equal(a.sheet.xp,17);assert.equal(a.sheet.credits,42);assert.ok(a.sheet.inventory.includes('field_emitter'));
     assert.equal([...srv.store.chars.values()].find((ch) => ch.name === 'Plain').look, 'vanguard_plate');
     a.close();
   } finally {
@@ -668,7 +673,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     // Exercise the actual authenticated craft command and persisted inventory.
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
-    p.x=0;p.z=8;
+    p.x=2.8;p.z=5.7; // Stand at the physical fabricator.
     await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
     a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
     await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');
@@ -821,7 +826,7 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
     const wa = await a.create('Mirelle', 'vanguard', 'vanguard_plate', 'f.mirekin.2.crop.7');
     const wb = await b.create('Default', 'vanguard'); // no appearance: the look's body
     const wc = await c.create('Hostile', 'vanguard', 'vanguard_plate', { frame: '__proto__', race: 'constructor', skin: 1e9 });
-    const wd = await d.create('Hairless', 'keeper', 'aegis_keeper', 'f.veyran.1.swept.3'); // Veyran are hairless
+    const wd = await d.create('Hairless', 'keeper', 'aegis_keeper', 'f.veyran.1.swept.3'); // retired origin must fall back
     token = wa.token;
     await b.until(() => [wa, wc, wd].every((w) => b.meta.has(w.id)), 3000, 'meta for the others');
     assert.equal(b.meta.get(wa.id).ap, 'f.mirekin.2.crop.7', 'another player is told the appearance');
@@ -829,7 +834,7 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
     await a.until(() => a.meta.has(wb.id), 3000, 'meta for b');
     assert.equal(a.meta.get(wb.id).ap, 'm.human.3.crop.1', 'no choice keeps the look default');
     assert.equal(b.meta.get(wc.id).ap, 'm.human.3.crop.1', 'hostile input falls back');
-    assert.equal(b.meta.get(wd.id).ap, 'f.veyran.1.none.3', 'race rules are enforced on the server');
+    assert.equal(b.meta.get(wd.id).ap, 'f.human.6.none.0', 'retired origin is rejected by the server');
     await a.until(() => a.sheet && b.sheet, 3000, 'sheets');
     assert.equal(a.sheet.appearance, 'f.mirekin.2.crop.7');
     assert.deepEqual(a.sheet.stats, b.sheet.stats, 'appearance never changes stats');
