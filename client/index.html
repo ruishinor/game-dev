@@ -85,6 +85,18 @@
             <div class="ap-row" role="group" aria-label="Hair"><span class="ap-name">Hair</span><div id="ap-hair" class="ap-choices"></div></div>
             <div class="ap-row" role="group" aria-label="Hair colour"><span class="ap-name">Colour</span><div id="ap-colour" class="ap-choices ap-swatches"></div></div>
           </fieldset>
+          <section id="creation-preview" aria-label="Live character preview">
+            <h2>Inspect your character</h2>
+            <canvas tabindex="0" aria-label="Live 3D character. Drag to rotate, arrow keys to rotate or zoom, Home to reset."></canvas>
+            <div class="preview-frame-labels" data-preview-frames hidden role="group" aria-label="Select body frame"><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
+            <div class="preview-controls" role="group" aria-label="Preview camera">
+              <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button><button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
+              <button type="button" data-preview-mode="frames" aria-pressed="false">Compare frames</button>
+              <button type="button" data-preview-left aria-label="Rotate left">←</button><button type="button" data-preview-right aria-label="Rotate right">→</button>
+              <button type="button" data-preview-out aria-label="Zoom out">−</button><button type="button" data-preview-in aria-label="Zoom in">+</button><button type="button" data-preview-reset>Reset camera</button>
+            </div>
+            <p data-preview-status role="status" class="hint">Live preview loads when visible.</p>
+          </section>
           <p id="login-error" role="alert"></p>
           <button id="enter" class="primary" type="submit" disabled>Loading the Reach…</button>
           <p class="hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>

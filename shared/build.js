@@ -76,6 +76,7 @@ export function resolveLoadout(char, equipped) {
     if (!id) continue;
     const item = Object.hasOwn(ITEMS, id) ? ITEMS[id] : null;
     if (!item) rejected.set(slot, 'Unknown item.');
+    else if (id==='survey_strider_link') rejected.set(slot,'Survey Strider deployment is learned, not equipped.');
     else if (item.slot !== slot) rejected.set(slot, `${item.name} does not fit that slot.`);
     else if (!char.inventory.includes(id)) rejected.set(slot, 'You do not own that item.');
     else if (item.cls && item.cls !== char.cls) rejected.set(slot, `${item.name} cannot be used by your class.`);

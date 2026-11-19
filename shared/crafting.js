@@ -69,6 +69,7 @@ export function previewRecipe(char,id){
     if(Object.values(char.equipped).includes(target))return fail('Unequip '+ITEMS[target].name+' first. Resolve equipment dependencies if required.');
   }
   const output=recipe.output;
+  if(output.item==='survey_strider_link'&&char.striderLearned===true)return fail('Survey Strider deployment already learned.');
   if(output.item&&inventory.includes(output.item))return fail('You already own '+ITEMS[output.item].name+'.');
   for(const [material,count] of Object.entries(recipe.inputs)){
     if((materials[material]||0)<count)return fail('Needs '+count+' × '+MATERIALS[material].name+'.');

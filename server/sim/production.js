@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import { MATERIALS, RECIPES, canFabricateAt, previewRecipe, previewProduction, productionTime, productionRisk } from '../../shared/crafting.js';
 import { workshopSite } from '../../shared/survey.js';
 import { craftRecipe } from './progress.js';
+import {disciplineDuration} from '../../shared/crafting-disciplines.js';
 
 const fail = reason => ({ ok: false, reason });
 
@@ -27,7 +28,8 @@ export function beginProduction(game, p, id, quantity, rev) {
   if (!canFabricateAt(recipe, site)) return fail('Approach the appropriate Workshop first.');
   const preview = previewProduction(p.char, id, quantity);
   if (!preview.ok) return preview;
-  const duration = productionTime(recipe);
+  // Lock the duration for the whole batch at its accepted starting level.
+  const duration = disciplineDuration(productionTime(recipe),p.char.craftingDisciplines,recipe.discipline);
   const method = recipe.kind === 'upgrade' || recipe.kind === 'restore' ? 'upgrade' :
     recipe.discipline === 'Research' ? 'culture' : 'assemble';
   p.production = { id, site, method, duration, quantity, cycles: preview.cycles, complete: 0, until: game.time + duration };
@@ -40,6 +42,9 @@ export function productionState(game, p) {
   return job ? { id: job.id, quantity: job.quantity, cycles: job.cycles, complete: job.complete,
     total: job.duration, ms: Math.max(0, job.until - game.time) } : null;
 }
+
+// Public presentation only: recipe identity and inputs stay private.
+export function productionVisualState(game,p){const j=p.production;if(!j)return null;return {m:j.method,site:j.site,q:Math.round(Math.min(1,Math.max(0,1-(j.until-game.time)/j.duration))*100)/100};}
 
 export function stopProduction(game, p, reason = 'Production cancelled.') {
   const job = p.production;

@@ -132,7 +132,7 @@ export function skinMaterial(assets, ap) {
     uHairColor: { value: hair },
     uBrow: { value: new THREE.Vector2(0.62 - ap.brow * 0.4, 0.9 - ap.brow * 0.35) },
     uStubble: { value: ap.stubble },
-    uScalp: { value: ap.hairStyle === 'shaved' || ap.hairStyle === 'none' ? 0.12 : ap.hairStyle === 'buzz' ? 0.9 : 0.75 },
+    uScalp: { value: ap.hairStyle === 'shaved' || ap.hairStyle === 'none' ? 0 : ap.hairStyle === 'buzz' ? 0.9 : 0.75 },
     uRace: { value: ap.race === 'mirekin' ? 2 : 0 },
     uTime: { value: 0 },
     uLip: { value: ap.lip },
