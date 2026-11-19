@@ -19,10 +19,23 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;
  };
  const labels=root.querySelector('[data-preview-frames]');
- for(const button of labels.querySelectorAll('button')){
-  button.addEventListener('click',()=>selectFrame(button.dataset.frame));
+ const syncFrameSelection=frame=>{
+  for(const button of labels.children)button.setAttribute('aria-pressed',String(button.dataset.frame===frame));
+ };
+ for(const button of labels.children){
+  button.addEventListener('click',()=>{
+   selectFrame(button.dataset.frame);
+   syncFrameSelection(button.dataset.frame);
+  });
  }
- const setMode=next=>{mode=next;zoom=1;dirty=true;root.dataset.mode=next;labels.hidden=next!=='frames';for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));};
+ const setMode=next=>{
+  mode=next;zoom=1;dirty=true;root.dataset.mode=next;labels.hidden=next!=='frames';
+  if(next==='frames'){
+   const meta=getMeta();
+   syncFrameSelection(normalizeAppearance(meta.ap,meta.a).frame);
+  }
+  for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
+ };
  const reset=()=>{yaw=.36;pitch=.10;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
  const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),.65,2.4);root.dataset.zoom=String(zoom);dirty=true;};
@@ -81,11 +94,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
     status.textContent=models.every(({model})=>model.kind==='glb')?(models.length===1?'Live gameplay character':'Live gameplay models'):'Simplified gameplay asset; full model unavailable';
    }
-   if(mode==='frames'){
-    for(const label of labels.children){
-     label.setAttribute('aria-pressed',String(label.dataset.frame===appearance.frame));
-    }
-   }
+   if(mode==='frames')syncFrameSelection(appearance.frame);
    const d=renderer.getSize(new THREE.Vector2());
    if(d.x!==w||d.y!==h)renderer.setSize(w,h,false);
    const size=models.length;

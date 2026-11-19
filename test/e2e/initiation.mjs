@@ -20,6 +20,7 @@ try{
   await page.fill('#name','Arrival Tester');
   const creation=page.locator('#creation-preview');
   await creation.getByRole('button',{name:'Compare frames'}).click();
+  await creation.locator('canvas').scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.model==='glb');
   assert.deepEqual(await creation.locator('[data-preview-frames] button').allTextContents(),['Masculine','Feminine']);
   assert.equal(await creation.locator('[data-preview-frames] [aria-pressed="true"]').count(),1);
@@ -39,11 +40,13 @@ try{
   const editor=page.locator('.initiation-controls');
   await editor.waitFor();
   await editor.getByRole('button',{name:'Compare frames'}).click();
-  const frame=editor.getByLabel('Body frame');
+  const frame=editor.getByLabel('Body frame',{exact:true});
   const value=await frame.inputValue()==='m'?'f':'m';
   await editor.locator('[data-preview-frames] [data-frame="'+value+'"]').click();
   assert.equal(await frame.inputValue(),value);
   await page.waitForFunction(value=>document.querySelector('.hall-preview [data-preview-frames] [aria-pressed="true"]')?.dataset.frame===value,value);
+  await editor.locator('canvas').scrollIntoViewIfNeeded();
+  await page.waitForFunction(value=>document.querySelector('.hall-preview')?.dataset.appearance?.startsWith(value+'.'),value);
   assert.notEqual(player.char.appearance[0],value);
   await editor.getByRole('button',{name:'Apply appearance'}).click();
   await page.getByText('Applied to your in-world character and saved.').waitFor();
