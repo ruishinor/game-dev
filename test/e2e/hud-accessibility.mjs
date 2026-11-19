@@ -35,6 +35,19 @@ try{
   await page.waitForFunction(()=>window.__attune?.state().compId===0);
   await page.waitForFunction(()=>document.querySelector('.actionbar .slot[aria-label^="Summon"]')!==null);
  }
+ // Focused action buttons must not swallow gameplay shortcuts, and Tab
+ // must remain available for native keyboard navigation.
+ await page.locator('.actionbar .slot:not(.empty)').first().click();
+ const keyboardIsolation=await page.evaluate(()=>{
+   const check=(code,key)=>{
+     const e=new KeyboardEvent('keydown',{code,key,bubbles:true,cancelable:true});
+     window.dispatchEvent(e);
+     return e.defaultPrevented;
+   };
+   return {ability:check('Digit1','1'),tab:check('Tab','Tab')};
+ });
+ assert.equal(keyboardIsolation.ability,true,'Combat shortcuts must work after clicking an action button');
+ assert.equal(keyboardIsolation.tab,false,'Tab must remain native while an action button is focused');
  await page.locator('#view').focus();await page.keyboard.press('KeyO');
  const settings=page.locator('.settings-panel');await settings.waitFor({state:'visible'});
  await page.selectOption('#empty-slot-mode','hidden');
