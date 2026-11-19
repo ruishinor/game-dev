@@ -78,7 +78,7 @@ test('commissioning is an opt-in, site-checked ownership transition and switchin
 test('Spindle does not take a Survey Strider link, cached mark or individual identity along when switching', () => {
   const game = makeGame(), link = 'survey_strider_link';
   const p = game.addPlayer(makeChar('surveyor', { level: 4, attunements: ['resonance'], inventory: [link] }));
-  assert.ok(equipItem(game, p, link).ok);
+  assert.ok(manageCompanion(game,p,'summon','survey_strider').ok);
   const first = p.companion;
   assert.ok(renameCompanion(game, p, 'Mapper').ok);
   assert.ok(petCommand(game, p, 'stay').ok);
@@ -86,11 +86,10 @@ test('Spindle does not take a Survey Strider link, cached mark or individual ide
   commission(game, p);
   const machine = deploy(game, p);
   assert.equal(p.surveyKit.mark, null);
-  assert.ok(unequipSlot(game, p, 'device').ok);
-  assert.equal(manageCompanion(game, p, 'summon', 'survey_strider').ok, false);
-  assert.equal(p.companion, machine);
-  assert.ok(equipItem(game, p, link).ok);
-  assert.equal(p.companion, machine);
+  assert.equal(p.char.equipped.device,null);
+  assert.equal(equipItem(game,p,link).ok,false);
+  assert.equal(p.companion,machine);
+  assert.equal(p.char.striderLearned,true);
   const restored = deploy(game, p, 'survey_strider');
   assert.equal(restored.name, 'Mapper');
   assert.equal(restored.mode, 'stay');
@@ -165,7 +164,13 @@ test('a ground unit navigates around the quartermaster, remains parked, and can 
   assert.equal(petCommand(game, p, 'inspect').ok, false);
   game.time += 3000;
   assert.ok(game.respawn(p));
+  // Transit rule (owner, 2026-11-19): respawn dismisses the active companion
+  // instead of redeploying it; ownership and profile persist for re-summoning.
   assert.equal(game.ents.has(c.id), false);
+  assert.equal(p.companion, null);
+  assert.equal(p.char.companionDismissed, true);
+  assert.ok(p.char.spindle, 'the Spindle profile is kept');
+  assert.ok(manageCompanion(game, p, 'summon', 'spindle').ok);
   assert.ok(groundSegmentClear(p.companion, p.companion, SPINDLE_TUNING.radius));
 });
 

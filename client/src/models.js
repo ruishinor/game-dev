@@ -852,6 +852,22 @@ function makeKestrelRecorder(){
   return {group,height:2.0,radius:0.8,hover:0,update(){},dispose(){for(const m of [dark,shell,brass,glass])m.dispose();}};
 }
 
+export function buildPhaseGate(returning,assets){
+ const group=new THREE.Group();group.name=returning?'rift:return-gate':'rift:entry-gate';
+ const frame=std(0x475b63,{metal:.65}),light=lit(returning?0x83d5af:0x9cbce5);
+ const donor=assets?.instance('sanctum','Door_Frame_Square');
+ let fitted=false;
+ if(donor){const box=new THREE.Box3().setFromObject(donor),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+  if([size.x,size.y,size.z].every(x=>Number.isFinite(x)&&x>0)){const sx=1.55/size.x,sy=2.72/size.y,sz=.34/size.z;
+   const mount=new THREE.Group();mount.scale.set(sx,sy,sz);donor.position.sub(new THREE.Vector3(center.x,box.min.y,center.z));mount.add(donor);mount.name='rift:licensed-frame';group.add(mount);fitted=true;}}
+ if(!fitted){for(const x of [-.64,.64])group.add(part(BOX,frame,.24,2.6,.24,x,1.3,0));group.add(part(BOX,frame,1.55,.24,.34,0,2.6,0));}
+ for(const x of [-.64,.64])group.add(part(BOX,light,.065,2.3,.06,x,1.25,-.15));
+ group.add(part(BOX,light,1.1,.055,.08,0,2.46,-.18));
+ const material=new THREE.MeshBasicMaterial({color:returning?0x58ca9f:0x778ddb,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
+ const plane=new THREE.PlaneGeometry(1.05,2.2),membrane=new THREE.Mesh(plane,material);membrane.position.y=1.24;group.add(membrane);
+ return {kind:fitted?'glb':'procedural',group,height:2.8,radius:.72,hover:0,update(){},dispose(){frame.dispose();light.dispose();plane.dispose();material.dispose();}};
+}
+
 export const MODEL_FACTORIES = {
   vanguard: makeVanguard,
   symbiotech: makeSymbiotech,
@@ -871,6 +887,8 @@ export const MODEL_FACTORIES = {
   quartermaster: makeArchivist,
   sanctum_guard: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
+  initiation_terminal:()=>({group:new THREE.Group(),height:1.45,radius:.55,hover:0,update(){}}),
+  sanctum_fabricator: () => ({group:new THREE.Group(),height:2.7,radius:0.5,hover:0,update(){}}),
   brine_research: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   brine_engineering: () => ({group:new THREE.Group(),height:1.8,radius:0.5,hover:0,update(){}}),
   survey_signal: () => makeSurveyTerminal(false),
@@ -881,4 +899,13 @@ export const MODEL_FACTORIES = {
   phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
+  annex_cache:()=>{
+    const group=new THREE.Group();group.name='annex:recovery-cache';
+    const metal=std(0x414950,{metal:.66}),trim=std(0x76613c,{metal:.65}),lamp=lit(0xc794eb);
+    group.add(part(BOX,metal,1.6,.66,.92,0,.38,0),part(BOX,trim,1.66,.18,.96,0,.8,0));
+    for(const x of [-.58,.58])group.add(part(BOX,trim,.13,.8,.97,x,.41,0));
+    group.add(part(BOX,lamp,.26,.12,.045,0,.62,.49));
+    return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
+  },
+  rift_return:()=>buildPhaseGate(true),
 };

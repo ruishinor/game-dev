@@ -965,14 +965,14 @@ test('world: spawn point, interactables and enemy homes are not inside colliders
 test('workshop: skill gates, owned targets, atomic material consumption and reversible equipment variants',()=>{
   const game=makeGame();
   const p=game.addPlayer(makeChar('vanguard',{level:2,inventory:['servo_harness'],materials:{sentinel_alloy:3,mire_fibre:1}}));
-  place(p,0,8);
+  place(p,2.8,5.7);
   const before=JSON.stringify(p.char.materials);
   assert.equal(craftRecipe(game,p,'coupler').ok,false,'skill not met');
   assert.equal(JSON.stringify(p.char.materials),before);
   assert.ok(equipItem(game,p,'servo_harness').ok);
   place(p,0,40);
   assert.equal(craftRecipe(game,p,'coupler').ok,false,'not at workshop');
-  place(p,0,8);
+  place(p,2.8,5.7);
   assert.ok(craftRecipe(game,p,'coupler').ok);
   assert.deepEqual(p.char.materials,{sentinel_alloy:1,kinetic_coupler:1});
   const result=JSON.stringify(p.char);

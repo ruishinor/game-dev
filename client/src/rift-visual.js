@@ -1,6 +1,6 @@
 // Original scene-scale interference structure. Persistent membrane is a
 // presentation of the authoritative snapshot, not the encounter clock.
-const PHASES={dormant:.045,opening:.62,unstable:1,stabilized:.48,cooling:.08};
+const PHASES={dormant:.18,opening:.62,unstable:1,stabilized:.8,cooling:.25};
 function palette(T){
  const std=(color,roughness=.68,metalness=.4)=>new T.MeshStandardMaterial({color,roughness,metalness});
  return {stone:std(0x3d4645,.93,.1),steel:std(0x66716d,.59,.62),dark:std(0x283536,.72,.52),brass:std(0x977d56,.62,.52),glass:new T.MeshStandardMaterial({color:0x96bfb1,emissive:0x335f57,emissiveIntensity:.65,roughness:.34,metalness:.34})};

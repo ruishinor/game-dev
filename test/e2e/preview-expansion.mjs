@@ -5,6 +5,7 @@ import { startServer } from '../../server/index.js';
 import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
+import {liveFixturePlayer} from './live-fixture.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
 let browser;
@@ -24,6 +25,20 @@ try {
   await page.goto(url);
   await page.fill('#name', 'Brine Tester');
   await page.click('.classcard[data-cls="surveyor"]');
+  const creation=page.locator('#creation-preview');await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.model==='glb');
+  const initialAppearance=await creation.getAttribute('data-appearance');
+  await page.locator('#ap-frame button[data-value="m"]').click();await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(a=>document.querySelector('#creation-preview').dataset.appearance!==a&&document.querySelector('#creation-preview').dataset.appearance?.startsWith('m.'),initialAppearance);
+  await creation.getByRole('button',{name:'Face',exact:true}).click();
+  await creation.getByRole('button',{name:'Rotate right'}).click();
+  await creation.getByRole('button',{name:'Zoom in'}).click();
+  assert.equal(await creation.getAttribute('data-mode'),'face');assert.notEqual(await creation.getAttribute('data-yaw'),'0.36');assert.ok(Number(await creation.getAttribute('data-zoom'))>1);
+  await creation.getByRole('button',{name:'Reset camera'}).click();assert.equal(await creation.getAttribute('data-mode'),'body');
+  await page.locator('#ap-frame button[data-value="f"]').click();await creation.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.appearance?.startsWith('f.'));
+  const previewAppearance=await creation.getAttribute('data-appearance');
+  await page.screenshot({path:'preview-evidence/00-live-creation.png'});
   await page.click('#enter');
   await page.waitForFunction(() => {
     const s = window.__attune?.state();
@@ -37,27 +52,52 @@ try {
     return meshes > 0;
   })));
   await page.screenshot({ path: 'preview-evidence/01-surveyor.png' });
-  const p = [...server.game.players.values()].find(x => x.name === 'Brine Tester');
-  assert.ok(p);
+  const p = await liveFixturePlayer(page,server,'Brine Tester');
   assert.equal(p.cls, 'surveyor');
+  assert.equal(p.char.appearance,previewAppearance,'Preview appearance must equal authoritative gameplay appearance');
+  assert.equal(await creation.getAttribute('data-model'),null,'Creation model released on entering world');
   assert.equal(p.companion, null);
   assert.equal(await page.getByRole('button', { name: 'Fault Scan', exact: true }).count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);
   async function moveTo(x, z) {
     assert.ok(!p.dead,`Fixture cannot move a defeated player to ${x},${z}`);
-    p.x = x; p.z = z;
-    if (p.companion) { p.companion.x = x+1.5; p.companion.z = z-1.5; }
-    await page.waitForFunction(([x,z]) => {
-      const pos = window.__attune.state().pos;
-      return pos && Math.hypot(pos.x-x,pos.z-z) < 1.5;
-    }, [x,z]);
+    assert.equal(await liveFixturePlayer(page,server,'Brine Tester'),p,'The staged player must remain connected');
+    if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+    try {
+      p.x=x;p.z=z;
+      if(p.companion){p.companion.x=x+1.5;p.companion.z=z-1.5;}
+      await page.waitForFunction(([x,z])=>{
+        const {pos,you}=window.__attune.state();
+        return pos&&you&&Math.hypot(pos.x-x,pos.z-z)<1.5&&Math.hypot(you.x-x,you.z-z)<.5;
+      },[x,z]);
+    } finally {
+      if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+    }
   }
   async function capture(path) {
+    console.log('[preview] capture start:',path);
     const drawn = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction(n => window.__attune.state().drawn > n, drawn);
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
+    console.log('[preview] capture complete:',path);
   }
+  await moveTo(-2.25,8.2);
+  await page.locator('#view').focus();await page.keyboard.press('KeyF');
+  const hall=page.locator('.field-record'),hallPreview=hall.locator('.hall-preview');
+  await hallPreview.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.model==='glb');
+  const savedAppearance=p.char.appearance;
+  await hall.getByRole('combobox',{name:'Body frame'}).selectOption('m');
+  await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.appearance?.startsWith('m.'));
+  assert.equal(p.char.appearance,savedAppearance,'Draft does not mutate the world character');
+  const hallAppearance=await hallPreview.getAttribute('data-appearance');
+  await hall.getByRole('button',{name:'Apply appearance'}).click();
+  await page.waitForFunction(a=>window.__attune.state().sheet.appearance===a,hallAppearance);
+  assert.equal(p.char.appearance,hallAppearance);
+  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('arrival:floor')&&!!window.__attune.gfx.scene.getObjectByName('arrival:threshold-arch')));
+  await page.screenshot({path:'preview-evidence/01b-arrival-appearance.png'});
+  await hall.getByRole('button',{name:'Close field record'}).click();
   await moveTo(-5.5,-2.6);
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
@@ -201,7 +241,7 @@ try {
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
-  assert.ok(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg path[fill="#203d40"]').count());
+  assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg path[d="M3 7 12 2 21 6 22 15 15 22 6 20 2 13Z"][fill="#526b75"]').count(),1);
   await capture('preview-evidence/06b-refined-item-artwork.png');
   assert.equal(await workshop.locator('[data-craft="aegis_rectifier"]').isDisabled(),true);
   await capture('preview-evidence/06b-workshop-tutorial.png');
@@ -459,7 +499,9 @@ try {
   await workshop.waitFor({state:'hidden'});
   await page.locator('.production-status').waitFor({state:'hidden'});
   assert.deepEqual(errors, []);
+  console.log('[preview] Surveyor assertions complete; closing page');
   await page.close();
+  console.log('[preview] starting asset fallback assertions');
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
   fallbackPage.setDefaultTimeout(90000);
   await fallbackPage.route('**/research_workstation.glb', route => route.abort());
@@ -472,6 +514,7 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
+  console.log('[preview] fallback assertions complete; starting Mender');
   const bio=await browser.newPage({viewport:{width:1000,height:700}});
   bio.setDefaultTimeout(90000);const bioErrors=[];
   bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
@@ -516,6 +559,7 @@ try {
   await bio.waitForFunction(()=>window.__attune.state().you.cds.overgrowth_surge>0);
   await bio.screenshot({path:'preview-evidence/12-bloom-relay-surge.png'});
   assert.deepEqual(bioErrors,[]);await bio.close();
+  console.log('[preview] Mender assertions complete; starting Keeper');
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
   const keeperErrors=[];
@@ -563,5 +607,16 @@ try {
   await keeper.waitForFunction(()=>!window.__attune.gfx.scene.getObjectByName('live-aegis:'+window.__attune.state().myId));
   assert.deepEqual(keeperErrors,[]);
   await keeper.close();
-  console.log('PASS integrated Surveyor, Brineworks commissioning, Sinter Flats, Aegis Keeper and independent asset fallbacks');
-} finally { await browser?.close(); await server.close(); }
+  console.log('[preview] all functional assertions complete');
+} finally {
+  try {
+    console.log('[preview] closing browser');
+    await browser?.close();
+    console.log('[preview] browser closed');
+  } finally {
+    console.log('[preview] closing server');
+    await server.close();
+    console.log('[preview] server closed');
+  }
+}
+console.log('PASS integrated Surveyor, Brineworks commissioning, Sinter Flats, Aegis Keeper and independent asset fallbacks');

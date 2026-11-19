@@ -17,7 +17,7 @@ import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, step
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
-  syncEquippedCompanion, redeployGroundCompanion,
+  syncEquippedCompanion, dismissForTransit,
 } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
@@ -63,7 +63,7 @@ export class Game {
 
     for (const o of OBJECTS) {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
-      if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; } // fixed facing (Sanctum wardens)
+      if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -303,17 +303,8 @@ export class Game {
     cancelInscription(this,p);stopProduction(this,p);
     p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
-    if(p.companion){
-      const c=p.companion;for(const other of this.players.values())other.buffs=other.buffs.filter(b=>b.k!=='bond'||b.src!==c.id);
-      if(c.mode==='guard')c.mode='triage';c.host=0;c.act='idle';c.actTarget=0;
-    }
-    // A travelling host cannot keep a remote companion bond.
-    p.buffs=p.buffs.filter(b=>b.k!=='bond');
-    p.x=destination.x;
-    p.z=destination.z;
+    this.transit(p,destination.x,destination.z,'area crossing');
     resolveCollisions(p,PLAYER_RADIUS);
-    if(['survey_strider','spindle'].includes(p.companion?.type))redeployGroundCompanion(this,p);
-    else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}
     this.syncChar(p);this.markDirty(p);
   }
 
@@ -331,27 +322,25 @@ export class Game {
     return true;
   }
 
+  // All non-movement relocations dismiss companions without stripping buffs.
+  transit(p,x,z,reason='transit') {
+    dismissForTransit(this,p,reason);
+    p.x=x;p.z=z;p.jy=0;p.vy=0;
+  }
+
   respawn(p) {
     if (!p.dead) return false;
     if (this.time - p.deadAt < RESPAWN_DELAY_MS) return false;
     p.dead = false;
     this.stopFollow(p);
     clearLoot(p);
-    p.x = WORLD.spawn.x;
-    p.z = WORLD.spawn.z;
-    p.jy = 0;
-    p.vy = 0;
+    this.transit(p,WORLD.spawn.x,WORLD.spawn.z,'return to the Sanctum');
     p.hp = p.maxHp;
     p.res = CLASSES[p.cls].resource.start;
     p.surveyKit = p.cls === 'surveyor' ? { mark: null, rig: null } : null;
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    if (['survey_strider', 'spindle'].includes(p.companion?.type)) redeployGroundCompanion(this, p);
-    else if (p.companion) {
-      p.companion.x = p.x + 1.5;
-      p.companion.z = p.z - 1.5;
-    }
     this.emitWorldEvent({ e: 'fx', k: 'respawn', s: p.id });
     this.message(p, 'info', 'The Sanctum lattice reconstitutes you.');
     return true;

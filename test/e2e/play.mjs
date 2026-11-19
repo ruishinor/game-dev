@@ -462,9 +462,11 @@ try {
   await shot(A, '01-entered-vanguard.png');
 
   // ------------------------------------------------ 14. presentation assets
-  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery'].includes(e.c)).map((e) => e.c);
+  const notGlb = sa.ents.filter((e) => e.model !== 'glb' && !['obelisk', 'survey_signal', 'survey_ledger', 'brine_research', 'brine_engineering', 'sinter_sampler', 'sinter_grazer', 'faultstalker', 'deep_console', 'quarantine_custodian', 'phase_scar', 'rift_indexer', 'rift_regulator', 'sinter_recovery','sanctum_fabricator','initiation_terminal','annex_cache'].includes(e.c)).map((e) => e.c);
   check('14. all entities with production GLB assets use those assets', notGlb.length === 0 && Object.keys(sa.assets.failed).length === 0, notGlb.length ? `procedural: ${notGlb.join(', ')}` : `bundles loaded: ${sa.assets.loaded.join(', ')}`);
   check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
+  check('14. the Annex cache is omitted from the Reach scene', !sa.ents.some(e => e.c === 'annex_cache') &&
+    await A.page.evaluate(() => !window.__attune.gfx.scene.getObjectByName('annex:recovery-cache')));
   const aByB = await drawn(B, sa.myId);
   const bByA = await drawn(A, sb.myId);
   check('14. each session draws the other with its own look, standing idle', aByB.look === 'vanguard_plate' && bByA.look === 'conductor' && aByB.base === 'Idle_Loop' && bByA.base === 'Idle_Loop', `A as seen by B: ${JSON.stringify(aByB)}`);
@@ -1143,7 +1145,20 @@ try {
   }, (await state(B)).myId, 5000, 'A sees recovered B');
   const secondState = await state(B);
   check('6/11. second player respawns using own UI, keeps level and remains visible', secondCanRespawn && secondRecovered && secondSeenByAlly && secondState.sheet.level === levelBeforeRecovery);
-  check('8. companion remains attached to the second player after recovery', secondState.compId > 0 && secondState.ents.some((e) => e.id === secondState.compId));
+  // Owner rule (2026-11-19): every teleport or change of area, including the
+  // return to the Sanctum, dismisses the active companion; buffs are kept.
+  const dismissedOnRecovery = await until(B, () => {
+    const s = window.__attune.state();
+    return !s.compId && !document.querySelector('.summon-pet').hidden;
+  }, null, 5000, 'companion dismissed by the return to the Sanctum');
+  check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
+  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  const recalled = await until(B, () => {
+    const s = window.__attune.state();
+    return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
+  }, null, 5000, 'companion re-summoned after recovery');
+  check('8. the companion can be summoned again after recovery', recalled);
+  const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
   await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
   const dismissed = await until(B, () => {
@@ -1154,20 +1169,21 @@ try {
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
-  }, secondState.compId, 5000, 'default companion summoned');
+  }, recalledId, 5000, 'default companion summoned');
   check('8. right-click dismisses the companion and the HUD summons its default', dismissed && resummoned);
 
   // --------------------------------------------- 15. appearance independent of class
   // This session uses the default input configuration (pointer lock while
   // steering), which every other session here disables with ?nolock=1.
-  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker', undefined, { lock: true });
+  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3} });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.a === 'red_rucker' && e.model === 'glb';
-  }, sc.myId, 6000, 'B to see the Red Rucker look');
-  check('15. a second Vanguard can wear the Red Rucker look and other sessions see it', cByB && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'red_rucker' && serverPlayer('Rucker').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}`);
-  await shot(C, '08-red-rucker.png');
+    return e && e.a === 'vanguard_plate' && e.model === 'glb';
+  }, sc.myId, 6000, 'B to see the second Vanguard model');
+  const retiredOptions=await C.page.locator('.lookcard[data-look="red_rucker"], #ap-race [data-value="veyran"]').count();
+  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.mirekin.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
+  await shot(C, '08-mirekin-vanguard.png');
   // Synthetic absolute moves cannot express relative motion under pointer
   // lock (Chromium turns them into cancelling warp pairs), so the drag only
   // engages the lock; the steering deltas are then delivered as locked

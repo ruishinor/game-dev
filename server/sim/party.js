@@ -1,10 +1,12 @@
 // Ephemeral, opt-in parties for a small co-op world.
 // Party membership deliberately does not modify loot, XP or combat balancing.
+import { sameTravelRegion } from '../../shared/world.js';
+
 export const PARTY_CAP = 4;
 const INVITE_MS = 30000;
 
 export function companionCanSupport(game, owner, recipient) {
-  if (!owner || owner.dead || !recipient || recipient.kind !== 'player' || recipient.dead) return false;
+  if (!owner || owner.dead || !recipient || recipient.kind !== 'player' || recipient.dead || !sameTravelRegion(owner, recipient)) return false;
   if (owner === recipient) return true;
   const members = game.parties.get(owner.partyId);
   return !!members?.has(owner.id) && members.has(recipient.id);

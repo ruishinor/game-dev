@@ -2,7 +2,7 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight, sinterSiteAt } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
@@ -106,13 +106,13 @@ function beginSpecial(game, e, sp, target) {
   const at = sp.at === 'target' ? { x: target.x, z: target.z } : { x: e.x, z: e.z };
   e.cast = { sp, until: game.time + sp.windup, x: at.x, z: at.z };
   e.specialAt[sp.id] = game.time + sp.cd;
-  game.events.push({ e: 'tele', id: e.id, k: sp.id, n: sp.name, x: at.x, z: at.z, r: sp.radius, ms: sp.windup, g: sp.at === 'all' ? 0 : 1 });
+  game.emitWorldEvent({ e: 'tele', id: e.id, k: sp.id, n: sp.name, x: at.x, z: at.z, r: sp.radius, ms: sp.windup, g: sp.at === 'all' ? 0 : 1 });
 }
 
 function resolveSpecial(game, e) {
   const { sp, x, z } = e.cast;
   e.cast = null;
-  game.events.push({ e: 'fx', k: sp.id, s: e.id, x, z, r: sp.radius });
+  game.emitWorldEvent({ e: 'fx', k: sp.id, s: e.id, x, z, r: sp.radius });
   for (const p of [...game.players.values()]) {
     if (p.dead) continue;
     if (sp.at === 'all') {
@@ -130,7 +130,7 @@ export function tickEnemy(game, e, dt) {
     if (game.time >= e.respawnAt) {
       e.yaw = undefined;
       resetEnemy(game, e);
-      game.events.push({ e: 'fx', k: 'spawn', s: e.id });
+      game.emitWorldEvent({ e: 'fx', k: 'spawn', s: e.id });
     }
     return;
   }
@@ -174,7 +174,7 @@ export function tickEnemy(game, e, dt) {
   // Forget players who died, left, or reached safety.
   for (const id of [...e.threat.keys()]) {
     const p = game.players.get(id);
-    if (!p || p.dead || inSanctum(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
+    if (!p || p.dead || !sameTravelRegion(e,p) || inSanctum(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
   }
 
   if (e.threat.size === 0) {
@@ -220,7 +220,7 @@ export function tickEnemy(game, e, dt) {
             e.mineralDose+=dt;
             if(e.form==='adult'&&e.grown&&!e.calcified&&e.mineralDose>=14){
               e.calcified=true;
-              game.events.push({e:'fx',k:'sinter_molt',s:e.id});
+              game.emitWorldEvent({e:'fx',k:'sinter_molt',s:e.id});
             }
           }
         }
@@ -252,7 +252,7 @@ export function tickEnemy(game, e, dt) {
         if(e.form){
           if(e.routeIndex===1){
             e.routeLaps++;
-            if(!e.grown&&e.routeLaps>=2){e.grown=true;game.events.push({e:'fx',k:'sinter_molt',s:e.id});}
+            if(!e.grown&&e.routeLaps>=2){e.grown=true;game.emitWorldEvent({e:'fx',k:'sinter_molt',s:e.id});}
           }
           // Distinct feeding intervals, long circuits, no per-frame random roll.
           if(e.routeIndex%3===0){
