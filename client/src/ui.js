@@ -1402,6 +1402,14 @@ export class UI {
     const controls=h('section','initiation-controls');
     controls.append(h('h3',null,'Character initiation'),h('p','muted','Customize the character standing in the arrival hall. Changes are cosmetic and apply to the actual world model. Profession and equipment remain unchanged.'));
     const fields=h('div','initiation-fields'),status=h('p','muted','Choose your appearance, then apply.');status.dataset.appearanceStatus='true';status.setAttribute('role','status');
+    const updateDraft=(key,value)=>{
+      draft={...draft,[key]:value};
+      if(key==='race')draft.skin=0;
+      draft=normalizeAppearance(draft,look);
+      if(!pending)status.textContent=encodeAppearance(draft)===saved?'Current appearance.':'Appearance changes not applied.';
+      apply.disabled=pending||encodeAppearance(draft)===saved;
+      render();
+    };
     const render=()=>{
       fields.replaceChildren();
       const options=(key,label,values)=>{
@@ -1410,11 +1418,8 @@ export class UI {
         select.disabled=values.length<2;
         select.addEventListener('change',()=>{
           const value=key==='skin'||key==='hairColour'?Number(select.value):select.value;
-          draft={...draft,[key]:value};if(key==='race')draft.skin=0;
-          draft=normalizeAppearance(draft,look);
-          if(!pending)status.textContent=encodeAppearance(draft)===saved?'Current appearance.':'Appearance changes not applied.';
-          apply.disabled=pending||encodeAppearance(draft)===saved;
-          render();fields.querySelector('[aria-label="'+label+'"]')?.focus();
+          updateDraft(key,value);
+          fields.querySelector('[aria-label="'+label+'"]')?.focus();
         });
         wrap.append(select);fields.append(wrap);
       };
@@ -1450,12 +1455,13 @@ export class UI {
     }
     const previewStatus=h('p','muted','Loading gameplay model when visible.');previewStatus.dataset.previewStatus='';previewStatus.setAttribute('role','status');
     const labels=h('div','preview-frame-labels');labels.dataset.previewFrames='';labels.hidden=true;
+    labels.setAttribute('role','group');labels.setAttribute('aria-label','Select body frame');
     for(const {id,name} of Object.values(FRAMES)){
-      const label=h('span',null,name);label.dataset.frame=id;labels.append(label);
+      const label=h('button',null,name);label.type='button';label.dataset.frame=id;labels.append(label);
     }
     preview.append(canvas,labels,buttons,previewStatus);
     actions.append(apply,inspect);controls.append(fields,preview,actions,status);panel.append(controls);
-    this.a.startAppearancePreview(preview,()=>encodeAppearance(draft));
+    this.a.startAppearancePreview(preview,()=>encodeAppearance(draft),frame=>updateDraft('frame',frame));
   }
 
   showFieldRecord(key) {

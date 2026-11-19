@@ -88,7 +88,7 @@
           <section id="creation-preview" aria-label="Live character preview">
             <h2>Inspect your character</h2>
             <canvas tabindex="0" aria-label="Live 3D character. Drag to rotate, arrow keys to rotate or zoom, Home to reset."></canvas>
-            <div class="preview-frame-labels" data-preview-frames hidden><span data-frame="m">Masculine</span><span data-frame="f">Feminine</span></div>
+            <div class="preview-frame-labels" data-preview-frames hidden role="group" aria-label="Select body frame"><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
             <div class="preview-controls" role="group" aria-label="Preview camera">
               <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button><button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
               <button type="button" data-preview-mode="frames" aria-pressed="false">Compare frames</button>

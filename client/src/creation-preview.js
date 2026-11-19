@@ -4,7 +4,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import {createModel} from './characters.js';
 import {encodeAppearance, FRAMES, normalizeAppearance} from '../../shared/appearance.js';
 
-export function createCreationPreview({root,assets,useGlb,motionPreference,getMeta}){
+export function createCreationPreview({root,assets,useGlb,motionPreference,getMeta,selectFrame}){
  const canvas=root.querySelector('canvas'),status=root.querySelector('[data-preview-status]');
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.01,100);
  scene.background=new THREE.Color(0x132029);
@@ -19,6 +19,9 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;
  };
  const labels=root.querySelector('[data-preview-frames]');
+ for(const button of labels.querySelectorAll('button')){
+  button.addEventListener('click',()=>selectFrame(button.dataset.frame));
+ }
  const setMode=next=>{mode=next;zoom=1;dirty=true;root.dataset.mode=next;labels.hidden=next!=='frames';for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));};
  const reset=()=>{yaw=.36;pitch=.10;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
@@ -80,8 +83,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    }
    if(mode==='frames'){
     for(const label of labels.children){
-     if(label.dataset.frame===appearance.frame)label.setAttribute('aria-current','true');
-     else label.removeAttribute('aria-current');
+     label.setAttribute('aria-pressed',String(label.dataset.frame===appearance.frame));
     }
    }
    const d=renderer.getSize(new THREE.Vector2());

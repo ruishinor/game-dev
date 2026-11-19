@@ -381,9 +381,9 @@ const ui = new UI({
   interact: id=>net.send({t:'act',id}),
   changeAppearance:appearance=>net.send({t:'appearance_change',appearance}),
   inspectAppearance:()=>{stopAutomaticMovement();cam.yaw=local.yaw+Math.PI;cam.pitch=.06;cam.want=cam.dist=4.2;},
-  startAppearancePreview:(root,getAppearance)=>{
+  startAppearancePreview:(root,getAppearance,selectFrame)=>{
     hallPreview?.preview.destroy();
-    const preview=createCreationPreview({root,assets,useGlb,motionPreference,getMeta:()=>{
+    const preview=createCreationPreview({root,assets,useGlb,motionPreference,selectFrame,getMeta:()=>{
       const me=S.ents.get(S.myId);
       return {...me.meta,ap:getAppearance()};
     }});
@@ -416,7 +416,15 @@ let chosenLook = defaultLook(chosenClass);
 // Cosmetic appearance chosen at creation (validated again by the server).
 let chosenAp = defaultAppearance(chosenLook);
 let apTouched = false;
-const creationPreview=createCreationPreview({root:$('creation-preview'),assets,useGlb,motionPreference,getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))})});
+const creationPreview=createCreationPreview({
+  root:$('creation-preview'),assets,useGlb,motionPreference,
+  getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))}),
+  selectFrame:frame=>{
+    apTouched=true;
+    chosenAp=normalizeAppearance({...chosenAp,frame},chosenLook);
+    buildAppearance();
+  },
+});
 let titleDrawAt=-Infinity;
 function buildAppearance() {
   const pick = (id, items, current, onPick, label) => {
@@ -1848,7 +1856,7 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt);
-    if(inspecting&&now-titleDrawAt<250)return;
+    if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;

@@ -16,13 +16,13 @@ try{
   page.setDefaultTimeout(45000);
   const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
-  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
+  await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
   await page.fill('#name','Arrival Tester');
   const creation=page.locator('#creation-preview');
   await creation.getByRole('button',{name:'Compare frames'}).click();
   await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.model==='glb');
-  assert.deepEqual(await creation.locator('[data-preview-frames] span').allTextContents(),['Masculine','Feminine']);
-  assert.equal(await creation.locator('[aria-current="true"]').count(),1);
+  assert.deepEqual(await creation.locator('[data-preview-frames] button').allTextContents(),['Masculine','Feminine']);
+  assert.equal(await creation.locator('[data-preview-frames] [aria-pressed="true"]').count(),1);
   await page.click('#enter');
 
   const player=await liveFixturePlayer(page,server,'Arrival Tester',45000);
@@ -41,8 +41,9 @@ try{
   await editor.getByRole('button',{name:'Compare frames'}).click();
   const frame=editor.getByLabel('Body frame');
   const value=await frame.inputValue()==='m'?'f':'m';
-  await frame.selectOption(value);
-  await page.waitForFunction(value=>document.querySelector('.hall-preview [aria-current="true"]')?.dataset.frame===value,value);
+  await editor.locator('[data-preview-frames] [data-frame="'+value+'"]').click();
+  assert.equal(await frame.inputValue(),value);
+  await page.waitForFunction(value=>document.querySelector('.hall-preview [data-preview-frames] [aria-pressed="true"]')?.dataset.frame===value,value);
   assert.notEqual(player.char.appearance[0],value);
   await editor.getByRole('button',{name:'Apply appearance'}).click();
   await page.getByText('Applied to your in-world character and saved.').waitFor();
