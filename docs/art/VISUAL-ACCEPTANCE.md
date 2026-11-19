@@ -34,3 +34,40 @@ owner confirmation.
 The weakest areas, and the largest return on further work, are hair (card or
 strand geometry for longer styles), skin close-up detail, and bespoke
 locomotion.
+
+## Measured cost (software GL only, 2026-11-18)
+
+Both builds were measured back to back in the same container. Setup:
+headless Chromium with SwiftShader software WebGL, 1280×720, the spawn hub,
+quality locked. Frame time is the client's own `frameMs`, sampled at 10, 12
+and 14 s after entering the world, while it was still settling.
+
+- Baseline: `1bdd89a`, before this programme.
+- Final: the rendering merged in #79.
+
+This shows relative cost only. **It does not predict hardware-GPU frame
+rates, and no hardware measurement has been taken.**
+
+| Preset | Class | Frame ms, baseline | Frame ms, final | Triangles | Draw calls |
+|---|---|---|---|---|---|
+| High | Vanguard | 82 / 57 / 44 | 71 / 54 / 45 | 444k → 518k | 647 → 655 |
+| High | Symbiotech | 102 / 71 / 52 | 72 / 52 / 40 | 454k → 545k | 659 → 676 |
+| Medium | Vanguard | 63 / 47 / 36 | 47 / 37 / 32 | 290k → 327k | 405 → 411 |
+| Medium | Symbiotech | 59 / 46 / 37 | 47 / 39 / 34 | 295k → 340k | 414 → 420 |
+| Low | Vanguard | 17 / 18 / 20 | 13 / 14 / 13 | 187k → 223k | 387 → 387 |
+| Low | Symbiotech | 17 / 18 / 18 | 19 / 17 / 19 | 191k → 236k | 394 → 396 |
+
+Frame time stays within run-to-run noise of the baseline. Geometry rises
+13–23% and draw calls by at most 3%.
+
+## Status
+
+- Faces (#73), the VFX engine (#74) and appearance with races (#79) are
+  merged.
+- Since #73, painted look maps on the body render for the first time,
+  because the earlier build dropped body UVs. Red Rucker's head mark then
+  read as a mouth, which #117 fixes.
+- New painted body maps need an in-game check.
+- The first owner-hardware measurement is the next performance step:
+  `ATTUNEMENT_GPU=1 node tools/dev/face-capture.mjs <dir>`, or play and read
+  the fps shown beside the latency indicator.
