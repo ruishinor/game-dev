@@ -630,6 +630,34 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .loot-entry[data-rarity="Rare"] .loot-copy small{color:#b6d5e0}
 .loot-entry[data-rarity="Very rare"] .loot-copy small{color:#ead6a8}
 
+/* Direct game-window manipulation, independent of content and world input. */
+#hud .panel.managed-window[data-window-custom="true"]:not(.producing){
+  left:var(--window-x);top:var(--window-y);width:var(--window-w);height:var(--window-h);
+  max-width:none;max-height:none;transform:none;right:auto;bottom:auto;
+}
+.panel.managed-window:not(.inventory-window){
+  background:linear-gradient(145deg,rgba(16,31,40,var(--window-alpha,1)),rgba(7,16,22,var(--window-alpha,1)));
+}
+.managed-window-content{min-width:0;min-height:0;flex:1 1 auto;overflow:auto;}
+.managed-window[data-window-locked="false"]:not(.producing)>h2,
+.managed-window[data-window-locked="false"]:not(.producing)>.managed-window-content>h2,
+.managed-window[data-window-locked="false"]:not(.producing) .loot-title h2{cursor:grab;touch-action:none;user-select:none;}
+.managed-window .window-resize-handle{position:absolute;z-index:3;touch-action:none;}
+.managed-window[data-window-locked="true"] .window-resize-handle,.managed-window.producing .window-resize-handle{display:none;}
+.window-resize-handle[data-edge="n"],.window-resize-handle[data-edge="s"]{height:6px;left:12px;right:12px;cursor:ns-resize;}
+.window-resize-handle[data-edge="n"]{top:0}.window-resize-handle[data-edge="s"]{bottom:0}
+.window-resize-handle[data-edge="e"],.window-resize-handle[data-edge="w"]{width:6px;top:12px;bottom:12px;cursor:ew-resize;}
+.window-resize-handle[data-edge="e"]{right:0}.window-resize-handle[data-edge="w"]{left:0}
+.window-resize-handle[data-edge="ne"],.window-resize-handle[data-edge="nw"],.window-resize-handle[data-edge="se"],.window-resize-handle[data-edge="sw"]{width:12px;height:12px;}
+.window-resize-handle[data-edge="ne"]{top:0;right:0;cursor:nesw-resize}
+.window-resize-handle[data-edge="sw"]{bottom:0;left:0;cursor:nesw-resize}
+.window-resize-handle[data-edge="nw"]{top:0;left:0;cursor:nwse-resize}
+.window-resize-handle[data-edge="se"]{bottom:0;right:0;cursor:nwse-resize}
+@container (max-width:590px){
+  .panel-body,.codex-layout,.quest-journal-layout{grid-template-columns:1fr!important;}
+  .managed-window-content .loadout-column,.managed-window-content .codex-nav{max-height:none;}
+}
+
 .discipline-track{display:grid;gap:5px;margin:8px 0;padding:9px;border:1px solid var(--edge);border-radius:5px;background:#13262f;}
 .discipline-track progress{width:100%;height:8px;accent-color:var(--cyan);}
 .discipline-track small{display:block;}
@@ -678,3 +706,21 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 /* A modal defeat/recovery action takes priority over persistent radio. */
 #hud:has(.death:not([hidden])) .radio-panel{visibility:hidden;pointer-events:none;}
 #hud .death{z-index:60;}
+
+
+/* Compact workshop defaults; retain overflow for accessibility and small custom windows. */
+.workshop-window:not(.producing) .workshop-section{padding:8px}
+.workshop-window:not(.producing) .workshop-section h3{margin:0 0 6px}
+.workshop-window:not(.producing) .workshop-section p{margin:4px 0 6px;line-height:1.35}
+.workshop-window:not(.producing) .workshop-tabs{margin-bottom:6px}
+.workshop-window:not(.producing) .workshop-tutorial{padding:6px 8px;margin-bottom:6px}
+.workshop-window .planner-slot{margin:4px 0 3px}
+.workshop-window .planner-slot select{padding:4px;margin-top:2px}
+.workshop-window .fabrication-visual{padding:2px 0;gap:6px}
+.workshop-window .fabrication-visual .item-art,.workshop-window .recipe-entry .item-art{width:30px;height:30px;flex-basis:30px}
+.workshop-window .recipe-result .item-art{width:50px;height:50px;flex-basis:50px}
+.workshop-window .workshop-row{padding:3px 0}
+.workshop-window .workshop-recipes{gap:3px;max-height:none}
+.workshop-window .recipe-entry{padding:4px 6px;gap:6px}
+.recipe-pagination{display:flex;gap:4px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:11px}
+.recipe-pagination button{font-size:11px;padding:4px 6px}
