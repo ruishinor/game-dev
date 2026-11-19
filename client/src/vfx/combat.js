@@ -12,6 +12,7 @@
 //   hostile      red/orange; hazard sigils, scorch, dust, debris
 import { CELL } from './textures.js';
 import { hot, shieldEnvelope } from './engine.js';
+import { LONGPOINT_TRACE } from '../longpoint.js';
 
 export const PALETTE = {
   kinetic: 0xff9a3c, kineticHot: 0xffd08a,
@@ -118,6 +119,15 @@ export class CombatVfx {
 
   /** Any damage event (auto-attacks and abilities); `kind` from the server. */
   hit(d, s, e) {
+    // Confirmed Longpoint hits use the real fitted muzzle and a narrow trace.
+    // Other class projectiles retain their existing effects.
+    const muzzle=e.ab==='auto'&&e.k==='bolt'&&e.wv==='longpoint'&&s?.placed&&s!==d?s.model?.weaponEffectOrigin?.():null;
+    if(muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
+      const from=muzzle.clone(),to=d.chest.clone();
+      this.v.beam({from,to,...LONGPOINT_TRACE,grow:.08,taper:1});
+      this.v.burst({at:from,count:3,cell:CELL.streak,color:LONGPOINT_TRACE.color,size:[.045,.095],life:[.07,.13],speed:[.4,1.2],dir:to.clone().sub(from).normalize()});
+      this.impact(d,s,e);return;
+    }
     // Projectiles land when they arrive; everything else lands now.
     if (e.k === 'bolt' && s?.placed && s !== d) {
       this.bolt(s, d, () => this.impact(d, s, e), e.ab === 'auto' ? s.model?.weaponEffectOrigin?.() : null);
