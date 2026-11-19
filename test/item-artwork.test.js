@@ -38,3 +38,9 @@ test('every live catalogue identity has a distinct intentional object portrait',
  const fragments=ids.map(id=>{const f=cataloguePortrait(id);assert.ok(f,'missing original portrait '+id);assert.ok(!/<(?:script|image|foreignObject)|\\bon\\w+=|href\\s*=/i.test(f));return f;});
  assert.equal(new Set(fragments).size,ids.length);assert.equal(new Set(PORTRAIT_IDS).size,PORTRAIT_IDS.length);assert.equal(cataloguePortrait('__proto__'),null);
 });
+
+test('glyph portraits read as individual physical objects rather than a shared symbol plaque',()=>{
+ const ids=['glyph_hinge','glyph_reversal','glyph_faultline','glyph_wideband','glyph_shared_pulse','glyph_carapace','glyph_resonant_aegis','glyph_rending_echo'];
+ const silhouettes=ids.map(id=>{const f=cataloguePortrait(id);assert.ok((f.match(/<path /g)||[]).length>=5,id);return f.match(/<path d="([^"]+)"/)[1];});
+ assert.equal(new Set(silhouettes).size,ids.length);
+});

@@ -4,3 +4,6 @@ Extends the existing calibrated Phase Scar travel candidate, not the cosmetic an
 
 ## Phase Scar entry and recovery objective
 The original Phase Scar is the only entrance. Recover the calibration sample first; subsequent interaction travels when safe. The original rectangular boundary now contains three areas, six hostile spawn records (existing archetypes), a final Warden and a physical cache. Credited participants in both the preceding encounter and Warden fight may claim three Resonance fragments once per character; progress and claim are persisted. The reused archetypes cannot satisfy outdoor kill directives. This is shared-region play, not party-exclusive instancing, and does not yet meet the intended final atmosphere/scale or establish balance through playtesting.
+
+## Chamber population and environment revision
+The current integration candidate replaces the initial six-spawn layout with 3 / 4 / 4 hostiles across the Arrival Gallery, Relay Workshop and Null Chamber (11 including the Warden). Ten deterministic mineral formations introduce collision-bearing rocks and restrained crystal clusters. Bulkhead and room light intensities are reduced. Existing reward eligibility and safe travel remain unchanged. Actual encounter difficulty, navigation congestion and artistic acceptance are not established by source or browser tests alone.
