@@ -53,10 +53,12 @@ try {
     }, [x,z]);
   }
   async function capture(path) {
+    console.log('[preview] capture start:',path);
     const drawn = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction(n => window.__attune.state().drawn > n, drawn);
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
     await page.screenshot({ path });
+    console.log('[preview] capture complete:',path);
   }
   await moveTo(-5.5,-2.6);
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
@@ -459,7 +461,9 @@ try {
   await workshop.waitFor({state:'hidden'});
   await page.locator('.production-status').waitFor({state:'hidden'});
   assert.deepEqual(errors, []);
+  console.log('[preview] Surveyor assertions complete; closing page');
   await page.close();
+  console.log('[preview] starting asset fallback assertions');
   const fallbackPage = await browser.newPage({viewport:{width:850,height:600}});
   fallbackPage.setDefaultTimeout(90000);
   await fallbackPage.route('**/research_workstation.glb', route => route.abort());
@@ -472,6 +476,7 @@ try {
     return holder?.children.length > 0 && !scene.getObjectByName('prototype-art:survey_workstation');
   }));
   await fallbackPage.close();
+  console.log('[preview] fallback assertions complete; starting Mender');
   const bio=await browser.newPage({viewport:{width:1000,height:700}});
   bio.setDefaultTimeout(90000);const bioErrors=[];
   bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
@@ -516,6 +521,7 @@ try {
   await bio.waitForFunction(()=>window.__attune.state().you.cds.overgrowth_surge>0);
   await bio.screenshot({path:'preview-evidence/12-bloom-relay-surge.png'});
   assert.deepEqual(bioErrors,[]);await bio.close();
+  console.log('[preview] Mender assertions complete; starting Keeper');
   const keeper = await browser.newPage({viewport:{width:1000,height:700}});
   keeper.setDefaultTimeout(90000);
   const keeperErrors=[];
@@ -563,5 +569,16 @@ try {
   await keeper.waitForFunction(()=>!window.__attune.gfx.scene.getObjectByName('live-aegis:'+window.__attune.state().myId));
   assert.deepEqual(keeperErrors,[]);
   await keeper.close();
-  console.log('PASS integrated Surveyor, Brineworks commissioning, Sinter Flats, Aegis Keeper and independent asset fallbacks');
-} finally { await browser?.close(); await server.close(); }
+  console.log('[preview] all functional assertions complete');
+} finally {
+  try {
+    console.log('[preview] closing browser');
+    await browser?.close();
+    console.log('[preview] browser closed');
+  } finally {
+    console.log('[preview] closing server');
+    await server.close();
+    console.log('[preview] server closed');
+  }
+}
+console.log('PASS integrated Surveyor, Brineworks commissioning, Sinter Flats, Aegis Keeper and independent asset fallbacks');
