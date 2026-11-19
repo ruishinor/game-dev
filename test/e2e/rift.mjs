@@ -84,7 +84,25 @@ try{
  await move(f.core,3.6);
  // The calibrated gate can be used in dormant, cooling or stabilized phases.
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().you.x>200);
+ // Phase Scar -> Severance Expanse: the gate's approach, its real GLB and its server phase.
+ await page.waitForFunction(()=>window.__attune.state().you?.region==='severance_expanse',null,{polling:250});
+ await page.waitForFunction(()=>window.__attune.state().world.severance?.status==='ready',null,{timeout:120000,polling:500});
+ assert.ok(await page.evaluate(()=>{const g=window.__attune.gfx.scene.getObjectByName('severance-gate');let stone=0;g?.traverse(n=>{if(n.isMesh&&/SG_Stone/.test(n.material?.name||''))stone++;});return g?.visible&&stone>=2;}),'Severance Gate GLB rendered in the expanse');
+ await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='severance_gate')?.row.gp==='active',null,{timeout:30000,polling:250});
+ await page.waitForFunction(()=>window.__attune.state().world.severance?.phase==='active',null,{polling:250});
+ await page.screenshot({path:'rift-evidence/04-severance-expanse.png'});
+ assert.ok(!server.game.enemies.some(e=>e.name==='Displaced Sentinel'),'the Annex is not opened by entering the expanse');
+ // Walk the last metres into the passage with real input, then use the portal.
+ const {gateToWorld}=await import('../../shared/severance-gate.js');
+ const landing=gateToWorld(0,-5.5);p.x=landing.x;p.z=landing.z;
+ await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.pos.x-x,s.pos.z-z)<.6;},[landing.x,landing.z],{polling:250});
+ await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.1,dist:4,face:0}));
+ await page.locator('#view').focus();await page.keyboard.down('KeyW');
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.you&&s.you.z>52.4;},null,{timeout:60000,polling:100});
+ await page.keyboard.up('KeyW');
+ await page.screenshot({path:'rift-evidence/05-severance-passage.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you.x>200,null,{polling:250});
  assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
  assert.ok(!server.game.objects.some(o=>o.type==='rift_entry'));
@@ -94,13 +112,17 @@ try{
    let count=0;cache?.traverse(node=>{if(node.isMesh)count++});
    return count>0;
  }), 'The Annex cache has rendered geometry after travel');
- await page.screenshot({path:'rift-evidence/04-annex.png'});
+ await page.screenshot({path:'rift-evidence/06-annex.png'});
  assert.equal(server.game.enemies.filter(e=>e.annexEncounter).length,11);
  assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));
   assert.equal(await page.evaluate(()=>{let n=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:mineral-formation')n++});return n;}),10);
  await move(f.exit,-1.7);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().you.x<100);
+ // The Annex returns to the foot of the Severance Gate; the beacon returns to the Reach.
+ await page.waitForFunction(()=>window.__attune.state().you?.region==='severance_expanse',null,{polling:250});
+ const beacon=server.game.severance.beacon;await move(beacon,1.6);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you?.region==='reach',null,{polling:250});
  assert.deepEqual(errors,[]);
- console.log('PASS actual rift interaction, synchronized phases and Three membrane');
+ console.log('PASS actual rift interaction, synchronized phases, Severance Gate traversal and return');
 }finally{await browser?.close();await server.close();}

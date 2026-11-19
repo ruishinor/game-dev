@@ -20,6 +20,7 @@ from .workspace import ASSET_CONFIG_DIR, Asset, StageError, run_stage
 KINDS = {
     "controlled-benchmark": "asset_pipeline.benchmark",
     "reference-driven-creature": "asset_pipeline.creature",
+    "reference-driven-architecture": "asset_pipeline.architecture",
 }
 
 

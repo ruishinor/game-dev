@@ -6,6 +6,7 @@ import {appearanceString} from '../../shared/appearance.js';
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
+import { travelSeverance } from './severance-gate.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -358,6 +359,7 @@ export function interact(game, p, objectId) {
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='rift_return')return game.travelRift(p,obj);
+  if(obj.type==='severance_gate'||obj.type==='severance_return')return travelSeverance(game,p,obj);
   if(obj.type==='annex_cache'){
     if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
     if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};

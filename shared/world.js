@@ -10,6 +10,9 @@ export const JUMP_VELOCITY = 8.0;
 export const GRAVITY = 22.0;
 export const PLAYER_RADIUS = 0.45;
 
+import { SEVERANCE_POCKET, SEVERANCE_PROPS, GATE_THRESHOLD, inSeverancePocket, clampToPocket, pocketHeight, pocketArea } from './severance-gate.js';
+export { SEVERANCE_POCKET, SEVERANCE_GATE, inSeverancePocket } from './severance-gate.js';
+
 export const WORLD = {
   name: 'The Verdigris Reach',
   radius: 92,
@@ -23,7 +26,11 @@ export function inRiftAnnex(x,z,pad=0){
  return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
 }
 export function travelRegionAt(x, z) {
-  return inRiftAnnex(x, z, 2) ? 'phase_annex' : 'reach';
+  return inRiftAnnex(x, z, 2) ? 'phase_annex' : inSeverancePocket(x, z, 2) ? 'severance_expanse' : 'reach';
+}
+/** Areas reached only by server-owned travel; reconnects there return to the Reach. */
+export function inDisconnectedRegion(x, z, pad = 2) {
+  return inRiftAnnex(x, z, pad) || inSeverancePocket(x, z, pad);
 }
 
 export function sameTravelRegion(a, b) {
@@ -90,6 +97,7 @@ const FLAT_AREAS = [
 /** Terrain height at a world position. Purely presentational for the server. */
 export function groundHeight(x, z) {
   if(inRiftAnnex(x,z,2))return 0;
+  if(inSeverancePocket(x,z,2))return pocketHeight(x,z);
   let h =
     1.7 * Math.sin(x * 0.043) * Math.cos(z * 0.051) +
     0.9 * Math.sin(x * 0.11 + 1.3) * Math.sin(z * 0.093 + 0.7) +
@@ -315,7 +323,7 @@ export const ANNEX_FORMATIONS=Object.freeze([
 ].map(([dx,z,r,h,seed])=>Object.freeze({type:'annex_formation',x:RIFT_ANNEX.x+dx,z,r,h,seed})));
 // One resting Stillpoint in the safe Sanctum, clear of the arrival and gate lanes.
 export const STILLPOINT_SITE=Object.freeze({type:'stillpoint_rest',x:8,z:-1.5,r:2,h:1.9,seed:107});
-export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE];
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE,...SEVERANCE_PROPS];
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
 // Conservative horizontal cover test against the same solid prop footprints
@@ -389,6 +397,11 @@ if(RIFT_SITE){
     {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72},
     {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
+// The Severance Gate threshold (inside the passage, at the portal) and the
+// approach pocket's return beacon. The threshold is embedded in the gate's own
+// collision footprint, so it adds no collider.
+OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x:GATE_THRESHOLD.x,z:GATE_THRESHOLD.z,r:0,embedded:true},
+  {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:.72});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
@@ -424,7 +437,8 @@ export function deepLineClear(a, b) {
  * the world. Mutates and returns `p` ({x, z}).
  */
 export function resolveCollisions(p, rad) {
-  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX;
+  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX,pocket=!annex&&inSeverancePocket(p.x,p.z,4);
+  if(pocket)clampToPocket(p,rad);
   const clampAnnex=()=>{p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));};
   if(annex)clampAnnex();
   for (let pass = 0; pass < 2; pass++) {
@@ -472,6 +486,7 @@ export function resolveCollisions(p, rad) {
     }
   }
   if(annex){clampAnnex();return p;}
+  if(pocket){clampToPocket(p,rad);return p;}
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {
@@ -527,6 +542,7 @@ export function inSanctum(p) {
 
 export function zoneAt(x, z) {
   if(inRiftAnnex(x,z,2))return annexArea(x,z)?RIFT_ANNEX.name+' · '+annexArea(x,z):RIFT_ANNEX.name;
+  if(inSeverancePocket(x,z,2))return SEVERANCE_POCKET.name+' · '+pocketArea(x,z);
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;
