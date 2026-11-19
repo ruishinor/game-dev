@@ -146,7 +146,9 @@ function fabrication(ui,body){
     if (filter.prioritize) shown.sort((a, b) => Number(b.craftable) - Number(a.craftable));
     const pageSize=6;
     const pages=Math.max(1,Math.ceil(shown.length/pageSize));
-    const page=Math.max(0,Math.min(pages-1,ui.recipePage||0));
+    const revealIndex=ui.recipeReveal?shown.findIndex(row=>row.b.dataset.recipe===ui.recipeReveal):-1;
+    ui.recipeReveal=null;
+    const page=Math.max(0,Math.min(pages-1,revealIndex>=0?Math.floor(revealIndex/pageSize):(ui.recipePage||0)));
     ui.recipePage=page;
     list.replaceChildren(...shown.slice(page*pageSize,(page+1)*pageSize).map(row=>row.b));
     if(pages>1){
