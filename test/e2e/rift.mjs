@@ -16,7 +16,13 @@ try{
  await page.waitForFunction(()=>{
    const root=window.__attune.gfx.scene.getObjectByName('stillpoint:live');
    let skin=false;root?.traverse(node=>{if(node.isSkinnedMesh&&node.skeleton?.bones.length===10)skin=true;});
-   return root&&skin&&Math.abs(root.position.x-8)<.01&&Math.abs(root.position.z+1.5)<.01;
+   return root&&skin&&Math.hypot(root.position.x,root.position.z)<11;
+ });
+ await page.waitForFunction(()=>{
+   const root=window.__attune.gfx.scene.getObjectByName('stillpoint:live');
+   if(!root||root.userData.stillpointClip!=='Walk')return false;
+   const first=window.__stillpointFirst??={x:root.position.x,z:root.position.z};
+   return Math.hypot(root.position.x-first.x,root.position.z-first.z)>.2;
  });
  // This browser path tests anomaly pulses, interaction, rewards and travel.
  // Suppress unrelated roaming outdoor enemies in the isolated test fixture
