@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import validator from 'gltf-validator';
 import { LOOKS } from '../shared/content.js';
 import { APPROVED_RADIO_ASSETS } from '../client/src/radio-assets.js';
-import { HUMANOID_BASE, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS } from '../client/src/anim-tables.js';
+import { HUMANOID_BASE, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS } from '../client/src/anim-tables.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'client', 'assets');
@@ -82,6 +82,7 @@ test('assets: every animation clip and model piece the client names exists in th
   const humanClips = new Set(Object.keys(assets.humanoid_m.clips));
   for (const [state, clip] of Object.entries(HUMANOID_BASE)) assert.ok(humanClips.has(clip), `humanoid ${state}: clip ${clip} is not in humanoid_m`);
   for (const [id, a] of Object.entries(HUMANOID_ACTIONS)) assert.ok(humanClips.has(a.clip), `ability ${id}: clip ${a.clip} is not in humanoid_m`);
+  for(const a of HUMANOID_MELEE_SEQUENCE)assert.ok(humanClips.has(a.clip),a.clip);
   assert.equal(Object.keys(assets.humanoid_f.clips).length, 0, 'humanoid_f carries no clips of its own (it plays humanoid_m’s)');
   for (const [type, spec] of Object.entries(CREATURES)) {
     const piece = assets.creatures.pieces[spec.piece];
