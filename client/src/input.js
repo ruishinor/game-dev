@@ -34,7 +34,8 @@ export class Input {
       if (['INPUT','TEXTAREA','SELECT'].includes(el.tagName) || el.isContentEditable) return true;
       // Dialogs and binding capture own their keys. A clicked actionbar button
       // does NOT swallow future shortcuts, while Tab/Enter/Space remain native.
-      if (el.closest?.('[role="dialog"]')) return true;
+      const dialog = el.closest?.('[role="dialog"]');
+      if (dialog && !dialog.hidden) return true;
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button')
         return e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space';
       return false;
