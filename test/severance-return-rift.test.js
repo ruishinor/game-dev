@@ -62,3 +62,36 @@ test('return rift keeps the server travel contract and rejects invalid remote/lo
  assert.equal(travelRegionAt(p.x,p.z),'reach');
  assert.ok(Math.hypot(p.x-g.rift.entry.x,p.z-(g.rift.entry.z-3.6))<1e-6);
 });
+
+
+test('paired rift effects retain authored layers, quality budgets and phase-driven light',()=>{
+ const reach=buildRift(THREE,null,null),returning=buildRift(THREE,null,null,{returning:true});
+ try{
+  for(const model of [reach,returning]){
+   const root=model.group;
+   for(const name of ['rift:depth-veil','rift:filaments','rift:field-motes','rift:footprint-halo','rift:ambient-light'])
+    assert.ok(root.getObjectByName(name),name);
+   const motes=root.getObjectByName('rift:field-motes');
+   const filaments=root.getObjectByName('rift:filaments');
+   const depth=root.getObjectByName('rift:depth-veil');
+   assert.equal(motes.instanceMatrix.count,32);
+   model.update(.1,{riftPhase:'unstable',riftWarning:1,effectsQuality:2,cameraDistance:7});
+   assert.equal(motes.count,32);
+   assert.ok(filaments.visible&&depth.visible);
+   assert.ok(root.getObjectByName('rift:ambient-light').intensity>0);
+   model.update(.1,{riftPhase:'dormant',effectsQuality:0,cameraDistance:4,reducedMotion:true});
+   assert.equal(motes.count,0);assert.equal(filaments.visible,false);assert.equal(depth.visible,false);
+   assert.equal(root.getObjectByName('rift:ambient-light').intensity,0);
+   model.update(.1,{riftPhase:'stabilized',effectsQuality:1,cameraDistance:8,reducedMotion:true});
+   assert.equal(motes.count,14);
+   assert.equal(root.getObjectByName('rift:ambient-light').intensity,0);
+   assert.equal(root.getObjectByName('rift:interference-membrane').material.uniforms.uTime.value,0);
+  }
+  assert.equal(returning.group.getObjectByName('rift:persistent-warning'),undefined);
+  assert.ok(reach.group.getObjectByName('rift:persistent-warning'));
+  const m=returning.group.getObjectByName('rift:interference-membrane');
+  returning.update(.1,{riftPhase:'unstable',riftWarning:1,effectsQuality:2,cameraDistance:10});
+  assert.equal(m.material.uniforms.uStable.value,1);
+  assert.equal(m.material.uniforms.uPhase.value,.8);
+ }finally{reach.dispose();returning.dispose();}
+});
