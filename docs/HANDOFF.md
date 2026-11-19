@@ -16,6 +16,10 @@ Run `npm test` for simulation, networking and asset contracts, and `npm run e2e`
 
 The [rendering extraction matrix](art/MMO-RENDERING-EXTRACTION.md) records the reference implementations, decisions and risks. The [art review records](art/reviews/) document the original asset work. New screenshots used to evaluate this branch remain separate from historical reference captures.
 
+## Asset pipeline
+
+`tools/asset-pipeline/` is the reference-driven Blender pipeline: a controlled reconstruction benchmark and the Stillpoint prototype, which is not live. State, commands, open items and pitfalls are in [tools/asset-pipeline/HANDOFF.md](../tools/asset-pipeline/HANDOFF.md). Run `npm run preview:pipeline` to view its GLBs in the runtime.
+
 ## Known limits
 
 The scene uses stylized game-ready donors and Attunement-specific compositions. Humanoid close-ups, creature fidelity and animation variation remain below the long-term art target. Desktop hardware performance and independent human play remain to be verified. The profile's default software renderer is useful for comparing submitted work across matched views. The JSON store and whole-world snapshots suit the current local playtest.
