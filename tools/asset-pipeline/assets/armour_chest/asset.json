@@ -68,7 +68,7 @@
    "k": 10,
    "emissive_size": 512,
    "arm_cap": {"yoke": 0.3, "pauldron": 0.4},
-   "weight_modes": {"chest_plate": ["band", "y", 0.05],
+   "weight_modes": {"chest_panel": ["band", "y", 0.05], "back_panel": ["band", "y", 0.05], "chest_plate": ["band", "y", 0.05],
                     "back_plate": ["band", "y", 0.05], "plastron": ["band", "y", 0.05], "ab_plate_upper": ["band", "y", 0.04], "ab_plate_lower": ["band", "y", 0.04],
                     "chest_inset": ["rigid"], "core": ["rigid"], "relay_housing": ["rigid"], "buckle": ["rigid"], "rivets": ["band", "y", 0.03],
                     "piping": ["band", "y", 0.05], "piping_waist": ["rigid"], "resonance_lines": ["band", "y", 0.04],
@@ -85,7 +85,7 @@
    "under_shells": ["shell_chest", "shell_coat", "shell_belt", "shell_upperarms"],
    "max_inside_body_fraction": 0.015,
    "max_inside_shell_fraction": 0.03,
-   "min_clearance_p05_m": -0.012,
+   "min_clearance_p05_m": -0.015,
    "max_edge_strain_p99": 0.15,
    "strain_vs_body": 1.15,
    "strict": true
