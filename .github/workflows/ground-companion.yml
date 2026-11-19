@@ -2,17 +2,28 @@ name: Ground companion browser integration
 on:
   pull_request:
     paths:
+      - 'server/net.js'
+      - 'server/store.js'
       - 'server/sim/survey-strider.js'
+      - 'server/sim/spindle.js'
       - 'server/sim/ground-navigation.js'
       - 'server/sim/companion.js'
       - 'server/sim/game.js'
+      - 'client/src/assets.js'
       - 'client/src/characters.js'
+      - 'client/src/spindle.js'
+      - 'client/src/portraits.js'
+      - 'client/assets/spindle.glb'
+      - 'client/assets/manifest.json'
+      - 'tools/assets/**'
+      - 'test/spindle*.test.js'
       - 'client/src/main.js'
       - 'client/src/ui.js'
       - 'shared/content.js'
       - 'shared/gadgets.js'
       - 'shared/crafting.js'
       - 'test/e2e/ground-companion.mjs'
+      - 'test/e2e/spindle.mjs'
       - '.github/workflows/ground-companion.yml'
   workflow_dispatch:
 permissions:
@@ -30,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node test/e2e/ground-companion.mjs
+      - run: node test/e2e/spindle.mjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

@@ -44,6 +44,10 @@ voice-auditions/
 .DS_Store
 Thumbs.db
 
+# Candidate outputs of tools/asset-pipeline, previewed locally before an owner
+# decision to publish them (public repository: see AGENTS.md)
+/client/pipeline-assets/
+
 # Browser-suite screenshot output and worktree dependency links
 /preview-evidence/
 /node_modules

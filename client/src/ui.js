@@ -48,6 +48,7 @@ const ICONS = {
   triage: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/>'),
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
+  inspect: svg('<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/>'),
   follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
@@ -74,8 +75,10 @@ const GLYPH_NOTES = {
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
+const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
+export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : PET_KEYS;
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
@@ -87,6 +90,12 @@ function h(tag, cls, text) {
   if (cls) el.className = cls;
   if (text !== undefined) el.textContent = text;
   return el;
+}
+
+// Keep native button activation and tab navigation inside the pet management
+// flow. The world otherwise binds these keys to chat, jump and target cycling.
+function menuKeys(event) {
+  if (['Enter', 'Space', 'Tab'].includes(event.code)) event.stopPropagation();
 }
 
 /** Write a style/text property only when it changed (avoids layout churn). */
@@ -459,8 +468,10 @@ export class UI {
     const helpBtn = h('button', 'menubtn', 'Help [H]');
     helpBtn.addEventListener('click', () => this.toggleHelp());
     this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn.addEventListener('keydown', menuKeys);
     this.menuBtn.addEventListener('click', () => this.toggleMenu());
     this.menuItems = h('div', 'menu-items');
+    this.menuItems.addEventListener('keydown', menuKeys);
     this.menuItems.hidden = true;
     this.charactersBtn = h('button', 'menubtn', 'Characters');
     this.charactersBtn.addEventListener('click', () => { this.toggleMenu(false); this.a.characters(); });
@@ -487,6 +498,7 @@ export class UI {
     this.questJournal=new QuestJournal(this);
     this.vendor=new VendorPanel(this);
     this.companionSheet = h('section', 'panel companion-sheet');
+    this.companionSheet.addEventListener('keydown', menuKeys);
     this.companionSheet.hidden = true;
     this.companionSheet.setAttribute('role', 'dialog');
     this.companionSheet.setAttribute('aria-label', 'Companion Sheet');
@@ -755,7 +767,7 @@ export class UI {
     this.petButtons = [];
     if (companionType) {
       const cdef = COMPANIONS[companionType];
-      PET_KEYS.forEach((mode, i) => {
+      companionCommandKeys(companionType).forEach((mode, i) => {
         if(!Object.hasOwn(cdef.modes,mode))return;
         const b = this.slotButton(ICONS[mode], `⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
@@ -894,6 +906,7 @@ export class UI {
 
   toggleMenu(force) {
     this.menuItems.hidden = !(force ?? this.menuItems.hidden);
+    if (!this.menuItems.hidden) this.menuItems.querySelector('button')?.focus({ preventScroll: true });
   }
 
   hideJournalPanels() {
@@ -934,11 +947,12 @@ export class UI {
     if (open) {
       this.renderCompanionSheet();
       this.companionSheet.querySelector('.close').focus({ preventScroll: true });
-    }
+    } else this.menuBtn.focus({ preventScroll: true });
   }
 
   renderCompanionSheet() {
     const body = this.companionSheetBody;
+    const focusedAction = document.activeElement?.dataset.companionAction;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
       const { type, name, active, available, isDefault } = companion;
@@ -962,14 +976,38 @@ export class UI {
       }
       const useDefault = h('button', null, isDefault ? 'Default summon' : 'Set as default summon');
       useDefault.disabled = isDefault;
+      useDefault.dataset.companionAction = 'default-' + type;
       useDefault.addEventListener('click', () => this.a.managePet('default', type));
-      const deploy=h('button','primary',active?'Dismiss '+name:'Summon '+name);
-      deploy.disabled=!available||(!active&&!isDefault);
-      deploy.addEventListener('click',()=>this.a.managePet(active?'dismiss':'summon'));
-      section.append(modes,useDefault,deploy);
+      section.append(modes);
+      if (!active) {
+        const summon = h('button', null, 'Summon ' + name);
+        summon.disabled = !available;
+        summon.dataset.companionAction = 'summon-' + type;
+        summon.addEventListener('click', () => this.a.managePet('summon', type));
+        section.append(summon);
+      } else {
+        const dismiss=h('button',null,'Dismiss '+name);dismiss.disabled=!available;
+        dismiss.dataset.companionAction='dismiss-'+type;
+        dismiss.addEventListener('click',()=>this.a.managePet('dismiss'));section.append(dismiss);
+      }
+      section.append(useDefault);
       body.append(section);
     }
-    if (!body.children.length) body.append(h('p', 'muted', 'You have no acquired companions.'));
+    if (!this.companionRoster?.some(entry => entry.type === 'spindle')) {
+      const section = h('section', 'companion-sheet-entry');
+      const commission = h('button', null, 'Commission Spindle');
+      commission.dataset.companionAction = 'commission-spindle';
+      commission.disabled = !this.canCommissionSpindle;
+      commission.addEventListener('click', () => this.a.managePet('commission', 'spindle'));
+      section.append(h('h3', null, 'Spindle'), h('p', null, 'A rolling precision machine that inspects your equipment. Commission it free in Lattice Sanctum while alive and outside combat.'), commission);
+      body.append(section);
+    }
+    if (focusedAction) {
+      const next = [...body.querySelectorAll('button:enabled')].find(button => button.dataset.companionAction === focusedAction)
+        || body.querySelector('[data-companion-action="summon-spindle"]:enabled')
+        || this.companionSheet.querySelector('.close');
+      next.focus({ preventScroll: true });
+    }
   }
 
   // Only the owner's authoritative action-start snapshot closes these panels.
@@ -1669,20 +1707,17 @@ export class UI {
     this.currentCompanion = st.comp;
     const roster = you.companions ?? [];
     const rosterSignature = JSON.stringify(roster);
-    if (this.companionRosterSignature !== rosterSignature) {
+    if (this.companionRosterSignature !== rosterSignature || this.canCommissionSpindle !== you.canCommissionSpindle) {
       this.companionRoster = roster;
       this.companionRosterSignature = rosterSignature;
+      this.canCommissionSpindle = you.canCommissionSpindle;
       if (!this.companionSheet.hidden) this.renderCompanionSheet();
     }
     const summon = roster.find(entry => entry.isDefault);
     this.summonPet.hidden = !!st.comp || !summon;
     this.summonPet.disabled = !summon?.available;
     this.summonPet.title = summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
-    if(this.summonSlot){
-      this.summonSlot.el.hidden=!summon;
-      this.summonSlot.el.disabled=!!st.comp||!summon?.available;
-      this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;
-    }
+    if(this.summonSlot){this.summonSlot.el.hidden=!summon;this.summonSlot.el.disabled=!!st.comp||!summon?.available;this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;}
     if (st.comp) {
       const c = st.comp.row;
       this.activePetMode = c.md;

@@ -143,8 +143,9 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
   if(out.item==='survey_strider_link'){
-    p.char.striderLearned=true;p.char.companionDismissed=true;
-    p.char.defaultCompanion='survey_strider';
+    p.char.striderLearned=true;
+    if(!p.companion)p.char.companionDismissed=true;
+    if(!p.char.defaultCompanion)p.char.defaultCompanion='survey_strider';
     p.char.inventory=p.char.inventory.filter(key=>key!==out.item);
     game.message(p,'gain','Learned: Survey Strider deployment. Summon from your hotbar or Companion Sheet.');
   }

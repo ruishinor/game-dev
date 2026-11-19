@@ -8,7 +8,7 @@ import { GOODS } from '../../shared/goods.js';
 const locations = {
   sanctum: 'A protected enclave within the Reach. Travellers recover here; the Archivist provides guidance.',
   sporefield: 'West of the Sanctum. Mire Skitters inhabit the field; the first directive sends travellers here.',
-  relay: 'East of the Sanctum. Rogue Sentinels defend the relay and deploy Arc Pulse.',
+  relay: 'East of the Sanctum. Rogue Sentinels defend the relay; Turret Drones patrol the eastern outskirts.',
   vault: 'The monolith ring to the north. The Vault Warden guards this site.',
   obelisk: 'A rock hollow to the north-west. Interact with the Listening Stone to gain Resonance.',
   sinter:'Living mineral colonies and migrating grazers. Collect only loose surface shedding at the feeding bed; the Faultstalker guards its territory.',
@@ -33,6 +33,7 @@ export const ENTRIES = [
     id, group: 'Creatures', name: e.name, type: e.elite ? 'Elite hostile' : 'Hostile',
     desc: id === 'skitter' ? 'A hostile creature encountered in the Sporefield. Attacks in melee and can draw nearby skitters into combat.' :
       id === 'sentinel' ? 'A ranged enemy at the Derelict Relay. Its Arc Pulse marks the ground before it strikes.' :
+      id === 'turret_drone' ? 'A mobile ranged defence drone in the eastern relay outskirts. Its Suppressive Barrage brackets the target area before impact.' :
       'The elite guardian of the Resonance Vault. Its attacks threaten nearby travellers; its health scales with the number engaged.',
     meta: { k: 'e', c: id }, facts: [
       'Level: ' + e.level, 'Base health: ' + e.hp,
@@ -43,7 +44,7 @@ export const ENTRIES = [
     ],
   })),
   ...Object.entries(COMPANIONS).map(([id,c])=>({id,group:'Creatures',name:c.name,type:'Companion',
-    desc:id==='survey_strider'?'A reclaimed ground survey chassis linked to a Surveyor through the fabricated Strider Link. It scans rather than fights; ground obstacles and range constrain its movement.':'A bioengineered symbiote bonded to a Conductor. Its behavior depends on the selected companion command.',
+    desc:id==='spindle'?'A precision machine carried on a single rolling annulus. Its stationary hub supports a jointed caliper for equipment inspection. Commission one through the Companion Sheet in Lattice Sanctum.':id==='survey_strider'?'A reclaimed ground survey chassis linked to a Surveyor through the fabricated Strider Link. It scans rather than fights; ground obstacles and range constrain its movement.':'A bioengineered symbiote bonded to a Conductor. Its behavior depends on the selected companion command.',
     meta:{ k:'c', c:id }, facts: Object.values(c.modes).map(m=>m.name+': '+m.desc)})),
   {id:'quartermaster',group:'Lore',name:'Sanctum Quartermaster',type:'NPC',desc:'A supply clerk at the Lattice Sanctum. Exchanges recovered trade salvage for credits and stocks fabrication materials.',meta:{k:'o',c:'quartermaster'},facts:['Location: Lattice Sanctum','Interaction: Buy and sell salvage']},
   {id:'archivist',group:'Lore',name:'Archivist Venn',type:'NPC',desc:'An archivist at the Lattice Sanctum who guides travellers through their directives.',meta:{k:'o',c:'archivist'},facts:['Location: Lattice Sanctum','Interaction: Talk for current directive guidance']},

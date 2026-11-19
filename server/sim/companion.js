@@ -6,28 +6,35 @@
 
 import { CLASSES, COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../shared/content.js';
 import { STRIDER_LINK } from '../../shared/gadgets.js';
-import { dist, hasLineOfSight } from '../../shared/world.js';
+import { dist, hasLineOfSight, inSanctum } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
-import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider } from './survey-strider.js';
+import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider, striderSpawnPoint } from './survey-strider.js';
+import { commandSpindle, newSpindleProfile, spawnSpindle, spindleSpawnPoint, tickSpindle } from './spindle.js';
 import { companionCanSupport } from './party.js';
 
-export function ownedCompanionType(char) {
-  return CLASSES[char.cls].companion || (char.cls === 'surveyor' && (char.striderLearned===true || char.inventory.includes(STRIDER_LINK)) ? 'survey_strider' : null);
+export function ownedCompanionTypes(char) {
+  const types = [];
+  const classPet = CLASSES[char.cls].companion;
+  if (classPet) types.push(classPet);
+  if (char.cls === 'surveyor' && (char.striderLearned===true || char.inventory.includes(STRIDER_LINK))) types.push('survey_strider');
+  if (char.spindle) types.push('spindle');
+  return types;
+}
+
+export function canCommissionSpindle(game, p) {
+  return !p.char.spindle && !p.dead && game.time >= p.combatUntil && inSanctum(p);
 }
 
 export function companionRoster(game, p) {
-  const type = ownedCompanionType(p.char);
-  if (!type) return [];
-  const eligible = !p.dead && (type !== 'survey_strider' || wantsSurveyStrider(p));
-  return [{
-    type,
-    name: p.char.petName && !(type === 'survey_strider' && p.char.petName === COMPANIONS.mender.name)
-      ? p.char.petName : COMPANIONS[type].name,
-    isDefault: (p.char.defaultCompanion || type) === type,
-    active: p.companion?.type === type,
-    available: eligible && game.time >= p.combatUntil,
-    needsLink: false,
-  }];
+  const owned = ownedCompanionTypes(p.char);
+  const selected = owned.includes(p.char.defaultCompanion) ? p.char.defaultCompanion : owned[0];
+  return owned.map(type => {
+    const needsLink = false;
+    let name = type === 'spindle' ? p.char.spindle.name : p.char.petName;
+    if (!name || (type === 'survey_strider' && name === COMPANIONS.mender.name)) name = COMPANIONS[type].name;
+    return { type, name, isDefault: type === selected, active: p.companion?.type === type,
+      available: !needsLink && !p.dead && game.time >= p.combatUntil, needsLink };
+  });
 }
 
 export function spawnMender(game, p) {
@@ -44,12 +51,60 @@ export function spawnMender(game, p) {
   game.ents.set(c.id, c);
 }
 
+function removeActive(game, p) {
+  const c = p.companion;
+  if (c.mode === 'guard') release(game, c, p);
+  if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
+  game.ents.delete(c.id);
+  game.companions = game.companions.filter(active => active !== c);
+  p.companion = null;
+}
+
+function spawnSelected(game, p, type, point) {
+  if (type === 'mender') spawnMender(game, p);
+  if (type === 'spindle') spawnSpindle(game, p, point ?? spindleSpawnPoint(game, p));
+  if (type === 'survey_strider') syncSurveyStrider(game, p, point);
+  if (p.companion) p.char.activeCompanion = p.companion.type;
+  p.deployRetryAt = !p.companion && !p.char.companionDismissed &&
+    (type === 'spindle' || (type === 'survey_strider' && wantsSurveyStrider(p))) ? game.time + 1000 : null;
+}
+
+export function restoreCompanion(game, p) {
+  const owned = ownedCompanionTypes(p.char);
+  const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned].find(t => owned.includes(t));
+  spawnSelected(game, p, selected);
+}
+
+export function syncEquippedCompanion(game, p) {
+  if (p.cls !== 'surveyor') return;
+  // Learned deployment no longer follows equipment changes.
+  if (p.companion?.type === 'survey_strider') syncSurveyStrider(game, p);
+}
+
+export function redeployGroundCompanion(game, p) {
+  const { type } = p.companion;
+  removeActive(game, p);
+  if (type === 'spindle') p.char.spindle.mode = 'follow';
+  else p.char.petMode = 'follow';
+  p.char.activeCompanion = type;
+  spawnSelected(game, p, type);
+}
+
 export function manageCompanion(game, p, action, type) {
-  const owned = ownedCompanionType(p.char);
+  const owned = ownedCompanionTypes(p.char);
+  if (action === 'commission') {
+    if (type !== 'spindle' || !canCommissionSpindle(game, p))
+      return { ok: false, reason: 'Commission one Spindle at the Lattice Sanctum while alive and outside combat.' };
+    if (!owned.length) p.char.companionDismissed = true;
+    p.char.spindle = newSpindleProfile();
+    game.markDirty(p);
+    game.message(p, 'info', 'Spindle commissioned. Open your companion sheet to summon it.');
+    return { ok: true };
+  }
   if (action === 'default') {
-    if (!owned || owned !== type) return { ok: false, reason: 'That companion is unavailable.' };
-    if (p.char.defaultCompanion !== owned) {
-      p.char.defaultCompanion = owned;
+    if (!owned.includes(type)) return { ok: false, reason: 'That companion is unavailable.' };
+    if (p.char.defaultCompanion !== type) {
+      p.char.defaultCompanion = type;
       game.markDirty(p);
     }
     return { ok: true };
@@ -58,26 +113,25 @@ export function manageCompanion(game, p, action, type) {
   if (action === 'dismiss') {
     const c = p.companion;
     if (!c) return { ok: false, reason: 'You have no active companion.' };
-    if (c.mode === 'guard') release(game, c, p);
-    if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
+    removeActive(game, p);
     p.char.companionDismissed = true;
-    game.ents.delete(c.id);
-    game.companions = game.companions.filter(active => active !== c);
-    p.companion = null;
+    p.char.activeCompanion = null;
+    p.deployRetryAt = null;
     game.markDirty(p);
     return { ok: true };
   }
   if (action !== 'summon') return { ok: false, reason: 'Unknown companion action.' };
-  if (p.companion) return { ok: false, reason: 'A companion is already active.' };
-  if (!owned || (p.char.defaultCompanion && p.char.defaultCompanion !== owned)) return { ok: false, reason: 'Choose an acquired companion first.' };
-  if (owned === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Learn Survey Strider deployment at a commissioned workshop first.' };
+  const selected = type ?? (owned.includes(p.char.defaultCompanion) ? p.char.defaultCompanion : owned[0]);
+  if (!owned.includes(selected)) return { ok: false, reason: 'Choose an acquired companion first.' };
+  if (p.companion && (!type || p.companion.type === selected)) return { ok: false, reason: 'A companion is already active.' };
+  if (selected === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Learn Survey Strider deployment at a commissioned workshop first.' };
+  const point = selected === 'spindle' ? spindleSpawnPoint(game, p) : selected === 'survey_strider' ? striderSpawnPoint(p) : null;
+  if (selected !== 'mender' && !point) return { ok: false, reason: 'Move to open ground and try summoning again.' };
+  // All eligibility and clearance checks have succeeded. The old companion can now be removed.
+  if (p.companion) removeActive(game, p);
+  p.char.activeCompanion = selected;
   p.char.companionDismissed = false;
-  if (owned === 'mender') spawnMender(game, p);
-  else syncSurveyStrider(game, p);
-  if (!p.companion) {
-    p.char.companionDismissed = true;
-    return { ok: false, reason: 'Move to open ground and try summoning again.' };
-  }
+  spawnSelected(game, p, selected, point);
   game.markDirty(p);
   return { ok: true };
 }
@@ -119,6 +173,7 @@ function release(game, c, owner, reason) {
 }
 
 export function tickCompanion(game, c, dt) {
+  if (c.type === 'spindle') return tickSpindle(game, c, dt);
   if(c.type==='survey_strider')return tickSurveyStrider(game,c,dt);
   const def = COMPANIONS[c.type];
   const owner = game.players.get(c.owner);
@@ -272,7 +327,8 @@ export function renameCompanion(game, p, name) {
   if (p.companion.name === name) return { ok: true };
   p.companion.name = name;
   p.companion.metaVer += 1;
-  p.char.petName = name;
+  if (p.companion.type === 'spindle') p.char.spindle.name = name;
+  else p.char.petName = name;
   game.markDirty(p);
   return { ok: true };
 }
@@ -283,6 +339,7 @@ export function petCommand(game, p, cmd) {
   const def = COMPANIONS[c.type];
   if (typeof cmd !== 'string' || !Object.hasOwn(def.modes, cmd)) return { ok: false, reason: 'Unknown command.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
+  if (c.type === 'spindle') return commandSpindle(game, p, c, cmd);
   let host = 0;
   if (cmd === 'guard') {
     const t = game.ents.get(p.target);

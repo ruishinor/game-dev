@@ -29,7 +29,7 @@ export function makePortraits(assets, useGlb) {
       const rim = new THREE.DirectionalLight(0x4fcce2, 2);
       rim.position.set(-3, 2, -2);
       scene.add(rim, model.group);
-      model.update(0.08, { t: 1, speed: 0, dead: false, attack: 0, cast: 0, hit: 0, air: false, mode: 'triage', act: 'idle', casting: false, combat: false, charge: 0, fwd: 1, interval: 0 });
+      model.update(meta.c === 'spindle' ? 2 : .08, { t: 1, speed: 0, dead: false, attack: 0, cast: 0, hit: 0, air: false, mode: 'triage', act: 'idle', casting: false, combat: false, charge: 0, fwd: 1, interval: 0 });
       model.group.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model.group);
       const center = box.getCenter(new THREE.Vector3());
@@ -46,7 +46,8 @@ export function makePortraits(assets, useGlb) {
         scene.overrideMaterial=sketchMaterial;
       }
       const camera = new THREE.OrthographicCamera(-halfX, halfX, halfY, -halfY, .01, 100);
-      camera.position.copy(center).add(new THREE.Vector3(sketch?0:.38, sketch?0:.13, 1).normalize().multiplyScalar(extent * 5));
+      const direction = meta.c === 'spindle' ? new THREE.Vector3(2.0, .62, -2.1) : new THREE.Vector3(sketch?0:.38, sketch?0:.13, 1);
+      camera.position.copy(center).add(direction.normalize().multiplyScalar(extent * 5));
       camera.lookAt(center);
       renderer.render(scene, camera);
       const data = renderer.domElement.toDataURL('image/png');

@@ -1,0 +1,11 @@
+# Attunement asset pipeline: isolated Python 3.13 environment (CPU only).
+# Blender is used as a Python module (bpy), so no separate Blender install is needed.
+bpy==5.3.0
+numpy==2.5.5
+scipy==1.18.1
+opencv-python-headless==5.1.0.95
+trimesh==5.2.1
+rtree==1.4.1
+scikit-image==0.26.0
+pycolmap==4.2.1
+matplotlib

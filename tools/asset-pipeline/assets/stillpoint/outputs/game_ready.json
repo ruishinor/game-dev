@@ -1,0 +1,244 @@
+{
+ "triangles_source": 138167,
+ "triangles_runtime": 34380,
+ "vertices_runtime": 17664,
+ "bones": [
+  "root",
+  "body",
+  "leg_FL_upper",
+  "leg_FL_lower",
+  "leg_FR_upper",
+  "leg_FR_lower",
+  "leg_BL_upper",
+  "leg_BL_lower",
+  "leg_BR_upper",
+  "leg_BR_lower"
+ ],
+ "clips": {
+  "Idle": {
+   "frames": 121,
+   "seconds": 4.0,
+   "loop": true
+  },
+  "WeightShift": {
+   "frames": 121,
+   "seconds": 4.0,
+   "loop": true
+  },
+  "Walk": {
+   "frames": 49,
+   "seconds": 1.6,
+   "loop": true,
+   "ground_speed_m_s": 0.4
+  },
+  "WalkStart": {
+   "frames": 49,
+   "seconds": 1.6,
+   "loop": false,
+   "ground_speed_m_s": "0 -> 0.4",
+   "speed_samples": [
+    0.0,
+    0.00091,
+    0.00357,
+    0.00787,
+    0.01372,
+    0.021,
+    0.02963,
+    0.03949,
+    0.05048,
+    0.0625,
+    0.07545,
+    0.08921,
+    0.1037,
+    0.11881,
+    0.13443,
+    0.15046,
+    0.1668,
+    0.18335,
+    0.2,
+    0.21665,
+    0.2332,
+    0.24954,
+    0.26557,
+    0.28119,
+    0.2963,
+    0.31079,
+    0.32455,
+    0.3375,
+    0.34952,
+    0.36051,
+    0.37037,
+    0.379,
+    0.38628,
+    0.39213,
+    0.39643,
+    0.39909,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4
+   ]
+  },
+  "WalkStop": {
+   "frames": 49,
+   "seconds": 1.6,
+   "loop": false,
+   "ground_speed_m_s": "0.4 -> 0",
+   "speed_samples": [
+    0.4,
+    0.39909,
+    0.39643,
+    0.39213,
+    0.38628,
+    0.379,
+    0.37037,
+    0.36051,
+    0.34952,
+    0.3375,
+    0.32455,
+    0.31079,
+    0.2963,
+    0.28119,
+    0.26557,
+    0.24954,
+    0.2332,
+    0.21665,
+    0.2,
+    0.18335,
+    0.1668,
+    0.15046,
+    0.13443,
+    0.11881,
+    0.1037,
+    0.08921,
+    0.07545,
+    0.0625,
+    0.05048,
+    0.03949,
+    0.02963,
+    0.021,
+    0.01372,
+    0.00787,
+    0.00357,
+    0.00091,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "Turn": {
+   "frames": 49,
+   "seconds": 1.6,
+   "loop": true,
+   "turn_rate_deg_s": 22
+  }
+ },
+ "maps": {
+  "basecolor": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/basecolor.png",
+  "roughness": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/roughness.png",
+  "normal": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/normal.png"
+ },
+ "legs": [
+  {
+   "name": "FL",
+   "hip": [
+    0.8581388240743628,
+    -0.36752473708641464,
+    1.3541666666666667
+   ],
+   "knee": [
+    1.2744392944645664,
+    -0.8991743304759091,
+    0.69
+   ],
+   "foot": [
+    1.2975738432435229,
+    -0.9287190327436079,
+    0.0
+   ],
+   "pole_angle_deg": 90.0,
+   "pole_rest_error_m": 4.3392836387637365e-07
+  },
+  {
+   "name": "FR",
+   "hip": [
+    -0.599519395921507,
+    -0.6816227762976821,
+    1.3541666666666667
+   ],
+   "knee": [
+    -1.2183830278057672,
+    -0.9513579585440154,
+    0.69
+   ],
+   "foot": [
+    -1.2527680906716474,
+    -0.9663448808978796,
+    0.0
+   ],
+   "pole_angle_deg": 90.0,
+   "pole_rest_error_m": 3.5762786865234375e-07
+  },
+  {
+   "name": "BL",
+   "hip": [
+    0.4737150674318834,
+    0.7215846636062135,
+    1.3541666666666667
+   ],
+   "knee": [
+    1.126534042096824,
+    1.0300927967034963,
+    0.69
+   ],
+   "foot": [
+    1.1646922113489349,
+    1.0481255224900299,
+    0.0
+   ],
+   "pole_angle_deg": 90.0,
+   "pole_rest_error_m": 2.0647654623614278e-07
+  },
+  {
+   "name": "BR",
+   "hip": [
+    -0.8490528741769154,
+    0.46274753743668184,
+    1.3541666666666667
+   ],
+   "knee": [
+    -1.210705619131076,
+    1.000319470036125,
+    0.69
+   ],
+   "foot": [
+    -1.2301251642780775,
+    1.029185288312159,
+    0.0
+   ],
+   "pole_angle_deg": 90.0,
+   "pole_rest_error_m": 5.960464477539063e-08
+  }
+ ],
+ "glb": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/stillpoint_unoptimized.glb",
+ "blend": "/home/user/game-dev/.asset-cache/pipeline/stillpoint/game_ready/stillpoint_rigged.blend"
+}

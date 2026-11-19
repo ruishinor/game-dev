@@ -19,8 +19,8 @@ import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
 import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
-import { ownedCompanionType } from './sim/companion.js';
-import { migrateSurveyStrider } from './sim/survey-strider.js';
+import { ownedCompanionTypes } from './sim/companion.js';
+import {migrateSurveyStrider} from './sim/survey-strider.js';
 import { recoverySamples } from '../shared/recovery.js';
 import { sanitizeRecoveryReadyAt } from './sim/recovery.js';
 
@@ -87,12 +87,20 @@ function sanitize(raw) {
   c.condition=sanitizeCondition(raw.condition,c.inventory);
   c.companionDismissed = raw.companionDismissed === true;
   c.striderLearned=c.cls==='surveyor'&&raw.striderLearned===true;
-  // Capture the legacy device before loadout validation rejects obsolete gear.
+  c.activeCompanion=raw.activeCompanion==='spindle'&&raw.spindle?.commissioned===true?'spindle':null;
   if(c.cls==='surveyor'&&raw.equipped?.device==='survey_strider_link')c.equipped.device='survey_strider_link';
   migrateSurveyStrider(c);
   c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
-  c.defaultCompanion = typeof raw.defaultCompanion === 'string' && raw.defaultCompanion === ownedCompanionType(c)
-    ? raw.defaultCompanion : null;
+  if (raw.spindle?.commissioned === true) {
+    c.spindle = {
+      commissioned: true,
+      name: validCompanionName(raw.spindle.name) ? raw.spindle.name : COMPANIONS.spindle.name,
+      mode: raw.spindle.mode === 'stay' ? 'stay' : 'follow',
+    };
+  }
+  const owned = ownedCompanionTypes(c);
+  c.defaultCompanion = owned.includes(raw.defaultCompanion) ? raw.defaultCompanion : null;
+  c.activeCompanion = !c.companionDismissed && owned.includes(raw.activeCompanion) ? raw.activeCompanion : null;
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };

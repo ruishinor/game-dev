@@ -1,4 +1,4 @@
-// One learned ground survey companion. All acquisition,
+// One equipment-bound, non-combat survey companion. All acquisition,
 // commands, movement and marks are authoritative. No Mender code is replaced.
 import { CLASSES, COMPANIONS, ENEMIES } from '../../shared/content.js';
 import { STRIDER_LINK } from '../../shared/gadgets.js';
@@ -6,22 +6,20 @@ import { dist, inSanctum, hasLineOfSight, deepLineClear } from '../../shared/wor
 import { groundSegmentClear, advanceGroundCompanion } from './ground-navigation.js';
 const TYPE='survey_strider',def=COMPANIONS[TYPE],R=def.radius;
 const SCAN_RANGE=8,SCAN_INTERVAL=8000,SCAN_MS=6000,OWNER_RANGE=22;
-// Legacy physical links become a permanent learned capability. Preserve an
-// equipped owner's deployed preference and release the occupied device slot.
 export function migrateSurveyStrider(char){
  if(char.cls!=='surveyor')return false;
- const owned=char.striderLearned===true||char.inventory.includes(STRIDER_LINK);
- if(!owned)return false;
+ const owned=char.striderLearned===true||char.inventory.includes(STRIDER_LINK);if(!owned)return false;
  if(char.striderLearned!==true){
-  char.companionDismissed=char.companionDismissed===true||char.equipped.device!==STRIDER_LINK;
+  if(!char.activeCompanion)char.companionDismissed=char.companionDismissed===true||char.equipped.device!==STRIDER_LINK;
   char.striderLearned=true;
  }
  char.inventory=char.inventory.filter(id=>id!==STRIDER_LINK);
  if(char.equipped.device===STRIDER_LINK)char.equipped={...char.equipped,device:null};
  return true;
 }
-export function wantsSurveyStrider(p){
- return p.cls==='surveyor'&&p.char.striderLearned===true;
+export function wantsSurveyStrider(p){return p.cls==='surveyor'&&p.char.striderLearned===true;}
+export function striderSpawnPoint(p){
+ return pointNear(p,def.followDist,p.yaw+Math.PI);
 }
 function pointNear(ent,gap,angle,origin=ent){
  for(const offset of [0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2,3*Math.PI/4,-3*Math.PI/4,Math.PI]){
@@ -37,19 +35,15 @@ function dismiss(game,p){
  game.companions=game.companions.filter(x=>x!==c);game.ents.delete(c.id);p.companion=null;
  game.markDirty(p);
 }
-export function syncSurveyStrider(game,p){
+export function syncSurveyStrider(game,p,spotOverride){
  if(p.cls!=='surveyor')return;
  if(!wantsSurveyStrider(p)){dismiss(game,p);return;}
  if(p.companion||p.dead||p.char.companionDismissed)return;
- p.striderDeployAt=game.time+1000;
- const spot=pointNear(p,def.followDist,p.yaw+Math.PI);if(!spot)return;
+ const spot=spotOverride??striderSpawnPoint(p);if(!spot)return;
  const mode=Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';
  const c={id:game.nextId++,kind:'companion',type:TYPE,name:p.char.petName&&p.char.petName!==COMPANIONS.mender.name?p.char.petName:def.name,owner:p.id,...spot,yaw:p.yaw,mode,host:0,act:'idle',actTarget:0,nextPulse:game.time+1000,nextRegen:0,metaVer:1,nav:{}};
  p.companion=c;p.char.petMode=mode;p.char.petName=c.name;
  game.companions.push(c);game.ents.set(c.id,c);game.markDirty(p);
-}
-export function redeploySurveyStrider(game,p){
- dismiss(game,p);p.char.petMode='follow';syncSurveyStrider(game,p);
 }
 export function tickSurveyStrider(game,c,dt){
  const p=game.players.get(c.owner);if(!p||p.companion!==c)return;
@@ -73,7 +67,6 @@ export function tickSurveyStrider(game,c,dt){
  if(dist(c,p)>def.leash||!p.surveyKit||p.surveyKit.mark?.until>game.time||game.time<Math.max(c.nextPulse,p.striderReadyAt??0))return;
  p.striderReadyAt=game.time+SCAN_INTERVAL;
  p.surveyKit.mark={id:target.id,until:game.time+SCAN_MS,source:c.id};
- // Complement the stronger manual scan; cooldown survives dismissal/redeploy.
  const before=p.res;p.res=Math.min(CLASSES[p.cls].resource.max,p.res+15);
  if(p.res>before)game.message(p,'info',c.name+' transferred '+(p.res-before)+' Power Cells.');
  game.events.push({e:'cast',s:c.id,d:target.id,ab:'fault_scan'});

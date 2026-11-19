@@ -185,6 +185,14 @@ export const validCompanionName = (name) =>
   typeof name === 'string' && /^[A-Za-z][A-Za-z '-]{1,16}[A-Za-z]$/.test(name) && !/[ '-]{2}/.test(name);
 
 export const COMPANIONS = {
+  spindle: {
+    name: 'Spindle',
+    modes: {
+      inspect: { name: 'Inspect equipment', desc: 'Approaches you, gauges your equipped weapon and reports its condition and maintenance needs. Use outside combat.' },
+      follow: { name: 'Follow', desc: 'Rolls behind you along clear ground.' },
+      stay: { name: 'Stay', desc: 'Parks here until recalled or you move beyond its tether.' },
+    },
+  },
   survey_strider:{
     name:'Survey Strider',followDist:2.8,speed:8,leash:28,radius:.9,
     modes:{
@@ -262,6 +270,20 @@ export const ENEMIES = {
     xp: 42,
     respawn: 28000,
   },
+  turret_drone: {
+    name: 'Turret Drone',
+    level: 3,
+    hp: 188,
+    speed: 3.2,
+    radius: 1.02,
+    aggro: 8,
+    social: 0,
+    leash: 34,
+    attack: { range: 17, interval: 2500, dmg: 12, kind: 'bolt' },
+    specials: [{ id: 'turret_drone_barrage', name: 'Suppressive Barrage', cd: 11000, first: 4500, windup: 1800, radius: 5.4, dmg: 31, at: 'target' }],
+    xp: 64,
+    respawn: 34000,
+  },
   warden: {
     name: 'Vault Warden',
     level: 4,
@@ -315,6 +337,15 @@ export const SPAWNS = [
   { ...patrol('sinter_grazer', grazerCircuits.shieldback), form: 'shieldback' },
   patrol('faultstalker', stalkerCircuit),
   patrol('quarantine_custodian', [[-52,-8],[-54,-5.2],[-57,-5.2],[-57,-10.8],[-54,-10.8]]),
+  // Eastern relay outskirts: ranged drone field; preserve existing spawn order.
+  sp('turret_drone', 'relay', 20, -10),
+  sp('turret_drone', 'relay', 30, -10),
+  sp('turret_drone', 'relay', 20, 0),
+  sp('turret_drone', 'relay', 30, 0),
+  sp('turret_drone', 'relay', 20, 10),
+  sp('turret_drone', 'relay', 30, 12),
+  sp('turret_drone', 'relay', 18, 20),
+  sp('turret_drone', 'relay', 28, 20),
 ];
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;

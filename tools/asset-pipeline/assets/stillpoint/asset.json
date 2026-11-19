@@ -1,0 +1,416 @@
+{
+ "id": "stillpoint",
+ "kind": "reference-driven-creature",
+ "description": "Experiment B/C. Stillpoint, Mineral Gravity Organism (Extraordinary Kinship companion lookbook p.14 + isolated concept sheet). Produced from 2D reference only; no pre-existing Stillpoint or donor mesh is used.",
+ "sources": [
+  {
+   "id": "concept_sheet",
+   "path": "art-source/stillpoint/source/stillpoint_concept_sheet.webp",
+   "provenance": "Owner-supplied isolated Stillpoint concept sheet (attached to the 2026-11-18 assignment). AI-generated concept art.",
+   "role": "primary geometry + texture reference"
+  },
+  {
+   "id": "lookbook_pdf",
+   "path": "art-source/stillpoint/source/ATTUNEMENT_Extraordinary_Kinship_Companion_Lookbook_Revised.pdf",
+   "provenance": "Owner-supplied lookbook. Page 14 is a crop of an embedded 1536x1024 'Anomalous Life' sheet; the native image is extracted losslessly with pdfimages.",
+   "pdf_page": 14,
+   "role": "primary illustration + structural studies"
+  },
+  {
+   "id": "pipeline_illustration",
+   "path": "art-source/stillpoint/source/stillpoint_pipeline_illustration.webp",
+   "provenance": "Owner-supplied illustration of a reconstruction pipeline. Generated artwork depicting a process, not evidence of any implementation.",
+   "role": "not used for geometry or texture"
+  }
+ ],
+ "views": {
+  "persp_a": {
+   "source": "concept_sheet",
+   "box": [
+    38,
+    12,
+    330,
+    258
+   ],
+   "class": "primary textured concept",
+   "role": [
+    "silhouette",
+    "proportion",
+    "side colour"
+   ],
+   "notes": "elevated 3/4 view; blueprint background with dimension lines and callout arrows"
+  },
+  "persp_b": {
+   "source": "concept_sheet",
+   "box": [
+    35,
+    282,
+    330,
+    262
+   ],
+   "class": "alternate viewpoint",
+   "role": [
+    "silhouette",
+    "proportion"
+   ],
+   "notes": "near-duplicate of persp_a with different details (crystal sizes, apparent fifth leg)"
+  },
+  "top": {
+   "source": "concept_sheet",
+   "box": [
+    700,
+    12,
+    300,
+    315
+   ],
+   "class": "alternate viewpoint (dorsal, near-orthographic)",
+   "role": [
+    "outline",
+    "plate layout",
+    "crystal layout",
+    "moss layout",
+    "dorsal colour"
+   ]
+  },
+  "wire_a": {
+   "source": "concept_sheet",
+   "box": [
+    388,
+    36,
+    300,
+    262
+   ],
+   "class": "wireframe-overlaid view",
+   "role": [
+    "plate boundaries"
+   ]
+  },
+  "wire_b": {
+   "source": "concept_sheet",
+   "box": [
+    388,
+    300,
+    300,
+    268
+   ],
+   "class": "wireframe-overlaid view",
+   "role": [
+    "plate boundaries"
+   ]
+  },
+  "details": {
+   "source": "concept_sheet",
+   "box": [
+    694,
+    322,
+    330,
+    250
+   ],
+   "class": "articulation and material details",
+   "role": [
+    "joint design",
+    "leg segment design",
+    "crystal detail"
+   ]
+  },
+  "lookbook_main": {
+   "source": "lookbook_pdf",
+   "box": [
+    1008,
+    118,
+    335,
+    305
+   ],
+   "class": "primary textured concept (lookbook)",
+   "role": [
+    "silhouette",
+    "proportion",
+    "colour"
+   ],
+   "exclude": [
+    [
+     0,
+     0,
+     170,
+     42
+    ]
+   ]
+  },
+  "structure_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1345,
+    92,
+    190,
+    115
+   ],
+   "class": "skeletal / structural study",
+   "role": [
+    "limb count",
+    "hip placement"
+   ]
+  },
+  "joint_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1385,
+    212,
+    135,
+    95
+   ],
+   "class": "articulation study",
+   "role": [
+    "joint design"
+   ]
+  },
+  "coupling_sketch": {
+   "source": "lookbook_pdf",
+   "box": [
+    1375,
+    298,
+    160,
+    135
+   ],
+   "class": "mechanical study",
+   "role": [
+    "joint coupling",
+    "segment stacking"
+   ]
+  },
+  "walk_cycle": {
+   "source": "lookbook_pdf",
+   "box": [
+    1008,
+    425,
+    255,
+    60
+   ],
+   "class": "locomotion study",
+   "role": [
+    "gait"
+   ]
+  },
+  "orthos": {
+   "source": "lookbook_pdf",
+   "box": [
+    1266,
+    412,
+    270,
+    85
+   ],
+   "class": "silhouette studies (front / 3/4 / side)",
+   "role": [
+    "silhouette"
+   ]
+  },
+  "scale_lineup": {
+   "source": "lookbook_pdf",
+   "box": [
+    20,
+    912,
+    640,
+    110
+   ],
+   "class": "scale lineup (side elevations on a common ground line, with a human figure)",
+   "role": [
+    "scale",
+    "side proportion"
+   ]
+  }
+ },
+ "segment": {
+  "views": [
+   "persp_a",
+   "persp_b",
+   "top",
+   "wire_a",
+   "wire_b"
+  ],
+  "not_segmented": {
+   "lookbook_main": "panel crop cuts through the subject at both side borders and the ground shadow is tonally close to the stone, so a border background model fails; used qualitatively and for feature matching only"
+  },
+  "threshold": 0.1,
+  "min_area": 300,
+  "open_px": 2,
+  "close_px": 1,
+  "grabcut": true
+ },
+ "measure": {
+  "human_height_m": 1.75,
+  "lineup_index": 3,
+  "lineup_expected_figures": 7,
+  "top_body_open_frac": 0.1,
+  "crack_blackhat_px": 7,
+  "crack_threshold": 18,
+  "plate_min_area_frac": 0.004,
+  "crystal_L_min": 55,
+  "crystal_L_percentile": 86,
+  "crystal_chroma_max": 14,
+  "crack_percentile": 82,
+  "crystal_min_radius_px": 2.2,
+  "crystal_max_count": 70,
+  "plate_seed_spacing_frac": 0.07,
+  "moss_hue": [
+   22,
+   48
+  ],
+  "moss_chroma_min": 16,
+  "crystal_height_scale": 1.4,
+  "crystal_height_note": "Crystal height above the dorsal plates: lookbook lineup 0.50 m, lookbook painting ~0.47 m, concept-sheet 3/4 views ~0.8 m (perspective-inflated). 1.4x the lineup value (0.70 m) keeps the main cluster as prominent as both sources show it.",
+  "front": "image-top of the top view (the broad end); the references do not show a head, so this is a design decision",
+  "plate_poly_eps_px": 4.0
+ },
+ "feasibility": {
+  "views": [
+   "persp_a",
+   "persp_b",
+   "top",
+   "wire_a",
+   "wire_b",
+   "lookbook_main"
+  ],
+  "ratio": 0.8,
+  "ransac_px": 3.0
+ },
+ "build": {
+  "underside_ratio": 0.55,
+  "underside_note": "General body underside at 0.55 x dorsal height (~1.05 m), keel lower: measured on persp_a / lookbook_main (body bottom ~0.55 of dorsal height above the feet). The 42 px lineup sketch counts the upper legs as body and is not used for this."
+ },
+ "fit": {
+  "views": [
+   "top",
+   "persp_a",
+   "persp_b",
+   "wire_a",
+   "wire_b"
+  ],
+  "geometry_views": [
+   "top"
+  ],
+  "note": "persp_a and lookbook_main contributed two height ratios (underside, crystal allowance); persp_b, wire_a and wire_b contributed nothing to geometry.",
+  "ratio_views": [
+   "persp_a"
+  ],
+  "el_range": [
+   8,
+   30
+  ],
+  "el_note": "Elevation bounded to 8-30 deg: the references show the dorsal surface as a thin band, not a 45-deg plan view; unbounded, the optimiser hides proportion errors by raising the camera."
+ },
+ "game_ready": {
+  "texture_size": 2048,
+  "reduce": {
+   "dorsal plate": 0.16,
+   "layered stratum": 0.45,
+   "underside mass": 0.6,
+   "moss": 0.25,
+   "joint ring": 0.35,
+   "joint disc": 0.7,
+   "*": 1.0
+  },
+  "reduce_note": "Crystals, limb blocks, keel and the leg cores keep full geometry (silhouette-defining). Plate tops lose their subdivision; their relief is baked from the full-resolution source parts into the normal map (selected-to-active).",
+  "gait_order": [
+   "BL",
+   "FL",
+   "BR",
+   "FR"
+  ],
+  "gait": {
+   "walk_speed": 0.4,
+   "cycle_s": 1.6,
+   "lift": 0.16,
+   "turn_deg_s": 22,
+   "ramp_s": 1.2
+  },
+  "gait_note": "Lateral-sequence walk (hind, fore, other hind, other fore) with 78% stance: always three feet down, as the lookbook walk-cycle sketches suggest for a heavy body. Stride limited so the legs never reach full extension (measured by anim_check)."
+ },
+ "preview": {
+  "label": "Stillpoint (pipeline candidate)",
+  "shots": [
+   "Idle:0:-50:14",
+   "Walk:0.0:-80:10",
+   "Walk:0.4:-80:10",
+   "Walk:0.8:-80:10",
+   "Walk:1.2:-80:10",
+   "Turn:1.0:-30:20",
+   "WeightShift:1.0:20:12",
+   "WalkStart:1.0:-110:10",
+   "Idle:0:160:14"
+  ]
+ },
+ "render": {
+  "width": 800,
+  "height": 600,
+  "samples": 40,
+  "turntable_frames": 36,
+  "views": [
+   "front",
+   "back",
+   "left",
+   "right",
+   "three_quarter",
+   "three_quarter_rear",
+   "elevated",
+   "top",
+   "underside"
+  ],
+  "closeups": [
+   {
+    "name": "crystal_detail",
+    "az": -30,
+    "el": 22,
+    "dist_k": 0.42,
+    "target": [
+     0,
+     -0.25,
+     2.15
+    ]
+   },
+   {
+    "name": "joint_detail",
+    "az": -60,
+    "el": 6,
+    "dist_k": 0.35,
+    "target": [
+     -0.75,
+     -0.75,
+     1.0
+    ]
+   }
+  ],
+  "poses": [
+   [
+    "Walk",
+    1
+   ],
+   [
+    "Walk",
+    13
+   ],
+   [
+    "Walk",
+    25
+   ],
+   [
+    "Walk",
+    37
+   ],
+   [
+    "Turn",
+    25
+   ],
+   [
+    "WeightShift",
+    31
+   ],
+   [
+    "WalkStop",
+    45
+   ],
+   [
+    "Idle",
+    60
+   ]
+  ]
+ }
+}
