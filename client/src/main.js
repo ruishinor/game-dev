@@ -1470,7 +1470,7 @@ input.onAction = (code, e) => {
       ui.toggleSettings();
       break;
     case 'KeyM':
-      ui.toggleMenu();
+      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -1719,6 +1719,7 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      effectsQuality: quality,
       electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
       electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
@@ -1958,7 +1959,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [] });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;
