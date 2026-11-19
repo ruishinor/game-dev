@@ -251,7 +251,7 @@ test('gate travel: only through the passage, active, calibrated, alive, out of c
   assert.ok(Math.hypot(p.x - GATE_FRONT.x, p.z - GATE_FRONT.z) < 1e-6);
   // the arrival beacon returns to the Reach beside the Phase Scar
   const beacon = s.beacon;
-  place(p, beacon.x, beacon.z + 1.6);
+  place(p, beacon.x, beacon.z + 3.6);
   assert.ok(interact(g, p, beacon.id).ok);
   assert.equal(travelRegionAt(p.x, p.z), 'reach');
   assert.ok(Math.hypot(p.x - g.rift.entry.x, p.z - (g.rift.entry.z - 3.6)) < 1e-6);
