@@ -46,17 +46,22 @@ export const RACES = {
     skins: [0xfaf0ea, 0xf0dccf, 0xdcc0ab, 0xc4a086, 0xa98066, 0x8a644d, 0x6c4a39, 0x50362a, 0x3a271f],
     hair: ['none', 'buzz', 'crop', 'swept'],
   },
-  veyran: {
-    id: 'veyran', name: 'Veyran', blurb: 'Smooth, featureless and naturally crimson. Hairless; fine surface tracery reads emotion.',
-    skins: [0xb3171b, 0x8f1218, 0xc6383a],
-    hair: ['none'],
-  },
   mirekin: {
     id: 'mirekin', name: 'Mirekin', blurb: 'Colony-born, altered by the biotech bloom: mottled skin, bioluminescent veins and a chitin crest.',
     skins: [0x9aa89f, 0x8394a3, 0xa494a6, 0x7f9a84],
     hair: ['none', 'buzz', 'crop'],
   },
 };
+
+// Archived for explicit art inspection only; never enumerate this as a playable origin.
+export const ARCHIVED_RACES = {
+  veyran: {
+    id: 'veyran', name: 'Veyran', blurb: 'Smooth, featureless and naturally crimson. Hairless; fine surface tracery reads emotion.',
+    skins: [0xb3171b, 0x8f1218, 0xc6383a],
+    hair: ['none'],
+  },
+};
+export const RENDER_RACES = { ...RACES, ...ARCHIVED_RACES };
 
 // Look -> starting appearance, so characters saved before appearance existed
 // keep exactly the body they had (each look used to fix its own body).
@@ -101,8 +106,11 @@ export function normalizeAppearance(input, look) {
   if (!raw) return d;
   const own = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
   const frame = own(FRAMES, raw.frame) ? raw.frame : d.frame;
+  // The retired identity is only available to explicit archive art inspection.
+  // Active looks reject archived origins; preserve the chosen body frame.
+  if (look !== 'red_rucker' && own(ARCHIVED_RACES, raw.race)) return { ...d, frame };
   const race = Object.hasOwn(LOOK_RACE, look) ? LOOK_RACE[look] : own(RACES, raw.race) ? raw.race : d.race;
-  const R = RACES[race];
+  const R = RENDER_RACES[race];
   const skin = Number.isInteger(raw.skin) && raw.skin >= 0 && raw.skin < R.skins.length ? raw.skin : Math.min(d.race === race ? d.skin : 0, R.skins.length - 1);
   let hair = own(HAIR_STYLES, raw.hair) ? raw.hair : d.hair;
   if (!R.hair.includes(hair)) hair = R.hair.includes(d.hair) ? d.hair : R.hair[0];

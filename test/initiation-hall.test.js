@@ -19,6 +19,7 @@ test('in-world appearance updates are location-gated, validated, cosmetic and re
  const appearance='f.human.2.swept.3',initial=JSON.stringify({stats:p.stats,inventory:p.char.inventory,quest:p.char.quest,look:p.char.look});
  place(p,20,20);assert.equal(changeInitiationAppearance(g,p,appearance).ok,false);
  place(p,t.x+1.5,t.z);assert.equal(changeInitiationAppearance(g,p,'f.veyran.2.swept.3').ok,false);
+ assert.equal(changeInitiationAppearance(g,p,'f.veyran.2.none.3').ok,false,'even a formerly canonical Veyran appearance is retired');
  const ver=p.metaVer;assert.ok(changeInitiationAppearance(g,p,appearance).ok);
  assert.equal(g.metaFor(p).ap,appearance);assert.equal(g.sheet(p).appearance,appearance);assert.equal(p.metaVer,ver+1);
  assert.equal(JSON.stringify({stats:p.stats,inventory:p.char.inventory,quest:p.char.quest,look:p.char.look}),initial);

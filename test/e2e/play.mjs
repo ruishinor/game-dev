@@ -1161,14 +1161,15 @@ try {
   // --------------------------------------------- 15. appearance independent of class
   // This session uses the default input configuration (pointer lock while
   // steering), which every other session here disables with ?nolock=1.
-  const C = await openPlayer('c', 'Rucker', 'vanguard', 'red_rucker', undefined, { lock: true });
+  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3} });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
-    return e && e.a === 'red_rucker' && e.model === 'glb';
-  }, sc.myId, 6000, 'B to see the Red Rucker look');
-  check('15. a second Vanguard can wear the Red Rucker look and other sessions see it', cByB && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'red_rucker' && serverPlayer('Rucker').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}`);
-  await shot(C, '08-red-rucker.png');
+    return e && e.a === 'vanguard_plate' && e.model === 'glb';
+  }, sc.myId, 6000, 'B to see the second Vanguard model');
+  const retiredOptions=await C.page.locator('.lookcard[data-look="red_rucker"], #ap-race [data-value="veyran"]').count();
+  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.mirekin.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
+  await shot(C, '08-mirekin-vanguard.png');
   // Synthetic absolute moves cannot express relative motion under pointer
   // lock (Chromium turns them into cancelling warp pairs), so the drag only
   // engages the lock; the steering deltas are then delivered as locked

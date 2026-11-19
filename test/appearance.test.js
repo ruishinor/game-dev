@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, normalizeAppearance, appearanceString, defaultAppearance, encodeAppearance } from '../shared/appearance.js';
-import { LOOKS } from '../shared/content.js';
+import { FRAMES, RACES, ARCHIVED_RACES, HAIR_STYLES, HAIR_COLOURS, normalizeAppearance, appearanceString, defaultAppearance, encodeAppearance } from '../shared/appearance.js';
+import { LOOKS, validLook } from '../shared/content.js';
 
 test('appearance: valid strings round-trip unchanged', () => {
   for (const frame of Object.keys(FRAMES)) for (const [race, R] of Object.entries(RACES)) for (const hair of R.hair) {
@@ -35,8 +35,12 @@ test('appearance: hostile or malformed input falls back field by field', () => {
   assert.deepEqual(normalizeAppearance('f.mirekin.99.crop.3', 'vanguard_plate'), { frame: 'f', race: 'mirekin', skin: 0, hair: 'crop', hairColour: 3 });
 });
 
-test('appearance: race rules are enforced (hairless Veyran, Mirekin hair set)', () => {
-  assert.equal(normalizeAppearance('m.veyran.1.swept.2', 'vanguard_plate').hair, 'none');
+test('appearance: retired Veyran is excluded from gameplay and retained only in the archive', () => {
+  assert.equal(Object.hasOwn(RACES,'veyran'),false);
+  assert.ok(Object.hasOwn(ARCHIVED_RACES,'veyran'));
+  assert.equal(validLook('vanguard','red_rucker'),false);
+  assert.equal(appearanceString('f.veyran.1.swept.2','vanguard_plate'),'f.human.3.crop.1');
+  assert.equal(normalizeAppearance('m.veyran.1.swept.2', 'red_rucker').hair, 'none');
   assert.ok(RACES.mirekin.hair.includes(normalizeAppearance('f.mirekin.1.swept.2', 'conductor').hair));
   for (const R of Object.values(RACES)) for (const h of R.hair) assert.ok(Object.hasOwn(HAIR_STYLES, h));
 });
