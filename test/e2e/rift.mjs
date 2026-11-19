@@ -144,8 +144,32 @@ try{
  }catch(error){
   throw new Error(`Annex return failed (HP ${p.hp}, phase ${f.phase}, combat ${Math.round(p.combatUntil-server.game.time)}ms, auto ${p.autoOn}, root ${p.buffs.some(b=>b.k==='root'&&b.until>server.game.time)}, distance ${Math.hypot(p.x-f.exit.x,p.z-f.exit.z).toFixed(2)})`,{cause:error});
  }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
- // The arrival beacon returns to the Reach.
- const beacon=server.game.severance.beacon;await move(beacon,1.6);
+ // The arrival rift returns to the Reach. Approach from the actual arrival
+ // terrace; render the stable membrane and verify the entity anchor.
+ const beacon=server.game.severance.beacon;
+ const {SEVERANCE_POCKET}=await import('../../shared/severance-gate.js');
+ const {groundHeight}=await import('../../shared/world.js');
+ const arrival=SEVERANCE_POCKET.arrival;
+ const dx=arrival.x-beacon.x,dz=arrival.z-beacon.z,len=Math.hypot(dx,dz);
+ const approach={x:beacon.x+dx/len*7,z:beacon.z+dz/len*7};
+ await move(approach,0);
+ const yaw=Math.atan2(-dx,-dz);
+ await page.evaluate(yaw=>window.__attune.view({yaw,pitch:.17,dist:7,face:yaw}),yaw);
+ await page.waitForFunction(({x,y,z})=>{
+   const root=window.__attune.gfx.scene.getObjectByName('rift:severance-return');
+   if(!root||!root.parent?.visible)return false;
+   const membrane=root.getObjectByName('rift:interference-membrane');
+   const pos=root.getWorldPosition(root.position.clone());
+   return membrane?.material.uniforms.uStable.value===1&&membrane.material.uniforms.uPhase.value>0.5
+    &&!root.getObjectByName('rift:persistent-warning')&&Math.hypot(pos.x-x,pos.y-y,pos.z-z)<.15;
+ },{x:beacon.x,y:groundHeight(beacon.x,beacon.z),z:beacon.z},{polling:250});
+ await page.screenshot({path:'rift-evidence/06-return-rift-approach.png'});
+ await page.locator('#view').focus();
+ try{
+   await page.keyboard.down('KeyW');
+   await page.waitForFunction(({x,z})=>{const p=window.__attune.state().you;const d=Math.hypot(p.x-x,p.z-z);return d>=2.85&&d<4.8;},{x:beacon.x,z:beacon.z},{polling:100,timeout:15000});
+ }finally{await page.keyboard.up('KeyW');}
+ await page.screenshot({path:'rift-evidence/07-return-rift-grounded.png'});
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await page.waitForFunction(()=>window.__attune.state().you?.region==='reach',null,{polling:250});
  assert.deepEqual(errors,[]);

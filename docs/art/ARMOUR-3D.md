@@ -114,3 +114,7 @@ Out of scope until decided: cosmetic armour transmog, dyes, damage states.
 4. **Verification and limits.** See technical acceptance. Remaining limits:
    the resting arm touches the vest sides (reported as arm contact, as with
    every existing chest shell); visual acceptance is outstanding.
+
+## Current-main status — 2026-11-19
+
+Phase 1 merged in [#136](https://github.com/ruishinor/game-dev/pull/136) (`7af55f0`). Browser validation was repaired in [#140](https://github.com/ruishinor/game-dev/pull/140) and [#141](https://github.com/ruishinor/game-dev/pull/141). [#119](https://github.com/ruishinor/game-dev/pull/119) subsequently merged (`08442f6`) after the reconciled head's 12 reported successful checks, including Armour browser integration. It delivers the **functional class-set foundation**, not phase 4's finished rendered armour: four anatomical slots, class and ownership validation, cumulative stat thresholds, persistence and individual vector artwork. Blueprint acquisition, fabrication, per-slot finished GLBs and visual projection, look coverage, balance and owner aesthetic review remain unfinished. Preserve the shipped existing chest GLB allowlist and its provenance when extending it. Do not mark phases 2–6 complete.

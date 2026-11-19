@@ -297,7 +297,7 @@ export class Game {
     const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
       : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
     this.transferPlayer(p, destination);
-    this.message(p,'info',entering?(this.severance?'Severance Expanse. The Severance Gate stands at the end of the ruined approach; its portal opens onto the Phase Annex. The beacon behind you returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
+    this.message(p,'info',entering?(this.severance?'Severance Expanse. The Severance Gate stands at the end of the ruined approach; its portal opens onto the Phase Annex. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
   }
 
