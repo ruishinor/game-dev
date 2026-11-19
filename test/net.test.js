@@ -14,8 +14,8 @@ import { clearCombatSpot } from './cover-setup.js';
 const tmpFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'attune-')), 'characters.json');
 
 class Client {
-  constructor(port) {
-    this.ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+  constructor(port, options) {
+    this.ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, options);
     this.msgs = [];
     this.meta = new Map();
     // Mirror the browser's entity creation/removal lifecycle. Metadata alone
@@ -862,6 +862,65 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
     assert.equal(byName('Default').appearance, 'm.human.3.crop.1');
     assert.equal(byName('Hairless').appearance, 'f.human.6.none.0', 'legacy Keeper keeps the body its look always had');
     a.close();
+  } finally {
+    await srv.close();
+  }
+});
+
+test('heartbeat: an authenticated actor can recover from one missed probe, but silence remains bounded', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  const a = new Client(srv.port, { autoPong: false });
+  try {
+    const w = await a.create('Heartbeat Test', 'keeper');
+    assert.equal(w.t, 'welcome');
+    const player = srv.game.players.get(w.id);
+    const conn = srv.net.sessions.get(player.char.id);
+    assert.equal(conn.player, player);
+    const tick = async () => {
+      const ping = new Promise(resolve => a.ws.once('ping', resolve));
+      srv.net.heartbeat();
+      return await Promise.race([ping, new Promise((_, reject) => {
+        const timer = setTimeout(() => reject(Error('heartbeat probe not received')), 2500);
+        timer.unref();
+      })]);
+    };
+    await tick();
+    assert.equal(conn.alive, false);
+    const delayed = await tick();
+    assert.equal(conn.missedPongs, 1);
+    assert.equal(srv.game.players.get(w.id), player, 'one missed probe preserves the exact actor');
+    a.ws.pong(delayed);
+    await a.until(() => conn.alive && conn.missedPongs === 0, 2500, 'transport pong');
+    assert.equal(srv.net.sessions.get(player.char.id), conn);
+    await tick();
+    await tick();
+    srv.net.heartbeat();
+    await a.until(() => a.closed !== null, 2500, 'silent authenticated socket closed');
+    await a.until(() => !srv.game.players.has(w.id), 2500, 'actor detached');
+    assert.equal(conn.closeCause, 'heartbeat');
+    assert.equal(srv.net.sessions.has(player.char.id), false);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('heartbeat: unauthenticated silence still closes on the first missed probe', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  const a = new Client(srv.port, { autoPong: false });
+  try {
+    await a.open();
+    await a.until(() => srv.net.conns.size === 1);
+    const conn = [...srv.net.conns][0];
+    const ping = new Promise(resolve => a.ws.once('ping', resolve));
+    srv.net.heartbeat();
+    await Promise.race([ping, new Promise((_, reject) => {
+      const timer = setTimeout(() => reject(Error('heartbeat probe not received')), 2500);
+      timer.unref();
+    })]);
+    srv.net.heartbeat();
+    await a.until(() => a.closed !== null, 2500, 'unauthenticated socket closed');
+    assert.equal(conn.closeCause, 'heartbeat');
+    assert.equal(srv.net.sessions.size, 0);
   } finally {
     await srv.close();
   }
