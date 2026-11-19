@@ -404,8 +404,8 @@
   "look_red_rucker_body": {
    "kind": "texture",
    "url": "tex/look_red_rucker_body.webp",
-   "bytes": 8500,
-   "hash": "8dba206f61cb",
+   "bytes": 8548,
+   "hash": "9b59e9257a41",
    "sources": [
     "original"
    ],

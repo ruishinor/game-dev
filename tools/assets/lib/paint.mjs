@@ -79,7 +79,9 @@ function redRuckerBody() {
   g += both(curve, [[0.06, 0.5], [0.089, 0.485], [0.12, 0.5]], 'front', thin);
   g += both(path, [[0.085, 0.46], [0.09, 0.2]], 'front', thin);
   // Head: only the faint brow and jaw planes of the illustrations — no face.
-  g += curve([[-0.055, 1.705], [0, 1.69], [0.055, 1.705]], 'front', 'stroke="#7c0f14" stroke-opacity="0.28" stroke-width="5"');
+  // The brow sits in the upper third of the smooth head (crown 1.83 m); lower,
+  // at eye level, the arc reads as a mouth.
+  g += curve([[-0.06, 1.758], [0, 1.745], [0.06, 1.758]], 'front', 'stroke="#7c0f14" stroke-opacity="0.16" stroke-width="11"');
   g += curve([[-0.05, 1.6], [0, 1.578], [0.05, 1.6]], 'front', 'stroke="#7c0f14" stroke-opacity="0.3" stroke-width="3"');
   // Back.
   g += path([[0, 1.45], [0, 1.0]], 'back', shade); // spine
