@@ -26,7 +26,7 @@ import { createSpindle } from './spindle.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
-import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -544,7 +544,8 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
+    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
     model = null;

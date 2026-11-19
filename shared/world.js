@@ -17,6 +17,13 @@ export const WORLD = {
   spawn: { x: 0, z: 7.5 },
 };
 
+// Disconnected shared encounter deck. No movement input can bridge the gap.
+export const RIFT_ANNEX=Object.freeze({name:'Phase Annex',x:220,z:0,hw:16,hd:34,arrivalZ:27,exitZ:30.5});
+export function inRiftAnnex(x,z,pad=0){
+ return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
+}
+export function sameTravelRegion(a,b){return inRiftAnnex(a.x,a.z,2)===inRiftAnnex(b.x,b.z,2);}
+
 export const ZONES = {
   sanctum: { x: 0, z: 0, r: 13, name: 'Lattice Sanctum' },
   sporefield: { x: -42, z: 26, r: 21, name: 'The Sporefield' },
@@ -76,6 +83,7 @@ const FLAT_AREAS = [
 
 /** Terrain height at a world position. Purely presentational for the server. */
 export function groundHeight(x, z) {
+  if(inRiftAnnex(x,z,2))return 0;
   let h =
     1.7 * Math.sin(x * 0.043) * Math.cos(z * 0.051) +
     0.9 * Math.sin(x * 0.11 + 1.3) * Math.sin(z * 0.093 + 0.7) +
@@ -279,13 +287,25 @@ function buildProps() {
   return retained;
 }
 
-export const PROPS = buildProps();
+// Three connected chambers. Offset openings prevent a straight firing lane.
+export const ANNEX_PARTITIONS=Object.freeze([
+ ...[[12,6],[-9,-6]].flatMap(([z,gap])=>{
+  const left=gap-2.7,right=gap+2.7;
+  return [[-16,left],[right,16]].map(([a,b])=>Object.freeze({type:'annex_wall',x:RIFT_ANNEX.x+(a+b)/2,z,hw:(b-a)/2,hd:.55,h:4.5}));
+ })
+]);
+export function annexArea(x,z){
+ if(!inRiftAnnex(x,z))return null;
+ return z>12?'Arrival Gallery':z>-9?'Relay Workshop':'Null Chamber';
+}
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS];
 export const COLLIDERS = PROPS.filter((p) => p.r !== undefined || p.hw !== undefined);
 
 // Conservative horizontal cover test against the same solid prop footprints
 // used for movement. Small ground details and characters are not cover.
 // A small endpoint tolerance avoids self-intersections with boundary contact.
 export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
+  if(!sameTravelRegion(a,b))return false;
   const dx = b.x - a.x, dz = b.z - a.z, len2 = dx*dx + dz*dz;
   if (![a.x,a.z,b.x,b.z].every(Number.isFinite)) return false;
   if (len2 < 1e-10) return true;
@@ -348,17 +368,20 @@ if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
   OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
-    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65});
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
+    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72},
+    {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
-const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall');
+const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall'||p.type==='annex_wall');
 
 /** Exact segment/rectangle test limited to the new enclosed research deck.
  * Old outdoor obstacles retain their existing planar combat semantics.
  */
 export function deepLineClear(a, b) {
+  if(!sameTravelRegion(a,b))return false;
   for (const c of DEEP_WALLS) {
     let lo = 0, hi = 1;
     for (const [origin, delta, min, max] of [
@@ -384,6 +407,9 @@ export function deepLineClear(a, b) {
  * the world. Mutates and returns `p` ({x, z}).
  */
 export function resolveCollisions(p, rad) {
+  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX;
+  const clampAnnex=()=>{p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));};
+  if(annex)clampAnnex();
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < STATIC_COLLIDERS.length; i++) {
       const c = STATIC_COLLIDERS[i];
@@ -418,13 +444,17 @@ export function resolveCollisions(p, rad) {
             // Centre is inside the box: exit through the nearest face.
             const px = c.hw - Math.abs(dx);
             const pz = c.hd - Math.abs(dz);
-            if (px < pz) p.x = c.x + (dx < 0 ? -1 : 1) * (c.hw + rad);
-            else p.z = c.z + (dz < 0 ? -1 : 1) * (c.hd + rad);
+            const outX=c.x+(dx<0?-1:1)*(c.hw+rad);
+            // A bulkhead ends at the region boundary: an outward x correction
+            // would be clamped back into the wall. Resolve toward its z face.
+            if(px<pz&&(!annex||outX>=a.x-a.hw+rad&&outX<=a.x+a.hw-rad))p.x=outX;
+            else p.z=c.z+(dz<0?-1:1)*(c.hd+rad);
           }
         }
       }
     }
   }
+  if(annex){clampAnnex();return p;}
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {
@@ -479,6 +509,7 @@ export function inSanctum(p) {
 }
 
 export function zoneAt(x, z) {
+  if(inRiftAnnex(x,z,2))return annexArea(x,z)?RIFT_ANNEX.name+' · '+annexArea(x,z):RIFT_ANNEX.name;
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;

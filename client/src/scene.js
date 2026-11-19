@@ -2,7 +2,7 @@
 // Collision comes from shared/world.js; nothing here affects gameplay.
 
 import * as THREE from '/vendor/three/three.module.js';
-import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP } from '../../shared/world.js';
+import { WORLD, ZONES, PROPS, COLLIDERS, groundHeight, mulberry32, DEEP, RIFT_ANNEX } from '../../shared/world.js';
 import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { buildSiteMarkings } from './site-markings.js';
@@ -300,6 +300,17 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
+  annex_wall(p) {
+    const g=new THREE.Group();
+    g.name='annex:bulkhead';
+    g.add(mesh(new THREE.BoxGeometry(p.hw*2,p.h,p.hd*2),mat(0x41494a,{rough:.69,metal:.52}),0,p.h/2,0));
+    for(const z of [-p.hd-.035,p.hd+.035]){
+      for(const sign of [-1,1])g.add(mesh(new THREE.BoxGeometry(.22,p.h,.09),mat(0x827050,{metal:.6}),sign*(p.hw-.15),p.h/2,z));
+      g.add(mesh(new THREE.BoxGeometry(p.hw*2-.2,.07,.04),glow(0x6fb8bc),0,3.88,z,false));
+      for(let x=-p.hw+.7;x<p.hw-.3;x+=2.25)g.add(mesh(new THREE.BoxGeometry(.11,3.2,.10),mat(0x273237,{metal:.5}),x,1.75,z));
+    }
+    return g;
+  },
   arrival_pillar(p) {
     const g=new THREE.Group();g.name='arrival:column';
     g.add(mesh(new THREE.CylinderGeometry(.33,.38,p.h,8),mat(0x49545b,{metal:.6,rough:.6}),0,p.h/2,0));
@@ -1278,7 +1289,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_')) ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_') || p.type==='annex_wall') ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
@@ -1307,6 +1318,34 @@ export function buildWorld(scene, assets = null, opts = {}) {
   }
 
   buildDeepArchitecture(scene);
+  // Separate industrial encounter deck; the authoritative rectangular limit
+  // matches the visible perimeter, with flat walkable floor and clear lanes.
+  const annex=RIFT_ANNEX,annexFloor=new THREE.Group();annexFloor.name='rift:annex-deck';
+  const ax=annex.x,az=annex.z;
+  annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2+.6,.5,annex.hd*2+.6),mat(0x26373e,{rough:.74,metal:.35}),ax,-.27,az));
+  if(kits)for(let x=-annex.hw+2;x<annex.hw;x+=4)for(let z=-annex.hd+2;z<annex.hd;z+=4)
+    c.cover.add(c.piece('sanctum',(Math.abs(x)+Math.abs(z))%8?'Platform_Metal':'Platform_DarkPlates'),at(ax+x,az+z,{ground:false,y:0}));
+  for(const sign of [-1,1]){
+    annexFloor.add(mesh(new THREE.BoxGeometry(.5,4.5,annex.hd*2+1),mat(0x303e45,{metal:.5}),ax+sign*(annex.hw+.25),2.25,az));
+    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2+1,4.5,.5),mat(0x303e45,{metal:.5}),ax,2.25,az+sign*(annex.hd+.25)));
+    annexFloor.add(mesh(new THREE.BoxGeometry(.055,.055,annex.hd*2),glow(0x75b6b9),ax+sign*annex.hw,1.1,az,false));
+    annexFloor.add(mesh(new THREE.BoxGeometry(annex.hw*2,.055,.055),glow(0x75b6b9),ax,1.1,az+sign*annex.hd,false));
+  }
+  if(kits)for(const sign of [-1,1])for(const z of [-14,-6,2,10,14]){
+    // External supports remain outside the collision perimeter.
+    c.single('sanctum','Column_Hollow',at(ax+sign*(annex.hw+1),az+z,{ground:false,s:[.85,1.04,.85]}));
+  }
+  // Variation is tied to the three actual rooms, not a loading-screen label.
+  for(const [z,color,power] of [[23,0x9fcbd4,95],[1,0xd4ae83,115],[-22,0xa79bde,125]]){
+    const lamp=new THREE.PointLight(color,power,24,1.7);lamp.position.set(ax,5.5,z);annexFloor.add(lamp);
+    for(const x of [-12,12]){
+      annexFloor.add(mesh(new THREE.BoxGeometry(1.8,.04,8),mat(color,{rough:.85}),ax+x,.025,z,false));
+      annexFloor.add(mesh(new THREE.BoxGeometry(.08,.06,6),glow(color),ax+x,.06,z,false));
+    }
+  }
+  // Wide, collision-free floor markings guide the offset route.
+  for(const [x,z] of [[6,12],[-6,-9]])for(let i=-2;i<=2;i++)annexFloor.add(mesh(new THREE.BoxGeometry(.24,.035,2.2),mat(0xb9a36b,{rough:.9}),ax+x+i*.8,.035,z,false));
+  scene.add(annexFloor);
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();

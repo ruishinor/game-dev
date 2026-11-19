@@ -33,7 +33,6 @@ try{
  await move(f.core,3.6);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await page.waitForFunction(()=>window.__attune.state().sheet.materials.resonance_fragment===1);
- await page.locator('#view').focus();await page.keyboard.press('KeyF');
  assert.equal(p.char.materials.resonance_fragment,1);
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
  const journal=page.getByRole('dialog',{name:'Quest Journal'});
@@ -41,6 +40,21 @@ try{
  assert.match(await journal.locator('.quest-rewards').innerText(),/Resonance fragment/);
  assert.equal(await journal.locator('[data-quest="field:rift_calibration"]').getAttribute('data-status'),'completed');
  await page.screenshot({path:'rift-evidence/03-calibration.png'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyL');
+ await move(f.core,3.6);
+ // The calibrated gate can be used in dormant, cooling or stabilized phases.
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you.x>200);
+ assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
+ assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
+ assert.ok(!server.game.objects.some(o=>o.type==='rift_entry'));
+ assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
+ await page.screenshot({path:'rift-evidence/04-annex.png'});
+ assert.equal(server.game.enemies.filter(e=>e.annexEncounter).length,6);
+ assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));
+ await move(f.exit,-1.7);
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ await page.waitForFunction(()=>window.__attune.state().you.x<100);
  assert.deepEqual(errors,[]);
  console.log('PASS actual rift interaction, synchronized phases and Three membrane');
 }finally{await browser?.close();await server.close();}

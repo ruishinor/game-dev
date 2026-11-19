@@ -110,6 +110,12 @@ export function onEnemyKilled(game, enemy, creditedIds) {
     const p = game.players.get(id);
     if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
+    if(enemy.annexEncounter){
+      const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;
+      p.char.annexProgress=prior|bit;
+      if(prior!==p.char.annexProgress){game.markDirty(p);game.message(p,'info',p.char.annexProgress===3?'Null Chamber cache authorized. Claim your recovery at the far end.':'Annex encounter recorded.');}
+      continue; // The recycled archetypes must not complete Reach directives remotely.
+    }
     const d = directiveFor(p.cls, p.char.quest.step);
     if (d && d.goal.kill === enemy.type) {
       p.char.quest.progress += 1;
@@ -339,6 +345,15 @@ export function interact(game, p, objectId) {
   }
   if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
+  if(obj.type==='rift_return')return game.travelRift(p,obj);
+  if(obj.type==='annex_cache'){
+    if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
+    if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};
+    if(p.char.annexProgress!==3)return {ok:false,reason:'Participate in an Annex encounter and defeat the Null Chamber Warden first.'};
+    p.char.annexClaimed=true;
+    if(!grantSalvage(game,p,'resonance_fragment',3)){p.char.annexClaimed=false;return {ok:false,reason:'Clear space for three Resonance fragments.'};}
+    game.markDirty(p);game.message(p,'gain','Null Chamber recovery cache claimed: 3 Resonance fragments.');return {ok:true};
+  }
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {
     if (p.char.attunements.includes('resonance')) {

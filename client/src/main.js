@@ -6,7 +6,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
-import { MOVE_DT, stepMove, groundHeight, zoneAt } from '../../shared/world.js';
+import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
@@ -802,6 +802,7 @@ function onSnapshot(m) {
     ent.row = row;
     if (ent.meta.c === 'surveyor') syncRig(ent);
     ent.dead = !!(row.f & 1);
+    const prev=ent.buf.at(-1);if(prev&&!sameTravelRegion(prev,row))ent.buf.length=0;
     ent.buf.push({ t: m.time, x: row.x, z: row.z, j: row.j || 0, r: row.r || 0 });
     if (ent.buf.length > 12) ent.buf.shift();
   }
