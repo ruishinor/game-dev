@@ -12,6 +12,20 @@ try{
  await page.fill('#name','Rift Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2;});
  const p=await liveFixturePlayer(page,server,'Rift Tester'),f=server.game.rift;assert.ok(f);
+ // Verify the actual runtime GLB, not the static asset preview or fallback.
+ await page.waitForFunction(()=>{
+   const root=window.__attune.gfx.scene.getObjectByName('stillpoint:live');
+   let skin=false;root?.traverse(node=>{if(node.isSkinnedMesh&&node.skeleton?.bones.length===10)skin=true;});
+   return root&&skin&&Math.abs(root.position.x-8)<.01&&Math.abs(root.position.z+1.5)<.01;
+ });
+ // This browser path tests anomaly pulses, interaction, rewards and travel.
+ // Suppress unrelated roaming outdoor enemies in the isolated test fixture
+ // so their attacks cannot continually refresh the recovery combat lock.
+ // Actual anomaly damage, phases and Annex encounters remain active.
+ for(const enemy of server.game.enemies){
+   if(enemy.annexEncounter)continue;
+   enemy.state='dead';enemy.deadAt=-1e9;enemy.respawnAt=Infinity;enemy.threat.clear();
+ }
  p.char.level=3;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
  async function move(o,z=1.7){p.x=o.x;p.z=o.z+z;await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1;},[p.x,p.z]);}
  await move(f.indexer);
