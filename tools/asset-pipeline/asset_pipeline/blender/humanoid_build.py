@@ -286,7 +286,11 @@ MATERIALS = {
 def procedural_material(name):
     """Principled material with noise mottling, convex-edge wear and cavity
     darkening; returns (material, {"base","rough","metal"} output sockets)."""
-    base, worn, metal, rough, scale, weave = MATERIALS[name]
+    spec = MATERIALS[name]
+    base, worn, metal, rough, scale, weave = spec[:6]
+    emission = spec[6] if len(spec) > 6 and spec[6] else None  # (r, g, b, strength) or None
+    mottle_k = spec[7] if len(spec) > 7 else 0.35
+    wear_k = spec[8] if len(spec) > 8 else 1.0
     m = bpy.data.materials.new("wd_" + name)
     m.use_nodes = True
     nt = m.node_tree
@@ -311,11 +315,15 @@ def procedural_material(name):
     mix.data_type = "RGBA"
     mix.inputs["A"].default_value = (*base, 1)
     mix.inputs["B"].default_value = (*worn, 1)
-    L(wear.outputs[0], mix.inputs["Factor"])
+    wear_amt = N("ShaderNodeMath")
+    wear_amt.operation = "MULTIPLY"
+    wear_amt.inputs[1].default_value = wear_k
+    L(wear.outputs[0], wear_amt.inputs[0])
+    L(wear_amt.outputs[0], mix.inputs["Factor"])
     mottle = N("ShaderNodeMix")
     mottle.data_type = "RGBA"
     mottle.blend_type = "MULTIPLY"
-    mottle.inputs["Factor"].default_value = 0.35
+    mottle.inputs["Factor"].default_value = mottle_k
     L(mix.outputs["Result"], mottle.inputs["A"])
     L(noise.outputs["Color"], mottle.inputs["B"])
     ao = N("ShaderNodeAmbientOcclusion")
@@ -352,7 +360,12 @@ def procedural_material(name):
     L(base_out, bsdf.inputs["Base Color"])
     L(rough_out, bsdf.inputs["Roughness"])
     L(metal_out, bsdf.inputs["Metallic"])
-    return m, {"base": base_out, "rough": rough_out, "metal": metal_out}
+    ec = N("ShaderNodeRGB")  # emission colour as a bakeable socket (black when none)
+    ec.outputs[0].default_value = (*(emission[:3] if emission else (0.0, 0.0, 0.0)), 1)
+    if emission:
+        bsdf.inputs["Emission Color"].default_value = (*emission[:3], 1)
+        bsdf.inputs["Emission Strength"].default_value = emission[3]
+    return m, {"base": base_out, "rough": rough_out, "metal": metal_out, "emit": ec.outputs[0], "emissive": bool(emission)}
 
 
 def mesh_arrays(ob):
@@ -400,6 +413,8 @@ def op_wardrobe(p):
     out = Path(p["out"])
     out.mkdir(parents=True, exist_ok=True)
     meta = _json.loads(Path(p["pieces_json"]).read_text())
+    for k, v in p.get("materials", {}).items():  # route-specific palettes
+        MATERIALS[k] = tuple(tuple(x) if isinstance(x, list) else x for x in v)
     data = np.load(p["pieces_npz"])
     mats = {}
     sets = {}
@@ -419,7 +434,8 @@ def op_wardrobe(p):
         nrm = np.array([pl.normal[:] for pl in ob.data.polygons])
         ctr = np.array([pl.center[:] for pl in ob.data.polygons])
         rel = ctr - cen_b
-        rel[:, 2] = 0
+        if not pc.get("axis3d"):
+            rel[:, 2] = 0
         if np.mean(np.sum(nrm * rel, 1)) < 0 and pc.get("thickness"):
             bpy.ops.object.mode_set(mode="EDIT")
             bpy.ops.mesh.flip_normals()
@@ -431,7 +447,7 @@ def op_wardrobe(p):
             so = ob.modifiers.new("solid", "SOLIDIFY")
             so.thickness = pc["thickness"]
             so.offset = 1.0
-            so.use_even_offset = True
+            so.use_even_offset = pc.get("even", True)
         if pc.get("bevel"):
             bv = ob.modifiers.new("bevel", "BEVEL")
             bv.width = pc["bevel"]
@@ -489,6 +505,18 @@ def op_wardrobe(p):
             bpy.ops.object.bake(type="EMIT")
             save_image(img, out / f"{set_name}_{kind}.png")
             images[kind] = f"{set_name}_{kind}.png"
+        if any(socks["emissive"] for _, socks in set_mats):
+            img = bpy.data.images.new(f"{set_name}_emissive", size, size, alpha=False)
+            for mat, socks in set_mats:
+                nt = mat.node_tree
+                em = nt.nodes["_bake_emit"]
+                nt.links.new(socks["emit"], em.inputs["Color"])
+                nt.nodes["_bake_tex"].image = img
+                nt.nodes.active = nt.nodes["_bake_tex"]
+            select_only(*objs)
+            bpy.ops.object.bake(type="EMIT")
+            save_image(img, out / f"{set_name}_emissive.png")
+            images["emissive"] = f"{set_name}_emissive.png"
         for mat, socks in set_mats:  # restore the shader for the normal bake
             nt = mat.node_tree
             nt.links.new(nt.nodes["Principled BSDF"].outputs["BSDF"], nt.nodes["Material Output"].inputs["Surface"])
@@ -511,8 +539,9 @@ def op_wardrobe(p):
             tris += len(I)
         np.savez_compressed(out / f"{set_name}_pieces.npz", **arrays)
         report["sets"][set_name] = {"pieces": [o.name for o in objs], "triangles": tris, "images": images, "npz": f"{set_name}_pieces.npz"}
-    bpy.ops.wm.save_as_mainfile(filepath=str(out / "wardrobe_source.blend"), compress=True)
-    report["blend"] = "wardrobe_source.blend"
+    blend_name = p.get("blend_name", "wardrobe_source.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=str(out / blend_name), compress=True)
+    report["blend"] = blend_name
     finish(p, report)
 
 

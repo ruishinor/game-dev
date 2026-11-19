@@ -22,6 +22,7 @@ KINDS = {
     "reference-driven-creature": "asset_pipeline.creature",
     "reference-driven-architecture": "asset_pipeline.architecture",
     "imported-mechanical-humanoid": "asset_pipeline.mech_humanoid",
+    "body-fitted-armour": "asset_pipeline.armour",
 }
 
 

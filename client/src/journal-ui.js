@@ -9,6 +9,7 @@ import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
+import { renderedItemIcon } from './item-renders.js';
 import {cataloguePortrait} from './catalogue-portraits.js';
 import {characterPortraitMeta} from './portrait-identity.js';
 
@@ -70,6 +71,14 @@ export function itemArt(id) {
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
   e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="'+(slot==='glyph'||id==='location'?'currentColor':'#303c40')+'" stroke-width="'+(slot==='glyph'?'1.4':'.65')+'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(cataloguePortrait(id)||refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
+  // Items with a finished 3D model show its rendered icon; the vector art
+  // stays underneath as the fallback if the image cannot load.
+  const url=renderedItemIcon(id);
+  if(url){
+    const img=document.createElement('img');img.className='item-render';img.alt='';img.decoding='async';img.draggable=false;img.src=url;
+    img.addEventListener('error',()=>{img.remove();e.classList.remove('rendered');},{once:true});
+    e.classList.add('rendered');e.append(img);
+  }
   return e;
 }
 function requirements(s,id) {
