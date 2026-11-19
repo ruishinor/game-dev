@@ -58,7 +58,7 @@ export function deriveStats(char) {
     chargeMul: mods.chargeMul,
     dischargeRadius: mods.dischargeRadius,
     shieldMul: mods.shieldMul,
-    glyph: char.equipped.glyph || null,
+    glyph: equipped.glyph || null,
   };
 }
 

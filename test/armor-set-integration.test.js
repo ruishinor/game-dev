@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { CharacterStore } from '../server/store.js';
 import { deriveStats, tryEquip, tryUnequip } from '../shared/build.js';
 import { ARMOR_SETS, ITEMS } from '../shared/content.js';
 import { ARMOR_SET_SLOTS } from '../shared/armor-set-bonuses.js';
@@ -43,4 +47,38 @@ test('unowned or wrong-class set pieces cannot contribute individual modifiers e
   const bad={...char,inventory,equipped:{...char.equipped,chest:id}};
   assert.equal(deriveStats(bad).maxHp,baseline.maxHp);
  }
+});
+
+test('set loadout derivation does not project a rejected glyph',()=>{
+ const id='vanguard_field_set_chest';
+ const char=makeChar('vanguard',{inventory:[id],equipped:{device:null,implant:null,glyph:'glyph_hinge',chest:id}});
+ assert.equal(deriveStats(char).glyph,null);
+});
+
+test('anatomical slots survive disk hydration; invalid slots do not grant bonuses',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attunement-armor-'));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const file=path.join(dir,'characters.json'),store=new CharacterStore(file);
+ const {char,token}=store.create('Armor Tester','vanguard');
+ assert.ok(char&&token);
+ const ids=ARMOR_SET_SLOTS.map(slot=>'vanguard_field_set_'+slot);
+ char.inventory=ids.slice();
+ for(const id of ids){
+  const result=tryEquip(char,id);assert.ok(result.ok);char.equipped=result.equipped;
+ }
+ const legacy=store.create('Legacy Tester','keeper');
+ assert.ok(legacy.char);
+ store.markDirty();assert.ok(store.flush());
+ let restored=new CharacterStore(file),loaded=restored.authenticate(token);
+ assert.ok(loaded);
+ for(const slot of ARMOR_SET_SLOTS)assert.equal(loaded.equipped[slot],'vanguard_field_set_'+slot);
+ assert.deepEqual(deriveStats(loaded),deriveStats(char));
+ assert.deepEqual(restored.authenticate(legacy.token).equipped,{device:null,implant:null,glyph:null});
+ // A carried foreign item must not survive as installed or count towards a set.
+ loaded.inventory.push('keeper_field_set_boots');loaded.equipped.boots='keeper_field_set_boots';
+ restored.markDirty();assert.ok(restored.flush());
+ loaded=new CharacterStore(file).authenticate(token);
+ assert.ok(!loaded.equipped.boots);
+ assert.ok(loaded.inventory.includes('keeper_field_set_boots'));
+ assert.ok(deriveStats(loaded).maxHp<deriveStats(char).maxHp);
 });
