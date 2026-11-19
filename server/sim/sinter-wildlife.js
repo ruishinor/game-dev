@@ -60,7 +60,7 @@ export function tickWildPredator(game,e,dt){
   return along>0&&along<d&&Math.abs(ox*dz-oz*dx)<1.2;
  });
  if(guard&&(e.wildPhase==='circle'||e.wildPhase==='lunge')){
-  guard.ecologyMode='brace';game.events.push({e:'fx',k:'sinter_repel',s:guard.id,d:e.id});withdraw(game,e,prey);return true;
+  guard.ecologyMode='brace';game.emitWorldEvent({e:'fx',k:'sinter_repel',s:guard.id,d:e.id});withdraw(game,e,prey);return true;
  }
  if(e.wildPhase==='crouch'){
   if(game.time>=e.wildPhaseUntil)phase(game,e,'circle',1050);
@@ -69,7 +69,7 @@ export function tickWildPredator(game,e,dt){
  if(e.wildPhase==='circle'){
   const dx=(prey.x-e.x)/(d||1),dz=(prey.z-e.z)/(d||1);
   move(e,{x:prey.x-dx*2.5-dz*2,z:prey.z-dz*2.5+dx*2},2,dt);turn(e,prey);
-  if(game.time>=e.wildPhaseUntil){phase(game,e,'lunge',1850);game.events.push({e:'fx',k:'sinter_pounce',s:e.id,d:prey.id});}
+  if(game.time>=e.wildPhaseUntil){phase(game,e,'lunge',1850);game.emitWorldEvent({e:'fx',k:'sinter_pounce',s:e.id,d:prey.id});}
   return true;
  }
  if(e.wildPhase==='lunge'){
@@ -80,7 +80,7 @@ export function tickWildPredator(game,e,dt){
    const amount=Math.min(18,Math.max(0,prey.hp-Math.ceil(prey.maxHp*.35)));
    if(amount>0){
     prey.hp-=amount;prey.wildWound+=amount;prey.wildHealAt=game.time+6000;prey.scarred=true;
-    game.events.push({e:'dmg',s:e.id,d:prey.id,a:amount,ab:'wild_bite',k:'melee'});
+    game.emitWorldEvent({e:'dmg',s:e.id,d:prey.id,a:amount,ab:'wild_bite',k:'melee'});
    }
    withdraw(game,e,prey);
   }
