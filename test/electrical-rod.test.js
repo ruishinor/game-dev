@@ -37,7 +37,7 @@ test('transformation reverses without a discontinuous pose and separates before 
   assert.throws(()=>rod.setMode('unknown'));
  }finally{rod.dispose();}
 });
-test('short local VFX only, bounded emission, no light or gameplay mutation',()=>{
+test('idle VFX remains local and bounded; reduced motion suppresses arcs',()=>{
  const rod=createElectricalRod();
  try{
   let n=0,bursts=0;
@@ -82,4 +82,84 @@ test('dual hand anchors track independent hands; join and reverse without replac
   near(rod.anchor(0,'Coupler').distanceTo(rod.anchor(1,'Coupler')),0);
   near(rod.anchor(0,'Tip').distanceTo(rod.anchor(1,'Tip')),1.5);
  }finally{rod.dispose();}
+});
+
+test('runtime emission is independent per half while structural materials and geometry remain shared',()=>{
+ const rod=createElectricalRod({independentEmission:true});
+ try{
+  const [r,l]=rod.halves;
+  const right=r.getObjectByName('RodRight_inlay'),left=l.getObjectByName('RodLeft_inlay');
+  assert.notEqual(right.material,left.material);assert.equal(right.geometry,left.geometry);
+  assert.equal(r.getObjectByName('RodRight_steel').material,l.getObjectByName('RodLeft_steel').material);
+  rod.setEnergy(1,.2);near(right.material.emissiveIntensity,3.6);near(left.material.emissiveIntensity,.72);
+  rod.setEnergy(Infinity,-1);near(right.material.emissiveIntensity,0);near(left.material.emissiveIntensity,0);
+ }finally{rod.dispose();}
+});
+test('ability-grade impact is bounded, mode-dependent, and cancels remaining handles',()=>{
+ const rod=createElectricalRod({independentEmission:true});
+ const calls=[],handles=[];
+ const vfx={quality:2,reducedMotion:false,calmFlashes:false,intensity:1};
+ for(const name of ['lightning','burst','trail','shock','flash']){
+  vfx[name]=o=>{calls.push({name,o});const h={age:0,life:o.life??.3};handles.push(h);return h;};
+ }
+ const fx=createElectricalRodVfx(rod,vfx);
+ const p=new Vector3(1,1,1),ground=new Vector3(1,0,1);
+ const count=name=>calls.filter(c=>c.name===name).length;
+ try{
+  assert.equal(fx.impact(p,{ground}),true);
+  assert.equal(count('lightning'),4);assert.equal(count('trail'),2);assert.equal(count('shock'),1);assert.equal(count('flash'),1);
+  assert.equal(calls.find(c=>c.name==='burst').o.count,36);
+  assert.equal(fx.impact(p,{ground}),false,'repeated event cannot spam full effect');
+  for(let i=0;i<4;i++)fx.update(.1);
+  rod.setMode('rod');rod.update(2);fx.update(.1);calls.length=0;
+  assert.equal(fx.impact(p,{ground}),true);
+  assert.equal(count('lightning'),5);assert.equal(count('trail'),2);
+  assert.equal(calls.find(c=>c.name==='burst').o.count,64);
+  assert.ok(calls.find(c=>c.name==='shock').o.radius>1);
+  for(const c of calls.filter(c=>c.name==='lightning')){
+   assert.ok(c.o.life<=.3&&c.o.branches<=2&&c.o.width<=.025);
+   assert.ok(c.o.from().toArray().every(Number.isFinite));assert.ok(c.o.to().toArray().every(Number.isFinite));
+  }
+  assert.equal(fx.impact(new Vector3(NaN,0,0)),false);
+  const attached=calls.filter(c=>['lightning','trail','shock','flash'].includes(c.name));
+  assert.ok(attached.length<=10);
+  fx.dispose();
+  assert.ok(handles.filter(h=>typeof h.life==='number').some(h=>h.done));
+  assert.equal(fx.impact(p,{ground}),false);
+  const n=calls.length;fx.update(1);assert.equal(calls.length,n);
+ }finally{fx.dispose();rod.dispose();}
+});
+test('comfort and quality tiers suppress intense layers; power and visibility gate emission',()=>{
+ const rod=createElectricalRod();
+ const calls=[];const vfx={quality:1,reducedMotion:false,calmFlashes:false,intensity:1};
+ for(const name of ['lightning','burst','trail','shock','flash'])vfx[name]=o=>{calls.push({name,o});return {age:0,life:.2};};
+ const fx=createElectricalRodVfx(rod,vfx),p=new Vector3(),ground=new Vector3();
+ try{
+  assert.equal(fx.impact(p,{ground}),true);
+  assert.ok(calls.every(c=>['lightning','burst'].includes(c.name)));
+  assert.ok(calls.filter(c=>c.name==='lightning').every(c=>c.o.branches===0));
+  for(let i=0;i<4;i++)fx.update(.1);
+  calls.length=0;vfx.quality=2;vfx.calmFlashes=true;
+  assert.equal(fx.impact(p,{ground}),true);
+  assert.ok(calls.every(c=>['lightning','burst'].includes(c.name)));
+  vfx.reducedMotion=true;fx.update(.1);calls.length=0;
+  assert.equal(fx.impact(p,{ground}),false);fx.update(.1);assert.equal(calls.length,0);
+  vfx.reducedMotion=false;vfx.quality=0;fx.update(.1);assert.equal(calls.length,0);
+  vfx.quality=2;fx.update(.1,{energized:false});assert.equal(fx.impact(p),false);
+  rod.group.visible=false;fx.update(.1);assert.equal(fx.impact(p),false);assert.equal(calls.length,0);
+ }finally{fx.dispose();rod.dispose();}
+});
+test('transform discharges remain bounded and connection flashes only once',()=>{
+ const rod=createElectricalRod();const calls=[];
+ const vfx={quality:2,reducedMotion:false,calmFlashes:false,intensity:1};
+ for(const name of ['lightning','burst','flash'])vfx[name]=o=>{calls.push({name,o});return {age:0,life:.2};};
+ const fx=createElectricalRodVfx(rod,vfx);
+ try{
+  rod.setMode('rod');
+  for(let i=0;i<12;i++){rod.update(.1);fx.update(.1);}
+  assert.equal(calls.filter(c=>c.name==='flash').length,1);
+  assert.ok(calls.filter(c=>c.name==='lightning').length<=20);
+  for(let i=0;i<12;i++)fx.update(.1);
+  assert.equal(calls.filter(c=>c.name==='flash').length,1);
+ }finally{fx.dispose();rod.dispose();}
 });
