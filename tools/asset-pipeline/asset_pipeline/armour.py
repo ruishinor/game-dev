@@ -25,6 +25,7 @@ Stages (python -m asset_pipeline <stage> --asset armour_chest):
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -273,10 +274,11 @@ def _build_hardsurface(asset, params):
     for key in _bodies(asset):
         d_dir = asset.path("design", key)
         out = asset.dir("build", key)
+        tex = {k: (v // 4 if params.get("preview") else v) for k, v in params["texture"].items()}
         res = run_blender("asset_pipeline.blender.armour_hardsurface", {
             "work": str(asset.work), "out": str(out), "pieces_npz": str(d_dir / "pieces.npz"), "pieces_json": str(d_dir / "pieces.json"),
-            "body_npz": str(d_dir / "body.npz"), "materials": hs_material_specs(asset), "texture": params["texture"],
-            "samples": params.get("samples", 16), "blend_name": f"armour_{key}_source.blend"}, timeout=14400)
+            "body_npz": str(d_dir / "body.npz"), "materials": hs_material_specs(asset), "texture": tex,
+            "samples": 4 if params.get("preview") else params.get("samples", 16), "blend_name": f"armour_{key}_source.blend"}, timeout=14400)
         res["hardsurface"] = True
         write_json(out / "build.json", res)
         rep[key] = {k: v["triangles"] for k, v in res["sets"].items()}
@@ -746,7 +748,7 @@ STAGES = [
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
     ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
     ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py"],
-     lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"]}),
+     lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"], **({"preview": True} if os.environ.get("ARMOUR_PREVIEW") else {})}),
     ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
     ("validate", stage_validate, lambda a: [a.path("rig"), a.path("inspect"), HERE / "armour.py"], lambda a: _cfg(a, "validate")),

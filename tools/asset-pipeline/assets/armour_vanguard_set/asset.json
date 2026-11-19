@@ -74,25 +74,25 @@
   "materials": {
    "vanguard_field_set_chest": {
     "under": {
-     "base": "#101012",
-     "edge": "#2a2b2e",
-     "roughness": 0.86,
+     "base": "#151618",
+     "edge": "#34363a",
+     "roughness": 0.84,
      "metallic": 0.0,
-     "wear": 0.15,
-     "tone": 0.1,
+     "wear": 0.2,
+     "tone": 0.12,
      "scratch": 0.05,
-     "soot": 0.6
+     "soot": 0.55
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#8a9099",
-     "roughness": 0.34,
-     "metallic": 0.9,
-     "wear": 0.55,
-     "tone": 0.14,
-     "scratch": 0.3,
-     "soot": 0.9,
-     "edge_polish": 0.18
+     "base": "#1e2024",
+     "edge": "#a3a9b2",
+     "roughness": 0.42,
+     "metallic": 0.72,
+     "wear": 0.8,
+     "tone": 0.16,
+     "scratch": 0.35,
+     "soot": 0.8,
+     "edge_polish": 0.2
     },
     "trim": {
      "base": "#24262a",
@@ -117,25 +117,25 @@
    },
    "vanguard_field_set_gloves": {
     "under": {
-     "base": "#101012",
-     "edge": "#2a2b2e",
-     "roughness": 0.86,
+     "base": "#151618",
+     "edge": "#34363a",
+     "roughness": 0.84,
      "metallic": 0.0,
-     "wear": 0.15,
-     "tone": 0.1,
+     "wear": 0.2,
+     "tone": 0.12,
      "scratch": 0.05,
-     "soot": 0.6
+     "soot": 0.55
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#8a9099",
-     "roughness": 0.34,
-     "metallic": 0.9,
-     "wear": 0.55,
-     "tone": 0.14,
-     "scratch": 0.3,
-     "soot": 0.9,
-     "edge_polish": 0.18
+     "base": "#1e2024",
+     "edge": "#a3a9b2",
+     "roughness": 0.42,
+     "metallic": 0.72,
+     "wear": 0.8,
+     "tone": 0.16,
+     "scratch": 0.35,
+     "soot": 0.8,
+     "edge_polish": 0.2
     },
     "vent": {
      "base": "#060607",
@@ -150,25 +150,25 @@
    },
    "vanguard_field_set_greaves": {
     "under": {
-     "base": "#101012",
-     "edge": "#2a2b2e",
-     "roughness": 0.86,
+     "base": "#151618",
+     "edge": "#34363a",
+     "roughness": 0.84,
      "metallic": 0.0,
-     "wear": 0.15,
-     "tone": 0.1,
+     "wear": 0.2,
+     "tone": 0.12,
      "scratch": 0.05,
-     "soot": 0.6
+     "soot": 0.55
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#8a9099",
-     "roughness": 0.34,
-     "metallic": 0.9,
-     "wear": 0.55,
-     "tone": 0.14,
-     "scratch": 0.3,
-     "soot": 0.9,
-     "edge_polish": 0.18
+     "base": "#1e2024",
+     "edge": "#a3a9b2",
+     "roughness": 0.42,
+     "metallic": 0.72,
+     "wear": 0.8,
+     "tone": 0.16,
+     "scratch": 0.35,
+     "soot": 0.8,
+     "edge_polish": 0.2
     },
     "vent": {
      "base": "#060607",
@@ -183,25 +183,25 @@
    },
    "vanguard_field_set_boots": {
     "under": {
-     "base": "#101012",
-     "edge": "#2a2b2e",
-     "roughness": 0.86,
+     "base": "#151618",
+     "edge": "#34363a",
+     "roughness": 0.84,
      "metallic": 0.0,
-     "wear": 0.15,
-     "tone": 0.1,
+     "wear": 0.2,
+     "tone": 0.12,
      "scratch": 0.05,
-     "soot": 0.6
+     "soot": 0.55
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#8a9099",
-     "roughness": 0.34,
-     "metallic": 0.9,
-     "wear": 0.55,
-     "tone": 0.14,
-     "scratch": 0.3,
-     "soot": 0.9,
-     "edge_polish": 0.18
+     "base": "#1e2024",
+     "edge": "#a3a9b2",
+     "roughness": 0.42,
+     "metallic": 0.72,
+     "wear": 0.8,
+     "tone": 0.16,
+     "scratch": 0.35,
+     "soot": 0.8,
+     "edge_polish": 0.2
     },
     "sole": {
      "base": "#0d0d0f",
@@ -383,7 +383,7 @@
   "icons": {
    "body": "m",
    "size": 768,
-   "samples": 96,
+   "samples": 64,
    "view": {
     "az": 24,
     "el": 10
@@ -395,12 +395,15 @@
    "webp_quality": 90,
    "keep_half": {
     "vanguard_field_set_gloves": true
-   }
+   },
+   "rig": "hard",
+   "glare": true,
+   "channel_strength": 28
   },
   "evidence": {
-   "samples": 16,
-   "width": 1500,
-   "height": 900,
+   "samples": 24,
+   "width": 1100,
+   "height": 1300,
    "poses": [
     null,
     {
@@ -411,7 +414,11 @@
      "action": "Jog_Fwd_Loop",
      "time": 0.25
     }
-   ]
+   ],
+   "rig": "hard",
+   "glare": true,
+   "channel_strength": 28,
+   "together": true
   },
   "publish": {
    "runtime": {

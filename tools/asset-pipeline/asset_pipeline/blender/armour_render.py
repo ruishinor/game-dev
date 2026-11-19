@@ -15,7 +15,7 @@ from pathlib import Path
 
 import bpy
 import numpy as np
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 from asset_pipeline.blender.common import finish, look_at_matrix, payload, setup_cycles, world_color
 from asset_pipeline.blender.render_evidence import ground, lights, scene_bounds
@@ -54,9 +54,64 @@ def camera(sc, target, dist, az, el, lens=50):
     return cam
 
 
-def studio(sc, centre, size, strength=0.7):
-    world_color(sc, (0.40, 0.42, 0.45), strength)
-    lights(sc, centre, size)
+def studio(sc, centre, size, strength=0.7, rig="soft"):
+    if rig != "hard":
+        world_color(sc, (0.40, 0.42, 0.45), strength)
+        lights(sc, centre, size)
+        return
+    # hard-surface rig: dark world, warm key, two cool rims, a softbox above
+    # whose reflections define the metal planes (Cycles area lights reflect)
+    world_color(sc, (0.05, 0.055, 0.065), 1.0)
+    c = Vector(tuple(map(float, centre)))
+    k = max(size, 0.5) ** 2
+    for name, off, energy, col, sz in (("key", (-1.1, -1.6, 1.0), 260, (1.0, 0.94, 0.86), 1.0),
+                                        ("rim_l", (-1.4, 1.5, 0.6), 520, (0.72, 0.82, 1.0), 0.6),
+                                        ("rim_r", (1.5, 1.3, 0.5), 520, (0.72, 0.82, 1.0), 0.6),
+                                        ("box", (0.3, -0.8, 1.9), 300, (1.0, 1.0, 1.0), 2.0),
+                                        ("fill", (1.6, -1.2, -0.2), 70, (0.9, 0.92, 1.0), 1.4)):
+        ld = bpy.data.lights.new(name, "AREA")
+        ld.energy = energy * k
+        ld.color = col
+        ld.size = sz * max(size, 0.5)
+        lo = bpy.data.objects.new(name, ld)
+        sc.collection.objects.link(lo)
+        lo.location = c + Vector(off) * max(size, 0.5)
+        lo.rotation_euler = (c - lo.location).to_track_quat("-Z", "Y").to_euler()
+
+
+def add_glare(sc, threshold=0.85, size=0.78, strength=0.9):
+    tree = bpy.data.node_groups.new("_glare", "CompositorNodeTree")
+    tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    rl = tree.nodes.new("CompositorNodeRLayers")
+    g = tree.nodes.new("CompositorNodeGlare")
+    out = tree.nodes.new("NodeGroupOutput")
+    for k, v in (("Type", "Fog Glow"), ("Quality", "High"), ("Threshold", threshold), ("Size", size), ("Strength", strength)):
+        try:
+            g.inputs[k].default_value = v
+        except Exception:
+            pass
+    tree.links.new(rl.outputs["Image"], g.inputs["Image"])
+    tree.links.new(g.outputs["Image"], out.inputs[0])
+    sc.compositing_node_group = tree
+    sc.render.use_compositing = True
+
+
+def boost_channels(strength):
+    """The GLB carries the channels as a plain emissive factor; give them the
+    brightness the runtime shader reaches (white-hot core, red falloff)."""
+    for m in bpy.data.materials:
+        if not m.name.startswith("CL_Channel") or not m.use_nodes:
+            continue
+        for n in m.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED":
+                n.inputs["Emission Color"].default_value = (1.0, 0.13, 0.05, 1)
+                n.inputs["Emission Strength"].default_value = strength
+                n.inputs["Base Color"].default_value = (0.3, 0.02, 0.01, 1)
+
+
+def belongs(o, item):
+    n = base_name(o)
+    return n == item or n.startswith(item + "__")
 
 
 def op_icons(p):
@@ -65,7 +120,7 @@ def op_icons(p):
     for item in p["items"]:
         sc = fresh()
         objs = import_glb(p["glb"])
-        keep = [o for o in objs if o.type == "MESH" and base_name(o) == item]
+        keep = [o for o in objs if o.type == "MESH" and belongs(o, item)]
         for o in objs:
             if o.type == "MESH" and o not in keep:
                 bpy.data.objects.remove(o, do_unlink=True)
@@ -83,7 +138,13 @@ def op_icons(p):
         centre = (lo + hi) / 2
         size = float(np.linalg.norm(hi - lo))
         setup_cycles(sc, p["size"], p["size"], samples=p["samples"], denoise=True, transparent=True)
-        studio(sc, centre, max(size, 0.6) * 1.4, 0.9)
+        rig = p.get("rig", "soft")
+        studio(sc, centre, max(size, 0.6) * (1.0 if rig == "hard" else 1.4), 0.9, rig=rig)
+        if p.get("channel_strength"):
+            boost_channels(p["channel_strength"])
+        if p.get("glare"):
+            add_glare(sc)
+            sc.view_settings.view_transform = "AgX"
         v = p["view"]
         # frame the silhouette: distance from the bounding radius and lens
         lens = 60
@@ -113,8 +174,9 @@ def op_worn(p):
         sc = fresh()
         mm = mannequin_material()
         groups = []
-        n = len(p["items"])
-        for i, item in enumerate(p["items"]):
+        items = p["items"][:1] if p.get("together") else p["items"]
+        n = len(items)
+        for i, item in enumerate(items):
             dx = (i - (n - 1) / 2) * 0.95
             body = import_glb(p["body"])
             arm_b = next(o for o in body if o.type == "ARMATURE")
@@ -128,7 +190,7 @@ def op_worn(p):
             armour = import_glb(p["glb"])
             arm_a = next(o for o in armour if o.type == "ARMATURE")
             for o in armour:
-                if o.type == "MESH" and base_name(o) != item:
+                if o.type == "MESH" and not (belongs(o, item) or (p.get("together") and any(belongs(o, it) for it in p["items"]))):
                     bpy.data.objects.remove(o, do_unlink=True)
             for a in (arm_b, arm_a):
                 top = a
@@ -155,7 +217,13 @@ def op_worn(p):
         centre = (lo + hi) / 2
         size = float(np.linalg.norm(hi - lo))
         setup_cycles(sc, p["width"], p["height"], samples=p["samples"], denoise=True)
-        studio(sc, centre, max(size, 2.0), 0.55)
+        rig = p.get("rig", "soft")
+        studio(sc, centre, max(size, 2.0) * (0.55 if rig == "hard" else 1.0), 0.55, rig=rig)
+        if p.get("channel_strength"):
+            boost_channels(p["channel_strength"])
+        if p.get("glare"):
+            add_glare(sc)
+            sc.view_settings.view_transform = "AgX"
         ground(sc, float(lo[2]), max(size, 2.0))
         tag = "bind" if not pose else pose["action"].lower()
         for view, az in (("front", 0), ("back", 180), ("three_quarter", 35)):

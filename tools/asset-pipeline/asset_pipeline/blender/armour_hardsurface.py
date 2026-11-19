@@ -71,6 +71,17 @@ def bevel(o, width, segments, angle=32):
     bpy.ops.object.modifier_apply(modifier=m.name)
 
 
+def planar(o, angle=2.5):
+    """Merge near-coplanar faces (sheet subdivisions, carved floors): the
+    rounding lives in the baked normal, not in triangles."""
+    m = o.modifiers.new("planar", "DECIMATE")
+    m.decimate_type = "DISSOLVE"
+    m.angle_limit = math.radians(angle)
+    m.delimit = {"UV"} if o.data.uv_layers else set()
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.modifier_apply(modifier=m.name)
+
+
 def smooth_by_angle(o, angle=34):
     bpy.ops.object.select_all(action="DESELECT")
     o.select_set(True)
@@ -217,7 +228,8 @@ def build_piece(meta, arr, fx):
         delete([c])
         if g["inlay"]:
             inlay(g["pts"], g["nrm"], g["flow"], g["width"], g["depth"], fx)
-    bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 2))
+    bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 1))
+    planar(o)
     parts = [o]
     for k, b in enumerate(meta.get("bolts", [])):
         parts.append(bolt_obj(f"{name}_bolt{k}", b["p"], b["n"], b["r"], b["h"]))
@@ -567,7 +579,8 @@ def unwrap(o, margin=0.003):
     me.uv_layers.new(name="UVMap")
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(52), island_margin=margin, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
+    # plates are gently curved: a wide angle keeps each face of a plate one island
+    bpy.ops.uv.smart_project(angle_limit=math.radians(70), island_margin=margin, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.pack_islands(margin=margin, rotate=True, shape_method="CONCAVE")
     bpy.ops.object.mode_set(mode="OBJECT")
 
