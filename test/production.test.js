@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beginProduction, stopProduction } from '../server/sim/production.js';
+import { RECIPES, productionTime } from '../shared/crafting.js';
+import { createProductionClock, productionEstimate } from '../client/src/production-presentation.js';
 import { equipItem, grantSalvage } from '../server/sim/progress.js';
 import { isolate, makeChar, makeGame, place, run } from './helpers.js';
 
@@ -68,15 +70,42 @@ test('advanced failure preserves equipment and consumes only its disclosed mater
   const begin = () => beginProduction(g, p, 'dense_pulse_core', 1, p.inventoryRev);
   g.productionRoll = () => 0;
   assert.ok(begin().ok);
-  run(g, 1900);
+  run(g, productionTime(RECIPES.dense_pulse_core));
   assert.deepEqual(p.char.inventory, ['tuned_emitter']);
   assert.equal(p.char.condition.tuned_emitter, 40);
   assert.equal(g.sheet(p).craftingDisciplines.Engineering,0);
   assert.deepEqual(p.char.materials, { kinetic_coupler: 2, resonance_fragment: 1 });
   g.productionRoll = () => 99;
   assert.ok(begin().ok);
-  run(g, 1900);
+  run(g, productionTime(RECIPES.dense_pulse_core));
   assert.deepEqual(p.char.inventory, ['dense_pulse_core']);
   assert.deepEqual(p.char.materials, {});
   assert.equal(g.privateState(p).production, null);
+});
+
+test('sustained fabrication preserves Longpoint and maintenance timing, with longer equipment and component cycles',()=>{
+  assert.equal(productionTime(RECIPES.longpoint_emitter),1900);
+  assert.equal(productionTime(RECIPES.field_maintenance_kit),1100);
+  assert.ok(productionTime(RECIPES.coupler)>=3000);
+  assert.ok(productionTime(RECIPES.field_chest)>=4000);
+  assert.ok(productionTime(RECIPES.dense_pulse_core)>productionTime(RECIPES.field_chest));
+  assert.ok(productionTime(RECIPES.bloom_relay)>productionTime(RECIPES.dense_pulse_core));
+});
+
+test('fabrication progress interpolates within a confirmed cycle and never claims completion',()=>{
+  const clock=createProductionClock();
+  const job={id:'coupler',quantity:5,cycles:5,complete:0,total:3000,ms:3000};
+  assert.equal(clock.sample(job,100).cycle,0);
+  assert.ok(clock.sample(job,200).cycle>0);
+  assert.equal(clock.sample(job,10000).cycle,250/3000);
+  const next={...job,ms:2250};
+  assert.equal(clock.sample(next,10100).stage,'Working');
+  const inspect={...job,ms:150};
+  assert.equal(clock.sample(inspect,11000).stage,'Inspecting result');
+  assert.equal(clock.sample(inspect,12000).cycle,.995);
+  const second={...job,complete:1};
+  assert.deepEqual(clock.sample(second,12200),{cycle:0,overall:1,stage:'Preparing components'});
+  assert.equal(clock.sample(null,12300),null);
+  assert.equal(clock.sample(job,12400).overall,0);
+  assert.equal(productionEstimate({...job,total:0}),null);
 });
