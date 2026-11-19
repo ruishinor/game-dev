@@ -55,7 +55,7 @@ test('commissioning is an opt-in, site-checked ownership transition and switchin
 test('Spindle does not take a Survey Strider link, cached mark or individual identity along when switching', () => {
   const game = makeGame(), link = 'survey_strider_link';
   const p = game.addPlayer(makeChar('surveyor', { level: 4, attunements: ['resonance'], inventory: [link] }));
-  assert.ok(equipItem(game, p, link).ok);
+  assert.ok(manageCompanion(game,p,'summon','survey_strider').ok);
   const first = p.companion;
   assert.ok(renameCompanion(game, p, 'Mapper').ok);
   assert.ok(petCommand(game, p, 'stay').ok);
@@ -63,11 +63,10 @@ test('Spindle does not take a Survey Strider link, cached mark or individual ide
   commission(game, p);
   const machine = deploy(game, p);
   assert.equal(p.surveyKit.mark, null);
-  assert.ok(unequipSlot(game, p, 'device').ok);
-  assert.equal(manageCompanion(game, p, 'summon', 'survey_strider').ok, false);
-  assert.equal(p.companion, machine);
-  assert.ok(equipItem(game, p, link).ok);
-  assert.equal(p.companion, machine);
+  assert.equal(p.char.equipped.device,null);
+  assert.equal(equipItem(game,p,link).ok,false);
+  assert.equal(p.companion,machine);
+  assert.equal(p.char.striderLearned,true);
   const restored = deploy(game, p, 'survey_strider');
   assert.equal(restored.name, 'Mapper');
   assert.equal(restored.mode, 'stay');

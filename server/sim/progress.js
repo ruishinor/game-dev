@@ -143,8 +143,15 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
+  if(out.item==='survey_strider_link'){
+    p.char.striderLearned=true;
+    if(!p.companion)p.char.companionDismissed=true;
+    if(!p.char.defaultCompanion)p.char.defaultCompanion='survey_strider';
+    p.char.inventory=p.char.inventory.filter(key=>key!==out.item);
+    game.message(p,'gain','Learned: Survey Strider deployment. Summon from your hotbar or Companion Sheet.');
+  }
   if (!quiet) {
-    if(out.item)p.outbox.push({e:'loot',item:out.item});
+    if(out.item&&out.item!=='survey_strider_link')p.outbox.push({e:'loot',item:out.item});
     game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
   }
   game.markDirty(p);

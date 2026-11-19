@@ -20,6 +20,7 @@ import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
 import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
 import { ownedCompanionTypes } from './sim/companion.js';
+import {migrateSurveyStrider} from './sim/survey-strider.js';
 import { recoverySamples } from '../shared/recovery.js';
 import { sanitizeRecoveryReadyAt } from './sim/recovery.js';
 
@@ -77,7 +78,7 @@ function sanitize(raw) {
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
-    petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
+    petMode: typeof raw.petMode === 'string' && Object.hasOwn((raw.cls==='surveyor'?COMPANIONS.survey_strider:COMPANIONS.mender).modes, raw.petMode) ? raw.petMode : (raw.cls==='surveyor'?'follow':'triage'),
     petName: raw.cls==='surveyor' ? (validCompanionName(raw.petName)&&raw.petName!==COMPANIONS.mender.name?raw.petName:COMPANIONS.survey_strider.name) : (validCompanionName(raw.petName)?raw.petName:COMPANIONS.mender.name),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
@@ -85,8 +86,12 @@ function sanitize(raw) {
   c.directiveReceipts=sanitizeDirectiveReceipts(raw.directiveReceipts,c.cls,c.quest.step);
   c.fieldReceipts=sanitizeFieldReceipts(raw.fieldReceipts,c);
   c.condition=sanitizeCondition(raw.condition,c.inventory);
-  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   c.companionDismissed = raw.companionDismissed === true;
+  c.striderLearned=c.cls==='surveyor'&&raw.striderLearned===true;
+  c.activeCompanion=raw.activeCompanion==='spindle'&&raw.spindle?.commissioned===true?'spindle':null;
+  if(c.cls==='surveyor'&&raw.equipped?.device==='survey_strider_link')c.equipped.device='survey_strider_link';
+  migrateSurveyStrider(c);
+  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   if (raw.spindle?.commissioned === true) {
     c.spindle = {
       commissioned: true,

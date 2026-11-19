@@ -6,7 +6,7 @@ import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop} from
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
-import {dist,hasLineOfSight} from '../../shared/world.js';
+import {dist,hasLineOfSight,deepLineClear} from '../../shared/world.js';
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
 
@@ -68,9 +68,7 @@ function collectCredits(game,p,quantity){
  game.message(p,'gain','Recovered '+quantity+' credit'+(quantity===1?'':'s')+'.');
  return true;
 }
-export function takeLoot(game,p,id,generation,item){
- const e=game.ents.get(id),entries=available(game,p,e,generation);
- if(!entries||p.lootTarget?.id!==id||p.lootTarget?.generation!==generation)return fail('Loot is no longer available.');
+function collectEntries(game,p,e,entries,item){
  const selected=item===null?[...entries]:entries.filter(x=>x.id===item);
  if(!selected.length)return fail('That loot has already been collected or is unavailable.');
  let taken=0;
@@ -78,6 +76,23 @@ export function takeLoot(game,p,id,generation,item){
   const ok=entry.kind==='material'?grantSalvage(game,p,entry.id,entry.quantity):entry.kind==='goods'?grantGoods(game,p,entry.id,entry.quantity):entry.kind==='item'?grantItem(game,p,entry.id):entry.kind==='credits'?collectCredits(game,p,entry.quantity):false;
   if(ok){entries.splice(entries.indexOf(entry),1);taken++;}
  }
- if(!entries.length){e.lootByPlayer.delete(p.id);clearLoot(p);}
+ if(!entries.length){e.lootByPlayer.delete(p.id);if(p.lootTarget?.id===e.id)clearLoot(p);}
  return taken?{ok:true}:fail('Cannot collect this loot: already owned, storage full or wallet full.');
+}
+export function takeLoot(game,p,id,generation,item){
+ const e=game.ents.get(id),entries=available(game,p,e,generation);
+ if(!entries||p.lootTarget?.id!==id||p.lootTarget?.generation!==generation)return fail('Loot is no longer available.');
+ return collectEntries(game,p,e,entries,item);
+}
+// Internal companion requests are not wire commands. Only already rolled
+// personal entries are eligible, with the same capacity and removal rules.
+export function striderLootTarget(game,p,c){
+ if(p.companion!==c||c.type!=='survey_strider'||p.dead||p.autoOn||p.combatUntil>game.time)return null;
+ return game.enemies.filter(e=>available(game,p,e,e.lootGeneration,false)&&dist(p,e)<=18&&dist(p,c)<=28&&deepLineClear(p,e)).sort((a,b)=>dist(c,a)-dist(c,b)||a.id-b.id)[0]??null;
+}
+export function recoverStriderLoot(game,p,c,id,generation){
+ const e=game.ents.get(id);
+ if(p.companion!==c||c.type!=='survey_strider'||c.mode!=='recover'||p.dead||p.autoOn||p.combatUntil>game.time||!e||dist(p,e)>18||dist(p,c)>28||dist(c,e)>3.2||!hasLineOfSight(c,e)||!deepLineClear(p,e))return fail('Recovery interrupted or out of range.');
+ const entries=available(game,p,e,generation,false);
+ return entries?collectEntries(game,p,e,entries,null):fail('No remaining personal loot.');
 }

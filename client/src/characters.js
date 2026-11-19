@@ -23,6 +23,7 @@ export const armRemap = (k) => (x) => Math.sign(x) * (SHOULDER_X + (Math.abs(x) 
 import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
+import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import { MODEL_FACTORIES as PROCEDURAL } from './models.js';
@@ -527,6 +528,7 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  * or broken asset never removes an entity from the world.
  */
 export function createModel(assets, meta, glb = true) {
+  if(meta.c==='survey_strider')return createSurveyStrider();
   let model = null;
   if (glb) try {
     const look = lookFor(meta);

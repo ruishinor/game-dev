@@ -1363,6 +1363,7 @@ input.onAction = (code, e) => {
       const mode = companionCommandKeys(pet)[i];
       if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
     } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
+    else if(i===def.abilities.length&&!S.compId&&S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
     return;
   }
   switch (code) {

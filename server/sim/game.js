@@ -1,3 +1,4 @@
+import {migrateSurveyStrider} from './survey-strider.js';
 // Authoritative world simulation. No I/O here: the network layer feeds
 // validated commands in and reads snapshots/events out, and tests drive the
 // clock directly through tick().
@@ -86,6 +87,7 @@ export class Game {
 
   /** Bring a persisted character into the world. Returns the player entity. */
   addPlayer(char) {
+    migrateSurveyStrider(char);
     const def = CLASSES[char.cls];
     const stats = deriveStats(char);
     const fresh = !(char.hp > 0) || !char.pos;
@@ -430,6 +432,7 @@ export class Game {
       name: c.name,
       cls: c.cls,
       companion:p.companion?.type??null,
+      striderLearned:c.striderLearned===true,
       initiationSeen:c.initiationSeen===true,
       look: c.look,
       appearance: c.appearance,
