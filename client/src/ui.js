@@ -213,7 +213,7 @@ export class UI {
     this.summonPet = h('button', 'summon-pet', 'Summon companion');
     this.summonPet.type = 'button';
     this.summonPet.hidden = true;
-    this.summonPet.addEventListener('click', () => this.a.managePet('summon'));
+    this.summonPet.addEventListener('click', () => this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
     const left = h('div', 'col');
     left.append(this.player.el, this.pet, this.summonPet);
     frames.append(left, this.target.el);
@@ -302,7 +302,7 @@ export class UI {
     this.minimap = document.createElement('canvas');
     this.minimap.width = 256;
     this.minimap.height = 256;
-    this.minimapZoom=1;
+    this.minimapZoom=1.5;
     this.minimap.className = 'minimap';
     this.minimap.setAttribute('role', 'img');
     this.minimap.setAttribute('aria-label', 'World minimap');
@@ -796,7 +796,7 @@ export class UI {
       return { id, ...b };
     });
     this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),String(def.abilities.length+1),'Summon default companion');
-    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet('summon'));
+    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
     this.actionBar.append(this.summonSlot.el);
     this.petButtons = [];
     if (companionType) {
@@ -1751,9 +1751,9 @@ export class UI {
 
   // --- per-frame ------------------------------------------------------------
 
-  unitPortrait(element,meta,style='bust') {
+  unitPortrait(element,meta,style='head') {
     if(!meta)return;
-    const signature=JSON.stringify([meta.k,meta.c,meta.n,meta.a,meta.ap,meta.sv]);
+    const signature=JSON.stringify([meta.k,meta.c,meta.n,meta.a,meta.ap,meta.sv,style]);
     if(element._portraitSignature===signature)return;
     element._portraitSignature=signature;
     let img=element.querySelector(':scope > .unit-portrait');
@@ -1886,10 +1886,21 @@ export class UI {
       if (!this.companionSheet.hidden) this.renderCompanionSheet();
     }
     const summon = roster.find(entry => entry.isDefault);
-    this.summonPet.hidden = !!st.comp || !summon;
-    this.summonPet.disabled = !summon?.available;
-    this.summonPet.title = summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
-    if(this.summonSlot){this.summonSlot.el.hidden=!summon;this.summonSlot.el.disabled=!!st.comp||!summon?.available;this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;}
+        const petActive=!!st.comp;
+    const canManagePet=!me.dead&&!(me.row.f&8);
+    const petActionLabel=petActive?'Dismiss companion':summon?.available?`Summon ${summon.name}`:'Summon companion unavailable';
+    this.summonPet.hidden=!petActive&&!summon;
+    this.summonPet.disabled=!canManagePet||(!petActive&&!summon?.available);
+    this.summonPet.textContent=petActionLabel;
+    this.summonPet.title=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
+    if(this.summonSlot){
+      this.summonSlot.el.hidden=!petActive&&!summon;
+      this.summonSlot.el.disabled=!canManagePet||(!petActive&&!summon?.available);
+      this.summonSlot.el.setAttribute('aria-label',petActionLabel);
+      this.summonSlot.el.title=this.summonPet.title;
+      this.summonSlot.el.classList.toggle('dismiss-ready',petActive&&canManagePet);
+      this.summonSlot.el.setAttribute('aria-pressed',String(petActive));
+    }
     if (st.comp) {
       const c = st.comp.row;
       this.unitPortrait(this.pet,st.comp.meta,st.comp.meta.c==='spindle'?'portrait':'bust');
@@ -2166,20 +2177,36 @@ export class UI {
       g.fillStyle = zoneColours[key] + '33';
       g.fill();
     }
-    g.fillStyle = 'rgba(160, 175, 185, 0.5)';
+    g.fillStyle = 'rgba(189, 186, 149, 0.32)';
+    g.strokeStyle='rgba(30, 43, 41, 0.65)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
+      g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);
+    }
+    // Up to two nearby place names remain legible; avoid covering the player.
+    if(!area){
+      const labels=Object.values(ZONES)
+       .map(z=>({z,d:Math.hypot(z.x-st.me.pos.x,z.z-st.me.pos.z)}))
+       .filter(({d})=>d*k<R-30).sort((a,b)=>a.d-b.d).slice(0,2);
+      g.font='bold 13px sans-serif';g.textAlign='center';g.lineWidth=3.5;
+      for(const {z} of labels){
+        const x=X(z.x),y=Z(z.z),name=z.name;
+        g.strokeStyle='#101b1e';g.strokeText(name,x,y-10);
+        g.fillStyle='#f1ddb2';g.fillText(name,x,y-10);
+      }
     }
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
       if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
-      const big = ent.meta.el || ent.meta.k === 'o';
-      g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
+      const big=ent.meta.el || ent.meta.k==='o';
+      const px=X(ent.pos.x),py=Z(ent.pos.z);
+      g.arc(px,py,big?5.8:4.3,0,Math.PI*2);
+      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
       g.fill();
+      g.lineWidth=1.7;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
     const placed = [{ x: X(st.me.pos.x), z: Z(st.me.pos.z) }];
@@ -2203,16 +2230,16 @@ export class UI {
         g.stroke();
       }
       g.beginPath();
-      g.arc(marker.x, marker.z, 6.5, 0, Math.PI * 2);
+      g.arc(marker.x, marker.z, 8.5, 0, Math.PI * 2);
       g.fillStyle = ent.dead ? '#43332c' : '#123a46';
       g.fill();
       g.strokeStyle = '#a8e8f6';
-      g.lineWidth = 1;
+      g.lineWidth = 2;
       g.stroke();
       g.fillStyle = '#fff';
-      g.font = 'bold 9px sans-serif';
+      g.font = 'bold 12px sans-serif';
       g.textAlign = 'center';
-      g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
+      g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 4);
     }
     const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
@@ -2220,13 +2247,14 @@ export class UI {
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));
     g.rotate(Math.PI - st.yaw);
     g.beginPath();
-    g.moveTo(0, -6);
-    g.lineTo(4.2, 5);
-    g.lineTo(0, 2.5);
-    g.lineTo(-4.2, 5);
+    g.moveTo(0, -10);
+    g.lineTo(6.2, 7);
+    g.lineTo(0, 3.5);
+    g.lineTo(-6.2, 7);
     g.closePath();
     g.fillStyle = '#ffffff';
     g.fill();
+    g.lineWidth=2;g.strokeStyle='#1e2527';g.stroke();
     g.restore();
     g.beginPath();
     g.arc(R, R, R - 2, 0, Math.PI * 2);
