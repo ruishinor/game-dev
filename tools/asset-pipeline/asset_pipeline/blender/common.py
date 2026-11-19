@@ -18,8 +18,16 @@ def payload() -> dict:
     return json.loads(sys.argv[1])
 
 
+def _plain(o):
+    if isinstance(o, np.generic):
+        return o.item()
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    return str(o)
+
+
 def finish(p: dict, result: dict) -> None:
-    Path(p["result"]).write_text(json.dumps(result, indent=1, default=str))
+    Path(p["result"]).write_text(json.dumps(result, indent=1, default=_plain))
 
 
 def reset_scene():

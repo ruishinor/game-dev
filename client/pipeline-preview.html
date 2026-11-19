@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attunement • Pipeline asset preview</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#161b21;color:#e0e4e7;font:15px system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:16px}h1{font-size:22px;margin:4px 0}p{color:#aab7c1;margin:6px 0}
+label{display:inline-flex;gap:8px;align-items:center;margin:6px 14px 6px 0}select,input{max-width:100%;accent-color:#92cad6}select,button{background:#28323a;color:inherit;padding:7px 10px;border:1px solid #55636e;border-radius:4px;font:inherit}button{cursor:pointer}
+canvas{width:100%;aspect-ratio:4/3;display:block;background:#222831}#status{min-height:22px;color:#cfd8dc}#meta{font-size:13px;color:#9fb0bb;white-space:pre-wrap}
+</style>
+<script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three-addons/"}}</script>
+<main><h1>Pipeline asset preview</h1><p>Runtime check of GLBs produced by tools/asset-pipeline: actual file, three.js loader, skinning, clips and root motion at each clip's declared speed. Not the live game.</p>
+<label>Asset <select id="asset"></select></label><label>Clip <select id="clip"></select></label><button id="play" type="button">Pause</button>
+<label>Yaw <input id="yaw" type="range" min="-180" max="180" value="-50"></label><label>Pitch <input id="pitch" type="range" min="-10" max="70" value="16"></label>
+<div id="status" role="status">Loading…</div><canvas id="view" width="960" height="720"></canvas><div id="meta"></div></main>
+<script type="module" src="/client/src/pipeline-preview.js"></script></html>

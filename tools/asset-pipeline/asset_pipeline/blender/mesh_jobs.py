@@ -34,7 +34,9 @@ def op_unwrap(p):
         bpy.ops.object.modifier_apply(modifier="dec")
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(p.get("angle_limit", 60)), island_margin=p.get("island_margin", 0.004), area_weight=0.0)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(p.get("angle_limit", 80)), island_margin=p.get("island_margin", 0.002), area_weight=0.0)
+    # reconstructed surfaces are noisy: re-pack the many small islands tightly
+    bpy.ops.uv.pack_islands(rotate=True, margin=p.get("pack_margin", 0.0015), shape_method="CONCAVE")
     bpy.ops.object.mode_set(mode="OBJECT")
     me = obj.data
     me.calc_loop_triangles()
