@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
+import { revealRecipe } from './recipe-catalogue.mjs';
 const server=await startServer({port:0,dataFile:null});let browser;
 try{
  fs.mkdirSync('strider-evidence',{recursive:true});browser=await launchBrowser();
@@ -19,7 +20,7 @@ try{
  await page.waitForFunction(()=>{const s=window.__attune.state();return s.you.workshop==='brine_engineering'&&s.sheet.level===4;});
  await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
- await workshop.locator('[data-recipe="survey_strider_link"]').click();
+ await (await revealRecipe(workshop,'survey_strider_link')).click();
  await workshop.locator('[data-craft="survey_strider_link"]').click();
  await page.waitForFunction(()=>window.__attune.state().sheet.striderLearned===true);
  assert.deepEqual(p.char.materials,{});assert.equal(p.companion,null);

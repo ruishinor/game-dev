@@ -6,6 +6,7 @@ import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
+import { revealRecipe } from './recipe-catalogue.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
 let browser;
@@ -238,11 +239,25 @@ try {
   assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Lesson 1 \/ 4/i);
   await workshop.getByRole('button',{name:'Next',exact:true}).click();
   assert.match(await workshop.locator('.workshop-tutorial').innerText(),/Recover components/i);
-  await workshop.locator('[data-recipe="coupler"]').click();
+  await (await revealRecipe(workshop,'coupler')).click();
   assert.equal(await workshop.locator('.recipe-part [data-art="sentinel_alloy"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="mire_fibre"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="kinetic_coupler"] svg').count(),1);
-  await workshop.locator('[data-recipe="aegis_rectifier"]').click();
+  // The tutorial and catalogue coexist. Pagination must never leave a stale
+  // actionable recipe visible when its selection is on another page.
+  assert.ok(await workshop.locator('.workshop-tutorial').getByRole('heading',{name:'Recover components',exact:true}).isVisible());
+  assert.ok(await workshop.locator('.workshop-recipes .recipe-entry').count()<=6);
+  const nextRecipes=workshop.getByRole('button',{name:'Next recipes',exact:true});
+  const previousRecipes=workshop.getByRole('button',{name:'Previous recipes',exact:true});
+  assert.equal(await nextRecipes.count(),1,'Catalogue exposes more than one page');
+  await (await nextRecipes.isEnabled()?nextRecipes:previousRecipes).click();
+  assert.equal(await workshop.locator('[data-recipe="coupler"]').count(),0);
+  assert.ok(await workshop.locator('.recipe-detail').isHidden(),'Off-page recipe details and actions are hidden');
+  await revealRecipe(workshop,'coupler');
+  assert.ok(await workshop.locator('.recipe-entry[data-recipe="coupler"].active').isVisible());
+  assert.ok(await workshop.locator('.recipe-detail').isVisible());
+
+  await (await revealRecipe(workshop,'aegis_rectifier')).click();
   assert.equal(await workshop.locator('.recipe-part [data-art="field_vector_array"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-part [data-art="conductive_membrane"] svg').count(),1);
   assert.equal(await workshop.locator('.recipe-result [data-art="aegis_rectifier"] svg').count(),1);
@@ -262,6 +277,31 @@ try {
   await page.keyboard.press('KeyC');
   const character=page.getByRole('dialog',{name:'Character and loadout'});
   await character.waitFor({state:'visible'});
+  // Exercise real pointer movement and edge resize, not synthetic style mutations.
+  const drag=async(locator,dx,dy)=>{
+    const box=await locator.boundingBox();assert.ok(box);
+    const x=box.x+box.width/2,y=box.y+box.height/2;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:4});await page.mouse.up();
+  };
+  const initial=await character.boundingBox();
+  await drag(character.locator('.journal-title'),-35,-25);
+  const moved=await character.boundingBox();
+  assert.ok(moved.x<initial.x-20&&moved.y<initial.y-10,'Title drag moves the actual window');
+  await drag(character.locator('[data-edge="e"]'),35,0);
+  const resized=await character.boundingBox();
+  assert.ok(resized.width>moved.width+20&&Math.abs(resized.x-moved.x)<2,'East edge resizes around the anchored west edge');
+  await character.getByRole('button',{name:'Opacity 100%'}).click();
+  assert.equal(await character.evaluate(el=>el.style.getPropertyValue('--window-alpha')),'0.8');
+  await character.getByRole('button',{name:'Lock layout'}).click();
+  assert.equal(await character.locator('[data-edge="e"]').isHidden(),true);
+  await character.getByRole('button',{name:'Unlock layout'}).click();
+  await page.locator('#view').focus();await page.keyboard.press('KeyI');
+  const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
+  assert.ok(await inventory.isVisible()&&await character.isVisible(),'Independent windows coexist');
+  await inventory.locator('.close').click();
+  await character.getByRole('button',{name:'Reset layout'}).click();
+  assert.equal(await character.getAttribute('data-window-custom'),null);
+
   const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
   assert.equal(tabRows.length,6);
   assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
@@ -495,7 +535,7 @@ try {
   if(await page.getByRole('button',{name:'Dismiss transmission'}).isVisible())await page.getByRole('button',{name:'Dismiss transmission'}).click();
   if(await page.getByRole('button',{name:'Close field record'}).isVisible())await page.getByRole('button',{name:'Close field record'}).click();
   await page.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
-  await workshop.locator('[data-recipe="longpoint_emitter"]').click();
+  await (await revealRecipe(workshop,'longpoint_emitter')).click();
   await workshop.locator('[data-craft="longpoint_emitter"]').click();
   await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('longpoint_emitter'));
   assert.ok(!p.char.inventory.includes('tuned_emitter'));
@@ -541,7 +581,7 @@ try {
   await bio.waitForFunction(()=>{const s=window.__attune.state();return s.you.workshop==='brine_research'&&s.sheet.inventory.includes('conductive_membrane')&&s.sheet.level===4;});
   await bio.getByRole('button',{name:'Open field Workshop [B]',exact:true}).click();
   const bioWorkshop=bio.getByRole('dialog',{name:'Build Planner and Workshop'});
-  await bioWorkshop.locator('[data-recipe="bloom_relay"]').click();
+  await (await revealRecipe(bioWorkshop,'bloom_relay')).click();
   assert.ok(await bioWorkshop.locator('[data-craft="bloom_relay"]').isEnabled());
   await bioWorkshop.locator('[data-craft="bloom_relay"]').click();
   await bio.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('bloom_relay'));
