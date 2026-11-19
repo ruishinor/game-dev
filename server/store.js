@@ -10,6 +10,7 @@ import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANI
 import { resolveLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
+import {sanitizeCraftingDisciplines} from '../shared/crafting-disciplines.js';
 import { appearanceString } from '../shared/appearance.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
@@ -20,6 +21,7 @@ import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
 import {sanitizeRiftCalibration} from './sim/rift-journal.js';
 import { sanitizeUnseen } from './sim/inventory-seen.js';
 import { ownedCompanionTypes } from './sim/companion.js';
+import {migrateSurveyStrider} from './sim/survey-strider.js';
 import { recoverySamples } from '../shared/recovery.js';
 import { sanitizeRecoveryReadyAt } from './sim/recovery.js';
 
@@ -56,6 +58,7 @@ function sanitize(raw) {
     look: validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls),
     // Cosmetic body/race/hair; saves made before it existed keep their look's body.
     appearance: appearanceString(raw.appearance, validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls)),
+    initiationSeen:raw.initiationSeen===true,
     level: int(raw.level, 1, MAX_LEVEL, 1),
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
@@ -71,12 +74,15 @@ function sanitize(raw) {
     survey: surveyState(raw.survey),
     traceState:sanitizeTraceState(raw.traceState),
     riftCalibration:sanitizeRiftCalibration(raw.riftCalibration),
+    annexProgress:int(raw.annexProgress,0,3,0),
+    annexClaimed:raw.annexClaimed===true&&raw.annexProgress===3,
     recoverySamples:recoverySamples(raw.recoverySamples),
+    craftingDisciplines:sanitizeCraftingDisciplines(raw.craftingDisciplines),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
-    petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
+    petMode: typeof raw.petMode === 'string' && Object.hasOwn((raw.cls==='surveyor'?COMPANIONS.survey_strider:COMPANIONS.mender).modes, raw.petMode) ? raw.petMode : (raw.cls==='surveyor'?'follow':'triage'),
     petName: raw.cls==='surveyor' ? (validCompanionName(raw.petName)&&raw.petName!==COMPANIONS.mender.name?raw.petName:COMPANIONS.survey_strider.name) : (validCompanionName(raw.petName)?raw.petName:COMPANIONS.mender.name),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),
@@ -84,8 +90,12 @@ function sanitize(raw) {
   c.directiveReceipts=sanitizeDirectiveReceipts(raw.directiveReceipts,c.cls,c.quest.step);
   c.fieldReceipts=sanitizeFieldReceipts(raw.fieldReceipts,c);
   c.condition=sanitizeCondition(raw.condition,c.inventory);
-  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   c.companionDismissed = raw.companionDismissed === true;
+  c.striderLearned=c.cls==='surveyor'&&raw.striderLearned===true;
+  c.activeCompanion=raw.activeCompanion==='spindle'&&raw.spindle?.commissioned===true?'spindle':null;
+  if(c.cls==='surveyor'&&raw.equipped?.device==='survey_strider_link')c.equipped.device='survey_strider_link';
+  migrateSurveyStrider(c);
+  c.unseenItems = sanitizeUnseen(raw.unseenItems, c);
   if (raw.spindle?.commissioned === true) {
     c.spindle = {
       commissioned: true,
@@ -183,6 +193,7 @@ export class CharacterStore {
       cls,
       look: validLook(cls, look) ? look : defaultLook(cls),
       appearance: appearanceString(appearance, validLook(cls, look) ? look : defaultLook(cls)),
+      initiationSeen:false,
       level: 1,
       xp: 0,
       inventory: [],
@@ -199,6 +210,7 @@ export class CharacterStore {
       traceState:null,
       riftCalibration:null,
       recoverySamples:0,
+      craftingDisciplines:sanitizeCraftingDisciplines(null),
       recoveryReadyAt:0,
       brineStage: 0,
       pos: null,

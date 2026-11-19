@@ -35,3 +35,12 @@ for (const [setId, set] of Object.entries(ARMOR_SETS)) {
     assert.equal(tryEquip(makeChar(set.cls),ids[0]).ok,false);
   });
 }
+
+test('unowned or wrong-class set pieces cannot contribute individual modifiers either',()=>{
+ const char=makeChar('vanguard');const baseline=deriveStats(char);
+ for(const id of ['vanguard_field_set_chest','keeper_field_set_chest']){
+  const inventory=id.startsWith('keeper')?[id]:[];
+  const bad={...char,inventory,equipped:{...char.equipped,chest:id}};
+  assert.equal(deriveStats(bad).maxHp,baseline.maxHp);
+ }
+});

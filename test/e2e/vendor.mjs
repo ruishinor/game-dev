@@ -77,12 +77,44 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.condition.field_emitter===85&&!window.__attune.state().sheet.goods.field_maintenance_kit);
  assert.equal(p.char.condition.field_emitter,85);
  await inventory.getByRole('button',{name:'Close inventory'}).click();
+ const station=server.game.objects.find(o=>o.type==='sanctum_fabricator');p.x=station.x;p.z=station.z+2;
+ await page.waitForFunction(()=>window.__attune.state().you.workshop==='sanctum');
  await page.locator('#view').focus();await page.keyboard.press('KeyB');
  const workshop=page.getByRole('dialog',{name:'Build Planner and Workshop'});
  await workshop.getByRole('button',{name:'Workshop',exact:true}).click();
  await workshop.locator('[data-recipe="field_maintenance_kit"]').click();
- await workshop.locator('[data-craft="field_maintenance_kit"]').click();
+ // A normal Engineering cycle lasts 1100ms. Arm observation before the
+ // authenticated click; separate round trips can miss both transient states.
+ // On software GL, use the existing capture hook to skip expensive draws
+ // during observation only. Networking, animation frames and simulation run
+ // normally, and the real scene objects must both enter their working states.
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.myId&&e.model==='glb'&&e.speed===0);});
+ await page.evaluate(software=>{
+  const a=window.__attune,scene=a.gfx.scene;
+  const observation={running:true,machine:false,tool:false,frames:0};
+  window.__vendorProductionObservation=observation;
+  if(software)a.pause(true);
+  function sample(){
+   if(!observation.running)return;
+   observation.frames++;
+   observation.machine||=scene.getObjectByName('sanctum-precision-fabricator')?.userData.working===true;
+   observation.tool||=scene.getObjectByName('production:right')?.visible===true;
+   requestAnimationFrame(sample);
+  }
+  requestAnimationFrame(sample);
+ },SOFTWARE_GL);
+ try{
+  await workshop.locator('[data-craft="field_maintenance_kit"]').click();
+  await page.waitForFunction(()=>{const o=window.__vendorProductionObservation;return o.machine&&o.tool;});
+ }catch(error){
+  const details=await page.evaluate(()=>{const a=window.__attune,s=a.state(),me=s.ents.find(e=>e.id===s.myId);return {observation:window.__vendorProductionObservation,production:s.you?.production,work:me?.row?.work,model:me?.model,speed:me?.speed,goods:s.sheet?.goods?.field_maintenance_kit};}).catch(()=>null);
+  console.error('[vendor] production observation failed',JSON.stringify(details),{acceptedJob:!!p.production,output:p.char.goods.field_maintenance_kit??0});
+  throw error;
+ }finally{
+  await page.evaluate(()=>{window.__vendorProductionObservation.running=false;window.__attune.pause(false);});
+ }
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
+ await page.waitForFunction(()=>{const a=window.__attune,scene=a.gfx.scene;return scene.getObjectByName('sanctum-precision-fabricator')?.userData.working===false&&!scene.getObjectByName('production:right')?.visible;});
  assert.equal(p.char.materials.mire_fibre,undefined);assert.equal(p.char.materials.sentinel_alloy,undefined);
  await workshop.waitFor({state:'hidden'});
  await page.locator('.production-status').waitFor({state:'hidden'});
@@ -93,6 +125,7 @@ try{
  assert.ok(await inventory.getByRole('button',{name:'Use Field Maintenance Kit',exact:true}).isDisabled());
  await page.screenshot({path:'vendor-evidence/05-field-maintenance.png'});
  await inventory.getByRole('button',{name:'Close inventory'}).click();
+ p.x=vendor.x;p.z=vendor.z+2;await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  await panel.waitFor({state:'visible'});
  p.x=vendor.x-8;p.z=vendor.z;

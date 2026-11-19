@@ -469,7 +469,11 @@ test('two-player recovery: either session can respawn independently and remain v
       assert.equal(player.char.level, level, 'respawn preserves progression');
       assert.equal(game.players.size, 2, 'neither recovery disconnects the other player');
     }
-    assert.ok(b.ent(wb.comp), 'companion remains present after its owner recovers');
+    // Transit rule: recovery dismisses the active companion; the owner can summon it again over the network.
+    assert.equal(pb.companion, null, 'companion dismissed when its owner recovers');
+    await b.until(() => !b.ent(wb.comp), 3000, 'dismissed companion leaves the ally view');
+    b.send({ t: 'pet_manage', action: 'summon' });
+    await b.until(() => pb.companion && b.ent(pb.companion.id), 3000, 'companion summoned again after recovery');
     assert.ok(a.me() && b.me(), 'both sessions are still usable');
   } finally {
     a.close();
@@ -673,7 +677,7 @@ test('persistence: progress survives disconnect, reconnect and a full server res
     // Exercise the actual authenticated craft command and persisted inventory.
     p.char.materials={mire_fibre:3,sentinel_alloy:1};
     srv.game.markDirty(p);
-    p.x=0;p.z=8;
+    p.x=2.8;p.z=5.7; // Stand at the physical fabricator.
     await a.until(() => a.sheet?.materials?.mire_fibre === 3, 3000, 'workshop inventory revision');
     a.send({t:'craft',recipe:'matrix',quantity:1,rev:a.sheet.inventoryRev,owner:999,output:'wardstone_shard'});
     await a.until(() => a.snap?.y?.production?.id === 'matrix', 2000, 'workshop production started');

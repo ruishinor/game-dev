@@ -16,6 +16,7 @@ import { readGltf, mergePieces, hueShift, attachEmissive, optimise, writeGlb, ra
 import { addRetargetedClips, trimClips, checkRestPose, clipDurations, buildBody } from './lib/humanoid.mjs';
 import { LOOK_TEXTURES, renderLookTexture } from './lib/paint.mjs';
 import { createSpindle } from './spindle.mjs';
+import { buildLongpoint } from './longpoint.mjs';
 import { createTurretDrone } from './turret-drone.mjs';
 import { addSpindleDistanceScene } from './lib/spindle-lod.mjs';
 import { MakeHuman } from './lib/makehuman.mjs';
@@ -159,6 +160,7 @@ async function main() {
     ...TEXTURES.map((s) => [s, buildTexture]),
     ...LOOK_TEXTURES.map((s) => [{ ...s, sources: [] }, buildLookTexture]),
     [{ id: 'spindle', out: 'spindle.glb', sources: [] }, buildSpindle],
+    [{ id: 'longpoint', out: 'longpoint.glb', sources: [] }, async spec => (await buildLongpoint(path.join(OUT, spec.out))).meta],
     [{ id: 'turret_drone', out: 'turret_drone.glb', sources: [] }, buildTurretDrone],
     ...FACE_TEXTURES.map((s) => [s, buildFaceTexture]),
   ];

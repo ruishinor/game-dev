@@ -2,7 +2,7 @@
 // Every outcome a client sees originates here.
 
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear } from '../../shared/world.js';
+import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
@@ -79,7 +79,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   // Last line of defence for the safe zone, including late telegraphed AoE.
   // Threat cleanup alone is not a damage-authorisation boundary.
   if (dst.kind === 'player' && inSanctum(dst)) return 0;
-  if (src && !deepLineClear(opts.origin || src,dst)) return 0;
+  if (src && (!sameTravelRegion(src, dst) || !deepLineClear(opts.origin || src,dst))) return 0;
 
   let amt = base;
   const actor = actorPlayer(game, src);
@@ -108,7 +108,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
         const landed = dealDamage(game, source, src, bond.reflect, 'carapace', { flat: true });
         if (landed > 0 && src.state !== 'dead' && src.state !== 'evade') {
           addBuff(src, { k: 'carapace_imprint', until: game.time + GLYPH.carapace.imprintMs, src: source.id });
-          game.events.push({ e: 'fx', k: 'carapace_imprint', s: src.id });
+          game.emitWorldEvent({ e: 'fx', k: 'carapace_imprint', s: src.id });
         }
       }
     }
@@ -132,15 +132,15 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if(dst.kind==='player' && dst.char.equipped.implant==='brine_rescue_lattice' && !dst.rescueSpent && beforeHp>dst.maxHp*.35 && dst.hp>0 && dst.hp<=dst.maxHp*.35){
     dst.rescueSpent=true;
     const old=getBuff(dst,'shield');
-    if(!old||old.until<=game.time||old.v<20){addBuff(dst,{k:'shield',v:20,until:game.time+8000,src:dst.id});game.events.push({e:'shield',s:dst.id,d:dst.id,a:20});}
-    game.events.push({e:'fx',k:'rescue_lattice',s:dst.id});
+    if(!old||old.until<=game.time||old.v<20){addBuff(dst,{k:'shield',v:20,until:game.time+8000,src:dst.id});game.emitWorldEvent({e:'shield',s:dst.id,d:dst.id,a:20});}
+    game.emitWorldEvent({e:'fx',k:'rescue_lattice',s:dst.id});
     game.message(dst,'info','Shelter Rescue Lattice: emergency barrier deployed. Rearms after combat.');
   }
 
   const ev = { e: 'dmg', s: src ? src.id : 0, d: dst.id, a: amt, ab: ability };
   if (absorbed > 0) ev.sh = absorbed;
   if (opts.kind) ev.k = opts.kind;
-  game.events.push(ev);
+  game.emitWorldEvent(ev);
 
   if (dst.kind === 'enemy') {
     if (actor) {
@@ -151,14 +151,14 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
       if(dst.form && amt>0 && !actor.dead && !inSanctum(actor)){
         if(dst.callUntil<=game.time){
           dst.callUntil=game.time+4500;
-          game.events.push({e:'fx',k:'sinter_alarm',s:dst.id});
+          game.emitWorldEvent({e:'fx',k:'sinter_alarm',s:dst.id});
         }
         for(const o of game.enemies){
           if(o===dst||!o.form||o.state==='dead'||o.state==='evade'||dist(o,dst)>5.5||dist(o,actor)>8)continue;
           if(o.form==='shieldback'){
             if(!o.threat.has(actor.id)){
               addThreat(o,actor.id,1);
-              game.events.push({e:'fx',k:'sinter_guard',s:o.id});
+              game.emitWorldEvent({e:'fx',k:'sinter_guard',s:o.id});
             }
           }else if(o.threat.size===0){
             o.alarmUntil=game.time+4500;
@@ -184,6 +184,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
 export function applyHeal(game, healer, dst, base, ability, srcId) {
   if (!dst || dst.kind !== 'player' || dst.dead) return 0;
   const source = game.ents.get(srcId);
+  if ((healer && !sameTravelRegion(healer, dst)) || (source && !sameTravelRegion(source, dst))) return 0;
   if (source?.kind === 'companion' && (source.owner !== healer?.id || !companionCanSupport(game, healer, dst))) return 0;
   let amt = base;
   if (healer) amt *= healer.stats.power * healer.stats.healMul;
@@ -191,7 +192,7 @@ export function applyHeal(game, healer, dst, base, ability, srcId) {
   const actual = Math.max(0, Math.min(amt, Math.ceil(dst.maxHp - dst.hp)));
   dst.hp = Math.min(dst.maxHp, dst.hp + amt);
   if (actual > 0) {
-    game.events.push({ e: 'heal', s: srcId || (healer ? healer.id : 0), d: dst.id, a: actual, ab: ability });
+    game.emitWorldEvent({ e: 'heal', s: srcId || (healer ? healer.id : 0), d: dst.id, a: actual, ab: ability });
     // Hinge + Lattice Resonator and another profession's Shared Pulse:
     // real healing restores at most the original finite barrier capacity.
     const shield=getBuff(dst,'shield');
@@ -199,8 +200,8 @@ export function applyHeal(game, healer, dst, base, ability, srcId) {
         shield?.harmonic && shield.until>game.time && shield.v>0 && shield.v<shield.cap) {
       const gain=Math.min(shield.cap-shield.v,Math.ceil(actual*.5));
       shield.v+=gain;
-      game.events.push({e:'shield',s:healer.id,d:dst.id,a:gain});
-      game.events.push({e:'fx',k:'harmonic_restore',s:dst.id,r:1.4});
+      game.emitWorldEvent({e:'shield',s:healer.id,d:dst.id,a:gain});
+      game.emitWorldEvent({e:'fx',k:'harmonic_restore',s:dst.id,r:1.4});
     }
     if (healer) {
       supportThreat(game, healer, dst, actual);
@@ -233,7 +234,7 @@ export function repairAegis(game, healer, dst, base, sourceId) {
   if (!Number.isFinite(amount) || amount <= 0) return 0;
   field.v = Math.min(field.cap, field.v + amount);
   supportThreat(game, healer, dst, amount);
-  game.events.push({ e: 'shield', s: sourceId, d: dst.id, a: amount, k: 'relay' });
+  game.emitWorldEvent({ e: 'shield', s: sourceId, d: dst.id, a: amount, k: 'relay' });
   return amount;
 }
 
@@ -245,7 +246,7 @@ function killEnemy(game, e) {
   e.cast = null;
   e.target = 0;
   e.buffs = [];
-  game.events.push({ e: 'die', id: e.id });
+  game.emitWorldEvent({ e: 'die', id: e.id });
   const credited = [...e.threat.keys()];
   e.threat.clear();
   e.fixate = null;
@@ -262,7 +263,7 @@ function killPlayer(game, p) {
   p.jy = 0;
   p.vy = 0;
   clearThreatFor(game, p.id);
-  game.events.push({ e: 'die', id: p.id });
+  game.emitWorldEvent({ e: 'die', id: p.id });
   game.message(p, 'info', 'You have been defeated.');
   wearEquippedWeapon(game,p);
 }
@@ -284,7 +285,7 @@ export function tickPlayerCombat(game, p, dt) {
     // Power was captured when the graft was applied.
     const actual = Math.max(0, Math.min(hot.per, Math.ceil(p.maxHp - p.hp)));
     p.hp = Math.min(p.maxHp, p.hp + hot.per);
-    if (actual > 0) game.events.push({ e: 'heal', s: healer ? healer.id : 0, d: p.id, a: actual, ab: 'mending_graft' });
+    if (actual > 0) game.emitWorldEvent({ e: 'heal', s: healer ? healer.id : 0, d: p.id, a: actual, ab: 'mending_graft' });
   }
 
   if (p.cls === 'surveyor' && p.surveyKit) {
@@ -380,7 +381,7 @@ export function useAbility(game, p, abilityId) {
   p.cds[abilityId] = game.time + ab.cd;
   if (!ab.offGcd) p.gcdUntil = game.time + GCD_MS;
   if (ab.cost) p.res -= ab.cost;
-  game.events.push({ e: 'cast', s: p.id, d: target ? target.id : 0, ab: abilityId });
+  game.emitWorldEvent({ e: 'cast', s: p.id, d: target ? target.id : 0, ab: abilityId });
 
   const project=(ally,amount,dur)=>{
     const value=Math.round(amount*p.stats.power);
@@ -388,7 +389,7 @@ export function useAbility(game, p, abilityId) {
     if (old && old.until>game.time && old.v>=value) return;
     addBuff(ally,{k:'shield',until:game.time+dur,v:value,cap:value,src:p.id,keeper:true,
       harmonic:p.stats.glyph==='glyph_hinge'&&p.char.equipped.implant==='keeper_resonator'});
-    game.events.push({e:'shield',s:p.id,d:ally.id,a:value});
+    game.emitWorldEvent({e:'shield',s:p.id,d:ally.id,a:value});
   };
   switch (abilityId) {
     case 'phase_needle': {
@@ -408,12 +409,12 @@ export function useAbility(game, p, abilityId) {
     }
     case 'lattice_relay':
       for(const ally of game.players.values())if(!ally.dead&&dist(p,ally)<=ab.radius&&hasLineOfSight(p,ally))project(ally,24,ab.dur);
-      game.events.push({e:'fx',k:'lattice_relay',s:p.id,r:ab.radius});break;
+      game.emitWorldEvent({e:'fx',k:'lattice_relay',s:p.id,r:ab.radius});break;
     case 'phase_transposition': {
       const shield=getBuff(p,'shield');
       p.buffs=p.buffs.filter(b=>b!==shield);
       addBuff(target,{...shield});
-      game.events.push({e:'shield',s:p.id,d:target.id,a:shield.v});break;
+      game.emitWorldEvent({e:'shield',s:p.id,d:target.id,a:shield.v});break;
     }
     case 'fault_scan': {
       p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) };
@@ -438,7 +439,7 @@ export function useAbility(game, p, abilityId) {
       const rig = p.surveyKit.rig;
       p.surveyKit.rig = null;
       const radius = p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius;
-      game.events.push({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
+      game.emitWorldEvent({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
       for (const enemy of game.enemies) {
         if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius && hasLineOfSight(rig,enemy)) dealDamage(game, p, enemy, ab.dmg, abilityId,{origin:rig});
       }
@@ -454,7 +455,7 @@ export function useAbility(game, p, abilityId) {
         : [];
       if (redirected) {
         target.buffs = target.buffs.filter(b => b !== imprint);
-        game.events.push({ e: 'fx', k: 'carapace_echo', s: p.id, d: target.id, x: target.x, z: target.z, r: GLYPH.echo.radius });
+        game.emitWorldEvent({ e: 'fx', k: 'carapace_echo', s: p.id, d: target.id, x: target.x, z: target.z, r: GLYPH.echo.radius });
       }
       dealDamage(game, p, target, ab.dmg, abilityId, { kind: 'melee' });
       for (const e of others) dealDamage(game, p, e, ab.dmg * GLYPH.echo.pct, 'rending_echo', { kind: 'melee',origin:center });
@@ -493,7 +494,7 @@ export function useAbility(game, p, abilityId) {
       const aegis = p.stats.glyph === 'glyph_resonant_aegis';
       const radius = ab.radius + p.stats.dischargeRadius;
       const dmg = (ab.base + charge * ab.perCharge) * (aegis ? GLYPH.aegis.dmgMul : 1);
-      game.events.push({ e: 'fx', k: aegis ? 'aegis' : 'discharge', s: p.id, r: radius });
+      game.emitWorldEvent({ e: 'fx', k: aegis ? 'aegis' : 'discharge', s: p.id, r: radius });
       for (const e of [...game.enemies]) {
         if (e.state === 'dead' || e.state === 'evade') continue;
         if (dist(p, e) - e.radius <= radius && hasLineOfSight(p,e)) dealDamage(game, p, e, dmg, abilityId);
@@ -503,7 +504,7 @@ export function useAbility(game, p, abilityId) {
         for (const ally of game.players.values()) {
           if (ally.dead || dist(p, ally) > radius) continue;
           addBuff(ally, { k: 'shield', until: game.time + GLYPH.aegis.dur, v: shield, cap: shield, src: p.id });
-          game.events.push({ e: 'shield', s: p.id, d: ally.id, a: shield });
+          game.emitWorldEvent({ e: 'shield', s: p.id, d: ally.id, a: shield });
         }
       }
       break;
@@ -529,7 +530,7 @@ export function useAbility(game, p, abilityId) {
       const relayed = p.char.equipped.device === BLOOM_RELAY.device;
       const origin = relayed ? p : p.companion;
       const radius = relayed ? BLOOM_RELAY.radius : ab.radius;
-      game.events.push({ e: 'fx', k: 'surge', s: origin.id, r: radius });
+      game.emitWorldEvent({ e: 'fx', k: 'surge', s: origin.id, r: radius });
       for (const ally of game.players.values()) {
         if (companionCanSupport(game, p, ally) && dist(origin, ally) <= radius) applyHeal(game, p, ally, ab.heal, abilityId, origin.id);
       }

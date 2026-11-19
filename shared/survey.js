@@ -1,4 +1,4 @@
-import { OBJECTS, dist, inSanctum } from './world.js';
+import { OBJECTS, dist, inSanctum, SANCTUM_FABRICATOR } from './world.js';
 // Optional story branch. No changes to the original directive chain.
 export const SURVEY = {
   signal: {
@@ -42,6 +42,7 @@ export function brineHint(survey, stage, trial) {
 }
 
 export const FIELD_RECORDS = Object.freeze({
+ initiation_terminal:{title:'LATTICE / ARRIVAL ORIENTATION',subtitle:'Initiate the first field directive · optional orientation',lines:[['Movement','WASD to move, mouse to look; F interacts with the nearby object. You may depart at any time.'],['Your equipment','C opens your character sheet. I opens inventory. Right-click items for actions.'],['Your directive','L opens the Quest Journal. Follow the current directive; speak with Archivist Venn in the Sanctum.'],['Fabrication','B opens the build planner and workshop. Inspect materials and requirements before committing.'],['Field safety','The Sanctum is a safe haven. Outside it, read hostile warnings, avoid marked ground and disengage before altering equipment.']]},
  survey_ledger:{title:'BRINEWORKS / SHIFT LEDGER 07',subtitle:'Recovery copy · local storage · partial',lines:[
  ['03:40','Crew count 11. Shelter draw: 12 ration allotments. Do not reconcile automatically.'],
  ['04:12','Pump 2 locked out. Pressure receiver still reports pulses with feed isolated.'],
@@ -61,7 +62,7 @@ export const FIELD_RECORDS = Object.freeze({
  brine_engineering:{title:'B / ENGINEERING STATION',subtitle:'East service deck · isolation and repair',lines:[['Function','Isolate the pump feed, recover structural records, perform field repair and engineering fabrication.'],['Commission','Prepare/arm as directed, then take ordered readings within 30 seconds. No waiting required.']]},
 });
 export function workshopSite(p){
- if(inSanctum(p))return 'sanctum';
+ if(inSanctum(p)&&dist(p,SANCTUM_FABRICATOR)<=SANCTUM_FABRICATOR.range)return 'sanctum';
  if(brineStage(p.char?.brineStage)!==3 || !surveyState(p.char?.survey)?.endsWith('_done'))return null;
  for(const o of OBJECTS)if(o.type.startsWith('brine_')&&dist(p,o)<=4.2)return o.type;
  return null;

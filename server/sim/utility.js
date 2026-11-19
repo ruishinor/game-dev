@@ -14,6 +14,6 @@ export function useUtility(game,p,item,weapon,rev){
  if(--goods[item]===0)delete goods[item];
  p.char.goods=goods;p.char.condition=condition;p.utilityRev++;
  game.markDirty(p);game.message(p,'gain',ITEMS[weapon].name+' restored to '+next+'% condition.');
- game.events.push({e:'fx',k:'field_maintenance',s:p.id});
+ game.emitWorldEvent({e:'fx',k:'field_maintenance',s:p.id});
  return {ok:true};
 }

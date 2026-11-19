@@ -9,6 +9,7 @@ import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
+import {cataloguePortrait} from './catalogue-portraits.js';
 import {characterPortraitMeta} from './portrait-identity.js';
 
 function h(tag, cls, text) {
@@ -68,7 +69,7 @@ export function itemArt(id) {
   const slot=ITEMS[id]?.slot || (Object.hasOwn(MATERIALS,id)?'material':Object.hasOwn(GOODS,id)?GOODS[id].category:'');
   const e=h('span','item-art '+slot);e.dataset.art=id;
   // All paths are static literals above, never player or server-provided HTML.
-  e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
+  e.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="'+(slot==='glyph'||id==='location'?'currentColor':'#303c40')+'" stroke-width="'+(slot==='glyph'?'1.4':'.65')+'" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(cataloguePortrait(id)||refinedItemMotif(id)||(Object.hasOwn(art,id)?art[id]:null)||(Object.hasOwn(art,slot)?art[slot]:null)||art.glyph)+'</svg>';
   return e;
 }
 function requirements(s,id) {
@@ -168,8 +169,8 @@ const LOADOUT_TABS = [
   {id:'character',name:'Character',slots:[]},
   {id:'gear',name:'Gear',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('neck','Neck',3,1),
-    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Hands',3,2),
-    present('waist','Waist',1,3),present('legs','Legs',2,3),present('feet','Feet',3,3),
+    present('arms','Arms',1,2),present('chest','Chest',2,2,'chest'),present('hands','Gloves',3,2,'gloves'),
+    present('waist','Waist',1,3),present('legs','Greaves',2,3,'greaves'),present('feet','Boots',3,3,'boots'),
     present('device','Device',1,4,'device'),present('utility','Utility',2,4),
   ]},
   {id:'implants',name:'Implants',slots:[
@@ -216,7 +217,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...(s.equipped.chest?['chest']:[])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...['chest','gloves','greaves','boots'].filter(slot=>s.equipped[slot])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();

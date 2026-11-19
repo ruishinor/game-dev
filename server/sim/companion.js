@@ -8,7 +8,7 @@ import { CLASSES, COMPANIONS, GLYPH, ENEMIES, validCompanionName } from '../../s
 import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, hasLineOfSight, inSanctum } from '../../shared/world.js';
 import { addBuff, applyHeal, dealDamage, repairAegis } from './combat.js';
-import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider, striderSpawnPoint } from './survey-strider.js';
+import { syncSurveyStrider, wantsSurveyStrider, tickSurveyStrider, striderSpawnPoint, beginStriderRecovery } from './survey-strider.js';
 import { commandSpindle, newSpindleProfile, spawnSpindle, spindleSpawnPoint, tickSpindle } from './spindle.js';
 import { companionCanSupport } from './party.js';
 
@@ -16,7 +16,7 @@ export function ownedCompanionTypes(char) {
   const types = [];
   const classPet = CLASSES[char.cls].companion;
   if (classPet) types.push(classPet);
-  if (char.cls === 'surveyor' && char.inventory.includes(STRIDER_LINK)) types.push('survey_strider');
+  if (char.cls === 'surveyor' && (char.striderLearned===true || char.inventory.includes(STRIDER_LINK))) types.push('survey_strider');
   if (char.spindle) types.push('spindle');
   return types;
 }
@@ -29,7 +29,7 @@ export function companionRoster(game, p) {
   const owned = ownedCompanionTypes(p.char);
   const selected = owned.includes(p.char.defaultCompanion) ? p.char.defaultCompanion : owned[0];
   return owned.map(type => {
-    const needsLink = type === 'survey_strider' && !wantsSurveyStrider(p);
+    const needsLink = false;
     let name = type === 'spindle' ? p.char.spindle.name : p.char.petName;
     if (!name || (type === 'survey_strider' && name === COMPANIONS.mender.name)) name = COMPANIONS[type].name;
     return { type, name, isDefault: type === selected, active: p.companion?.type === type,
@@ -51,9 +51,9 @@ export function spawnMender(game, p) {
   game.ents.set(c.id, c);
 }
 
-function removeActive(game, p) {
+function removeActive(game, p, {preserveBuffs=false}={}) {
   const c = p.companion;
-  if (c.mode === 'guard') release(game, c, p);
+  if (c.mode === 'guard' && !preserveBuffs) release(game, c, p);
   if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
   game.ents.delete(c.id);
   game.companions = game.companions.filter(active => active !== c);
@@ -70,6 +70,7 @@ function spawnSelected(game, p, type, point) {
 }
 
 export function restoreCompanion(game, p) {
+  if(p.char.companionDismissed)return;
   const owned = ownedCompanionTypes(p.char);
   const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned].find(t => owned.includes(t));
   spawnSelected(game, p, selected);
@@ -77,11 +78,32 @@ export function restoreCompanion(game, p) {
 
 export function syncEquippedCompanion(game, p) {
   if (p.cls !== 'surveyor') return;
-  if (p.companion?.type === 'survey_strider') {
-    syncSurveyStrider(game, p);
-  } else if (!p.companion && wantsSurveyStrider(p)) {
-    restoreCompanion(game, p);
-  }
+  // Learned deployment no longer follows equipment changes.
+  if (p.companion?.type === 'survey_strider') syncSurveyStrider(game, p);
+}
+
+/**
+ * Every server-side relocation of a player that is not ordinary movement
+ * (respawn now; instance entry/exit and any future teleport) dismisses the
+ * active companion instead of carrying it along. Owner rule 2026-11-19: this
+ * avoids companions stranded, embedded or duplicated across a transit.
+ * Non-destructive: identical to the player's own dismiss (ownership, names,
+ * Spindle profile and pet modes persist; re-summon from the companion sheet),
+ * and it bypasses the alive/out-of-combat gate because the server initiates it.
+ * Buffs are not companions and are never removed here (owner rule); a bond
+ * whose source companion is gone simply stops being valid under the buff
+ * system's own rule (combat.js activeBondSource).
+ */
+export function dismissForTransit(game, p, reason = 'transit') {
+  const c = p.companion;
+  if (!c) return false;
+  removeActive(game, p, {preserveBuffs:true});
+  p.char.companionDismissed = true;
+  p.char.activeCompanion = null;
+  p.deployRetryAt = null;
+  game.markDirty(p);
+  game.message(p, 'info', `${c.name} was dismissed for the ${reason}. Summon it again from your companion sheet.`);
+  return true;
 }
 
 export function redeployGroundCompanion(game, p) {
@@ -127,7 +149,7 @@ export function manageCompanion(game, p, action, type) {
   const selected = type ?? (owned.includes(p.char.defaultCompanion) ? p.char.defaultCompanion : owned[0]);
   if (!owned.includes(selected)) return { ok: false, reason: 'Choose an acquired companion first.' };
   if (p.companion && (!type || p.companion.type === selected)) return { ok: false, reason: 'A companion is already active.' };
-  if (selected === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Equip your Survey Strider Link first.' };
+  if (selected === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Learn Survey Strider deployment at a commissioned workshop first.' };
   const point = selected === 'spindle' ? spindleSpawnPoint(game, p) : selected === 'survey_strider' ? striderSpawnPoint(p) : null;
   if (selected !== 'mender' && !point) return { ok: false, reason: 'Move to open ground and try summoning again.' };
   // All eligibility and clearance checks have succeeded. The old companion can now be removed.
@@ -301,17 +323,17 @@ export function tickCompanion(game, c, dt) {
   if (d <= def.triage.range && game.time >= c.nextPulse) {
     c.nextPulse = game.time + def.triage.interval;
     applyHeal(game, owner, patient, def.triage.heal, 'triage', c.id);
-    game.events.push({ e: 'beam', s: c.id, d: patient.id });
+    game.emitWorldEvent({ e: 'beam', s: c.id, d: patient.id });
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || !companionCanSupport(game, owner, p) || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
         const budget = def.triage.heal * GLYPH.sharedPulse.pct;
         const repaired = repairAegis(game, owner, p, budget, c.id);
         if (repaired > 0) {
-          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+          game.emitWorldEvent({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
         } else {
           const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
-          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+          if (healed > 0) game.emitWorldEvent({ e: 'beam', s: patient.id, d: p.id });
         }
       }
     }
@@ -343,6 +365,7 @@ export function petCommand(game, p, cmd) {
   if (typeof cmd !== 'string' || !Object.hasOwn(def.modes, cmd)) return { ok: false, reason: 'Unknown command.' };
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (c.type === 'spindle') return commandSpindle(game, p, c, cmd);
+  if(c.type==='survey_strider'&&cmd==='recover')return beginStriderRecovery(game,p,c);
   let host = 0;
   if (cmd === 'guard') {
     const t = game.ents.get(p.target);

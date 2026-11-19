@@ -14,7 +14,7 @@ test('chest equipment is independent, owned and persisted; blueprints gate direc
  try{
  const file=path.join(dir,'chars.json'),store=new CharacterStore(file),{char,token}=store.create('Chest Tester','vanguard');
  char.materials={mire_fibre:9,sentinel_alloy:9};char.inventory=['servo_harness'];
- const g=makeGame(),p=g.addPlayer(char);const npc=g.objects.find(o=>o.type==='quartermaster');place(p,npc.x,npc.z+2);
+ const g=makeGame(),p=g.addPlayer(char);const station=g.objects.find(o=>o.type==='sanctum_fabricator');place(p,station.x,station.z+2);
  assert.ok(equipItem(g,p,'servo_harness').ok);const hp=p.maxHp;
  assert.ok(craftRecipe(g,p,'field_chest').ok);
  assert.ok(inventoryView(g.sheet(p),'device').entries.some(e=>e.id==='field_chest'));
