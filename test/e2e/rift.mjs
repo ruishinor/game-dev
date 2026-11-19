@@ -15,11 +15,28 @@ try{
  p.char.level=3;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
  async function move(o,z=1.7){p.x=o.x;p.z=o.z+z;await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1;},[p.x,p.z]);}
  await move(f.indexer);
- await page.evaluate(()=>window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:10,face:Math.PI/2}));
+ await page.evaluate(software=>{
+   window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:10,face:Math.PI/2});
+   if(software)window.__attune.pause(true);
+ },SOFTWARE_GL);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='opening');
+ const phase=await page.evaluate(()=>{
+   const observed=[];
+   return new Promise(resolve=>{
+     const started=performance.now();
+     const poll=()=>{
+       const phase=window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf;
+       if(phase&&observed.at(-1)!==phase)observed.push(phase);
+       if(phase==='unstable'||performance.now()-started>25000)resolve(observed);
+       else requestAnimationFrame(poll);
+     };
+     poll();
+   });
+ });
+ assert.ok(phase.includes('opening'),'Expected opening after indexer activation, observed '+phase.join(', '));
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='unstable');
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:interference-membrane')));
+ await page.evaluate(()=>window.__attune.pause(false));
  // Keep the fixture outside the hazard and use normal F interaction to stabilize.
  await page.screenshot({path:'rift-evidence/01-open.png'});
  await move(f.regulator);

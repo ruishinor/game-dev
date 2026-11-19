@@ -5,6 +5,7 @@ import { startServer } from '../../server/index.js';
 import { useAbility, dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { launchBrowser, SOFTWARE_GL } from '../../tools/browser.mjs';
+import {liveFixturePlayer} from './live-fixture.mjs';
 
 const server = await startServer({ port: 0, dataFile: null, productionRoll: () => 99 });
 let browser;
@@ -51,8 +52,7 @@ try {
     return meshes > 0;
   })));
   await page.screenshot({ path: 'preview-evidence/01-surveyor.png' });
-  const p = [...server.game.players.values()].find(x => x.name === 'Brine Tester');
-  assert.ok(p);
+  const p = await liveFixturePlayer(page,server,'Brine Tester');
   assert.equal(p.cls, 'surveyor');
   assert.equal(p.char.appearance,previewAppearance,'Preview appearance must equal authoritative gameplay appearance');
   assert.equal(await creation.getAttribute('data-model'),null,'Creation model released on entering world');
@@ -61,12 +61,18 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);
   async function moveTo(x, z) {
     assert.ok(!p.dead,`Fixture cannot move a defeated player to ${x},${z}`);
-    p.x = x; p.z = z;
-    if (p.companion) { p.companion.x = x+1.5; p.companion.z = z-1.5; }
-    await page.waitForFunction(([x,z]) => {
-      const pos = window.__attune.state().pos;
-      return pos && Math.hypot(pos.x-x,pos.z-z) < 1.5;
-    }, [x,z]);
+    assert.equal(await liveFixturePlayer(page,server,'Brine Tester'),p,'The staged player must remain connected');
+    if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+    try {
+      p.x=x;p.z=z;
+      if(p.companion){p.companion.x=x+1.5;p.companion.z=z-1.5;}
+      await page.waitForFunction(([x,z])=>{
+        const {pos,you}=window.__attune.state();
+        return pos&&you&&Math.hypot(pos.x-x,pos.z-z)<1.5&&Math.hypot(you.x-x,you.z-z)<.5;
+      },[x,z]);
+    } finally {
+      if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+    }
   }
   async function capture(path) {
     console.log('[preview] capture start:',path);
