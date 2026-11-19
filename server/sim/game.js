@@ -6,6 +6,7 @@ import {migrateSurveyStrider} from './survey-strider.js';
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
 import { sanitizeGoods } from '../../shared/goods.js';
@@ -134,6 +135,7 @@ export class Game {
       inventoryCounts: inventoryCounts(char),
       outbox: [],
       sheetDirty: true,
+      weaponVisual: publicWeaponVisual(char),
       metaVer: 1,
       companion: null,
       brineTrial: null,
@@ -189,6 +191,8 @@ export class Game {
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
     p.stats = deriveStats(p.char);
+    const visual = publicWeaponVisual(p.char);
+    if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
     syncEquippedCompanion(this, p);
@@ -430,7 +434,7 @@ export class Game {
   metaFor(ent) {
     switch (ent.kind) {
       case 'player':
-        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance };
+        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}) };
       case 'enemy':
         return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
