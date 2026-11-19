@@ -48,6 +48,14 @@ try{
  });
  assert.equal(keyboardIsolation.ability,true,'Combat shortcuts must work after clicking an action button');
  assert.equal(keyboardIsolation.tab,false,'Tab must remain native while an action button is focused');
+ // Regression: a focused equipment slot must not swallow I (inventory),
+ // even though the build panel is itself a dialog.
+ await page.locator('#view').focus();await page.keyboard.press('KeyC');
+ await page.locator('.panel.build').waitFor({state:'visible'});
+ await page.locator('.equipment-slot-grid .doll-slot').first().click();
+ await page.keyboard.press('KeyI');
+ await page.locator('.inventory-window').waitFor({state:'visible'});
+ await page.locator('.inventory-window .close').click();
  await page.locator('#view').focus();await page.keyboard.press('KeyO');
  const settings=page.locator('.settings-panel');await settings.waitFor({state:'visible'});
  await page.selectOption('#empty-slot-mode','hidden');
