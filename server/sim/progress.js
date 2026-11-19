@@ -5,7 +5,7 @@ import {appearanceString} from '../../shared/appearance.js';
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist, inSanctum, hasLineOfSight } from '../../shared/world.js';
+import { dist, inSanctum, hasLineOfSight, COLLIDERS } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -305,7 +305,7 @@ function operateBrine(game,p,obj) {
 // physical terminal as orientation. A stale client panel cannot edit remotely.
 export function changeInitiationAppearance(game,p,appearance){
  const terminal=game.objects.find(o=>o.type==='initiation_terminal');
- if(!terminal||p.dead||!inSanctum(p)||dist(p,terminal)>INTERACT_RANGE||!hasLineOfSight(p,terminal)||inCombat(game,p)||p.autoOn||p.production||p.inscription)
+ if(!terminal||p.dead||!inSanctum(p)||dist(p,terminal)>INTERACT_RANGE||!hasLineOfSight(p,terminal,COLLIDERS.filter(c=>c.type!=='arrival_terminal'))||inCombat(game,p)||p.autoOn||p.production||p.inscription)
    return {ok:false,reason:'Stand near the initiation terminal, alive and disengaged.'};
  if(typeof appearance!=='string'||appearance.length>48||appearanceString(appearance,p.char.look)!==appearance)
    return {ok:false,reason:'Invalid appearance selection.'};
