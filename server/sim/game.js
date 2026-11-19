@@ -261,8 +261,8 @@ export class Game {
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
     if(entering&&!this.annexOpened){
       // Persistent shared encounter, not an instance or a reset-on-entry farm.
-      for(const [type,dx,z,name] of [['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden']]){
-        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1};
+      for(const [type,dx,z,name] of [['skitter',-8,19,'Threshold Skitter'],['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',11,5,'Null Relay Stalker'],['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden']]){
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true};
         resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
       }
       this.annexOpened=true;
@@ -279,7 +279,7 @@ export class Game {
     // A travelling host cannot keep a remote companion bond.
     p.buffs=p.buffs.filter(b=>b.k!=='bond');
     p.x=entering?RIFT_ANNEX.x:this.rift.entry.x;
-    p.z=entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-1.8;
+    p.z=entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-3.6;
     resolveCollisions(p,PLAYER_RADIUS);
     if(p.companion?.type==='survey_strider')redeploySurveyStrider(this,p);
     else if(p.companion){p.companion.x=p.x+1.2;p.companion.z=p.z-1.2;}

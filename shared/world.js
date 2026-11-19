@@ -356,8 +356,8 @@ if(RIFT_SITE){
   OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:2.45},
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
     {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
-    {key:'rift_entry',type:'rift_entry',name:'Calibrated Phase Gate',x,z:z-6.4,r:.72},
-    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72});
+    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72},
+    {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
@@ -394,6 +394,9 @@ export function deepLineClear(a, b) {
  * the world. Mutates and returns `p` ({x, z}).
  */
 export function resolveCollisions(p, rad) {
+  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX;
+  const clampAnnex=()=>{p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));};
+  if(annex)clampAnnex();
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < STATIC_COLLIDERS.length; i++) {
       const c = STATIC_COLLIDERS[i];
@@ -428,16 +431,17 @@ export function resolveCollisions(p, rad) {
             // Centre is inside the box: exit through the nearest face.
             const px = c.hw - Math.abs(dx);
             const pz = c.hd - Math.abs(dz);
-            if (px < pz) p.x = c.x + (dx < 0 ? -1 : 1) * (c.hw + rad);
-            else p.z = c.z + (dz < 0 ? -1 : 1) * (c.hd + rad);
+            const outX=c.x+(dx<0?-1:1)*(c.hw+rad);
+            // A bulkhead ends at the region boundary: an outward x correction
+            // would be clamped back into the wall. Resolve toward its z face.
+            if(px<pz&&(!annex||outX>=a.x-a.hw+rad&&outX<=a.x+a.hw-rad))p.x=outX;
+            else p.z=c.z+(dz<0?-1:1)*(c.hd+rad);
           }
         }
       }
     }
   }
-  if(inRiftAnnex(p.x,p.z,4)){
-    const a=RIFT_ANNEX;p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));return p;
-  }
+  if(annex){clampAnnex();return p;}
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {

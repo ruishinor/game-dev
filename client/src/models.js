@@ -896,6 +896,13 @@ export const MODEL_FACTORIES = {
   phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
-  rift_entry:()=>buildPhaseGate(false),
+  annex_cache:()=>{
+    const group=new THREE.Group();group.name='annex:recovery-cache';
+    const metal=std(0x414950,{metal:.66}),trim=std(0x76613c,{metal:.65}),lamp=lit(0xc794eb);
+    group.add(part(BOX,metal,1.6,.66,.92,0,.38,0),part(BOX,trim,1.66,.18,.96,0,.8,0));
+    for(const x of [-.58,.58])group.add(part(BOX,trim,.13,.8,.97,x,.41,0));
+    group.add(part(BOX,lamp,.26,.12,.045,0,.62,.49));
+    return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
+  },
   rift_return:()=>buildPhaseGate(true),
 };

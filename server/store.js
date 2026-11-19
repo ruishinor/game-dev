@@ -71,6 +71,8 @@ function sanitize(raw) {
     survey: surveyState(raw.survey),
     traceState:sanitizeTraceState(raw.traceState),
     riftCalibration:sanitizeRiftCalibration(raw.riftCalibration),
+    annexProgress:int(raw.annexProgress,0,3,0),
+    annexClaimed:raw.annexClaimed===true&&raw.annexProgress===3,
     recoverySamples:recoverySamples(raw.recoverySamples),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,

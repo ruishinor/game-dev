@@ -8,7 +8,7 @@ const OPEN_MS=4000,ACTIVE_MS=22000,WARN_MS=2300,REST_MS=4600,STABLE_MS=15000,COO
 const deny=reason=>({ok:false,reason});const ok={ok:true};
 export function createRift(game){
  const core=game.objects.find(o=>o.type==='phase_scar'),indexer=game.objects.find(o=>o.type==='rift_indexer'),regulator=game.objects.find(o=>o.type==='rift_regulator');
- const entry=game.objects.find(o=>o.type==='rift_entry'),exit=game.objects.find(o=>o.type==='rift_return');
+ const entry=core,exit=game.objects.find(o=>o.type==='rift_return');
  return RIFT_SITE&&core&&indexer&&regulator?{core,indexer,regulator,entry,exit,phase:'dormant',until:0,pulseAt:0,nextWarn:0,pulses:0}:null;
 }
 function effect(game,k,r){const s=game.rift.core;game.events.push({e:'fx',k,s:s.id,x:s.x,z:s.z,r});}
@@ -37,7 +37,8 @@ export function interactRift(game,p,obj,{grantSalvage}={}){
    recordFieldReceipt(p.char,'calibration',true);game.markDirty(p);
    game.message(p,'gain','Phase Scar calibration complete. Resonance sample recovered.');return ok;
   }
-  game.message(p,'info',state==='completed'?'Calibration sample already recovered. You may assist further calibrations.':'Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;
+  if(state==='completed')return game.travelRift(p,obj);
+  game.message(p,'info','Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;
  }
  if(!p.char.attunements.includes('resonance'))return deny('Requires Resonance attunement.');
  if(p.char.level<3)return deny('The field instruments require level 3.');
