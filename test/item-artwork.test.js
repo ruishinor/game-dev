@@ -31,3 +31,10 @@ test('item-art DOM contract uses static fragments for every current item and mat
     assert.ok(!itemArt('<img src=x>').innerHTML.includes('<img'));
   }finally{if(original===undefined)delete globalThis.document;else globalThis.document=original;}
 });
+
+import {cataloguePortrait,PORTRAIT_IDS} from '../client/src/catalogue-portraits.js';
+test('every live catalogue identity has a distinct intentional object portrait',()=>{
+ const ids=[...Object.keys(ITEMS),...Object.keys(MATERIALS),...Object.keys(GOODS)];
+ const fragments=ids.map(id=>{const f=cataloguePortrait(id);assert.ok(f,'missing original portrait '+id);assert.ok(!/<(?:script|image|foreignObject)|\\bon\\w+=|href\\s*=/i.test(f));return f;});
+ assert.equal(new Set(fragments).size,ids.length);assert.equal(new Set(PORTRAIT_IDS).size,PORTRAIT_IDS.length);assert.equal(cataloguePortrait('__proto__'),null);
+});
