@@ -276,6 +276,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     // the worn chest piece (phase-1 contract) and every worn slot
     armourWorn: () => armours.get('chest')?.handle?.item || null,
     armourWornAll: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, h.handle.item])),
+    // test/diagnostic summary: slots whose piece runs channel FX, and the body shells it hides
+    armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, hides: h.handle.hidden || [] }])),
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
