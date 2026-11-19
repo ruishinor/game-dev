@@ -74,5 +74,5 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     if(!tryFit(kick)){restore();if(!kick||!tryFit(0)){restore();return false;}}
     active=true;prop.visible=true;return true;
   }
-  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
+  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
 }
