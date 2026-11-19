@@ -301,6 +301,10 @@ The expanded Severance Expanse and Silent Foundry are being developed in isolati
 
 The prompt is an implementation handoff, not evidence of completed work. All items remain outstanding until the delivery register records verified commits and applicable checks.
 
+## Owner UI modernization direction — 2026-11-19
+
+See [HUD, character selection and cartography delivery register](art/UI-CARTOGRAPHY-ROADMAP.md) and [original composition sketches](art/UI-LAYOUT-CONCEPT.svg) for the accepted visual references, implementation scope and outstanding acceptance. This work is independent of the reserved Expanse/Silent Foundry terrain and environment. The planned Expanse day/night cycle must drive the game-time display and lighting from one production source; the present local daylight preview is not replicated game time.
+
 ### REC concept illustrations and Expanse return-rift clarification — 2026-11-19
 
 The following original schematic illustrations express owner-requested design direction; they are not screenshots, final art, private loot tables or proof of implementation. Preserve the accepted Longpoint setup. Actual item/source availability and validation are tracked in REC-01.
