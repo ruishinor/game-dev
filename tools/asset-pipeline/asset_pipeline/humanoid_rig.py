@@ -163,13 +163,17 @@ def world_rot(W):
 
 
 # Bones whose bind direction is fitted to a landmark: bone -> landmark the bone points at.
+# Hands, feet and toes are deliberately absent: they keep the reference's rest
+# orientation relative to their parent. Halo's ankle pivot sits far higher
+# above the sole than the reference's, so aiming the foot at the ball would
+# make every clip tip the heel through the ground; inheriting keeps a flat
+# reference foot flat. Their children are still placed at Halo landmarks.
 AIM = {
     "pelvis": "spine_01", "spine_01": "spine_02", "spine_02": "spine_03", "spine_03": "neck_01",
     "neck_01": "Head", "Head": "head_top",
-    "clavicle_l": "upperarm_l", "upperarm_l": "lowerarm_l", "lowerarm_l": "hand_l", "hand_l": "hand_tip_l",
-    "clavicle_r": "upperarm_r", "upperarm_r": "lowerarm_r", "lowerarm_r": "hand_r", "hand_r": "hand_tip_r",
-    "thigh_l": "calf_l", "calf_l": "foot_l", "foot_l": "ball_l", "ball_l": "toe_l",
-    "thigh_r": "calf_r", "calf_r": "foot_r", "foot_r": "ball_r", "ball_r": "toe_r",
+    "clavicle_l": "upperarm_l", "upperarm_l": "lowerarm_l", "lowerarm_l": "hand_l",
+    "clavicle_r": "upperarm_r", "upperarm_r": "lowerarm_r", "lowerarm_r": "hand_r",
+    "thigh_l": "calf_l", "calf_l": "foot_l", "thigh_r": "calf_r", "calf_r": "foot_r",
 }
 # humanoid node standing in for a landmark that is not itself a joint
 LANDMARK_PROXY = {"head_top": ("Head", 0.25), "hand_tip_l": ("middle_04_leaf_l", None), "hand_tip_r": ("middle_04_leaf_r", None),
