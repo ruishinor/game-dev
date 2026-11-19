@@ -60,7 +60,23 @@ export class WorldAtlas{
  settings.append(section);this.clocks();
  }
  save(k,v){try{localStorage.setItem('attunement.map.'+k,v);}catch{}}
- clocks(){const s=this.state?.daylight,d=this.region?.area===SEVERANCE_POCKET?daylightDisplay(s):null,n=new Date();this.day.hidden=!this.prefs.phase.checked||!d;this.day.textContent=d?.phase==='day'?'☀':'☾';this.day.title=d?'Lighting preview · '+d.phase:'';this.game.hidden=!this.prefs.game.checked;this.game.textContent=d?'Preview '+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time —';this.real.hidden=!this.prefs.real.checked;this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;}
+ clocks(){
+ const s=this.state?.daylight;
+ const inExpanse=this.region?.area===SEVERANCE_POCKET;
+ const d=inExpanse?daylightDisplay(s):null,n=new Date();
+ // Keep the indicator discoverable even where the authoritative cycle has not landed.
+ // A paired icon is intentionally neutral, not a claim about actual world time.
+ this.day.hidden=!this.prefs.phase.checked;
+ this.day.textContent=d?(d.phase==='day'?'☀ Day':'☾ Night'):'☀ / ☾';
+ this.day.title=d?'Expanse lighting preview · '+d.phase:inExpanse?'Expanse day/night cycle not active yet':'No active day/night cycle in this region';
+ this.day.setAttribute('aria-label',this.day.title);
+ this.day.dataset.status=d?'active':'pending';
+ this.game.hidden=!this.prefs.game.checked;
+ this.game.textContent=d?'Preview '+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time unavailable';
+ this.real.hidden=!this.prefs.real.checked;
+ this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);
+ this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;
+}
  open(){this.el.hidden=false;this.draw();this.el.querySelector('button')?.focus();}
  close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
  scale(f){this.zoom=clamp(this.zoom*f,1,5);this.draw();}
