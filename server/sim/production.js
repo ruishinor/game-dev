@@ -14,7 +14,7 @@ function eligibility(game, p) {
 }
 
 function notify(game, p, job, phase) {
-  game.events.push({ e: 'production', s: p.id, phase, method: job.method,
+  game.emitWorldEvent({ e: 'production', s: p.id, phase, method: job.method,
     ...(phase === 'begin' && job.complete === 0 ? { first: true } : {}) });
 }
 

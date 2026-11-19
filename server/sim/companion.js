@@ -51,9 +51,9 @@ export function spawnMender(game, p) {
   game.ents.set(c.id, c);
 }
 
-function removeActive(game, p) {
+function removeActive(game, p, {preserveBuffs=false}={}) {
   const c = p.companion;
-  if (c.mode === 'guard') release(game, c, p);
+  if (c.mode === 'guard' && !preserveBuffs) release(game, c, p);
   if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
   game.ents.delete(c.id);
   game.companions = game.companions.filter(active => active !== c);
@@ -70,6 +70,7 @@ function spawnSelected(game, p, type, point) {
 }
 
 export function restoreCompanion(game, p) {
+  if(p.char.companionDismissed)return;
   const owned = ownedCompanionTypes(p.char);
   const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned].find(t => owned.includes(t));
   spawnSelected(game, p, selected);
@@ -96,7 +97,7 @@ export function syncEquippedCompanion(game, p) {
 export function dismissForTransit(game, p, reason = 'transit') {
   const c = p.companion;
   if (!c) return false;
-  removeActive(game, p);
+  removeActive(game, p, {preserveBuffs:true});
   p.char.companionDismissed = true;
   p.char.activeCompanion = null;
   p.deployRetryAt = null;
@@ -322,17 +323,17 @@ export function tickCompanion(game, c, dt) {
   if (d <= def.triage.range && game.time >= c.nextPulse) {
     c.nextPulse = game.time + def.triage.interval;
     applyHeal(game, owner, patient, def.triage.heal, 'triage', c.id);
-    game.events.push({ e: 'beam', s: c.id, d: patient.id });
+    game.emitWorldEvent({ e: 'beam', s: c.id, d: patient.id });
     if (owner.stats.glyph === 'glyph_shared_pulse') {
       for (const p of game.players.values()) {
         if (p === patient || !companionCanSupport(game, owner, p) || dist(p, patient) > GLYPH.sharedPulse.radius) continue;
         const budget = def.triage.heal * GLYPH.sharedPulse.pct;
         const repaired = repairAegis(game, owner, p, budget, c.id);
         if (repaired > 0) {
-          game.events.push({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
+          game.emitWorldEvent({ e: 'beam', k: 'aegis_relay', s: patient.id, d: p.id });
         } else {
           const healed = applyHeal(game, owner, p, budget, 'shared_pulse', c.id);
-          if (healed > 0) game.events.push({ e: 'beam', s: patient.id, d: p.id });
+          if (healed > 0) game.emitWorldEvent({ e: 'beam', s: patient.id, d: p.id });
         }
       }
     }

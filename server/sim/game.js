@@ -6,17 +6,18 @@ import {migrateSurveyStrider} from './survey-strider.js';
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../../shared/crafting-disciplines.js';
 import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
-  tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion, dismissForTransit,
-  syncEquippedCompanion,
+  tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
+  syncEquippedCompanion, dismissForTransit,
 } from './companion.js';
 import { createRift,tickRift,riftRow } from './rift.js';
 import {fieldQuestProjection} from './field-quests.js';
@@ -56,6 +57,7 @@ export class Game {
     this.parties = new Map();
     this.nextPartyId = 1;
     this.events = [];
+    this.eventRegions = new WeakMap();
     /** Called with a character record whenever persistent state changes. */
     this.onCharChanged = () => {};
 
@@ -133,6 +135,7 @@ export class Game {
       inventoryCounts: inventoryCounts(char),
       outbox: [],
       sheetDirty: true,
+      weaponVisual: publicWeaponVisual(char),
       metaVer: 1,
       companion: null,
       brineTrial: null,
@@ -188,6 +191,8 @@ export class Game {
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
     p.stats = deriveStats(p.char);
+    const visual = publicWeaponVisual(p.char);
+    if (p.weaponVisual !== visual) { p.weaponVisual = visual; p.metaVer += 1; }
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
     syncEquippedCompanion(this, p);
@@ -195,6 +200,13 @@ export class Game {
 
   message(p, kind, text) {
     p.outbox.push({ e: 'msg', k: kind, m: text });
+  }
+
+  emitWorldEvent(event) {
+    const origin = this.ents.get(event.s || event.id || event.d || event.o);
+    if (!origin) return;
+    this.eventRegions.set(event, travelRegionAt(origin.x, origin.z));
+    this.events.push(event);
   }
 
   // --- movement ----------------------------------------------------------
@@ -226,7 +238,7 @@ export class Game {
   setFollow(p,id) {
     if(id===0){this.stopFollow(p);return {ok:true};}
     const target=this.players.get(id);
-    if(p.dead||!target||target===p||target.dead||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
+    if(p.dead||!target||target===p||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45)return {ok:false,reason:'Select a living player within 45m to follow.'};
     // Prevent mutual or longer cyclic following chains.
     const seen=new Set([p.id]);
     for(let t=target;t;t=this.players.get(t.followId)){
@@ -239,7 +251,7 @@ export class Game {
   tickFollow(p,dt) {
     if(!p.followId)return;
     const target=this.players.get(p.followId);
-    if(p.dead||!target||target.dead||dist(p,target)>45){this.stopFollow(p);return;}
+    if(p.dead||!target||target.dead||!sameTravelRegion(p,target)||dist(p,target)>45){this.stopFollow(p);return;}
     // Share the fixed-step movement budget with manual inputs.
     p.followAcc+=Math.min(.1,Math.max(0,dt))*MOVE_HZ;
     const steps=Math.min(6,Math.floor(p.followAcc+1e-9));p.followAcc=Math.max(0,p.followAcc-steps);
@@ -275,17 +287,24 @@ export class Game {
       }
       this.annexOpened=true;
     }
+    const destination = entering
+      ? { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }
+      : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    this.transferPlayer(p, destination);
+    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
+    return {ok:true};
+  }
+
+  // Call only after the server accepts a specific gate and destination.
+  transferPlayer(p, destination) {
     this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
     clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
     cancelInscription(this,p);stopProduction(this,p);
     p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
-    // Changing area dismisses the active companion (transit rule) instead of carrying it along.
-    this.transit(p,entering?RIFT_ANNEX.x:this.rift.entry.x,entering?RIFT_ANNEX.arrivalZ:this.rift.entry.z-3.6,entering?'annex crossing':'return to the Reach');
+    this.transit(p,destination.x,destination.z,'area crossing');
     resolveCollisions(p,PLAYER_RADIUS);
     this.syncChar(p);this.markDirty(p);
-    this.message(p,'info',entering?'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.':'You returned to the Reach.');
-    return {ok:true};
   }
 
   setTarget(p, id) {
@@ -302,18 +321,10 @@ export class Game {
     return true;
   }
 
-  /**
-   * The single entry point for relocating a player other than by movement:
-   * respawn and Phase Annex gate travel today; any teleport or instance change added later must
-   * call this rather than assigning p.x/p.z. The active companion is
-   * dismissed (see dismissForTransit), never moved along.
-   */
-  transit(p, x, z, reason = 'transit') {
-    dismissForTransit(this, p, reason);
-    p.x = x;
-    p.z = z;
-    p.jy = 0;
-    p.vy = 0;
+  // All non-movement relocations dismiss companions without stripping buffs.
+  transit(p,x,z,reason='transit') {
+    dismissForTransit(this,p,reason);
+    p.x=x;p.z=z;p.jy=0;p.vy=0;
   }
 
   respawn(p) {
@@ -322,14 +333,14 @@ export class Game {
     p.dead = false;
     this.stopFollow(p);
     clearLoot(p);
-    this.transit(p, WORLD.spawn.x, WORLD.spawn.z, 'return to the Sanctum');
+    this.transit(p,WORLD.spawn.x,WORLD.spawn.z,'return to the Sanctum');
     p.hp = p.maxHp;
     p.res = CLASSES[p.cls].resource.start;
     p.surveyKit = p.cls === 'surveyor' ? { mark: null, rig: null } : null;
     p.buffs = [];
     p.target = 0;
     p.combatUntil = 0;
-    this.events.push({ e: 'fx', k: 'respawn', s: p.id });
+    this.emitWorldEvent({ e: 'fx', k: 'respawn', s: p.id });
     this.message(p, 'info', 'The Sanctum lattice reconstitutes you.');
     return true;
   }
@@ -368,7 +379,7 @@ export class Game {
 
   // --- snapshots ---------------------------------------------------------
 
-  /** Public per-entity rows, shared by every recipient this tick. */
+  /** Public per-entity rows before the network layer applies region visibility. */
   buildRows() {
     const rows = [];
     for (const p of this.players.values()) {
@@ -412,7 +423,7 @@ export class Game {
   metaFor(ent) {
     switch (ent.kind) {
       case 'player':
-        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance };
+        return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}) };
       case 'enemy':
         return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
       case 'companion':
@@ -431,6 +442,7 @@ export class Game {
     }
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
+      region: travelRegionAt(p.x, p.z),
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       ...lootState(this,p),

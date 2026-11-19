@@ -64,3 +64,17 @@ test('transit: a player without an active companion travels unchanged', () => {
   assert.ok(interact(g, p, g.rift.entry.id).ok);
   assert.equal(p.companion, null);
 });
+
+
+test('guard-bound companion transit preserves buff records for the remote host',()=>{
+  const g=makeGame(),p=annexReady(g),q=g.addPlayer(makeChar('vanguard'));
+  const c=p.companion;
+  c.mode='guard';c.host=q.id;
+  addBuff(q,{k:'bond',until:g.time+60000,src:c.id,dr:.1});
+  const before=q.buffs.map(b=>({...b}));
+  g.transit(p,20,20);
+  assert.equal(p.companion,null);
+  assert.deepEqual(q.buffs,before);
+  const saved={...p.char};g.removePlayer(p.id);
+  assert.equal(g.addPlayer(saved).companion,null,'dismissal persists across reconnect');
+});

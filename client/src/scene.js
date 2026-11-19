@@ -15,6 +15,7 @@ import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
+import { planAnnexRocks } from './annex-rock-fit.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -300,14 +301,16 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
-  annex_formation(p) {
+  annex_formation(p, _anim, includeStone=true) {
     const g=new THREE.Group(),rnd=mulberry32(p.seed);
     g.name='annex:mineral-formation';
     const stone=mat(0x39464c,{rough:.96}),seam=mat(0x627078,{rough:.84});
     const crystal=mat(p.z<-9?0x9685b5:p.z>12?0x729b9e:0xb6a285,{rough:.32,metal:.15,emissive:p.z<-9?0x504061:0x28474a,ei:.12});
     for(let i=0;i<4;i++){
       const a=i*Math.PI/2+rnd()*.5,scale=p.r*(.40+rnd()*.18);
-      const chunk=scaled(rockGeos[(p.seed+i)%rockGeos.length],i===2?seam:stone,scale,p.h*(.22+rnd()*.15),scale,Math.cos(a)*p.r*.34,p.h*.18,Math.sin(a)*p.r*.34);
+      const height=p.h*(.22+rnd()*.15);
+      if(!includeStone)continue;
+      const chunk=scaled(rockGeos[(p.seed+i)%rockGeos.length],i===2?seam:stone,scale,height,scale,Math.cos(a)*p.r*.34,p.h*.18,Math.sin(a)*p.r*.34);
       chunk.rotation.y=a;g.add(chunk);
     }
     for(let i=0;i<5;i++){
@@ -840,6 +843,16 @@ const TINT = {
  * every builder sizes its model to the collider shared/world.js already has.
  */
 const kit = {
+  annex_formation(p,c) {
+    // Resolve every donor before adding any instances: incomplete kits retain
+    // the entire procedural formation and its existing collision footprint.
+    const plan=planAnnexRocks(p,name=>c.pieceMeta('nature',name));
+    const placements=plan.map(({name,dx,dz,ry,s,origin})=>({piece:c.piece('nature',name),matrix:at(p.x+dx,p.z+dz,{ground:false,ry,s}).multiply(new THREE.Matrix4().makeTranslation(...origin))}));
+    const crystals=procedural.annex_formation(p,c.anim,false);
+    const tint=new THREE.Color(p.z<-9?0x9b9eac:p.z>12?0xa5b4b5:0xb5aaa0);
+    for(const {piece,matrix} of placements)c.solid.add(piece,matrix,tint);
+    return crystals;
+  },
   beacon(p, c) {
     c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.07 }));
     c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { y: 0.1, s: [1.25, 1, 1.05] }));
@@ -1266,6 +1279,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     cover: new Batcher(30), // ground cover and flat pieces: receives only
     far: new Batcher(60), // backdrop: no shadows at all
     beads: [], // [x, y, z, radius, colour] small glowing spheres
+    pieceMeta: (bundle,name) => assets?.pieceMeta(bundle,name),
     piece: (bundle, name) => {
       const p = assets.get(bundle).pieces.get(name);
       if (!p) throw new Error(`piece ${bundle}:${name} is not in the bundle`);

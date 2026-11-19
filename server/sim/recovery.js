@@ -25,6 +25,6 @@ export function recoverField(game,p,obj){
  game.markDirty(p);
  game.message(p,'gain','Recovered: Loose sinter flake.');
  if(recoveryRank(next)>recoveryRank(previous))game.message(p,'gain','Field Recovery rank 2: maintenance cassette reconditioning available at the Workshop.');
- game.events.push({e:'fx',k:'field_recovery',s:p.id,o:obj.id});
+ game.emitWorldEvent({e:'fx',k:'field_recovery',s:p.id,o:obj.id});
  return {ok:true};
 }

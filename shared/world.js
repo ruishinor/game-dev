@@ -22,7 +22,13 @@ export const RIFT_ANNEX=Object.freeze({name:'Phase Annex',x:220,z:0,hw:16,hd:34,
 export function inRiftAnnex(x,z,pad=0){
  return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
 }
-export function sameTravelRegion(a,b){return inRiftAnnex(a.x,a.z,2)===inRiftAnnex(b.x,b.z,2);}
+export function travelRegionAt(x, z) {
+  return inRiftAnnex(x, z, 2) ? 'phase_annex' : 'reach';
+}
+
+export function sameTravelRegion(a, b) {
+  return travelRegionAt(a.x, a.z) === travelRegionAt(b.x, b.z);
+}
 
 export const ZONES = {
   sanctum: { x: 0, z: 0, r: 13, name: 'Lattice Sanctum' },

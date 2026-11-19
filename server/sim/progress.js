@@ -5,7 +5,7 @@ import {appearanceString} from '../../shared/appearance.js';
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
-import { dist, inSanctum, hasLineOfSight, COLLIDERS } from '../../shared/world.js';
+import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -41,7 +41,7 @@ export function grantXp(game, p, amount) {
     game.refreshStats(p);
     p.hp = p.maxHp;
     p.metaVer += 1;
-    game.events.push({ e: 'lvl', id: p.id, l: c.level });
+    game.emitWorldEvent({ e: 'lvl', id: p.id, l: c.level });
     game.message(p, 'gain', `You reached level ${c.level}. Your skills sharpen.`);
   }
   if (c.level >= MAX_LEVEL) c.xp = 0;
@@ -110,7 +110,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   distributeCorpseLoot(game,enemy,creditedIds);
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
-    if (!p || dist(p, enemy) > CREDIT_RANGE) continue;
+    if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
     grantXp(game, p, def.xp);
     if(enemy.annexEncounter){
       const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;
@@ -183,7 +183,7 @@ export function equipItem(game, p, itemId) {
   if (ITEMS[itemId].slot === 'glyph') {
     if (p.followId || p.jy > 0.05 || p.autoOn) return { ok: false, reason: 'Stand still and disengage before inscribing a glyph.' };
     p.inscription = { itemId, x: p.x, z: p.z, until: game.time + INSCRIPTION_MS, traced: false };
-    game.events.push({ e: 'ritual', s: p.id, phase: 'begin' });
+    game.emitWorldEvent({ e: 'ritual', s: p.id, phase: 'begin' });
     return { ok: true };
   }
   applyLoadout(game, p, res.equipped, ITEMS[itemId].name);
@@ -216,7 +216,7 @@ function applyLoadout(game, p, equipped, itemName, playEquip = true) {
   const changes = attributeChanges(before, equipmentAttributes(p.char, p.stats));
   if (changes.length) p.outbox.push({ e: 'attributes', item: itemName, changes });
   p.buffs = p.buffs.filter((b) => b.k !== 'shield');
-  if (playEquip) game.events.push({ e: 'fx', k: 'equip', s: p.id });
+  if (playEquip) game.emitWorldEvent({ e: 'fx', k: 'equip', s: p.id });
   game.markDirty(p);
   checkDirective(game, p);
 }
@@ -229,7 +229,7 @@ export function inscriptionState(game, p) {
 export function cancelInscription(game, p, reason = 'Inscription cancelled.') {
   if (!p.inscription) return;
   p.inscription = null;
-  game.events.push({ e: 'ritual', s: p.id, phase: 'cancel' });
+  game.emitWorldEvent({ e: 'ritual', s: p.id, phase: 'cancel' });
   game.message(p, 'info', reason);
 }
 
@@ -242,7 +242,7 @@ export function tickInscription(game, p) {
   if (ms > 0) {
     if (!ritual.traced && ms <= INSCRIPTION_MS / 2) {
       ritual.traced = true;
-      game.events.push({ e: 'ritual', s: p.id, phase: 'trace' });
+      game.emitWorldEvent({ e: 'ritual', s: p.id, phase: 'trace' });
     }
     return;
   }
@@ -251,7 +251,7 @@ export function tickInscription(game, p) {
   p.inscription = null;
   const name = ITEMS[ritual.itemId].name;
   applyLoadout(game, p, result.equipped, name, false);
-  game.events.push({ e: 'ritual', s: p.id, phase: 'complete' });
+  game.emitWorldEvent({ e: 'ritual', s: p.id, phase: 'complete' });
   game.message(p, 'info', `${name} inscribed.`);
 }
 
@@ -287,7 +287,7 @@ function operateBrine(game,p,obj) {
       game.message(p,'gain','Field repair: up to 30% maximum health restored.');
     }
     p.brineServiceUntil=game.time+BRINE_TRIAL.serviceMs;
-    game.events.push({e:'fx',k:'brine_service',s:p.id});
+    game.emitWorldEvent({e:'fx',k:'brine_service',s:p.id});
     return ok;
   }
   if (stage===0) {
@@ -314,7 +314,7 @@ function operateBrine(game,p,obj) {
   const xp=grantXp(game,p,BRINE_REWARD_XP.commissioning);
   recordFieldReceipt(p.char,'commissioning',{xp,item});game.markDirty(p);
   transmitAuthored(game,p,'brine.commissioned');
-  game.events.push({e:'fx',k:'brine_service',s:p.id});
+  game.emitWorldEvent({e:'fx',k:'brine_service',s:p.id});
   return ok;
 }
 // In-world customization is cosmetic-only, and gated by the same actual
@@ -373,7 +373,7 @@ export function interact(game, p, objectId) {
       return { ok: true };
     }
     p.char.attunements.push('resonance');
-    game.events.push({ e: 'fx', k: 'attune', s: p.id, o: obj.id });
+    game.emitWorldEvent({ e: 'fx', k: 'attune', s: p.id, o: obj.id });
     p.outbox.push({ e: 'attune', a: 'resonance' });
     game.message(p, 'gain', `The stone answers. You gain Attunement: ${ATTUNEMENT_NAMES.resonance}.`);
     game.markDirty(p);
@@ -396,7 +396,7 @@ export function interact(game, p, objectId) {
     }
     if (grantItem(game,p,'phase_damper')) {
       transmitAuthored(game,p,'kestrel.implant.unlocked');
-      game.events.push({e:'fx',k:'deep_record',s:p.id,o:obj.id});
+      game.emitWorldEvent({e:'fx',k:'deep_record',s:p.id,o:obj.id});
     }
     return { ok: true };
   }
@@ -430,7 +430,7 @@ export function interact(game, p, objectId) {
     }
     if (!mode) return { ok: true };
     if (grantItem(game, p, 'sinter_laminate')) {
-      game.events.push({ e: 'fx', k: 'sinter_sample', s: p.id, o: obj.id, mode });
+      game.emitWorldEvent({ e: 'fx', k: 'sinter_sample', s: p.id, o: obj.id, mode });
       transmitAuthored(game,p,'sinter.sample.recovered');
       traceRead(game,p,obj,'strata',transmit);
     }
