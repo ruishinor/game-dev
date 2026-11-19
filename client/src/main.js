@@ -11,6 +11,7 @@ import { buildWorld, makeEnvironment } from './scene.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { fieldRigDevice } from './gear-recipes.js';
@@ -68,6 +69,7 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -1646,7 +1648,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       ecology: row?.ec,
-      cv:row?.cv,sv:row?.sv,
+      cv:row?.cv,sv:row?.sv,wv:row?.wv,
       riftPhase:row?.rf,riftWarning:row?.rw??0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,

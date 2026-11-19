@@ -29,7 +29,7 @@ export function makePortraits(assets, useGlb) {
       const rim = new THREE.DirectionalLight(0x4fcce2, 2);
       rim.position.set(-3, 2, -2);
       scene.add(rim, model.group);
-      model.update(0.08, { t: 1, speed: 0, dead: false, attack: 0, cast: 0, hit: 0, air: false, mode: 'triage', act: 'idle', casting: false, combat: false, charge: 0, fwd: 1, interval: 0,cv:meta.cv,sv:meta.sv });
+      model.update(0.08, { t: 1, speed: 0, dead: false, attack: 0, cast: 0, hit: 0, air: false, mode: 'triage', act: 'idle', casting: false, combat: false, charge: 0, fwd: 1, interval: 0,cv:meta.cv,sv:meta.sv,wv:meta.wv });
       model.group.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model.group);
       const center = box.getCenter(new THREE.Vector3());
