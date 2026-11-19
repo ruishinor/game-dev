@@ -3,6 +3,7 @@
 import { CLASSES, COMPANIONS, ENEMIES } from '../../shared/content.js';
 import { STRIDER_LINK } from '../../shared/gadgets.js';
 import { dist, inSanctum, hasLineOfSight, deepLineClear } from '../../shared/world.js';
+import {addBuff,getBuff} from './combat.js';
 import { groundSegmentClear, advanceGroundCompanion } from './ground-navigation.js';
 const TYPE='survey_strider',def=COMPANIONS[TYPE],R=def.radius;
 const SCAN_RANGE=8,SCAN_INTERVAL=8000,SCAN_MS=6000,OWNER_RANGE=22;
@@ -52,6 +53,15 @@ export function tickSurveyStrider(game,c,dt){
  if(dist(c,p)>32){c.act='stranded';c.actTarget=0;return;}
  if(c.mode==='stay'){c.act='idle';c.actTarget=0;return;}
  const advance=goal=>goal&&advanceGroundCompanion(c,c.nav,goal,{now:game.time,dt,speed:def.speed,radius:R});
+ if(c.mode==='screen'){
+  const goal=pointNear(p,def.followDist,p.yaw+Math.PI);if(goal&&dist(c,goal)>.55)advance(goal);
+  c.act=game.time<(c.screenUntil??0)?'screening':'idle';c.actTarget=c.act==='screening'?p.id:0;
+  const old=getBuff(p,'shield');
+  if(!inSanctum(p)&&p.combatUntil>game.time&&p.hp<p.maxHp*.5&&dist(c,p)<=5&&hasLineOfSight(c,p)&&deepLineClear(c,p)&&(!old||old.until<=game.time||old.v<=0)&&game.time>=Math.max(c.nextPulse,p.striderScreenReadyAt??0)){
+   p.striderScreenReadyAt=game.time+24000;c.screenUntil=game.time+6000;c.act='screening';c.actTarget=p.id;
+   addBuff(p,{k:'shield',v:20,cap:20,until:c.screenUntil,src:c.id});game.events.push({e:'shield',s:c.id,d:p.id,a:20});game.message(p,'info',c.name+' projected an emergency screen.');
+  }return;
+ }
  const target=game.ents.get(p.target);
  const canScan=c.mode==='assist'&&!inSanctum(p)&&target?.kind==='enemy'&&!['dead','evade'].includes(target.state)&&dist(p,target)<=OWNER_RANGE&&(!ENEMIES[target.type].neutral||target.threat.has(p.id));
  if(!canScan){

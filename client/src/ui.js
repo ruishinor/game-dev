@@ -28,6 +28,7 @@ import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recove
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  screen:svg('<path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7zM8 12h8M12 8v8"/>'),
   phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
   hinge_field:svg('<path d="M3 19V9l9-6 9 6v10M3 19h18M12 3v16"/>'),
   resonant_reversal:svg('<path d="M4 7h12l-4-4m4 4-4 4M20 17H8l4-4m-4 4 4 4"/>'),
@@ -75,10 +76,11 @@ const GLYPH_NOTES = {
   glyph_carapace: { pet: 'guard', text: 'Glyph of the Carapace: no regeneration; the host takes 45% less damage and melee attackers are stung, leaving a 4.5s imprint that redirects Rending Echo.' },
 };
 
-const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
+const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', screening:'Projecting screen', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
-export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : PET_KEYS;
+const STRIDER_KEYS=['screen',null,'assist','follow','stay'];
+export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',

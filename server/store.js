@@ -77,7 +77,7 @@ function sanitize(raw) {
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
-    petMode: typeof raw.petMode === 'string' && Object.hasOwn(COMPANIONS.mender.modes, raw.petMode) ? raw.petMode : 'triage',
+    petMode: typeof raw.petMode === 'string' && Object.hasOwn((raw.cls==='surveyor'?COMPANIONS.survey_strider:COMPANIONS.mender).modes, raw.petMode) ? raw.petMode : (raw.cls==='surveyor'?'follow':'triage'),
     petName: raw.cls==='surveyor' ? (validCompanionName(raw.petName)&&raw.petName!==COMPANIONS.mender.name?raw.petName:COMPANIONS.survey_strider.name) : (validCompanionName(raw.petName)?raw.petName:COMPANIONS.mender.name),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, 0),
     lastSeen: int(raw.lastSeen, 0, Number.MAX_SAFE_INTEGER, 0),

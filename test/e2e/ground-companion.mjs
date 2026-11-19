@@ -25,7 +25,7 @@ try{
  assert.deepEqual(p.char.materials,{});assert.equal(p.companion,null);
  await workshop.waitFor({state:'hidden'});await page.locator('.production-status').waitFor({state:'hidden'});await page.locator('#view').focus();
  await page.keyboard.press('Digit5');
- await page.waitForFunction(()=>{const s=window.__attune.state();return s.compId&&s.ents.some(e=>e.id===s.compId&&e.c==='survey_strider'&&e.model==='glb')&&!s.sheet.equipped.device;});
+ await page.waitForFunction(()=>{const s=window.__attune.state();return s.compId&&s.ents.some(e=>e.id===s.compId&&e.c==='survey_strider'&&e.model==='procedural')&&!s.sheet.equipped.device;});
  assert.ok(p.companion);assert.equal(p.companion.owner,p.id);
  await page.getByRole('button',{name:'Stay',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='stay'));
@@ -33,6 +33,9 @@ try{
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='follow'));
  await page.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.25,dist:6,face:0}));
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('strider:survey-instruments')));
+ assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('strider:original-tripod')));
+ await page.getByRole('button',{name:'Emergency screen',exact:true}).click();
+ await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='screen'));
  await page.screenshot({path:'strider-evidence/01-strider.png'});
  // Actual command click; its scan logic and cover are separately unit tested.
  await page.getByRole('button',{name:'Analyze target',exact:true}).click();
