@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { createVfx, point, MAX_ITEMS, MAX_TIMELINES, MAX_RIBBONS, CAPACITY } from '../client/src/vfx/engine.js';
 import { CombatVfx } from '../client/src/vfx/combat.js';
 import { CLASSES } from '../shared/content.js';
+import { CELL } from '../client/src/vfx/textures.js';
+import { makeTracerGeometry, poseTracer, projectileStyle } from '../client/src/projectile-presentation.js';
 
 const ground = (x, z) => Math.sin(x * 0.1) + Math.cos(z * 0.1);
 const make = (opts = {}) => {
@@ -402,4 +404,37 @@ test('vfx: reduced intensity dims ability layers but never hostile telegraphs', 
   run(v, 0.5);
   assert.ok(s.mesh.material.uniforms.alpha.value <= 0.3 + 1e-6, `sigil alpha ${s.mesh.material.uniforms.alpha.value}`);
   assert.equal(t.mesh.material.uniforms.alpha.value, 1, 'telegraph stays at full strength');
+});
+
+test('directional fallback tracer is narrow, tracks the confirmed source and never shoots behind it',()=>{
+  const m=new THREE.Mesh(makeTracerGeometry(THREE),new THREE.MeshBasicMaterial());
+  const up=new THREE.Vector3(0,1,0),dir=new THREE.Vector3(),a=new THREE.Vector3(3,2,1),b=new THREE.Vector3(8,3,6);
+  const families=[...Object.keys(CLASSES),'mender','hostile','constructor'];
+  for(const family of families){
+    const style=projectileStyle(family);
+    assert.ok(m.geometry.type==='CylinderGeometry'&&style.length>style.radius*8);
+    assert.equal(poseTracer(m,a,b,0,style,dir,up),false);
+    assert.equal(poseTracer(m,a,b,.45,style,dir,up),true);
+    const axis=up.clone().applyQuaternion(m.quaternion);
+    assert.ok(axis.distanceTo(b.clone().sub(a).normalize())<1e-6);
+    const tip=m.position.clone().addScaledVector(axis,m.scale.y*.5);
+    assert.ok(tip.distanceTo(a.clone().lerp(b,.45))<1e-6);
+    assert.ok(m.scale.x<=.04&&m.scale.y<=style.length);
+    assert.equal(poseTracer(m,a,new THREE.Vector3(NaN,0,0),1,style,dir,up),false);
+  }
+  m.geometry.dispose();m.material.dispose();
+});
+
+test('rich projectiles use directional heads, retain class trails and land once',()=>{
+  for(const [k,family] of [...Object.keys(CLASSES).map(c=>['p',c]),['c','mender'],['e','turret_drone']]){
+    const bursts=[],trails=[];let driver,impacts=0;
+    const v={burst:o=>bursts.push({...o}),trail:o=>trails.push(o),emitter:o=>{driver=o;}};
+    const c=new CombatVfx(v),s=entity(1,0,0,k,family),d=entity(2,4,2);
+    c.bolt(s,d,()=>impacts++);
+    assert.equal(trails.length,family==='keeper'?2:1);
+    driver.tick(.5);driver.tick(1);driver.tick(1);
+    assert.equal(impacts,1);
+    assert.ok(bursts.some(o=>o.cell===CELL.streak&&o.stretch>0&&o.size<=.12));
+    assert.ok(!bursts.some(o=>o.cell===CELL.glow&&o.size>=.25));
+  }
 });

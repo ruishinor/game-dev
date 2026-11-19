@@ -5,8 +5,10 @@ import * as THREE from '/vendor/three/three.module.js';
 import { groundHeight } from '../../shared/world.js';
 import { createArtEffect } from './artfx/common.js';
 import { faunaImpactSampler } from './artfx/fauna.js';
+import { finiteVector, makeTracerGeometry, poseTracer, projectileStyle } from './projectile-presentation.js';
 
-const SPH = new THREE.SphereGeometry(1, 8, 6);
+const SPH = new THREE.SphereGeometry(1, 8, 6); // stationary impact sparks, not traveling shots
+const TRACER = makeTracerGeometry(THREE);
 const CYL = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
 const RING = new THREE.RingGeometry(0.86, 1, 48);
 const DISC = new THREE.CircleGeometry(1, 48);
@@ -79,14 +81,17 @@ export class Fx {
     this.roots.delete(id);
   }
 
-  /** A fast projectile between two moving points (functions returning Vector3). */
-  bolt(from, to, color, ms = 200) {
-    const m = new THREE.Mesh(SPH, additive(color));
-    m.scale.setScalar(0.16);
-    const start = from().clone();
+  /** A short directional tracer; actual muzzle/hand location is supplied by the caller. */
+  bolt(from, to, color, ms = 200, family = 'generic') {
+    const origin=from(),target=to();
+    if(!finiteVector(origin)||!finiteVector(target)||!Number.isFinite(ms)||ms<=0)return;
+    const m = new THREE.Mesh(TRACER, additive(color, .82));
+    m.name='combat-projectile-tracer';m.visible=false;
+    const start=origin.clone(),end=target.clone(),dir=new THREE.Vector3(),style=projectileStyle(family);
     this.add(m, ms / 1000, (k) => {
-      m.position.lerpVectors(start, to(), k);
-      m.scale.setScalar(0.16 + Math.sin(k * Math.PI) * 0.1);
+      const next=to();if(finiteVector(next))end.copy(next);
+      poseTracer(m,start,end,k,style,dir,UP);
+      m.material.opacity=.82*(1-.30*k);
     });
   }
 
