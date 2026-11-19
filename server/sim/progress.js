@@ -306,6 +306,11 @@ export function interact(game, p, objectId) {
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (dist(p, obj) > INTERACT_RANGE) return { ok: false, reason: 'Move closer.' };
   if(Object.hasOwn(FIELD_RECORDS,obj.type))p.outbox.push({e:'field_record',key:obj.type});
+  if(obj.type==='initiation_terminal'){
+    if(!inSanctum(p))return {ok:false,reason:'Return to the arrival hall.'};
+    if(p.char.initiationSeen!==true){p.char.initiationSeen=true;game.markDirty(p);}
+    return {ok:true};
+  }
   if(obj.type==='sanctum_fabricator') {
     if(workshopSite(p)!=='sanctum')return {ok:false,reason:'Approach the Precision Fabricator.'};
     p.outbox.push({e:'workshop_open'});return {ok:true};

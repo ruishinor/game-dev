@@ -56,6 +56,7 @@ function sanitize(raw) {
     look: validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls),
     // Cosmetic body/race/hair; saves made before it existed keep their look's body.
     appearance: appearanceString(raw.appearance, validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls)),
+    initiationSeen:raw.initiationSeen===true,
     level: int(raw.level, 1, MAX_LEVEL, 1),
     xp: int(raw.xp, 0, 1e6, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
@@ -183,6 +184,7 @@ export class CharacterStore {
       cls,
       look: validLook(cls, look) ? look : defaultLook(cls),
       appearance: appearanceString(appearance, validLook(cls, look) ? look : defaultLook(cls)),
+      initiationSeen:false,
       level: 1,
       xp: 0,
       inventory: [],

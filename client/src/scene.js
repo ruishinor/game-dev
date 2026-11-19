@@ -300,6 +300,21 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
+  arrival_pillar(p) {
+    const g=new THREE.Group();g.name='arrival:column';
+    g.add(mesh(new THREE.CylinderGeometry(.33,.38,p.h,8),mat(0x49545b,{metal:.6,rough:.6}),0,p.h/2,0));
+    for(const y of [.18,p.h-.18])g.add(mesh(new THREE.CylinderGeometry(.38,.38,.19,8),mat(0xa18a59,{metal:.7}),0,y,0));
+    g.add(mesh(new THREE.BoxGeometry(.08,2.55,.09),glow(0x80c7c4),0,1.85,.32,false));
+    return g;
+  },
+  arrival_terminal(){
+    const g=new THREE.Group();g.name='arrival:orientation-terminal';
+    g.add(mesh(new THREE.BoxGeometry(.88,.88,.72),mat(0x34454a,{metal:.55}),0,.44,0));
+    const screen=mesh(new THREE.BoxGeometry(.85,.42,.09),mat(0x254849,{emissive:0x287a78,ei:.55}),0,1.19,.1);
+    screen.rotation.x=-.25;g.add(screen);
+    for(let i=0;i<4;i++)g.add(mesh(new THREE.BoxGeometry(.13,.035,.1),mat(0xb8ac82,{metal:.5}),-.26+i*.17,.96,.29));
+    g.add(mesh(new THREE.BoxGeometry(.94,.11,.77),mat(0x677671,{metal:.6}),0,.88,0));return g;
+  },
   sanctum_fabricator() { return buildSanctumFabricator(THREE); },
   deep_wall(p) {
     const g = new THREE.Group();
@@ -887,6 +902,15 @@ const kit = {
 function buildSanctum(c) {
   const { scene } = c;
   const top = 0.45;
+  // Open canopy, integrated landing markings, and visible exit lane.
+  const arrival=new THREE.Group();arrival.name='sanctum:initiation-hall';
+  for(const z of [5.8,10])arrival.add(mesh(new THREE.BoxGeometry(8,.26,.32),mat(0x52615d,{metal:.6}),0,4.24,z));
+  for(const x of [-3.8,3.8])arrival.add(mesh(new THREE.BoxGeometry(.27,.28,4.6),mat(0x52615d,{metal:.6}),x,4.24,7.9));
+  // Slatted overhead frame keeps the sky and exit visible with the game camera.
+  for(let i=-3;i<=3;i++)arrival.add(mesh(new THREE.BoxGeometry(.18,.14,4.6),mat(0x7b816c,{metal:.48}),i,4.42,7.9));
+  for(const x of [-2.8,2.8])arrival.add(mesh(new THREE.BoxGeometry(.08,.025,4.3),glow(0x6db3b0),x,.51,7.9,false));
+  for(let i=-2;i<=2;i++)arrival.add(mesh(new THREE.BoxGeometry(.26,.025,.7),mat(0xc9ad73,{rough:.8}),i*.65,.515,5.4,false));
+  scene.add(arrival);
   // Foundation: a dark machined disc under the deck tiles.
   const base = mesh(new THREE.CylinderGeometry(13.6, 14.3, 0.7, 48), mat(0x23292f, { rough: 0.55, metal: 0.7 }), 0, top - 0.35, 0);
   base.material = base.material.clone();
@@ -1248,7 +1272,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (!obj) continue;
     obj.position.x += p.x;
     obj.position.z += p.z;
-    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || p.type.startsWith('deep_') ? 0 : 0.15);
+    obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_')) ? 0 : 0.15);
     scene.add(obj);
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
