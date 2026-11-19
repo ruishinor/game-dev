@@ -8,7 +8,7 @@ import { GOODS } from '../../shared/goods.js';
 const locations = {
   sanctum: 'A protected enclave within the Reach. Travellers recover here; the Archivist provides guidance.',
   sporefield: 'West of the Sanctum. Mire Skitters inhabit the field; the first directive sends travellers here.',
-  relay: 'East of the Sanctum. Rogue Sentinels defend the relay and deploy Arc Pulse.',
+  relay: 'East of the Sanctum. Rogue Sentinels defend the relay; Turret Drones patrol the eastern outskirts.',
   vault: 'The monolith ring to the north. The Vault Warden guards this site.',
   obelisk: 'A rock hollow to the north-west. Interact with the Listening Stone to gain Resonance.',
   sinter:'Living mineral colonies and migrating grazers. Collect only loose surface shedding at the feeding bed; the Faultstalker guards its territory.',
@@ -33,6 +33,7 @@ export const ENTRIES = [
     id, group: 'Creatures', name: e.name, type: e.elite ? 'Elite hostile' : 'Hostile',
     desc: id === 'skitter' ? 'A hostile creature encountered in the Sporefield. Attacks in melee and can draw nearby skitters into combat.' :
       id === 'sentinel' ? 'A ranged enemy at the Derelict Relay. Its Arc Pulse marks the ground before it strikes.' :
+      id === 'turret_drone' ? 'A mobile ranged defence drone in the eastern relay outskirts. Its Suppressive Barrage brackets the target area before impact.' :
       'The elite guardian of the Resonance Vault. Its attacks threaten nearby travellers; its health scales with the number engaged.',
     meta: { k: 'e', c: id }, facts: [
       'Level: ' + e.level, 'Base health: ' + e.hp,

@@ -24,7 +24,7 @@ export const PALETTE = {
 };
 
 export const AREA_KINDS = new Set([
-  'survey_blast', 'arc_pulse', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
+  'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
   'rift_open','rift_pulse','rift_stabilize','rift_collapse','field_maintenance','field_recovery',
@@ -395,6 +395,15 @@ export class CombatVfx {
         v.beam({ from: [e.x, e.y + 1.4, e.z], to: [e.x + Math.cos(a) * rr, e.y + 0.1, e.z + Math.sin(a) * rr], color: 0xff8a60, width: 0.06, life: 0.3, jitter: 0.35, taper: 1 });
       }
       v.flash({ at: [e.x, e.y + 1, e.z], color: PALETTE.hostile, intensity: 14, life: 0.3 });
+      return;
+    }
+    if (e.k === 'turret_drone_barrage') {
+      const f = [e.x, groundHeightOr(e, s), e.z];
+      v.shock({ at: f, radius: e.r, color: PALETTE.hostileHot, life: .65, width: .08 });
+      v.shell({ at: f, radius: e.r * .95, height: 1.2, color: PALETTE.hostile, kind: 'wall', life: .55, from: .16, growPart: .55 });
+      this.dust(f, e.r * .55, 10);
+      v.scorch({ at: f, radius: Math.min(e.r * .6, 3.4), color: 0xe07234, life: 3.2 });
+      v.flash({ at: [f[0], f[1] + 1, f[2]], color: PALETTE.hostileHot, intensity: 12, life: .3 });
       return;
     }
     if (e.k === 'seismic_slam') {

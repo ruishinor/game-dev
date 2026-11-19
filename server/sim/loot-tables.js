@@ -11,14 +11,18 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
     { item: 'field_vector_array', chance: 0.30 },
     { item: 'conductive_membrane', chance: 0.40 },
   ]),
+  turret_drone: freezeDrops([
+    { item: 'field_vector_array', chance: 0.36 },
+    { item: 'conductive_membrane', chance: 0.42 },
+  ]),
   warden: freezeDrops([{ item: 'wardstone_shard', chance: 0.12 }]),
 });
-export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',warden:'resonance_fragment'});
+export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',turret_drone:'sentinel_alloy',warden:'resonance_fragment'});
 // Generic playtest salvage; deliberately independent of equipment RNG.
-export const TRADE_SALVAGE = Object.freeze({skitter:'mire_husk',sentinel:'spent_contact'});
+export const TRADE_SALVAGE = Object.freeze({skitter:'mire_husk',sentinel:'spent_contact',turret_drone:'spent_contact'});
 // Public playtest tuning: a small fixed salvage credit alongside trade goods.
 // No extra random roll or change to the existing equipment distribution.
-export const creditDrop=type=>type==='sentinel'?1:0;
+export const creditDrop=type=>type==='sentinel'||type==='turret_drone'?1:0;
 export function itemDrops(type) {
   return Object.hasOwn(ENEMY_ITEM_DROPS,type) ? ENEMY_ITEM_DROPS[type] : [];
 }

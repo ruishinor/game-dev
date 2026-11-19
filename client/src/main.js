@@ -1036,7 +1036,7 @@ function onEvent(e) {
         }
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
+      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1627,7 +1627,7 @@ function updateEntities(dt, t, now) {
     // the face is close enough to animate in detail.
     let lookAt = null;
     const camD = camera.position.distanceTo(cullSphere.center);
-    if (ent.model.kind === 'glb' && ent.inView && camD < 16 && !ent.dead) {
+    if (ent.model.kind === 'glb' && ent.meta.c !== 'turret_drone' && ent.inView && camD < 16 && !ent.dead) {
       const meP = S.ents.get(S.myId);
       const tgt = ent.id === S.myId ? S.ents.get(S.target) : meP && Math.hypot(meP.pos.x - x, meP.pos.z - z) < 6 ? meP : null;
       if (tgt && tgt !== ent && tgt.placed) lookAt = (ent.lookVec ||= new THREE.Vector3()).set(tgt.pos.x, tgt.pos.y + (tgt.model.height || 1.8) * 0.88, tgt.pos.z);
