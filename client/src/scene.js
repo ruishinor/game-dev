@@ -15,6 +15,7 @@ import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
+import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 
 const matCache = new Map();
@@ -301,6 +302,7 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
+  stillpoint_rest(p) { return procedural.annex_formation(p); },
   annex_formation(p, _anim, includeStone=true) {
     const g=new THREE.Group(),rnd=mulberry32(p.seed);
     g.name='annex:mineral-formation';
@@ -1341,6 +1343,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (Object.hasOwn(STATIC_ART, p.type)) prototypeStates[p.type] = 'loading';
   }
   let fallbacks = 0;
+  let stillpointStatus='fallback',stillpoint=null;
   for (const p of PROPS) {
     let obj;
     if (kits && kit[p.type]) {
@@ -1358,6 +1361,20 @@ export function buildWorld(scene, assets = null, opts = {}) {
     obj.position.z += p.z;
     obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_') || p.type.startsWith('annex_')) ? 0 : 0.15);
     scene.add(obj);
+    if(p.type==='stillpoint_rest'&&assets){
+      const fallback=obj;
+      stillpointStatus='loading';
+      loadStillpoint(THREE,assets.loader,p).then(model=>{
+        // Keep the collision-matching mineral stand-in until a valid rig is ready.
+        scene.remove(fallback);
+        scene.add(model.group);
+        stillpoint=model;
+        stillpointStatus='ready';
+      }).catch(err=>{
+        stillpointStatus='fallback';
+        console.warn('[scene] Stillpoint unavailable; retaining mineral formation:',err.message||err);
+      });
+    }
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
       const fallback = obj;
@@ -1466,7 +1483,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; } },
     occluders,
     /**
      * @param focus the player's feet
@@ -1476,6 +1493,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       for (const e of animators) e.a.update(dt);
+      if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
       if (view) {
