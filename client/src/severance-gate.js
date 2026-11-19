@@ -269,7 +269,7 @@ export function createSeveranceGateLandmark(T, o) {
   const noise = noiseTexture(T);
   const state = {
     status: 'idle', phase: 'dormant', level: PHASE_LEVEL.dormant, target: PHASE_LEVEL.dormant, seq: 99, flare: 0, flareAge: 9, minorFlare: 0,
-    band: 'far', time: 0, column: 0, discharges: 0, nextDischarge: 2, ringLinkAt: 4, seenPhase: null,
+    band: 'far', time: 0, column: 0, discharges: 0, nextDischarge: 2, ringLinkAt: 4, seenPhase: null, lightScale: 1, deterministic: false,
   };
   let env = { vfx: null, quality: () => 2, reducedMotion: () => false, intensity: () => 1, calm: () => false };
   const bands = { near: new T.Group(), mid: new T.Group(), far: new T.Group() };
@@ -502,7 +502,7 @@ export function createSeveranceGateLandmark(T, o) {
 
   function discharge(dt) {
     const v = env.vfx;
-    if (!v || env.quality() < 1 || env.reducedMotion() || state.band !== 'near' || state.level < 0.8) return;
+    if (state.deterministic || !v || env.quality() < 1 || env.reducedMotion() || state.band !== 'near' || state.level < 0.8) return;
     state.nextDischarge -= dt;
     if (state.nextDischarge > 0) return;
     state.nextDischarge = 2.5 + Math.random() * 4.5;
@@ -524,8 +524,9 @@ export function createSeveranceGateLandmark(T, o) {
     state.discharges++;
   }
 
-  function update(dt, t, eye) {
+  function update(dt, t, eye, opts = {}) {
     if (state.status === 'disposed') return;
+    state.deterministic = !!opts.deterministic;
     const inRegion = !!eye && inSeverancePocket(eye.x, eye.z, 30);
     root.visible = inRegion;
     groundHolder.visible = false;
@@ -598,10 +599,10 @@ export function createSeveranceGateLandmark(T, o) {
     embers.mat.uniforms.uLevel.value = (0.25 + 0.75 * state.level) * k;
     embers.mat.uniforms.uMotion.value = reduced ? 0.15 : 1;
     // warm light spill on the stairs and the passage stone
-    light.intensity = q >= 1 ? (10 + 48 * state.level + 80 * flare) * (0.7 + 0.3 * k) : 0;
+    light.intensity = q >= 1 ? (10 + 48 * state.level + 80 * flare) * (0.7 + 0.3 * k) * state.lightScale : 0;
     discharge(dt);
     // occasional link between a ring and the monolith
-    if (env.vfx && q > 0 && !reduced && band === 'near' && state.level > 0.9) {
+    if (env.vfx && q > 0 && !reduced && !state.deterministic && band === 'near' && state.level > 0.9) {
       state.ringLinkAt -= dt;
       if (state.ringLinkAt <= 0) {
         state.ringLinkAt = 5 + Math.random() * 6;
@@ -644,6 +645,8 @@ export function createSeveranceGateLandmark(T, o) {
     get level() { return state.level; },
     get state() { return state; },
     attach(e) { env = { ...env, ...e }; },
+    /** Presentation multiplier on the warm portal light (time-of-day preview); 1 = authored. */
+    setLightScale(k) { state.lightScale = Number.isFinite(k) ? Math.max(0, Math.min(3, k)) : 1; },
     setPhase, traverse, update, load, placeRuins,
     stats() {
       let tris = 0, draws = 0;
