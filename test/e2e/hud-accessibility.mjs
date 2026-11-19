@@ -33,7 +33,6 @@ try{
  if(companionActive){
   await page.locator('.actionbar .slot[aria-label="Dismiss companion"]').click();
   await page.waitForFunction(()=>window.__attune?.state().compId===0);
-  assert.match(await page.locator('.actionbar .slot[aria-label]').last().getAttribute('aria-label')||'',/.*/);
   await page.waitForFunction(()=>document.querySelector('.actionbar .slot[aria-label^="Summon"]')!==null);
  }
  await page.locator('#view').focus();await page.keyboard.press('KeyO');
@@ -51,7 +50,9 @@ try{
  await panel.getByRole('button',{name:'Restore default hotkeys'}).click();
  assert.equal((await slot1.textContent()).trim(),'1');
  await panel.getByRole('button',{name:'Back to Settings'}).click();
- await page.screenshot({path:join(work,'hud-readable.png')});
+ await page.locator('.settings-panel .close').click();
+ await mkdir('test/e2e/out',{recursive:true});
+ await page.screenshot({path:'test/e2e/out/hud-accessibility.png'});
  assert.deepEqual(errors,[]);
  console.log('PASS readable HUD, head portrait frame, visible day/night, companion summon/dismiss, slot visibility and hotkeys');
 }finally{await browser?.close();await server.close();await rm(work,{recursive:true,force:true});}
