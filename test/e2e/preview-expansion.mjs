@@ -61,7 +61,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);
   async function moveTo(x, z) {
     assert.ok(!p.dead,`Fixture cannot move a defeated player to ${x},${z}`);
-    assert.equal(await liveFixturePlayer(page,server,'Brine Tester'),p,'The staged player must remain connected');
+    assert.ok((await liveFixturePlayer(page,server,'Brine Tester'))===p,'The staged player must remain connected');
     if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
     try {
       p.x=x;p.z=z;
@@ -79,7 +79,12 @@ try {
     const drawn = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction(n => window.__attune.state().drawn > n, drawn);
     assert.ok(!p.dead,`Controlled capture ${path}: the player was defeated`);
-    await page.screenshot({ path });
+    // Capture the genuinely rendered frame without competing draws during
+    // slow software screenshot encoding; server/session logic continues.
+    if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+    try{await page.screenshot({ path });}
+    finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
+    assert.ok((await liveFixturePlayer(page,server,'Brine Tester'))===p,'Capture must preserve the staged player connection');
     console.log('[preview] capture complete:',path);
   }
   await moveTo(-2.25,8.2);

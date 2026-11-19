@@ -29,6 +29,7 @@ import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
 import { wearArmour, ARMOUR_BUNDLES } from './armour-visual.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
+import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
@@ -209,6 +210,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let dead = false;
   let moving = false;
   let landed = true;
+  // Capture the grip direction in bind pose, not an arbitrary live frame.
+  const rodHand=inst.getObjectByName('hand_r');
+  const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
+  const rodPalm=rodHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
+  const offHand=inst.getObjectByName('hand_l');
+  const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
+  const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
+  let heldRod=null,rodEffects=null,rodEngine=null;
+  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
   let weapon = null, visual = null;
   function setWeaponVisual(next) {
     next = next === 'longpoint' ? next : null;
@@ -251,6 +261,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     weaponEffectOrigin: () => weapon?.origin() || null,
     setArmourVisual,
     armourWorn: () => armour?.item || null,
+    rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
+    rodContact(at,ground,blocked=false){
+      return !!(heldRod?.group.visible&&rodEffects?.impact(at,{ground,blocked}));
+    },
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
@@ -284,6 +298,19 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
         weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy });
+      if(st.electricalRod&&!heldRod&&rodHand){
+        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
+        heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
+      }
+      if(!st.electricalRod&&heldRod)releaseRod();
+      if(heldRod){
+        const active=!st.dead&&st.attack>.2;
+        heldRod.group.visible=!st.dead&&!working;
+        heldRod.setMode(st.electricalRod);
+        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm});
+        if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
+        rodEffects?.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0});
+      }
       flash(st.hit);
       if (ctx.coils.length) {
         // Gauntlet coils swell with stored Charge.
@@ -309,6 +336,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
     },
     dispose() {
+      releaseRod();
       weapon?.dispose();
       disposed = true;
       armour?.dispose(); armour = null;
@@ -597,7 +625,7 @@ export function createModel(assets, meta, glb = true) {
         }
       }
       if (!model) model = makeMender(assets);
-    } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    } else if (meta.c==='rift_return'||meta.c==='severance_return') model=buildPhaseGate(true,assets);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);

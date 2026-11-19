@@ -141,6 +141,8 @@ function readFxPrefs() {
   vfx?.setIntensity(p.level, p.calm);
 }
 const rich = () => !!cvfx && quality > 0;
+// The Severance Gate landmark reads the effect engine and the player's comfort settings.
+world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
@@ -398,6 +400,7 @@ const ui = new UI({
   cancelProduction: () => net.send({ t: 'production_cancel' }),
   useUtility: (item,weapon,rev)=>net.send({t:'use_utility',item,weapon,rev}),
   equip: (item) => net.send({ t: 'equip', item }),
+  rodMode: mode => net.send({ t:'rod_mode',mode }),
   itemSeen: (item, rev) => net.send({ t: 'item_seen', item, rev }),
   disposeItem: (item, action, rev) => net.send({ t: 'item_dispose', item, action, rev }),
   cancelInscription: () => net.send({ t: 'inscription_cancel' }),
@@ -914,6 +917,9 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
+      // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
+      // do not multiply weapon discharges; existing ability effects and damage are unchanged.
+      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -928,7 +934,7 @@ function onEvent(e) {
           const reach=d.model.radius*.68;
           fx.faunaImpact([d.chest.x+nx*reach,d.chest.y,d.chest.z+nz*reach],[nx,0,nz],
             {radius:d.model.radius*.62,reducedMotion:motionPreference.matches||quality===0});
-        }else if (e.k !== 'bolt' && !e.sh) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
+        }else if (e.k !== 'bolt' && !e.sh && !rodImpact) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 5, 0.9);
       }
       if (s) {
         s.attack = 1;
@@ -991,6 +997,7 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
+      if(s.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&['rending_arc','kinetic_ward','discharge'].includes(e.ab))s.model.rodCharge?.();
       if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
       if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
       else if (e.ab === 'phase_transposition' && d) {
@@ -1031,6 +1038,7 @@ function onEvent(e) {
       if (!handled) fx = legacyFx;
       // Rich recipes supersede the ecology fallback only when handled.
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
         if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
           const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
@@ -1701,9 +1709,12 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
+      electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
+      rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
       work:row?.work,
       ecology: row?.ec,
-      riftPhase:row?.rf,riftWarning:row?.rw??0,
+      riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
@@ -1903,7 +1914,7 @@ function frame(now) {
     // Whatever stands between the camera and the player or their target fades.
     viewPoints[0] = me.chest;
     viewPoints[1] = target && target.placed && !target.dead ? target.chest : null;
-    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints });
+    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints, serverSeconds: Math.max(0,(now+(S.timeOffset??-now)-INTERP_MS)/1000) });
   }
   if (target && target.placed && !(target.meta.k === 'e' && target.dead)) {
     ring.visible = true;

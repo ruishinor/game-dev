@@ -2,19 +2,20 @@
 // (tools/assets/lib/gltf.mjs: dedup, prune, resample, WebP textures, meshopt),
 // then validate it and report what the file actually contains.
 //
-//   node tools/asset-pipeline/js/optimize.mjs <in.glb> <out.glb> [maxTexture=2048] [quality=86]
+//   node tools/asset-pipeline/js/optimize.mjs <in.glb> <out.glb> [maxTexture=2048] [quality=86] [keep]
+// 'keep' retains vertex attributes no material samples (e.g. a TEXCOORD_1 read by a runtime shader).
 // The report is written to <out.glb>.report.json (glTF Transform logs to stdout).
 import fs from 'node:fs';
 import validator from 'gltf-validator';
 import { readGltf, optimise, writeGlb } from '../../assets/lib/gltf.mjs';
 
-const [input, output, maxTexture = '2048', quality = '86'] = process.argv.slice(2);
+const [input, output, maxTexture = '2048', quality = '86', attributes = 'prune'] = process.argv.slice(2);
 if (!input || !output) {
   console.error('usage: optimize.mjs <in.glb> <out.glb> [maxTexture] [quality]');
   process.exit(2);
 }
 const doc = await readGltf(input);
-await optimise(doc, { maxTexture: Number(maxTexture), textureQuality: Number(quality), keepAttributes: false });
+await optimise(doc, { maxTexture: Number(maxTexture), textureQuality: Number(quality), keepAttributes: attributes === 'keep' });
 const bytes = await writeGlb(doc, output);
 
 const buf = fs.readFileSync(output);

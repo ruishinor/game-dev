@@ -17,6 +17,7 @@ import { buildSinterHabitat } from './sinter-habitat.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
+import { buildSeverancePocket } from './severance-pocket.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -302,7 +303,6 @@ function buildDeepArchitecture(scene) {
 }
 
 const procedural = {
-  stillpoint_rest(p) { return procedural.annex_formation(p); },
   annex_formation(p, _anim, includeStone=true) {
     const g=new THREE.Group(),rnd=mulberry32(p.seed);
     g.name='annex:mineral-formation';
@@ -1343,8 +1343,22 @@ export function buildWorld(scene, assets = null, opts = {}) {
     if (Object.hasOwn(STATIC_ART, p.type)) prototypeStates[p.type] = 'loading';
   }
   let fallbacks = 0;
-  let stillpointStatus='fallback',stillpoint=null,startStillpoint=null;
+  let stillpointStatus='unavailable',stillpoint=null,startStillpoint=null;
   for (const p of PROPS) {
+    if(p.type==='stillpoint_rest'){
+      // Ambient creature, not scenery: no phantom mineral collider on failure.
+      // Keep the existing deferred load so character creation does not compete for textures.
+      if(assets)startStillpoint=()=>{
+        startStillpoint=null;stillpointStatus='loading';
+        loadStillpoint(THREE,assets.loader,p).then(model=>{
+          scene.add(model.group);stillpoint=model;stillpointStatus='ready';
+        }).catch(err=>{
+          stillpointStatus='unavailable';
+          console.warn('[scene] Stillpoint unavailable:',err.message||err);
+        });
+      };
+      continue;
+    }
     let obj;
     if (kits && kit[p.type]) {
       try {
@@ -1361,25 +1375,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
     obj.position.z += p.z;
     obj.position.y += groundHeight(p.x, p.z) - (Object.hasOwn(STATIC_ART, p.type) || p.type === 'sanctum_fabricator' || p.type.startsWith('sinter_') || (p.type.startsWith('deep_') || p.type.startsWith('arrival_') || p.type.startsWith('annex_')) ? 0 : 0.15);
     scene.add(obj);
-    if(p.type==='stillpoint_rest'&&assets){
-      const fallback=obj;
-
-      // Defer the large skinned asset until a traveller enters the world;
-      // title/creation previews must not compete for texture decoding.
-      startStillpoint=()=>{
-        startStillpoint=null;
-        stillpointStatus='loading';
-        loadStillpoint(THREE,assets.loader,p).then(model=>{
-          scene.remove(fallback);
-          scene.add(model.group);
-          stillpoint=model;
-          stillpointStatus='ready';
-        }).catch(err=>{
-          stillpointStatus='fallback';
-          console.warn('[scene] Stillpoint unavailable; retaining mineral formation:',err.message||err);
-        });
-      };
-    }
     if (enablePrototypeArt && Object.hasOwn(STATIC_ART, p.type)) {
       // Keep the complete fallback until the fitted model is ready.
       const fallback = obj;
@@ -1435,6 +1430,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   // Wide, collision-free floor markings guide the offset route.
   for(const [x,z] of [[6,12],[-6,-9]])for(let i=-2;i<=2;i++)annexFloor.add(mesh(new THREE.BoxGeometry(.24,.035,2.2),mat(0xb9a36b,{rough:.9}),ax+x+i*.8,.035,z,false));
   scene.add(annexFloor);
+  // Severance Gate and its (provisional) approach pocket: a separate region.
+  const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length] });
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
@@ -1488,7 +1485,9 @@ export function buildWorld(scene, assets = null, opts = {}) {
     sun,
     ambient,
     ambientBase: ambient.intensity,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; } },
+    severance: severance.landmark,
+    severancePocket: severance,
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); } },
     occluders,
     /**
      * @param focus the player's feet
@@ -1499,7 +1498,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
       for (const fn of anim) fn(dt, t);
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
-      if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false);
+      if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);
+      severance.update(dt, t, view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
       if (view) {

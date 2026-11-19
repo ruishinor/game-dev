@@ -4,7 +4,7 @@
 
 import { useAbility, startAttack } from './sim/combat.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance, setElectricalRodMode } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
 import { disposeItem } from './sim/disposal.js';
 import { beginProduction, stopProduction } from './sim/production.js';
@@ -83,6 +83,7 @@ export class NetServer {
       authFails: 0,
       lastChat: 0,
       alive: true,
+      missedPongs: 0,
       authTimer: setTimeout(() => {
         if (!conn.player) ws.close(4000, 'auth timeout');
       }, AUTH_TIMEOUT_MS),
@@ -93,6 +94,7 @@ export class NetServer {
     ws.on('error', () => {});
     ws.on('pong', () => {
       conn.alive = true;
+      conn.missedPongs = 0;
     });
   }
 
@@ -407,6 +409,10 @@ export class NetServer {
         if(!result.ok)p.outbox.push({e:'appearance_rejected',reason:result.reason});
         break;
       }
+      case 'rod_mode':
+        if(msg.mode!=='rod'&&msg.mode!=='dual')return this.strike(conn);
+        reply(setElectricalRodMode(game,p,msg.mode));
+        break;
       case 'equip':
         reply(equipItem(game, p, msg.item));
         break;
@@ -573,10 +579,15 @@ export class NetServer {
     game.endTick({preservePrivate:true});
   }
 
-  /** Drop connections that stopped answering pings. */
+  /** Allow one missed probe for an authenticated actor, then evict a silent peer.
+   * A slow renderer or temporary scheduling stall can delay the transport pong.
+   * Admission, unauthenticated timeout, token/session checks, rate limits and
+   * snapshot backpressure remain independent and unchanged. */
   heartbeat() {
     for (const conn of this.conns) {
-      if (!conn.alive) {
+      if (conn.alive) conn.missedPongs = 0;
+      else if (++conn.missedPongs >= (conn.player ? 2 : 1)) {
+        conn.closeCause = 'heartbeat';
         conn.ws.terminate();
         continue;
       }
