@@ -2,6 +2,7 @@
 // Pure presentation: no inventory, attack, damage or stun authority.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import {createRodCorona} from './vfx/rod-corona.js';
 export {createElectricalRodVfx} from './vfx/electrical-rod.js';
 
 export const ROD = Object.freeze({ halfLength: .76, splitOffset: .27, duration: .95 });
@@ -114,7 +115,9 @@ export function createElectricalRod({independentEmission=false}={}) {
     }
     return h;
   });
-  let p=0,target=0,disposed=false;
+  // Render-only detail, intentionally excluded from the structural GLB export.
+  const corona=independentEmission?createRodCorona(halves):null;
+  let p=0,target=0,disposed=false,coronaEnergy=0;
   function apply(){
     const pose=rodPose(p);
     halves.forEach((h,i)=>{const v=i?pose.left:pose.right;h.position.set(v.x,0,v.z);h.rotation.set(0,0,v.angle);});
@@ -124,16 +127,19 @@ export function createElectricalRod({independentEmission=false}={}) {
     if(mode!=='dual'&&mode!=='rod')throw Error('Unknown rod presentation mode');
     target=mode==='rod'?1:0;
   }
-  function update(dt,{reducedMotion=false,energized=true,activity=0}={}){
+  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion}={}){
     if(disposed)return;
     const step=Number.isFinite(dt)&&dt>0?dt/ROD.duration:0;
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
-    for(const m of channels){m.inlay.emissiveIntensity=k*(.55+.38*clamp(Number.isFinite(activity)?activity:0));m.blue.emissiveIntensity=k*.24;}
+    for(const m of channels){m.inlay.emissiveIntensity=k*(independentEmission?2.2:.55)+k*.38*clamp(Number.isFinite(activity)?activity:0);m.blue.emissiveIntensity=k*(independentEmission?1.1:.24);}
+    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.58)/.42)),quality,intensity,calm,reducedMotion:coronaReducedMotion});
+    if(!energized)coronaEnergy=0;
   }
   function setEnergy(right,left=right){
     if(disposed)return;
+    coronaEnergy=Math.max(clamp(Number.isFinite(right)?right:0),clamp(Number.isFinite(left)?left:0));
     [right,left].forEach((n,i)=>{const k=clamp(Number.isFinite(n)?n:0);channels[i].inlay.emissiveIntensity=3.6*k;channels[i].blue.emissiveIntensity=1.8*k;});
   }
   function anchor(i,name,into=new THREE.Vector3()){
@@ -142,7 +148,7 @@ export function createElectricalRod({independentEmission=false}={}) {
     return marker.getWorldPosition(into);
   }
   return {group,halves,setMode,update,setEnergy,anchor,get progress(){return p;},
-    dispose(){if(disposed)return;disposed=true;group.removeFromParent();
+    dispose(){if(disposed)return;disposed=true;corona?.dispose();group.removeFromParent();
       geometry.forEach(g=>g.dispose());new Set(channels.flatMap(Object.values)).forEach(m=>m.dispose());}};
 }
 
