@@ -7,6 +7,7 @@ import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities, productionTime, previewProduction, productionRisk, missingRecipeKnowledge } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 import {recoveryRank} from '../../shared/recovery.js';
+import {disciplineProgress,disciplineDuration} from '../../shared/crafting-disciplines.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
@@ -158,6 +159,12 @@ function fabrication(ui,body){
   discipline.addEventListener('change', () => { filter.discipline = discipline.value; applyFilters(); });
   applyFilters();
   detail.append(h('div','kicker',recipe.discipline),h('h2',null,recipe.name));
+  const mastery=disciplineProgress(s.craftingDisciplines,recipe.discipline);
+  const track=h('div','discipline-track');
+  track.append(h('strong',null,recipe.discipline+' · Level '+mastery.level));
+  if(mastery.required!==null){const meter=h('progress');meter.max=mastery.required;meter.value=mastery.progress;meter.setAttribute('aria-label',recipe.discipline+' experience');track.append(meter,h('small','muted',mastery.progress+' / '+mastery.required+' XP to next level'));}
+  else track.append(h('small','muted','Maximum level'));
+  track.append(h('small','muted',mastery.speedBonus+'% faster production · XP on successful material-consuming cycles'));detail.append(track);
   if (quantities.length > 1) {
     const label = h('label', 'production-quantity', 'Quantity');
     const select = h('select');
@@ -174,7 +181,7 @@ function fabrication(ui,body){
     label.append(select);
     detail.append(label);
   }
-  detail.append(h('p', 'muted', `${quantity} produced · ${Math.round(cycles * productionTime(recipe) / 100) / 10}s`));
+  detail.append(h('p', 'muted', `${quantity} produced · ${Math.round(cycles * disciplineDuration(productionTime(recipe),s.craftingDisciplines,recipe.discipline) / 100) / 10}s`));
   const parts=h('div','recipe-parts');
   const source=h('div','recipe-part');
   source.append(h('div','kicker','Source components'));

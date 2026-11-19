@@ -10,6 +10,7 @@ import { CLASSES, ITEMS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, de
 import { resolveLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
+import {sanitizeCraftingDisciplines} from '../shared/crafting-disciplines.js';
 import { appearanceString } from '../shared/appearance.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
@@ -72,6 +73,7 @@ function sanitize(raw) {
     traceState:sanitizeTraceState(raw.traceState),
     riftCalibration:sanitizeRiftCalibration(raw.riftCalibration),
     recoverySamples:recoverySamples(raw.recoverySamples),
+    craftingDisciplines:sanitizeCraftingDisciplines(raw.craftingDisciplines),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
@@ -191,6 +193,7 @@ export class CharacterStore {
       traceState:null,
       riftCalibration:null,
       recoverySamples:0,
+      craftingDisciplines:sanitizeCraftingDisciplines(null),
       recoveryReadyAt:0,
       brineStage: 0,
       pos: null,

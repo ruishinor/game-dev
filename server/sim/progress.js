@@ -19,6 +19,7 @@ import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
+import {creditDiscipline} from './crafting-disciplines.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -142,6 +143,7 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
   if(result.goods){p.char.goods=result.goods;p.utilityRev++;}
   p.char.condition=sanitizeCondition(p.char.condition,p.char.inventory);
   const out=RECIPES[id].output;
+  creditDiscipline(game,p,RECIPES[id]);
   if (!quiet) {
     if(out.item)p.outbox.push({e:'loot',item:out.item});
     game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');

@@ -25,6 +25,7 @@ import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
+import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
@@ -1538,6 +1539,12 @@ export class UI {
     }
     c1.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
 
+    c1.append(h('h3',null,'Crafting disciplines'));
+    for(const name of CRAFTING_DISCIPLINES){
+      const mastery=disciplineProgress(s.craftingDisciplines,name);
+      stat(name,'Level '+mastery.level,false,mastery.speedBonus+'% faster production. Gain experience through successfully committed crafting.');
+      c1.append(h('div','muted',mastery.required===null?'Maximum level':mastery.progress+' / '+mastery.required+' XP'));
+    }
     c1.append(h('h3',null,'Field disciplines'));
     const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
     stat('Field Recovery','Rank '+rank,false,'Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');

@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import { MATERIALS, RECIPES, canFabricateAt, previewRecipe, previewProduction, productionTime, productionRisk } from '../../shared/crafting.js';
 import { workshopSite } from '../../shared/survey.js';
 import { craftRecipe } from './progress.js';
+import {disciplineDuration} from '../../shared/crafting-disciplines.js';
 
 const fail = reason => ({ ok: false, reason });
 
@@ -27,7 +28,8 @@ export function beginProduction(game, p, id, quantity, rev) {
   if (!canFabricateAt(recipe, site)) return fail('Approach the appropriate Workshop first.');
   const preview = previewProduction(p.char, id, quantity);
   if (!preview.ok) return preview;
-  const duration = productionTime(recipe);
+  // Lock the duration for the whole batch at its accepted starting level.
+  const duration = disciplineDuration(productionTime(recipe),p.char.craftingDisciplines,recipe.discipline);
   const method = recipe.kind === 'upgrade' || recipe.kind === 'restore' ? 'upgrade' :
     recipe.discipline === 'Research' ? 'culture' : 'assemble';
   p.production = { id, site, method, duration, quantity, cycles: preview.cycles, complete: 0, until: game.time + duration };
