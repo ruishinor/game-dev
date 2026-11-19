@@ -1,5 +1,6 @@
 // Original scene-scale interference structure. Persistent membrane is a
 // presentation of the authoritative snapshot, not the encounter clock.
+import { PHASE_RIFT_RADIUS } from '../../shared/world.js';
 const PHASES={dormant:.18,opening:.62,unstable:1,stabilized:.8,cooling:.25};
 function palette(T){
  const std=(color,roughness=.68,metalness=.4)=>new T.MeshStandardMaterial({color,roughness,metalness});
@@ -23,8 +24,8 @@ function membraneGeometry(T){
 }
 const vertex=`varying vec2 vUv; uniform float uTime;uniform float uPhase;void main(){vUv=uv;vec3 p=position;p.z+=sin(p.y*5.2+uTime*1.1)*sin(uv.x*3.14159)*.13*uPhase;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`;
 const fragment=`varying vec2 vUv;uniform float uTime;uniform float uPhase;uniform float uStable;void main(){vec2 uv=vUv;float x=uv.x*2.-1.;float band=sin(uv.y*22.+sin(x*5.+uTime*.43)*3.+uTime*.82);float thin=pow(.5+.5*sin(x*27.+uv.y*35.+band*3.),11.);float crease=exp(-abs(x+.18*sin(uv.y*10.+uTime*.32))*8.);float edge=smoothstep(0.,.12,uv.x)*smoothstep(0.,.12,1.-uv.x)*smoothstep(0.,.1,uv.y)*smoothstep(0.,.1,1.-uv.y);float fil=.3+.7*pow(1.-abs(x),1.4);vec3 dark=vec3(.045,.054,.092);vec3 luminous=mix(vec3(.67,.55,.87),vec3(.48,.78,.72),uStable);vec3 c=mix(dark,luminous,clamp(crease*.72+thin*.28+max(band,0.)*.13,0.,1.));gl_FragColor=vec4(c,edge*fil*clamp(uPhase*(.49+crease*.47+thin*.25),0.,.94));}`;
-export function buildRift(T,site,ground){
- const group=new T.Group();group.name='rift:phase-scar';const m=palette(T);
+export function buildRift(T,site,ground,{returning=false}={}){
+ const group=new T.Group();group.name=returning?'rift:severance-return':'rift:phase-scar';const m=palette(T);
  // Buried octagonal foundation is wide enough for its visible support feet.
  mesh(T,group,new T.CylinderGeometry(2.24,2.43,.58,12),m.stone,0,-.2,0);
  mesh(T,group,new T.CylinderGeometry(1.75,2.05,.16,12),m.dark,0,.13,0);
@@ -39,24 +40,28 @@ export function buildRift(T,site,ground){
   const fin=mesh(T,group,new T.BoxGeometry(.3,.85,.48),m.dark,sign*1.29,2.74,.12);fin.rotation.z=sign*.18;
   mesh(T,group,new T.BoxGeometry(.11,.19,.22),m.glass,sign*1.16,3.12,.28);
  }
- const uniforms={uTime:{value:0},uPhase:{value:PHASES.dormant},uStable:{value:0}};
+ const uniforms={uTime:{value:0},uPhase:{value:returning?PHASES.stabilized:PHASES.dormant},uStable:{value:returning?1:0}};
  const skin=new T.ShaderMaterial({uniforms,vertexShader:vertex,fragmentShader:fragment,transparent:true,depthWrite:false,side:T.DoubleSide});
  const surface=mesh(T,group,membraneGeometry(T),skin);surface.name='rift:interference-membrane';surface.castShadow=false;surface.receiveShadow=false;surface.renderOrder=6;
+ // Only the original Reach anomaly owns hazardous phases and a warning ring.
+ let ring=null;
+ if(!returning){
  const r=site?.hazard??5.5,geo=new T.RingGeometry(r-.16,r,96);geo.rotateX(-Math.PI/2);
  // Existing object yaw is .9 radians; match its local-to-world transform.
  if(site&&ground){const pos=geo.attributes.position,h=ground(site.x,site.z),co=Math.cos(.9),si=Math.sin(.9);
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);pos.setY(i,ground(site.x+x*co+z*si,site.z-x*si+z*co)-h+.085);}
   pos.needsUpdate=true;geo.computeVertexNormals();
  }else geo.translate(0,.09,0);
- const ring=mesh(T,group,geo,new T.MeshBasicMaterial({color:0xe2a07c,transparent:true,opacity:.88,side:T.DoubleSide,depthWrite:false}));
+ ring=mesh(T,group,geo,new T.MeshBasicMaterial({color:0xe2a07c,transparent:true,opacity:.88,side:T.DoubleSide,depthWrite:false}));
  ring.name='rift:persistent-warning';ring.visible=false;ring.castShadow=false;ring.receiveShadow=false;ring.renderOrder=8;
+ }
  let time=0;
- return {group,height:5.15,radius:2.45,hover:0,update(dt,st){
-   const phase=Object.hasOwn(PHASES,st.riftPhase)?st.riftPhase:'dormant';
+ return {group,height:5.15,radius:PHASE_RIFT_RADIUS,hover:0,update(dt,st){
+   const phase=returning?'stabilized':Object.hasOwn(PHASES,st.riftPhase)?st.riftPhase:'dormant';
    if(!st.reducedMotion)time=(time+Math.max(0,Math.min(.1,Number.isFinite(dt)?dt:0)))%4096;
    uniforms.uTime.value=st.reducedMotion?0:time;
    uniforms.uPhase.value=PHASES[phase];uniforms.uStable.value=phase==='stabilized'?1:0;
-   ring.visible=phase==='unstable'&&st.riftWarning>0;
+   if(ring)ring.visible=phase==='unstable'&&st.riftWarning>0;
  },dispose(){dispose(group);}};
 }
 export function buildRiftControl(T,regulator){

@@ -32,7 +32,8 @@ export const SEVERANCE_POCKET = Object.freeze({
   x: -300, z: 6, hw: 48, hd: 72,
   rim: 8,                                   // walkable limit inside the visible ridge
   arrival: Object.freeze({ x: -300, z: -52 }),
-  beacon: Object.freeze({ x: -300, z: -56.5 }),
+  // Owner-approved return-rift correction: off the ridge, beside arrival, facing the terrace.
+  beacon: Object.freeze({ x: -304, z: -50 }),
 });
 
 // The anchor. yaw is the rotation of the asset's front (+Z in glTF) about +Y;
@@ -148,6 +149,9 @@ export function pocketHeight(x, z) {
   h *= smooth(Math.hypot(x - P.arrival.x, z - P.arrival.z) / 12);   // level arrival terrace
   const edge = Math.min(P.hw - Math.abs(dx), P.hd - Math.abs(dz));
   if (edge < 16) h += (16 - edge) * (16 - edge) * 0.16 * (0.85 + 0.15 * Math.sin(x * 0.23 + z * 0.19));
+  // Seat the shared Phase Scar foundation and its approach on a local level pad.
+  // Apply after the ridge term; all other terrain and the gate are unchanged.
+  h *= smooth((Math.hypot(x - P.beacon.x, z - P.beacon.z) - 5.5) / 4);
   return h;
 }
 
