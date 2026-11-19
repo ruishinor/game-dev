@@ -147,8 +147,7 @@ def main():
     setup_cycles(sc, W, H, samples=p.get("samples", 48), denoise=True)
     world_color(sc, (0.42, 0.44, 0.47), p.get("world", 0.55))
     lights(sc, centre, size)
-    if p.get("ground", True):
-        ground(sc, lo[2] - 0.002, size)
+    gnd = ground(sc, lo[2] - 0.002, size) if p.get("ground", True) else None
     out = Path(p["out"])
     out.mkdir(parents=True, exist_ok=True)
     saved = {}
@@ -173,6 +172,8 @@ def main():
             eye = tgt + dist * np.array([-math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e)])
             up = (0, 1, 0) if abs(v["el"]) > 85 else (0, 0, 1)
             cam.matrix_world = Matrix(look_at_matrix(eye, tgt, up).tolist())
+            if gnd is not None:  # a camera below the ground plane would only see the plane
+                gnd.hide_render = v["el"] < 0
             f = out / f"{mode}_{v['name']}.png"
             sc.render.filepath = str(f)
             bpy.ops.render.render(write_still=True)
