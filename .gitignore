@@ -54,4 +54,5 @@ Thumbs.db
 
 # Halo Construct scratch output and Blender autosave backups
 halo-evidence/
+armour-evidence/
 *.blend1

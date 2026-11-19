@@ -113,3 +113,29 @@ pipeline universal. The landmark finder assumes an upright, arms-down
 humanoid with visible dark couplings at the joints; the flattening envelope
 can move points up to ~7 mm within ~6 cm of a large removed accessory (unit
 test `test_flatten_protrusions_is_continuous_and_local`).
+
+## Body-fitted armour (`body-fitted-armour`)
+
+The third asset family: wearable armour modelled against the project's own
+runtime bodies (`client/assets/humanoid_m.glb`, `humanoid_f.glb`), skinned to
+their shared 67-joint skeleton, with inventory icons rendered in Cycles from
+the exported asset. First user: `assets/armour_chest` (the three live chest
+items). Production record, decisions, measurements and the roadmap:
+`docs/art/ARMOUR-3D.md`.
+
+```sh
+python -m asset_pipeline all --asset armour_chest        # ~20 min on 2 CPU cores (Blender bakes and renders)
+node tools/assets/build.mjs armour_chest_m armour_chest_f  # manifest entries (verify the published hashes)
+```
+
+| Stage | What it does | New / reused |
+|---|---|---|
+| inspect | verifies the body hashes, dequantizes them (`js/dequantize.mjs`), extracts skeletons and validation clips | new; reuses `js/extract-rig.mjs` |
+| design | lofts every item over each body from convex torso cross-sections (body + worn-under shells, since the body is hollow under them), relaxes sheets, pushes them clear along the surface normal and carries the vest's push to the layers above it | new `armour_design.py`; reuses `humanoid_wardrobe` helpers |
+| build | thickness, bevels, procedural PBR from the vector-art palette, one baked atlas per item (base colour, roughness, metallic, normal, emissive) | reused `blender/humanoid_build.py` op `wardrobe`, generalised (route palettes, emission, mottle, 3D orientation, even-offset switch) |
+| rig | torso-borne weights from the body surface (no leg or forearm influence, capped upper arm), rigid/band modes for plates; one GLB per body | new; reuses `gltf_io.GlbWriter`, `humanoid_rig.pack_weights` |
+| export | WebP + Meshopt + Khronos validator (fails on errors) | reused `js/optimize.mjs` |
+| validate | clearance from the skinned body + shells and edge strain against the body's own strain, over seven clips × 8 frames | new |
+| icons | Cycles renders of each item from the exported GLB -> transparent WebP icons | new `blender/armour_render.py` reusing `render_evidence` lighting |
+| evidence | worn renders on both bodies | new (same script) |
+| publish | runtime GLBs, icons and the generated `client/src/item-renders.js`, compact reports, editable `.blend` sources, JPEG evidence | new |

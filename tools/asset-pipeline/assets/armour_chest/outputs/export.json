@@ -1,0 +1,676 @@
+{
+ "m": {
+  "file": "client/assets/armour_chest_m.glb",
+  "bytes": 2183960,
+  "inputBytes": 10505844,
+  "triangles": 62664,
+  "meshes": 3,
+  "materials": [
+   "armour_field_chest",
+   "armour_reinforced_chest",
+   "armour_resonant_chest"
+  ],
+  "textures": [
+   {
+    "name": "field_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 128524
+   },
+   {
+    "name": "field_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 160106
+   },
+   {
+    "name": "field_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 139212
+   },
+   {
+    "name": "reinforced_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 157618
+   },
+   {
+    "name": "reinforced_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 171898
+   },
+   {
+    "name": "reinforced_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 130756
+   },
+   {
+    "name": "resonant_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 133916
+   },
+   {
+    "name": "resonant_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 143070
+   },
+   {
+    "name": "resonant_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 147286
+   },
+   {
+    "name": "resonant_chest_emissive",
+    "mime": "image/webp",
+    "size": [
+     512,
+     512
+    ],
+    "bytes": 9890
+   }
+  ],
+  "skins": [
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   },
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   },
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   }
+  ],
+  "animations": [],
+  "nodes": [],
+  "extensionsUsed": [
+   "EXT_texture_webp",
+   "KHR_mesh_quantization",
+   "EXT_meshopt_compression"
+  ],
+  "validator": {
+   "errors": 0,
+   "warnings": 3,
+   "infos": 1,
+   "messages": [
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/0/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/1/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/2/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
+   ]
+  },
+  "sha256": "c6ff4759da7f3a8240909f7e530d6fed2512d4290fb18d68355c06de777d10b9"
+ },
+ "f": {
+  "file": "client/assets/armour_chest_f.glb",
+  "bytes": 2271524,
+  "inputBytes": 10774660,
+  "triangles": 62136,
+  "meshes": 3,
+  "materials": [
+   "armour_field_chest",
+   "armour_reinforced_chest",
+   "armour_resonant_chest"
+  ],
+  "textures": [
+   {
+    "name": "field_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 137938
+   },
+   {
+    "name": "field_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 168386
+   },
+   {
+    "name": "field_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 136424
+   },
+   {
+    "name": "reinforced_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 157720
+   },
+   {
+    "name": "reinforced_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 166464
+   },
+   {
+    "name": "reinforced_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 144854
+   },
+   {
+    "name": "resonant_chest_basecolor",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 154424
+   },
+   {
+    "name": "resonant_chest_orm",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 165396
+   },
+   {
+    "name": "resonant_chest_normal",
+    "mime": "image/webp",
+    "size": [
+     1024,
+     1024
+    ],
+    "bytes": 155448
+   },
+   {
+    "name": "resonant_chest_emissive",
+    "mime": "image/webp",
+    "size": [
+     512,
+     512
+    ],
+    "bytes": 11004
+   }
+  ],
+  "skins": [
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   },
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   },
+   {
+    "joints": [
+     "root",
+     "pelvis",
+     "spine_01",
+     "spine_02",
+     "spine_03",
+     "neck_01",
+     "Head",
+     "clavicle_l",
+     "upperarm_l",
+     "lowerarm_l",
+     "hand_l",
+     "index_01_l",
+     "index_02_l",
+     "index_03_l",
+     "index_04_leaf_l",
+     "middle_01_l",
+     "middle_02_l",
+     "middle_03_l",
+     "middle_04_leaf_l",
+     "pinky_01_l",
+     "pinky_02_l",
+     "pinky_03_l",
+     "pinky_04_leaf_l",
+     "ring_01_l",
+     "ring_02_l",
+     "ring_03_l",
+     "ring_04_leaf_l",
+     "thumb_01_l",
+     "thumb_02_l",
+     "thumb_03_l",
+     "thumb_04_leaf_l",
+     "clavicle_r",
+     "upperarm_r",
+     "lowerarm_r",
+     "hand_r",
+     "index_01_r",
+     "index_02_r",
+     "index_03_r",
+     "index_04_leaf_r",
+     "middle_01_r",
+     "middle_02_r",
+     "middle_03_r",
+     "middle_04_leaf_r",
+     "pinky_01_r",
+     "pinky_02_r",
+     "pinky_03_r",
+     "pinky_04_leaf_r",
+     "ring_01_r",
+     "ring_02_r",
+     "ring_03_r",
+     "ring_04_leaf_r",
+     "thumb_01_r",
+     "thumb_02_r",
+     "thumb_03_r",
+     "thumb_04_leaf_r",
+     "thigh_l",
+     "calf_l",
+     "foot_l",
+     "ball_l",
+     "ball_leaf_l",
+     "thigh_r",
+     "calf_r",
+     "foot_r",
+     "ball_r",
+     "ball_leaf_r",
+     "eye_l",
+     "eye_r"
+    ]
+   }
+  ],
+  "animations": [],
+  "nodes": [],
+  "extensionsUsed": [
+   "EXT_texture_webp",
+   "KHR_mesh_quantization",
+   "EXT_meshopt_compression"
+  ],
+  "validator": {
+   "errors": 0,
+   "warnings": 3,
+   "infos": 1,
+   "messages": [
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/0/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/1/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/2/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
+   ]
+  },
+  "sha256": "6fa1cd9945fbe627ed7fa16b60403a5f0a5c4c7b5cb34b8d1c84e92055fce70e"
+ }
+}
