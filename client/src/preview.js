@@ -10,6 +10,7 @@
 import * as THREE from '/vendor/three/three.module.js';
 import { Assets } from './assets.js';
 import { createModel } from './characters.js';
+import { poseLongpoint } from './longpoint.js';
 import { makeEnvironment } from './scene.js';
 
 const q = new URLSearchParams(location.search);
@@ -40,6 +41,13 @@ const info = [];
 function build(spec) {
   const [kind, a, b] = spec.split(':');
   if (kind === 'look') return createModel(assets, { c: 'vanguard', a });
+  if (kind === 'longpoint') {
+    const group = assets.instance('longpoint');
+    if (!group) return null;
+    poseLongpoint(group, a === 'deployed' ? 1 : 0);
+    return { group, kind: 'glb' };
+  }
+  if (kind === 'longpoint-look') return createModel(assets, { k: 'p', c: 'surveyor', a, wv: 'longpoint' });
   if (kind === 'piece') {
     const obj = assets.instance(a, b);
     return obj ? { group: obj, kind: 'piece' } : null;

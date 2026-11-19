@@ -120,7 +120,7 @@ export class CombatVfx {
   hit(d, s, e) {
     // Projectiles land when they arrive; everything else lands now.
     if (e.k === 'bolt' && s?.placed && s !== d) {
-      this.bolt(s, d, () => this.impact(d, s, e));
+      this.bolt(s, d, () => this.impact(d, s, e), e.ab === 'auto' ? s.model?.weaponEffectOrigin?.() : null);
       return;
     }
     this.impact(d, s, e);
@@ -154,9 +154,9 @@ export class CombatVfx {
   }
 
   /** A projectile from s to d; class decides its form. */
-  bolt(s, d, onArrive) {
+  bolt(s, d, onArrive, weaponOrigin = null) {
     const v = this.v;
-    const a = s.chest.clone();
+    const a = weaponOrigin?.isVector3 && [weaponOrigin.x, weaponOrigin.y, weaponOrigin.z].every(Number.isFinite) ? weaponOrigin.clone() : s.chest.clone();
     const len = a.distanceTo(d.chest);
     const life = Math.min(0.42, Math.max(0.12, len / 45));
     const c = s.meta.k === 'e' ? PALETTE.hostile : this.colour(s);

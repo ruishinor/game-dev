@@ -154,19 +154,28 @@ try{
  // Installed items leave carried inventory; use the real equipment slot.
  assert.equal(await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').count(),0);
  await inventory.getByRole('button',{name:'Close inventory'}).click();
- await page.locator('#view').focus();await page.keyboard.press('KeyC');
- const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
- await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
- const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
- await installedRod.click({button:'right'});
- await page.locator('.player-context').getByRole('button',{name:'Separate into dual batons',exact:true}).click();
- await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
- assert.equal(p.char.electricalRodMode,'dual');
- await installedRod.click({button:'right'});
- await page.locator('.player-context').getByRole('button',{name:'Join into combat rod',exact:true}).click();
- await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
- assert.equal(p.char.electricalRodMode,'rod');
- await loadout.getByRole('button',{name:'Close',exact:true}).click();
+ // On software GL avoid expensive draws during real DOM input. World,
+ // networking and animation updates continue; resume before visual evidence.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ try{
+  await page.locator('#view').focus();await page.keyboard.press('KeyC');
+  const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
+  await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
+  const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
+  await installedRod.hover();
+  await page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('electrical_combat_rod'));
+  await installedRod.click({button:'right'});
+  await page.locator('.player-context').getByRole('button',{name:'Separate into dual batons',exact:true}).click();
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
+  assert.equal(p.char.electricalRodMode,'dual');
+  await installedRod.click({button:'right'});
+  await page.locator('.player-context').getByRole('button',{name:'Join into combat rod',exact:true}).click();
+  await page.waitForFunction(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1;});
+  assert.equal(p.char.electricalRodMode,'rod');
+  await loadout.getByRole('button',{name:'Close',exact:true}).click();
+ }finally{
+  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+ }
  const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
  await page.screenshot({path:'vendor-evidence/06-electrical-combat-rod.png'});
