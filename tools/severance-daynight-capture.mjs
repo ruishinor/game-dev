@@ -99,9 +99,8 @@ try {
   const F = GATE_FRAME;
   const P3 = (bx, by, y) => { const w = gateToWorld(bx, by); return [w.x, y, w.z]; };
   const POINTS = {
-    // floor and step probes sit off the centre line, clear of the character
-    archLeftRib: P3(-1.95, -4.5, 8.5), archRightRib: P3(1.95, -4.5, 8.5), passageFloor: P3(-1.2, -3.5, F.floor + 0.02), passageFloorNear: P3(-1.3, -6.2, F.floor + 0.02),
-    upperSteps: P3(-2.2, -9.0, F.floor - 0.25), midSteps: P3(-2.2, -12.5, 2.35), lowerSteps: P3(-2.2, -15.6, 0.7),
+    archLeftRib: P3(-1.95, -4.5, 8.5), archRightRib: P3(1.95, -4.5, 8.5), passageFloor: P3(-0.9, -3.5, F.floor + 0.02), passageFloorNear: P3(-1.0, -6.2, F.floor + 0.02),
+    upperSteps: P3(-1.5, -9.0, F.floor - 0.25), midSteps: P3(-1.5, -12.5, 2.35), lowerSteps: P3(-1.5, -15.6, 0.7),
     archFace: P3(-3.6, -7.0, 10.5), runePanelLower: P3(-4.15, -6.0, 13.2), crown: P3(0, -2.5, 27), skyAbove: P3(0, -2.5, 60), ridge: P3(30, 30, 25), ruin: P3(-7.5, -63, 2),
   };
   const shoot = async (name, steps = [0]) => {
@@ -125,8 +124,10 @@ try {
     log('still', name);
   };
 
-  const DOOR = { at: gateToWorld(0.6, -31), cam: { yaw: north, pitch: -0.02, dist: 4.2 } };
-  const WIDE = { at: gateToWorld(0.6, -50), cam: { yaw: north, pitch: -0.08, dist: 6.5 } };
+  // Camera 1 m behind the character's head: the game hides the character below
+  // 1.3 m, so the frames show only the gate, sky and ground at standing height.
+  const DOOR = { at: gateToWorld(0, -33), cam: { yaw: north, pitch: -0.14, dist: 1.0 } };
+  const WIDE = { at: gateToWorld(0, -53), cam: { yaw: north, pitch: -0.07, dist: 1.0 } };
   await page.evaluate(() => { window.__attune.severanceClock(true); window.__attune.pause(true); });
 
   await frame(DOOR.at, DOOR.cam);

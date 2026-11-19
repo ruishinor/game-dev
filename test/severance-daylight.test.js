@@ -66,6 +66,8 @@ test('controller: off by default, applies only inside, restores the scene exactl
   assert.equal(scale, TOD.night.spill);
   assert.ok(r.sun.intensity < 1 && r.ambient.intensity < 1);
   assert.equal(tod.state.key, 'night');
+  const toSun = r.sun.position.clone().sub(r.sun.target.position).normalize();
+  assert.ok(toSun.distanceTo(new THREE.Vector3(...TOD.night.sunDir).normalize()) < 1e-6, 'the sun is re-aimed in the same frame');
   tod.update(0.1, false, SEVERANCE_POCKET);
   assert.equal(snap(r), before, 'leaving restores every lighting value');
   assert.equal(scale, 1);

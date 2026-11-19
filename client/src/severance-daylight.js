@@ -100,6 +100,12 @@ export function createTimeOfDay(T, o) {
     return cur;
   }
 
+  // Same placement the scene uses every frame (target + dir * 90), applied now so a
+  // frame rendered right after a change never uses the previous sun direction.
+  function aimSun() {
+    if (o.sun?.target && o.dir) o.sun.position.copy(o.sun.target.position).addScaledVector(o.dir, 90);
+  }
+
   function capture() {
     const f = o.scene.fog, sk = skyMesh?.material.uniforms;
     saved = {
@@ -123,6 +129,7 @@ export function createTimeOfDay(T, o) {
     if (stars && saved.stars !== null) stars.material.opacity = saved.stars;
     if (o.sun && saved.sun) { o.sun.color.copy(saved.sun.color); o.sun.intensity = saved.sun.intensity; }
     if (o.dir && saved.dir) o.dir.copy(saved.dir);
+    aimSun();
     if (o.ambient && saved.hemi) { o.ambient.color.copy(saved.hemi.sky); o.ambient.groundColor.copy(saved.hemi.ground); o.ambient.intensity = saved.hemi.intensity; }
     o.landmark?.setLightScale?.(1);
     saved = null;
@@ -140,6 +147,7 @@ export function createTimeOfDay(T, o) {
     if (stars) stars.material.opacity = 0.9 * c.stars;
     if (o.sun) { o.sun.color.copy(c.sun); o.sun.intensity = c.sunI; }
     if (o.dir) o.dir.copy(c.sunDir);
+    aimSun();
     if (o.ambient) { o.ambient.color.copy(c.hemiSky); o.ambient.groundColor.copy(c.hemiGround); o.ambient.intensity = c.hemiI; }
     o.landmark?.setLightScale?.(c.spill);
     state.applied = true;
