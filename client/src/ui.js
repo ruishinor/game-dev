@@ -1815,7 +1815,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
-    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : st.nearObject.meta.c.startsWith('brine_') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
+    else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_')||st.nearObject.meta.c==='initiation_terminal') ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
   }

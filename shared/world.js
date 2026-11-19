@@ -115,6 +115,8 @@ export function groundHeight(x, z) {
 // collider used by both sides: circle {r} or axis-aligned box {hw, hd}.
 // ---------------------------------------------------------------------------
 
+export const INITIATION_SITE=Object.freeze({x:0,z:7.5,terminalX:-3.75,terminalZ:8.2});
+
 function buildProps() {
   const props = [];
   const add = (p) => props.push(p);
@@ -122,6 +124,9 @@ function buildProps() {
 
   // --- Lattice Sanctum (safe zone) ---
   add({ type: 'beacon', x: 0, z: 0, r: 1.5, h: 9 });
+  // Open-sided arrival architecture preserves the existing north/south travel lane.
+  for(const x of [-3.8,3.8])for(const z of [5.8,10])add({type:'arrival_pillar',x,z,r:.38,h:3.8});
+  add({type:'arrival_terminal',x:INITIATION_SITE.terminalX,z:INITIATION_SITE.terminalZ,hw:.48,hd:.38,h:1.45});
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
     add({ type: 'pylon', x: Math.sin(a) * 11.5, z: Math.cos(a) * 11.5, r: 0.8, h: 5, rot: a });
@@ -303,6 +308,7 @@ export function hasLineOfSight(a, b, obstacles = COLLIDERS) {
 
 /** Interactive, non-hostile world objects. The server owns their state. */
 export const OBJECTS = [
+  {key:'initiation_terminal',type:'initiation_terminal',name:'Arrival orientation terminal',x:INITIATION_SITE.terminalX,z:INITIATION_SITE.terminalZ,r:0,embedded:true},
   { key: 'obelisk', type: 'obelisk', name: 'The Listening Stone', x: ZONES.obelisk.x, z: ZONES.obelisk.z, r: 1.0 },
   { key: 'archivist', type: 'archivist', name: 'Archivist Venn', x: 4.2, z: -2.6, r: 0.5 },
   { key: 'survey_signal', type: 'survey_signal', name: 'Pressure Receiver', x: 39, z: -32, r: 0.8 },

@@ -429,6 +429,7 @@ export class Game {
       name: c.name,
       cls: c.cls,
       companion:p.companion?.type??null,
+      initiationSeen:c.initiationSeen===true,
       look: c.look,
       appearance: c.appearance,
       level: c.level,
