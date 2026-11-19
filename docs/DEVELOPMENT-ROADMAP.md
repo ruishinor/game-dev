@@ -181,3 +181,66 @@ Owner direction, 2026-11-19: this line of work now leads Severance Expanse zone 
 2. Build the Foundry interior to replace the Phase Annex stand-in behind the gate (SE-11 to SE-14).
 3. Run real-GPU profiling and owner visual review of the gate and the Expanse (SE-23).
 4. **Last stage (owner request, 2026-11-19): upgrade the Lattice Sanctum, its structure and its environment.** Extrapolate from the Sanctum's purposes (safe arrival hall, initiation, fabrication, quartermaster, lattice reconstitution) and its setting in the Verdigris Reach. Introduce some awe through quality visuals and VFX. Reuse the gate's pipeline methods: reference-constrained Blender modelling, baked atlases, detail bands, and bounded, phase-driven effects. Preserve the safe-zone layout, colliders, arrival flow and existing services.
+
+
+## 9. Owner-directed comprehensive delivery expansion — 2026-11-19
+
+This section supersedes earlier sequencing deferrals where explicitly identified, not historical checkpoint evidence. Narrative and equipment development are now concurrent with stabilization. Supporting content, assets and systems are authorized where necessary. Main remains canonical; branch-only documentation is not implementation. All entries below are outstanding or partial unless separately evidenced by a verified merge.
+
+| ID | Priority | Deliverable | Completion evidence |
+|---|---|---|---|
+| DEL-01 | P0 | Reconcile current main and all open branches | Inspect independent diffs, exact workflow/job results; preserve merged work; selectively recover #89/#92/#93; retire #91/#95/#96 only after equivalence verified. |
+| DEL-02 | P0 | Electrical rod V3 #130 | Diagnose fixture/authenticated connection failures without weakening assertions; sustained live corona, both configurations and combat-grade effects; actual browser evidence and exact integration gate. |
+| DEL-03 | P0 | Managed windows #129 | Drag/resize/opacity/lock/reset/keyboard/persistence; compact Character, Inventory, Build & Fabrication, Vendor, Journal, Codex, Companions, Settings and Loot. Default no required internal scrolling at 1280x720, 1366x768, 1920x1080, 2560x1440; tabs, pagination, persistent actions; accessible overflow fallback, no clipping. |
+| DEL-04 | P0 | Stillpoint natural movement #128 | Reconcile current model, walk/idle transitions, bounded natural roaming, collision and browser verification. |
+| EQ-01 | P0 | Independent equipment and active weapons | Functional ranged/melee slots concurrently equipped, authoritative selection, deterministic legacy migration, active-only weapon bonuses, condition/repair and crafting compatibility. |
+| EQ-02 | P0 | All character slots functional | Audit every visible armor, implant, glyph, gear, device, utility and social slot. Real items, compatibility, equip/unequip, persistence, effects, contextual actions and accessible UI. No fake future-use slots. |
+| EQ-03 | P0 | Action bar and switching | Dedicated conflict-free hotkey and clickable selector, active weapon state, family-specific actions; retain compatible class and utility abilities; combat switching restrictions, cooldown/resource continuity and unarmed fallback. |
+| EQ-04 | P1 | Item taxonomy | Consistent integer QL starting at 1, independent rarity, clear requirements and effects. Audit existing QL weapons and apply to implants/glyphs/armor/gear/social items; normalize missing metadata without silently changing balance. Display across Character, Inventory, Codex, vendors, loot and recipes. |
+| EQ-05 | P1 | Implant progression | Anatomically distinct slots; basic and specialized implants, upgrade targets, component acquisition, skill/attunement/knowledge/station requirements, atomic consumption/replacement, preview, dependency and removal handling. |
+| EQ-06 | P1 | Glyph progression | Multiple purposeful slots, discoverable inscriptions, ability modifications, compatibility, meaningful alternatives, unlock/installation requirements and actual effects. |
+| EQ-07 | P1 | Gear and social progression | Functional accessories/devices/utility gear; recover #89 social coats; cosmetic layering independent of armor, preview, purchase, persistence, visual fit and no stat leakage. |
+| EQ-08 | P1 | Rare class armor sets | Chest/gloves/greaves/boots per class, distinct blueprint and item art, acquisition, fabrication, individual stats and cumulative 2/3/4-piece effects; integrate #119 evaluator into authoritative loadout/stat logic. No exact private loot odds in public repo. |
+| EQ-09 | P1 | Modular fabrication | Recover #93 independently, component chains, rare blueprint discovery, recipe knowledge, material/skill/QL/station gating and transaction integrity. |
+| CB-01 | P1 | Weapon-specific combat | Recover #92 fitted recoil/grips/muzzle traces and unarmed motion. Distinct rifle, sidearm, rod, dual baton, emitter and unarmed abilities with mechanics, animation and VFX; range/cost/cooldown validation. Preserve class identities. |
+| CB-02 | P1 | Skill and attunement progression | Class and weapon skill unlocks, glyph/implant synergies, meaningful tradeoffs, clear prerequisites, no cooldown/ownership exploits. Expand beyond introductory loop. |
+| NAR-01 | P0 parallel | Canon and first playable chapter | Audit current lore/NPC/quest registry; at least six new substantive quests with dialogue, descriptions, completion reactions, investigation, repair, exploration, combat and crafting; existing progressed characters need not repeat introduction. |
+| NAR-02 | P1 | Severance expedition narrative | Existing Phase Scar → Expanse → gate route; outpost personnel/vendors and recovery supplies; field discoveries, optional exploration and preparation; coordinate region branch. |
+| NAR-03 | P1 | Silent Foundry narrative and dungeon | Replace Annex stand-in through incremental tested integration; distinct environments, machinery, enemies, optional objectives and meaningful rewards. |
+| NAR-04 | P1 | Longer narrative progression | Conflicting interpretations, local inhabitants and research/salvage institutions; bounded player consequences, environmental storytelling, NPC reactions. Preserve established canon; chapter titles are provisional. |
+| NAR-05 | P1 | Side content and replayability | Class/equipment/implant/glyph/companion quests, discoveries, optional recurring contracts separate from one-time story; journal reward accuracy and no mandatory introductory repeat. |
+| WORLD-01 | P1 | Severance Expanse full environment | Expand bounded approach, outpost/vendor/healing consumables, patrols, resource nodes, rock formations, navigation, safe return/reconnect and map. Preserve merged gate and its asset pipeline. |
+| WORLD-02 | P1 | Dungeon encounter ecology | Three differentiated chambers initially targeting 3–6 enemies per chamber, distinct creature families, crystal/rock or environment-appropriate formations, rare recipe sources, sensible respawns and progression. Tune from actual play; no hidden exact probabilities in public records. |
+| WORLD-03 | P2 | Reach and Sanctum enhancement | After Expanse/Foundry delivery, upgrade Sanctum architecture and surrounding environment; preserve safe-zone layout, initiation, guards, vendor, fabrication and return services. |
+| ART-10 | P1 | Production-grade assets | Class-specific armor families, weapon/implant/glyph visuals, unique inventory and blueprint illustrations, coherent science-fantasy materials, animation, LOD, provenance and real in-game review. Preserve accepted Stillpoint/Spindle/Halo/Strider/Longpoint/Severance models; review outstanding visual issues rather than unnecessary redesign. |
+| ART-11 | P1 | Retrospective concept recovery | Inventory all recoverable earlier conversation drafts, lookbooks and reference assets; identify original, revised, rejected, accepted, implemented, blocked and missing sources. Respect retired race exclusions and owner-approved asset identity. |
+| ART-12 | P1 | Version-controlled concept illustrations | Recover authorized original binaries or clean editable reconstructions, including equipment progression, weapon selector, Workshop layouts, race/class/companion studies, environments, VFX and gameplay diagrams. Provenance, date/revision, status and implementation linkage under docs/art/concepts/; keep private/unlicensed material out of public branches. |
+| ART-13 | P1 | Repeatable asset pipeline | Reference-constrained modelling, appropriate rig/articulation/animation, LOD or justified deferral, material/texture budgets, validators, runtime integration, captures and human visual acceptance tracked separately. If Blender unavailable, proceed with other work and identify concrete blocker. |
+| EXP-10 | P2 | Broader progression | Revisit cap 20, specialization at 10 and later points/capstone, XP curve, supporting encounters and items, respec and small-population balance. Not a constant-only change. |
+| EXP-11 | P2 | Additional classes, races, companions | Recover authorized concept work; select coherent original distinct mechanics and bodies/rigs; do not revive retired/excluded races or assume exploratory designs approved for implementation. |
+| EXP-12 | P3 | Long-term MMORPG expansion | Evaluate factions, reputation, guilds, trading, social features, further zones/rifts, dungeons/raids and PvP against small-community viability and security; concept-stage, not automatic implementation commitments. |
+
+### Track ownership and dependencies
+
+- Stabilization: #129 window management, #130 electrical VFX, #128 Stillpoint; independent diagnostic and delivery increments.
+- Equipment: feat/weapon-loadouts-combat-specialization, with focused dependent branches for weapon abilities and armor as needed. Requirements and implant concepts are committed on that branch; implementation pending. Coordinate #119, #89, #92, #93 rather than duplicating them.
+- Narrative: feat/narrative-quest-expansion; public editorial plan and retrospective concept index committed, playable quests pending. Supporting assets and NPCs authorized. Coordinate with Severance development and equipment progression.
+- Expanse/Foundry: preserve #131 merged entry route and existing travel/reward authority; establish outpost and dungeon environment as independent increments.
+- Visual archive: cross-cutting, colocate relevant drafts with feature commits; archive original versus reconstructed status and keep production assets separate. Source binaries not all recovered.
+
+### Acceptance and delivery gates
+
+Each increment must identify current baseline, scope, dependencies, preserved functionality, authoritative state, disclosure boundaries and relevant failure modes. Validate save migration, account/player isolation, forged requests, replay, atomic transactions, disconnect/reconnect, death and interrupted actions wherever relevant. Test actual player journeys and interactions, not only static source. Include accessibility, layout at target viewports, real input, model/animation/VFX captures and performance evidence as appropriate. Do not imply human visual acceptance, balance, real-GPU performance or full production readiness from automated checks alone.
+
+Re-fetch main, AGENTS.md, branch heads and current PRs before writes. Stagger independent work when blocked. Diagnose actual failed jobs before retries; use expected revision checks and avoid overwriting concurrent changes. Merge only exact current applicable green integration with no unresolved material concerns; no force push, disabled checks, fabricated evidence or routine owner approval requests. Report verified commits/merges and concrete blockers. Public roadmap is high-level: no private concept assets, hidden scripts, unreleased mechanics, exact loot odds, player data or secrets.
+
+### Tester release milestones
+
+1. Stable compact gameplay UI and reliable visual/companion interaction.
+2. First coherent new playable quest chapter accessible from existing saves, independently deliverable while equipment progresses.
+3. Simultaneous equipment slots and weapon selection with validated persistence and distinct combat actions.
+4. Expanse outpost and meaningful dungeon expedition, new rewards and discoveries.
+5. Equipment specialization, class armor sets, implant/glyph upgrades and continued story.
+6. Expanded long-term progression after supporting content, repeatable play and balance are demonstrated.
+
+Update the register after each verified merge using actual evidence. Do not mark work complete solely because a roadmap, concept or branch exists.
