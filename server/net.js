@@ -85,7 +85,8 @@ export class NetServer {
       alive: true,
       missedPongs: 0,
       authTimer: setTimeout(() => {
-        if (!conn.player) ws.close(4000, 'auth timeout');
+        // An authenticated account may remain at character selection without a live player.
+        if (!conn.player && !conn.account) ws.close(4000, 'auth timeout');
       }, AUTH_TIMEOUT_MS),
     };
     this.conns.add(conn);

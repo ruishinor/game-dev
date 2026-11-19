@@ -4,11 +4,34 @@ import * as THREE from '/vendor/three/three.module.js';
 import {createModel} from './characters.js';
 import {encodeAppearance, FRAMES, normalizeAppearance} from '../../shared/appearance.js';
 
-export function createCreationPreview({root,assets,useGlb,motionPreference,getMeta,selectFrame}){
+export function createCreationPreview({root,assets,useGlb,motionPreference,getMeta,selectFrame,variant='creation'}){
  const canvas=root.querySelector('canvas'),status=root.querySelector('[data-preview-status]');
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.01,100);
  scene.background=new THREE.Color(0x132029);
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
+ if(variant==='selection'){
+  // A small original architectural presentation stage, never the world or an Expanse asset.
+  scene.background=new THREE.Color(0x0a1016);
+  scene.fog=new THREE.Fog(0x0a1016,9,22);
+  const stone=new THREE.MeshStandardMaterial({color:0x3f4c50,roughness:.85,metalness:.15});
+  const bronze=new THREE.MeshStandardMaterial({color:0x82775e,roughness:.65,metalness:.55});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(2.8,3.1,.18,48),stone);
+  base.position.y=-.17;scene.add(base);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(2.5,.035,8,72),bronze);
+  ring.rotation.x=-Math.PI/2;ring.position.y=-.067;scene.add(ring);
+  for(const side of [-1,1]){
+   const monolith=new THREE.Mesh(new THREE.BoxGeometry(.65,4.6,.75),stone);
+   monolith.position.set(side*2.4,2,-3);monolith.rotation.z=side*.065;scene.add(monolith);
+   const inlay=new THREE.Mesh(new THREE.BoxGeometry(.07,3.2,.04),bronze);
+   inlay.position.set(side*2.4,2,-2.59);scene.add(inlay);
+  }
+  const lintel=new THREE.Mesh(new THREE.BoxGeometry(5.7,.55,1.0),stone);
+  lintel.position.set(0,4.55,-3);scene.add(lintel);
+  const halo=new THREE.Mesh(new THREE.TorusGeometry(1.4,.025,8,72),bronze);
+  halo.position.set(0,2.25,-2.85);scene.add(halo);
+  const atmosphere=new THREE.PointLight(0xc7b6a0,.8,10);atmosphere.position.set(0,3.8,-1.9);scene.add(atmosphere);
+ }
+
  const key=new THREE.DirectionalLight(0xffeee0,3.2);key.position.set(3,5,4);scene.add(key);
  const rim=new THREE.DirectionalLight(0x91cfdf,1.8);rim.position.set(-3,2,-3);scene.add(rim);
  let renderer=null,models=[],keyState='',failed=false,visible=false;
