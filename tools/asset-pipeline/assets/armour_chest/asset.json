@@ -34,7 +34,7 @@
    "items": ["field_chest", "reinforced_chest", "resonant_chest"],
    "samples": 120000,
    "base_offset": 0.009,
-   "min_gap": 0.008,
+   "min_gap": 0.011,
    "relax": 6
   },
   "materials": {
