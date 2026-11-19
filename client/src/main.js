@@ -1429,6 +1429,8 @@ input.onAction = (code, e) => {
     e.preventDefault();
     return;
   }
+  // Modified unbound keys must not trigger unrelated built-in actions.
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
   switch (code) {
     case 'NumLock':
       e.preventDefault();
