@@ -331,3 +331,27 @@ test('HTTP serves the gate GLB with immutable caching and not its authoring sour
     for (const url of ['/tools/asset-pipeline/assets/severance_gate/outputs/gate-metrics.json', '/client/assets/gate-metrics.json', '/client/assets/severance_gate_raw.glb', '/art-source/severance-gate/source/severance_gate_concept_sheet.png']) assert.equal((await fetch(base + url)).status, 404, url);
   } finally { await srv.close(); }
 });
+
+test('companions summon and follow in the Severance Expanse (and the Phase Annex)', async () => {
+  const { manageCompanion } = await import('../server/sim/companion.js');
+  const { tickSpindle } = await import('../server/sim/spindle.js');
+  const { RIFT_ANNEX } = await import('../shared/world.js');
+  for (const [where, at] of [['expanse arrival', SEVERANCE_POCKET.arrival], ['gate front', GATE_FRONT], ['annex arrival', { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }]]) {
+    const g = makeGame();
+    const p = g.addPlayer(makeChar('vanguard', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
+    assert.ok(manageCompanion(g, p, 'commission', 'spindle').ok);
+    place(p, at.x, at.z);
+    const r = manageCompanion(g, p, 'summon', 'spindle');
+    assert.ok(r.ok, `${where}: ${r.reason}`);
+    const c = p.companion;
+    assert.equal(travelRegionAt(c.x, c.z), travelRegionAt(p.x, p.z), `${where}: spawned beside the owner`);
+    // the owner walks 12 m; the Spindle follows on foot
+    place(p, p.x + (where === 'annex arrival' ? 0 : 6), p.z - 10);
+    for (let t = 0; t < 8000; t += 50) { g.time += 50; tickSpindle(g, c, 0.05); }
+    assert.ok(Math.hypot(c.x - p.x, c.z - p.z) < 4, `${where}: follows (${Math.hypot(c.x - p.x, c.z - p.z).toFixed(1)} m)`);
+  }
+  const g = makeGame();
+  const s = g.addPlayer(makeChar('surveyor', { striderLearned: true, companionDismissed: true }));
+  place(s, SEVERANCE_POCKET.arrival.x, SEVERANCE_POCKET.arrival.z);
+  assert.ok(manageCompanion(g, s, 'summon').ok, 'Survey Strider in the Expanse');
+});
