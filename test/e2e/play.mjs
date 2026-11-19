@@ -17,6 +17,7 @@ import { resetEnemy } from '../../server/sim/ai.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
 import { liveFixturePlayer } from './live-fixture.mjs';
+import { revealRecipe } from './recipe-catalogue.mjs';
 import { SLOTS } from '../../shared/content.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL } from '../../tools/browser.mjs';
 
@@ -272,7 +273,7 @@ async function workshopPlaytest(){
   check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
   await shot(P,'workshop-01-planner.png');
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
-  await page.locator('.recipe-entry[data-recipe="coupler"]').click();
+  await (await revealRecipe(page.locator('.workshop-window'),'coupler')).click();
   await page.locator('[data-craft="coupler"]').click();
   await page.waitForFunction(()=>document.querySelector('.workshop-window').hidden&&!document.querySelector('.production-status').hidden,null,{timeout:10000});
   await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1,null,{timeout:10000});
@@ -299,7 +300,7 @@ async function workshopPlaytest(){
   check('workshop UI: item upgrade rejects installed target then atomically converts carried item',blocked&&!player.char.inventory.includes('servo_harness')&&!player.char.materials.kinetic_coupler);
   await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
   await page.locator('#view').focus();await page.keyboard.press('KeyB');
-  await page.locator('.recipe-entry[data-recipe="bloom_relay"]').click();
+  await (await revealRecipe(page.locator('.workshop-window'),'bloom_relay')).click();
   const detail=page.locator('.recipe-detail');
   check('workshop UI: fusion discloses all consumed items, profession and irreversibility',await detail.getByText('Conductive Membrane',{exact:true}).isVisible()&&await detail.getByText('Sinter Laminate',{exact:true}).isVisible()&&await detail.getByText('Symbiotech Conductor',{exact:true}).isVisible()&&await detail.getByText('Permanent fusion:',{exact:false}).isVisible()&&await detail.locator('[data-craft="bloom_relay"]').isDisabled());
   const learned = page.getByRole('checkbox', { name: 'Learned recipes' });
@@ -971,7 +972,7 @@ try {
   const planner = await B.page.locator('.workshop-window').isVisible()
     && JSON.stringify(plannerSlots.sort()) === JSON.stringify(expectedSlots);
   await B.page.locator('.workshop-tabs [data-tab="fabrication"]').click();
-  const fabrication=await B.page.locator('.recipe-entry[data-recipe="matrix"]').count()===1;
+  const fabrication=await (await revealRecipe(B.page.locator('.workshop-window'),'matrix')).isVisible();
   await B.page.getByRole('searchbox', { name: 'Find a recipe or item' }).fill('Culture matrix');
   const filtered = await B.page.locator('.workshop-recipes .recipe-entry').count() === 1 &&
     await B.page.locator('.recipe-entry[data-recipe="matrix"]').isVisible();
