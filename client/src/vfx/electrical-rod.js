@@ -1,12 +1,14 @@
 // Ability-grade electrical weapon presentation. All timings and budgets are
 // visual only; contact is supplied by an existing confirmed combat event.
+import {playElectricalStrike} from './electrical-strike.js';
+import {CELL} from './textures.js';
 const C={ice:0xcaf7ff,cyan:0x61d7ff,blue:0x2675ef,deep:0x344bcc};
 const clamp=x=>Math.max(0,Math.min(1,Number.isFinite(x)?x:0));
 const finite=p=>p&&[p.x,p.y,p.z].every(Number.isFinite);
 const clone=p=>p.clone?p.clone():{x:p.x,y:p.y,z:p.z};
 export function createElectricalRodVfx(rod,vfx){
- let cooldown=0,contactCooldown=0,transformCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true;
- const handles=new Set();
+ let cooldown=0,contactCooldown=0,transformCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true,sequence=null;
+ const handles=new Set(),idleLayers=new Set();
  const remember=h=>{if(!h)return;for(const old of handles)if(old.done||old.age>=old.life)handles.delete(old);
   // Retired or evicted handles may still be referenced. Keep a hard bound.
   if(handles.size>=32)handles.delete(handles.values().next().value);handles.add(h);};
@@ -24,8 +26,24 @@ export function createElectricalRodVfx(rod,vfx){
   if(!enabled()||!finite(p))return;
   vfx.burst?.({at:p,count:calm()?Math.min(count,8):count,color:C.ice,color2:C.blue,cell:[2,13,8],shape:'sphere',radius:.07*scale,life:[.16,.43],size:[.023,.068*scale],sizeEnd:.012,speed:[.65,3.1*scale],stretch:2,gravity:-3,drag:2.2,alpha:.85});
  }
+ function clearIdle(){for(const h of idleLayers)h.done=true;idleLayers.clear();}
  function idleCrackle(){
   for(let i=0;i<2;i++)arc(i,'Collar',i,'Tip',{life:.55,width:calm()?.012:.028,alpha:calm()?.28:.85,jag:.23,branches:1});
+  if(!rich()||typeof vfx.beam!=='function')return;
+  // Use the same noisy soft-core shader as class abilities. The field is
+  // anchored to actual emitter geometry, not a rotating hard-edged coil.
+  // At most two current and two fading channels per equipped weapon.
+  for(const h of idleLayers)if(h.done||h.age>=h.life)idleLayers.delete(h);
+  if(idleLayers.size>2){for(const h of idleLayers){h.done=true;idleLayers.delete(h);if(idleLayers.size<=2)break;}}
+  for(let i=0;i<2;i++){
+   const channel=vfx.beam({from:at(i,'Collar'),to:at(i,'Tip'),color:C.blue,width:full()?.25:.21,jitter:.045,taper:.35,flow:3.8,life:.86,hold:true,alpha:.79});
+   if(channel){if(channel.mesh)channel.mesh.name='rod-idle:plasma-'+i;idleLayers.add(channel);remember(channel);}
+   const tip=rod.anchor(i,'Emitter');
+   if(finite(tip)){
+    vfx.burst?.({at:tip,count:full()?7:5,cell:[CELL.glow,CELL.streak,CELL.ember],shape:'sphere',radius:.085,color:C.ice,color2:C.blue,size:[.055,.19],sizeEnd:.014,life:[.23,.50],speed:[.26,1.05],drag:2.6,turb:.44,turbScale:3.1,alpha:.75});
+    vfx.burst?.({at:tip,count:1,cell:CELL.flare,color:C.ice,color2:C.cyan,size:full()?.24:.19,sizeEnd:.06,life:.24,speed:0,alpha:.64});
+   }
+  }
  }
  function chargeSurge(){
   if(!enabled())return false;energy=Math.max(energy,.9);
@@ -58,6 +76,13 @@ export function createElectricalRodVfx(rod,vfx){
   // Presentation inspection only: counts accepted visual discharges, never damage.
   rod.group.userData.rodContactCount=(rod.group.userData.rodContactCount??0)+1;
   const layered=rich(),long=joined(),scale=long?1.6:1.25;
+  if(layered){
+   const tips=[rod.anchor(0,'Tip'),rod.anchor(1,'Tip')].filter(finite);
+   const tip=tips.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y,a.z-p.z)-Math.hypot(b.x-p.x,b.y-p.y,b.z-p.z))[0];
+   sequence?.cancel();
+   sequence=playElectricalStrike(vfx,{from:tip,target:p,ground,joined:long,blocked,active:rich,remember});
+   if(sequence)rod.group.userData.rodStrikeSequences=(rod.group.userData.rodStrikeSequences??0)+1;
+  }
   sparks(clone(p),layered?(long?64:36):16,scale);
   if(layered){
    vfx.burst?.({at:clone(p),count:long?15:9,color:C.cyan,color2:C.deep,cell:[0,1],life:[.35,.65],size:[.15,.36],sizeEnd:.05,speed:[.1,.8],alpha:.92});
@@ -66,7 +91,7 @@ export function createElectricalRodVfx(rod,vfx){
   }
   return true;
  }
- function stop(){for(const h of handles)h.done=true;handles.clear();energy=0;}
+ function stop(){clearIdle();sequence?.cancel();sequence=null;for(const h of handles)h.done=true;handles.clear();energy=0;}
  return {
   charge:chargeSurge,impact:contactDischarge,
   update(dt,{energized=true,activity=0}={}){
@@ -77,6 +102,7 @@ export function createElectricalRodVfx(rod,vfx){
    previous=rod.progress;
    visible=!!energized&&rod.group.visible;
    if(!enabled()){stop();rod.setEnergy?.(energized?0.30:0,energized?0.30:0);return;}
+   if(!rich())clearIdle();
    energy=Math.max(0,energy-step*.80);
    if(moving&&transformCooldown===0){transformCooldown=.29;transformDischarge();}
    if(locked&&moving&&full()){
