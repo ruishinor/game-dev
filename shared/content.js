@@ -11,8 +11,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest' };
-export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest', 'gloves', 'greaves', 'boots'];
 
 export const CLASSES = {
   vanguard: {
@@ -349,7 +349,86 @@ export const SPAWNS = [
 
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
+export const ARMOR_SETS = {
+  "vanguard_field_set": {
+    "cls": "vanguard",
+    "name": "Bastion Circuit",
+    "bonuses": {
+      "2": {
+        "hpAdd": 4
+      },
+      "3": {
+        "hpAdd": 6
+      },
+      "4": {
+        "hpAdd": 10
+      }
+    }
+  },
+  "symbiotech_field_set": {
+    "cls": "symbiotech",
+    "name": "Verdant Conduit",
+    "bonuses": {
+      "2": {
+        "healMul": 1.02
+      },
+      "3": {
+        "healMul": 1.03
+      },
+      "4": {
+        "healMul": 1.04
+      }
+    }
+  },
+  "keeper_field_set": {
+    "cls": "keeper",
+    "name": "Hinge Array",
+    "bonuses": {
+      "2": {
+        "shieldMul": 1.02
+      },
+      "3": {
+        "shieldMul": 1.03
+      },
+      "4": {
+        "shieldMul": 1.04
+      }
+    }
+  },
+  "surveyor_field_set": {
+    "cls": "surveyor",
+    "name": "Faultline Harness",
+    "bonuses": {
+      "2": {
+        "dmgMul": 1.02
+      },
+      "3": {
+        "dmgMul": 1.03
+      },
+      "4": {
+        "dmgMul": 1.04
+      }
+    }
+  }
+};
+
 export const ITEMS = {
+  vanguard_field_set_chest: {"name":"Bastion Circuit Chest","slot":"chest","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
+  vanguard_field_set_gloves: {"name":"Bastion Circuit Gloves","slot":"gloves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
+  vanguard_field_set_greaves: {"name":"Bastion Circuit Greaves","slot":"greaves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
+  vanguard_field_set_boots: {"name":"Bastion Circuit Boots","slot":"boots","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
+  symbiotech_field_set_chest: {"name":"Verdant Conduit Chest","slot":"chest","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
+  symbiotech_field_set_gloves: {"name":"Verdant Conduit Gloves","slot":"gloves","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
+  symbiotech_field_set_greaves: {"name":"Verdant Conduit Greaves","slot":"greaves","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
+  symbiotech_field_set_boots: {"name":"Verdant Conduit Boots","slot":"boots","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
+  keeper_field_set_chest: {"name":"Hinge Array Chest","slot":"chest","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Hinge Array set."},
+  keeper_field_set_gloves: {"name":"Hinge Array Gloves","slot":"gloves","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Hinge Array set."},
+  keeper_field_set_greaves: {"name":"Hinge Array Greaves","slot":"greaves","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Hinge Array set."},
+  keeper_field_set_boots: {"name":"Hinge Array Boots","slot":"boots","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Hinge Array set."},
+  surveyor_field_set_chest: {"name":"Faultline Harness Chest","slot":"chest","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Faultline Harness set."},
+  surveyor_field_set_gloves: {"name":"Faultline Harness Gloves","slot":"gloves","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Faultline Harness set."},
+  surveyor_field_set_greaves: {"name":"Faultline Harness Greaves","slot":"greaves","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Faultline Harness set."},
+  surveyor_field_set_boots: {"name":"Faultline Harness Boots","slot":"boots","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Faultline Harness set."},
   field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
   reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
   resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
