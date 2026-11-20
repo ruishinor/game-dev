@@ -56,3 +56,18 @@ Three attached live screenshots demonstrate that the first merged HUD iteration 
 - CI screenshot and browser gate must verify actual computed slot dimensions, icon/portrait frame visibility, keyboard configuration and summon/dismiss round trip. Human legibility and visual acceptance remain separate from automated pass.
 
 Implemented candidate: `feat/hud-actionbar-keybindings`. Visual proof is only valid after its head passes browser rendering checks; do not mark fully accepted without inspection.
+
+## Atlas waypoints and navigation increment — 2026-11-20
+
+Branch: `feat/atlas-waypoints-navigation`, stacked on the HUD legibility/keybinding integration until that PR is merged.
+
+| Scope | Implemented candidate | Acceptance |
+|---|---|---|
+| MAP-04 Personal waypoints | Click within the visible current-region map to mark coordinates; separately select a known map entry and click **Mark selected place**; explicit clear control | No server mutations, no secret spawn/loot data, points restricted to the current mapped region |
+| MAP-05 Minimap bearing | Distinct gold diamond marker at mapped position; edge-clamped marker when off-screen, accessible straight-line distance | Correct coordinate transform and heading; do not call it route guidance or navigable pathfinding |
+| MAP-06 Full-screen atlas | Expand to screen edges, restore normal window, center on player, retain search/layer controls | Browser checks for fullscreen toggle, map search, waypoint creation/clearing, reopening and snapshot-driven distance |
+| VAL-02 | Unit checks for pan/zoom inverse projection, region bounds and cardinal bearings; targeted Playwright browser workflow and screenshot artifact | Merge only on current-head validation; actual visual inspection still required |
+
+A waypoint is transient and local to the current session and region, not account-synchronized and not a quest objective. It clears on crossing into another travel region. Route planning, persistent bookmarks, a fully authored map image, discovery/fog-of-war, quest pins, and shared party markers require additional product decisions or actual game-data integration; they are not claimed in this increment.
+
+The dedicated Expanse/Silent Foundry environment and day/night cycle remain owned by the parallel workstream, untouched here.
