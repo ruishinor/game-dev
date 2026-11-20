@@ -30,6 +30,21 @@ try {
  const canvas=atlas.locator('.atlas-view canvas');
  const terrainSource=await canvas.getAttribute('data-terrain-source');
  assert.equal(terrainSource,'scene','The world atlas must show genuine textured terrain captured from the in-game 3D scene');
+ // Prevent a regression to the near-black overhead photo rejected in the
+ // owner playtest. Sample across the terrain, not HUD or sidebar chrome.
+ const visibility=await canvas.evaluate(node=>{
+  const {width,height}=node,rgba=node.getContext('2d').getImageData(0,0,width,height).data;
+  let count=0,tooDark=0;
+  for(let y=24;y<height-24;y+=12)for(let x=24;x<width-24;x+=12){
+   const offset=(y*width+x)*4;
+   const luminance=(rgba[offset]+rgba[offset+1]+rgba[offset+2])/3;
+   if(luminance<50)tooDark++;
+   count++;
+  }
+  return {tooDark,count};
+ });
+ assert.ok(visibility.count>100&&visibility.tooDark/visibility.count<.75,
+  'World atlas has become unreadably dark; most terrain must remain visually distinguishable regardless of game time');
  const initialCaptureCount=await canvas.getAttribute('data-terrain-capture-count');
  assert.equal(initialCaptureCount,'1','The static 3D terrain must be captured once per region');
  await canvas.click({position:{x:320,y:255}});
