@@ -33,7 +33,7 @@ function factualRow(label,value){
 }
 export class CharacterRosterView{
  constructor({root,assets,useGlb,motionPreference,onEnter,onCreate,onDelete}){
-  this.root=root;this.characters=[];this.selected=null;this.onEnter=onEnter;this.maxSlots=0;
+  this.root=root;this.characters=[];this.selected=null;this.onEnter=onEnter;this.onCreate=onCreate;this.maxSlots=0;
   this.busy=false;this.action=null;
   this.list=root.querySelector('#roster-list');this.details=root.querySelector('#roster-details');
   this.enter=root.querySelector('#roster-enter');this.create=root.querySelector('#roster-create');
@@ -52,8 +52,23 @@ export class CharacterRosterView{
   this.inspectToggle=this.selectionPreview.querySelector('[data-preview-inspect]');
   this.inspectControls=this.selectionPreview.querySelector('.roster-preview-controls');
   this.capacity.after(this.inspectToggle,this.inspectControls);
+  this.inspectScreen=el('section','roster-inspection-screen');
+  this.inspectScreen.id='roster-inspection-screen';
+  this.inspectScreen.setAttribute('aria-label','Full-screen character inspection');
+  this.inspectScreen.hidden=true;
+  const header=el('div','roster-inspection-header');
+  this.inspectHeading=el('h2',null,'Inspect character');
+  const close=el('button','roster-inspection-close','Return to character selection');
+  close.type='button';
+  close.addEventListener('click',()=>this.closeInspection());
+  header.append(this.inspectHeading,close);
+  this.inspectScreen.append(header);
+  this.root.append(this.inspectScreen);
+  // The preview's original Inspect toggle still manages the actual controls.
+  // Transfer those controls into an entirely separate view, not a roster popup.
+  this.inspectToggle.addEventListener('click',()=>this.openInspection());
   this.enter.addEventListener('click',()=>this.enterSelected());
-  this.create.addEventListener('click',()=>{if(!this.busy&&this.characters.length<this.maxSlots)onCreate();});
+  this.create.addEventListener('click',()=>this.beginCreation());
   this.deleteButton.addEventListener('click',()=>{
    if(!this.selected||this.busy)return;
    this.deleteArea.hidden=!this.deleteArea.hidden;
@@ -82,6 +97,27 @@ export class CharacterRosterView{
   this.syncDelete();
   for(const button of this.list.querySelectorAll('button'))button.disabled=busy;
   this.root.setAttribute('aria-busy',String(busy));
+ }
+ beginCreation(){
+  if(this.busy||this.characters.length>=this.maxSlots)return;
+  this.closeInspection();
+  this.onCreate();
+ }
+ openInspection(){
+  if(!this.selected||this.busy)return;
+  this.inspectHeading.textContent='Inspect '+this.selected.name;
+  this.inspectScreen.append(this.inspectControls);
+  this.inspectControls.hidden=false;
+  this.inspectScreen.hidden=false;
+  document.body.classList.add('character-inspection-mode');
+  this.inspectScreen.querySelector('.roster-inspection-close')?.focus({preventScroll:true});
+ }
+ closeInspection(){
+  document.body.classList.remove('character-inspection-mode');
+  this.inspectScreen.hidden=true;
+  this.preview.closeInspector();
+  this.capacity.after(this.inspectControls);
+  this.inspectControls.hidden=true;
  }
  enterSelected(){
   if(!this.selected||this.busy)return;
@@ -114,7 +150,11 @@ export class CharacterRosterView{
   if(this.characters.length<this.maxSlots){
    const vacant=el('button','roster-slot-vacant',this.characters.length?'＋ New character':'＋ Create your first character');
    vacant.type='button';
-   vacant.addEventListener('click',()=>{if(!this.busy)this.create.click();});
+   vacant.addEventListener('click',event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    this.beginCreation();
+   });
    this.list.append(vacant);
   }
   this.root.classList.toggle('roster-empty',!this.selected);
@@ -129,7 +169,7 @@ export class CharacterRosterView{
  }
  updateSelected(){
   const c=this.selected;
-  this.preview.closeInspector();
+  this.closeInspection();
   if(this.inspectToggle)this.inspectToggle.hidden=!c;
   for(const button of this.list.querySelectorAll('.roster-select')){
    button.setAttribute('aria-pressed',String(button.dataset.characterId===String(c?.id)));
@@ -158,5 +198,5 @@ export class CharacterRosterView{
   this.clearDelete();
  }
  update(now,dt){return this.preview.update(now,dt);}
- release(){this.preview.release();this.setBusy(false);}
+ release(){this.closeInspection();this.preview.release();this.setBusy(false);}
 }
