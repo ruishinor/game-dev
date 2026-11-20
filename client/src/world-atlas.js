@@ -46,7 +46,7 @@ export class WorldAtlas{
  this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','objects']);
   this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
   this.captureTerrain=typeof captureTerrain==='function'?captureTerrain:null;
-  this.terrainCache=new Map();
+  this.terrainCache=new Map();this.terrainCaptureAttempts=0;
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
@@ -274,6 +274,7 @@ export class WorldAtlas{
  }
  terrainForRegion(region){
   if(!this.terrainCache.has(region.name)){
+   this.terrainCaptureAttempts++;
    let plate=null;
    try{plate=this.captureTerrain?.(region)||null;}
    catch(err){console.warn('[atlas] terrain capture failed',err);}
@@ -289,6 +290,7 @@ export class WorldAtlas{
  g.fillStyle='#273339';g.fillRect(0,0,w,h);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
  const captured=this.terrainForRegion(r);
  c.dataset.terrainSource=captured?'scene':'fallback';
+ c.dataset.terrainCaptureCount=String(this.terrainCaptureAttempts);
  if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
