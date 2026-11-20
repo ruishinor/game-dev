@@ -67,18 +67,18 @@
   "materials": {
    "symbiotech_field_set_chest": {
     "plate": {
-     "base": "#d8cfb6",
-     "edge": "#f1ecdf",
-     "roughness": 0.4,
+     "base": "#c4b896",
+     "edge": "#e2d8bf",
+     "roughness": 0.46,
      "metallic": 0.0,
      "wear": 0.22,
-     "tone": 0.14,
+     "tone": 0.2,
      "scratch": 0.06,
      "soot": 0.6,
      "edge_polish": 0.1,
      "pattern": "cells",
-     "pattern_rgb": "#b3a684",
-     "pattern_k": 0.28
+     "pattern_rgb": "#8a7f60",
+     "pattern_k": 0.45
     },
     "trim": {
      "base": "#a59a7f",
@@ -122,18 +122,18 @@
    },
    "symbiotech_field_set_gloves": {
     "plate": {
-     "base": "#d8cfb6",
-     "edge": "#f1ecdf",
-     "roughness": 0.4,
+     "base": "#c4b896",
+     "edge": "#e2d8bf",
+     "roughness": 0.46,
      "metallic": 0.0,
      "wear": 0.22,
-     "tone": 0.14,
+     "tone": 0.2,
      "scratch": 0.06,
      "soot": 0.6,
      "edge_polish": 0.1,
      "pattern": "cells",
-     "pattern_rgb": "#b3a684",
-     "pattern_k": 0.28
+     "pattern_rgb": "#8a7f60",
+     "pattern_k": 0.45
     },
     "trim": {
      "base": "#a59a7f",
@@ -177,18 +177,18 @@
    },
    "symbiotech_field_set_greaves": {
     "plate": {
-     "base": "#d8cfb6",
-     "edge": "#f1ecdf",
-     "roughness": 0.4,
+     "base": "#c4b896",
+     "edge": "#e2d8bf",
+     "roughness": 0.46,
      "metallic": 0.0,
      "wear": 0.22,
-     "tone": 0.14,
+     "tone": 0.2,
      "scratch": 0.06,
      "soot": 0.6,
      "edge_polish": 0.1,
      "pattern": "cells",
-     "pattern_rgb": "#b3a684",
-     "pattern_k": 0.28
+     "pattern_rgb": "#8a7f60",
+     "pattern_k": 0.45
     },
     "trim": {
      "base": "#a59a7f",
@@ -232,18 +232,18 @@
    },
    "symbiotech_field_set_boots": {
     "plate": {
-     "base": "#d8cfb6",
-     "edge": "#f1ecdf",
-     "roughness": 0.4,
+     "base": "#c4b896",
+     "edge": "#e2d8bf",
+     "roughness": 0.46,
      "metallic": 0.0,
      "wear": 0.22,
-     "tone": 0.14,
+     "tone": 0.2,
      "scratch": 0.06,
      "soot": 0.6,
      "edge_polish": 0.1,
      "pattern": "cells",
-     "pattern_rgb": "#b3a684",
-     "pattern_k": 0.28
+     "pattern_rgb": "#8a7f60",
+     "pattern_k": 0.45
     },
     "trim": {
      "base": "#a59a7f",
@@ -416,7 +416,7 @@
     "strength": 0.55
    },
    "channel_strength": 28,
-   "light_scale": 0.4,
+   "light_scale": 0.28,
    "exposure": -0.2,
    "turn": {
     "symbiotech_field_set_gloves": [

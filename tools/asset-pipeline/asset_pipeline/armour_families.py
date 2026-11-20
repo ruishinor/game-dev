@@ -155,7 +155,7 @@ class Kit:
                                        half=0.012, facets=facets))
         return self._get(("knee", s, facets), mk)
 
-    def foot(self, s):
+    def foot(self, s, facets=12):
         """(BM heel->toe map over the shoe shell, cuff map, shoe cloud, y0)."""
         b = self.b
 
@@ -168,13 +168,13 @@ class Kit:
             xc = float(np.median(cloud[:, 0]))
             heel = np.array([xc, y0 + 0.05, zc.min() + 0.012])
             toe = np.array([xc, y0 + 0.032, zc.max() - 0.008])
-            BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.02, rmax=0.13, facets=12, tsmooth=0.06))
+            BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.02, rmax=0.13, facets=facets, tsmooth=0.06))
             ca, ft = b.L["calf_" + s], b.L["foot_" + s]
             ins = np.isin(b.src, [b.surfaces.index(x) for x in ("body", "shell_shins", "shell_shoes") if x in b.surfaces])
             mc = b.P[(joint_weight(b, ["calf", "foot"], s) > 0.45) & ins & (b.P[:, 1] > ft[1] - 0.025)]
-            CM = LimbAdapter(LimbMap(ca, ft, [0, 0, 1.0], mc, t_range=(0.4, 1.15), half=0.015, rmax=0.085, facets=12, tsmooth=0.05))
+            CM = LimbAdapter(LimbMap(ca, ft, [0, 0, 1.0], mc, t_range=(0.4, 1.15), half=0.015, rmax=0.085, facets=facets, tsmooth=0.05))
             return BM, CM, cloud, y0, heel, toe
-        return self._get(("foot", s), mk)
+        return self._get(("foot", s, facets), mk)
 
     def boot_liner(self, it, mat, s, lift=0.0035):
         ms = self.b.meshes["shell_shoes"]
@@ -836,7 +836,7 @@ def mycelial_gloves(body, base, m, kit=None):
                                                                    tube([b - (b - a) * 0.06, b + (b - a) * 0.04], 0.016, sides=14)],
                              weights=pol(["lowerarm"]), weight_mode=wm, bevel=0.0015))
         P.append({**parts_piece(it, f"vessel_glow_{s}", m["trim"], [], weights=pol(["lowerarm"]), weight_mode=wm),
-                  "fx_strips": [fx_strip([a + (b - a) * 0.05, b - (b - a) * 0.05], 0.007, a, 0.3, sides=8)]})
+                  "fx_strips": [fx_strip([a + (b - a) * 0.08, b - (b - a) * 0.08], 0.0038, a, 0.3, sides=8)]})
         # tendrils spiralling from the elbow to the back of the hand
         tend = []
         for k, ph0 in enumerate((-60, 70)):
@@ -922,7 +922,7 @@ def mycelial_boots(body, base, m, kit=None):
     kit = kit or Kit(body)
     P = []
     for s, sg in SIDES:
-        BM, CM, cloud, y0, heel, toe = kit.foot(s)
+        BM, CM, cloud, y0, heel, toe = kit.foot(s, facets=0)
         pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body", "shell_shins"]}
         pb = {**pol, "joints": ["foot", "ball"]}
         bax = list(map(float, (toe - heel) / np.linalg.norm(toe - heel)))
@@ -935,7 +935,9 @@ def mycelial_boots(body, base, m, kit=None):
         P.append(pl.export())
         P.append(glassy(Plate(it, f"instep_membrane_{s}", m["glass"], BM, D([(-38, 0.28), (38, 0.28), (44, 0.5), (0, 0.75), (-44, 0.5)]), 0.0035,
                               thickness=0.0016, bevel=0.0, segs=0, res=0.007, weights=pb, weight_mode=["rigid"]).export()))
-        P.append(Plate(it, f"cuff_{s}", m["plate"], CM, D([(-160, 0.55), (150, 0.58), (170, 1.03), (-170, 1.03)]), 0.009, lip0=0.003, thickness=0.006,
+        # grown cuff: rises to a leaf point over the shin, dips behind
+        P.append(Plate(it, f"cuff_{s}", m["plate"], CM, D(organic([(-179, 1.03), (179, 1.03), (179, 0.64), (120, 0.6), (60, 0.5), (0, 0.44),
+                                                                  (-60, 0.5), (-120, 0.6), (-179, 0.64)])), 0.009, lip0=0.002, thickness=0.006,
                        bevel=0.0024, segs=2, weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["band", cax, 0.04]).export())
         # culture node on the outer ankle
         c, n = CM.point(deg(-sg * 90), 0.82, 0.016), CM.normal(deg(-sg * 90), 0.82, 0.016)
