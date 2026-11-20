@@ -944,11 +944,11 @@ function onEvent(e) {
           s.faceUntil = now + 500;
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) {
+        if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
-          if(!rich()&&e.wv==='longpoint'&&s.placed&&d.placed&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
+          if(e.wv==='longpoint'&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
             legacyFx.beam(()=>muzzle,chestOf(d),LONGPOINT_TRACE.color,LONGPOINT_TRACE.life*1000,LONGPOINT_TRACE.width);
-          }else fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
+          }else legacyFx.bolt(() => muzzle || s.chest, chestOf(d), sourceColour(s), 200, s.meta.k==='e'?'hostile':s.meta.c);
         }
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
