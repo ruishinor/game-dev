@@ -2,7 +2,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {WORLD,ZONES,groundHeight} from '../shared/world.js';
-import {atlasTerrainColor,reachContourSegments,clusterMapMarkers,atlasEntityCategory} from '../client/src/atlas-cartography.js';
+import {atlasTerrainColor,reachContourSegments,clusterMapMarkers,atlasEntityCategory,placeAtlasLabels} from '../client/src/atlas-cartography.js';
 import {regionFor,project,pixelToWorld} from '../client/src/world-atlas.js';
 
 test('cartography uses opaque, deterministic terrain over full rectangular atlas, never an alpha circle',()=>{
@@ -88,5 +88,33 @@ test('authored Reach map site anchors match canonical world coordinates',()=>{
     const y=500+site.z*500/WORLD.radius;
     assert.ok(Math.abs(point.x-x)<=1&&Math.abs(point.y-y)<=1,
       id+' must have 1:1 atlas artwork/world positioning');
+  }
+});
+
+test('Atlas labels avoid object clusters, preserve priority and remain within the viewport',()=>{
+  const labels=[
+    {name:'Brineworks Cut',x:100,y:100},
+    {name:'Derelict Relay',x:145,y:100},
+    {name:'Kestrel Deep',x:200,y:130}
+  ];
+  const obstacles=[{x:100,y:79,r:12},{x:145,y:79,r:12},{x:200,y:130,r:10}];
+  const width=320,height=205;
+  const positioned=placeAtlasLabels(labels,obstacles,width,height,name=>name.length*7);
+  assert.ok(positioned.length>=2,'retain high-priority locations where space permits');
+  for(const item of positioned){
+    const half=(item.name.length*7+10)/2;
+    const bounds={left:item.x-half,right:item.x+half,top:item.y-14,bottom:item.y+4};
+    assert.ok(bounds.left>=4&&bounds.right<=width-4&&bounds.top>=4&&bounds.bottom<=height-4);
+    for(const marker of obstacles){
+      const cx=Math.max(bounds.left,Math.min(marker.x,bounds.right));
+      const cy=Math.max(bounds.top,Math.min(marker.y,bounds.bottom));
+      assert.ok((cx-marker.x)**2+(cy-marker.y)**2>=(marker.r+3)**2,
+        'text must not overlap a live object cluster');
+    }
+  }
+  for(let i=0;i<positioned.length;i++)for(let j=i+1;j<positioned.length;j++){
+    const a=positioned[i],b=positioned[j];
+    assert.ok(Math.abs(a.x-b.x)>(a.name.length*7+b.name.length*7+20)/2||
+      Math.abs(a.y-b.y)>=18,'place names must not overlap each other');
   }
 });
