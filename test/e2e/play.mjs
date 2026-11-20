@@ -1167,10 +1167,13 @@ try {
   // return to the Sanctum, dismisses the active companion; buffs are kept.
   const dismissedOnRecovery = await until(B, () => {
     const s = window.__attune.state();
-    return !s.compId && !document.querySelector('.summon-pet').hidden;
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    // Check server-authorized dismissal and the real enabled HUD control.
+    return !s.compId && !!summon && !summon.hidden && !summon.disabled;
   }, null, 5000, 'companion dismissed by the return to the Sanctum');
   check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
-  await B.page.locator('.summon-pet').click();
+  if(!dismissedOnRecovery)throw Error('Class companion was not dismissed or re-summon UI is unavailable');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const recalled = await until(B, () => {
     const s = window.__attune.state();
     return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
@@ -1179,11 +1182,14 @@ try {
   const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
   await B.page.locator('.player-context').getByRole('button', { name: 'Dismiss companion', exact: true }).click();
-  const dismissed = await until(B, () => {
+  const dismissed = await until(B, oldId => {
     const s = window.__attune.state();
-    return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
-  }, null, 5000, 'companion dismissed and summon available');
-  await B.page.locator('.summon-pet').click();
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    return !s.compId && !s.ents.some(e => e.id === oldId) &&
+      !!summon && !summon.hidden && !summon.disabled;
+  }, recalledId, 5000, 'companion dismissed and summon available');
+  if(!dismissed)throw Error('Class companion remained active or was not removed from client state');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
