@@ -833,14 +833,24 @@ try {
     await A.page.keyboard.press('Tab');
     await B.page.keyboard.press('Tab');
     await sleep(300);
-    // Tab picks the nearest; make sure both are on the intended enemy.
-    for (const p of [A, B]) {
-      for (let i = 0; i < 6 && (await state(p)).target !== next.id; i++) {
-        await p.page.keyboard.press('Tab');
-        await sleep(150);
+    // The enlarged world and nearby creatures can require more than six
+    // Tab cycles. Do not mistake damaging another target for directive credit.
+    // Both players must really target this skitter before using combat inputs.
+    for (const session of [A, B]) {
+      let selected=(await state(session)).target;
+      for (let i=0;i<24&&selected!==next.id;i++){
+        await session.page.keyboard.press('Tab');
+        selected=(await state(session)).target;
       }
+      if(selected!==next.id)throw Error('Cannot select directive skitter '+next.id+
+        ' in '+session.name+' (target '+selected+', enemy '+next.state+')');
     }
     killed = await killCurrent(next);
+    if(!killed)note('Failed live shared skitter kill '+JSON.stringify({
+      id:next.id,state:next.state,hp:next.hp,maxHp:next.maxHp,
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      auto:[serverPlayer('Brakka')?.autoOn,serverPlayer('Lumen')?.autoOn],
+      threat:[...next.threat.keys()]}));
     if (!killed) break;
   }
   await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);

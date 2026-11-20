@@ -150,13 +150,16 @@ try{
  await view.focus();await page.keyboard.press('Tab');
  await until(id=>window.__attune.state().target===id,enemy.id);
  const hp0=enemy.hp,events=[];const sink=server.game.emitWorldEvent.bind(server.game);
- server.game.emitWorldEvent=e=>{if(e.e==='dmg'&&e.s===p.id)events.push({...e});return sink(e);};
+ server.game.emitWorldEvent=e=>{if(e.e==='dmg'&&e.s===p.id)events.push({...e,hitDistance:Math.hypot(p.x-enemy.x,p.z-enemy.z)});return sink(e);};
  await page.keyboard.press('KeyR');
  await until(()=>window.__attune.state().you?.auto===1);
  const t0=Date.now();while(!events.some(e=>e.ab==='auto')&&Date.now()-t0<20000)await new Promise(r=>setTimeout(r,100));
  const shotEvent=events.find(e=>e.ab==='auto');
  assert.ok(shotEvent,'ranged auto-attack fired');assert.equal(shotEvent.k,'bolt');assert.ok(enemy.hp<hp0);
- assert.ok(Math.hypot(p.x-enemy.x,p.z-enemy.z)>CLASSES.vanguard.auto.range+2,'from beyond melee reach');
+ // The skitter can close on the player after firing. Measure on the same
+ // authoritative damage event, rather than after asynchronous browser polling.
+ assert.ok(shotEvent.hitDistance>CLASSES.vanguard.auto.range+2,
+  'ranged hit must occur beyond melee reach; observed '+shotEvent.hitDistance.toFixed(2)+' m');
  await shot('06-ranged-fire');
 
  // 8. Switch in combat; the next swing is delayed, not advanced (recovery timing is covered by Node tests).

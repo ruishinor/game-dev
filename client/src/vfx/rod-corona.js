@@ -142,7 +142,12 @@ export function createRodCorona(halves,palette=DEFAULT_ROD_PALETTE){
      g.crackleClock=1/(10+16*drive)*(.7+Math.random()*.6);
      const count=Math.min(arcs.length,1+Math.round(drive*2.4+surge*1.6));
      for(const a of arcs)a.visible=false;
-     for(let n=0;n<count;n++){const a=arcs[Math.floor(Math.random()*arcs.length)];a.visible=true;}
+     // Select without replacement: repeated random indices previously hid the
+     // requested surge even when the corona requested several visible arcs.
+     // Both strides are coprime with the six arcs, so exactly 'count' light up.
+     const start=Math.floor(Math.random()*arcs.length);
+     const stride=Math.random()<.5?1:arcs.length-1;
+     for(let n=0;n<count;n++)arcs[(start+n*stride)%arcs.length].visible=true;
      detail.children[0].rotation.y=Math.random()*Math.PI*2;
     }
     spark.opacity=clamp((.45+.5*drive)*flicker*level);
