@@ -9,6 +9,10 @@ import { surveyState } from './survey.js';
 
 export const MATERIAL_CAP=99;
 export const MATERIALS={
+  pulse_housing:{name:'Pulse containment housing',desc:'A standardized insulated case for modular field emitters.',source:'Sanctum Quartermaster'},
+  vector_matrix:{name:'Recovered vector matrix',desc:'A dismantled sentinel control grid. Its original device is permanently consumed during extraction.',source:'Rogue Sentinel field vector array; Engineering fabrication'},
+  pulse_cell:{name:'Dormant pulse cell',desc:'A machined energy reservoir prepared from conductive fibres.',source:'Engineering fabrication'},
+  pulse_module:{name:'Assembled pulse module',desc:'An aligned vector matrix and cell, ready for final weapon fabrication.',source:'Engineering assembly'},
   sinter_flake:{name:'Loose sinter flake',desc:'Conductive surface shedding recovered without disturbing living mineral colonies or grazers.',source:'Loose deposits at Sinter Flats'},
   mire_fibre:{name:'Mire fibre',desc:'Conductive organic strands harvested from Mire Skitters.',source:'Mire Skitter'},
   sentinel_alloy:{name:'Sentinel alloy',desc:'Recoverable actuator alloy and contact assemblies.',source:'Rogue Sentinel'},
@@ -18,6 +22,11 @@ export const MATERIALS={
 };
 export const RECIPES={
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  // Optional modular route to the existing QL5 weapon; the classic upgrade path and Longpoint are unchanged.
+  extract_vector_matrix:{name:'Recover sentinel vector matrix',discipline:'Engineering',kind:'assembly',inputs:{sentinel_alloy:1},targets:['field_vector_array'],output:{material:'vector_matrix',count:1}},
+  prepare_pulse_cell:{name:'Prepare dormant pulse cell',discipline:'Engineering',inputs:{mire_fibre:2},output:{material:'pulse_cell',count:1}},
+  combine_pulse_module:{name:'Combine vector matrix and pulse cell',discipline:'Engineering',kind:'assembly',inputs:{vector_matrix:1,pulse_cell:1},output:{material:'pulse_module',count:1}},
+  assemble_dense_core_modular:{name:'Assemble Dense Pulse Core from modules',discipline:'Engineering',kind:'assembly',site:'brine_engineering',attune:'resonance',requires:{kinetics:13},inputs:{pulse_housing:1,pulse_module:1,kinetic_coupler:2,resonance_fragment:1},output:{item:'dense_pulse_core'}},
   field_chest:{name:'Assemble field composite vest',discipline:'Engineering',inputs:{mire_fibre:2,sentinel_alloy:2},output:{item:'field_chest'}},
   reinforced_chest:{name:'Reinforce relay vest',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_relay_vest',inputs:{sentinel_alloy:3,mire_fibre:2},target:'field_chest',output:{item:'reinforced_chest'}},
   resonant_chest:{name:'Line vest with resonance',discipline:'Engineering',kind:'upgrade',blueprint:'blueprint_resonant_vest',site:'brine_engineering',attune:'resonance',inputs:{resonance_fragment:1,kinetic_coupler:1},target:'reinforced_chest',output:{item:'resonant_chest'}},
@@ -96,7 +105,8 @@ export function canFabricateAt(recipe,site){return !!recipe && (site==='sanctum'
 
 export function productionQuantities(recipe) {
   const units = recipe.output.count || 1;
-  return recipe.output.item ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
+  // A unique equipment donor cannot supply five or ten extraction cycles.
+  return recipe.output.item || recipe.target || recipe.targets?.length ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
 }
 
 export function productionTime(recipe) {
