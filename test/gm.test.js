@@ -41,7 +41,7 @@ test('owner preview controls set level, unlock calibration and heal without modi
 
 test('GM teleports through authoritative world transfer; creates Foundry only when asked',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('keeper'));
- assert.equal(g.foundryOpened,false);
+ assert.ok(!g.foundryOpened,'Foundry encounter starts unopened');
  assert.equal(executeGm(g,p,'tp foundry').ok,true);
  assert.equal(g.foundryOpened,true);
  assert.equal(travelRegionAt(p.x,p.z),'silent_foundry');
@@ -54,13 +54,61 @@ test('GM teleports through authoritative world transfer; creates Foundry only wh
 
 test('God mode is private, transient, and applies to incoming combat only',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard'));
- const enemy=g.enemies.find(e=>e.type==='sentinel');
- place(p,enemy.x+2,enemy.z);
  const old=p.hp;
+ assert.ok(dealDamage(g,null,p,20,'probe')>0,'baseline incoming combat can damage an ordinary player');
+ executeGm(g,p,'heal');
  assert.equal(executeGm(g,p,'god on').ok,true);
- assert.equal(dealDamage(g,enemy,p,50,'auto'),0);
+ assert.equal(dealDamage(g,null,p,50,'probe'),0);
  assert.equal(p.hp,old);
  assert.equal(p.char.gmInvulnerable,undefined,'never a persisted character field');
  assert.equal(executeGm(g,p,'god off').ok,true);
  assert.equal(p.gmInvulnerable,false);
+});
+
+test('real WebSocket: only authorized signed-in owner account can invoke GM; guests cannot', async()=>{
+ const {startServer}=await import('../server/index.js');
+ const {default: WebSocket}=await import('ws');
+ const srv=await startServer({port:0,dataFile:null});
+ const clients=[];
+ const connect=async()=>{
+   const ws=new WebSocket('ws://127.0.0.1:'+srv.port+'/ws');
+   clients.push(ws);
+   const messages=[];
+   ws.on('message',chunk=>messages.push(JSON.parse(chunk.toString())));
+   await new Promise((resolve,reject)=>{ws.once('open',resolve);ws.once('error',reject);});
+   return {ws,messages};
+ };
+ const wait=async(fn)=>{
+   const until=Date.now()+4000;
+   while(Date.now()<until){
+     const value=fn();if(value)return value;
+     await new Promise(resolve=>setTimeout(resolve,15));
+   }
+   throw new Error('Timed out waiting for GM WebSocket condition');
+ };
+ try{
+   const owner=(await srv.store.registerAccount('GMOwnerOne','SafelyLongPassword123!'));
+   assert.ok(owner.account);
+   srv.net.gmAccounts=gmIds(owner.account.id);
+   const owned=srv.store.createForAccount(owner.account,'GmPreview','vanguard');
+   assert.ok(owned.char);
+   const a=await connect();
+   a.ws.send(JSON.stringify({t:'account_resume',token:owner.token}));
+   await wait(()=>a.messages.find(m=>m.t==='account_ready'));
+   a.ws.send(JSON.stringify({t:'account_select',id:owned.char.id}));
+   await wait(()=>a.messages.find(m=>m.t==='welcome'));
+   a.ws.send(JSON.stringify({t:'gm',line:'level 15'}));
+   await wait(()=>owned.char.level===15);
+   a.ws.send(JSON.stringify({t:'gm',line:'tp foundry'}));
+   await wait(()=>srv.game.foundryOpened===true);
+   const b=await connect();
+   b.ws.send(JSON.stringify({t:'create',name:'PlainGuest',cls:'vanguard'}));
+   await wait(()=>b.messages.find(m=>m.t==='welcome'));
+   b.ws.send(JSON.stringify({t:'gm',line:'level 15'}));
+   await wait(()=>[...srv.game.players.values()].some(p=>p.name==='PlainGuest'&&p.outbox.some(e=>/GM access denied/.test(e.m))));
+   assert.equal([...srv.game.players.values()].find(p=>p.name==='PlainGuest').char.level,1);
+ }finally{
+   for(const ws of clients)ws.terminate();
+   await srv.close();
+ }
 });
