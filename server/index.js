@@ -70,6 +70,7 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/stillpoint.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'stillpoint', 'outputs', 'stillpoint.glb');
   if (urlPath === '/client/assets/severance_gate.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_gate', 'outputs', 'severance_gate.glb');
   if (urlPath === '/client/assets/severance_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_kit', 'outputs', 'severance_kit.glb');
+  if (urlPath === '/client/assets/outpost_shelter.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'outpost_shelter', 'outputs', 'outpost_shelter.glb');
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);

@@ -5,7 +5,10 @@
 // gameplay. Effects follow the gate engine: shader layers, additive halos,
 // one pre-created light, deterministic under the manual clock.
 import { EXPEDITION_OUTPOST as OP, OUTPOST_COLLIDERS } from '../../shared/severance-gate.js';
-import { noiseTexture } from './severance-gate.js';
+import { noiseTexture, particleField } from './severance-gate.js';
+import { SEVERANCE_EXPANSE as E, SEVERANCE_GATE, pocketHeight } from '../../shared/severance-gate.js';
+
+export const OUTPOST_SHELTER_URL = '/client/assets/outpost_shelter.glb?v=417c3cd3fe83';
 
 export const OUTPOST_LIMITS = Object.freeze({ lights: 1, halos: 12 });
 
@@ -57,64 +60,57 @@ export function createExpeditionOutpost(T, o) {
   pad.receiveShadow = true;
   root.add(pad);
 
-  // ---- shelter: local frame, x across the opening (along world z), z depth (world +x is the back)
+  // ---- shelter: outpost_shelter.glb (front toward local +z, turned to face west)
   const shelter = new T.Group();
   shelter.name = 'severance-outpost:shelter';
   shelter.position.set(S.x, o.ground(S.x, S.z), S.z);
-  shelter.rotation.y = S.yaw;          // local +z faces west (the opening)
+  shelter.rotation.y = S.yaw;
   root.add(shelter);
-  const W = S.hd, D = S.hw;            // half-width along the opening, half-depth
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    shelter.add(box(T, M.frame, 0.22, S.eave, 0.22, sx * W, S.eave / 2, sz * D));
-  }
-  // trusses: a shallow asymmetric gable, ridge set back toward the rear wall
-  const ridgeZ = -D * 0.35;
-  for (let i = 0; i <= 4; i++) {
-    const x = -W + (2 * W) * i / 4;
-    const t = new T.Group();
-    t.position.x = x;
-    const chord = box(T, M.frame, 0.12, 0.12, D * 2 + 0.6, 0, S.eave, 0);
-    const front = new T.Vector3(0, S.eave, D + 0.3), back = new T.Vector3(0, S.eave, -D - 0.3), apex = new T.Vector3(0, S.ridge, ridgeZ);
-    for (const [a, b] of [[front, apex], [apex, back]]) {
-      const len = a.distanceTo(b);
-      const m = box(T, M.frame, 0.12, 0.14, len, 0, (a.y + b.y) / 2, (a.z + b.z) / 2);
-      m.rotation.x = -Math.atan2(b.y - a.y, b.z - a.z);
-      t.add(m);
-    }
-    for (const k of [0.33, 0.66]) {        // web members
-      const p = front.clone().lerp(apex, k), q = new T.Vector3(0, S.eave, p.z);
-      const m = box(T, M.frame, 0.07, p.y - q.y, 0.07, 0, (p.y + q.y) / 2, p.z);
-      t.add(m);
-    }
-    t.add(chord);
-    shelter.add(t);
-  }
-  // roof planes (ochre, slightly overhanging)
-  const roofPlane = (a, b) => {
-    const len = Math.hypot(b.y - a.y, b.z - a.z) + 0.2;
-    const m = new T.Mesh(new T.BoxGeometry(W * 2 + 1.0, 0.08, len), M.roof);
-    m.position.set(0, (a.y + b.y) / 2 + 0.11, (a.z + b.z) / 2);
-    m.rotation.x = -Math.atan2(b.y - a.y, b.z - a.z);
+  const shelterFx = { lamp: null, strip: null, vent: null };
+  let shelterStatus = 'idle';
+  function shelterFallback() {
+    // a faceted shell silhouette so the colliders are never invisible
+    const len = S.rear - S.front, prof = new T.Shape();
+    prof.moveTo(-S.hw, 0.9); prof.lineTo(-S.hw * 0.85, 2.15); prof.lineTo(-S.hw * 0.57, 3.45); prof.lineTo(0, S.height);
+    prof.lineTo(S.hw * 0.57, 3.45); prof.lineTo(S.hw * 0.85, 2.15); prof.lineTo(S.hw, 0.9); prof.lineTo(S.hw - 0.3, 0.9); prof.lineTo(0, S.height - 0.3); prof.lineTo(-S.hw + 0.3, 0.9);
+    const g = new T.ExtrudeGeometry(prof, { depth: len, bevelEnabled: false });
+    g.translate(0, 0, -S.rear);
+    const m = new T.Mesh(g, M.panel);
     m.castShadow = m.receiveShadow = true;
     shelter.add(m);
-  };
-  roofPlane(new T.Vector3(0, S.eave - 0.15, D + 0.9), new T.Vector3(0, S.ridge, ridgeZ));
-  roofPlane(new T.Vector3(0, S.ridge, ridgeZ), new T.Vector3(0, S.eave - 0.25, -D - 0.6));
-  // rear wall of ochre panels with dark seams; side canvas screens
-  const panels = 6;
-  for (let i = 0; i < panels; i++) {
-    const w = (2 * W) / panels;
-    shelter.add(box(T, i % 3 === 1 ? M.panelDark : M.panel, w - 0.06, S.eave - 0.2, 0.12, -W + w * (i + 0.5), (S.eave - 0.2) / 2 + 0.1, -D + 0.12));
+    shelterStatus = 'fallback';
   }
-  for (const sx of [-1, 1]) {
-    const c = new T.Mesh(new T.PlaneGeometry(D * 1.3, S.eave * 0.55), M.canvas);
-    c.position.set(sx * W, S.eave * 0.62, -D * 0.3);
-    c.rotation.y = Math.PI / 2;
-    c.castShadow = true;
-    shelter.add(c);
+  function loadShelter() {
+    if (shelterStatus !== 'idle') return;
+    shelterStatus = 'loading';
+    if (!o.loader) { shelterFallback(); return; }
+    o.loader.loadAsync(o.shelterUrl || OUTPOST_SHELTER_URL).then((gltf) => {
+      if (shelterStatus === 'disposed') return;
+      gltf.scene.traverse((n) => {
+        if (!n.isMesh) return;
+        const name = n.material?.name;
+        if (name === 'SH_Lamp' || name === 'SH_Strip' || name === 'SH_Vent') {
+          n.material = n.material.clone();
+          shelterFx[name === 'SH_Lamp' ? 'lamp' : name === 'SH_Strip' ? 'strip' : 'vent'] = n.material;
+          n.castShadow = false;
+        } else {
+          n.castShadow = n.receiveShadow = true;
+          if (n.material?.aoMap) n.material.aoMapIntensity = 1;
+        }
+      });
+      shelter.add(gltf.scene);
+      shelterStatus = 'ready';
+    }).catch((err) => {
+      if (shelterStatus === 'disposed') return;
+      console.warn('[outpost] shelter GLB unavailable; using a simple shell:', err?.message || err);
+      shelterFallback();
+    });
   }
-  // a teal service strip under the ridge
-  shelter.add(box(T, M.teal, W * 1.6, 0.05, 0.05, 0, S.ridge - 0.25, ridgeZ));
+
+  // ---- holo-map table: the Expanse in miniature, routes traced, the gate marked
+  const holo = buildHoloMap(T, o.ground, noise);
+  holo.group.position.set(OP.table.x, o.ground(OP.table.x, OP.table.z), OP.table.z);
+  root.add(holo.group);
 
   // ---- counter, crates, generator, mast, lamps (match the colliders)
   for (const c of OUTPOST_COLLIDERS) {
@@ -141,6 +137,13 @@ export function createExpeditionOutpost(T, o) {
       root.add(mast);
       for (const k of [0.35, 0.65, 0.9]) root.add(box(T, M.frame, 0.9 * (1.1 - k), 0.05, 0.05, c.x, y + c.h * k, c.z));
       root.add(box(T, M.frame, c.r * 2, 0.4, c.r * 2, c.x, y + 0.2, c.z));
+    } else if (c.type === 'outpost_table') {
+      const top = new T.Mesh(new T.CylinderGeometry(c.r, c.r * 0.92, 0.12, 12), M.frame);
+      top.position.set(c.x, y + c.h - 0.06, c.z); top.castShadow = top.receiveShadow = true; root.add(top);
+      const ped = new T.Mesh(new T.CylinderGeometry(0.22, 0.34, c.h - 0.1, 8), M.panelDark);
+      ped.position.set(c.x, y + (c.h - 0.1) / 2, c.z); root.add(ped);
+      const ring = new T.Mesh(new T.TorusGeometry(c.r * 0.9, 0.025, 6, 32), M.teal);
+      ring.rotation.x = Math.PI / 2; ring.position.set(c.x, y + c.h + 0.01, c.z); root.add(ring);
     } else if (c.type === 'outpost_lamp') {
       const post = new T.Mesh(new T.CylinderGeometry(0.05, 0.08, c.h, 5), M.frame);
       post.position.set(c.x, y + c.h / 2, c.z);
@@ -171,28 +174,134 @@ export function createExpeditionOutpost(T, o) {
   haloMesh.renderOrder = 6;
   haloMesh.name = 'severance-outpost:halos';
   root.add(haloMesh);
+  // generator heat haze and exhaust sparks; drifting camp dust
+  const haze = particleField(T, 40, { seed: 71, size: 0.9, height: 4.5, radius: 0.5, rise: 0.9, color: 0x403024 });
+  haze.mesh.position.set(gen.x, o.ground(gen.x, gen.z) + gen.h, gen.z);
+  haze.mesh.name = 'severance-outpost:generator-haze';
+  root.add(haze.mesh);
+  const sparks = particleField(T, 24, { seed: 72, size: 0.06, height: 2.2, radius: 0.3, rise: 1.6, color: 0xffa04a });
+  sparks.mesh.position.copy(haze.mesh.position);
+  root.add(sparks.mesh);
+  const dust = particleField(T, 140, { seed: 73, size: 0.1, height: 6, radius: OP.r, rise: 0.25, color: 0xffd8a8 });
+  dust.mesh.position.set(OP.x, o.ground(OP.x, OP.z), OP.z);
+  dust.mesh.name = 'severance-outpost:dust';
+  root.add(dust.mesh);
   // one warm light under the shelter
   const light = new T.PointLight(0xffb36a, 0, 18, 1.8);
   light.name = 'severance-outpost:light';
-  light.position.set(S.x, o.ground(S.x, S.z) + S.eave - 0.4, S.z);
+  light.position.set(S.x - 2, o.ground(S.x, S.z) + S.height - 0.7, S.z);
   root.add(light);
 
   return {
     root,
-    update(dt, t, eye, { night = 0 } = {}) {
+    get shelterStatus() { return shelterStatus; },
+    update(dt, t, eye, { night = 0, deterministic = false } = {}) {
       const near = eye ? Math.hypot(eye.x - OP.x, eye.z - OP.z) : Infinity;
       root.visible = near < 260;
+      if (root.visible && shelterStatus === 'idle') loadShelter();
       haloMat.uniforms.uTime.value = t;
       haloMat.uniforms.uGain.value = 0.45 + 0.8 * night;
       light.intensity = near < 60 ? 6 + 16 * night : 0;
       M.warm.emissiveIntensity = 1.4 + 1.6 * night;
+      const flick = deterministic ? 1 : 0.92 + 0.08 * Math.sin(t * 13.1) * Math.sin(t * 3.7);
+      if (shelterFx.lamp) shelterFx.lamp.emissiveIntensity = (1.2 + 2.2 * night) * flick;
+      if (shelterFx.strip) shelterFx.strip.emissiveIntensity = 0.8 + 1.4 * night;
+      if (shelterFx.vent) shelterFx.vent.emissiveIntensity = (0.6 + 1.2 * night) * (0.75 + 0.25 * Math.sin(t * 1.3));
+      const fx = near < 90;
+      for (const f of [haze, sparks, dust]) { f.mesh.visible = fx; f.mat.uniforms.uTime.value = t; f.mat.uniforms.uMotion.value = deterministic ? 0.6 : 1; }
+      haze.mat.uniforms.uLevel.value = 0.35;
+      sparks.mat.uniforms.uLevel.value = 0.5 + 0.5 * night;
+      dust.mat.uniforms.uLevel.value = 0.25 + 0.35 * night;
+      holo.update(t, near < 70, deterministic);
     },
-    stats() { return { visible: root.visible, halos: halos.length, lights: 1 }; },
+    stats() { return { visible: root.visible, halos: halos.length, lights: 1, shelter: shelterStatus, holo: holo.group.visible }; },
     dispose() {
+      shelterStatus = 'disposed';
+      holo.dispose();
       root.traverse((n) => { n.geometry?.dispose?.(); });
       for (const m of Object.values(M)) m.dispose();
       haloMat.dispose(); noise.dispose();
       root.removeFromParent();
     },
+  };
+}
+
+// ----------------------------------------------------------------------------- holo-map
+const HOLO_VS = `varying vec3 vW; varying vec3 vN; varying vec3 vL;
+void main(){ vL = position; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }`;
+const HOLO_FS = `uniform float uTime, uGain; uniform vec3 uColor; varying vec3 vW; varying vec3 vN; varying vec3 vL;
+void main(){ vec3 V = normalize(cameraPosition - vW); float fr = pow(1.0 - abs(dot(normalize(vN), V)), 1.6);
+  float scan = 0.6 + 0.4 * sin(vW.y * 140.0 - uTime * 6.0);
+  float contour = smoothstep(0.86, 1.0, fract(vL.y * 26.0));
+  float sweep = exp(-pow(fract(uTime * 0.18) * 2.4 - 1.2 - vL.x * 1.2, 2.0) * 40.0);
+  float flick = 0.9 + 0.1 * sin(uTime * 37.0) * sin(uTime * 11.0);
+  float k = (0.14 + 0.5 * fr + 0.55 * contour + 0.9 * sweep) * scan * flick * uGain;
+  gl_FragColor = vec4(uColor * k, k * 0.85); }`;
+const LINE_FS = `uniform float uTime, uGain; uniform vec3 uColor; varying vec3 vL;
+void main(){ float dash = 0.55 + 0.45 * sin(vL.z * 90.0 + vL.x * 90.0 - uTime * 4.0); gl_FragColor = vec4(uColor * dash * uGain, dash * uGain); }`;
+
+/** A floating miniature of the Expanse over the outpost table: terrain, three routes, the gate. */
+function buildHoloMap(T, ground, noise) {
+  const group = new T.Group();
+  group.name = 'severance-outpost:holo-map';
+  const span = 1.3, lift = 1.18;                 // metres across, height above the table base
+  const sx = span / (2 * E.hd), nx = 34, nz = 40;
+  const geo = new T.PlaneGeometry(2 * E.hw * sx, 2 * E.hd * sx, nx, nz);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const wx = E.x + pos.getX(i) / sx, wz = E.z + pos.getZ(i) / sx;
+    pos.setY(i, Math.min(60, pocketHeight(wx, wz)) * sx * 0.9);
+  }
+  geo.computeVertexNormals();
+  const U = (v) => ({ value: v });
+  const time = U(0), gain = U(1);
+  const mat = new T.ShaderMaterial({ uniforms: { uTime: time, uGain: gain, uColor: U(new T.Color(0x5ff0e0)) }, vertexShader: HOLO_VS, fragmentShader: HOLO_FS,
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide });
+  const map = new T.Mesh(geo, mat);
+  map.position.y = lift;
+  map.rotation.y = Math.PI / 2;               // north of the Expanse points away from the shelter mouth
+  map.renderOrder = 7;
+  group.add(map);
+  // routes: west causeway, central pass, east flats, as dashed lines above the relief
+  const routes = [
+    [[15, -866], [-30, -820], [-48, -760], [-48, -694], [-20, -650], [0, -625]],
+    [[15, -866], [5, -790], [-24, -726], [24, -726], [10, -660], [0, -625]],
+    [[15, -866], [50, -800], [60, -740], [50, -680], [20, -640], [0, -625]],
+  ];
+  const lineMat = new T.ShaderMaterial({ uniforms: { uTime: time, uGain: gain, uColor: U(new T.Color(0xffc070)) }, vertexShader: 'varying vec3 vL; void main(){ vL = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: LINE_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending });
+  for (const r of routes) {
+    const pts = r.map(([x, z]) => new T.Vector3((x - E.x) * sx, Math.max(0, pocketHeight(x, z)) * sx * 0.9 + 0.012, (z - E.z) * sx));
+    const line = new T.Line(new T.BufferGeometry().setFromPoints(pts), lineMat);
+    map.add(line);
+  }
+  // the gate: a pulsing amber marker and a thin column
+  const gateMat = new T.MeshBasicMaterial({ color: 0xffa040, transparent: true, blending: T.AdditiveBlending, depthWrite: false });
+  const gm = new T.Mesh(new T.ConeGeometry(0.018, 0.06, 4), gateMat);
+  gm.position.set((SEVERANCE_GATE.x - E.x) * sx, 0.06, (SEVERANCE_GATE.z - E.z) * sx);
+  gm.rotation.x = Math.PI;
+  map.add(gm);
+  const col = new T.Mesh(new T.CylinderGeometry(0.003, 0.003, 0.35, 4), gateMat);
+  col.position.set(gm.position.x, 0.2, gm.position.z);
+  map.add(col);
+  // projector cone from the table
+  const coneMat = new T.ShaderMaterial({ uniforms: { uTime: time, uGain: gain }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float uTime, uGain; varying vec2 vUv; void main(){ float k = (1.0 - vUv.y) * 0.18 * (0.8 + 0.2 * sin(uTime * 5.0 + vUv.x * 40.0)) * uGain; gl_FragColor = vec4(vec3(0.35, 0.95, 0.9) * k, k); }',
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide });
+  const cone = new T.Mesh(new T.CylinderGeometry(span * 0.62, 0.08, lift - 0.95, 20, 1, true), coneMat);
+  cone.position.y = 0.95 + (lift - 0.95) / 2;
+  group.add(cone);
+  return {
+    group,
+    update(t, on, deterministic) {
+      group.visible = on;
+      if (!on) return;
+      time.value = t;
+      gain.value = 1;
+      gm.scale.setScalar(1 + 0.25 * Math.sin(t * 3.0));
+      if (!deterministic) map.rotation.y = Math.PI / 2 + Math.sin(t * 0.15) * 0.08;
+    },
+    dispose() { for (const m of [mat, lineMat, gateMat, coneMat]) m.dispose(); group.traverse((n) => n.geometry?.dispose?.()); },
   };
 }

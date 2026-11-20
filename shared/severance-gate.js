@@ -153,23 +153,36 @@ const OUTCROPS = [[-26, -110, 3.1], [36, -112, 2.6], [-70, -120, 3.0], [92, -128
 export const SEVERANCE_OUTCROPS = Object.freeze(OUTCROPS.map(([du, dv, s], i) => Object.freeze({ type: 'severance_outcrop', ...at(du, dv), r: 0.95 * s, h: 1.7 * s, s, seed: 900 + i })));
 
 // The Expedition Outpost: a safe camp on the level pad east of the arrival. The
-// shelter opens west toward the arrival terrace; the quartermaster stands behind
-// a waist-high counter under it (low colliders do not block line of sight).
+// shelter (outpost_shelter.glb, a faceted armour shell on a tube lattice) opens
+// west toward the arrival terrace; the quartermaster stands behind a waist-high
+// counter inside it (low colliders do not block line of sight).
 const O = SEVERANCE_EXPANSE.outpost;
 const ox = (dx, dz) => ({ x: O.x + dx, z: O.z + dz });
+// Shelter frame: front (open) toward -x, length along x, half-width along z.
+const SHX = O.x + 3, SHZ = O.z + 1;
 export const EXPEDITION_OUTPOST = Object.freeze({
   name: 'Expedition Outpost', x: O.x, z: O.z, r: O.r,
-  shelter: Object.freeze({ ...ox(4, 1), hw: 3.6, hd: 6.2, yaw: -Math.PI / 2, eave: 3.1, ridge: 4.4 }),
-  quartermaster: Object.freeze({ ...ox(5.6, 1.6), yaw: -Math.PI / 2 }),
-  counter: Object.freeze({ ...ox(3.7, 1.6), hw: 0.45, hd: 2.1, h: 0.75 }),
+  shelter: Object.freeze({ x: SHX, z: SHZ, yaw: -Math.PI / 2, front: -6.4, rear: 6.9, sledFront: -8.6, sledRear: 8.0, hw: 4.6, height: 3.86 }),
+  quartermaster: Object.freeze({ x: SHX - 1.0, z: SHZ, yaw: -Math.PI / 2 }),
+  counter: Object.freeze({ x: SHX - 2.6, z: SHZ, hw: 0.45, hd: 2.0, h: 0.75 }),
+  table: Object.freeze({ x: SHX - 4.4, z: SHZ + 2.7, r: 0.75, h: 0.95 }),
   mast: Object.freeze(ox(-7.5, -8)),
   lamps: Object.freeze([0, 1, 2, 3, 4, 5, 6, 7].filter((i) => i !== 4).map((i) => Object.freeze(ox(Math.cos(i * Math.PI / 4) * 14.5, Math.sin(i * Math.PI / 4) * 14.5)))),
+  // outpost crew (presentation NPCs with a line of field talk; no services)
+  crew: Object.freeze([
+    Object.freeze({ key: 'outpost_surveyor', name: 'Surveyor Idris Vale', x: SHX - 4.4, z: SHZ + 3.85, yaw: Math.PI }),
+    Object.freeze({ key: 'outpost_signaller', name: 'Signaller Maren Okafor', ...ox(-6.1, -7.2), yaw: -2.2 }),
+  ]),
 });
 const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
 export const OUTPOST_COLLIDERS = Object.freeze([
-  ...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([a, b]) => Object.freeze({ type: 'outpost_post', x: SH.x + a * SH.hw, z: SH.z + b * SH.hd, r: 0.3, h: SH.eave })),
-  Object.freeze({ type: 'outpost_wall', x: SH.x + SH.hw - 0.15, z: SH.z, hw: 0.2, hd: SH.hd, h: SH.eave }),
+  ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
+  Object.freeze({ type: 'outpost_shell', x: SH.x + SH.rear - 0.3, z: SH.z, hw: 0.4, hd: SH.hw * 0.72, h: 2.8 }),
+  ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledFront - 6.2) / 2, z: SH.z + s * SH.hw * 0.92, hw: (6.2 + SH.sledFront) / -2, hd: 0.15, h: 3.6 })),
+  ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledRear + 6.2) / 2, z: SH.z + s * SH.hw * 0.82, hw: (SH.sledRear - 6.2) / 2, hd: 0.15, h: 2.6 })),
   Object.freeze({ type: 'outpost_counter', x: OP.counter.x, z: OP.counter.z, hw: OP.counter.hw, hd: OP.counter.hd, h: OP.counter.h }),
+  Object.freeze({ type: 'outpost_table', x: OP.table.x, z: OP.table.z, r: OP.table.r, h: OP.table.h }),
+  Object.freeze({ type: 'outpost_crates', x: SH.x + 3.2, z: SH.z - 3.3, hw: 0.9, hd: 0.7, h: 1.6 }),
   Object.freeze({ type: 'outpost_crates', ...ox(-6, 9), hw: 1.3, hd: 1.0, h: 1.9 }),
   Object.freeze({ type: 'outpost_crates', ...ox(9.5, -8.5), hw: 1.0, hd: 1.4, h: 1.5 }),
   Object.freeze({ type: 'outpost_generator', ...ox(10, 9), hw: 1.1, hd: 0.8, h: 1.6 }),

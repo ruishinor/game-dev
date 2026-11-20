@@ -411,6 +411,7 @@ OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x
 OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Severance Gate',x:SILENT_FOUNDRY.exit.x,z:SILENT_FOUNDRY.exit.z,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
   {key:'foundry_cache',type:'foundry_cache',name:'Depths Recovery Cache',x:SILENT_FOUNDRY.cache.x,z:SILENT_FOUNDRY.cache.z,r:.9});
 OBJECTS.push({key:'expedition_quartermaster',type:'expedition_quartermaster',name:'Expedition Quartermaster',x:EXPEDITION_OUTPOST.quartermaster.x,z:EXPEDITION_OUTPOST.quartermaster.z,r:.5,yaw:EXPEDITION_OUTPOST.quartermaster.yaw});
+for(const c of EXPEDITION_OUTPOST.crew)OBJECTS.push({key:c.key,type:'outpost_crew',look:c.key,name:c.name,x:c.x,z:c.z,r:.45,yaw:c.yaw});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 // Four Halo Construct wardens stand outside the Sanctum perimeter, one per

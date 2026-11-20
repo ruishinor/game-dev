@@ -1700,7 +1700,7 @@ function updateEntities(dt, t, now) {
     ent.model.update(dt, {
       lookAt,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
-      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster') && !!lookAt,
+      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster' || ent.meta.c === 'outpost_crew') && !!lookAt,
       t,
       speed: ent.speed,
       travel,

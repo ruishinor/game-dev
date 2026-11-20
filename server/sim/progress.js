@@ -378,6 +378,13 @@ export function interact(game, p, objectId) {
     p.outbox.push({e:'workshop_open'});return {ok:true};
   }
   if (obj.type === 'quartermaster' || obj.type === 'expedition_quartermaster') return openVendor(game,p,obj.id);
+  if (obj.type === 'outpost_crew') {
+    const lines = obj.key === 'outpost_surveyor'
+      ? ['Three ways to the Gate: the Causeway under the old ring, the Severed Pass, or the Amber Flats. The sentinels keep to the causeway.', 'The crystals out east burn brighter after dark. Lovely to look at, and something always nests near them.', 'Drones hold the ceremonial approach. Come back here to patch up before you try the stairs.']
+      : ['The mast keeps us talking to the Reach. If the beacon blinks twice, someone is on the way in.', 'Our quartermaster stocks restoratives. Carry more than you think you need.', 'Nothing hostile crosses the lamp line. Whatever it is, it does not like the light.'];
+    game.message(p, 'info', obj.name + ': ' + lines[Math.floor(game.time / 7000) % lines.length]);
+    return { ok: true };
+  }
   if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='rift_return')return game.travelRift(p,obj);

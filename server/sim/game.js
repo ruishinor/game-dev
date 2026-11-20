@@ -69,6 +69,7 @@ export class Game {
     for (const o of OBJECTS) {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
       if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
+      if (o.look) obj.look = o.look;
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -460,7 +461,7 @@ export class Game {
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
-        return { i: ent.id, k: 'o', n: ent.name, c: ent.type, ...(ent.yaw !== undefined ? { y: ent.yaw, v: ent.variant } : {}) };
+        return { i: ent.id, k: 'o', n: ent.name, c: ent.type, ...(ent.yaw !== undefined ? { y: ent.yaw, v: ent.variant } : {}), ...(ent.look ? { a: ent.look } : {}) };
     }
   }
 
