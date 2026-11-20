@@ -822,8 +822,11 @@ export class UI {
       const cdef = COMPANIONS[companionType];
       companionCommandKeys(companionType).forEach((mode, i) => {
         if(!Object.hasOwn(cdef.modes,mode))return;
-        const b = this.slotButton(ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
+        const art=paintedAbilityArt(mode);
+        const b = this.slotButton(art ?? ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
+        b.el.dataset.ability=mode;
+        if(art)b.el.dataset.art='painted';
         b.el.addEventListener('click', () => this.a.pet(mode));
         this.hover(b.el, () => this.petTip(mode));
         this.petBar.append(b.el);
