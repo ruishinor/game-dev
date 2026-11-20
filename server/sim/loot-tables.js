@@ -42,3 +42,26 @@ export function blueprintDrop(type,rng){
  const n=rng();if(!Number.isFinite(n)||n<0||n>=1)return null;
  return type==='sentinel'?(n<.04?'blueprint_relay_vest':null):(n<.008?'blueprint_resonant_vest':null);
 }
+
+// Rare class armour blueprints (shared/class-armour.js). One independent roll
+// per eligible recipient and corpse, only for the recipient's own class and
+// only while that blueprint is unknown; never a finished piece. Sources that
+// are not yet in the world (caches, archive, echo) have no entry here.
+export const CLASS_ARMOUR_BLUEPRINT_CHANCE = 0.03;
+export const CLASS_ARMOUR_DROPS = Object.freeze({
+  warden: Object.freeze({ vanguard: 'chest', symbiotech: 'greaves', keeper: 'gloves' }),
+  sentinel: Object.freeze({ vanguard: 'gloves', symbiotech: 'gloves' }),
+  turret_drone: Object.freeze({ vanguard: 'greaves', surveyor: 'gloves' }),
+  faultstalker: Object.freeze({ vanguard: 'boots', surveyor: 'chest' }),
+  skitter: Object.freeze({ symbiotech: 'chest' }),
+  quarantine_custodian: Object.freeze({ keeper: 'chest' }),
+  sinter_grazer: Object.freeze({ surveyor: 'greaves' }),
+});
+export function classArmourBlueprintDrop(type, char, rng) {
+  const slot = Object.hasOwn(CLASS_ARMOUR_DROPS, type) && typeof char?.cls === 'string' && Object.hasOwn(CLASS_ARMOUR_DROPS[type], char.cls) ? CLASS_ARMOUR_DROPS[type][char.cls] : null;
+  if (!slot) return null;
+  const id = `blueprint_${char.cls}_field_set_${slot}`;
+  if ((char.goods?.[id] || 0) >= 1) return null;
+  const n = rng();
+  return Number.isFinite(n) && n >= 0 && n < CLASS_ARMOUR_BLUEPRINT_CHANCE ? id : null;
+}

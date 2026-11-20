@@ -272,6 +272,9 @@ function killPlayer(game, p) {
   wearEquippedWeapon(game,p);
 }
 
+/** Controlled Blast radius from the loadout (Faultline glyph, Strataweave set). */
+export const blastRadiusFor = (p) => (p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius) + (p.stats.blastRadius || 0);
+
 // --- per-tick player upkeep --------------------------------------------------
 
 export function tickPlayerCombat(game, p, dt) {
@@ -397,7 +400,7 @@ export function useAbility(game, p, abilityId) {
   game.emitWorldEvent({ e: 'cast', s: p.id, d: target ? target.id : 0, ab: abilityId });
 
   const project=(ally,amount,dur)=>{
-    const value=Math.round(amount*p.stats.power);
+    const value=Math.round(amount*p.stats.power*(p.stats.barrierMul??1));
     const old=getBuff(ally,'shield');
     if (old && old.until>game.time && old.v>=value) return;
     addBuff(ally,{k:'shield',until:game.time+dur,v:value,cap:value,src:p.id,keeper:true,
@@ -421,8 +424,11 @@ export function useAbility(game, p, abilityId) {
       p.autoOn=true;break;
     }
     case 'lattice_relay':
-      for(const ally of game.players.values())if(!ally.dead&&dist(p,ally)<=ab.radius&&hasLineOfSight(p,ally))project(ally,24,ab.dur);
-      game.emitWorldEvent({e:'fx',k:'lattice_relay',s:p.id,r:ab.radius});break;
+    {
+      const radius=ab.radius+(p.stats.relayRadius||0);
+      for(const ally of game.players.values())if(!ally.dead&&dist(p,ally)<=radius&&hasLineOfSight(p,ally))project(ally,24,ab.dur);
+      game.emitWorldEvent({e:'fx',k:'lattice_relay',s:p.id,r:radius});break;
+    }
     case 'phase_transposition': {
       const shield=getBuff(p,'shield');
       p.buffs=p.buffs.filter(b=>b!==shield);
@@ -430,7 +436,7 @@ export function useAbility(game, p, abilityId) {
       game.emitWorldEvent({e:'shield',s:p.id,d:target.id,a:shield.v});break;
     }
     case 'fault_scan': {
-      p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) };
+      p.surveyKit.mark = { id: target.id, until: game.time + (p.stats.glyph === 'glyph_wideband' ? SURVEYOR.extendedMarkMs : SURVEYOR.markMs) + (p.stats.scanMs || 0) };
       p.res = Math.min(cdef.resource.max, p.res + 30);
       break;
     }
@@ -451,7 +457,7 @@ export function useAbility(game, p, abilityId) {
     case 'controlled_blast': {
       const rig = p.surveyKit.rig;
       p.surveyKit.rig = null;
-      const radius = p.stats.glyph === 'glyph_faultline' ? SURVEYOR.faultlineRadius : SURVEYOR.blastRadius;
+      const radius = blastRadiusFor(p);
       game.emitWorldEvent({ e: 'fx', k: 'survey_blast', s: p.id, x: rig.x, z: rig.z, r: radius });
       for (const enemy of game.enemies) {
         if (enemy.state !== 'dead' && enemy.state !== 'evade' && dist(rig, enemy) - enemy.radius <= radius && hasLineOfSight(rig,enemy)) dealDamage(game, p, enemy, ab.dmg, abilityId,{origin:rig});
@@ -531,7 +537,9 @@ export function useAbility(game, p, abilityId) {
       applyHeal(game, p, target, ab.heal, abilityId);
       const ticks = ab.hot.dur / 1000;
       const per = Math.round((ab.hot.total / ticks) * p.stats.power * p.stats.healMul);
-      addBuff(target, { k: 'hot', until: game.time + ab.hot.dur + 50, next: game.time + 1000, per, src: p.id });
+      // Sustained Graft (Mycelial Accord, 4 pieces): extra ticks at the same amount
+      const extra = Math.max(0, Math.floor(p.stats.graftTicks || 0)) * 1000;
+      addBuff(target, { k: 'hot', until: game.time + ab.hot.dur + extra + 50, next: game.time + 1000, per, src: p.id });
       break;
     }
     case 'spore_snare':

@@ -72,6 +72,16 @@ const portraits=Object.freeze({
  "relay_frame": "<path d=\"M3 9l9-5 9 3-8 6-5 7-4-2 4-7Z\" fill=\"#697878\" stroke=\"#253035\" stroke-width=\".7\"/><path d=\"M3 9l9-5 9 3-8 3Z\" fill=\"#b2bba8\" stroke=\"#253035\" stroke-width=\".7\"/><path d=\"M8 12l3 1m2-4 5-2\" fill=\"none\" stroke=\"#3d5559\" stroke-width=\"1.6\"/>",
  "pulse_module": "<path d=\"M2 10l6-3 3-4 5 1 2 4 4 2v8l-5 4-5-1-4-4-6-1Z\" fill=\"#486269\" stroke=\"#293438\" stroke-width=\".55\" stroke-linejoin=\"round\"/><path d=\"M8 7l3-4 5 1 2 4-5 3Z\" fill=\"#adbbb1\" stroke=\"#293438\" stroke-width=\".55\" stroke-linejoin=\"round\"/><path d=\"M3 11l5-2 5 3-2 4-7-1Z\" fill=\"#617f86\" stroke=\"#293438\" stroke-width=\".55\" stroke-linejoin=\"round\"/><path d=\"M13 11l5-3 4 2v8l-5 4-5-1-3-3Z\" fill=\"#6c8c8f\" stroke=\"#293438\" stroke-width=\".55\" stroke-linejoin=\"round\"/><path d=\"M14 13l4-3 2 1v6l-3 3-3-1Z\" fill=\"#2c4a51\" stroke=\"#293438\" stroke-width=\".55\" stroke-linejoin=\"round\"/><path d=\"M15 16l2-3 1 4 1-2M5 12l2-1 2 1\" fill=\"none\" stroke=\"#c3ddc8\" stroke-width=\".55\" stroke-linejoin=\"round\"/>"
 });
+// Class armour blueprints: a schematic of the piece itself (its own portrait
+// redrawn as cyan linework on a gridded sheet), so every blueprint names its
+// piece. The raster render from the 3D model replaces it where one exists.
+const SHEET='<path d="M2 3 19 2l3 3-1 17-16 1-3-3Z" fill="#0d2230" stroke="#2c6f8c" stroke-width=".6"/><path d="M5 2.6v20M9 2.4v20.4M13 2.3v20.4M17 2.2v20.4M2.5 7h19M2.4 11h19.2M2.3 15h19.2M2.2 19h19.2" stroke="#1b4a60" stroke-width=".25"/>';
+const schematic=art=>SHEET+'<g transform="translate(2.4 2.4) scale(.8)">'+art.replace(/fill="#[0-9a-fA-F]{3,6}"/g,'fill="#4fc3e8" fill-opacity=".12"').replace(/stroke="#[0-9a-fA-F]{3,6}"/g,'stroke="#8fe6ff"')+'</g><path d="M3.5 20.5h5" stroke="#8fe6ff" stroke-width=".7"/>';
+const blueprints={};
+for(const cls of ['vanguard','symbiotech','keeper','surveyor'])for(const slot of ['chest','gloves','greaves','boots']){
+ const item=cls+'_field_set_'+slot;
+ if(Object.hasOwn(portraits,item))blueprints['blueprint_'+item]=schematic(portraits[item]);
+}
 const carried=Object.freeze(['electrical_combat_rod','field_emitter','tuned_emitter','dense_pulse_core','longpoint_emitter','survey_induction','survey_calibrator','brine_rescue_lattice','adrenal_shunt','myelin_lattice','servo_harness']);
-export function cataloguePortrait(id){return typeof id==='string'?(Object.hasOwn(portraits,id)?portraits[id]:carried.includes(id)?refinedItemMotif(id):null):null;}
-export const PORTRAIT_IDS=Object.freeze([...Object.keys(portraits),...carried]);
+export function cataloguePortrait(id){return typeof id==='string'?(Object.hasOwn(portraits,id)?portraits[id]:Object.hasOwn(blueprints,id)?blueprints[id]:carried.includes(id)?refinedItemMotif(id):null):null;}
+export const PORTRAIT_IDS=Object.freeze([...Object.keys(portraits),...Object.keys(blueprints),...carried]);

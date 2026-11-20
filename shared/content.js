@@ -352,87 +352,46 @@ export const SPAWNS = [
 // Items. `skills` add to character skills; `mods` adjust derived stats;
 // `req` must hold for the whole loadout while the item is equipped.
 export const ARMOR_SETS = {
-  "vanguard_field_set": {
-    "cls": "vanguard",
-    "name": "Bastion Circuit",
-    "bonuses": {
-      "2": {
-        "hpAdd": 4
-      },
-      "3": {
-        "hpAdd": 6
-      },
-      "4": {
-        "hpAdd": 10
-      }
-    }
-  },
-  "symbiotech_field_set": {
-    "cls": "symbiotech",
-    "name": "Verdant Conduit",
-    "bonuses": {
-      "2": {
-        "healMul": 1.02
-      },
-      "3": {
-        "healMul": 1.03
-      },
-      "4": {
-        "healMul": 1.04
-      }
-    }
-  },
-  "keeper_field_set": {
-    "cls": "keeper",
-    "name": "Hinge Array",
-    "bonuses": {
-      "2": {
-        "shieldMul": 1.02
-      },
-      "3": {
-        "shieldMul": 1.03
-      },
-      "4": {
-        "shieldMul": 1.04
-      }
-    }
-  },
-  "surveyor_field_set": {
-    "cls": "surveyor",
-    "name": "Faultline Harness",
-    "bonuses": {
-      "2": {
-        "dmgMul": 1.02
-      },
-      "3": {
-        "dmgMul": 1.03
-      },
-      "4": {
-        "dmgMul": 1.04
-      }
-    }
-  }
+  // Rare class armour collection (QL 5). Ids are the original SYS-01 field-set
+  // ids so saved loadouts keep working; names, attributes and effects follow
+  // the owner's collection specification (docs/art/ARMOUR-3D.md).
+  vanguard_field_set: { cls: 'vanguard', name: 'Cinderlock Regalia', title: 'Containment Circuit', bonuses: {
+    2: { hpAdd: 10, label: 'Structural Reinforcement: +10 maximum health' },
+    3: { chargeMul: 1.08, label: 'Inductive Recovery: +8% Charge generation' },
+    4: { dischargeRadius: 1, label: 'Containment Overdrive: +1 m Discharge radius' } } },
+  symbiotech_field_set: { cls: 'symbiotech', name: 'Mycelial Accord', title: 'Living Network', bonuses: {
+    2: { healMul: 1.06, label: 'Mutualism: +6% healing' },
+    3: { hpAdd: 8, label: 'Adaptive Membrane: +8 maximum health' },
+    4: { graftTicks: 1, label: 'Sustained Graft: Mending Graft heals for one additional tick' } } },
+  keeper_field_set: { cls: 'keeper', name: 'Vesperglass Array', title: 'Harmonic Architecture', bonuses: {
+    2: { hpAdd: 8, label: 'Reinforced Lattice: +8 maximum health' },
+    3: { barrierMul: 1.06, label: 'Coherent Projection: +6% projected barrier capacity' },
+    4: { relayRadius: 1, label: 'Expanded Geometry: +1 m Lattice Relay radius' } } },
+  surveyor_field_set: { cls: 'surveyor', name: 'Strataweave Fieldkit', title: 'Geostructural Analysis', bonuses: {
+    2: { dmgMul: 1.04, label: 'Calibrated Output: +4% damage' },
+    3: { scanMs: 2000, label: 'Persistent Analysis: +2 s Fault Scan duration' },
+    4: { blastRadius: 1, label: 'Expanded Fracture: +1 m Controlled Blast radius' } } },
 };
 
 export const ITEMS = {
   social_service_coat:{name:'Sanctum Service Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A sand-grey service coat worn by supply crews and civilian technicians. Overrides the visible torso layer without removing combat equipment.'},
   social_relay_coat:{name:'Relay Technician Coat',slot:'social_torso',summary:'Cosmetic only · no combat attributes',desc:'A weathered, dark teal technician coat. Overrides the visible torso layer without changing combat equipment.'},
-  vanguard_field_set_chest: {"name":"Bastion Circuit Chest","slot":"chest","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
-  vanguard_field_set_gloves: {"name":"Bastion Circuit Gloves","slot":"gloves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
-  vanguard_field_set_greaves: {"name":"Bastion Circuit Greaves","slot":"greaves","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
-  vanguard_field_set_boots: {"name":"Bastion Circuit Boots","slot":"boots","cls":"vanguard","setId":"vanguard_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Bastion Circuit set."},
-  symbiotech_field_set_chest: {"name":"Verdant Conduit Chest","slot":"chest","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
-  symbiotech_field_set_gloves: {"name":"Verdant Conduit Gloves","slot":"gloves","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
-  symbiotech_field_set_greaves: {"name":"Verdant Conduit Greaves","slot":"greaves","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
-  symbiotech_field_set_boots: {"name":"Verdant Conduit Boots","slot":"boots","cls":"symbiotech","setId":"symbiotech_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Verdant Conduit set."},
-  keeper_field_set_chest: {"name":"Hinge Array Chest","slot":"chest","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Hinge Array set."},
-  keeper_field_set_gloves: {"name":"Hinge Array Gloves","slot":"gloves","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Hinge Array set."},
-  keeper_field_set_greaves: {"name":"Hinge Array Greaves","slot":"greaves","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Hinge Array set."},
-  keeper_field_set_boots: {"name":"Hinge Array Boots","slot":"boots","cls":"keeper","setId":"keeper_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Hinge Array set."},
-  surveyor_field_set_chest: {"name":"Faultline Harness Chest","slot":"chest","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":8},"summary":"+8 maximum health","desc":"An anatomical component of the Faultline Harness set."},
-  surveyor_field_set_gloves: {"name":"Faultline Harness Gloves","slot":"gloves","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":3},"summary":"+3 maximum health","desc":"An anatomical component of the Faultline Harness set."},
-  surveyor_field_set_greaves: {"name":"Faultline Harness Greaves","slot":"greaves","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":5},"summary":"+5 maximum health","desc":"An anatomical component of the Faultline Harness set."},
-  surveyor_field_set_boots: {"name":"Faultline Harness Boots","slot":"boots","cls":"surveyor","setId":"surveyor_field_set","rarity":"Rare","mods":{"hpAdd":4},"summary":"+4 maximum health","desc":"An anatomical component of the Faultline Harness set."},
+  vanguard_field_set_chest: {"name": "Cinderlock Reactor Cuirass", "slot": "chest", "cls": "vanguard", "setId": "vanguard_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 18}, "summary": "QL 5 · +18 maximum health", "desc": "Graphite containment plate around a sealed kinetic reactor housing; crimson conduits carry its accumulated charge. Part of Cinderlock Regalia."},
+  vanguard_field_set_gloves: {"name": "Cinderlock Induction Gauntlets", "slot": "gloves", "cls": "vanguard", "setId": "vanguard_field_set", "rarity": "Rare", "ql": 5, "skills": {"kinetics": 1}, "summary": "QL 5 · +1 Kinetics", "desc": "Heavy induction vambraces over independently articulated gauntlet fingers. Part of Cinderlock Regalia."},
+  vanguard_field_set_greaves: {"name": "Cinderlock Impact Greaves", "slot": "greaves", "cls": "vanguard", "setId": "vanguard_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 10}, "summary": "QL 5 · +10 maximum health", "desc": "Chevron-cut thigh and shin plates with reinforced knee protection. Part of Cinderlock Regalia."},
+  vanguard_field_set_boots: {"name": "Cinderlock Anchor Boots", "slot": "boots", "cls": "vanguard", "setId": "vanguard_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 6}, "skills": {"instrumentation": 1}, "summary": "QL 5 · +6 maximum health · +1 Instrumentation", "desc": "Thick treaded anchor soles under armoured uppers and ankle locks. Part of Cinderlock Regalia."},
+  symbiotech_field_set_chest: {"name": "Mycelial Cultivation Carapace", "slot": "chest", "cls": "symbiotech", "setId": "symbiotech_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 12}, "summary": "QL 5 · +12 maximum health", "desc": "A cultivated ivory exoskeleton over living membranes and nutrient capillaries. Part of Mycelial Accord."},
+  symbiotech_field_set_gloves: {"name": "Mycelial Synapse Gloves", "slot": "gloves", "cls": "symbiotech", "setId": "symbiotech_field_set", "rarity": "Rare", "ql": 5, "skills": {"biotech": 1}, "summary": "QL 5 · +1 Biotech", "desc": "Grown finger sheaths and a vambrace culture vessel joined by synaptic fibres. Part of Mycelial Accord."},
+  symbiotech_field_set_greaves: {"name": "Mycelial Tendril Greaves", "slot": "greaves", "cls": "symbiotech", "setId": "symbiotech_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 8}, "summary": "QL 5 · +8 maximum health", "desc": "Ivory tendrils grown in a spiral around the leg, with membrane between them. Part of Mycelial Accord."},
+  symbiotech_field_set_boots: {"name": "Mycelial Rootwalkers", "slot": "boots", "cls": "symbiotech", "setId": "symbiotech_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 4}, "skills": {"instrumentation": 1}, "summary": "QL 5 · +4 maximum health · +1 Instrumentation", "desc": "Root-grown soles and a culture node at the ankle. Part of Mycelial Accord."},
+  keeper_field_set_chest: {"name": "Vesperglass Harmonic Cuirass", "slot": "chest", "cls": "keeper", "setId": "keeper_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 14}, "summary": "QL 5 · +14 maximum health", "desc": "Precision porcelain shells on a titanium frame around a protected optical resonance assembly. Part of Vesperglass Array."},
+  keeper_field_set_gloves: {"name": "Vesperglass Projection Gauntlets", "slot": "gloves", "cls": "keeper", "setId": "keeper_field_set", "rarity": "Rare", "ql": 5, "skills": {"instrumentation": 1}, "summary": "QL 5 · +1 Instrumentation", "desc": "Prism-lined vambraces with a wrist projection lens and segmented fingers. Part of Vesperglass Array."},
+  keeper_field_set_greaves: {"name": "Vesperglass Lattice Greaves", "slot": "greaves", "cls": "keeper", "setId": "keeper_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 8}, "summary": "QL 5 · +8 maximum health", "desc": "Geometric ceramic greaves with layered translucent resonance panels. Part of Vesperglass Array."},
+  keeper_field_set_boots: {"name": "Vesperglass Phasewalkers", "slot": "boots", "cls": "keeper", "setId": "keeper_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 5}, "skills": {"kinetics": 1}, "summary": "QL 5 · +5 maximum health · +1 Kinetics", "desc": "Ceramic phase boots with resonance channels in the sole. Part of Vesperglass Array."},
+  surveyor_field_set_chest: {"name": "Strataweave Survey Harness", "slot": "chest", "cls": "surveyor", "setId": "surveyor_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 12}, "summary": "QL 5 · +12 maximum health", "desc": "A load-bearing survey harness: abrasion textile, segmented plates, instrument housing, pouches and canister. Part of Strataweave Fieldkit."},
+  surveyor_field_set_gloves: {"name": "Strataweave Calibration Gloves", "slot": "gloves", "cls": "surveyor", "setId": "surveyor_field_set", "rarity": "Rare", "ql": 5, "skills": {"instrumentation": 1}, "summary": "QL 5 · +1 Instrumentation", "desc": "Reinforced work gloves with a wrist calibration display and knuckle guards. Part of Strataweave Fieldkit."},
+  surveyor_field_set_greaves: {"name": "Strataweave Excavator Greaves", "slot": "greaves", "cls": "surveyor", "setId": "surveyor_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 8}, "summary": "QL 5 · +8 maximum health", "desc": "Strapped excavation plates over hazard-striped knee guards. Part of Strataweave Fieldkit."},
+  surveyor_field_set_boots: {"name": "Strataweave Traverse Boots", "slot": "boots", "cls": "surveyor", "setId": "surveyor_field_set", "rarity": "Rare", "ql": 5, "mods": {"hpAdd": 5}, "skills": {"kinetics": 1}, "summary": "QL 5 · +5 maximum health · +1 Kinetics", "desc": "Buckled traverse boots with deep lug soles and a beacon pod. Part of Strataweave Fieldkit."},
   field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
   reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
   resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
