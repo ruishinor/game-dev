@@ -223,7 +223,7 @@ export function buildSeverancePocket(T, scene, o) {
         const night = tod.active ? tod.sample(tod.state.t).stars : 0;
         kit.update(dt, kitTime, eye, { night, deterministic: manual });
         outpost.update(dt, kitTime, eye, { night, deterministic: manual });
-        camp.update(dt, kitTime, eye, { night: night > 0.5 });
+        camp.update(dt, kitTime, eye, { night: night > 0.2 });
       }
   }
   return {

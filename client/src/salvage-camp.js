@@ -4,6 +4,7 @@
 // Presentation only: the garrison is server-owned and arrives as entities.
 import { SALVAGE_CAMP, SALVAGE_CAMP_PIECES } from '../../shared/severance-gate.js';
 import { particleField } from './severance-gate.js';
+import { createCampFx } from './salvage-camp-fx.js';
 
 export const SALVAGE_CAMP_URL = '/client/assets/salvage_camp.glb?v=0e3fb17363b7';
 
@@ -77,6 +78,7 @@ export function createSalvageCamp(T, o) {
   smoke.mesh.position.copy(chimney);
   root.add(smoke.mesh);
 
+  const layers = createCampFx(T, { root, ground: o.ground, pieces: SALVAGE_CAMP_PIECES });
   const fx = { coals: null, lamps: [] };
   const owned = [];
   let status = 'idle';
@@ -152,12 +154,15 @@ export function createSalvageCamp(T, o) {
       embers.mat.uniforms.uMotion.value = motion;
       smoke.mat.uniforms.uTime.value = t;
       smoke.mat.uniforms.uMotion.value = motion;
+      layers.update(dt, t, { night, quality, reducedMotion });
     },
+    layers: layers.layers,
     stats() { return { status, pieces: SALVAGE_CAMP_PIECES.length }; },
     dispose() {
       status = 'disposed';
       for (const x of owned) x.dispose?.();
       embers.mat.dispose(); embers.geo.dispose(); smoke.mat.dispose(); smoke.geo.dispose();
+      layers.dispose();
       root.removeFromParent();
     },
   };

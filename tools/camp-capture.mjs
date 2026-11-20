@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { startServer } from '../server/index.js';
 import { launchBrowser, SOFTWARE_GL } from './browser.mjs';
-import { SEVERANCE_EXPANSE as E, SALVAGE_CAMP as C } from '../shared/severance-gate.js';
+import { SEVERANCE_EXPANSE as E, SALVAGE_CAMP as C, SALVAGE_CAMP_PIECES } from '../shared/severance-gate.js';
 import { liveFixturePlayer } from '../test/e2e/live-fixture.mjs';
 
 const out = process.argv[2];
@@ -52,6 +52,9 @@ try {
   await shot('c03-overview-high', { x: C.x + 18, z: C.z - 16 }, { pitch: 0.55, dist: 16 });
   await shot('c04-forge-overseer', { x: C.x + 2.5, z: C.z - 2 }, { pitch: 0.08, dist: 4 }, { look: { x: C.x - 5, z: C.z + 0.5 } });
   await shot('c05-night', { x: C.x + 14, z: C.z - 5 }, { pitch: 0.2, dist: 8 }, { tod: 'night' });
+  const gan = SALVAGE_CAMP_PIECES.find((x) => x.piece === 'CK_Gantry'), frg = SALVAGE_CAMP_PIECES.find((x) => x.piece === 'CK_Forge');
+  await shot('c07-gantry-welding', { x: gan.x - 3.2, z: gan.z + 2.6 }, { pitch: 0.05, dist: 3.2 }, { look: gan, tod: 'dusk' });
+  await shot('c08-forge-close-night', { x: frg.x + 4.2, z: frg.z - 1.5 }, { pitch: 0.1, dist: 3.5 }, { look: frg, tod: 'night' });
   await shot('c06-dusk-west-wall', { x: C.x - 17, z: C.z + 4 }, { pitch: 0.15, dist: 7 }, { tod: 'dusk' });
   if (errors.length) console.log('page errors', errors.slice(0, 5));
   fs.writeFileSync(path.join(out, 'capture-log.json'), JSON.stringify({ software: SOFTWARE_GL, errors }, null, 1));
