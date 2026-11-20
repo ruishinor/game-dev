@@ -24,6 +24,7 @@ import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
 import {creditDiscipline} from './crafting-disciplines.js';
 import {containmentAlarm} from './kestrel-alarm.js';
+import {startVeinHarvest} from './severance-veins.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
@@ -387,6 +388,7 @@ export function interact(game, p, objectId) {
   }
   if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
+  if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
   if(obj.type==='rift_return')return game.travelRift(p,obj);
   if(obj.type==='severance_gate'||obj.type==='severance_return')return travelSeverance(game,p,obj);
   if(obj.type==='foundry_return')return leaveFoundry(game,p,obj,gateFront);

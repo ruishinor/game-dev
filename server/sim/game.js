@@ -30,6 +30,7 @@ import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recoverySamples} from '../../shared/recovery.js';
 import {recoveryRemaining} from './recovery.js';
+import { tickVein, veinState, clearVein } from './severance-veins.js';
 import {kestrelAlarmFor} from './kestrel-alarm.js';
 import { tickPlayerCombat, expireBuffs, clearThreatFor, blastRadiusFor } from './combat.js';
 import { workshopSite } from '../../shared/survey.js';
@@ -328,6 +329,7 @@ export class Game {
 
   // Call only after the server accepts a specific gate and destination.
   transferPlayer(p, destination) {
+    clearVein(p);
     this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
     clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
     cancelInscription(this,p);stopProduction(this,p);
@@ -407,6 +409,7 @@ export class Game {
     for (const p of this.players.values()) {
       if (p.inscription) tickInscription(this, p);
       if (p.production) tickProduction(this, p);
+      if (p.veinChannel) tickVein(this, p);
     }
   }
 
@@ -486,6 +489,7 @@ export class Game {
       comp:p.companion?.id??0,
       ...lootState(this,p),
       recoveryMs:recoveryRemaining(p.char,this.wallNow()),
+      ...(travelRegionAt(p.x, p.z) === 'severance_expanse' ? { veins: veinState(this, p) } : {}),
       vendor:vendorState(this,p),
       barrier:barrier?{remaining:Math.round(barrier.v),capacity:Math.round(barrier.cap??barrier.v),ms:Math.max(0,Math.round(barrier.until-this.time))}:null,
       follow: p.followId,

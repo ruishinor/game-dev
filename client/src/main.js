@@ -1125,6 +1125,13 @@ function onEvent(e) {
         }
         break;
       }
+      if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){
+        const o=S.ents.get(e.o);
+        if(e.k==='vein_extract'){o?.model?.extract?.(e.ms);s?.model?.trigger?.('gather','gather');}
+        else if(e.k==='vein_harvest')o?.model?.harvest?.();
+        else o?.model?.breakOff?.();
+        break;
+      }
       if(e.k==='field_recovery'){
         const o=S.ents.get(e.o);
         if(!handled&&o?.placed)fx.ring(o.pos.x,o.pos.z,1.25,0xc0b88c,680,o.pos.y);
@@ -1744,6 +1751,7 @@ function updateEntities(dt, t, now) {
       work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
+      veinMs: ent.meta.c==='resonant_vein' ? (S.you?.veins?.depleted?.find((d)=>d.id===ent.id)?.ms ?? 0) : 0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),

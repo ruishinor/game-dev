@@ -71,6 +71,7 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/severance_gate.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_gate', 'outputs', 'severance_gate.glb');
   if (urlPath === '/client/assets/severance_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_kit', 'outputs', 'severance_kit.glb');
   if (urlPath === '/client/assets/outpost_shelter.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'outpost_shelter', 'outputs', 'outpost_shelter.glb');
+  if (urlPath === '/client/assets/resonant_vein.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'resonant_vein', 'outputs', 'resonant_vein.glb');
   if (urlPath === '/client/assets/phase_scar.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'phase_scar', 'outputs', 'phase_scar.glb');
   if (urlPath === '/client/assets/foundry_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'foundry_kit', 'outputs', 'foundry_kit.glb');
   for (const [prefix, dir] of MOUNTS) {

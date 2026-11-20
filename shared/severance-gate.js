@@ -110,6 +110,12 @@ const CRYSTALS = [[40, -60, 1.6], [52, -40, 2.2], [66, -8, 1.4], [34, 10, 1.8], 
   [80, -50, 1.9], [24, -32, 1.2], [90, -18, 2.1], [38, 86, 1.5], [74, 12, 1.2], [44, -84, 1.7]];
 export const SEVERANCE_CRYSTALS = Object.freeze(CRYSTALS.map(([u, v, r], i) => Object.freeze({ type: 'severance_crystal', ...at(u, v), r, h: 2.4 * r + 1, seed: 1500 + i, teal: i % 4 === 1 })));
 
+// Resonant shard veins: gatherable outcrops (sites only; the yield, channel and
+// replenishment rules are server-only in server/sim/severance-veins.js). Sites
+// sit on level ground clear of colliders, patrol routes and the outpost.
+const VEINS = [['vein_pass', 4, -104], ['vein_flats_north', 50, 48], ['vein_flats_east', 88, 2], ['vein_canyon_west', -56, -38], ['vein_canyon_north', -94, 66]];
+export const SEVERANCE_VEINS = Object.freeze(VEINS.map(([key, u, v], i) => Object.freeze({ key, ...at(u, v), r: 0.95, yaw: (i * 2.39996) % (Math.PI * 2), seed: 2200 + i })));
+
 // The colossal ring: a broken ring of gate-builder stone standing across the
 // west route, sunk into the ash (severance_kit.glb, Ring_Colossal). Travellers
 // pass beneath it along the route (the ring's plane faces +-z). Colliders are its
