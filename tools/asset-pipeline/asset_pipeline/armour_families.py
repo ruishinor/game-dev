@@ -633,18 +633,22 @@ def strataweave_greaves(body, base, m, kit=None):
                        bevel=0.0, segs=0, res=0.012, weights=pol)
             P.append(pl.export())
         # ochre thigh plates (front and outer), bolted, with straps around the thigh
-        pl = Plate(it, f"thigh_plate_{s}", m["plate"], TM, D([(-56, 0.16), (56, 0.16), (60, 0.62), (-60, 0.62)]), 0.013, dome=0.004, thickness=0.006,
-                   bevel=0.002, weights=pt, weight_mode=["band", tax, 0.06])
-        for a, t in ((-48, 0.2), (48, 0.2), (-50, 0.58), (50, 0.58)):
-            pl.bolt(deg(a), t, r=0.0026)
+        # two overlapping segments down the front (articulated, not banded)
+        for k, (t0, t1) in enumerate(((0.12, 0.47), (0.44, 0.8))):
+            pl = Plate(it, f"thigh_plate{k}_{s}", m["plate"], TM, D([(-54 + 4 * k, t0), (54 - 4 * k, t0), (58 - 4 * k, t1), (-58 + 4 * k, t1)]),
+                       0.013 + 0.002 * k, dome=0.003, keel=0.003, lip1=0.002, thickness=0.006, bevel=0.002, weights=pt, weight_mode=["band", tax, 0.06])
+            pl.bolt(deg(-46), t0 + 0.04, r=0.0026).bolt(deg(46), t0 + 0.04, r=0.0026)
+            P.append(pl.export())
+        pl = Plate(it, f"thigh_pad_{s}", m["under"], TM, D([(-60, 0.1), (60, 0.1), (62, 0.82), (-62, 0.82)]), 0.008, thickness=0.004,
+                   bevel=0.0016, weights=pt, weight_mode=["band", tax, 0.06])
         P.append(pl.export())
         P.append(Plate(it, f"thigh_side_{s}", m["plate"], TM, D(sidep([(72, 0.2), (132, 0.24), (132, 0.7), (72, 0.74)])), 0.012, dome=0.004,
                        thickness=0.006, bevel=0.002, weights=pt, weight_mode=["band", tax, 0.06]).export())
-        st = [strap(TM, [(a, t) for a in np.linspace(-179, 179, 30)], 0.026, 0.004, 0.0215) for t in (0.34, 0.5)]
+        st = [strap(TM, [(a, t) for a in np.linspace(-179, 179, 30)], 0.026, 0.004, 0.0235) for t in (0.3, 0.64)]
         P.append(parts_piece(it, f"thigh_straps_{s}", m["strap"], st, weights=pt, weight_mode=["band", tax, 0.06]))
         bk = []
-        for t in (0.34, 0.5):
-            c, n = TM.point(deg(-sg * 70), t, 0.026), TM.normal(deg(-sg * 70), t, 0.026)
+        for t in (0.3, 0.64):
+            c, n = TM.point(deg(-sg * 70), t, 0.028), TM.normal(deg(-sg * 70), t, 0.028)
             bk.append(oriented_box(c, (0.03, 0.034, 0.008), n, tax))
         P.append(parts_piece(it, f"thigh_buckles_{s}", m["trim"], bk, weights=pt, weight_mode=["band", tax, 0.06], bevel=0.0016))
         # knee guard with hazard bands
