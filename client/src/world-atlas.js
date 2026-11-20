@@ -46,10 +46,10 @@ export class WorldAtlas{
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
- full.addEventListener('click',()=>{const on=this.el.classList.toggle('atlas-fullscreen');full.textContent=on?'Restore window':'Full screen';full.setAttribute('aria-pressed',String(on));this.draw();});
- const close=el('button',null,'Close');close.onclick=()=>this.close();head.append(this.title,full,close);
+ full.addEventListener('click',()=>{const on=this.el.classList.toggle('atlas-fullscreen');full.setAttribute('aria-label',on?'Restore window':'Full screen');full.title=full.getAttribute('aria-label');full.textContent=on?'⤡':'⤢';full.setAttribute('aria-pressed',String(on));this.draw();});
+ const close=el('button',null,'Close');close.onclick=()=>this.close();head.append(this.title,close);
  const body=el('div','atlas-body'),tools=el('aside','atlas-tools'),view=el('div','atlas-view');
- this.search=el('input');this.search.type='search';this.search.placeholder='Search visible places and entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();tools.append(this.search,el('h3',null,'Map layers'));
+ this.search=el('input');this.search.type='search';this.search.placeholder='Search visible places and entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);tools.append(this.regionName,this.search,el('h3',null,'Map layers'));
  for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['enemies','Enemies (visible)'],['objects','Objects (visible)']]){
  const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));tools.append(l);}
  this.details=el('p','atlas-details','Select a place or click the map to set a personal waypoint.');
@@ -67,8 +67,8 @@ export class WorldAtlas{
    this.results,el('p','muted','Personal map marker only. Distances are straight-line estimates, not navigable routes. Drag to pan; click to mark; scroll to zoom.'));
  this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
- const b=el('button',null,label);b.onclick=fn;controls.append(b);}
- view.append(this.canvas,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
+ const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
+ full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);view.append(this.canvas,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
  this.el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();this.close();}});
  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.scale(e.deltaY<0?1.2:1/1.2);},{passive:false});
  this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;this.drag={x:e.clientX,y:e.clientY,moved:false};this.canvas.setPointerCapture(e.pointerId);});
@@ -116,7 +116,7 @@ export class WorldAtlas{
  this.day.setAttribute('aria-label',this.day.title);
  this.day.dataset.status=d?'active':'pending';
  this.game.hidden=!this.prefs.game.checked;
- this.game.textContent=d?(d.preview?'Preview ':'Game ')+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time unavailable';
+ this.game.textContent=d?(d.preview?'Preview ':'Game ')+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time —';
  this.real.hidden=!this.prefs.real.checked;
  this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);
  this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;
@@ -157,7 +157,7 @@ export class WorldAtlas{
  draw(){
  if(this.el.hidden||!this.state||!this.region)return;const c=this.canvas,rect=c.getBoundingClientRect();if(rect.width<40||rect.height<40)return;
  const w=Math.round(Math.min(rect.width,1400)),h=Math.round(Math.min(rect.height,1000));if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
- const g=c.getContext('2d'),r=this.region,st=this.state,p=project(r,w,h,this.zoom,this.pan);this.p=p;this.title.textContent=r.name+' · Atlas';
+ const g=c.getContext('2d'),r=this.region,st=this.state,p=project(r,w,h,this.zoom,this.pan);this.p=p;this.title.textContent=r.name+' · Atlas';this.regionName.textContent='ACTIVE REGION · '+r.name;
  g.fillStyle='#273339';g.fillRect(0,0,w,h);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
  if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
