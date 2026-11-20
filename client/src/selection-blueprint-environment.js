@@ -89,7 +89,7 @@ export function createSelectionEnvironment(scene){
   const rear=Math.max(0,-z-25);
   const cliff=Math.pow(side/11,1.5)*5.5+Math.pow(rear/25,1.4)*2.6;
   const disturbed=Math.max(0,Math.abs(x)-3)*.012*noise(x,z);
-  const y=-.22+cliff+noise(x,z,.3)*Math.min(1,side/8)*1.1+disturbed;
+  const y=-.06+cliff+noise(x,z,.3)*Math.min(1,side/8)*1.1+disturbed;
   a.setY(i,y);
  }
  a.needsUpdate=true;terrain.computeVertexNormals();
@@ -110,7 +110,7 @@ export function createSelectionEnvironment(scene){
  for(let i=0;i<18;i++){
   const theta=i*2.39996,dist=4.4+(i%7)*.66;
   const rubble=new THREE.Mesh(geometry(new THREE.DodecahedronGeometry(.23+(i%4)*.13,0)),i%3?rockMat:cliffMat);
-  rubble.position.set(Math.sin(theta)*dist,-.12,Math.cos(theta)*dist-3.2);
+  rubble.position.set(Math.sin(theta)*dist,-.025,Math.cos(theta)*dist-3.2);
   rubble.rotation.set(.17*i,.37*i,.1*i);
   rubble.scale.y=.36;rubble.receiveShadow=true;root.add(rubble);
  }
@@ -120,7 +120,7 @@ export function createSelectionEnvironment(scene){
  // scale it from a guessed bounding box or borrow the Sanctum's generic door.
  const gateway=new THREE.Group();
  gateway.name='existing-severance-gate-menu-instance';
- gateway.position.set(0,-.24,-12.8);
+ gateway.position.set(0,-.06,-12.8);
  gateway.scale.setScalar(.43);
  root.add(gateway);
  let loaded=false,unavailable=false,disposed=false,visual=null;
