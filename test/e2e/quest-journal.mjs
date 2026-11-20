@@ -23,6 +23,7 @@ try{
  await page.waitForFunction(()=>window.__attune.state().sheet.quest.step===2&&window.__attune.state().sheet.survey==='signal');
  await page.locator('#view').focus();await page.keyboard.press('KeyL');
  const journal=page.getByRole('dialog',{name:'Quest Journal'});await journal.waitFor({state:'visible'});
+ assert.equal(await journal.getByRole('button',{name:'Close Quest Journal'}).evaluate(el=>document.activeElement===el),true,'Opening from the world must focus the Journal close control');
  assert.equal(await journal.locator('[data-quest][data-status="completed"]').count(),2);
  assert.equal(await journal.locator('[data-quest][data-status="active"]').count(),2);
  assert.equal(await journal.getByRole('button',{name:/The Vault Warden/}).count(),0);
@@ -35,9 +36,11 @@ try{
  await journal.locator('[data-quest="directive:calibrate"]').click();
  assert.match(await journal.locator('.quest-rewards').innerText(),/not a historical record of grants/);
  await journal.getByRole('button',{name:'Completed',exact:true}).click();
+ assert.equal(await journal.getByRole('button',{name:'Completed',exact:true}).evaluate(el=>document.activeElement===el),true,'Redrawing the filter must retain keyboard focus');
  assert.equal(await journal.locator('[data-quest]').count(),2);
  await journal.getByRole('button',{name:'All',exact:true}).click();
  await journal.locator('[data-quest="brine:investigation"]').click();
+ assert.equal(await journal.locator('[data-quest="brine:investigation"]').evaluate(el=>document.activeElement===el),true,'Redrawing the selected quest must retain keyboard focus');
  assert.match(await journal.locator('.quest-journal-detail').innerText(),/return to Archivist Venn/i);
  assert.match(await journal.locator('.quest-rewards').innerText(),/35 XP/);
  assert.equal(await journal.getByRole('button',{name:'Untrack quest'}).count(),1);
@@ -50,6 +53,7 @@ try{
  await journal.locator('[data-quest="brine:commissioning"]').waitFor({state:'visible'});
  assert.equal(await journal.locator('[data-quest="brine:investigation"]').getAttribute('data-status'),'completed');
  await page.keyboard.press('Escape');assert.ok(await journal.isHidden());
+ assert.equal(await page.locator('#view').evaluate(el=>document.activeElement===el),true,'Escape must restore focus to the invoking world canvas');
  await page.getByRole('button',{name:'Minimize quest tracker'}).click();assert.ok(await page.locator('.quest-tracker-cards').isHidden());
  await page.getByRole('button',{name:'Expand quest tracker'}).click();assert.ok(await page.locator('.quest-tracker-cards').isVisible());
  // Completed Brineworks must not hide an actionable field service.
