@@ -319,3 +319,69 @@ The following original schematic illustrations express owner-requested design di
 ![Return-rift replacement concept: matching Phase Scar presentation at both ends, upright foundation and walkable approach.](art/concepts/severance-return-rift.svg)
 
 For Claude (or an explicitly owner-authorized narrow intervention): reuse the existing Phase Scar model and membrane as a stable return-rift variant, without importing the Reach's hazard, calibration instruments, warning ring or encounter state. Keep the existing `severance_return` identity and region-scoped interaction. Derive the variant's actual footprint (Reach renderer radius 2.45 m versus present return anchor radius 0.72 m) and align shared collision, interaction radius/line of sight, ground, visual orientation and arrival clearance. The expanded track already changes the beacon coordinates; use its actual current anchor/terrain rather than hardcoding the old pocket. Level the foundation/approach locally if needed; avoid redundant beacon dais/cliff clipping, inaccessible edges, and spawn inside the larger footprint. Verify return to Reach, companion dismissal, combat/root/death checks, regional isolation, reconnect, and actual visible approach from arrival. The monumental Severance Gate and other Expanse/Foundry elements remain unchanged. This is a concept/handoff record only; the Claude-exclusive boundary in AGENTS.md remains in force.
+
+## 11. Delivery and audit reconciliation — 2026-11-20
+
+This checkpoint supersedes historical "branch only", "outstanding" and preview-only claims where actual later merges are evidenced. It does not modify approved art, change unrevealed mechanics, disclose probabilities or grant human visual acceptance. Canonical main at inspection: `81381aa5` (#163); re-fetch immediately before every implementation or merge. The source and evidence are current PR metadata, applicable head checks and individual jobs, the 2026-11-20 adversarial audit, `AGENTS.md`, and the art/cartography registers. Treat these SHAs as an audit checkpoint, not a future merge licence.
+
+### 11.1 Immediate publication and governance hold — PUB-01 (P0)
+
+**Incident:** Owner-confirmed unpublished mechanics exist in the public development repository's tracked history. A merged PR description disclosed sensitive reward rules; its current body was redacted on 2026-11-20. Previously published commits, code, documentation, CI artifacts and cached copies remain observable. Moving a definition into a `server/` directory limits browser distribution, **not public Git access**. Do not falsely report full remediation after editing present-day prose.
+
+**Safe remediation sequence:**
+1. Classify the entire public development tree, history, branches, PR descriptions, logs, generated assets and CI artifacts for proprietary/unpublished gameplay and operational data without repeating sensitive contents in new public comments.
+2. Immediately contain further publication: no new hidden probabilities, encounter/reward triggers, restricted narrative, private models or sensitive implementation details in any public PR, commit, documentation or Actions artifact. Existing client/server trust contracts must not be relaxed.
+3. Owner/admin decision required to make the existing development repository private or migrate confidential development to a private canonical repository. This connector cannot change repository visibility or irreversibly withdraw public Git history. Do **not** rewrite shared Git history, force-push or delete valid gameplay data as a cosmetic fix. Assume anything already public is historically disclosed.
+4. After an access-controlled repository is established, review server-only data, history, deployment, collaborator access, downstream forks and disclosure surfaces; move confidential gameplay definitions only through tested migration. Preserve existing reward behaviour and persistent characters unless an explicit authorized design change is made.
+5. Check exposure of credentials separately; rotate confirmed leaked credentials, but do not infer a credential breach merely from disclosed game mechanics.
+6. Add an enforceable pre-publication review for PR metadata, docs, server modules, shared metadata, browser bundles, source maps and CI artifacts. Verify it on a benign synthetic case without publishing a new sensitive example.
+
+**Acceptance:** Repository access and history appropriately controlled; historical disclosure explicitly acknowledged; no new unrestricted publication; permission/audit findings recorded in access-controlled storage. **Current status: PARTIAL CONTAINMENT only** (PR description cleanup); public history and source remain accessible. This cannot be marked resolved by a docs-only PR.
+
+### 11.2 Exact current integration queue — HUD/MAP P0
+
+| Item | Verified state on inspection | Required executable work | Gate |
+|---|---|---|---|
+| #151 — HUD readability, portraits, keybindings | Open; `d25eab60`; 14/14 head workflows succeeded but no clean merge with current main | Three-way reconcile 13-file scope (main/UI/input/CSS/atlas), preserve current equipment, armour, character roster, world clock and VFX; inspect live Inventory shortcut and focus | Exact new head mergeable with latest main; Node, dedicated HUD/input/companion and integrated browser checks all complete/pass; actual dimensions at required viewports; art separate |
+| #153 — personal atlas waypoints | Draft, stacked on #151 at `2e8987b2`; 10/11 head workflows succeeded, companion selector failed | Wait for #151 merge; retarget main; carry forward corrected companion locator; reconcile atlas with live clock and updated region snapshots; inspect waypoint world/local transforms and keyboard navigation | Its own new-head Node, atlas, companion and integrated browser workflows pass; no undiscovered markers |
+| #154 — party frames, portraits and buffs | Draft, stacked on #151 at `36e4c57e`; 8/11 head workflows succeeded | Wait for #151; retarget main independently; diagnose party-visibility wait and vendor authenticated-player assertion, not merely the companion locator; verify scoped snapshots | Own new-head party, vendor, companion, Node and integrated checks succeed; no fabricated HP/buffs or unauthorized visibility |
+| #155 — carried Field/Tuned ranged weapons | Open; `bcd9f5d4`; 14/14 head workflows passed, branch behind current main | Inspect proposed integration with current main, carry/holster/aim/muzzle/observer behaviour, and retain accepted fully assembled Longpoint, electrical rod and newer VFX | Clean current-main result, applicable current-head workflows pass, no changed authority, asset provenance and art limitations documented |
+| #163 — Quest Journal focus regression | **Merged** `81381aa5`; three applicable workflows and their jobs passed | Retain four browser focus assertions as regression baseline; extend fallback/tab coverage separately only when justified | Verified merged; no duplicate branch |
+
+When main advances, immediately re-fetch the next PR's refs. Historical green checks cannot substitute for the reconciled head. The previously reported direct Git DNS error is an **execution-environment blocker**, not a merge waiver: use a functional authenticated Git environment or a reviewable alternative integration worktree, and work on a truly independent executable item meanwhile. Avoid repeated report-only invocations.
+
+### 11.3 Confirmed implementation versus remaining acceptance
+
+| Scope | Actually delivered | Outstanding acceptance / follow-up |
+|---|---|---|
+| #139 / #160 Claude-reserved Severance Expanse, Silent Foundry, outpost and world clock | Merged regional terrain, route and patrol systems, Foundry encounter and architectural details, outpost vendor/services, clock integration | Human arrival/return/visibility review, full-player traversal, FPS/real GPU, encounter and economy pacing; Claude exclusively owns further reserved changes |
+| #156 Cinderlock 3D set | Four worn pieces on two body rigs, inventory renders, runtime FX and browser integration | Committed mesh validation `all_pass=false` for all eight piece/body cases; `strict:false` currently reports but does not gate; tune clearance/strain, validate shell hiding, add justified LOD/tangents and real-GPU budget; owner art approval remains outstanding |
+| #157 / #158 rare class armour | 16 piece definitions, 12 cumulative effect thresholds, blueprint/fabrication mechanics, four VFX family behaviours | Several named acquisition sources are not implemented; three other 3D families and art acceptance outstanding. Never disclose unrevealed reward algorithms in this public roadmap |
+| #159 / #161 / #162 / #163 Quest Journal | Focus return, initial focus, focus-preserving redraw and direct browser assertions merged | Revisit focused-control disappearance, keyboard-only Tab/Escape and viewport behaviour if genuine defects surface |
+| #148 / #150 HUD foundations and character roster | Portrait/minimap/atlas foundation and authenticated 3D roster entered main | HUD follow-ons #151/#153/#154 pending; 320 px and required desktop resolution matrix, contrast, keyboard and human visual review pending |
+| #119 / #142 / #152 / #144 / #145 | Armour slots, social cosmetics, partial modular fabrication, directional ranged presentation and sustained production integrated | Validate real acquisition→craft→equip→combat→repair journey and archive only genuinely superseded historic PR deltas |
+
+### 11.4 "Attunement level 15" missing implementation — PROG-15 (P0 parallel)
+
+**Owner report:** A level-15 implementation branch was previously expected and is not visible in-game. As of this checkpoint, no branch matching level/15 was found and `shared/content.js` still defines `MAX_LEVEL = 5`. Current attunements are discovered affinities (for example, Resonance), **not** a demonstrated 15-step attunement rank system. Historical planning mentions level 20 and specialization beginning at 10. Do not conflate *character level*, *attunement rank* and *crafting profession level*. No archived source evidences the exact original "level 15" design contract.
+
+**Implementation directive (not documentation-only):**
+- Inspect historical branch/workflow/owner artifacts and existing player progression, attunement data, XP tables, level-dependent abilities, save schema, quest rewards, enemies, vendor/crafting requirements and HUD.
+- Establish a typed progression contract that explicitly distinguishes character XP/level from earned attunement affinity ranks and profession levels. The owner's level-15 expectation must become a real visible, server-authoritative in-game progression milestone, not just a code constant or a renamed menu item. Preserve old level-5 saves and completed quests.
+- Deliver in focused, reviewable implementation PRs: (A) current data and compatibility tests; (B) server-owned progression and durable migration; (C) actual unlocks, meaningful content/encounter pacing and owner-facing UI; (D) complete 1→5→10→15 and existing-save browser journeys, logout/reconnect/death, malformed client requests and no XP/reward duplication.
+- No speculative changes to hidden reward rules or content in a public branch. If the original level-15 design/ability specification is truly unavailable, implement only the unambiguous infrastructure and surface the missing contract as a concrete owner decision; do not fabricate fifteen abilities or treat the broader EXP-10 cap-20 target as achieved.
+- Character-level 15 is a proposed intermediate delivered milestone compatible with the existing level-20 ambition, **not** evidence the cap has been raised today. Explicitly report no in-game level-15 feature until a validated merged server+UI implementation exists.
+
+**Acceptance:** Player can actually attain and inspect intended level-15 progression through normal gameplay, with justified XP curve, appropriate content and meaningful progression, stable existing saves and server-only authority. Current status: **NOT IMPLEMENTED / HISTORICAL BRANCH UNLOCATED**.
+
+### 11.5 Continued full roadmap, nontermination and sequencing
+
+1. P0: Contain public disclosure (PUB-01); correct Cinderlock acceptance classification (ART-10); complete independently ready, correct-head PR gates; resolve #151→#153→#154; handle #155 without Longpoint/rod regression.
+2. P0 parallel: PROG-15 player-facing progression investigation and implementation; NAR-01 six-quest playable chapter for progressed saves, including meaningful permanent outcomes and secure rewards; EQ-01/EQ-03 concurrent weapon slots, switching and real combat.
+3. P1: Finish REC-01/02/03/04 uniquely missing deltas, retire #91/#92/#93/#96 only after equivalence; implant/glyph/utility slots, economy loops, class armour acquisition and other family 3D models, companion traversal, lore-appropriate concepts/provenance.
+4. P1 visual: Capture in-game actual art and animation, measure clearance/LOD/GPU and gameplay usability separately from automated rendering. No automatic artistic acceptance.
+5. P2/P3: Follow real dependency gates into wider advancement, additional roles and regions. Deferred cap-20/specialization architecture remains planned, not silently completed.
+6. The roadmap owner continues hourly until explicitly paused, even after the named HUD PRs close. Assign each executable branch one owner; the older overlapping automation must not duplicate writes. When blocked, record the exact obstacle and implement the next independent authorised testable item—not just another status report.
+
+**Every scheduled execution:** verify canonical main/AGENTS/open heads/current CI/jobs, concurrent work and current contents; implement and test before reporting; use expected SHA updates; no force push, no waived defects, no edits to Claude's reserved environment. Store publication-sensitive decisions only in access-controlled storage.
+

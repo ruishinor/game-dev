@@ -40,3 +40,27 @@ Original Attunement styling: graphite, bronze/aged metallic frames, readable ivo
 Client-only atlas reads existing shared geometry and already delivered visible-region entity snapshots; no new server/world payloads or authoritative gameplay mutation. Public map geometry is already public. Current disconnected region backgrounds are provisional geometry, not authored cartographic artwork. Avoid changing reserved Expanse terrain, phase travel, portal, dungeon or environment branches. Coordinate clock integration through the existing lighting adapter when production time is available. Keep future party data scoped to actual authenticated membership. Unknown effects must not appear as active; never disclose hidden mechanics via map layers.
 
 Existing controls preserved; **Shift+M** opens the atlas, M remains the existing menu. No claims of completed visual quality until actual browser evidence.
+
+## Current integration reality — 2026-11-20
+
+This current-head checkpoint supersedes the historical "candidate" and local-preview statuses above; it does **not** assert artistic acceptance.
+
+| ID | Status verified | Required next gate |
+|---|---|---|
+| HUD-01/02, MAP-01/02 | Foundation #148 merged; real portraits/minimap/atlas exist in current main | Review actual in-game sizing, head framing, hidden layers and camera/quality fallbacks |
+| HUD-03/04 | HUD input, slot sizing and configurable hotkeys in #151, **still unmerged**; 14 successful runs on old head `d25eab60`, conflict with newer main | Preserve C/Inventory focus and existing real shortcuts, merge current main without dropping newer changes, then rerun HUD/browser/Node/companion/preview and viewport matrix; no forced merge |
+| MAP-02 follow-on | #153 stacked **draft** on #151, head `2e8987b2`; dedicated waypoint test green, companion browser test failed (ambiguous Dismiss companion locator) | Only after #151 merge, retarget to main; scope corrected locator, retest waypoint/discovery, map bearing, zoom, keyboard and live region context against own head |
+| HUD-05 party | #154 stacked **draft** on #151, head `36e4c57e`; party timeout and vendor identity failure plus companion selector failure | Only after #151 merge, retarget independently, inspect server-scoped party/out-of-range snapshots and vendor identity; then own Node, party, vendor, companion and integrated browser checks |
+| MAP-03 clock | Production Expanse server-owned world clock and linked lighting delivered by Claude in #160, replacing earlier preview-only assumption | Read the current authoritative clock and its preview override; validate day/night icon/lighting match and multiple clients; do not add a second wall-clock simulation |
+| CHAR-01/02 | Authenticated 3D roster #150 merged, with world entry/delete flows and live model preview | Keyboard/reduced-motion and loaded equipment presentation verified separately; owner scene/art review not implied |
+| VAL-01 | Dedicated HUD accessibility browser test on #151 covers slot ratios, fonts, minimap size, focus/Inventory regression and keybinding persistence at 1280 × 860 | Extend to 320px and required 1280×720, 1366×768, 1920×1080, 2560×1440 usability and honest real-world capture/contrast review; synthetic keyboard events are not all real input |
+
+### Exact safe integration and ownership
+
+1. Verify newest main head and whether another agent has already changed any target branch. Fix conflicts on the owning HUD branch with a real three-way merge; do not replace entire `client/src/main.js`, `client/src/ui.js` or CSS with an older revision.
+2. Diagnose failing CI **at job/log level** rather than treating all red status as flaky. The #153 companion failure has a known selector-specific correction from the later #151 head. For #154 the party visibility timeout and vendor authenticated-player failure are distinct and currently unresolved.
+3. Merge only when GitHub reports a current-head mergeable result and all applicable current-head checks and individual jobs have completed successfully. Re-fetch main after each merge.
+4. Keep the pre-existing player portrait and companion identity contracts, independent nearby-player targeting, account-scoped party state and uncluttered HUD logic. Do not invent unavailable party health, buffs or discovery markers.
+5. Preserve Claude's reserved Expanse/Foundry environment and world-clock ownership; HUD code may consume existing public interfaces but must not change region geography, portals, dungeon objects or hidden content.
+6. Visual screenshots and software-GL browser tests are implementation evidence, **not** artistic acceptance or real-GPU performance evidence.
+
