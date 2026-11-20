@@ -78,7 +78,7 @@ test('Reach topographic lines follow the actual walkable heightfield, not invent
 
 test('authored Reach map site anchors match canonical world coordinates',()=>{
   const svg=readFileSync(new URL('../client/assets/atlas/reach-handdrawn.svg',import.meta.url),'utf8');
-  const anchors=new Map([...svg.matchAll(/<g data-site="([^"]+)" transform="translate\\(([-\\d.]+) ([-\\d.]+)\\)"/g)]
+  const anchors=new Map([...svg.matchAll(/<g data-site="([^"]+)" transform="translate[(]([0-9.-]+) ([0-9.-]+)[)]"/g)]
     .map(m=>[m[1],{x:Number(m[2]),y:Number(m[3])}]));
   assert.equal(anchors.size,Object.keys(ZONES).length,'Every approved Reach zone needs an authored map anchor');
   for(const [id,site] of Object.entries(ZONES)){
