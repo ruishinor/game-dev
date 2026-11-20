@@ -4,6 +4,7 @@ import {appearanceString} from '../../shared/appearance.js';
 // through here.
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
+import { regionalKillXp } from './zone-progression.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
 import { travelSeverance, gateFront } from './severance-gate.js';
@@ -114,7 +115,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
-    grantXp(game, p, def.xp);
+    grantXp(game, p, regionalKillXp(enemy,p.char.level));
     if(recordFoundryKill(game,p,enemy))continue; // Foundry archetypes do not complete Reach directives
     if(enemy.annexEncounter){
       const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;

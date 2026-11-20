@@ -5,19 +5,24 @@ import { ENEMIES } from '../../shared/content.js';
 import { dist, hasLineOfSight } from '../../shared/world.js';
 import { SILENT_FOUNDRY as F, inSilentFoundry } from '../../shared/silent-foundry.js';
 import { resetEnemy } from './ai.js';
+import { FOUNDRY_LEVELS,regionalEnemyScale } from './zone-progression.js';
 
 const deny = (reason) => ({ ok: false, reason });
-// [type, name, level offset, u, v] relative to the Foundry centre.
+// [type, name, absolute level, x offset, z offset, per-instance elite].
+// Eight of the 14 non-boss enemies are elite; the Foundry Overseer is a separate boss.
 const ENCOUNTER = [
-  // Fabrication Hall: reactivated press tenders
-  ['sentinel', 'Press Sentinel', 2, -7, 70], ['skitter', 'Slag Skitter', 2, 6, 68], ['skitter', 'Slag Skitter', 2, -3, 62], ['sentinel', 'Press Sentinel', 2, 8, 58],
-  // Cultivation Vault: what grew in the vats
-  ['faultstalker', 'Vat Stalker', 2, 0, 44], ['skitter', 'Culture Swarmer', 2, -4, 32], ['skitter', 'Culture Swarmer', 2, 4, 30], ['faultstalker', 'Vat Stalker', 2, 0, 14],
-  // Harmonic Chamber: the resonator's wardens
-  ['turret_drone', 'Harmonic Drone', 2, -7, -10], ['turret_drone', 'Harmonic Drone', 2, 7, -10], ['sentinel', 'Resonant Sentinel', 2, -6, -44], ['sentinel', 'Resonant Sentinel', 2, 6, -44],
-  // Excavation Depths: the overseer and its diggers
-  ['faultstalker', 'Depth Borer', 2, -6, -68], ['faultstalker', 'Depth Borer', 2, 8, -76],
-  ['warden', 'Foundry Overseer', 2, 0, -84],
+  // Fabrication Hall: the approach teaches elite focus and interrupted casting.
+  ['sentinel','Press Sentinel',8,-7,70,false], ['skitter','Slag Skitter',8,6,68,true],
+  ['skitter','Slag Skitter',8,-3,62,false], ['sentinel','Press Sentinel',8,8,58,true],
+  // Cultivation Vault: elite bioforms protect the vats.
+  ['faultstalker','Vat Stalker',9,0,44,true], ['skitter','Culture Swarmer',8,-4,32,false],
+  ['skitter','Culture Swarmer',9,4,30,true], ['faultstalker','Vat Stalker',9,0,14,false],
+  // Harmonic Chamber: coordinated elites, stronger but with the original line-of-sight combat rules.
+  ['turret_drone','Harmonic Drone',9,-7,-10,true], ['turret_drone','Harmonic Drone',9,7,-10,false],
+  ['sentinel','Resonant Sentinel',10,-6,-44,true], ['sentinel','Resonant Sentinel',10,6,-44,true],
+  // Excavation Depths: final elite and boss; preserve special telegraphs.
+  ['faultstalker','Depth Borer',10,-6,-68,false], ['faultstalker','Depth Borer',10,8,-76,true],
+  ['warden','Foundry Overseer',11,0,-84,false],
 ];
 const OVERSEER = 'Foundry Overseer';
 // The Overseer's own attacks (server-only definitions; clients see telegraphs and impacts).
@@ -33,10 +38,11 @@ export function foundryArrival() { return { x: F.arrival.x, z: F.arrival.z }; }
 /** Persistent shared encounter, spawned with the first traveller (not per visit). */
 export function openFoundry(game) {
   if (game.foundryOpened) return;
-  for (const [type, name, dl, u, v] of ENCOUNTER) {
+  for (const [type, name, level, u, v, elite] of ENCOUNTER) {
     const def = ENEMIES[type];
-    const e = { id: game.nextId++, kind: 'enemy', type, name, level: def.level + dl, radius: def.radius, home: { x: F.x + u, z: F.z + v },
-      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER, vx: 'foundry' };
+    const e = { id: game.nextId++, kind: 'enemy', type, name, level, radius: def.radius*(elite?1.12:1), home: { x: F.x + u, z: F.z + v },
+      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER, vx: 'foundry',
+      zoneScale:regionalEnemyScale(type,level,'foundry'),...(elite?{elite:{hp:1.85,dmg:1.2}}:{}) };
     if (e.overseer) e.specials = OVERSEER_SPECIALS;
     resetEnemy(game, e);
     game.enemies.push(e);

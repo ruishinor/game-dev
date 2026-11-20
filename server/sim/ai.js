@@ -12,7 +12,7 @@ const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
 
 /** Max HP at no encounter scaling: the type's, times a per-instance elite multiplier. */
 export function baseHp(e) {
-  return Math.round(ENEMIES[e.type].hp * (e.elite?.hp ?? 1));
+  return Math.round(ENEMIES[e.type].hp * (e.zoneScale?.hp ?? 1) * (e.elite?.hp ?? 1));
 }
 
 export function resetEnemy(game, e) {
