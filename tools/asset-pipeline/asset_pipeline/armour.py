@@ -790,8 +790,9 @@ def stage_publish(asset, params):
 STAGES = [
     ("inspect", stage_inspect, lambda a: [a.config_path, PIPELINE_DIR / "js" / "dequantize.mjs", PIPELINE_DIR / "js" / "extract-rig.mjs"]
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
-    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
-    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py"],
+    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py",
+                                                 HERE / "armour_families.py", HERE / "armour_parts.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
+    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py", HERE / "blender" / "armour_hardsurface.py", HERE / "armour.py"],
      lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"], **({"preview": True} if os.environ.get("ARMOUR_PREVIEW") else {})}),
     ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
