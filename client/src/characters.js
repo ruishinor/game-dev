@@ -241,11 +241,18 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // id): each slot's piece is loaded on first use and bound to this skeleton.
   const armours = new Map();
   let disposed = false;
+  // four worn pieces of one family light the set's restrained signature
+  function armourSetSignature() {
+    const counts = {};
+    for (const h of armours.values()) if (h.handle?.fx) counts[h.handle.fx.family] = (counts[h.handle.fx.family] || 0) + 1;
+    for (const h of armours.values()) h.handle?.fx?.setComplete?.(counts[h.handle.fx.family] >= 4);
+  }
   function setArmourVisual(next) {
     const want = typeof next === 'string' ? { chest: next } : next && typeof next === 'object' ? next : {};
     for (const [slot, h] of armours) {
       if (h.wanted !== want[slot]) { h.handle?.dispose(); armours.delete(slot); }
     }
+    armourSetSignature();
     for (const [slot, item] of Object.entries(want)) {
       if (typeof item !== 'string' || armours.has(slot)) continue;
       const bundle = armourBundle(body, item);
@@ -255,6 +262,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const apply = () => {
         if (disposed || armours.get(slot) !== entry || entry.handle) return;
         entry.handle = wearArmour(assets, inst, body, item);
+        armourSetSignature();
       };
       if (assets.get(bundle)) apply();
       else assets.bundle(bundle).then(apply);
@@ -277,7 +285,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     armourWorn: () => armours.get('chest')?.handle?.item || null,
     armourWornAll: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, h.handle.item])),
     // test/diagnostic summary: slots whose piece runs channel FX, and the body shells it hides
-    armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, hides: h.handle.hidden || [] }])),
+    armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, family: h.handle.fx?.family || null, hides: h.handle.hidden || [] }])),
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
@@ -343,9 +351,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       if (veyranMat) veyranMat.userData.face.trace.value = 0.18 + (st.combat ? 0.22 : 0) + (st.hit || 0) * 0.8;
       if (ctx.fluid) ctx.fluid.scale.y = 0.8 + Math.sin(st.t * 2.2) * 0.14;
     },
+    // armour-only response (heals given/received): no animation
+    armourReact(kind, id) { if (!dead) for (const h of armours.values()) h.handle?.fx?.surge(kind, id); },
     trigger(kind, id) {
       if (dead) return;
-      for (const h of armours.values()) h.handle?.fx?.surge(kind);
+      for (const h of armours.values()) h.handle?.fx?.surge(kind, id);
       if (kind === 'hit') {
         anim.react(HB.hit);
         return;

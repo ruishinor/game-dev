@@ -6,7 +6,7 @@
 // channels get live effects (armour-fx.js).
 import * as THREE from 'three';
 import { ARMOUR_ASSETS } from '../../shared/armour-visual.js';
-import { CHANNEL_MATERIAL, createArmourFx } from './armour-fx.js';
+import { createArmourFx, isChannelMaterial, isGlassMaterial } from './armour-fx.js';
 
 const BODY_KEY = { humanoid_m: 'm', humanoid_f: 'f' };
 export function armourBundle(body, item) {
@@ -65,7 +65,7 @@ export function wearArmour(assets, inst, body, item) {
     host.parent.add(piece);
     piece.bind(new THREE.Skeleton(bones, piece.skeleton.boneInverses.map((m) => m.clone())), host.bindMatrix.clone());
     piece.frustumCulled = false; // bind-pose bounds do not cover every pose
-    piece.castShadow = !piece.name.endsWith('__fx');
+    piece.castShadow = !piece.name.endsWith('__fx') && !piece.name.endsWith('__glass');
     piece.userData.armour = item;
     meshes.push(piece);
   }
@@ -82,9 +82,10 @@ export function wearArmour(assets, inst, body, item) {
       hidden.push(o);
     });
   }
-  const fxMeshes = meshes.filter((m) => m.material?.name === CHANNEL_MATERIAL || m.name.endsWith('__fx'));
+  const fxMeshes = meshes.filter((m) => isChannelMaterial(m.material?.name) || m.name.endsWith('__fx'));
+  const glassMeshes = meshes.filter((m) => isGlassMaterial(m.material?.name) || m.name.endsWith('__glass'));
   const resolved = anchors.map((a) => ({ ...a, bone: inst.getObjectByName(a.joint) })).filter((a) => a.bone);
-  const fx = fxMeshes.length || resolved.length ? createArmourFx(fxMeshes, resolved) : null;
+  const fx = fxMeshes.length || resolved.length || glassMeshes.length ? createArmourFx(fxMeshes, resolved, glassMeshes) : null;
   return {
     item,
     mesh: meshes[0],
