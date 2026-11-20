@@ -112,7 +112,9 @@
           <p id="guest-error" role="alert"></p>
         </div>
         <form id="login-form" autocomplete="off">
-          <button id="creation-back" type="button" hidden>← Back to character selection</button>
+          <div id="creation-fields" aria-label="Character creation choices">
+            <div class="creation-section-heading"><span>CHARACTER CREATION</span><strong>Define your arrival</strong><small>Choose a calling and appearance. Your character is shown at full scale in the vestibule.</small></div>
+            <button id="creation-back" type="button" hidden>← Back to character selection</button>
           <label for="name">Character name</label>
           <input id="name" name="name" maxlength="16" required spellcheck="false" placeholder="3–16 letters" />
           <div class="label">Calling</div>
@@ -130,6 +132,7 @@
             <div class="ap-row" role="group" aria-label="Hair"><span class="ap-name">Hair</span><div id="ap-hair" class="ap-choices"></div></div>
             <div class="ap-row" role="group" aria-label="Hair colour"><span class="ap-name">Colour</span><div id="ap-colour" class="ap-choices ap-swatches"></div></div>
           </fieldset>
+          </div>
           <section id="creation-preview" aria-label="Live character preview">
             <h2>Inspect your character</h2>
             <canvas tabindex="0" aria-label="Live 3D character. Drag to rotate, arrow keys to rotate or zoom, Home to reset."></canvas>
@@ -144,7 +147,7 @@
           </section>
           <p id="login-error" role="alert"></p>
           <button id="enter" class="primary" type="submit" disabled>Loading the Reach…</button>
-          <p class="hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>
+          <p class="hint" id="creation-guest-hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>
         </form>
       </div>
     </main>
