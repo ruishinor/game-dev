@@ -285,3 +285,71 @@
  .character-selection-mode #roster-preview canvas,
  .character-create-mode #creation-preview canvas{transition:none}
 }
+
+
+/* Owner's 101s in-engine recording: inspector overprinted Location and the
+   split-screen creator placed a second avatar behind the controls.
+   Keep presentation controls in distinct, non-overlapping zones. */
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect] {
+ position:relative;display:block;left:auto;right:auto;top:auto;bottom:auto;
+ transform:none;width:fit-content;min-width:0;margin:14px 2px 3px auto;
+ padding:8px 12px;border:1px solid #8c98a5;color:#e4e8ea;
+ background:rgba(14,20,29,.85);font:12px/1.3 Georgia,serif;
+ cursor:pointer;
+}
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect]:hover {
+ border-color:#c4d1da;background:rgba(37,47,61,.92);
+}
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect][hidden],
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls[hidden] {
+ display:none!important;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls:not([hidden]) {
+ position:relative;display:grid;grid-template-columns:1fr 1fr;
+ gap:5px;left:auto;right:auto;top:auto;bottom:auto;
+ width:100%;max-width:none;max-height:none;margin:8px 0 0;
+ padding:9px;transform:none;overflow:visible;
+ border:1px solid #687582;border-radius:0;
+ background:rgba(9,15,24,.94);box-shadow:none;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls button {
+ display:block;min-width:0;max-width:100%;
+ padding:6px 8px;background:rgba(25,35,48,.86);
+ color:#d6e1e6;border:1px solid #536271;
+ text-align:center;font:11px/1.45 'Segoe UI',sans-serif;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls [data-preview-reset] {
+ grid-column:1/-1;
+}
+.character-selection-mode .roster-facts {
+ z-index:3;width:min(306px,21vw);
+}
+.character-selection-mode #character-roster .roster-fact {
+ grid-template-columns:85px minmax(0,1fr);gap:9px;
+}
+.character-selection-mode #character-roster .roster-fact strong {
+ overflow-wrap:break-word;word-break:normal;
+}
+.character-create-mode #creation-fields {
+ background:#070d17f5;border-left:1px solid #777d8590;
+ border-right:1px solid #343f4d;
+ box-shadow:10px 0 32px #02040977;
+}
+.character-create-mode #creation-preview [data-preview-frames] {
+ display:none!important;
+}
+@media(max-width:760px) {
+ .character-selection-mode .roster-facts {
+  width:calc(100% - 24px);
+ }
+ .character-selection-mode #character-roster .roster-cards [data-preview-inspect] {
+  padding:5px 8px;font-size:10px;margin:5px 5px 2px auto;
+ }
+ .character-selection-mode #character-roster .roster-cards .roster-preview-controls:not([hidden]) {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:3px;padding:5px;
+ }
+ .character-selection-mode #character-roster .roster-cards .roster-preview-controls button {
+  padding:5px;font-size:10px;
+ }
+}
