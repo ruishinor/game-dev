@@ -733,7 +733,7 @@ export class UI {
     this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
-    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (Shift+M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
+    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
 
     // Help panel
     this.help = h('div', 'panel help');
