@@ -236,3 +236,20 @@
 @media(prefers-reduced-motion:reduce){
  .character-selection-mode .roster-select{transition:none;}
 }
+
+/* A bounded transition during the authoritative session handshake. */
+.character-selection-mode #roster-world-transition:not([hidden]){
+ position:absolute;inset:0;z-index:7;display:flex;align-items:flex-end;
+ justify-content:center;padding:0 20px 170px;pointer-events:none;
+ background:radial-gradient(ellipse at 50% 58%,transparent 22%,rgba(1,5,11,.66) 91%);
+ animation:selection-entry-reveal .42s ease-out both;
+}
+.character-selection-mode #roster-world-transition span{
+ color:#dfedf3;background:#071420e0;border-top:1px solid #82b8c7;
+ padding:16px 27px;font:12px/1.5 'Segoe UI',sans-serif;
+ letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 5px #000;
+}
+@keyframes selection-entry-reveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+ .character-selection-mode #roster-world-transition:not([hidden]){animation:none}
+}
