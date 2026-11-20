@@ -10,13 +10,18 @@ import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sint
 // post), not to the route's start; static enemies and short circuits use home.
 const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
 
+/** Max HP at no encounter scaling: the type's, times a per-instance elite multiplier. */
+export function baseHp(e) {
+  return Math.round(ENEMIES[e.type].hp * (e.elite?.hp ?? 1));
+}
+
 export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
   e.x = e.home.x;
   e.z = e.home.z;
   e.yaw = e.yaw ?? (e.route ? Math.atan2(e.route[1].x - e.home.x, e.route[1].z - e.home.z) : game.rng() * Math.PI * 2);
-  e.hp = def.hp;
-  e.maxHp = def.hp;
+  e.hp = baseHp(e);
+  e.maxHp = e.hp;
   e.scale = 1;
   e.state = 'idle';
   e.threat = new Map();
@@ -148,7 +153,7 @@ export function tickEnemy(game, e, dt) {
       e.x = anchor.x;
       e.z = anchor.z;
       e.scale = 1;
-      e.maxHp = def.hp;
+      e.maxHp = baseHp(e);
       e.hp = e.maxHp;
       e.state = 'idle';
       e.wanderAt = game.time + 3000;
@@ -276,7 +281,7 @@ export function tickEnemy(game, e, dt) {
     if (e.wander) {
       const moved = moveToward(e, e.wander.x, e.wander.z, def.speed * 0.35 * dt, def.radius, 0);
       if (moved < 1e-3 || dist(e, e.wander) < 0.3 || game.time > e.wander.until) e.wander = null;
-    } else if (game.time >= e.wanderAt && !def.elite) {
+    } else if (game.time >= e.wanderAt && !def.elite && !e.elite) {
       const a = game.rng() * Math.PI * 2;
       const r = 1.5 + game.rng() * 3.5;
       e.wander = { x: e.home.x + Math.sin(a) * r, z: e.home.z + Math.cos(a) * r, until: game.time + 5000 };
@@ -316,7 +321,7 @@ export function tickEnemy(game, e, dt) {
     if (scale > e.scale) {
       const ratio = e.hp / e.maxHp;
       e.scale = scale;
-      e.maxHp = Math.round(def.hp * scale);
+      e.maxHp = Math.round(baseHp(e) * scale);
       e.hp = e.maxHp * ratio;
     }
   }

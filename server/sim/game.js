@@ -24,6 +24,7 @@ import {
 import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
+import { spawnSalvageCamp } from './severance-camps.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
@@ -48,7 +49,8 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000 } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000, eliteRng=()=>randomInt(1000000)/1000000 } = {}) {
+    this.eliteRng=eliteRng;
     this.relicRng=relicRng;
     this.blueprintRng=blueprintRng;
     this.classArmourRng=classArmourRng;
@@ -310,7 +312,7 @@ export class Game {
 
   /** Expanse patrols spawn with the first arrival and then persist (server-only routes). */
   openExpanse() {
-    if(!this.expanseOpened){spawnSeverancePatrols(this);this.expanseOpened=true;}
+    if(!this.expanseOpened){spawnSeverancePatrols(this);spawnSalvageCamp(this);this.expanseOpened=true;}
   }
 
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
@@ -465,7 +467,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}), ...(ent.socialVisual ? { sv: ent.socialVisual } : ent.armourVisual ? { av: ent.armourVisual } : {}) };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite || ent.elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
