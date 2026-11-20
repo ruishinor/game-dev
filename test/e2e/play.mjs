@@ -333,7 +333,7 @@ async function followInventoryPlaytest(){
  await B.page.bringToFront();
  pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
  await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.mire_fibre===5,null,{timeout:15000});
- const characterButton=B.page.getByRole('button',{name:'Character [C]',exact:true});
+ const characterButton=B.page.getByRole('button',{name:'Character (C)',exact:true});
  check('material-only acquisition does not light Character',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await B.page.keyboard.press('KeyI');
  const inv=B.page.locator('.inventory-window');
