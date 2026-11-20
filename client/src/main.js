@@ -331,6 +331,7 @@ const net = new Net({
     if (text) {
       stopAutomaticMovement();
       if(document.body.classList.contains('character-selection-mode'))selectionView.setBusy(false);
+      if(worldEntryPending){worldEntryPending=false;$('world-entry-curtain').hidden=true;}
     }
     $('status').hidden = !text;
     $('status').textContent = text || '';
@@ -451,6 +452,7 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
   onDelete:(id,name)=>net.deleteCharacter(id,name)
 });
 let titleDrawAt=-Infinity;
+let worldEntryPending=false;
 function showCharacterCreation(){
   if(!net.accountLogged||!lastRoster)return;
   ui.toggleSettings(false);
@@ -573,6 +575,8 @@ function buildLogin() {
 }
 
 function showAccountLogin(message = '') {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
   $('creation-back').hidden=true;
@@ -594,6 +598,8 @@ function showAccountLogin(message = '') {
 }
 
 function showRoster(m) {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   lastRoster=m;
   input.enabled=false;
   $('login').hidden=false;
@@ -829,11 +835,15 @@ function onWelcome(m) {
   creationPreview.release();
   selectionView.release();
   ui.toggleSettings(false);
+  worldEntryPending=true;
+  $('world-entry-curtain').classList.remove('dismissed');
+  $('world-entry-curtain').hidden=false;
   document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
-  input.enabled = true;
+  // Input begins only when the authoritative local entity has been placed.
+  input.enabled = false;
   canvas.focus();
   if (!onWelcome.greeted) {
     onWelcome.greeted = true;
@@ -2030,6 +2040,18 @@ function frame(now) {
     renderer.render(scene, camera);
     lastDraw = now;
     S.drawn++;
+    if(worldEntryPending&&me?.placed&&me.row&&S.you){
+      // Never reveal the title camera's vacant aerial scene before the
+      // selected, server-owned character is instantiated and framed.
+      worldEntryPending=false;
+      input.enabled=true;
+      const curtain=$('world-entry-curtain');
+      curtain.classList.add('dismissed');
+      if(motionPreference.matches)curtain.hidden=true;
+      else curtain.addEventListener('transitionend',()=>{
+        if(!worldEntryPending)curtain.hidden=true;
+      },{once:true});
+    }
   }
   S.frames++;
   S.frameMs += (performance.now() - now - S.frameMs) * 0.2;
