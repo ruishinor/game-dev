@@ -15,6 +15,8 @@ try{
  page.setDefaultTimeout(60000);
  const errors=[];page.on('pageerror',err=>errors.push(err.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
+ // the form is in the page before the client module has attached its handlers
+ await page.waitForFunction(()=>!!window.__attune,null,{timeout:120000});
  await page.fill('#account-handle','roster_validator');
  await page.fill('#account-password','TemporaryUniqueRosterTestPassphrase2026!');
  await page.click('#account-register');
