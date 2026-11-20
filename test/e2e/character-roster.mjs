@@ -73,15 +73,15 @@ try{
  assert.equal(await page.locator('.creation-screen-tab').count(),3);
  assert.equal(await page.locator('#creation-step-identity').isVisible(),true);
  assert.equal(await page.locator('#creation-step-body').isHidden(),true);
- await page.getByRole('button',{name:'2. Body'}).click();
+ await page.getByRole('tab',{name:'2. Body'}).click();
  assert.equal(await page.locator('#appearance').isVisible(),true);
  assert.equal(await page.locator('#creation-step-identity').isHidden(),true);
  assert.equal(await page.evaluate(fitsViewport),true);
- await page.getByRole('button',{name:'3. Details'}).click();
+ await page.getByRole('tab',{name:'3. Details'}).click();
  assert.equal(await page.locator('#ap-hair').isVisible(),true);
  assert.equal(await page.locator('#ap-colour').isVisible(),true);
  assert.equal(await page.evaluate(fitsViewport),true);
- await page.getByRole('button',{name:'1. Identity'}).click();
+ await page.getByRole('tab',{name:'1. Identity'}).click();
  assert.equal(await page.locator('#name').isVisible(),true);
  const singlePage=async(label)=>{
   const dims=await page.evaluate(()=>({
@@ -97,12 +97,12 @@ try{
  await singlePage('desktop identity');
  await page.setViewportSize({width:390,height:844});
  for(const tab of ['1. Identity','2. Body','3. Details']){
-  await page.getByRole('button',{name:tab}).click();
+  await page.getByRole('tab',{name:tab}).click();
   await singlePage('mobile '+tab);
  }
  if(evidence)await page.screenshot({path:join(evidence,'character-creation-mobile.png')});
  await page.setViewportSize({width:1360,height:850});
- await page.getByRole('button',{name:'1. Identity'}).click();
+ await page.getByRole('tab',{name:'1. Identity'}).click();
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
