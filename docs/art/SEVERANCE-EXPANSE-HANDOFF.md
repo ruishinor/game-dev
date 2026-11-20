@@ -108,6 +108,33 @@ Capture tools: `tools/severance-expanse-capture.mjs` covers views 01–25, inclu
   - At night the vanes read as dark silhouettes.
   - The orange hazard telegraph is the shared hostile language and is unchanged.
 
+## Expanse content: resource veins and the Scrapyard (2026-11-20)
+
+- **Resonant shard veins (PR #179).**
+  - Five gatherable outcrops, with sites listed in `shared/severance-gate.js` (`SEVERANCE_VEINS`). All rules are server-only in `server/sim/severance-veins.js`:
+    - a 3 s channelled extraction that breaks on movement, combat, auto-attack, death or travel;
+    - a yield of one Resonance fragment;
+    - a per-character replenishment timer, persisted as `veinReadyAt`.
+  - Art: `resonant_vein.glb`, built by `asset_pipeline/blender/resonant_vein.py`, plus `client/src/resonant-vein.js`, which drives the crystal shader states.
+  - Captures: `node tools/vein-capture.mjs <dir>`.
+- **The Scrapyard (enemy camp).**
+  - Location: the south-west basin at u -104, v -126 from the Expanse centre, inside a ring palisade with an east entrance.
+  - Art: `salvage_camp.glb`, built by `asset_pipeline/blender/salvage_camp.py`. The pieces are placed from `SALVAGE_CAMP_PIECES`, and the colliders are derived from the same data.
+  - Garrison (server-only, `server/sim/severance-camps.js`): two Scrapyard Sentinels, two Yard Drones and the elite Forge Overseer.
+  - Per-instance elite multipliers (`e.elite = {hp, dmg}`) are applied in `ai.js` (`baseHp`) and `combat.js`. Elites hold their posts and cannot be rooted. Snapshots carry only `el` and `vx`.
+  - Captures: `node tools/camp-capture.mjs <dir>`.
+- **Honest art assessment.**
+  - The vein reads clearly in all three of its states, but the outcrop rock is smooth up close.
+  - The camp kit is a basic functional asset (about 4/10). Its silhouettes and materials read, but the construction is primitive. The forge light, embers and smoke carry the composition.
+  - The gantry and carcass need sculpted detail, and the salvage variant is a re-skin of existing rigs rather than a new family.
+- **Open.**
+  - A genuinely new enemy family needs a new creature model.
+  - Loot-table changes are blocked in this public repository by the publication gate (`tools/publication-preflight.mjs`). The camp reuses existing type-based drops.
+- **CI note (vendor e2e on PR #179).**
+  - The vendor journey failed twice on the PR (heartbeat eviction, then the fixture's original-player assertion). Other PRs passed vendor in the same window.
+  - Within the Reach the PR adds no entities and no draw cost (probe: 0 vein entities, draw unchanged).
+  - A same-environment A/B run, main against the branch, is the discriminating check; its result is recorded in the PR.
+
 ## Still open
 
 - Real-GPU profiling and the owner's visual review.
