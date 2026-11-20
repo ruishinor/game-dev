@@ -78,6 +78,16 @@
 #hud .frame.ally .bar.res{height:8px}
 #hud .frame.ally .chip{font-size:8.5px}
 #hud .frame.ally:not(.party-member-live){opacity:.76}
+#hud .party-frame-stacks{top:163px;left:12px;width:min(235px,38vw);gap:6px}
+#hud .party-frame-stacks .party{gap:4px}
+#hud .party-frame-stacks .nearby-players{gap:4px}
+#hud .party-frame-stacks .nearby-title{font-size:10px;padding:4px 4px 1px}
+#hud .party-frame-stacks .frame.ally.party-member-unavailable{min-height:48px;padding:6px 5px 5px 40px}
+#hud .party-avatar-placeholder{left:-14px;top:4px;width:40px;height:40px;font-size:17px}
+#hud .frame.ally .buff-chip{min-width:25px;min-height:25px;padding:2px}
+#hud .frame.ally .buff-chip .buff-icon{width:19px;height:19px}
+@media(max-width:700px){#hud .party-frame-stacks{top:122px;left:7px;width:min(170px,50vw)}#hud .party-avatar-placeholder{width:34px;height:34px;left:-10px}}
+
 
 /* Compact layered hotbars: independent small companion commands above the main
    action row; real ability art, legible keys and usable mouse/keyboard targets. */
