@@ -13,10 +13,12 @@ export function setupCreationSections(){
  const navigation=document.createElement('nav');
  navigation.className='creation-screen-tabs';
  navigation.setAttribute('aria-label','Character creation sections');
+ navigation.setAttribute('role','tablist');
  const tabs={};
  for(const [key,label] of [['identity','1. Identity'],['body','2. Body'],['details','3. Details']]){
   const btn=document.createElement('button');
   btn.type='button';btn.className='creation-screen-tab';btn.textContent=label;
+  btn.id='creation-tab-'+key;btn.setAttribute('role','tab');
   btn.dataset.creationTab=key;
   btn.setAttribute('aria-controls','creation-step-'+key);
   btn.setAttribute('aria-selected','false');
@@ -24,7 +26,8 @@ export function setupCreationSections(){
   navigation.append(btn);
   panes[key].id='creation-step-'+key;
   panes[key].className='creation-screen-step';
-  panes[key].setAttribute('role','region');
+  panes[key].setAttribute('role','tabpanel');
+  panes[key].setAttribute('aria-labelledby',btn.id);
   panes[key].setAttribute('aria-label',label);
  }
  const heading=fields.querySelector('.creation-section-heading');
