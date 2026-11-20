@@ -24,6 +24,7 @@ import {
 import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
+import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
@@ -466,6 +467,11 @@ export class Game {
     }
   }
 
+  /** World clock phase 0..1 (server-owned; wall-clock based so it survives restarts). */
+  worldClock() {
+    return worldClockPhase(this.clockNow ? this.clockNow() : Date.now());
+  }
+
   /** Private per-tick state for the owning player. */
   privateState(p) {
     const cds = {};
@@ -497,6 +503,7 @@ export class Game {
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSafeZone(p) ? 1 : 0,
+      wc: Math.round(this.worldClock() * 10000),
       workshop:workshopSite(p),
       kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),

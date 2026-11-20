@@ -18,7 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../server/index.js';
-import { ZONES } from '../shared/world.js';
+import { ZONES, SEVERANCE_EXPANSE as EX, SILENT_FOUNDRY as SF } from '../shared/world.js';
+import { gateToWorld } from '../shared/severance-gate.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL, activeBrowserPlayer } from './browser.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,7 +32,16 @@ const sf = ZONES.sporefield;
 const SCENES = [
   { name: 'sanctum', x: 0, z: 11.5, face: Math.PI, view: { pitch: 0.36, dist: 14 } },
   { name: 'sporefield', x: sf.x + 13, z: sf.z - 8, face: Math.atan2(-13, 8), view: { pitch: 0.3, dist: 11 } },
+  // Severance track (server-side transfer into each disconnected region)
+  { name: 'exp-arrival', transfer: true, x: EX.arrival.x, z: EX.arrival.z, face: 0, view: { pitch: 0.14, dist: 7 } },
+  { name: 'exp-flats', transfer: true, x: EX.x + 34, z: EX.z + 14, face: 0.6, view: { pitch: 0.14, dist: 7 } },
+  { name: 'exp-gate', transfer: true, ...gateToWorld(0, -70), face: 0, view: { pitch: 0.16, dist: 9 } },
+  { name: 'exp-outpost', transfer: true, x: EX.outpost.x - 22, z: EX.outpost.z - 6, face: Math.PI / 2 + 0.25, view: { pitch: 0.18, dist: 8 } },
+  { name: 'foundry-vault', transfer: true, x: SF.x, z: SF.z + 50, face: Math.PI, view: { pitch: 0.14, dist: 7 } },
+  { name: 'foundry-harmonic', transfer: true, x: SF.x, z: SF.z - 4, face: Math.PI, view: { pitch: 0.2, dist: 8 } },
 ];
+const only = (process.env.ATTUNEMENT_SCENES || '').split(',').filter(Boolean);
+const scenes = only.length ? SCENES.filter((s) => only.some((o) => s.name.startsWith(o))) : SCENES;
 
 const srv = await startServer({ port: 0, dataFile: null });
 const browser = await launchBrowser();
@@ -55,8 +65,9 @@ try {
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
     await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos);
-    for (const scene of SCENES) {
+    for (const scene of scenes) {
       const player = await activeBrowserPlayer(page, srv, name);
+      if (scene.transfer) { player.char.level = Math.max(3, player.char.level); srv.game.transferPlayer(player, { x: scene.x, z: scene.z }); }
       player.x = scene.x;
       player.z = scene.z;
       player.hp = player.maxHp;
@@ -65,7 +76,7 @@ try {
         return s.pos && Math.hypot(s.pos.x - x, s.pos.z - z) < 1.5;
       }, [scene.x, scene.z]);
       await page.evaluate((v) => window.__attune.view(v), { ...scene.view, yaw: scene.face, face: scene.face });
-      await sleep(SOFTWARE_GL ? 500 : 1500);
+      await sleep(scene.transfer ? (SOFTWARE_GL ? 6000 : 4000) : SOFTWARE_GL ? 500 : 1500);
       const m = await page.evaluate(async (software) => {
         const A = window.__attune;
         // Frame intervals as the browser delivers them.
