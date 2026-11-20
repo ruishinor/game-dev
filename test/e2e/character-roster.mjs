@@ -52,10 +52,10 @@ try{
  const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/assets/character-selection-gate.webp');
  assert.equal(bgResponse.status(),200);
  assert.match(bgResponse.headers()['content-type'],/image\/webp/);
- assert.ok((await bgResponse.body()).length>=19000,'background image must not regress to the blurry 4 KB export');
+ assert.ok((await bgResponse.body()).length>=58000,'background image must not regress to compressed low-resolution exports');
  const imageDecoded=await page.evaluate(async()=>{
   const img=new Image();img.src='/client/assets/character-selection-gate.webp';
-  try{await img.decode();return img.naturalWidth>=1024&&img.naturalHeight>=576;}
+  try{await img.decode();return img.naturalWidth>=1920&&img.naturalHeight>=1080;}
   catch{return false;}
  });
  assert.equal(imageDecoded,true,'original supplied background must decode in browser');
