@@ -3,6 +3,7 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
+import {setupCreationSections} from './creation-sections.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
@@ -453,8 +454,11 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
 });
 let titleDrawAt=-Infinity;
 let worldEntryPending=false;
+let creationSections=null;
 function showCharacterCreation(){
   if(!net.accountLogged||!lastRoster)return;
+  creationSections??=setupCreationSections();
+  creationSections?.show('identity');
   ui.toggleSettings(false);
   $('hud').hidden=true;
   $('character-roster').hidden=true;
