@@ -647,6 +647,13 @@ function buildAccountUI() {
     ui.toggleSettings(open);
     if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
   });
+  // Settings can also close itself via its own X and Escape handlers.
+  // Once it is closed, never leave an otherwise hidden gameplay HUD in front
+  // of the account roster.
+  new MutationObserver(()=>{
+    if(document.body.classList.contains('character-selection-mode')
+       &&ui.settingsPanel.hidden)$('hud').hidden=true;
+  }).observe(ui.settingsPanel,{attributes:true,attributeFilter:['hidden']});
   $('resume-saved-guest').addEventListener('click', () => {
     if (net.token) net.resumeGuest(net.token);
   });
