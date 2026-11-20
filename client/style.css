@@ -1141,3 +1141,8 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
   #hud .atlas-legend{display:none}
   #hud .atlas-map-panel label{min-height:20px}
 }
+
+/* Long-form atlas instructions are available from native hover titles. */
+#hud .atlas-legend {display:none!important}
+#hud .atlas-details[hidden],#hud .atlas-waypoint-details[hidden],#hud .atlas-note-status[hidden]{display:none!important}
+#hud .atlas-tools .atlas-saved-panel .atlas-saved-picker{width:100%;max-width:100%}
