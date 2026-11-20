@@ -26,7 +26,9 @@ import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
-import { WorldAtlas, reachTerrain } from './world-atlas.js';
+import { WorldAtlas } from './world-atlas.js';
+import { reachMinimapArt } from './minimap-art.js';
+import { paintedAbilityArt } from './ability-art.js';
 import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
@@ -166,7 +168,7 @@ export class UI {
     this.tipFor = null;
     this.buildLock = '';
     this.companionId = 0;
-    this.emptySlotMode='visible';
+    this.emptySlotMode='transparent';
     try{const v=localStorage.getItem('attunement.emptySlotMode');if(['visible','transparent','hidden'].includes(v))this.emptySlotMode=v;}catch{}
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
@@ -796,7 +798,10 @@ export class UI {
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
     this.abilityButtons = def.abilities.map((id, i) => {
-      const b = this.slotButton(ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
+      const art=paintedAbilityArt(id);
+      const b = this.slotButton(art ?? ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
+      b.el.dataset.ability=id;
+      if(art)b.el.dataset.art='painted';
       b.el.addEventListener('click', () => this.a.useAbility(id));
       this.hover(b.el, () => this.abilityTip(id));
       this.actionBar.append(b.el);
@@ -2254,7 +2259,7 @@ export class UI {
     const cx=zoom>1||pocket?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket?st.me.pos.z:annex?RIFT_ANNEX.z:0;
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
-    if(!area)g.drawImage(reachTerrain(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
+    if(!area)g.drawImage(reachMinimapArt(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
     if(area){g.strokeStyle=pocket?'#9c7a63':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
     const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
     for (const key of area?[]:Object.keys(ZONES)) {
@@ -2264,25 +2269,15 @@ export class UI {
       g.fillStyle = zoneColours[key] + '33';
       g.fill();
     }
-    g.fillStyle = 'rgba(189, 186, 149, 0.32)';
-    g.strokeStyle='rgba(30, 43, 41, 0.65)';
+    g.fillStyle = 'rgba(189, 186, 149, 0.20)';
+    g.strokeStyle='rgba(30, 43, 41, 0.52)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
       g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);
     }
-    // Up to two nearby place names remain legible; avoid covering the player.
-    if(!area){
-      const labels=Object.values(ZONES)
-       .map(z=>({z,d:Math.hypot(z.x-st.me.pos.x,z.z-st.me.pos.z)}))
-       .filter(({d})=>d*k<R-30).sort((a,b)=>a.d-b.d).slice(0,2);
-      g.font='bold 13px sans-serif';g.textAlign='center';g.lineWidth=3.5;
-      for(const {z} of labels){
-        const x=X(z.x),y=Z(z.z),name=z.name;
-        g.strokeStyle='#101b1e';g.strokeText(name,x,y-10);
-        g.fillStyle='#f1ddb2';g.fillText(name,x,y-10);
-      }
-    }
+    // Region names are displayed alongside the map; avoid rendering large
+    // zone names across the illustrated terrain, player arrow and markers.
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
       if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
