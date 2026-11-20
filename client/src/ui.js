@@ -2263,16 +2263,16 @@ export class UI {
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
     if(!area)g.drawImage(reachMinimapArt(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
-    if(area){g.strokeStyle=pocket?'#9c7a63':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
+    if(area){g.strokeStyle=pocket?'#607b84':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
+    const zoneColours = { sanctum: '#85a6b2', sporefield: '#7c8f91', relay: '#65828e', vault: '#788b9b', obelisk: '#6e9eae', survey: '#758d92', sinter: '#8d9d9b', deep: '#677c85' };
     for (const key of area?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
-      g.fillStyle = zoneColours[key] + '33';
+      g.fillStyle = zoneColours[key] + '16';
       g.fill();
     }
-    g.fillStyle = 'rgba(189, 186, 149, 0.20)';
+    g.fillStyle = 'rgba(92, 124, 137, 0.23)';
     g.strokeStyle='rgba(30, 43, 41, 0.52)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
@@ -2297,7 +2297,7 @@ export class UI {
         g.closePath();
       }else if(ent.meta.k==='o')g.rect(px-radius,py-radius,radius*2,radius*2);
       else g.arc(px,py,radius,0,Math.PI*2);
-      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
+      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#a9c1c7':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#75b5ca';
       g.fill();g.lineWidth=1.8;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
@@ -2342,8 +2342,8 @@ export class UI {
       const x=px*scale,y=py*scale;
       g.save();g.translate(x,y);
       g.beginPath();g.moveTo(0,-9);g.lineTo(9,0);g.lineTo(0,9);g.lineTo(-9,0);g.closePath();
-      g.fillStyle='#f4d48c';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
-      if(scale<1){g.strokeStyle='#f4d48c';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
+      g.fillStyle='#75d0e1';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
+      if(scale<1){g.strokeStyle='#75d0e1';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
       g.restore();
     }
     const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members',
