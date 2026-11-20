@@ -26,19 +26,19 @@ export function atlasTerrainColor(x,z){
   const light=clamp(12-dx*10-dz*13,-34,34);
   // Layered, non-repeating-looking stone grain. True terrain comes from the
   // public heightfield; this detail is cosmetic, not new locations or roads.
-  const grain=(noise(x*2.9,z*2.9)-.5)*23+
-    (noise(x*7.2+9,z*7.2-11)-.5)*12+
-    (noise(x*.53,z*.53)-.5)*17;
-  const canopy=(noise(x*.23+70,z*.23+37)-.5)*24;
-  let rgb=h<-2?[50,72,77]:h>2.6?[105,111,109]:[78,94,87];
+  const grain=(noise(x*2.9,z*2.9)-.5)*10+
+    (noise(x*7.2+9,z*7.2-11)-.5)*4+
+    (noise(x*.53,z*.53)-.5)*8;
+  const canopy=(noise(x*.23+70,z*.23+37)-.5)*8;
+  let rgb=h<-2?[55,69,78]:h>2.6?[99,108,112]:[73,88,94];
   const places=[
-    ['sporefield',[61,91,75],29],
-    ['sinter',[94,88,84],20],
-    ['relay',[91,95,91],21],
-    ['vault',[84,91,102],22],
-    ['survey',[96,91,83],21],
-    ['deep',[71,83,90],21],
-    ['obelisk',[91,99,99],12],
+    ['sporefield',[73,93,86],29],
+    ['sinter',[97,100,99],20],
+    ['relay',[85,96,102],21],
+    ['vault',[86,93,110],22],
+    ['survey',[91,101,104],21],
+    ['deep',[69,84,96],21],
+    ['obelisk',[89,104,112],12],
   ];
   for(const [id,target,radius] of places){
     const site=ZONES[id],d=Math.hypot(x-site.x,z-site.z);
@@ -47,12 +47,13 @@ export function atlasTerrainColor(x,z){
   }
   const high=smooth((h-1.8)/4);
   const shade=light+grain+canopy-(slope>1?slope*4:0);
-  const beyond=smooth((Math.hypot(x,z)-r+10)/22);
+  // The atlas is a rectangular surveyed plate. Never add a circular
+  // alpha/falloff boundary: it produced the giant green oval the owner rejected.
   const contour=Math.abs(h/1.6-Math.round(h/1.6));
-  const line=contour<.045?-(.045-contour)*95:0;
+  const line=contour<.04?-(.04-contour)*80:0;
   const result=rgb.map((base,i)=>{
     const relief=i===0?high*7:i===2?high*5:high*2;
-    return Math.round(clamp((base+shade+relief+line)*(1-beyond*.56)+beyond*34,19,215));
+    return Math.round(clamp(base+shade+relief+line,22,190));
   });
   return [...result,255];
 }
