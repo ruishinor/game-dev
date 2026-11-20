@@ -786,6 +786,7 @@ function clearWorld() {
   svfx?.clear();
   fx.clearFauna();
   ui.clearPlates();
+  ui.atlas?.setOwner(null);
 }
 
 const chestOf = (ent) => () => ent.chest;
@@ -796,6 +797,7 @@ function onWelcome(m) {
   clearWorld();
   ui.questTracker.useCharacter(m.charId);
   ui.setAbilityOwner(m.charId);
+  ui.atlas.setOwner(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
