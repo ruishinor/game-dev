@@ -208,6 +208,8 @@ try{
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  await page.click('#creation-back');
  await page.locator('#character-roster').waitFor({state:'visible'});
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-yaw'),'0',
+   'returning to an existing character restores forward orientation after manual rotation');
  if(evidence)await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
  await page.setViewportSize({width:390,height:844});
  assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
