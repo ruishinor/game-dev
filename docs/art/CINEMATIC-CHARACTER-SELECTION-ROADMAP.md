@@ -1,3 +1,18 @@
+## Owner-proven defects — follow-up corrective batch, 20 November 2026
+
+**Runtime evidence:** owner's three screenshots show (1) visibly blurred Gate backdrop, (2) expanded Inspect tools colliding with Delete/Create actions, (3) Settings as an overflowing, scrolling modal, and (4) roster New Character entry not responding. The selected character also appears too high in the frame. These are accepted defects, not aesthetic disagreement.
+
+**Corrections pushed in the same PR:**
+- **Backdrop:** replaced the 4,464-byte, 768-pixel image with an original-source 1024×576, 19,560-byte quality-preserving WebP. Binary Git SHA-1 verified against the generated local artifact. Image still has the original 1024-pixel source resolution, not fabricated 4K detail. Browser regression now rejects the former low-resolution export.
+- **Creation action:** vacant roster slot invokes the existing `onCreate` callback directly, with explicit pointer stacking and no proxy `.click()` on a possibly obscured footer button. Browser test opens creation from this exact slot.
+- **Inspection:** replaced the expanded roster-inline camera palette with a dedicated full-screen inspection state, retaining the same actual model and controls. A single Return button or Escape restores the roster with keyboard focus and no hidden controls left behind.
+- **Settings:** the existing settings controls are reorganized into Graphics / Interface / More categories, each occupying a fixed viewport section rather than a scrolling popup. The gameplay HUD is hidden again when the settings panel closes via X or Escape.
+- **Model framing:** adjusted the view target to present the actual character lower without modifying the actor's persisted world coordinates or rig.
+- **Regression tests:** browser checks now cover the direct New Character action, separate Inspect view, no-scroll Settings categories, original-source background decode and full roster/world cycle.
+
+**Validation boundary:** the modified JS parses, CSS braces balance and image binary checksum matches the uploaded source. The fresh GitHub Actions jobs are queued; no new runtime screenshots or owner visual acceptance exist for this batch. PR #180 remains draft and unmerged; #185 remains open for underlying character-model fidelity.
+
+---
 # Attunement — Cinematic Character Selection and World Entry
 
 Owner brief: 2026-11-20. Feature branch: `feat/cinematic-character-selection-world-entry`.
