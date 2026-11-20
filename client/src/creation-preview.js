@@ -27,7 +27,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const release=()=>{
   for(const {model} of models){scene.remove(model.group);model.dispose?.();}
-  models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;delete root.dataset.frameReady;
+  models=[];keyState='';delete root.dataset.model;delete root.dataset.modelCount;delete root.dataset.appearance;delete root.dataset.frameReady;
  };
  const inspectToggle=root.querySelector('[data-preview-inspect]');
  const inspectControls=root.querySelector('.preview-controls');
@@ -125,6 +125,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      entry.width=Math.hypot(size.x,size.z);
     }
     keyState=next;
+    root.dataset.modelCount=String(models.length);
     if(models.length){
      root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
      status.textContent=models.every(({model})=>model.kind==='glb')?'':'Simplified gameplay model · detailed asset unavailable';
