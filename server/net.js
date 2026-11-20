@@ -368,15 +368,17 @@ export class NetServer {
         else reply(startAttack(game, p));
         break;
       case 'pet':
-        reply(petCommand(game, p, msg.c));
+        if (msg.type !== undefined && (typeof msg.type !== 'string' || msg.type.length > 40)) return this.strike(conn);
+        reply(petCommand(game, p, msg.c, msg.type));
         break;
       case 'pet_rename':
-        reply(renameCompanion(game, p, msg.name));
+        if (msg.type !== undefined && (typeof msg.type !== 'string' || msg.type.length > 40)) return this.strike(conn);
+        reply(renameCompanion(game, p, msg.name, msg.type));
         break;
       case 'pet_manage':
         if (!['commission', 'default', 'dismiss', 'summon'].includes(msg.action) ||
-          ((msg.action === 'default' || msg.action === 'commission' || (msg.action === 'summon' && msg.type != null)) &&
-            (typeof msg.type !== 'string' || msg.type.length > 40))) return this.strike(conn);
+          (msg.type != null && (typeof msg.type !== 'string' || msg.type.length > 40)) ||
+          ((msg.action === 'default' || msg.action === 'commission') && msg.type == null)) return this.strike(conn);
         reply(manageCompanion(game, p, msg.action, msg.type));
         break;
       case 'party_invite':

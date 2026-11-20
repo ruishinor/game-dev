@@ -27,13 +27,14 @@ export function spindleSpawnPoint(game, owner) {
 
 export function spawnSpindle(game, p, spot) {
   const profile = p.char.spindle;
-  if (!profile || !spot || p.dead || p.companion || p.char.companionDismissed) return;
+  if (!profile || !spot || p.dead || p.spindleCompanion) return;
   const c = {
     id: game.nextId++, kind: 'companion', type: 'spindle', name: profile.name, owner: p.id,
     ...spot, yaw: p.yaw, mode: profile.mode, lightOn: false, act: 'idle', actTarget: 0, host: 0, metaVer: 1,
     nav: {}, serviceEnd: 0, approachEnd: 0,
   };
-  p.companion = c;
+  p.spindleCompanion = c;
+  if (!p.companion) p.companion = c; // legacy HUD fallback when no class companion is active
   game.companions.push(c);
   game.ents.set(c.id, c);
   game.markDirty(p);
@@ -82,7 +83,7 @@ export function commandSpindle(game, p, c, cmd) {
 
 export function tickSpindle(game, c, dt) {
   const p = game.players.get(c.owner);
-  if (!p || p.companion !== c) return;
+  if (!p || p.spindleCompanion !== c) return;
   if (p.dead || (c.mode === 'inspect' && game.time < p.combatUntil)) {
     if (c.mode === 'inspect') {
       finishInspection(c, p);
