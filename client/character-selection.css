@@ -608,3 +608,72 @@
   border:1px solid #55798b;z-index:7;
  }
 }
+
+
+/* Owner visual review, Nov 20: keep the character and primary action clear.
+   Camera controls are opt-in, keyboard/pointer orbit still works on canvas. */
+.character-selection-mode #roster-preview .roster-preview-controls[hidden],
+.character-create-mode #creation-preview .preview-controls[hidden],
+#roster-preview [data-preview-inspect][hidden],
+#creation-preview [data-preview-inspect][hidden]{display:none!important;}
+.character-selection-mode #roster-preview [data-preview-inspect],
+.character-create-mode #creation-preview [data-preview-inspect]{
+ position:absolute;z-index:6;
+ width:auto;min-width:0;padding:8px 11px;
+ border:1px solid #6a8da0;border-radius:1px;
+ background:#081b29df;color:#cfdee7;
+ font:600 11px/1.4 'Segoe UI',sans-serif;
+ letter-spacing:.05em;text-shadow:0 1px 3px #000;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]:hover,
+.character-create-mode #creation-preview [data-preview-inspect]:hover{
+ background:#294c60e8;color:#fff;border-color:#a2ccdd;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]:focus-visible,
+.character-create-mode #creation-preview [data-preview-inspect]:focus-visible{
+ outline:2px solid #a8d6e4;outline-offset:3px;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]{
+ left:max(18px,calc(50% - 333px));bottom:217px;
+}
+.character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+ left:max(18px,calc(50% - 333px));bottom:258px;right:auto;
+ transform:none;display:flex;flex-direction:column;
+ flex-wrap:nowrap;align-items:stretch;gap:4px;width:174px;
+ max-width:min(46vw,174px);padding:8px;
+ border:1px solid #64879a;background:#061521f2;
+ box-shadow:0 10px 26px #01070b8c;
+}
+.character-selection-mode #roster-preview .roster-preview-controls:not([hidden]) button{
+ display:block;width:100%;padding:6px 9px;font-size:11px;
+ white-space:nowrap;text-align:left;
+}
+.character-create-mode #creation-preview [data-preview-inspect]{
+ right:clamp(20px,4vw,65px);bottom:171px;
+}
+.character-create-mode #creation-preview>.preview-controls:not([hidden]){
+ left:auto;right:clamp(20px,4vw,65px);bottom:214px;
+ transform:none;display:flex;flex-direction:column;
+ flex-wrap:nowrap;align-items:stretch;
+ width:175px;max-width:46vw;gap:4px;
+ border:1px solid #678fa2;background:#061521f2;
+ padding:8px;box-shadow:0 10px 26px #01070b8c;
+}
+.character-create-mode #creation-preview>.preview-controls:not([hidden]) button{
+ width:100%;text-align:left;
+}
+@media(max-width:680px){
+ .character-selection-mode #roster-preview [data-preview-inspect]{
+  left:auto;right:12px;top:218px;bottom:auto;padding:6px 8px;
+ }
+ .character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+  left:auto;right:12px;top:258px;bottom:auto;
+  max-width:165px;width:165px;z-index:8;
+ }
+ .character-create-mode #creation-preview [data-preview-inspect]{
+  right:12px;bottom:156px;padding:6px 8px;
+ }
+ .character-create-mode #creation-preview>.preview-controls:not([hidden]){
+  right:12px;bottom:196px;width:155px;max-width:46vw;
+ }
+}
