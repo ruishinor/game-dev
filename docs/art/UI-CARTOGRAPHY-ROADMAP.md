@@ -41,6 +41,22 @@ Client-only atlas reads existing shared geometry and already delivered visible-r
 
 Existing controls preserved; **Shift+M** opens the atlas, M remains the existing menu. No claims of completed visual quality until actual browser evidence.
 
+## Owner visual acceptance feedback — 2026-11-20
+
+Three attached live screenshots demonstrate that the first merged HUD iteration is **too small and not adequately legible**. This supersedes the earlier small-scale UI styling as an acceptance target.
+
+- Increase the actual rendered size and contrast of player, companion and party frames, including HP/resource numbers and buff-status chips; no tiny 9–10px primary text.
+- Crop **player and party** portraits to the head/above-neck visual region. Companion models can use a recognisable close crop adapted to their anatomy.
+- Primary combat actions must be clearly larger; companion actions target **85% of main-slot dimensions** (rather than the earlier fixed 34px).
+- Increase the minimap itself, nearest terrain/landmark labels, markers, player arrow and party circles. Improve contrast and reduce ambiguous collider clutter, without revealing hidden spawns.
+- Always display the optional day/night glyph when enabled. If no production time-of-day value exists, use a visibly **neutral pending** paired-sun/moon indicator, *not* a fabricated phase. The existing preview must be called out as preview.
+- Summon Companion becomes **Dismiss Companion** when a real owned companion is active, in both the clickable hotbar and the existing companion frame, without changing server restrictions on managing companions during combat/death.
+- Action-bar slot visibility preference: visible / transparent / hidden; hidden logical slots retain their indexes and can be restored in Settings.
+- Dedicated editable keybindings, defaults and conflict checks for the current real player and companion action slots; do not pretend future stances or buffs already exist.
+- CI screenshot and browser gate must verify actual computed slot dimensions, icon/portrait frame visibility, keyboard configuration and summon/dismiss round trip. Human legibility and visual acceptance remain separate from automated pass.
+
+Implemented candidate: `feat/hud-actionbar-keybindings`. Visual proof is only valid after its head passes browser rendering checks; do not mark fully accepted without inspection.
+
 ## Current integration reality — 2026-11-20
 
 This current-head checkpoint supersedes the historical "candidate" and local-preview statuses above; it does **not** assert artistic acceptance.

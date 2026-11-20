@@ -36,10 +36,10 @@ export function makePortraits(assets, useGlb) {
       const size = box.getSize(new THREE.Vector3());
       const extent = Math.max(size.x, size.y, size.z, .7) * .69;
       if (!Number.isFinite(extent)) throw Error('Invalid model bounds');
-      const sketch=style==='sketch',bust=style==='bust';
-      renderer.setSize(sketch?320:bust?256:400,sketch?480:bust?256:400,false);
-      if(bust)center.y=box.min.y+size.y*.79;
-      const halfY=bust?Math.max(size.y*.25,.2):sketch?Math.max(size.y*.55,size.x*.825,size.z*.55,.35):extent;
+      const sketch=style==='sketch',bust=style==='bust',head=style==='head';
+      renderer.setSize(sketch?320:bust||head?256:400,sketch?480:bust||head?256:400,false);
+      if(bust||head)center.y=box.min.y+size.y*(head?.89:.79);
+      const halfY=head?Math.max(size.y*.13,.13):bust?Math.max(size.y*.25,.2):sketch?Math.max(size.y*.55,size.x*.825,size.z*.55,.35):extent;
       const halfX=halfY*(sketch?2/3:1);
       if(sketch){
         sketchMaterial=new THREE.MeshStandardMaterial({color:0x317789,emissive:0x102c36,roughness:.8,metalness:.05});
