@@ -73,8 +73,8 @@
      "metallic": 0.0,
      "wear": 0.12,
      "tone": 0.06,
-     "scratch": 0.08,
-     "soot": 0.35,
+     "scratch": 0.04,
+     "soot": 0.18,
      "edge_polish": 0.08
     },
     "trim": {
@@ -129,8 +129,8 @@
      "metallic": 0.0,
      "wear": 0.12,
      "tone": 0.06,
-     "scratch": 0.08,
-     "soot": 0.35,
+     "scratch": 0.04,
+     "soot": 0.18,
      "edge_polish": 0.08
     },
     "trim": {
@@ -185,8 +185,8 @@
      "metallic": 0.0,
      "wear": 0.12,
      "tone": 0.06,
-     "scratch": 0.08,
-     "soot": 0.35,
+     "scratch": 0.04,
+     "soot": 0.18,
      "edge_polish": 0.08
     },
     "trim": {
@@ -241,8 +241,8 @@
      "metallic": 0.0,
      "wear": 0.12,
      "tone": 0.06,
-     "scratch": 0.08,
-     "soot": 0.35,
+     "scratch": 0.04,
+     "soot": 0.18,
      "edge_polish": 0.08
     },
     "trim": {

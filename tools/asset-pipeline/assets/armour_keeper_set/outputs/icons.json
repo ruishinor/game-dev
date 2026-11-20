@@ -1,0 +1,30 @@
+{
+ "icons": {
+  "keeper_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/keeper_field_set_chest_hero.png",
+  "blueprint_keeper_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/blueprint_keeper_field_set_chest_hero.png",
+  "keeper_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/keeper_field_set_gloves_hero.png",
+  "blueprint_keeper_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/blueprint_keeper_field_set_gloves_hero.png",
+  "keeper_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/keeper_field_set_greaves_hero.png",
+  "blueprint_keeper_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/blueprint_keeper_field_set_greaves_hero.png",
+  "keeper_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/keeper_field_set_boots_hero.png",
+  "blueprint_keeper_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/blueprint_keeper_field_set_boots_hero.png"
+ },
+ "bytes": {
+  "keeper_field_set_chest_256.webp": 7344,
+  "keeper_field_set_chest_128.webp": 3136,
+  "blueprint_keeper_field_set_chest_256.webp": 8852,
+  "blueprint_keeper_field_set_chest_128.webp": 3112,
+  "keeper_field_set_gloves_256.webp": 5104,
+  "keeper_field_set_gloves_128.webp": 2114,
+  "blueprint_keeper_field_set_gloves_256.webp": 5806,
+  "blueprint_keeper_field_set_gloves_128.webp": 2152,
+  "keeper_field_set_greaves_256.webp": 8960,
+  "keeper_field_set_greaves_128.webp": 3566,
+  "blueprint_keeper_field_set_greaves_256.webp": 8186,
+  "blueprint_keeper_field_set_greaves_128.webp": 2914,
+  "keeper_field_set_boots_256.webp": 8484,
+  "keeper_field_set_boots_128.webp": 3630,
+  "blueprint_keeper_field_set_boots_256.webp": 8792,
+  "blueprint_keeper_field_set_boots_128.webp": 3112
+ }
+}

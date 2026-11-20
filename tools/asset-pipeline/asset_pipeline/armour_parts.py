@@ -19,7 +19,7 @@ def _frame(t, hint):
     return t, n, np.cross(t, n)
 
 
-def tube(path, radius, sides=8, normals=None, flat=1.0, caps=True, twist=0.0):
+def tube(path, radius, sides=8, normals=None, flat=1.0, caps=True, twist=0.0, phase=0.0):
     """Sweep a (possibly elliptical: `flat` = height/width) section along a
     polyline. `radius` scalar or per-point; `normals` orient the section's
     height axis (e.g. the body normal under a strap); parallel transport
@@ -36,7 +36,7 @@ def tube(path, radius, sides=8, normals=None, flat=1.0, caps=True, twist=0.0):
         t, u, w = _frame(T[i], hint)
         frames.append((u, w))
         prev = u
-    ph = np.linspace(0, 2 * np.pi, sides, endpoint=False)
+    ph = np.linspace(0, 2 * np.pi, sides, endpoint=False) + phase
     V = []
     for i in range(n):
         u, w = frames[i]
@@ -72,7 +72,8 @@ def strap(m, pts_ab, width, thickness, off, samples=6):
     P.append(m.point(*seq[-1], off + thickness / 2))
     N.append(m.normal(*seq[-1], off))
     # a 4-sided tube rotated 45 deg is a rectangle: width across, thickness up
-    return tube(P, width / np.sqrt(2), sides=4, normals=N, flat=thickness / width, twist=0.0, caps=True)
+    # a 4-sided section at 45 deg is a rectangle: half-diagonal = width / sqrt 2
+    return tube(P, width / np.sqrt(2), sides=4, normals=N, flat=thickness / width, caps=True, phase=np.pi / 4)
 
 
 def oriented_box(centre, size, normal, along):
@@ -85,8 +86,8 @@ def oriented_box(centre, size, normal, along):
             for sz in (-1, 1):
                 V.append(centre + t * sx * hx + w * sy * hy + n * sz * hz)
     V = np.array(V)
-    F = np.array([[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1],
-                  [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]])
+    # quads, so the bevel rounds the box edges and nothing else
+    F = np.array([[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]])
     return _outward(V, F)
 
 
@@ -144,7 +145,7 @@ def _outward(V, F):
     c = V.mean(0)
     a, b, d = V[F[:, 0]], V[F[:, 1]], V[F[:, 2]]
     nrm = np.cross(b - a, d - a)
-    inward = np.einsum("ij,ij->i", nrm, (a + b + d) / 3 - c) < 0
+    inward = np.einsum("ij,ij->i", nrm, V[F].mean(1) - c) < 0
     F = F.copy()
     F[inward] = F[inward][:, ::-1]
     return V, F

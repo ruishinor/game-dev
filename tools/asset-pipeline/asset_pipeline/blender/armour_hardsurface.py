@@ -97,6 +97,8 @@ def strip_prism(name, pts, nrm, width, depth):
     `depth` below it), extended past both ends by half the width."""
     P = np.asarray(pts, float)
     N = np.asarray(nrm, float)
+    if len(P) > 3 and np.linalg.norm(P[0] - P[-1]) < 1e-6:
+        return loop_prism(name, P[:-1], N[:-1], width, depth)
     T = np.gradient(P, axis=0)
     T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
     P = P.copy()
@@ -118,6 +120,45 @@ def strip_prism(name, pts, nrm, width, depth):
     o = mesh_obj(name, G2B(verts), faces)
     fix_normals(o)
     return o
+
+
+def loop_prism(name, P, N, width, depth):
+    """Closed groove cutter: a swept box around a loop with no ends (an
+    open strip that overlaps itself where it closes breaks EXACT booleans)."""
+    T = np.roll(P, -1, 0) - np.roll(P, 1, 0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+    S = np.cross(N, T)
+    S /= np.maximum(np.linalg.norm(S, axis=1, keepdims=True), 1e-9)
+    h = width / 2
+    rings = [P - S * h + N * 0.004, P + S * h + N * 0.004, P + S * h - N * depth, P - S * h - N * depth]
+    n = len(P)
+    faces = []
+    for r in range(4):
+        r2 = (r + 1) % 4
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append((r * n + i, r * n + j, r2 * n + j, r2 * n + i))
+    o = mesh_obj(name, G2B(np.concatenate(rings)), faces)
+    fix_normals(o)
+    return o
+
+
+def safe_boolean(target, cutter, label=""):
+    """EXACT difference, kept only if it leaves the piece intact (a failed
+    boolean can empty a plate); otherwise the cut is skipped and logged."""
+    before = len(target.data.vertices)
+    m = target.modifiers.new("bool", "BOOLEAN")
+    m.operation, m.solver, m.object = "DIFFERENCE", "EXACT", cutter
+    m.use_self, m.use_hole_tolerant = False, True
+    dg = bpy.context.evaluated_depsgraph_get()
+    n = len(target.evaluated_get(dg).data.vertices)
+    if n < max(8, before * 0.5):
+        target.modifiers.remove(m)
+        print(f"[armour_hardsurface] skipped a failed cut on {target.name} {label} ({before} -> {n} vertices)")
+        return False
+    bpy.context.view_layer.objects.active = target
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    return True
 
 
 def hole_prism(name, pts, nrm, depth=0.03):
@@ -187,7 +228,7 @@ def build_piece(meta, arr, fx):
     """One designed piece -> a finished solid object (or None)."""
     name = meta["name"]
     if meta.get("sole"):
-        o = sole_obj(name, meta["sole"], 7)
+        o = sole_obj(name, meta["sole"], meta["sole"].get("treads", 7))
         # the anchor channel around the sole's side, mid-height
         out = np.asarray(meta["sole"]["outline"], float)
         ym = (meta["sole"]["y0"] + meta["sole"]["y1"]) / 2
@@ -201,7 +242,8 @@ def build_piece(meta, arr, fx):
         boolean(o, cut)
         delete([cut])
         L = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
-        inlay(P, N, list(0.45 + 0.5 * L / L[-1]), 0.005, 0.003, fx)
+        if meta["sole"].get("channel", True):  # an emissive welt (Cinderlock, Vesperglass), or just the groove
+            inlay(P, N, list(0.45 + 0.5 * L / L[-1]), 0.005, 0.003, fx)
         bevel(o, meta["bevel"], meta["bevel_segments"])
         return o
     if meta.get("multi") or isinstance(arr, list):
@@ -220,17 +262,18 @@ def build_piece(meta, arr, fx):
         solidify(o, meta["thickness"])
     for k, h in enumerate(meta.get("holes", [])):
         c = hole_prism(f"_h{k}", h["pts"], h["nrm"], meta["thickness"] + 0.02)
-        boolean(o, c)
+        safe_boolean(o, c, f"hole {k}")
         delete([c])
     for k, g in enumerate(meta.get("grooves", [])):
         c = strip_prism(f"_g{k}", g["pts"], g["nrm"], g["width"], g["depth"])
-        boolean(o, c)
+        safe_boolean(o, c, f"groove {k}")
         delete([c])
         if g["inlay"]:
             inlay(g["pts"], g["nrm"], g["flow"], g["width"], g["depth"], fx)
     # dissolve first: decimating after the bevel scrambles its hardened custom
     # normals (the crumpled shading on small curved plates)
-    planar(o, 1.5)
+    if meta.get("planar", 1.5) > 0:  # faceted plates only; smooth curved plates would crumple
+        planar(o, meta.get("planar", 1.5))
     bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 1))
     parts = [o]
     for k, b in enumerate(meta.get("bolts", [])):
@@ -283,7 +326,7 @@ def pattern_material():
         cells = node(nt, "ShaderNodeTexVoronoi", (-500, -50), Scale=55.0)
         cells.feature = "DISTANCE_TO_EDGE"
         nt.links.new(tc.outputs["Object"], cells.inputs["Vector"])
-        st = node(nt, "ShaderNodeTexWave", (-500, -250), Scale=14.0, Distortion=0.0)
+        st = node(nt, "ShaderNodeTexWave", (-500, -250), Scale=4.5, Distortion=0.0)
         st.wave_type, st.bands_direction = "BANDS", "DIAGONAL"
         nt.links.new(tc.outputs["Object"], st.inputs["Vector"])
         nt.links.new(mul.outputs[0], comb.inputs[0])

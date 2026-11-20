@@ -1,0 +1,56 @@
+{
+ "runtime": {
+  "m": {
+   "file": "client/assets/armour_keeper_set_m.glb",
+   "sha256": "32eb78d5cf1cc44b3786ff08921eae74453537897aa1885a9985f13eb001dbf7",
+   "bytes": 2436464
+  },
+  "f": {
+   "file": "client/assets/armour_keeper_set_f.glb",
+   "sha256": "e041bbdf6b0061219c9c4eb87bc8da164928b31ca155e378b33b4b9e42646486",
+   "bytes": 2435428
+  }
+ },
+ "icons": {
+  "blueprint_keeper_field_set_boots": {
+   "file": "client/assets/icons/armour/blueprint_keeper_field_set_boots.webp",
+   "sha256": "86081c597b5610f2649649792d69dea652544ac98bdaf6e62750fefb59dab2f8",
+   "bytes": 8792
+  },
+  "blueprint_keeper_field_set_chest": {
+   "file": "client/assets/icons/armour/blueprint_keeper_field_set_chest.webp",
+   "sha256": "1e53a59188bf385a9d61d3ed4bd42a124f3792c15863cfb82b1c3dcd59902830",
+   "bytes": 8852
+  },
+  "blueprint_keeper_field_set_gloves": {
+   "file": "client/assets/icons/armour/blueprint_keeper_field_set_gloves.webp",
+   "sha256": "35ebaa1123baadf0364344238a6d5194eab905af95d82638f5a1edf365b206fd",
+   "bytes": 5806
+  },
+  "blueprint_keeper_field_set_greaves": {
+   "file": "client/assets/icons/armour/blueprint_keeper_field_set_greaves.webp",
+   "sha256": "d6d9e6ebcaa626ebf9ad0b5e9dd5585890cc4f13ca265b8cca86c6e45a907cca",
+   "bytes": 8186
+  },
+  "keeper_field_set_boots": {
+   "file": "client/assets/icons/armour/keeper_field_set_boots.webp",
+   "sha256": "15133452c322506724193337eddcbe2f5fff48ca9edf4ae696141b4e7724fbb3",
+   "bytes": 8484
+  },
+  "keeper_field_set_chest": {
+   "file": "client/assets/icons/armour/keeper_field_set_chest.webp",
+   "sha256": "d742bb5efe463de6e5ee600f475c0a62bb5b5aa17f2ea50af67d5e052e3b5cf1",
+   "bytes": 7344
+  },
+  "keeper_field_set_gloves": {
+   "file": "client/assets/icons/armour/keeper_field_set_gloves.webp",
+   "sha256": "cb3011f4faa2b94e5311e07e9a6ed678f897f83a893557e850f4fd13cbc6916f",
+   "bytes": 5104
+  },
+  "keeper_field_set_greaves": {
+   "file": "client/assets/icons/armour/keeper_field_set_greaves.webp",
+   "sha256": "520ffd0eca55f689916a67739d6f8c363ba1da941bd056b64910887e0415e0bf",
+   "bytes": 8960
+  }
+ }
+}

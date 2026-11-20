@@ -188,7 +188,7 @@ class Kit:
         pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body", "shell_shins"]}
         return sheet_piece(it, f"boot_{s}", mat, ad.relax(ms["V"][used] + ms["N"][used] * lift, F, 2, 0.3), F, 0.0025, weights=pol)
 
-    def sole(self, it, mat, s, scale=1.06, y0d=-0.006, y1d=0.022, bevel=0.003):
+    def sole(self, it, mat, s, scale=1.06, y0d=-0.006, y1d=0.022, bevel=0.003, channel=True, treads=7):
         from scipy.spatial import ConvexHull
 
         _, _, cloud, y0, _, _ = self.foot(s)
@@ -198,7 +198,8 @@ class Kit:
         hull = c + (hull - c) * scale
         pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body", "shell_shins"]}
         return sheet_piece(it, f"sole_{s}", mat, np.zeros((0, 3)), np.zeros((0, 3), int), 0.0, weights=pol, weight_mode=["rigid"],
-                           sole={"outline": hull.tolist(), "y0": float(y0 + y0d), "y1": float(y0 + y1d)}, bevel=bevel, bevel_segments=2)
+                           sole={"outline": hull.tolist(), "y0": float(y0 + y0d), "y1": float(y0 + y1d), "channel": channel, "treads": treads},
+                           bevel=bevel, bevel_segments=2)
 
 
 def on_map(m, pts_ab, off, samples=6):
@@ -214,6 +215,21 @@ def on_map(m, pts_ab, off, samples=6):
     P.append(m.point(*seq[-1], off))
     N.append(m.normal(*seq[-1], off))
     return np.array(P), np.array(N)
+
+
+def organic(poly, per=5):
+    """Closed Catmull-Rom through a convex polygon's corners: a grown,
+    rounded outline (still convex enough for the plate sampler)."""
+    P = np.asarray(poly, float)
+    n = len(P)
+    out = []
+    for i in range(n):
+        p0, p1, p2, p3 = P[(i - 1) % n], P[i], P[(i + 1) % n], P[(i + 2) % n]
+        for k in range(per):
+            t = k / per
+            t2, t3 = t * t, t * t * t
+            out.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3))
+    return [tuple(q) for q in out]
 
 
 def glassy(piece):
@@ -687,7 +703,7 @@ def strataweave_boots(body, base, m, kit=None):
         P.append({**parts_piece(it, f"beacon_lamp_{s}", m["trim"], [], weights=pb, weight_mode=["rigid"]),
                   "fx_strips": [fx_strip(lens, 0.0035, c, 0.05, sides=6)]})
         # deep lug sole
-        P.append(kit.sole(it, m["sole"], s, scale=1.08, y0d=-0.014, y1d=0.02, bevel=0.004))
+        P.append(kit.sole(it, m["sole"], s, scale=1.08, y0d=-0.014, y1d=0.02, bevel=0.004, channel=False, treads=11))
     return P
 
 
@@ -727,17 +743,23 @@ def mycelial_chest(body, base, m, kit=None):
         kw.setdefault("flow_origin", seed_pt)
         kw.setdefault("bevel", 0.0026)
         kw.setdefault("segs", 2)
-        pl = Plate(it, name, m[mat], T, D(poly), base + layer, **kw)
+        pl = Plate(it, name, m[mat], T, D(organic(poly)), base + layer, **kw)
         pls.append(pl)
         return pl
 
     # cultivated carapace: organic shells, deliberately unlike either side
-    plate("carapace_l", [(8, 0.52), (30, 0.47), (58, 0.55), (72, 0.7), (62, 0.86), (40, 0.95), (14, 0.9), (6, 0.74)], 0.008, dome=0.008, thickness=0.008)
-    plate("carapace_r", [(-6, 0.6), (-24, 0.55), (-48, 0.6), (-60, 0.72), (-50, 0.86), (-30, 0.93), (-10, 0.88)], 0.008, dome=0.007, thickness=0.008)
+    pl = plate("carapace_l", [(8, 0.52), (30, 0.47), (58, 0.55), (72, 0.7), (62, 0.86), (40, 0.95), (14, 0.9), (6, 0.74)], 0.008, dome=0.012, keel=0.002, thickness=0.008)
+    # bioluminescent veins grown into the carapace
+    pl.groove(D([(14, 0.86), (26, 0.78), (42, 0.74), (58, 0.7)]), width=0.0028, depth=0.0022)
+    pl.groove(D([(30, 0.78), (36, 0.66), (46, 0.58)]), width=0.0024, depth=0.0020)
+    pl = plate("carapace_r", [(-6, 0.6), (-24, 0.55), (-48, 0.6), (-60, 0.72), (-50, 0.86), (-30, 0.93), (-10, 0.88)], 0.008, dome=0.01, thickness=0.008)
+    pl.groove(D([(-12, 0.82), (-28, 0.76), (-44, 0.7)]), width=0.0026, depth=0.0021)
     # rib-like ivory ridges curving round the left flank, membrane between
-    for k, u in enumerate((0.42, 0.33, 0.24)):
-        plate(f"rib_{k}", [(4, u), (30, u - 0.02), (66, u + 0.02), (92, u + 0.06), (92, u + 0.085), (66, u + 0.05), (30, u + 0.03), (4, u + 0.04)],
-              0.006 + 0.001 * k, dome=0.002, thickness=0.006, bevel=0.002, segs=1)
+    ribs = []
+    for k, u in enumerate((0.44, 0.35, 0.26)):
+        Pp, Nn = on_map(T, D([(4, u + 0.02), (30, u), (66, u + 0.035), (96, u + 0.08)]), base + 0.012, samples=5)
+        ribs.append(tube(Pp, np.linspace(0.009, 0.005, len(Pp)), sides=8, normals=Nn, flat=0.45))
+    P.append(parts_piece(it, "ribs", m["plate"], ribs, bevel=0.0))
     P.append(glassy(Plate(it, "flank_membrane", m["glass"], T, D([(8, 0.22), (84, 0.26), (94, 0.5), (60, 0.56), (8, 0.48)]), base + 0.0055,
                           thickness=0.0016, bevel=0.0, segs=0).export()))
     # right side: smaller, separated shells (asymmetric growth)
@@ -859,9 +881,12 @@ def mycelial_greaves(body, base, m, kit=None):
         for nm, M, t0, t1, pol in (("tissue_thigh", TM, 0.04, 1.0, pt), ("tissue_calf", CM, -0.02, 0.96, pc)):
             P.append(Plate(it, f"{nm}_{s}", m["under"], M, D([(-179.5, t0), (179.5, t0), (179.5, t1), (-179.5, t1)]), 0.004, thickness=0.003,
                            bevel=0.0, segs=0, res=0.012, weights=pol).export())
-        # ivory thigh shell, leaf-shaped, with a membrane between it and the knee
-        P.append(Plate(it, f"thigh_shell_{s}", m["plate"], TM, D([(-40, 0.1), (50, 0.08), (72, 0.36), (40, 0.74), (0, 0.84), (-46, 0.66), (-64, 0.32)]), 0.012,
-                       dome=0.006, thickness=0.007, bevel=0.0026, segs=2, weights=pt, weight_mode=["band", tax, 0.06]).export())
+        # overlapping ivory leaf scales down the front of the thigh, veined
+        for k, (a0, t0, w) in enumerate(((-sg * 18, 0.1, 34), (sg * 22, 0.3, 30), (-sg * 6, 0.5, 26))):
+            pl = Plate(it, f"thigh_leaf{k}_{s}", m["plate"], TM, D(organic([(a0 - w, t0 + 0.08), (a0, t0), (a0 + w, t0 + 0.08), (a0 + w * 0.7, t0 + 0.3), (a0, t0 + 0.38), (a0 - w * 0.7, t0 + 0.3)])),
+                       0.011 + 0.002 * k, dome=0.005, keel=0.002, thickness=0.006, bevel=0.0022, segs=2, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=0.9)
+            pl.groove(D([(a0, t0 + 0.05), (a0 + 4, t0 + 0.2), (a0, t0 + 0.33)]), width=0.0024, depth=0.0018)
+            P.append(pl.export())
         P.append(glassy(Plate(it, f"thigh_membrane_{s}", m["glass"], TM, D([(-50, 0.62), (50, 0.62), (40, 0.98), (-40, 0.98)]), 0.0075, thickness=0.0016,
                               bevel=0.0, segs=0, weights=pt, weight_mode=["band", tax, 0.06]).export()))
         # knee: a cupped ivory shell
@@ -931,9 +956,24 @@ def mycelial_boots(body, base, m, kit=None):
             Pp, _ = on_map(CM, D([(ph, 0.6), (ph * 0.8, 0.8), (ph * 0.5, 1.0)]), 0.0102, samples=5)
             caps.append(fx_strip(Pp, 0.0014, c, 0.3, sides=5))
         P.append({**parts_piece(it, f"capillaries_{s}", m["trim"], [], weights={**pol, "joints": ["calf", "foot"]}), "fx_strips": caps})
-        P.append(kit.sole(it, m["sole"], s, scale=1.05, y0d=-0.008, y1d=0.016, bevel=0.004))
+        P.append(kit.sole(it, m["sole"], s, scale=1.05, y0d=-0.008, y1d=0.016, bevel=0.004, channel=False, treads=5))
     return P
 
+
+def _smooth(fn):
+    """Pieces lofted on smooth (un-faceted) maps skip the planar dissolve."""
+    def wrapped(body, base, m, kit=None):
+        P = fn(body, base, m, kit)
+        for p in P:
+            p.setdefault("planar", 0.0)
+        return P
+    wrapped.__name__ = fn.__name__
+    return wrapped
+
+
+strataweave_chest, strataweave_gloves, strataweave_greaves, strataweave_boots = map(_smooth, (strataweave_chest, strataweave_gloves, strataweave_greaves, strataweave_boots))
+mycelial_chest, mycelial_gloves, mycelial_greaves, mycelial_boots = map(_smooth, (mycelial_chest, mycelial_gloves, mycelial_greaves, mycelial_boots))
+vesperglass_chest, vesperglass_gloves, vesperglass_greaves, vesperglass_boots = map(_smooth, (vesperglass_chest, vesperglass_gloves, vesperglass_greaves, vesperglass_boots))
 
 DESIGNS = {
     "vesperglass_chest": vesperglass_chest, "vesperglass_gloves": vesperglass_gloves,

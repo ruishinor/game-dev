@@ -1,0 +1,56 @@
+{
+ "runtime": {
+  "m": {
+   "file": "client/assets/armour_surveyor_set_m.glb",
+   "sha256": "ce8855a9bb57da70c2563988038b91dcbf6e59da45277e664731a4adff9dee26",
+   "bytes": 4058952
+  },
+  "f": {
+   "file": "client/assets/armour_surveyor_set_f.glb",
+   "sha256": "817f91dd6ff68e970aaf4e3e4c7b6adfe086ce6b6c496972b76b442cf8d415ad",
+   "bytes": 4059704
+  }
+ },
+ "icons": {
+  "blueprint_surveyor_field_set_boots": {
+   "file": "client/assets/icons/armour/blueprint_surveyor_field_set_boots.webp",
+   "sha256": "b2e9d0f569abb9653a005378edf1ae28107eb3976b017b8fac2e34ce9d7efa4a",
+   "bytes": 9568
+  },
+  "blueprint_surveyor_field_set_chest": {
+   "file": "client/assets/icons/armour/blueprint_surveyor_field_set_chest.webp",
+   "sha256": "06a9f1545cfff893a8ff4784e1bce76b7449694948fb89623f0801c48ec7dc0b",
+   "bytes": 9360
+  },
+  "blueprint_surveyor_field_set_gloves": {
+   "file": "client/assets/icons/armour/blueprint_surveyor_field_set_gloves.webp",
+   "sha256": "beaa33ae1ac8dcc93af44a59aee208fb3bbbb61f0e2531d68fea8b0dd6c17b1a",
+   "bytes": 5308
+  },
+  "blueprint_surveyor_field_set_greaves": {
+   "file": "client/assets/icons/armour/blueprint_surveyor_field_set_greaves.webp",
+   "sha256": "6025a48b320732c626d42ba7da11617e1bfa4b15195acecc0353c85a8ff3b0a5",
+   "bytes": 8150
+  },
+  "surveyor_field_set_boots": {
+   "file": "client/assets/icons/armour/surveyor_field_set_boots.webp",
+   "sha256": "dae4dc77c5b28f9b1b01ec7c077ff509001dd0e42e4e065e5b590850f3f8df71",
+   "bytes": 8880
+  },
+  "surveyor_field_set_chest": {
+   "file": "client/assets/icons/armour/surveyor_field_set_chest.webp",
+   "sha256": "408480a5bcb12a507111b298f7b9ff3b66bc462aa64826f94a24e75c674256ce",
+   "bytes": 7960
+  },
+  "surveyor_field_set_gloves": {
+   "file": "client/assets/icons/armour/surveyor_field_set_gloves.webp",
+   "sha256": "58be0835ea3fa6d3b34a3835a87029329ca0064758c8d9805445cb405c81ceba",
+   "bytes": 3818
+  },
+  "surveyor_field_set_greaves": {
+   "file": "client/assets/icons/armour/surveyor_field_set_greaves.webp",
+   "sha256": "cf3e3b30b07b6f15b73c97bba15a96088aa4c41bc2c99b9dbe32d32ab37b3a6b",
+   "bytes": 8082
+  }
+ }
+}

@@ -1,0 +1,98 @@
+{
+ "clips": [
+  "Idle_Loop",
+  "Walk_Loop",
+  "Jog_Fwd_Loop",
+  "Sprint_Loop",
+  "Interact",
+  "Spell_Simple_Shoot",
+  "Punch_Cross"
+ ],
+ "bodies": {
+  "m": {
+   "items": {
+    "keeper_field_set_boots": {
+     "min_clearance_m": -0.02024299789399565,
+     "inside_fraction_max": 0.09720326091196317,
+     "inside_body_fraction_max": 0.0012481959667667824,
+     "inside_shell_fraction_max": 0.09657916292857979,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 0.41973860042822086,
+     "pass": false
+    },
+    "keeper_field_set_chest": {
+     "min_clearance_m": -0.03794311449945746,
+     "inside_fraction_max": 0.035263741595619326,
+     "inside_body_fraction_max": 0.03323629306162057,
+     "inside_shell_fraction_max": 0.009201497192763568,
+     "arm_contact_fraction_max": 0.03275109170305677,
+     "max_edge_strain": 1.0,
+     "pass": false
+    },
+    "keeper_field_set_gloves": {
+     "min_clearance_m": -0.006440401503547889,
+     "inside_fraction_max": 0.0553723311925013,
+     "inside_body_fraction_max": 0.006353063704218018,
+     "inside_shell_fraction_max": 0.04901926748828329,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 1.3750752438651315,
+     "pass": false
+    },
+    "keeper_field_set_greaves": {
+     "min_clearance_m": -0.02246506042409932,
+     "inside_fraction_max": 0.04751161247511612,
+     "inside_body_fraction_max": 0.026277372262773723,
+     "inside_shell_fraction_max": 0.021234240212342402,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 0.527653657251768,
+     "pass": false
+    }
+   },
+   "body_edge_strain_p99": 0.7256999906285613,
+   "edge_strain_limit": 0.8345549892228454
+  },
+  "f": {
+   "items": {
+    "keeper_field_set_boots": {
+     "min_clearance_m": -0.023070554508425625,
+     "inside_fraction_max": 0.11306712466008301,
+     "inside_body_fraction_max": 0.005331329612136826,
+     "inside_shell_fraction_max": 0.10837984828968084,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 0.3530010884733519,
+     "pass": false
+    },
+    "keeper_field_set_chest": {
+     "min_clearance_m": -0.030351000969320027,
+     "inside_fraction_max": 0.04099136832137524,
+     "inside_body_fraction_max": 0.038278034745238006,
+     "inside_shell_fraction_max": 0.015569800050988819,
+     "arm_contact_fraction_max": 0.020286265797428708,
+     "max_edge_strain": 1.0,
+     "pass": false
+    },
+    "keeper_field_set_gloves": {
+     "min_clearance_m": -0.008237297447508155,
+     "inside_fraction_max": 0.036193029490616625,
+     "inside_body_fraction_max": 0.00825455058557923,
+     "inside_shell_fraction_max": 0.03478199520248342,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 0.779436433323348,
+     "pass": false
+    },
+    "keeper_field_set_greaves": {
+     "min_clearance_m": -0.020306393454769256,
+     "inside_fraction_max": 0.058973425555151074,
+     "inside_body_fraction_max": 0.03761679407838855,
+     "inside_shell_fraction_max": 0.04052906200703798,
+     "arm_contact_fraction_max": 0.0,
+     "max_edge_strain": 0.49364509324258987,
+     "pass": false
+    }
+   },
+   "body_edge_strain_p99": 0.7729270832833578,
+   "edge_strain_limit": 0.8888661457758614
+  }
+ },
+ "all_pass": false
+}
