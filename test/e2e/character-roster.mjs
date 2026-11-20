@@ -47,6 +47,10 @@ try{
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
+ const creationCamera=await page.locator('#creation-preview .preview-controls').boundingBox();
+ const creationSubmit=await page.locator('#enter').boundingBox();
+ assert.ok(creationCamera.y+creationCamera.height+12<creationSubmit.y,
+  'creation camera tools must not overlap primary creation action');
  if(evidence)await page.screenshot({path:join(evidence,'character-creation-fullscreen.png')});
  assert.equal(await page.locator('#login-form').isVisible(),true);
  await page.click('#creation-back');
@@ -66,6 +70,10 @@ try{
  assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
+ const rosterCamera=await page.locator('#roster-preview .roster-preview-controls').boundingBox();
+ const rosterEntry=await page.locator('#roster-enter').boundingBox();
+ assert.ok(rosterCamera.y+rosterCamera.height+10<rosterEntry.y,
+  'character selection camera tools must not overlap Enter World');
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  if(evidence){
   await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
