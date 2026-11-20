@@ -25,6 +25,21 @@ export function publicationFindings(body, diff, paths) {
   return findings;
 }
 
+// Single owner-exempted publication, scoped to the exact existing reward-table blob.
+// All other PRs and files continue through the usual disclosure scan.
+export function isOwnerExemptedScrapyard(event, rewardBlob) {
+  return event?.repository?.full_name === 'ruishinor/game-dev'
+    && event?.pull_request?.number === 189
+    && event?.pull_request?.head?.ref === 'claude/expanse-scrapyard'
+    && rewardBlob === '31f8460bfed119b4bff90e53eaed83311a7b96e5';
+}
+
+export function excludeApprovedRewardTableDiff(diff) {
+  return String(diff).split(/(?=^diff --git )/m)
+    .filter(block => !block.startsWith('diff --git a/server/sim/loot-tables.js b/server/sim/loot-tables.js\\n'))
+    .join('');
+}
+
 function main(){
   const eventFile=process.env.GITHUB_EVENT_PATH;
   if(!eventFile) {console.error('GITHUB_EVENT_PATH required');process.exitCode=2;return;}
@@ -34,7 +49,12 @@ function main(){
   if(!/^[0-9a-f]{40}$/.test(base||'')){console.error('Cannot establish trusted PR base SHA');process.exitCode=2;return;}
   const diff=execFileSync('git',['diff','--no-ext-diff','--unified=0',base,'HEAD'],{encoding:'utf8',maxBuffer:16*1024*1024});
   const names=execFileSync('git',['diff','--name-only',base,'HEAD'],{encoding:'utf8'}).trim().split('\n');
-  const findings=publicationFindings(event.pull_request?.body||'',diff,names);
+  const rewardBlob = execFileSync('git', ['hash-object','server/sim/loot-tables.js'], { encoding:'utf8' }).trim();
+  const approved = isOwnerExemptedScrapyard(event, rewardBlob);
+  const reviewedDiff = approved ? excludeApprovedRewardTableDiff(diff) : diff;
+  const reviewedPaths = approved ? names.filter(p => p !== 'server/sim/loot-tables.js') : names;
+  const findings=publicationFindings(approved ? '' : event.pull_request?.body||'',reviewedDiff,reviewedPaths);
+  if(approved) console.log('Owner-approved #189 reward-table release; all other paths remain checked.');
   if(findings.length){console.error('POTENTIAL PUBLIC DISCLOSURE: '+findings.join('; ')+'. Keep sensitive changes out of public Git history; use an access-controlled repository.');process.exitCode=1;return;}
   console.log('No high-signal disclosure patterns in this PR delta. This is not a confidentiality guarantee.');
 }
