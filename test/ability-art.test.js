@@ -11,7 +11,7 @@ test('Vanguard action illustrations are distinct original, layered SVGs',()=>{
     assert.match(art,/<svg[^>]*viewBox="0 0 64 64"/);
     assert.ok(art.includes('bg-'+ids[i])&&art.includes('clip-'+ids[i]));
     assert.ok((art.match(/<path\b/g)||[]).length>=3,'Each action needs multiple compositional layers');
-    assert.ok(!/https?:|<script|<image|foreignObject/i.test(art),'Original illustrations must not reference third-party imagery or scripts');
+    assert.ok(!/<script|<image|foreignObject|xlink:href|<use\b|href=/i.test(art),'Original illustrations must not embed remote imagery, scripts or external hrefs');
   }
 });
 
