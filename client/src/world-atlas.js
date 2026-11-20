@@ -1,5 +1,6 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
-import {WORLD,ZONES,COLLIDERS,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion,groundHeight} from '../../shared/world.js';
+import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
+import {reachAtlasTerrain} from './atlas-cartography.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function regionFor(pos){
@@ -7,8 +8,12 @@ export function regionFor(pos){
  return a?{area:a,name:a.name||'Current region',x:a.x,z:a.z,hw:a.hw,hd:a.hd}:{area:null,name:WORLD.name,x:0,z:0,hw:WORLD.radius,hd:WORLD.radius};
 }
 export function project(r,w,h,zoom=1,pan={x:0,z:0}){
- const k=Math.min((w-28)/(2*r.hw),(h-28)/(2*r.hd))*zoom;
- return {k,X:x=>w/2+(x-r.x-pan.x)*k,Z:z=>h/2+(z-r.z-pan.z)*k};
+ // Atlas blueprint: rectangular, edge-to-edge terrain plate (not a circle
+ // centered inside unused black canvas). Keep independent axis scales so every
+ // public region coordinate remains visible at zoom=1.
+ const kx=(w-28)/(2*r.hw)*zoom,kz=(h-28)/(2*r.hd)*zoom;
+ const k=Math.min(kx,kz);
+ return {k,kx,kz,X:x=>w/2+(x-r.x-pan.x)*kx,Z:z=>h/2+(z-r.z-pan.z)*kz};
 }
 export function pointInsideRegion(r,x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z))return false;
@@ -21,7 +26,7 @@ export function waypointRelative(position,target){
  return {distance:Math.hypot(x,z),bearing:(Math.atan2(x,-z)*180/Math.PI+360)%360};
 }
 export function pixelToWorld(r,projection,w,h,px,py,pan={x:0,z:0}){
- return {x:r.x+pan.x+(px-w/2)/projection.k,z:r.z+pan.z+(py-h/2)/projection.k};
+ return {x:r.x+pan.x+(px-w/2)/(projection.kx??projection.k),z:r.z+pan.z+(py-h/2)/(projection.kz??projection.k)};
 }
 export function daylightDisplay(state){
  if(!state?.applied||!Number.isFinite(state.t))return null;
@@ -33,17 +38,8 @@ export function formatMinutes(minutes,format='24'){
  const hours=Math.floor(minutes/60)%24,m=String(minutes%60).padStart(2,'0');
  return format==='12'?(hours%12||12)+':'+m+' '+(hours<12?'AM':'PM'):String(hours).padStart(2,'0')+':'+m;
 }
-let terrain;
-export function reachTerrain(){
- if(terrain)return terrain;
- const c=el('canvas');c.width=c.height=192;const g=c.getContext('2d'),a=g.createImageData(192,192),r=WORLD.radius,s=2*r/192;
- for(let j=0;j<192;j++)for(let i=0;i<192;i++){
- const x=-r+(i+.5)*s,z=-r+(j+.5)*s;if(Math.hypot(x,z)>r)continue;
- const h=groundHeight(x,z),slope=groundHeight(x-s,z-s)-h,shade=clamp(1+h*.018+slope*.25,.62,1.35),base=h<-2?[78,100,98]:h>3?[143,129,101]:[105,124,93],off=(j*192+i)*4;
- for(let k=0;k<3;k++)a.data[off+k]=base[k]*shade;a.data[off+3]=255;
- }
- g.putImageData(a,0,0);terrain=c;return c;
-}
+// Preserve the existing texture API for callers; render the richer terrain plate.
+export const reachTerrain=reachAtlasTerrain;
 export class WorldAtlas{
  constructor(root,settings,focusWorld){
  this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','enemies','objects']);
@@ -81,8 +77,8 @@ export class WorldAtlas{
   const moved=this.drag.moved||Math.hypot(dx,dy)>4;
   this.drag={x:e.clientX,y:e.clientY,moved};
   if(!moved)return;
-  this.pan.x=clamp(this.pan.x-dx*this.canvas.width/rect.width/this.p.k,-this.region.hw,this.region.hw);
-  this.pan.z=clamp(this.pan.z-dy*this.canvas.height/rect.height/this.p.k,-this.region.hd,this.region.hd);
+  this.pan.x=clamp(this.pan.x-dx*this.canvas.width/rect.width/this.p.kx,-this.region.hw,this.region.hw);
+  this.pan.z=clamp(this.pan.z-dy*this.canvas.height/rect.height/this.p.kz,-this.region.hd,this.region.hd);
   this.draw();
  });
  this.canvas.addEventListener('pointerup',e=>{
