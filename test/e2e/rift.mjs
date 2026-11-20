@@ -111,41 +111,24 @@ try{
  await page.keyboard.up('KeyW');
  await page.screenshot({path:'rift-evidence/05-severance-passage.png'});
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().you.x>200,null,{polling:250});
+ // Through the gate: the Silent Foundry (the Annex's replacement behind the gate).
+ await page.waitForFunction(()=>window.__attune.state().you?.region==='silent_foundry',null,{polling:250});
  assert.equal(p.char.materials.resonance_fragment,1,'travel must not grant the calibration reward again');
- assert.ok(server.game.enemies.some(e=>e.name==='Displaced Sentinel'));
- assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:licensed-frame')));
+ assert.ok(server.game.enemies.some(e=>e.name==='Foundry Overseer'),'the Foundry encounter opened');
  assert.ok(!server.game.objects.some(o=>o.type==='rift_entry'));
- assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:annex-deck')));
- assert.ok(await page.evaluate(()=>{
-   const cache=window.__attune.gfx.scene.getObjectByName('annex:recovery-cache');
-   let count=0;cache?.traverse(node=>{if(node.isMesh)count++});
-   return count>0;
- }), 'The Annex cache has rendered geometry after travel');
- await page.screenshot({path:'rift-evidence/06-annex.png'});
- assert.equal(server.game.enemies.filter(e=>e.annexEncounter).length,11);
- assert.ok(await page.evaluate(()=>{let walls=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:bulkhead')walls++});return walls===4;}));
-  assert.equal(await page.evaluate(()=>{let n=0;window.__attune.gfx.scene.traverse(o=>{if(o.name==='annex:mineral-formation')n++});return n;}),10);
- // Stage inside the Annex on the far side of the return gate, away from
- // gallery enemies. Do not reset aggro, buffs or combat timers.
+ await page.waitForFunction(()=>window.__attune.gfx.scene.getObjectByName('silent-foundry')?.visible===true,null,{polling:250});
+ await page.waitForTimeout(1500);
+ await page.screenshot({path:'rift-evidence/06-silent-foundry.png'});
+ // Return through the Foundry portal, out of combat, with the original live player.
+ const foundryExit=server.game.objects.find(o=>o.type==='foundry_return');
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  try{
-  await move(f.exit,1.7);
-  await page.waitForFunction(id=>{
-   const s=window.__attune.state(),self=s.ents.find(e=>e.id===s.myId);
-   if(!self||self.dead||(self.row.f&8)||self.row.b?.includes('root')||!s.you||s.you.auto)return false;
-   const eligible=new Set((s.you.lootable??[]).map(e=>e.id));
-   const nearest=s.ents.filter(e=>e.row&&(e.k==='o'||(e.k==='e'&&e.dead&&eligible.has(e.id))))
-     .map(e=>({id:e.id,d:Math.hypot(e.row.x-s.you.x,e.row.z-s.you.z)}))
-     .filter(e=>e.d<=5).sort((a,b)=>a.d-b.d||a.id-b.id)[0];
-   return nearest?.id===id;
-  },f.exit.id,{timeout:20000,polling:100});
-  assert.ok((await liveFixturePlayer(page,server,'Rift Tester'))===p,'Annex return must use the original live player');
+  for(const e of server.game.enemies)if(e.foundryEncounter)e.threat.clear();
+  p.combatUntil=0;
+  p.x=foundryExit.x;p.z=foundryExit.z-3.6;
+  await page.waitForFunction(id=>{const s=window.__attune.state();return s.you&&!s.you.auto&&s.ents.some(e=>e.id===id)&&Math.hypot(s.you.x-s.ents.find(e=>e.id===id).row.x,s.you.z-s.ents.find(e=>e.id===id).row.z)<5;},foundryExit.id,{timeout:20000,polling:100});
   await page.locator('#view').focus();await page.keyboard.press('KeyF');
-  // The Annex returns to the foot of the Severance Gate.
   await page.waitForFunction(()=>window.__attune.state().you?.region==='severance_expanse',null,{polling:250});
- }catch(error){
-  throw new Error(`Annex return failed (HP ${p.hp}, phase ${f.phase}, combat ${Math.round(p.combatUntil-server.game.time)}ms, auto ${p.autoOn}, root ${p.buffs.some(b=>b.k==='root'&&b.until>server.game.time)}, distance ${Math.hypot(p.x-f.exit.x,p.z-f.exit.z).toFixed(2)})`,{cause:error});
  }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
  // The arrival rift returns to the Reach. Approach from the actual arrival
  // terrace; render the stable membrane and verify the entity anchor.

@@ -188,14 +188,11 @@ export function buildSeverancePocket(T, scene, o) {
   // Manual clock: review captures advance the Expanse presentation by explicit
   // steps only, so frames are reproducible. Live play never uses it.
   let manual = false, lastEye = null, lastT = 0, kitTime = 0;
-  let cull = [], culled = null;
   const own = new Set(scene.children.filter((c) => !preexisting.has(c)));
   const sky = o.lighting?.sky;
   function frame(dt, t, eye) {
       const inside = !!eye && inSeverancePocket(eye.x, eye.z, 40);
       group.visible = inside;
-      if (inside && !culled) { culled = cull.filter((c) => c.visible); for (const c of culled) c.visible = false; }
-      else if (!inside && culled) { for (const c of culled) c.visible = true; culled = null; }
       landmark.update(dt, t, eye, { deterministic: manual });
       if (inside && !ruinsPlaced && landmark.status === 'ready') {
         ruinsPlaced = landmark.placeRuins(ruins, o.ground)(SEVERANCE_RUINS);
@@ -234,8 +231,8 @@ export function buildSeverancePocket(T, scene, o) {
       lastEye = eye; lastT = t;
       frame(manual ? 0 : dt, t, eye);
     },
-    /** Static Reach objects to hide while the camera is inside the Expanse. */
-    setRegionCull(list) { cull = list.filter((c) => !c.isLight && !own.has(c)); },
+    /** Scene children created by this module (never culled with the Reach). */
+    owns(c) { return own.has(c); },
     /** Review captures: freeze the Expanse presentation clock (true) or release it. */
     setManualClock(on) { manual = !!on; },
     /** Advance the frozen presentation by exactly dt seconds, at most 0.1 per step (manual clock only). */

@@ -12,6 +12,8 @@ export const PLAYER_RADIUS = 0.45;
 export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
 import { SEVERANCE_POCKET, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
+import { SILENT_FOUNDRY, FOUNDRY_COLLIDERS, inSilentFoundry, foundryArea, foundryHeight, clampToFoundry } from './silent-foundry.js';
+export { SILENT_FOUNDRY, inSilentFoundry, foundryArea } from './silent-foundry.js';
 export { SEVERANCE_POCKET, SEVERANCE_EXPANSE, SEVERANCE_GATE, EXPEDITION_OUTPOST, inSeverancePocket, inExpeditionOutpost } from './severance-gate.js';
 
 export const WORLD = {
@@ -27,11 +29,11 @@ export function inRiftAnnex(x,z,pad=0){
  return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
 }
 export function travelRegionAt(x, z) {
-  return inRiftAnnex(x, z, 2) ? 'phase_annex' : inSeverancePocket(x, z, 2) ? 'severance_expanse' : 'reach';
+  return inRiftAnnex(x, z, 2) ? 'phase_annex' : inSeverancePocket(x, z, 2) ? 'severance_expanse' : inSilentFoundry(x, z, 2) ? 'silent_foundry' : 'reach';
 }
 /** Areas reached only by server-owned travel; reconnects there return to the Reach. */
 export function inDisconnectedRegion(x, z, pad = 2) {
-  return inRiftAnnex(x, z, pad) || inSeverancePocket(x, z, pad);
+  return inRiftAnnex(x, z, pad) || inSeverancePocket(x, z, pad) || inSilentFoundry(x, z, pad);
 }
 
 export function sameTravelRegion(a, b) {
@@ -99,6 +101,7 @@ const FLAT_AREAS = [
 export function groundHeight(x, z) {
   if(inRiftAnnex(x,z,2))return 0;
   if(inSeverancePocket(x,z,2))return pocketHeight(x,z);
+  if(inSilentFoundry(x,z,2))return foundryHeight(x,z);
   let h =
     1.7 * Math.sin(x * 0.043) * Math.cos(z * 0.051) +
     0.9 * Math.sin(x * 0.11 + 1.3) * Math.sin(z * 0.093 + 0.7) +
@@ -324,7 +327,7 @@ export const ANNEX_FORMATIONS=Object.freeze([
 ].map(([dx,z,r,h,seed])=>Object.freeze({type:'annex_formation',x:RIFT_ANNEX.x+dx,z,r,h,seed})));
 // Ambient Stillpoint marker (presentation only; the living creature has no static collider).
 export const STILLPOINT_SITE=Object.freeze({type:'stillpoint_rest',x:8,z:-1.5,r:2,h:1.9,seed:107});
-export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE,...SEVERANCE_PROPS];
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE,...SEVERANCE_PROPS,...FOUNDRY_COLLIDERS];
 export const COLLIDERS = PROPS.filter((p) => p.type!=='stillpoint_rest' && (p.r !== undefined || p.hw !== undefined));
 
 // Conservative horizontal cover test against the same solid prop footprints
@@ -404,6 +407,9 @@ if(RIFT_SITE){
 OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x:GATE_THRESHOLD.x,z:GATE_THRESHOLD.z,r:0,embedded:true},
   {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:PHASE_RIFT_RADIUS,
     yaw:Math.atan2(SEVERANCE_POCKET.arrival.x-SEVERANCE_POCKET.beacon.x,SEVERANCE_POCKET.arrival.z-SEVERANCE_POCKET.beacon.z)});
+// The Silent Foundry: its return portal (back to the gate) and the Depths cache.
+OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Severance Gate',x:SILENT_FOUNDRY.exit.x,z:SILENT_FOUNDRY.exit.z,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
+  {key:'foundry_cache',type:'foundry_cache',name:'Depths Recovery Cache',x:SILENT_FOUNDRY.cache.x,z:SILENT_FOUNDRY.cache.z,r:.9});
 OBJECTS.push({key:'expedition_quartermaster',type:'expedition_quartermaster',name:'Expedition Quartermaster',x:EXPEDITION_OUTPOST.quartermaster.x,z:EXPEDITION_OUTPOST.quartermaster.z,r:.5,yaw:EXPEDITION_OUTPOST.quartermaster.yaw});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
@@ -456,8 +462,9 @@ export function deepLineClear(a, b) {
  * the world. Mutates and returns `p` ({x, z}).
  */
 export function resolveCollisions(p, rad) {
-  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX,pocket=!annex&&inSeverancePocket(p.x,p.z,4);
+  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX,pocket=!annex&&inSeverancePocket(p.x,p.z,4),foundry=!annex&&!pocket&&inSilentFoundry(p.x,p.z,4);
   if(pocket)clampToPocket(p,rad);
+  if(foundry)clampToFoundry(p,rad);
   const clampAnnex=()=>{p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));};
   if(annex)clampAnnex();
   for (let pass = 0; pass < 2; pass++) {
@@ -506,6 +513,7 @@ export function resolveCollisions(p, rad) {
   }
   if(annex){clampAnnex();return p;}
   if(pocket){clampToPocket(p,rad);return p;}
+  if(foundry){clampToFoundry(p,rad);return p;}
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {
@@ -565,6 +573,7 @@ export function inSafeZone(p) {
 
 export function zoneAt(x, z) {
   if(inRiftAnnex(x,z,2))return annexArea(x,z)?RIFT_ANNEX.name+' · '+annexArea(x,z):RIFT_ANNEX.name;
+  if(inSilentFoundry(x,z,2))return foundryArea(x,z)?SILENT_FOUNDRY.name+' · '+foundryArea(x,z):SILENT_FOUNDRY.name;
   if(inSeverancePocket(x,z,2))return SEVERANCE_POCKET.name+' · '+pocketArea(x,z);
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];

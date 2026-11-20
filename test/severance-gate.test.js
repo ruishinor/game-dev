@@ -14,7 +14,7 @@ import {
   GATE_FRAME, SEVERANCE_GATE, SEVERANCE_POCKET, GATE_COLLIDERS, SEVERANCE_RUINS, GATE_THRESHOLD, GATE_FRONT,
   gateToWorld, worldToGate, gateGroundHeight, gateCameraBlocked, inSeverancePocket,
 } from '../shared/severance-gate.js';
-import { WORLD, PLAYER_RADIUS, COLLIDERS, OBJECTS, stepMove, resolveCollisions, groundHeight, hasLineOfSight, travelRegionAt, zoneAt, inRiftAnnex } from '../shared/world.js';
+import { WORLD, PLAYER_RADIUS, COLLIDERS, OBJECTS, stepMove, resolveCollisions, groundHeight, hasLineOfSight, travelRegionAt, zoneAt, inSilentFoundry, SILENT_FOUNDRY } from '../shared/world.js';
 import { createSeveranceGateLandmark, SEVERANCE_GATE_URL, PHASE_LEVEL, BANDS, LIMITS, severanceLink } from '../client/src/severance-gate.js';
 
 const bytes = readFileSync(new URL('../tools/asset-pipeline/assets/severance_gate/outputs/severance_gate.glb', import.meta.url));
@@ -281,8 +281,10 @@ test('gate travel: only through the passage, active, calibrated, alive, out of c
   const before = g.enemies.length;
   g.events.length = 0;
   assert.ok(interact(g, p, s.gate.id).ok);
-  assert.ok(inRiftAnnex(p.x, p.z));
-  assert.equal(g.enemies.length, before + 11, 'the Annex encounter opens once');
+  assert.ok(inSilentFoundry(p.x, p.z));
+  const foundryCount = g.enemies.filter((e) => e.foundryEncounter).length;
+  assert.ok(foundryCount >= 12, 'the Foundry encounter opens once');
+  assert.equal(g.enemies.length, before + foundryCount);
   const ev = g.events.filter((e) => e.k === 'severance_traverse');
   assert.equal(ev.length, 1);
   assert.equal(ev[0].m, 0);
@@ -293,10 +295,10 @@ test('gate travel: only through the passage, active, calibrated, alive, out of c
   g.time += 1000;
   assert.ok(interact(g, q, s.gate.id).ok);
   assert.equal(g.events.filter((e) => e.k === 'severance_traverse').at(-1).m, 1);
-  assert.equal(g.enemies.length, before + 11, 'no reset-on-entry');
-  // the Annex arrival gate returns to the foot of the Severance Gate
-  const exit = g.rift.exit;
-  place(p, exit.x, exit.z - 1.7);
+  assert.equal(g.enemies.length, before + foundryCount, 'no reset-on-entry');
+  // the Foundry's return portal leads to the foot of the Severance Gate
+  const exit = g.objects.find((o) => o.type === 'foundry_return');
+  place(p, exit.x, exit.z - 3.6);
   assert.ok(interact(g, p, exit.id).ok);
   assert.ok(Math.hypot(p.x - GATE_FRONT.x, p.z - GATE_FRONT.z) < 1e-6);
   // the arrival beacon returns to the Reach beside the Phase Scar
@@ -382,11 +384,10 @@ test('HTTP serves the gate GLB with immutable caching and not its authoring sour
   } finally { await srv.close(); }
 });
 
-test('companions summon and follow in the Severance Expanse (and the Phase Annex)', async () => {
+test('companions summon and follow in the Severance Expanse and the Silent Foundry', async () => {
   const { manageCompanion } = await import('../server/sim/companion.js');
   const { tickSpindle } = await import('../server/sim/spindle.js');
-  const { RIFT_ANNEX } = await import('../shared/world.js');
-  for (const [where, at] of [['expanse arrival', SEVERANCE_POCKET.arrival], ['gate front', GATE_FRONT], ['annex arrival', { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ }]]) {
+  for (const [where, at] of [['expanse arrival', SEVERANCE_POCKET.arrival], ['gate front', GATE_FRONT], ['foundry arrival', SILENT_FOUNDRY.arrival]]) {
     const g = makeGame();
     const p = g.addPlayer(makeChar('vanguard', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
     assert.ok(manageCompanion(g, p, 'commission', 'spindle').ok);
@@ -396,7 +397,7 @@ test('companions summon and follow in the Severance Expanse (and the Phase Annex
     const c = p.companion;
     assert.equal(travelRegionAt(c.x, c.z), travelRegionAt(p.x, p.z), `${where}: spawned beside the owner`);
     // the owner walks 12 m; the Spindle follows on foot
-    place(p, p.x + (where === 'annex arrival' ? 0 : 6), p.z - 10);
+    place(p, p.x + (where === 'foundry arrival' ? 0 : 6), p.z - 10);
     for (let t = 0; t < 8000; t += 50) { g.time += 50; tickSpindle(g, c, 0.05); }
     assert.ok(Math.hypot(c.x - p.x, c.z - p.z) < 4, `${where}: follows (${Math.hypot(c.x - p.x, c.z - p.z).toFixed(1)} m)`);
   }

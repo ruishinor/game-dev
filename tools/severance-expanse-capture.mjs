@@ -11,6 +11,7 @@ import { startServer } from '../server/index.js';
 import { launchBrowser, SOFTWARE_GL } from './browser.mjs';
 import { SEVERANCE_EXPANSE as E, SEVERANCE_RING as R, SEVERANCE_CRYSTALS, gateToWorld } from '../shared/severance-gate.js';
 import { liveFixturePlayer } from '../test/e2e/live-fixture.mjs';
+import { SILENT_FOUNDRY as SF } from '../shared/silent-foundry.js';
 
 const out = process.argv[2];
 if (!out) { console.error('usage: node tools/severance-expanse-capture.mjs <outDir> [prefixes]'); process.exit(2); }
@@ -76,6 +77,17 @@ try {
   await shot('15-arrival-live-default-lighting', E.arrival, N, { yaw: N, pitch: 0.14, dist: 7 }, { tod: 'off' });
   await shot('16-gate-live-default-lighting', gateToWorld(0, -70), N, { yaw: N, pitch: 0.16, dist: 9 }, { tod: 'off' });
   await page.evaluate(() => window.__attune.timeOfDay({ mode: 'off' }));
+  // the Silent Foundry behind the gate
+  if (!only.length || only.some((o) => o.startsWith('2'))) {
+    game.transferPlayer(p, { ...SF.arrival });
+    await page.waitForFunction(() => window.__attune.state().you?.region === 'silent_foundry', null, { polling: 250 });
+    const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
+    await shot('20-foundry-fabrication-hall', f(0, 92), S, { yaw: S, pitch: 0.12, dist: 7 }, { tod: 'off' });
+    await shot('21-foundry-cultivation-vault', f(0, 50), S, { yaw: S, pitch: 0.14, dist: 7 }, { tod: 'off' });
+    await shot('22-foundry-harmonic-chamber', f(0, -4), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
+    await shot('23-foundry-excavation-depths', f(0, -54), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
+    await shot('24-foundry-vats-close', f(5, 20), W + 0.4, { yaw: W + 0.4, pitch: 0.1, dist: 5 }, { tod: 'off' });
+  }
   const graphics = await page.evaluate(() => { const gl = window.__attune.gfx.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); return { renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) }; });
   fs.writeFileSync(path.join(out, 'capture-log.json'), JSON.stringify({ graphics, software: SOFTWARE_GL, errors, views: log }, null, 1));
   if (errors.length) console.log('page errors', errors);

@@ -1980,6 +1980,8 @@ export class UI {
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');
     else if(st.nearObject?.meta.c==='phase_scar')set(this.interact,'text',lock?'Phase Scar · disengage first':'[F] Inspect / traverse Phase Scar');
     else if(st.nearObject?.meta.c==='annex_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Null Chamber cache');
+    else if(st.nearObject?.meta.c==='foundry_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Depths recovery cache');
+    else if(st.nearObject?.meta.c==='foundry_return')set(this.interact,'text',lock?'Return portal · disengage first':'[F] Return to the Severance Gate');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_') || ['sanctum_fabricator','initiation_terminal'].includes(st.nearObject.meta.c)) ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);

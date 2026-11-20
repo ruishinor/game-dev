@@ -2,11 +2,11 @@
 // the active companion; buffs are not companions and are not removed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeGame, makeChar, place, travelToAnnex } from './helpers.js';
+import { makeGame, makeChar, place, travelToFoundry } from './helpers.js';
 import { interact } from '../server/sim/progress.js';
 import { manageCompanion } from '../server/sim/companion.js';
 import { addBuff } from '../server/sim/combat.js';
-import { inRiftAnnex, inSeverancePocket } from '../shared/world.js';
+import { inSilentFoundry, inSeverancePocket } from '../shared/world.js';
 
 function annexReady(game) {
   const p = game.addPlayer(makeChar('symbiotech', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
@@ -14,7 +14,7 @@ function annexReady(game) {
   return p;
 }
 
-test('transit: entering and leaving the Phase Annex dismisses the companion and keeps buffs', async () => {
+test('transit: entering and leaving the Silent Foundry dismisses the companion and keeps buffs', async () => {
   const g = makeGame();
   const p = annexReady(g);
   assert.ok(p.companion, 'the Mender is active before travel');
@@ -23,8 +23,8 @@ test('transit: entering and leaving the Phase Annex dismisses the companion and 
   addBuff(p, { k: 'ward', until, absorb: 0.2 });
   addBuff(p, { k: 'bond', until, src: c.id, dr: 0.1 });
   const before = p.buffs.map((b) => ({ ...b }));
-  assert.ok((await travelToAnnex(g, p)).ok);
-  assert.ok(inRiftAnnex(p.x, p.z));
+  assert.ok((await travelToFoundry(g, p)).ok);
+  assert.ok(inSilentFoundry(p.x, p.z));
   assert.equal(p.companion, null, 'companion dismissed on entry');
   assert.equal(g.ents.has(c.id), false, 'companion entity removed from the world');
   assert.equal(p.char.companionDismissed, true);
@@ -32,10 +32,11 @@ test('transit: entering and leaving the Phase Annex dismisses the companion and 
   // re-summoned inside, then dismissed again on the way out
   assert.ok(manageCompanion(g, p, 'summon').ok);
   const inside = p.companion;
-  place(p, g.rift.exit.x, g.rift.exit.z - 1.7);
-  assert.ok(interact(g, p, g.rift.exit.id).ok);
-  assert.ok(!inRiftAnnex(p.x, p.z));
-  assert.ok(inSeverancePocket(p.x, p.z), 'the Annex returns travellers to the Severance Gate');
+  const exit = g.objects.find((o) => o.type === 'foundry_return');
+  place(p, exit.x, exit.z - 3.6);
+  assert.ok(interact(g, p, exit.id).ok);
+  assert.ok(!inSilentFoundry(p.x, p.z));
+  assert.ok(inSeverancePocket(p.x, p.z), 'the Foundry returns travellers to the Severance Gate');
   assert.equal(p.companion, null, 'companion dismissed on exit');
   assert.equal(g.ents.has(inside.id), false);
 });
