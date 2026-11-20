@@ -25,6 +25,7 @@ import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
 import { spawnSalvageCamp } from './severance-camps.js';
+import { spawnSeveranceSoldiers } from './severance-soldiers.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
@@ -47,6 +48,9 @@ export const RESPAWN_DELAY_MS = 3000;
 export const COMBAT_LINGER_MS = 6000;
 
 const r2 = (n) => Math.round(n * 100) / 100;
+
+// Presentation only: the Cinderlock pieces every Severance Soldier wears.
+const SOLDIER_ARMOUR = Object.freeze({ chest: 'vanguard_field_set_chest', gloves: 'vanguard_field_set_gloves', greaves: 'vanguard_field_set_greaves', boots: 'vanguard_field_set_boots' });
 
 export class Game {
   constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000, eliteRng=()=>randomInt(1000000)/1000000 } = {}) {
@@ -236,7 +240,10 @@ export class Game {
   // --- movement ----------------------------------------------------------
 
   moveSpeedMul(p) {
-    return p.dead ? 0 : 1;
+    if (p.dead) return 0;
+    // a hostile snare (Severance Soldier spore lash); prediction uses the same value
+    const sn = p.buffs?.find((b) => b.k === 'snare' && b.until > this.time);
+    return sn ? sn.mul : 1;
   }
 
   /**
@@ -312,7 +319,7 @@ export class Game {
 
   /** Expanse patrols spawn with the first arrival and then persist (server-only routes). */
   openExpanse() {
-    if(!this.expanseOpened){spawnSeverancePatrols(this);spawnSalvageCamp(this);this.expanseOpened=true;}
+    if(!this.expanseOpened){spawnSeverancePatrols(this);spawnSalvageCamp(this);spawnSeveranceSoldiers(this);this.expanseOpened=true;}
   }
 
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
@@ -467,7 +474,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}), ...(ent.socialVisual ? { sv: ent.socialVisual } : ent.armourVisual ? { av: ent.armourVisual } : {}) };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite || ent.elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite || ent.elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) , ...(ENEMIES[ent.type].humanoid ? { av: SOLDIER_ARMOUR, af: ENEMIES[ent.type].humanoid.family, ...(ent.size ? { sz: ent.size } : {}) } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:

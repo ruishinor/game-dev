@@ -308,6 +308,37 @@ export const ENEMIES = {
     xp: 180,
     respawn: 60000,
   },
+  // Severance Soldiers: armoured patrols of the Expanse. One combat kit per
+  // Cinderlock variant (its energy family names the class it fights like).
+  // aggroLow: proximity aggro against players below level 4 ("extremely
+  // hostile"); aggro applies to level 4 and above. squad pulls the patrol.
+  severance_vanguard: {
+    name: 'Severance Soldier', level: 4, hp: 210, speed: 4.6, radius: 0.55, aggro: 12, aggroLow: 24, social: 20, leash: 36,
+    attack: { range: 2.8, interval: 1600, dmg: 10, kind: 'melee' },
+    specials: [{ id: 'cinder_cleave', name: 'Cinder Cleave', cd: 11000, first: 4500, windup: 1300, radius: 4, dmg: 24, at: 'self' }],
+    humanoid: { look: 'vanguard_plate', family: 'CL' }, xp: 70, respawn: 120000,
+  },
+  severance_keeper: {
+    name: 'Severance Soldier', level: 4, hp: 175, speed: 4.4, radius: 0.55, aggro: 12, aggroLow: 24, social: 20, leash: 36,
+    attack: { range: 18, interval: 2000, dmg: 8, kind: 'bolt' },
+    specials: [{ id: 'vesper_ward', name: 'Vesper Ward', cd: 15000, first: 5000, windup: 900, radius: 12, dmg: 0, at: 'self', effect: { ward: 0.65, ms: 6000 } }],
+    humanoid: { look: 'aegis_keeper', family: 'VG' }, xp: 70, respawn: 120000,
+  },
+  severance_symbiote: {
+    name: 'Severance Soldier', level: 4, hp: 165, speed: 4.4, radius: 0.55, aggro: 12, aggroLow: 24, social: 20, leash: 36,
+    attack: { range: 20, interval: 2000, dmg: 7, kind: 'bolt' },
+    specials: [
+      { id: 'spore_lash', name: 'Spore Lash', cd: 12000, first: 3500, windup: 1100, radius: 3, dmg: 10, at: 'target', effect: { snare: 0.55, ms: 3500 } },
+      { id: 'mycelial_mend', name: 'Mycelial Mend', cd: 16000, first: 9000, windup: 1400, radius: 12, dmg: 0, at: 'self', effect: { heal: 0.18 } },
+    ],
+    humanoid: { look: 'conductor', family: 'MY' }, xp: 70, respawn: 120000,
+  },
+  severance_surveyor: {
+    name: 'Severance Soldier', level: 4, hp: 170, speed: 4.4, radius: 0.55, aggro: 12, aggroLow: 24, social: 20, leash: 36,
+    attack: { range: 20, interval: 1900, dmg: 9, kind: 'bolt' },
+    specials: [{ id: 'strata_charge', name: 'Strata Charge', cd: 10000, first: 4500, windup: 1800, radius: 5, dmg: 26, at: 'target' }],
+    humanoid: { look: 'brine_surveyor', family: 'SW' }, xp: 70, respawn: 120000,
+  },
 };
 
 const sp = (type, zone, dx, dz) => ({ type, x: ZONES[zone].x + dx, z: ZONES[zone].z + dz });

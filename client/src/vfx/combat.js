@@ -29,7 +29,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse','vein_extract','vein_harvest','vein_break','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','vein_extract','vein_harvest','vein_break','cinder_cleave','vesper_ward','spore_lash','mycelial_mend','strata_charge','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -350,6 +350,32 @@ export class CombatVfx {
       v.sigil({ at: this.feet(o), radius: 1.5, style: 'survey', color: 0xbacb9a, life: 1.2, spin: 0.8 });
       if (s?.placed) v.beam({ from: () => o.head, to: s.chest, color: 0xbacb9a, width: 0.08, life: 0.85, grow: 0.3, flow: -3, hold: true });
       v.burst({ at: () => o.head, count: 10, cell: CELL.diamond, color: 0xe8f0d8, color2: 0xbacb9a, size: [0.05, 0.09], life: [0.6, 1], speed: [0.2, 0.8], drag: 1.5 });
+      return;
+    }
+    // Severance Soldier kits: each in its Cinderlock variant's energy language
+    if(['cinder_cleave','vesper_ward','spore_lash','mycelial_mend','strata_charge'].includes(e.k)){
+      if(!Number.isFinite(e.x)||!Number.isFinite(e.z))return;
+      const f=[e.x,groundHeightOr(e,s),e.z],r=Number.isFinite(e.r)?e.r:3;
+      if(e.k==='cinder_cleave'){
+        v.shock({at:f,radius:r,color:0xff4a1c,life:.55,width:.16});
+        v.burst({at:[f[0],f[1]+.9,f[2]],shape:'disc',radius:r*.6,count:26,cell:[CELL.ember,CELL.streak],color:0xffb070,color2:0xff3a1c,size:[.05,.13],sizeEnd:.02,life:[.35,.8],speed:[2,4.5],gravity:2.2,stretch:.04});
+        v.scorch({at:f,radius:r*.75,color:0xff5a2a,life:2});
+        v.flash({at:[f[0],f[1]+1,f[2]],color:0xff5a2a,intensity:8,life:.25});
+      }else if(e.k==='strata_charge'){
+        v.shock({at:f,radius:r,color:0xffa040,life:.7,width:.14});
+        v.burst({at:[f[0],f[1]+.3,f[2]],shape:'disc',radius:r*.5,count:30,cell:[CELL.shard,CELL.diamond],color:0xffd08a,color2:0xff9a3c,size:[.06,.16],sizeEnd:.03,life:[.5,1],speed:[2.5,5.5],gravity:4,spin:[-4,4]});
+        v.scorch({at:f,radius:r*.7,color:0xff9a3c,life:2.4});
+        v.flash({at:[f[0],f[1]+.8,f[2]],color:0xffb060,intensity:10,life:.3});
+      }else if(e.k==='spore_lash'){
+        v.burst({at:[f[0],f[1]+.6,f[2]],shape:'sphere',radius:.6,count:22,cell:[CELL.glow,CELL.ember],color:0xb6f06a,color2:0x52f0a0,size:[.05,.12],sizeEnd:.02,life:[.6,1.2],speed:[.4,1.4],gravity:-.2,drag:1});
+        v.sigil({at:f,radius:r,style:'restorative',color:0x52f0a0,life:1.2,spin:-.9,alpha:.6});
+      }else if(e.k==='vesper_ward'){
+        v.sigil({at:f,radius:Math.min(r,6),style:'resonance',color:0x7fd6ff,life:1.4,spin:.8,grow:.2,alpha:.55});
+        v.shell({at:[f[0],f[1],f[2]],radius:1.4,height:2.4,kind:'wall',color:0x9fdcff,life:1.1,from:.4,to:1,alpha:.35,streak:1.2});
+      }else{
+        v.sigil({at:f,radius:Math.min(r,6),style:'restorative',color:0x6ff0a8,life:1.5,spin:.5,grow:.2,alpha:.55});
+        this.rising(f,2.2,[CELL.glow,CELL.cross],0x6ff0a8,18,2.4);
+      }
       return;
     }
     if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){

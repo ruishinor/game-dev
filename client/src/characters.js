@@ -286,7 +286,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       armours.set(slot, entry);
       const apply = () => {
         if (disposed || armours.get(slot) !== entry || entry.handle) return;
-        entry.handle = wearArmour(assets, inst, body, item);
+        entry.handle = wearArmour(assets, inst, body, item, opts.armourFamily);
         armourSetSignature();
       };
       if (assets.get(bundle)) apply();
@@ -669,6 +669,8 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  */
 export function createModel(assets, meta, glb = true) {
   const model = buildModel(assets, meta, glb);
+  // elite presence (allowlisted presentation size, e.g. a Severance Overseer)
+  if (meta.k === 'e' && Number.isFinite(meta.sz) && meta.sz > 1 && meta.sz <= 1.6 && model?.group) model.group.scale.multiplyScalar(meta.sz);
   return meta.vx ? applyEnemyVariant(THREE, model, meta.vx) : model;
 }
 
@@ -679,7 +681,7 @@ function buildModel(assets, meta, glb) {
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster', 'outpost_crew'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster', 'outpost_crew'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.k === 'e' ? (meta.n || meta.c) + '#' + meta.i : meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' || meta.k === 'e' ? meta.av : null, armourFamily: meta.k === 'e' && ['CL', 'VG', 'MY', 'SW'].includes(meta.af) ? meta.af : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {

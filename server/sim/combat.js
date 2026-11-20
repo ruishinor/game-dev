@@ -95,6 +95,8 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if (dst.kind === 'enemy') {
     const cor = getBuff(dst, 'corrode');
     if (cor) amt *= cor.mul;
+    const ward = getBuff(dst, 'ward');
+    if (ward && ward.until > game.time) amt *= ward.mul;
   } else {
     const ward = getBuff(dst, 'ward');
     if (ward) {

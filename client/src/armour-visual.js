@@ -32,7 +32,8 @@ function bodyMesh(inst) {
  * ('humanoid_m' | 'humanoid_f'). Returns a handle, or null when the bundle is
  * not loaded or the item has no model (the caller retries once loaded).
  */
-export function wearArmour(assets, inst, body, item) {
+/** @param family optional energy family override ('CL'|'VG'|'MY'|'SW') for NPC variants */
+export function wearArmour(assets, inst, body, item, family = null) {
   const bundle = armourBundle(body, item);
   if (!bundle) return null;
   const src = assets.instance(bundle);
@@ -85,7 +86,7 @@ export function wearArmour(assets, inst, body, item) {
   const fxMeshes = meshes.filter((m) => isChannelMaterial(m.material?.name) || m.name.endsWith('__fx'));
   const glassMeshes = meshes.filter((m) => isGlassMaterial(m.material?.name) || m.name.endsWith('__glass'));
   const resolved = anchors.map((a) => ({ ...a, bone: inst.getObjectByName(a.joint) })).filter((a) => a.bone);
-  const fx = fxMeshes.length || resolved.length || glassMeshes.length ? createArmourFx(fxMeshes, resolved, glassMeshes) : null;
+  const fx = fxMeshes.length || resolved.length || glassMeshes.length ? createArmourFx(fxMeshes, resolved, glassMeshes, family) : null;
   return {
     item,
     mesh: meshes[0],

@@ -187,8 +187,8 @@ const _v = new THREE.Vector3();
  * `glassMeshes`: bound translucent meshes. The family comes from the channel
  * (or glass) material name; Cinderlock when unknown.
  */
-export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
-  const famKey = familyOf(fxMeshes[0]?.material?.name || glassMeshes[0]?.material?.name || CHANNEL_MATERIAL);
+export function createArmourFx(fxMeshes, anchors, glassMeshes = [], family = null) {
+  const famKey = family && Object.hasOwn(FAMILIES, family) ? family : familyOf(fxMeshes[0]?.material?.name || glassMeshes[0]?.material?.name || CHANNEL_MATERIAL);
   const fam = FAMILIES[famKey];
   const u = {
     uTime: { value: 0 }, uLevel: { value: 1 }, uGain: { value: 1 }, uMotion: { value: 1 }, uSurge: { value: 0 }, uSurgeAge: { value: 9 },

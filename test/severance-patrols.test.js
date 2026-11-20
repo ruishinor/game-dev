@@ -1,4 +1,5 @@
 import { SALVAGE_GARRISON } from '../server/sim/severance-camps.js';
+import { SEVERANCE_SQUADS } from '../server/sim/severance-soldiers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -36,7 +37,7 @@ test('patrols spawn once with the first arrival, walk their routes, and persist'
   const patrols = g.enemies.filter((e) => e.severancePatrol);
   assert.equal(patrols.length, SEVERANCE_PATROLS.length);
   // the Expanse opens with its patrols and the Scrapyard garrison, once
-  assert.equal(g.enemies.length, before + SEVERANCE_PATROLS.length + SALVAGE_GARRISON.length);
+  assert.equal(g.enemies.length, before + SEVERANCE_PATROLS.length + SALVAGE_GARRISON.length + SEVERANCE_SQUADS.reduce((n, s) => n + s.members.length, 0));
   for (const e of patrols) assert.equal(travelRegionAt(e.x, e.z), 'severance_expanse');
   const start = patrols.map((e) => ({ x: e.x, z: e.z }));
   for (let i = 0; i < 400; i++) g.tick(50);

@@ -3,7 +3,7 @@
 
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
-import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
+import { addThreat, dealDamage, expireBuffs, getBuff, addBuff } from './combat.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
 // Long patrols leash to the point where they broke off their route (their
@@ -116,7 +116,7 @@ function beginSpecial(game, e, sp, target) {
   const at = sp.at === 'target' ? { x: target.x, z: target.z } : { x: e.x, z: e.z };
   e.cast = { sp, until: game.time + sp.windup, x: at.x, z: at.z };
   e.specialAt[sp.id] = game.time + sp.cd;
-  game.emitWorldEvent({ e: 'tele', id: e.id, k: sp.id, n: sp.name, x: at.x, z: at.z, r: sp.radius, ms: sp.windup, g: sp.at === 'all' ? 0 : 1 });
+  game.emitWorldEvent({ e: 'tele', id: e.id, k: sp.id, n: sp.name, x: at.x, z: at.z, r: sp.radius, ms: sp.windup, g: sp.at === 'all' || !sp.dmg ? 0 : 1 });
 }
 
 function resolveSpecial(game, e) {
@@ -128,7 +128,17 @@ function resolveSpecial(game, e) {
     if (sp.at === 'all') {
       if (e.threat.has(p.id) && dist(e, p) <= sp.radius && hasLineOfSight(e,p)) dealDamage(game, e, p, sp.dmg, sp.id);
     } else if (Math.hypot(p.x - x, p.z - z) <= sp.radius + p.radius * 0.5 && hasLineOfSight({x,z},p)) {
-      dealDamage(game, e, p, sp.dmg, sp.id,{origin:{x,z}});
+      if (sp.dmg > 0) dealDamage(game, e, p, sp.dmg, sp.id,{origin:{x,z}});
+      if (sp.effect?.snare && !p.dead) addBuff(p, { k: 'snare', mul: sp.effect.snare, until: game.time + sp.effect.ms, src: e.id });
+    }
+  }
+  // support kits act on the caster's own squad (never on players)
+  if (sp.effect?.ward || sp.effect?.heal) {
+    for (const o of game.enemies) {
+      if (o.state === 'dead' || o.state === 'evade' || Math.hypot(o.x - x, o.z - z) > sp.radius) continue;
+      if (o !== e && !(e.squad && o.squad === e.squad)) continue;
+      if (sp.effect.ward) addBuff(o, { k: 'ward', mul: sp.effect.ward, until: game.time + sp.effect.ms });
+      if (sp.effect.heal) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * sp.effect.heal);
     }
   }
 }
@@ -170,11 +180,12 @@ export function tickEnemy(game, e, dt) {
   for (const p of game.players.values()) {
     if (def.aggro <= 0) break;
     if (p.dead || e.threat.has(p.id) || inSafeZone(p)) continue;
-    if (dist(e, p) <= def.aggro && dist(p, anchorOf(e)) <= def.leash && hasLineOfSight(e,p)) {
+    const reach = def.aggroLow && (p.char?.level ?? 1) < 4 ? def.aggroLow : def.aggro;
+    if (dist(e, p) <= reach && dist(p, anchorOf(e)) <= def.leash && hasLineOfSight(e,p)) {
       addThreat(e, p.id, 1);
       if (def.social) {
         for (const o of game.enemies) {
-          if (o !== e && o.type === e.type && (o.state === 'idle' || o.state === 'combat') && dist(o, e) <= def.social) {
+          if (o !== e && (o.type === e.type || (e.squad && o.squad === e.squad)) && (o.state === 'idle' || o.state === 'combat') && dist(o, e) <= def.social) {
             if (!o.threat.has(p.id)) addThreat(o, p.id, 1);
           }
         }
