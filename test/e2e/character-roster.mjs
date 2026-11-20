@@ -63,9 +63,12 @@ try{
   null,{timeout:90000}
  );
  await page.waitForFunction(
-  ()=>document.querySelector('#creation-preview')?.dataset.frameReady==='yes',
+  ()=>document.querySelector('#creation-preview')?.dataset.frameReady==='yes'
+    &&document.querySelector('#creation-preview')?.dataset.modelCount==='1',
   null,{timeout:90000}
  );
+ assert.equal(await page.locator('#creation-preview [data-preview-mode="frames"]').count(),0,
+   'cinematic creation must not split the scene into overlapping frame previews');
  assert.equal(await page.locator('#creation-preview .preview-controls').isHidden(),true,'creation camera tools collapse by default');
  await page.click('#creation-preview [data-preview-inspect]');
  assert.equal(await page.locator('#creation-preview [data-preview-inspect]').getAttribute('aria-expanded'),'true');
@@ -96,16 +99,19 @@ try{
  assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
- assert.equal(await page.locator('#roster-preview .roster-preview-controls').isHidden(),true,'selection camera tools collapse by default');
- await page.click('#roster-preview [data-preview-inspect]');
- const rosterCamera=await page.locator('#roster-preview .roster-preview-controls').boundingBox();
- const rosterEntry=await page.locator('#roster-enter').boundingBox();
- assert.ok(rosterCamera.y+rosterCamera.height+10<rosterEntry.y,
-  'character selection camera tools must not overlap Enter World');
- assert.ok(rosterCamera.x+rosterCamera.width<viewport.width*.49,
-  'inspection controls must sit to the left of the centre character');
- await page.click('#roster-preview [data-preview-inspect]');
- assert.equal(await page.locator('#roster-preview .roster-preview-controls').isHidden(),true);
+ assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true,'selection inspector is collapsed');
+ await page.click('.roster-cards [data-preview-inspect]');
+ const rosterCamera=await page.locator('.roster-cards .roster-preview-controls').boundingBox();
+ const sidebar=await page.locator('.roster-cards').boundingBox();
+ const facts=await page.locator('.roster-facts').boundingBox();
+ assert.ok(rosterCamera.x>=sidebar.x-2 && rosterCamera.x+rosterCamera.width<=sidebar.x+sidebar.width+2,
+  'inspection controls stay within the right roster panel');
+ assert.ok(rosterCamera.x>facts.x+facts.width+16,
+  'inspection controls must never overlap character identity, race or location');
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-model-count'),'1',
+  'the account selection is exactly one persisted gameplay model');
+ await page.click('.roster-cards [data-preview-inspect]');
+ assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
  // Turning the character must leave the camera and architecture fixed.
  const yawBefore=await page.locator('#roster-preview').getAttribute('data-yaw');
  await page.locator('#roster-preview canvas').focus();
