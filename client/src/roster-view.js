@@ -105,13 +105,13 @@ export class CharacterRosterView{
    select.addEventListener('click',()=>this.choose(c.id));
    this.list.append(select);
   }
-  for(let i=this.characters.length;i<this.maxSlots;i++){
-   const vacant=el(i===this.characters.length?'button':'div','roster-slot-vacant','');
-   if(i===this.characters.length){
-    vacant.type='button';vacant.textContent='+ Create character';vacant.addEventListener('click',()=>{if(!this.busy)this.create.click();});
-   }else vacant.textContent='Empty slot';
+  if(this.characters.length<this.maxSlots){
+   const vacant=el('button','roster-slot-vacant',this.characters.length?'＋ New character':'＋ Create your first character');
+   vacant.type='button';
+   vacant.addEventListener('click',()=>{if(!this.busy)this.create.click();});
    this.list.append(vacant);
   }
+  this.root.classList.toggle('roster-empty',!this.selected);
   this.capacity.textContent=`${this.characters.length} / ${this.maxSlots} CHARACTER SLOTS`;
   this.setBusy(false);this.updateSelected();
  }
@@ -126,6 +126,9 @@ export class CharacterRosterView{
   for(const button of this.list.querySelectorAll('.roster-select')){
    button.setAttribute('aria-pressed',String(button.dataset.characterId===String(c?.id)));
   }
+  this.enter.hidden=!c;
+  this.deleteButton.hidden=!c;
+  this.root.classList.toggle('roster-empty',!c);
   this.enter.disabled=this.deleteButton.disabled=this.busy||!c;
   this.details.replaceChildren();
   if(!c){
