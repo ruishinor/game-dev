@@ -43,6 +43,28 @@ try {
  await atlas.waitFor({state:'visible'});
  assert.match(await page.locator('.atlas-waypoint-details').textContent(),/Lattice Sanctum/);
  await mkdir('test/e2e/out',{recursive:true});
+ const plate=await canvas.evaluate(node=>{
+  const g=node.getContext('2d'),at=(px,py)=>[...g.getImageData(px,py,1,1).data];
+  return {left:at(Math.floor(node.width*.15),Math.floor(node.height*.4)),
+    right:at(Math.floor(node.width*.85),Math.floor(node.height*.6))};
+ });
+ assert.equal(plate.left[3],255,'Atlas covers the left map region');
+ assert.equal(plate.right[3],255,'Atlas covers the right map region');
+ assert.notDeepEqual(plate.left.slice(0,3),plate.right.slice(0,3),'Atlas must have terrain variation');
+ const toolbar=atlas.locator('.atlas-controls');
+ assert.equal(await toolbar.getByRole('button',{name:'Full screen'}).count(),1,'Fullscreen control belongs in the vertical map tools');
+ for(const viewport of [{width:1366,height:850},{width:1920,height:1080},{width:320,height:720}]){
+  await page.setViewportSize(viewport);
+  const layout=await atlas.evaluate(node=>{
+    const panel=node.querySelector('.atlas-tools').getBoundingClientRect();
+    const map=node.querySelector('.atlas-view canvas').getBoundingClientRect();
+    return {panelWidth:panel.width,mapWidth:map.width,mapRight:map.right,viewport:innerWidth};
+  });
+  assert.ok(layout.panelWidth>=100&&layout.mapWidth>=100,'Sidebar and map must remain usable at '+viewport.width);
+  assert.ok(layout.mapRight<=layout.viewport+2,'Atlas cannot escape the viewport');
+  await atlas.screenshot({path:'test/e2e/out/atlas-'+viewport.width+'-blueprint.png'});
+ }
+ await page.setViewportSize({width:1366,height:850});
  await page.screenshot({path:'test/e2e/out/atlas-waypoints.png'});
  assert.deepEqual(errors,[]);
  console.log('PASS fullscreen cartography, click-to-mark, place search, clear, minimap feedback and re-open');
