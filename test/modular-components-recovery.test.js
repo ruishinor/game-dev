@@ -36,6 +36,9 @@ test('non-reserved Sentinel part, vendor housing and module fabrication produce 
  assert.equal(takeLoot(g,p,enemy.id,gen,'field_vector_array').ok,false,'claim cannot replay');
  assert.ok(p.char.inventory.includes('field_vector_array'));
  place(p,0,7.5);
+ // The server correctly keeps the killer in combat briefly after the kill.
+ // Advancing the authoritative clock is required before workshop actions.
+ g.time=p.combatUntil+1;
  assert.equal(previewRecipe(p.char,'extract_vector_matrix').ok,true);
  const before=structuredClone(p.char);
  assert.ok(previewProduction(p.char,'extract_vector_matrix',1).ok);
