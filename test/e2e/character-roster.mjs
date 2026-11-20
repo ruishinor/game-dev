@@ -35,7 +35,7 @@ try{
  assert.equal(await page.locator('#roster-enter').isDisabled(),true);
  assert.match(await page.locator('#roster-capacity').textContent(),/0 \/ 6/);
  assert.equal(await page.locator('#roster-list .roster-select').count(),0,'no invented characters');
- assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),6);
+ assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),1,'one creation action, not six redundant cards');
  assert.equal(await page.locator('#roster-create').isEnabled(),true);
  assert.equal(await page.locator('#roster-settings').isVisible(),true);
  const viewport=await page.locator('#roster-preview canvas').boundingBox();
@@ -43,6 +43,11 @@ try{
  if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
  await page.click('#roster-create');
  assert.equal(await page.locator('#character-roster').isHidden(),true);
+ assert.equal(await page.locator('#creation-fields').isVisible(),true);
+ assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
+ const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
+ assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
+ if(evidence)await page.screenshot({path:join(evidence,'character-creation-fullscreen.png')});
  assert.equal(await page.locator('#login-form').isVisible(),true);
  await page.click('#creation-back');
  assert.equal(await page.locator('#character-roster').isVisible(),true);
