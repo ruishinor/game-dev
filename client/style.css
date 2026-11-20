@@ -1066,3 +1066,7 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
   background:#24363d;border-color:#4a626e;
 }
 
+
+/* Search suggestions stay accessible under the search field. */
+#hud .atlas-results[hidden]{display:none!important}
+#hud .atlas-results:not([hidden]){flex:0 0 auto;max-height:min(30vh,245px);overflow-y:auto;min-height:0}

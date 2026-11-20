@@ -1,6 +1,6 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
-import {reachAtlasTerrain,clusterMapMarkers} from './atlas-cartography.js';
+import {reachAtlasTerrain,clusterMapMarkers,atlasEntityCategory} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -43,7 +43,7 @@ export function formatMinutes(minutes,format='24'){
 export const reachTerrain=reachAtlasTerrain;
 export class WorldAtlas{
  constructor(root,settings,focusWorld){
- this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','enemies','objects']);
+ this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','objects']);
   this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
@@ -51,8 +51,8 @@ export class WorldAtlas{
  full.addEventListener('click',()=>{const on=this.el.classList.toggle('atlas-fullscreen');full.setAttribute('aria-label',on?'Restore window':'Full screen');full.title=full.getAttribute('aria-label');full.textContent=on?'⤡':'⤢';full.setAttribute('aria-pressed',String(on));this.draw();});
  const close=el('button',null,'Close');close.onclick=()=>this.close();head.append(this.title,close);
  const body=el('div','atlas-body'),tools=el('aside','atlas-tools'),view=el('div','atlas-view');
- this.search=el('input');this.search.type='search';this.search.placeholder='Search visible places and entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);tools.append(this.regionName,this.search,el('h3',null,'Map layers'));
- for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['enemies','Enemies (visible)'],['objects','Objects (visible)']]){
+ this.search=el('input');this.search.type='search';this.search.placeholder='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);tools.append(this.regionName,this.search,el('h3',null,'Map layers'));
+ for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['objects','Objects (visible)']]){
  const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));tools.append(l);}
  this.details=el('p','atlas-details','Select a place or click the map to set a personal waypoint.');
  this.details.setAttribute('aria-live','polite');
@@ -69,10 +69,11 @@ export class WorldAtlas{
  this.savePointButton=el('button',null,'Save point and note');this.savePointButton.type='button';this.savePointButton.disabled=true;this.savePointButton.addEventListener('click',()=>this.savePoint());
  this.savedList=el('div','atlas-saved-list');this.savedList.setAttribute('aria-label','Saved map points');
  this.noteStatus=el('p','atlas-note-status','Saved points are local to this browser and character.');this.noteStatus.setAttribute('aria-live','polite');
- tools.append(el('p','atlas-legend','▲ Enemies   ● Players   ◆ Objects   ◉ Party   ◇ Personal waypoint'),
+ tools.append(el('p','atlas-legend','● Players   ◆ Objects   ◉ Party   ◇ Personal waypoint'),
    this.details,this.setSelected,this.clearButton,this.waypointDetails,
    el('h3',null,'Saved locations'),this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedList,
-   this.results,el('p','muted','Saved markers are private to this browser. Distances are straight-line estimates. Drag to pan; click to mark; scroll to zoom.'));
+   el('p','muted','Saved markers are private to this browser. Distances are straight-line estimates. Drag to pan; click to mark; scroll to zoom.'));
+  this.search.after(this.results);this.results.hidden=true;
  this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
@@ -278,19 +279,18 @@ export class WorldAtlas{
  else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
- const party=new Set(st.party.map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelBounds=[],clusterCandidates=[];
+ const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelBounds=[],clusterCandidates=[];
+  this.results.hidden=!term;
  const mark=(name,x,z,category,color,shape='dot')=>{
   if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
   entries.push({name,x,z,category});
   const px=p.X(x),py=p.Z(z),sz=shape==='place'?4.5:5;
-  if(!term&&this.zoom<=1.5&&(category==='enemies'||category==='objects')){
+  if(!term&&this.zoom<=1.5&&category==='objects'){
    if(px>=0&&px<=w&&py>=0&&py<=h)clusterCandidates.push({x:px,y:py,category,color});
    return;
   }
   g.fillStyle=color;g.beginPath();
-  if(category==='enemies'){
-    g.moveTo(px,py-sz);g.lineTo(px+sz,py+sz*.75);g.lineTo(px-sz,py+sz*.75);g.closePath();
-  }else if(category==='objects'||category==='places'){
+  if(category==='objects'||category==='places'){
     g.moveTo(px,py-sz);g.lineTo(px+sz,py);g.lineTo(px,py+sz);g.lineTo(px-sz,py);g.closePath();
   }else g.arc(px,py,sz,0,Math.PI*2);
   g.fill();g.strokeStyle='#111c22';g.lineWidth=2;g.stroke();
@@ -308,13 +308,15 @@ export class WorldAtlas{
   }
  };
  if(!r.area)for(const z of Object.values(ZONES))mark(z.name,z.x,z.z,'places','#a4c5ca','place');
- for(const e of st.ents.values()){if(e.id===st.me.id||!sameTravelRegion(st.me.pos,e.pos))continue;const k=e.meta.k,category=k==='p'?(party.has(e.id)?'party':'players'):k==='e'&&!e.dead?'enemies':k==='o'?'objects':null;if(category)mark(e.meta.n||'Unknown',e.pos.x,e.pos.z,category,{party:'#74d3e2',players:'#8ec5a9',enemies:'#dd8b84',objects:'#95b5bd'}[category]);}
+ for(const e of st.ents.values()){
+  const category=atlasEntityCategory(e.meta,party.has(e.id));
+  if(!category||e.id===st.me.id||!sameTravelRegion(st.me.pos,e.pos))continue;
+  mark(e.meta.n||'Unknown',e.pos.x,e.pos.z,category,{party:'#74d3e2',players:'#8ec5a9',objects:'#95b5bd'}[category]);
+ }
  for(const cluster of clusterMapMarkers(clusterCandidates,22)){
   const {x,y,count,color,category}=cluster,radius=count>1?11:5;
   g.save();g.beginPath();
-  if(count===1&&category==='enemies'){
-   g.moveTo(x,y-radius);g.lineTo(x+radius,y+radius*.75);g.lineTo(x-radius,y+radius*.75);g.closePath();
-  }else if(count===1){
+  if(count===1){
    g.moveTo(x,y-radius);g.lineTo(x+radius,y);g.lineTo(x,y+radius);g.lineTo(x-radius,y);g.closePath();
   }else g.arc(x,y,radius,0,Math.PI*2);
   g.fillStyle=count>1?'#15262d':color;
