@@ -2,6 +2,28 @@
 
 Owner brief: 2026-11-20. Feature branch: `feat/cinematic-character-selection-world-entry`.
 
+## Owner visual rejection and corrective pass — 2026-11-20
+
+The owner performed a **real local test** of PR #180 at `http://127.0.0.1:8082/` using an isolated preview worktree (previous branch commit `2fe561b`). **Visual acceptance failed.** Source screenshots, provided in the conversation, show:
+
+1. Character Selection renders a very dark, minimally textured flat gate, a roster filled with six redundant empty-slot rectangles and a disabled Enter World action beneath overlapping camera buttons.
+2. Creation returns to the old centered scrolling login card, with the active Verdigris Reach world rendered behind it, rather than extending the character-select environment.
+3. Live character model renders, but its existing body, face and armor/gear quality do not match the reference or the owner's fidelity target. **Using the real model is necessary but not sufficient for visual acceptance.**
+
+Remediation committed on the PR feature branch after that feedback:
+
+- Reworked the form's DOM into a bounded creation-controls column and a shared cinematic, full-viewport character canvas, maintaining real class/appearance selections, submit and back functionality.
+- Creation and selection both use the same `createSelectionEnvironment` renderer with live `createModel`; suppressed the unrelated game world title rendering during both screens.
+- Moved both sets of camera buttons above primary action safe zones; added desktop browser assertions for bounding-box non-overlap.
+- Empty roster shows one real creation action, account's true slot capacity and no fake character cards; disabled Enter World is hidden until a real selected character exists.
+- Rebalanced scene exposure and neutral lighting, shaded rock materials, added procedural geological grain, real Sanctum kit parts, transit hardware and sparse material depth effects. These are *improvements to the interim scene*, not verified final AAA art.
+- Browser gate now asserts full-viewport creation and captures genuine creation/selection screenshots in CI when available.
+
+**Open blocker (not disguised by a lighting pass):** The existing actual character rig/model, face, skin and equipment meshes remain visibly below the requested fidelity. The MakeHuman derived `humanoid_m/f` assets, 4.3k quad facial basis, skin maps, identity morphs, fitted armour, GLB asset pipeline and `docs/art/CHARACTER-FIDELITY.md` should be audited for target-specific improvements. That is an *asset/mesh quality task*, not a CSS makeover. Do not replace the persisted character with an unrelated display-only asset, change authority, or make unsupported equipment appear. No owner visual approval until actual race/body and face/equipment screenshot comparisons pass.
+
+**Next required gates:** Chromium run of corrected creator↔roster flow including model rendering, screenshot comparison at 1360×850, 1920×1080 and mobile; actual visuals across classes/origins and equipment; GPU/perf measurement. Tests may pass without reaching visual fidelity. Leave PR draft/unmerged while this work remains unresolved.
+
+---
 ## Non-negotiable visual contract
 
 - The **first** owner reference is the composition: full-viewport environmental depth, monumental transit/resonance structure behind the live selected character, top-left identity, bottom-left metadata, right-hand roster and low-profile bottom actions.
