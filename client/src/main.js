@@ -14,6 +14,7 @@ import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
+import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
@@ -76,6 +77,8 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Three existing licensed compact firearm meshes; Longpoint remains the authored original.
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -809,6 +812,7 @@ const chestOf = (ent) => () => ent.chest;
 function onWelcome(m) {
   clearWorld();
   ui.questTracker.useCharacter(m.charId);
+  ui.setAbilityOwner(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
@@ -1140,6 +1144,13 @@ function onEvent(e) {
         }
         break;
       }
+      if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){
+        const o=S.ents.get(e.o);
+        if(e.k==='vein_extract'){o?.model?.extract?.(e.ms);s?.model?.trigger?.('gather','gather');}
+        else if(e.k==='vein_harvest')o?.model?.harvest?.();
+        else o?.model?.breakOff?.();
+        break;
+      }
       if(e.k==='field_recovery'){
         const o=S.ents.get(e.o);
         if(!handled&&o?.placed)fx.ring(o.pos.x,o.pos.z,1.25,0xc0b88c,680,o.pos.y);
@@ -1437,9 +1448,9 @@ input.onAction = (code, e) => {
       const pet=S.ents.get(S.compId)?.meta.c;
       const mode=companionCommandKeys(pet)[i];
       if(mode && COMPANIONS[pet]?.modes[mode])net.send({t:'pet',c:mode});
-    } else if(def.abilities[i]){
-      net.send({t:'use',a:def.abilities[i]});
-    } else if(i===def.abilities.length){
+    } else if(ui.hotbarAssignment(i)&&ui.hotbarAssignment(i)!=='@companion'){
+      net.send({t:'use',a:ui.hotbarAssignment(i)});
+    } else if(ui.hotbarAssignment(i)==='@companion'){
       const eligible=S.ents.get(S.myId);
       if(eligible&&!eligible.dead&&!(eligible.row?.f&8)){
         if(S.compId)net.send({t:'pet_manage',action:'dismiss'});
@@ -1467,8 +1478,15 @@ input.onAction = (code, e) => {
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
       break;
     case 'Escape':
+      e.preventDefault();
+      if(ui.cancelHotbarDrag())break;
       stopAutomaticMovement();
-      if (!ui.closePanels() && S.target) setTarget(0);
+      // Dismiss an active window first. Otherwise open/close the corner
+      // menu, preserving the existing escape-to-clear-target behaviour.
+      if (!ui.closePanels()) {
+        if (S.target) setTarget(0);
+        ui.toggleMenu();
+      }
       break;
     case 'F1':
       e.preventDefault();
@@ -1497,13 +1515,15 @@ input.onAction = (code, e) => {
       ui.toggleQuestJournal();
       break;
     case 'KeyP':
-      ui.toggleParty();
+      if(e.shiftKey)ui.toggleParty();
+      else ui.toggleAbilityMatrix();
       break;
     case 'KeyO':
       ui.toggleSettings();
       break;
     case 'KeyM':
-      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
+      e.preventDefault();
+      ui.toggleAtlas();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -1759,6 +1779,7 @@ function updateEntities(dt, t, now) {
       work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
+      veinMs: ent.meta.c==='resonant_vein' ? (S.you?.veins?.depleted?.find((d)=>d.id===ent.id)?.ms ?? 0) : 0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
@@ -1920,8 +1941,7 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
-    // The cinematic roster owns its live 3D scene. Do not also render a second
-    // hidden world scene behind the full-viewport presentation canvas.
+    // Dedicated cinematic scenes own both character screens.
     if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     titleDrawAt=now;

@@ -31,6 +31,7 @@ export const HUMANOID_ACTIONS = {
   fault_scan: { clip: 'Interact', fadeOut: 0.3 },
   core_bore: { clip: 'Spell_Simple_Shoot', timeScale: 1.2 },
   field_rig: { clip: 'Interact', fadeOut: 0.3 },
+  gather: { clip: 'Interact', fadeOut: 0.3 },
   controlled_blast: { clip: 'Shield_OneShot', start: 0.1 },
   auto: { clip: 'Punch_Jab', start: 0.2, timeScale: 1.9 },
   rending_arc: { clip: 'Punch_Cross', start: 0.18, timeScale: 1.15 },

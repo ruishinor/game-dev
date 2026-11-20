@@ -1,0 +1,55 @@
+{
+ "file": "assets/resonant_vein/outputs/resonant_vein.glb",
+ "bytes": 742224,
+ "inputBytes": 4863464,
+ "triangles": 7044,
+ "meshes": 2,
+ "materials": [
+  "RV_Crystal",
+  "RV_Rock"
+ ],
+ "textures": [
+  {
+   "name": "vein_normal",
+   "mime": "image/webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "bytes": 378668
+  },
+  {
+   "name": "vein_orm",
+   "mime": "image/webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "bytes": 121614
+  },
+  {
+   "name": "vein_albedo",
+   "mime": "image/webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "bytes": 55570
+  }
+ ],
+ "skins": [],
+ "animations": [],
+ "nodes": [],
+ "extensionsUsed": [
+  "KHR_materials_emissive_strength",
+  "EXT_texture_webp",
+  "KHR_mesh_quantization",
+  "EXT_meshopt_compression"
+ ],
+ "validator": {
+  "errors": 0,
+  "warnings": 0,
+  "infos": 4,
+  "messages": []
+ }
+}

@@ -11,7 +11,7 @@ export const GRAVITY = 22.0;
 export const PLAYER_RADIUS = 0.45;
 export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
-import { SEVERANCE_POCKET, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
+import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
 import { SILENT_FOUNDRY, FOUNDRY_COLLIDERS, inSilentFoundry, foundryArea, foundryHeight, clampToFoundry } from './silent-foundry.js';
 export { SILENT_FOUNDRY, inSilentFoundry, foundryArea } from './silent-foundry.js';
 export { SEVERANCE_POCKET, SEVERANCE_EXPANSE, SEVERANCE_GATE, EXPEDITION_OUTPOST, inSeverancePocket, inExpeditionOutpost } from './severance-gate.js';
@@ -407,6 +407,7 @@ if(RIFT_SITE){
 OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x:GATE_THRESHOLD.x,z:GATE_THRESHOLD.z,r:0,embedded:true},
   {key:'severance_return',type:'severance_return',name:'Return to the Reach',x:SEVERANCE_POCKET.beacon.x,z:SEVERANCE_POCKET.beacon.z,r:PHASE_RIFT_RADIUS,
     yaw:Math.atan2(SEVERANCE_POCKET.arrival.x-SEVERANCE_POCKET.beacon.x,SEVERANCE_POCKET.arrival.z-SEVERANCE_POCKET.beacon.z)});
+for (const v of SEVERANCE_VEINS) OBJECTS.push({ key: v.key, type: 'resonant_vein', name: 'Resonant shard vein', x: v.x, z: v.z, r: v.r, yaw: v.yaw });
 // The Silent Foundry: its return portal (back to the gate) and the Depths cache.
 OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Severance Gate',x:SILENT_FOUNDRY.exit.x,z:SILENT_FOUNDRY.exit.z,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
   {key:'foundry_cache',type:'foundry_cache',name:'Depths Recovery Cache',x:SILENT_FOUNDRY.cache.x,z:SILENT_FOUNDRY.cache.z,r:.9});

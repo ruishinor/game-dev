@@ -57,6 +57,17 @@ Three attached live screenshots demonstrate that the first merged HUD iteration 
 
 Implemented candidate: `feat/hud-actionbar-keybindings`. Visual proof is only valid after its head passes browser rendering checks; do not mark fully accepted without inspection.
 
+## Party frame and active-effect refinement — 2026-11-20
+
+Branch: `feat/hud-party-status-buffs`, stacked on the HUD readability PR #151.
+
+- Dedicated **party** frame stack is ordered by the server-issued `party.members` roster. Nearby visible non-members remain in their own labelled stack with existing targeting/context actions; no targeting functionality is removed.
+- Members outside the local entity visibility set retain a name/class/level placeholder labelled **Out of visible range**. Their health, energy, buffs and appearance are not supplied by server party metadata and must **not** be fabricated or displayed as current.
+- Party and player status effects render distinct per-effect vector artwork from existing Attunement spell/ability language. Icons have accessible names and full effect/tooltips. Effects only appear while present in the already scoped snapshot; no future buff system is invented.
+- Focused real-browser two-session gate: join actual server party, verify party grouping and active buff icon, then move one member out of view and verify fallback without fake values. Full two-player regression remains necessary.
+
+Deferred: remote teammate authoritative health/buff channels, class-specific party formations, raid/large-group layout, permanent buffs, future spell icons and personalized equipment portraits. Do not extend data visibility without an explicit server privacy/authority model.
+
 ## Atlas waypoints and navigation increment — 2026-11-20
 
 Branch: `feat/atlas-waypoints-navigation`, stacked on the HUD legibility/keybinding integration until that PR is merged.
@@ -94,4 +105,29 @@ This current-head checkpoint supersedes the historical "candidate" and local-pre
 4. Keep the pre-existing player portrait and companion identity contracts, independent nearby-player targeting, account-scoped party state and uncluttered HUD logic. Do not invent unavailable party health, buffs or discovery markers.
 5. Preserve Claude's reserved Expanse/Foundry environment and world-clock ownership; HUD code may consume existing public interfaces but must not change region geography, portals, dungeon objects or hidden content.
 6. Visual screenshots and software-GL browser tests are implementation evidence, **not** artistic acceptance or real-GPU performance evidence.
+
+## Owner visual rejection — 2026-11-20
+
+**Status: REJECTED for visual acceptance.** The owner supplied one current in-game HUD screenshot and four original-intention references (minimap, party portrait stack and two overlapping portrait/hotkey-bar examples) on 2026-11-20. Successful #166 functional/browser checks and its merge do not satisfy the intended art direction. Subsequent Atlas recovery #168 merged through concurrent integration without thereby receiving owner visual approval.
+
+The actual owner comparison establishes these mandatory corrections:
+1. **Player/companion frames:** compact top-left integrated portrait and horizontal HP/resource tracks, circular head portrait visibly overlapping its metal frame; no large standalone dashboard cards, detached text buttons or gratuitous empty space. Unavailable companion information remains truly unavailable.
+2. **Party portraits:** a bounded vertical stack of real party members with identifiable headshots, compact health/resource status only from permitted snapshots, and genuine active effects with distinct visual artwork. Out-of-region members may show an honest unavailable state, never invented health or buff values.
+3. **Action bar:** compact centered illustrated 1–9 slots, independent subordinate companion command row, original high-fidelity ability-specific art and correct key labels/cooldowns, reliable configurable keybindings and visible/transparent/hidden empty-slot options. **Primitive monochrome glyphs or inexpensive generic iconography are not a final artistic substitute for the reference.** The 25 original multi-layer SVG scenes in draft #172 are functional first-pass art, not confirmed final-quality acceptance.
+4. **Minimap:** bounded gold/bronze circular instrument with dark, detailed, topographic terrain; clear directional cues and meaningful scoped markers. Minimize overlapping labels and flat debug-map shapes. Atlas interaction and waypoint function remain intact.
+5. **HUD footprint:** keep the game world visible on 1280×860, 1366×768, 1920×1080 and 320px, without collisions between portraits, map, hotkeys, menu or chat. Real input navigation, action availability and keyboard focus must remain correct.
+6. **Art validation:** compare actual runtime captures for each class and a valid party/companion state with the owner's references. Screenshots, SVG existence, browser size assertions and software-GL success are evidence, **not** authority to assert artistic acceptance. Human review remains required.
+
+**Active correction:** draft [#172](https://github.com/ruishinor/game-dev/pull/172), isolated from party HUD [#169](https://github.com/ruishinor/game-dev/pull/169). Validate with a new current-head job matrix and visual artifact inspection. Maintain draft status and never silently mark VISUAL ACCEPTED simply because tests pass. Reconcile #169's server-scoped party behaviour onto the accepted compact styling without changing Claude-reserved environments or exposing hidden mechanics.
+
+## Owner reference lock — minimap, portrait trim and Atlas (2026-11-20)
+
+**Explicit owner decision:** The original supplied templates are the design blueprint, not optional inspiration. Do not create a substitute palette/composition that contradicts them. Relevant exact source images: `INTENTION-MINIMAP.png`, `INTENTION-PLAYER-PORTRAITS-PARTY-CONFIGURATION.png`, both `INTENTION HOTKEY-BAR ... (1)/(2).png`, `image(20261119-225339).png` (widescreen interactive map), and `image(20261119-225549).png` (regional map and clustered data). These user-supplied reference images remain external to the public proprietary development repository; do not copy third-party illustration pixels.
+
+- **Minimap size:** 236px in the rejected HUD was materially too large. Current draft #172 constrains diameter to 96–140px on larger viewports (CSS viewport dependent) and about 76–94px on small screens; verify actual screenshot footprint, not just internal canvas resolution. Keep the circular directional/terrain instrument and its controls independent.
+- **Minimap and unit trim:** No default honey-gold, tan, yellow or beige frame/portrait/map UI palette. Use restrained charcoal/blue-slate/steel framing with neutral off-white lettering; HP green and class-specific resources retain gameplay meaning. Existing portrait composition stays compact and overlapping, as shown in the user's originals. Do not remove necessary focus/selection cues.
+- **Atlas structure:** The owner's actual illustrated references have an expansive **rectangular** topographic map alongside a dark filter/catalogue sidebar, visible entity search and right-side vertical map tools. Do not render a large green circular reach schematic surrounded by unused black canvas; suppress raw collider squares and collision-prone text labels. Terrain must reflect the existing public world geometry, not invented future areas.
+- **Marker presentation:** Visibly distinguish current public places, party, player, hostile and other authorized live entities; compress dense currently-visible categories into labelled counts where useful; retain individually searchable entries and non-authoritative waypoint guidance without disclosing undiscovered rewards or coordinates.
+- **Candidate #175:** Original full-width relief plate, rectangular projection, dark sidebar, vertical zoom/recenter/fullscreen, and visual clustering. **Stacked draft on #174** (label-collision fix), not a complete map art acceptance. The built-in procedural terrain is an original intermediate texture; the rich hand-painted/environment-derived detail of the source is still a genuine remaining visual acceptance requirement.
+- **Gates:** #172 and #175 need exact-head browser/Node and viewport checks, plus real in-game screenshot comparison against the original pictures. Do not auto-promote on CI green alone. Check keyboard/waypoint/Atlas pan/zoom accuracy and no changes to Claude-exclusive environments. Owner sign-off of true reference fidelity is required.
 

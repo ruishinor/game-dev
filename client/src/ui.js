@@ -26,8 +26,11 @@ import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
-import { WorldAtlas, reachTerrain } from './world-atlas.js';
+import { WorldAtlas } from './world-atlas.js';
+import { reachMinimapArt } from './minimap-art.js';
+import { paintedAbilityArt } from './ability-art.js';
 import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
+import {COMPANION_ACTION,defaultHotbar,loadHotbar,storeHotbar,editHotbar,normalizeHotbar} from './hotbar-layout.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
@@ -60,6 +63,16 @@ const ICONS = {
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
 
+const BUFF_ICONS={
+ ward:ICONS.kinetic_ward,
+ hot:ICONS.mending_graft,
+ bond:ICONS.guard,
+ shield:svg('<path d="M12 2 21 7v7c0 5-4 8-9 9-5-1-9-4-9-9V7z"/><path d="M12 7v10M8 12h8"/>'),
+ sap:svg('<path d="M5 16 9 12 7 8M19 8l-5 4 3 4"/><path d="M12 4v16"/>'),
+ corrode:svg('<circle cx="12" cy="12" r="9"/><path d="M5 9l4 3-3 4M13 6l3 5-4 6"/>'),
+ carapace_imprint:svg('<path d="M12 3 20 8 17 19 12 21 7 19 4 8Z"/><path d="m9 9 6 6m0-6-6 6"/>'),
+ root:svg('<path d="M12 3v11m0 0-6 7m6-7 6 7M6 9l6 5 6-5"/>')
+};
 const BUFFS = {
   ward: ['Kinetic Ward', 'good'],
   hot: ['Mending Graft', 'good'],
@@ -162,11 +175,14 @@ export class UI {
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
+    this.partyGhostRows=new Map();
     this.lastInventory = 0;
     this.tipFor = null;
     this.buildLock = '';
     this.companionId = 0;
-    this.emptySlotMode='visible';
+    this.hotbarOwner=null;this.hotbarAssignments=null;this.hotbarDirtyLocal=false;
+    this.draggingAbility=null;this.hotbarSuppressUntil=0;
+    this.emptySlotMode='transparent';
     try{const v=localStorage.getItem('attunement.emptySlotMode');if(['visible','transparent','hidden'].includes(v))this.emptySlotMode=v;}catch{}
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
@@ -216,12 +232,10 @@ export class UI {
         this.openCompanionMenu(r.left, r.bottom);
       }
     });
-    this.summonPet = h('button', 'summon-pet', 'Summon companion');
-    this.summonPet.type = 'button';
-    this.summonPet.hidden = true;
-    this.summonPet.addEventListener('click', () => this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
+    // The class action bar already owns the summon/dismiss command.
+    // Do not add a second standalone button beneath the portrait stack.
     const left = h('div', 'col');
-    left.append(this.player.el, this.pet, this.summonPet);
+    left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
 
@@ -264,8 +278,11 @@ export class UI {
     this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.codexBody, this.renameRow);
     root.append(this.inspectBox);
 
-    this.party = h('div', 'party');
-    root.append(this.party);
+    this.party = h('div', 'party');this.party.setAttribute('role','group');this.party.setAttribute('aria-label','Party members');
+    this.nearby=h('div','nearby-players');this.nearby.setAttribute('role','group');this.nearby.setAttribute('aria-label','Nearby players');
+    const nearbyTitle=h('div','nearby-title','Nearby players');this.nearby.append(nearbyTitle);
+    this.partyFrameStacks=h('div','party-frame-stacks');this.partyFrameStacks.append(this.party,this.nearby);
+    root.append(this.partyFrameStacks);
     this.playerContext = h('div', 'player-context');
     this.playerContext.hidden = true;
     root.append(this.playerContext);
@@ -472,7 +489,17 @@ export class UI {
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Character [C]');
+    // Compact iconic controls; native title + accessible name are retained
+    // for hover, keyboard navigation and screen-reader users.
+    const cornerButton=(label,paths)=>{
+      const button=h('button','menubtn hud-icon-btn');
+      button.type='button';
+      button.innerHTML=svg(paths);
+      button.title=label;
+      button.setAttribute('aria-label',label);
+      return button;
+    };
+    this.buildBtn = cornerButton('Character (C)','<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -480,9 +507,9 @@ export class UI {
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
-    const helpBtn = h('button', 'menubtn', 'Help [H]');
+    const helpBtn = cornerButton('Help (H)','<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5.2 1c0 2-2.7 2.4-2.7 4.3M12 17h.01"/>');
     helpBtn.addEventListener('click', () => this.toggleHelp());
-    this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn = cornerButton('Menu (Esc)','<path d="M4 6h16M4 12h16M4 18h16"/>');
     this.menuBtn.addEventListener('keydown', menuKeys);
     this.menuBtn.addEventListener('click', () => this.toggleMenu());
     this.menuItems = h('div', 'menu-items');
@@ -723,7 +750,7 @@ export class UI {
     this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
-    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (Shift+M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
+    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -758,9 +785,11 @@ export class UI {
       ['Window layout', 'Drag titles or window edges; use individual opacity and layout controls. Reset all layouts from Settings.'],
       ['J', 'Codex: creatures, locations, equipment, lore and abilities'],
       ['L', 'Quest Journal: active, available and completed objectives'],
-      ['P', 'Party: invite, accept, leave'],
+      ['P', 'Ability Matrix: recover and reassign learned abilities'],
+      ['Shift + P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
-      ['M', 'Open the corner menu'],
+      ['M', 'World Atlas (interactive map and personal waypoints)'],
+      ['Esc', 'Close an active panel; open or close the corner menu when no panel is open'],
       ['H', 'Help and command reference'],
       ['Enter / /', 'Open chat. /p switches to party; /v switches to vicinity. Type a space or press Enter after the command.'],
       ['Chat icon', 'Choose vicinity or party. Right-click a player for private whispers.'],
@@ -769,6 +798,7 @@ export class UI {
     for (const [k, v] of rows) table.append(h('kbd', null, k), h('span', null, v));
     this.help.append(table);
     root.append(this.help);
+    this.buildAbilityMatrix(root);
 
     // Death overlay
     this.death = h('div', 'death');
@@ -788,56 +818,208 @@ export class UI {
     this.charactersBtn.textContent = linked ? 'Characters' : 'Account';
   }
 
-  /** Build the class-specific action bars once the class is known. */
-  setClass(cls,companionType=CLASSES[cls].companion) {
-    if (this.cls === cls&&this.companionType===companionType) return;
-    this.cls = cls;this.companionType=companionType;
-    const def = CLASSES[cls];
+  /** The character ID comes from the server welcome, never a display name. */
+  setAbilityOwner(id){
+    if(this.hotbarOwner===id)return;
+    this.cancelHotbarDrag();
+    this.hotbarOwner=typeof id==='string'?id:null;
+    this.hotbarAssignments=null;this.hotbarDirtyLocal=false;
+    this.cls=null; // Refresh the assignments even when two characters share a class.
+  }
+  hotbarAssignment(index){
+    return Number.isInteger(index)?this.hotbarAssignments?.[index]??null:null;
+  }
+  /** Build the approved action bar exactly as before; only slot assignments vary. */
+  setClass(cls,companionType=CLASSES[cls].companion){
+    if(this.cls===cls&&this.companionType===companionType)return;
+    this.cls=cls;this.companionType=companionType;
+    const def=CLASSES[cls];
+    this.hotbarAssignments=this.hotbarDirtyLocal?
+      normalizeHotbar(def.abilities,this.hotbarAssignments):
+      loadHotbar(localStorage,this.hotbarOwner,def.abilities);
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
-    this.abilityButtons = def.abilities.map((id, i) => {
-      const b = this.slotButton(ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
-      b.el.addEventListener('click', () => this.a.useAbility(id));
-      this.hover(b.el, () => this.abilityTip(id));
+    this.abilityButtons=[];this.emptySlots=[];this.summonSlot=null;
+    for(let i=0;i<PRIMARY_SLOTS;i++){
+      const id=this.hotbarAssignments[i],key=this.a.bindings?.label('ability:'+(i+1))??String(i+1);
+      let b;
+      if(id===COMPANION_ACTION){
+        b=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),key,'Summon or dismiss companion');
+        b.el.hidden=true;
+        b.el.addEventListener('click',()=>this.a.managePet(this.companionId?'dismiss':'summon'));
+        this.summonSlot={...b,slotIndex:i};
+      }else if(id&&ABILITIES[id]){
+        const art=paintedAbilityArt(id);
+        b=this.slotButton(art??ICONS[id],key,ABILITIES[id].name);
+        b.el.dataset.ability=id;
+        if(art)b.el.dataset.art='painted';
+        b.el.addEventListener('click',e=>{
+          if(e.ctrlKey||performance.now()<this.hotbarSuppressUntil){e.preventDefault();return;}
+          this.a.useAbility(id);
+        });
+        b.el.addEventListener('pointerdown',e=>this.startHotbarDrag(e,id,i));
+        this.hover(b.el,()=>this.abilityTip(id));
+        this.abilityButtons.push({id,slotIndex:i,...b});
+      }else{
+        b=this.slotButton('',key,'Empty action slot '+(i+1));
+        b.el.classList.add('empty');b.el.disabled=true;
+        b.el.title='Unassigned action slot';
+        this.emptySlots.push({slotIndex:i,...b});
+      }
+      b.el.dataset.slotIndex=String(i);
       this.actionBar.append(b.el);
-      return { id, ...b };
-    });
-    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),this.a.bindings?.label('ability:'+(def.abilities.length+1))??String(def.abilities.length+1),'Summon or dismiss companion');
-    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
-    this.actionBar.append(this.summonSlot.el);
-    this.emptySlots=[];
-    for(let i=def.abilities.length+1;i<PRIMARY_SLOTS;i++){
-      const cell=this.slotButton('',this.a.bindings?.label('ability:'+(i+1))??'','Empty action slot');
-      cell.el.classList.add('empty');cell.el.disabled=true;cell.el.title='Unassigned action slot';
-      this.actionBar.append(cell.el);this.emptySlots.push(cell);
     }
     this.actionBar.dataset.emptyMode=this.emptySlotMode;
-    this.petButtons = [];
-    if (companionType) {
-      const cdef = COMPANIONS[companionType];
-      companionCommandKeys(companionType).forEach((mode, i) => {
+    this.petButtons=[];
+    if(companionType){
+      const cdef=COMPANIONS[companionType];
+      companionCommandKeys(companionType).forEach((mode,i)=>{
         if(!Object.hasOwn(cdef.modes,mode))return;
-        const b = this.slotButton(ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
-        b.el.classList.add('small');
-        b.el.addEventListener('click', () => this.a.pet(mode));
-        this.hover(b.el, () => this.petTip(mode));
-        this.petBar.append(b.el);
-        this.petButtons.push({ mode, bindingIndex:i, ...b });
+        const art=paintedAbilityArt(mode);
+        const b=this.slotButton(art??ICONS[mode],
+          this.a.bindings?.label('companion:'+(i+1))??'⇧'+(i+1),cdef.modes[mode].name);
+        b.el.classList.add('small');b.el.dataset.ability=mode;
+        if(art)b.el.dataset.art='painted';
+        b.el.addEventListener('click',()=>this.a.pet(mode));
+        this.hover(b.el,()=>this.petTip(mode));this.petBar.append(b.el);
+        this.petButtons.push({mode,bindingIndex:i,...b});
       });
     }
-    set(this.pet, 'hidden', !companionType);
-    this.petBar.hidden = !companionType;
-    this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
-    this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
+    set(this.pet,'hidden',!companionType);
+    this.petBar.hidden=!companionType;
+    this.autoButton.title=`${def.auto.kind==='melee'?'Melee':'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval/1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    this.player.res.wrap.classList.toggle('charge',def.resource.id==='charge');
     this.refreshHotkeys();
   }
 
+  applyHotbarChange(change){
+    if(!this.sheet)return false;
+    const classId=this.sheet.cls,abilities=CLASSES[classId].abilities;
+    const next=editHotbar(abilities,this.hotbarAssignments,change);
+    if(!next.ok)return false;
+    this.hotbarAssignments=next.layout;
+    this.hotbarDirtyLocal=!storeHotbar(localStorage,this.hotbarOwner,abilities,next.layout);
+    const pet=this.companionType;
+    this.cls=null;this.setClass(classId,pet);
+    if(!this.abilityPanel.hidden)this.renderAbilityMatrix();
+    return true;
+  }
+  cancelHotbarDrag(){
+    if(!this.draggingAbility)return false;
+    this.draggingAbility.controller.abort();
+    this.draggingAbility=null;
+    this.actionBar.dataset.rearranging='false';
+    for(const s of this.emptySlots??[])s.el.disabled=true;
+    return true;
+  }
+  startHotbarDrag(e,id,source){
+    if(e.button!==0||!e.ctrlKey||!this.hotbarOwner||this.draggingAbility)return;
+    e.preventDefault();
+    this.cancelHotbarDrag();
+    const controller=new AbortController();
+    const drag={id,source,pointerId:e.pointerId,initialX:e.clientX,initialY:e.clientY,controller};
+    this.draggingAbility=drag;
+    this.actionBar.dataset.rearranging='true';
+    for(const s of this.emptySlots)s.el.disabled=false;
+    const options={signal:controller.signal,capture:true};
+    document.addEventListener('keyup',ev=>{
+      if(ev.key==='Control'||ev.code==='ControlLeft'||ev.code==='ControlRight')this.cancelHotbarDrag();
+    },options);
+    document.addEventListener('keydown',ev=>{
+      if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();this.cancelHotbarDrag();}
+    },options);
+    document.addEventListener('pointercancel',ev=>{
+      if(ev.pointerId===drag.pointerId)this.cancelHotbarDrag();
+    },options);
+    document.addEventListener('pointerup',ev=>{
+      if(ev.pointerId!==drag.pointerId)return;
+      const moved=Math.hypot(ev.clientX-drag.initialX,ev.clientY-drag.initialY)>=7;
+      this.hotbarSuppressUntil=performance.now()+180;
+      // A release without Ctrl or movement is always cancellation.
+      const valid=ev.ctrlKey&&moved;
+      const element=document.elementFromPoint(ev.clientX,ev.clientY);
+      const target=element?.closest?.('.actionbar [data-slot-index]');
+      const inside=this.actionBar.contains(element);
+      this.cancelHotbarDrag();
+      if(!valid)return;
+      if(target){
+        const dest=Number(target.dataset.slotIndex);
+        this.applyHotbarChange({type:'move',from:source,to:dest});
+      }else if(!inside){
+        // Only a genuine completed drop outside the bar unassigns an ability.
+        this.applyHotbarChange({type:'remove',from:source});
+      }
+    },options);
+  }
+
+  buildAbilityMatrix(root){
+    const panel=h('div','panel ability-matrix');
+    panel.hidden=true;panel.setAttribute('role','dialog');
+    panel.setAttribute('aria-label','Ability Matrix');
+    panel.append(h('h2',null,'Ability Matrix [P]'),
+      h('p','muted','Reassign learned abilities without losing them. Ctrl-drag to swap slots; Ctrl-drop outside the bar to remove an assignment.'));
+    const close=h('button','close','×');close.type='button';
+    close.setAttribute('aria-label','Close Ability Matrix');
+    close.addEventListener('click',()=>this.toggleAbilityMatrix(false));
+    panel.append(close);
+    this.abilityMatrixStatus=h('p','muted','Saved per character in this browser.');
+    this.abilityMatrixStatus.setAttribute('role','status');
+    this.abilityMatrixList=h('div','ability-matrix-list');
+    panel.append(this.abilityMatrixStatus,this.abilityMatrixList);
+    this.abilityPanel=panel;root.append(panel);
+  }
+  renderAbilityMatrix(){
+    if(!this.sheet)return;
+    const ids=CLASSES[this.sheet.cls].abilities,layout=this.hotbarAssignments||defaultHotbar(ids);
+    this.abilityMatrixList.replaceChildren();
+    for(const id of ids){
+      const assigned=layout.indexOf(id),row=h('div','ability-matrix-entry');
+      const name=h('span',null,ABILITIES[id]?.name??id);
+      const status=h('small','muted',assigned>=0?'Slot '+(assigned+1):'Not on bar');
+      const select=h('select');select.setAttribute('aria-label','Slot for '+name.textContent);
+      for(let i=0;i<PRIMARY_SLOTS;i++){
+        if(layout[i]===COMPANION_ACTION)continue;
+        const opt=h('option',null,'Slot '+(i+1));opt.value=String(i);
+        select.append(opt);
+      }
+      select.value=String(assigned>=0?assigned:layout.findIndex((x,i)=>x===null));
+      if(select.selectedIndex<0)select.selectedIndex=0;
+      const button=h('button',null,'Assign');button.type='button';
+      button.setAttribute('aria-label','Assign '+name.textContent+' to selected slot');
+      button.addEventListener('click',()=>{
+        const success=this.applyHotbarChange({type:'assign',id,to:Number(select.value)});
+        this.abilityMatrixStatus.textContent=success?'Assignment saved locally for this character.':'Choose a valid available slot.';
+      });
+      const remove=h('button',null,'Remove from bar');remove.type='button';remove.disabled=assigned<0;
+      remove.addEventListener('click',()=>{
+        if(this.applyHotbarChange({type:'remove',from:assigned}))
+          this.abilityMatrixStatus.textContent='Assignment removed; ability remains learned.';
+      });
+      row.append(name,status,select,button,remove);this.abilityMatrixList.append(row);
+    }
+  }
+  toggleAbilityMatrix(force){
+    const open=force??this.abilityPanel.hidden;
+    if(open){
+      if(!this.sheet)return;
+      this.closePanels();this.abilityPanel.hidden=false;
+      this.renderAbilityMatrix();this.abilityPanel.querySelector('button')?.focus({preventScroll:true});
+    }else{
+      this.abilityPanel.hidden=true;
+      this.a.focusView?.();
+    }
+  }
   refreshHotkeys(){
-    for(const [i,b] of this.abilityButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(i+1))??String(i+1);
-    for(const b of this.petButtons)b.el.querySelector('.key').textContent=this.a.bindings?.label('companion:'+(b.bindingIndex+1))??'⇧'+(b.bindingIndex+1);
-    if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+1))??String(this.abilityButtons.length+1);
-    for(const [j,b] of (this.emptySlots??[]).entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+j+2))??'';
-    for(const [name,btn] of (this.bindingRows??new Map()))btn.textContent=this.a.bindings?.label(name)??'Unbound';
+    for(const b of this.abilityButtons)b.el.querySelector('.key').textContent=
+      this.a.bindings?.label('ability:'+(b.slotIndex+1))??String(b.slotIndex+1);
+    for(const b of this.petButtons)b.el.querySelector('.key').textContent=
+      this.a.bindings?.label('companion:'+(b.bindingIndex+1))??'⇧'+(b.bindingIndex+1);
+    if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=
+      this.a.bindings?.label('ability:'+(this.summonSlot.slotIndex+1))??String(this.summonSlot.slotIndex+1);
+    for(const b of this.emptySlots)b.el.querySelector('.key').textContent=
+      this.a.bindings?.label('ability:'+(b.slotIndex+1))??String(b.slotIndex+1);
+    for(const [name,btn] of this.bindingRows??new Map())btn.textContent=
+      this.a.bindings?.label(name)??'Unbound';
   }
 
   buildHotkeySettings(root){
@@ -1695,8 +1877,9 @@ export class UI {
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
     if(this.atlas?.close())return true;
-    const any = !this.keyPanel.hidden || !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.abilityPanel.hidden || !this.keyPanel.hidden || !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.companionSheet.hidden = true;
+    this.abilityPanel.hidden = true;
     this.keyPanel.hidden = true;
     this.questJournal.dismiss();
     this.codexPanel.hidden = this.workshopPanel.hidden = true;
@@ -1853,9 +2036,12 @@ export class UI {
     if (el._sig === sig) return;
     el._sig = sig;
     el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
-      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
-      chip.dataset.effect=k;chip.setAttribute('aria-label',chip.textContent);chip.title=chip.textContent;
+      const text=k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0];
+      const chip=h('span',`chip buff-chip ${BUFFS[k][1]}`);
+      chip.dataset.effect=k;chip.setAttribute('role','img');chip.setAttribute('aria-label',text);chip.title=text;
       if(k==='shield')chip.title+=' · Damage absorption; finite capacity, not a solid collision wall.';
+      const pict=h('span','buff-icon');pict.innerHTML=BUFF_ICONS[k]??ICONS.guard;
+      chip.append(pict,h('span','buff-label',text));
       return chip;
     }));
   }
@@ -1973,15 +2159,12 @@ export class UI {
         const petActive=!!st.comp;
     const canManagePet=!me.dead&&!(me.row.f&8);
     const petActionLabel=petActive?'Dismiss companion':summon?.available?`Summon ${summon.name}`:'Summon companion unavailable';
-    this.summonPet.hidden=!petActive&&!summon;
-    this.summonPet.disabled=!canManagePet||(!petActive&&!summon?.available);
-    this.summonPet.textContent=petActionLabel;
-    this.summonPet.title=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
+    const petActionTitle=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
     if(this.summonSlot){
       this.summonSlot.el.hidden=!petActive&&!summon;
       this.summonSlot.el.disabled=!canManagePet||(!petActive&&!summon?.available);
       this.summonSlot.el.setAttribute('aria-label',petActionLabel);
-      this.summonSlot.el.title=this.summonPet.title;
+      this.summonSlot.el.title=petActionTitle;
       this.summonSlot.el.classList.toggle('dismiss-ready',petActive&&canManagePet);
       this.summonSlot.el.setAttribute('aria-pressed',String(petActive));
     }
@@ -2062,7 +2245,7 @@ export class UI {
         row.el.tabIndex=0;
         row.el.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.a.target(ent.id);}});
         this.bindPlayerContext(row.el,()=>ent.id);
-        this.party.append(row.el);
+        this.nearby.append(row.el);
         this.partyRows.set(ent.id, row);
       }
       set(row.name, 'text', ent.meta.n);
@@ -2070,7 +2253,10 @@ export class UI {
       this.frameBars(row, ent.row.h, ent.row.m);
       this.buffChips(row.buffs, ent.row.b || []);
       this.unitPortrait(row.el,ent.meta);
-      row.el.classList.toggle('party-member-live',!!you.party?.members?.some(m=>m.id===ent.id));
+      const member=!!you.party?.members?.some(m=>m.id===ent.id);
+      row.el.classList.toggle('party-member-live',member);
+      const list=member?this.party:this.nearby;
+      if(row.el.parentElement!==list)list.append(row.el);
       row.el.classList.toggle('selected', !!target && target.id === ent.id);
       row.el.classList.toggle('dead', ent.dead);
     }
@@ -2080,7 +2266,30 @@ export class UI {
         this.partyRows.delete(id);
       }
     }
-
+    // Server partyState identifies members even outside our visible entity
+    // snapshot. Never fabricate their health, buffs or physical appearance.
+    const memberList=(you.party?.members??[]).filter(m=>m.id!==me.id);
+    const activeParty=new Set(memberList.map(m=>m.id));
+    for(const [id,ghost] of this.partyGhostRows){
+      if(!activeParty.has(id)||seen.has(id)){ghost.remove();this.partyGhostRows.delete(id);}
+    }
+    for(const member of memberList){
+      if(seen.has(member.id))continue;
+      let ghost=this.partyGhostRows.get(member.id);
+      if(!ghost){
+        ghost=h('div','frame ally party-member-unavailable');
+        ghost.setAttribute('role','status');
+        ghost.append(h('span','party-avatar-placeholder','?'),h('div','name'),h('div','sub'));
+        this.partyGhostRows.set(member.id,ghost);
+      }
+      set(ghost.querySelector('.name'),'text',member.name);
+      set(ghost.querySelector('.sub'),'text',`Level ${member.level} ${CLASSES[member.cls]?.name??member.cls} · Out of visible range`);
+    }
+    const partyNodes=memberList.map(m=>this.partyRows.get(m.id)?.el??this.partyGhostRows.get(m.id)).filter(Boolean);
+    if(partyNodes.length!==this.party.children.length||partyNodes.some((n,i)=>this.party.children[i]!==n))
+      this.party.replaceChildren(...partyNodes);
+    this.party.hidden=partyNodes.length===0;
+    this.nearby.hidden=this.nearby.children.length<=1;
     if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
@@ -2095,6 +2304,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
+    else if(st.nearObject?.meta.c==='resonant_vein'){const d=you.veins?.depleted?.find(v=>v.id===st.nearObject.id),ch=you.veins?.channel;set(this.interact,'text',ch?'Extracting resonance… hold still':lock?'Resonant shard vein · disengage first':d?'Resonant shard vein · regrowing ('+Math.ceil(d.ms/60000)+' min)':'[F] Extract resonance');}
     else if(st.nearObject?.meta.c==='rift_return')set(this.interact,'text',lock?'Phase gate · disengage first':'[F] Return to the Severance Gate');
     else if(st.nearObject?.meta.c==='severance_return')set(this.interact,'text',lock?'Return beacon · disengage first':'[F] Return to the Reach');
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');
@@ -2254,35 +2464,25 @@ export class UI {
     const cx=zoom>1||pocket?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket?st.me.pos.z:annex?RIFT_ANNEX.z:0;
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
-    if(!area)g.drawImage(reachTerrain(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
-    if(area){g.strokeStyle=pocket?'#9c7a63':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
+    if(!area)g.drawImage(reachMinimapArt(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
+    if(area){g.strokeStyle=pocket?'#607b84':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
+    const zoneColours = { sanctum: '#85a6b2', sporefield: '#7c8f91', relay: '#65828e', vault: '#788b9b', obelisk: '#6e9eae', survey: '#758d92', sinter: '#8d9d9b', deep: '#677c85' };
     for (const key of area?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
-      g.fillStyle = zoneColours[key] + '33';
+      g.fillStyle = zoneColours[key] + '16';
       g.fill();
     }
-    g.fillStyle = 'rgba(189, 186, 149, 0.32)';
-    g.strokeStyle='rgba(30, 43, 41, 0.65)';
+    g.fillStyle = 'rgba(92, 124, 137, 0.23)';
+    g.strokeStyle='rgba(30, 43, 41, 0.52)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
       g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);
     }
-    // Up to two nearby place names remain legible; avoid covering the player.
-    if(!area){
-      const labels=Object.values(ZONES)
-       .map(z=>({z,d:Math.hypot(z.x-st.me.pos.x,z.z-st.me.pos.z)}))
-       .filter(({d})=>d*k<R-30).sort((a,b)=>a.d-b.d).slice(0,2);
-      g.font='bold 13px sans-serif';g.textAlign='center';g.lineWidth=3.5;
-      for(const {z} of labels){
-        const x=X(z.x),y=Z(z.z),name=z.name;
-        g.strokeStyle='#101b1e';g.strokeText(name,x,y-10);
-        g.fillStyle='#f1ddb2';g.fillText(name,x,y-10);
-      }
-    }
+    // Region names are displayed alongside the map; avoid rendering large
+    // zone names across the illustrated terrain, player arrow and markers.
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
       if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
@@ -2299,7 +2499,7 @@ export class UI {
         g.closePath();
       }else if(ent.meta.k==='o')g.rect(px-radius,py-radius,radius*2,radius*2);
       else g.arc(px,py,radius,0,Math.PI*2);
-      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
+      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#a9c1c7':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#75b5ca';
       g.fill();g.lineWidth=1.8;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
@@ -2344,8 +2544,8 @@ export class UI {
       const x=px*scale,y=py*scale;
       g.save();g.translate(x,y);
       g.beginPath();g.moveTo(0,-9);g.lineTo(9,0);g.lineTo(0,9);g.lineTo(-9,0);g.closePath();
-      g.fillStyle='#f4d48c';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
-      if(scale<1){g.strokeStyle='#f4d48c';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
+      g.fillStyle='#75d0e1';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
+      if(scale<1){g.strokeStyle='#75d0e1';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
       g.restore();
     }
     const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members',

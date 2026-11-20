@@ -1,4 +1,5 @@
 // Character persistence: a single JSON file written atomically.
+import {sanitizeVeinReady} from './sim/severance-veins.js';
 // Characters are owned by whoever holds their secret token; only a hash of
 // the token is stored.
 
@@ -85,6 +86,7 @@ function sanitize(raw) {
     recoverySamples:recoverySamples(raw.recoverySamples),
     craftingDisciplines:sanitizeCraftingDisciplines(raw.craftingDisciplines),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
+    veinReadyAt:sanitizeVeinReady(raw.veinReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
@@ -219,6 +221,7 @@ export class CharacterStore {
       recoverySamples:0,
       craftingDisciplines:sanitizeCraftingDisciplines(null),
       recoveryReadyAt:0,
+      veinReadyAt:{},
       brineStage: 0,
       pos: null,
       hp: 0,

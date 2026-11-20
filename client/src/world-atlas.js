@@ -73,7 +73,14 @@ export class WorldAtlas{
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const b=el('button',null,label);b.onclick=fn;controls.append(b);}
  view.append(this.canvas,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
- this.el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();this.close();}});
+ this.el.addEventListener('keydown',e=>{
+  e.stopPropagation();
+  if(e.key==='Escape'){e.preventDefault();this.close();return;}
+  if(e.code==='KeyM'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&
+    !['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)){
+   e.preventDefault();this.close();
+  }
+ });
  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.scale(e.deltaY<0?1.2:1/1.2);},{passive:false});
  this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;this.drag={x:e.clientX,y:e.clientY,moved:false};this.canvas.setPointerCapture(e.pointerId);});
  this.canvas.addEventListener('pointermove',e=>{if(!this.drag||!this.p)return;
