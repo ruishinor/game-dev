@@ -55,4 +55,8 @@ Thumbs.db
 # Halo Construct scratch output and Blender autosave backups
 halo-evidence/
 armour-evidence/
+weapon-switch-evidence/
+rod-live-evidence/
+vendor-evidence/
+longpoint-evidence/
 *.blend1

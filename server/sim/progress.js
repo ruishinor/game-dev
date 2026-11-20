@@ -17,6 +17,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { WEAPON_SWITCH, activeWeaponSlot, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
@@ -178,10 +179,32 @@ function inCombat(game, p) {
 // Explicit configuration intent, not a toggle: replaying the same request is harmless.
 export function setElectricalRodMode(game,p,mode) {
   if(mode!=='rod'&&mode!=='dual')return {ok:false,reason:'Unknown electrical rod configuration.'};
-  if(p.cls!=='vanguard'||p.char.equipped.weapon!=='electrical_combat_rod'||!p.char.inventory.includes('electrical_combat_rod'))return {ok:false,reason:'Equip your Electrical Combat Rod first.'};
+  if(p.char.equipped.weapon!=='electrical_combat_rod'||!p.char.inventory.includes('electrical_combat_rod'))return {ok:false,reason:'Equip your Electrical Combat Rod first.'};
+  // A stowed rod cannot be reconfigured; its saved configuration is retained.
+  if(!electricalRodActive(p.char))return {ok:false,reason:'Select your Electrical Combat Rod as the active weapon first.'};
   if(p.dead||inCombat(game,p)||p.autoOn||p.inscription||p.production||p.jy>.05)return {ok:false,reason:'Disengage and finish your current action before changing configuration.'};
   if((p.char.electricalRodMode||'rod')===mode)return {ok:true};
   p.char.electricalRodMode=mode;
+  game.markDirty(p);
+  return {ok:true};
+}
+
+// Explicit desired weapon mode ('weapon' melee or 'ranged'), not a toggle.
+// Every class has both modes; an empty slot uses the class's innate attack.
+// Allowed in combat; has its own recovery and can only delay the next
+// auto-attack, never advance it. Ability cooldowns and the GCD are untouched.
+export function selectWeapon(game,p,slot) {
+  if(slot!=='weapon'&&slot!=='ranged')return {ok:false,reason:'Unknown weapon slot.'};
+  if(p.dead)return {ok:false,reason:'You are defeated.'};
+  if(p.inscription)return {ok:false,reason:'Finish or cancel the current inscription.'};
+  if(p.production)return {ok:false,reason:'Finish or cancel production before switching weapons.'};
+  if(activeWeaponSlot(p.char)===slot){p.char.activeWeapon=slot;return {ok:true};}
+  if(game.time<(p.weaponSwitchReady||0))return {ok:false,reason:'Weapon switch not ready yet.'};
+  p.char.activeWeapon=slot;
+  p.weaponSwitchReady=game.time+WEAPON_SWITCH.cooldownMs;
+  p.nextAuto=Math.max(p.nextAuto||0,game.time+WEAPON_SWITCH.autoDelayMs);
+  game.refreshPresentation(p);
+  game.emitWorldEvent({e:'fx',k:'weapon_switch',s:p.id});
   game.markDirty(p);
   return {ok:true};
 }
@@ -234,7 +257,14 @@ function applyLoadout(game, p, equipped, itemName, playEquip = true) {
     return;
   }
   const before = equipmentAttributes(p.char, p.stats);
+  const wasActive = activeWeaponSlot(p.char), wasArmed = !!equippedWeapon(p.char, wasActive);
   p.char.equipped = equipped;
+  // A weapon in use stays in use: a new weapon in the other slot is carried
+  // stowed until the player switches. While on an innate attack (no weapon in
+  // the active slot), the selection is released so a single equipped weapon
+  // is picked up; removing the weapon in use falls back the same way.
+  if (wasArmed && equippedWeapon(p.char, wasActive)) p.char.activeWeapon = wasActive;
+  else delete p.char.activeWeapon;
   game.refreshStats(p);
   const changes = attributeChanges(before, equipmentAttributes(p.char, p.stats));
   if (changes.length) p.outbox.push({ e: 'attributes', item: itemName, changes });

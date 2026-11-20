@@ -179,7 +179,12 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 
 /* --- action bars --- */
 .bars { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; width: 300px; }
-.actionbar, .petbar { display: flex; gap: 5px; }
+.actionbar, .petbar, .weaponbar { display: flex; gap: 5px; }
+.weaponbar { padding-left: 6px; margin-left: 1px; border-left: 1px solid var(--edge); }
+.weaponbar[hidden], .weapon-action[hidden] { display: none; }
+.slot.weapon-action .icon { color: #8fd8ff; }
+.slot.weapon-action[data-active="ranged"] .icon { color: var(--amber); }
+.slot.weapon-action:disabled { cursor: not-allowed; }
 .actionbar { max-width: min(342px, calc(100vw - 16px)); flex-wrap: wrap; justify-content: center; }
 .petbar { margin-bottom: 8px; }
 .action-row { display: flex; align-items: center; justify-content: center; gap: 5px; width: max-content; max-width: calc(100vw - 16px); }
