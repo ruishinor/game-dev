@@ -72,3 +72,20 @@ export function reachAtlasTerrain(){
   cached=c;
   return c;
 }
+
+/** Presentation-only marker clustering. Caller keeps original entity entries
+ * and search results; no server visibility or discovery rules are changed. */
+export function clusterMapMarkers(markers,radius=20){
+  if(!Array.isArray(markers))return [];
+  const groups=[];
+  for(const marker of markers){
+    if(!Number.isFinite(marker?.x)||!Number.isFinite(marker?.y))continue;
+    const existing=groups.find(group=>group.category===marker.category&&Math.hypot(group.x-marker.x,group.y-marker.y)<=radius);
+    if(existing){
+      existing.count++;
+      existing.x+=(marker.x-existing.x)/existing.count;
+      existing.y+=(marker.y-existing.y)/existing.count;
+    }else groups.push({x:marker.x,y:marker.y,category:marker.category,color:marker.color,count:1});
+  }
+  return groups;
+}
