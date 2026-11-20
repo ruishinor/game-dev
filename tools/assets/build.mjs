@@ -193,6 +193,15 @@ async function buildPipelineAsset(spec) {
     sources: spec.sources, note: spec.note };
 }
 
+// A hand-authored file committed under client/assets/ (no generator, no
+// external source). The job only describes the file as committed so it is
+// size/hash-pinned in the manifest like every other shipped asset.
+function describeAuthored(spec) {
+  const file = path.join(OUT, spec.out);
+  if (!fs.existsSync(file)) throw new Error(`${spec.id}: ${spec.out} is missing (authored files are committed, not generated)`);
+  return { kind: spec.kind, url: spec.out, bytes: fs.statSync(file).size, hash: hashOf(file), sources: ['original'], note: spec.note };
+}
+
 async function main() {
   const only = new Set(process.argv.slice(2));
   const jobs = [
@@ -212,6 +221,8 @@ async function main() {
       sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
       note: `Original body-fitted chest armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),
     ...FACE_TEXTURES.map((s) => [s, buildFaceTexture]),
+    [{ id: 'atlas_reach', out: 'atlas/reach-handdrawn.svg', kind: 'image', sources: [],
+      note: 'Hand-authored Verdigris Reach atlas chart (original project work); loaded by client/src/world-atlas.js, site anchors checked by test/atlas-cartography.test.js' }, describeAuthored],
   ];
   const unknown = [...only].filter((id) => !jobs.some(([spec]) => spec.id === id));
   if (unknown.length) throw new Error(`unknown output: ${unknown.join(', ')}`);

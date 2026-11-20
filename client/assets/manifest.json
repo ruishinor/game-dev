@@ -68,6 +68,16 @@
    ],
    "note": "Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
   },
+  "atlas_reach": {
+   "kind": "image",
+   "url": "atlas/reach-handdrawn.svg",
+   "bytes": 10775,
+   "hash": "db2d2decb815",
+   "sources": [
+    "original"
+   ],
+   "note": "Hand-authored Verdigris Reach atlas chart (original project work); loaded by client/src/world-atlas.js, site anchors checked by test/atlas-cartography.test.js"
+  },
   "creatures": {
    "kind": "kit",
    "url": "creatures.glb",
