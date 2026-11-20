@@ -42,9 +42,11 @@ export function formatMinutes(minutes,format='24'){
 // Preserve the existing texture API for callers; render the richer terrain plate.
 export const reachTerrain=reachAtlasTerrain;
 export class WorldAtlas{
- constructor(root,settings,focusWorld){
+ constructor(root,settings,focusWorld,captureTerrain=null){
  this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','objects']);
   this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
+  this.captureTerrain=typeof captureTerrain==='function'?captureTerrain:null;
+  this.terrainCache=new Map();
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
@@ -270,12 +272,25 @@ export class WorldAtlas{
   if(changed&&!this.el.hidden)this.draw();
   else this.updatePlayerMarker();
  }
+ terrainForRegion(region){
+  if(!this.terrainCache.has(region.name)){
+   let plate=null;
+   try{plate=this.captureTerrain?.(region)||null;}
+   catch(err){console.warn('[atlas] terrain capture failed',err);}
+   // A failed GPU capture is cached as null. Never retry every movement tick.
+   this.terrainCache.set(region.name,plate);
+  }
+  return this.terrainCache.get(region.name);
+ }
  draw(){
  if(this.el.hidden||!this.state||!this.region)return;const c=this.canvas,rect=c.getBoundingClientRect();if(rect.width<40||rect.height<40)return;
  const w=Math.round(Math.min(rect.width,1400)),h=Math.round(Math.min(rect.height,1000));if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
  const g=c.getContext('2d'),r=this.region,st=this.state,p=project(r,w,h,this.zoom,this.pan);this.p=p;this.title.textContent=r.name+' · Atlas';this.regionName.textContent='ACTIVE REGION · '+r.name;
  g.fillStyle='#273339';g.fillRect(0,0,w,h);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
- if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ const captured=this.terrainForRegion(r);
+ c.dataset.terrainSource=captured?'scene':'fallback';
+ if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ else if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
