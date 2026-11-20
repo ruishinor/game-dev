@@ -368,7 +368,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       // Both cosmetic systems own the arm rotations. Restore before sampling
       // animation, and give fabrication exclusive priority over weapon carry.
       const seated = !!st.sitting && !st.dead && !st.air;
-      sitBlend = st.reducedMotion ? (seated ? 1 : 0) : Math.max(0, Math.min(1, sitBlend + (seated ? 1 : -1) * dt / .35));
+      sitBlend = st.reducedMotion ? (seated ? 1 : 0) : Math.max(0, Math.min(1, sitBlend + (seated ? 1 : -1) * dt / .5));
       if (step) {
         weapon?.restore();
         work.restorePose();

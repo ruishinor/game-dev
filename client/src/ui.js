@@ -8,7 +8,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket } from '../../shared/world.js';
-import { conditionOf, weaponReach, maintenanceTarget } from '../../shared/condition.js';
+import { conditionOf, weaponReach, maintenanceTarget, effectiveAuto } from '../../shared/condition.js';
 import { autoProfile, activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive, WEAPON_SWITCH } from '../../shared/weapons.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
@@ -2269,7 +2269,7 @@ export class UI {
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
     // The active weapon (main or ranged slot) decides the auto-attack profile.
-    const auto=(this.sheet&&autoProfile(this.sheet))||def.auto;
+    const auto=(this.sheet&&effectiveAuto(this.sheet))||def.auto;
     const effectiveReach=this.sheet?weaponReach(this.sheet):auto.range;
     const reach=Number(effectiveReach.toFixed(2));
     const autoTitle=`${auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;

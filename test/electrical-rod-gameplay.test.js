@@ -3,8 +3,10 @@ import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {makeGame,makeChar,place} from './helpers.js';
 import {openVendor,tradeVendor,vendorState} from '../server/sim/vendor.js';
 import {equipItem,unequipSlot,setElectricalRodMode} from '../server/sim/progress.js';
-import {weaponBonus,weaponReach} from '../shared/condition.js';
+import {effectiveAuto,weaponReach} from '../shared/condition.js';
+const bonus=c=>{const a=effectiveAuto(c);return a.weapon?a.dmg:0;};
 import {CharacterStore} from '../server/store.js';
+import {ITEMS,CLASSES} from '../shared/content.js';
 const ID='electrical_combat_rod';
 test('electrical rod acquisition, class and public presentation are server authoritative',()=>{
  const g=makeGame(),npc=g.objects.find(o=>o.type==='quartermaster'),p=g.addPlayer(makeChar('vanguard',{credits:23}));
@@ -18,15 +20,15 @@ test('electrical rod acquisition, class and public presentation are server autho
  p.char.credits=50;assert.equal(quote().max,1);assert.equal(tradeVendor(g,p,req('buy',ID,2)).ok,false);
  const order=req('buy');assert.ok(tradeVendor(g,p,order).ok);assert.equal(p.char.credits,26);assert.equal(tradeVendor(g,p,order).ok,false);
  assert.equal(tradeVendor(g,p,req('buy')).ok,false);assert.equal(quote().max,0);assert.equal(row().er,undefined);
- assert.ok(equipItem(g,p,ID).ok);assert.equal(row().er,1);assert.equal(weaponBonus(p.char),3);assert.equal(weaponReach(p.char),originalReach);
+ assert.ok(equipItem(g,p,ID).ok);assert.equal(row().er,1);assert.equal(bonus(p.char),ITEMS[ID].auto.dmg);assert.equal(weaponReach(p.char),originalReach,'rod reach matches the unarmed melee reach');
  assert.equal(setElectricalRodMode(g,p,'bogus').ok,false);
  assert.ok(setElectricalRodMode(g,p,'dual').ok);assert.equal(row().er,2);
- assert.equal(g.sheet(p).electricalRodMode,'dual');assert.equal(weaponBonus(p.char),3);
+ assert.equal(g.sheet(p).electricalRodMode,'dual');assert.equal(bonus(p.char),ITEMS[ID].auto.dmg,'configuration is presentation only');
  assert.ok(setElectricalRodMode(g,p,'dual').ok);assert.equal(row().er,2);
  p.combatUntil=g.time+1000;assert.equal(setElectricalRodMode(g,p,'rod').ok,false);
  p.combatUntil=g.time;assert.ok(setElectricalRodMode(g,p,'rod').ok);assert.equal(row().er,1);
- p.char.condition={[ID]:50};assert.equal(weaponBonus(p.char),1.5);assert.ok(tradeVendor(g,p,req('repair')).ok);assert.equal(weaponBonus(p.char),3);assert.equal(p.char.credits,16);
- assert.ok(unequipSlot(g,p,'weapon').ok);assert.equal(row().er,undefined);assert.equal(weaponBonus(p.char),0);
+ p.char.condition={[ID]:50};const floor=CLASSES.vanguard.auto.dmg/CLASSES.vanguard.auto.interval*ITEMS[ID].auto.interval;assert.ok(Math.abs(bonus(p.char)-(floor+(ITEMS[ID].auto.dmg-floor)*.5))<1e-9);assert.ok(tradeVendor(g,p,req('repair')).ok);assert.equal(bonus(p.char),ITEMS[ID].auto.dmg);assert.equal(p.char.credits,16);
+ assert.ok(unequipSlot(g,p,'weapon').ok);assert.equal(row().er,undefined);assert.equal(bonus(p.char),0);
  const other=g.addPlayer(makeChar('surveyor',{credits:50}));place(other,npc.x,npc.z+2);assert.ok(openVendor(g,other,npc.id).ok);
  // The rod is no longer class-locked: any class can buy, equip and configure it.
  assert.equal(vendorState(g,other).buy.find(row=>row.id===ID).max,1);

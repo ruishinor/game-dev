@@ -1,7 +1,7 @@
 // Build planning never changes equipped state. Workshop commits only a
 // recipe ID; the authoritative server revalidates skill, materials and location.
 import { ITEMS, CLASSES, SLOTS, SLOT_NAMES, SKILL_NAMES, ATTUNEMENT_NAMES } from '../../shared/content.js';
-import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import { autoDps, weaponReach } from '../../shared/condition.js';
 import { itemArt, itemTooltip } from './journal-ui.js';
 import { deriveStats, validateLoadout } from '../../shared/build.js';
 import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities, productionTime, previewProduction, productionRisk, missingRecipeKnowledge } from '../../shared/crafting.js';
@@ -80,7 +80,7 @@ function planner(ui,body){
   compare('Charge generation',s.stats.chargeMul,stats.chargeMul,pct);
   compare('Extra Discharge radius',s.stats.dischargeRadius,stats.dischargeRadius,n=>n+'m');
   compare('Aegis capacity',s.stats.shieldMul,stats.shieldMul,pct);
-  compare('Weapon auto-attack bonus',weaponBonus(s),weaponBonus(hypothetical),n=>n.toFixed(1));
+  compare('Auto-attack damage per second',autoDps(s),autoDps(hypothetical),n=>n.toFixed(1));
   compare('Auto-attack reach',weaponReach(s),weaponReach(hypothetical),n=>Number(n.toFixed(2))+'m');
   right.append(score);
   right.append(h('p',res.ok?(owned.ok?'met':'muted'):'why',!res.ok?'Requirements not met: '+res.reason:!owned.ok?'The proposed build is mechanically compatible, but one or more items are not owned.':'Requirements met with current ownership.'));

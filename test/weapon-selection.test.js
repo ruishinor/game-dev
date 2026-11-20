@@ -6,10 +6,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { makeGame, makeChar, place, enemyOf, isolate } from './helpers.js';
-import { CLASSES, AUTO_REFERENCE_MS } from '../shared/content.js';
+import { CLASSES, ITEMS } from '../shared/content.js';
 import { equipItem, unequipSlot, setElectricalRodMode, selectWeapon } from '../server/sim/progress.js';
 import { tickPlayerCombat, useAbility, dealDamage } from '../server/sim/combat.js';
-import { weaponBonus, weaponReach, conditionOf } from '../shared/condition.js';
+import { effectiveAuto, weaponReach, conditionOf } from '../shared/condition.js';
 import { WEAPON_SWITCH, activeWeaponSlot, autoProfile, canSwitchWeapons, migrateWeaponSlots, profileFor } from '../shared/weapons.js';
 import { CharacterStore } from '../server/store.js';
 import { startServer } from '../server/index.js';
@@ -18,8 +18,9 @@ import WebSocket from 'ws';
 const ROD = 'electrical_combat_rod', EMITTER = 'field_emitter';
 const armed = (over = {}) => makeChar('vanguard', { inventory: [ROD, EMITTER], ...over });
 const rowOf = (g, p) => g.buildRows().find(r => r.i === p.id);
-// Per-hit damage under the cadence: weapon bonus is paced so damage per second is unchanged.
-const hit = (p, prof, bonus) => Math.round((prof.dmg + bonus * prof.interval / AUTO_REFERENCE_MS) * p.stats.power * p.stats.dmgMul);
+// Per-hit damage: the weapon defines it (full condition here).
+const hit = (p, id) => Math.round(ITEMS[id].auto.dmg * p.stats.power * p.stats.dmgMul);
+const wpn = c => effectiveAuto(c);
 const snapshot = p => JSON.stringify({ inventory: p.char.inventory, equipped: p.char.equipped, condition: p.char.condition ?? {} });
 
 test('rod and emitter occupy independent slots; equipping either preserves the other', () => {
@@ -46,19 +47,19 @@ test('selection switches attack profile, reach, bonus, presentation and keeps in
   const before = snapshot(p);
   assert.equal(rowOf(g, p).er, 1);
   assert.equal(autoProfile(p.char).kind, 'melee');
-  assert.equal(weaponBonus(p.char), 3);
+  assert.equal(wpn(p.char).weapon, ROD); assert.equal(wpn(p.char).dmg, ITEMS[ROD].auto.dmg);
   assert.ok(selectWeapon(g, p, 'ranged').ok);
   assert.equal(snapshot(p), before, 'switching never edits inventory or equipped slots');
   assert.equal(autoProfile(p.char), CLASSES.vanguard.rangedAuto);
-  assert.equal(weaponReach(p.char), CLASSES.vanguard.rangedAuto.range);
-  assert.equal(weaponBonus(p.char), 2);
+  assert.equal(weaponReach(p.char), ITEMS[EMITTER].auto.range, 'the emitter sets the reach');
+  assert.equal(wpn(p.char).dmg, ITEMS[EMITTER].auto.dmg);
   assert.equal(rowOf(g, p).er, 3, 'the rod is reported stowed, not in hand');
   assert.equal(g.events.filter(e => e.k === 'weapon_switch' && e.s === p.id).length, 1);
   // Ranged attack lands from beyond melee reach and is a bolt.
   const e = enemyOf(g, 'skitter'); isolate(g, e);
   place(p, e.x + 10, e.z); p.target = e.id; p.autoOn = true; p.nextAuto = 0;
   const hp = e.hp; tickPlayerCombat(g, p, 0);
-  assert.equal(hp - e.hp, hit(p, CLASSES.vanguard.rangedAuto, 2));
+  assert.equal(hp - e.hp, hit(p, EMITTER));
   assert.equal(g.events.filter(x => x.e === 'dmg' && x.s === p.id).at(-1).k, 'bolt');
   // Back on the rod, the same distance is out of melee reach.
   g.time += WEAPON_SWITCH.cooldownMs;
@@ -67,7 +68,7 @@ test('selection switches attack profile, reach, bonus, presentation and keeps in
   g.time += 5000; const hp2 = e.hp; tickPlayerCombat(g, p, 0);
   assert.equal(e.hp, hp2, 'melee cannot hit at ranged distance');
   place(p, e.x + 1, e.z); tickPlayerCombat(g, p, 0);
-  assert.equal(hp2 - e.hp, hit(p, CLASSES.vanguard.auto, 3));
+  assert.equal(hp2 - e.hp, hit(p, ROD));
   assert.equal(g.events.filter(x => x.e === 'dmg' && x.s === p.id).at(-1).k, 'melee');
 });
 
@@ -117,13 +118,13 @@ test('invalid selections, forged slots and restricted states are rejected; an em
   assert.ok(canSwitchWeapons(p.char));
   assert.ok(selectWeapon(g, p, 'ranged').ok);
   assert.equal(autoProfile(p.char), CLASSES.vanguard.rangedAuto);
-  assert.equal(weaponBonus(p.char), 0, 'no weapon in the active slot, no bonus');
+  assert.equal(wpn(p.char).weapon, null, 'no weapon in the active slot: innate attack');
   assert.equal(rowOf(g, p).er, 3, 'the rod is stowed while ranged is active');
   // Mis-slotted or unowned items never count.
   const forged = { ...p.char, activeWeapon: undefined, equipped: { ...p.char.equipped, weapon: EMITTER, ranged: ROD } };
-  assert.equal(weaponBonus(forged), 0);
+  assert.equal(wpn(forged).weapon, null);
   const unowned = { ...p.char, activeWeapon: 'weapon', inventory: [] };
-  assert.equal(weaponBonus(unowned), 0);
+  assert.equal(wpn(unowned).weapon, null);
 });
 
 test('every class has melee and ranged modes, can carry the rod, and keeps its primary attack by default', () => {
@@ -132,23 +133,23 @@ test('every class has melee and ranged modes, can carry the rod, and keeps its p
     assert.ok(equipItem(g, p, EMITTER).ok);
     assert.equal(activeWeaponSlot(p.char), 'ranged');
     assert.equal(autoProfile(p.char), CLASSES[cls].auto, 'class attack unchanged');
-    assert.equal(weaponBonus(p.char), 2);
+    assert.equal(wpn(p.char).dmg, ITEMS[EMITTER].auto.dmg, 'the emitter is the same for every class');
     assert.ok(equipItem(g, p, ROD).ok, 'the rod is no longer class-locked');
     assert.equal(activeWeaponSlot(p.char), 'ranged', 'the emitter in use stays active');
     assert.equal(rowOf(g, p).er, 3, 'rod carried stowed');
     assert.ok(selectWeapon(g, p, 'weapon').ok);
     assert.equal(autoProfile(p.char), CLASSES[cls].meleeAuto);
     assert.equal(profileFor(cls, 'weapon').kind, 'melee');
-    assert.equal(weaponBonus(p.char), 3);
+    assert.equal(wpn(p.char).dmg, ITEMS[ROD].auto.dmg, 'the rod is the same for every class');
     assert.equal(rowOf(g, p).er, 1);
-    // The off-mode is weaker than the primary mode in damage per second.
+    // DPS parity: the off-mode deals the same damage per second as the primary.
     const dps = a => a.dmg / a.interval;
-    assert.ok(dps(CLASSES[cls].meleeAuto) < dps(CLASSES[cls].auto));
+    assert.ok(Math.abs(dps(CLASSES[cls].meleeAuto) - dps(CLASSES[cls].auto)) < 1e-9);
     // A fresh character with nothing equipped uses its primary mode.
     assert.equal(activeWeaponSlot(makeChar(cls)), 'ranged');
   }
   assert.equal(activeWeaponSlot(makeChar('vanguard')), 'weapon');
-  assert.ok(CLASSES.vanguard.rangedAuto.dmg / CLASSES.vanguard.rangedAuto.interval < CLASSES.vanguard.auto.dmg / CLASSES.vanguard.auto.interval);
+  assert.ok(Math.abs(CLASSES.vanguard.rangedAuto.dmg / CLASSES.vanguard.rangedAuto.interval - CLASSES.vanguard.auto.dmg / CLASSES.vanguard.auto.interval) < 1e-9);
 });
 
 test('rod configuration requires the rod to be active and is retained across ranged selection', () => {
