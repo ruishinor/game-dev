@@ -44,6 +44,12 @@ try{
  assert.equal(bgResponse.status(),200);
  assert.match(bgResponse.headers()['content-type'],/image\/webp/);
  assert.ok((await bgResponse.body()).length>4000);
+ const imageDecoded=await page.evaluate(async()=>{
+  const img=new Image();img.src='/client/assets/character-selection-gate.webp';
+  try{await img.decode();return img.naturalWidth>=768&&img.naturalHeight>=432;}
+  catch{return false;}
+ });
+ assert.equal(imageDecoded,true,'original supplied background must decode in browser');
  const backdrop=await page.locator('#roster-preview').evaluate(el=>getComputedStyle(el).backgroundImage);
  assert.match(backdrop,/character-selection-gate\.webp/);
  const fitsViewport=()=>document.documentElement.scrollHeight<=innerHeight+2
@@ -77,6 +83,26 @@ try{
  assert.equal(await page.evaluate(fitsViewport),true);
  await page.getByRole('button',{name:'1. Identity'}).click();
  assert.equal(await page.locator('#name').isVisible(),true);
+ const singlePage=async(label)=>{
+  const dims=await page.evaluate(()=>({
+   doc:document.documentElement.scrollHeight,
+   body:document.body.scrollHeight,
+   height:innerHeight,
+   fields:document.querySelector('#creation-fields')?.scrollHeight??0,
+   visibleFields:document.querySelector('#creation-fields')?.clientHeight??0
+  }));
+  assert.ok(dims.doc<=dims.height+2&&dims.body<=dims.height+2,label+': page must not scroll');
+  assert.ok(dims.fields<=dims.visibleFields+2,label+': controls must fit without clipping or scrolling');
+ };
+ await singlePage('desktop identity');
+ await page.setViewportSize({width:390,height:844});
+ for(const tab of ['1. Identity','2. Body','3. Details']){
+  await page.getByRole('button',{name:tab}).click();
+  await singlePage('mobile '+tab);
+ }
+ if(evidence)await page.screenshot({path:join(evidence,'character-creation-mobile.png')});
+ await page.setViewportSize({width:1360,height:850});
+ await page.getByRole('button',{name:'1. Identity'}).click();
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
