@@ -84,9 +84,8 @@ Branch `feat/severance-expanse-landscape`, PR #139. This is the broad-strokes pa
 5. **Live world clock.**
    - `shared/world-clock.js` defines a 48-minute cycle (12 minutes per phase). It is server-owned and based on the wall clock, so it survives restarts, and its phase is sent in each player's private state.
    - The Expanse follows it by default. `?tod=` previews and the capture controls still override it.
-6. **Sanctum upgrade: the Lattice Crown.**
-   - `client/src/sanctum-crown.js`: verdigris ribs rise from the existing pylon heads to a floating 38 m lattice spire, with a reconstitution core, armillary rings, resonance filaments and spiralling motes.
-   - It adds no colliders, and every service is unchanged.
+6. **Sanctum Lattice Crown: rejected and removed (2026-11-20).**
+   - The owner rejected the floating crown. `client/src/sanctum-crown.js` and its test were deleted; nothing may be stacked on the Sanctum roof. The Sanctum's own architecture, materials and lighting are to be upgraded instead.
 
 Capture tools: `tools/severance-expanse-capture.mjs` covers views 01–25, including patrol variants (17) and Overseer attacks (25); `tools/sanctum-capture.mjs` covers the Sanctum. Output stays out of Git.
 

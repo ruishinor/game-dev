@@ -1,7 +1,7 @@
 // Combat rules: damage, healing, threat, buffs and player abilities.
 // Every outcome a client sees originates here.
 
-import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
+import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR, AUTO_REFERENCE_MS } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
@@ -327,8 +327,10 @@ export function tickPlayerCombat(game, p, dt) {
       p.autoOn = false;
     } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
       p.nextAuto = game.time + cdef.auto.interval;
-      dealDamage(game, p, t, cdef.auto.dmg+weaponBonus(p.char), 'auto', { kind: cdef.auto.kind });
-      gainCharge(p, 5);
+      // fast swings: per-hit weapon bonus and Charge scale with the cadence (same per second)
+      const pace = cdef.auto.interval / AUTO_REFERENCE_MS;
+      dealDamage(game, p, t, cdef.auto.dmg + weaponBonus(p.char) * pace, 'auto', { kind: cdef.auto.kind });
+      gainCharge(p, 5 * pace);
     }
   }
 }
