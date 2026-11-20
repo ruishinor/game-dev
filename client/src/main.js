@@ -1452,8 +1452,14 @@ input.onAction = (code, e) => {
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
       break;
     case 'Escape':
+      e.preventDefault();
       stopAutomaticMovement();
-      if (!ui.closePanels() && S.target) setTarget(0);
+      // Dismiss an active window first. Otherwise open/close the corner
+      // menu, preserving the existing escape-to-clear-target behaviour.
+      if (!ui.closePanels()) {
+        if (S.target) setTarget(0);
+        ui.toggleMenu();
+      }
       break;
     case 'F1':
       e.preventDefault();
@@ -1488,7 +1494,8 @@ input.onAction = (code, e) => {
       ui.toggleSettings();
       break;
     case 'KeyM':
-      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
+      e.preventDefault();
+      ui.toggleAtlas();
       break;
     case 'KeyH':
       ui.toggleHelp();

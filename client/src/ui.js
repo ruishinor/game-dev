@@ -26,7 +26,9 @@ import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
-import { WorldAtlas, reachTerrain } from './world-atlas.js';
+import { WorldAtlas } from './world-atlas.js';
+import { reachMinimapArt } from './minimap-art.js';
+import { paintedAbilityArt } from './ability-art.js';
 import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
@@ -166,7 +168,7 @@ export class UI {
     this.tipFor = null;
     this.buildLock = '';
     this.companionId = 0;
-    this.emptySlotMode='visible';
+    this.emptySlotMode='transparent';
     try{const v=localStorage.getItem('attunement.emptySlotMode');if(['visible','transparent','hidden'].includes(v))this.emptySlotMode=v;}catch{}
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
@@ -216,12 +218,10 @@ export class UI {
         this.openCompanionMenu(r.left, r.bottom);
       }
     });
-    this.summonPet = h('button', 'summon-pet', 'Summon companion');
-    this.summonPet.type = 'button';
-    this.summonPet.hidden = true;
-    this.summonPet.addEventListener('click', () => this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
+    // The class action bar already owns the summon/dismiss command.
+    // Do not add a second standalone button beneath the portrait stack.
     const left = h('div', 'col');
-    left.append(this.player.el, this.pet, this.summonPet);
+    left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
 
@@ -472,7 +472,17 @@ export class UI {
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Character [C]');
+    // Compact iconic controls; native title + accessible name are retained
+    // for hover, keyboard navigation and screen-reader users.
+    const cornerButton=(label,paths)=>{
+      const button=h('button','menubtn hud-icon-btn');
+      button.type='button';
+      button.innerHTML=svg(paths);
+      button.title=label;
+      button.setAttribute('aria-label',label);
+      return button;
+    };
+    this.buildBtn = cornerButton('Character (C)','<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -480,9 +490,9 @@ export class UI {
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
-    const helpBtn = h('button', 'menubtn', 'Help [H]');
+    const helpBtn = cornerButton('Help (H)','<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5.2 1c0 2-2.7 2.4-2.7 4.3M12 17h.01"/>');
     helpBtn.addEventListener('click', () => this.toggleHelp());
-    this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn = cornerButton('Menu (Esc)','<path d="M4 6h16M4 12h16M4 18h16"/>');
     this.menuBtn.addEventListener('keydown', menuKeys);
     this.menuBtn.addEventListener('click', () => this.toggleMenu());
     this.menuItems = h('div', 'menu-items');
@@ -723,7 +733,7 @@ export class UI {
     this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
-    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (Shift+M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
+    this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
 
     // Help panel
     this.help = h('div', 'panel help');
@@ -760,7 +770,8 @@ export class UI {
       ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
-      ['M', 'Open the corner menu'],
+      ['M', 'World Atlas (interactive map and personal waypoints)'],
+      ['Esc', 'Close an active panel; open or close the corner menu when no panel is open'],
       ['H', 'Help and command reference'],
       ['Enter / /', 'Open chat. /p switches to party; /v switches to vicinity. Type a space or press Enter after the command.'],
       ['Chat icon', 'Choose vicinity or party. Right-click a player for private whispers.'],
@@ -796,7 +807,10 @@ export class UI {
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
     this.abilityButtons = def.abilities.map((id, i) => {
-      const b = this.slotButton(ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
+      const art=paintedAbilityArt(id);
+      const b = this.slotButton(art ?? ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
+      b.el.dataset.ability=id;
+      if(art)b.el.dataset.art='painted';
       b.el.addEventListener('click', () => this.a.useAbility(id));
       this.hover(b.el, () => this.abilityTip(id));
       this.actionBar.append(b.el);
@@ -817,8 +831,11 @@ export class UI {
       const cdef = COMPANIONS[companionType];
       companionCommandKeys(companionType).forEach((mode, i) => {
         if(!Object.hasOwn(cdef.modes,mode))return;
-        const b = this.slotButton(ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
+        const art=paintedAbilityArt(mode);
+        const b = this.slotButton(art ?? ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
+        b.el.dataset.ability=mode;
+        if(art)b.el.dataset.art='painted';
         b.el.addEventListener('click', () => this.a.pet(mode));
         this.hover(b.el, () => this.petTip(mode));
         this.petBar.append(b.el);
@@ -1973,15 +1990,12 @@ export class UI {
         const petActive=!!st.comp;
     const canManagePet=!me.dead&&!(me.row.f&8);
     const petActionLabel=petActive?'Dismiss companion':summon?.available?`Summon ${summon.name}`:'Summon companion unavailable';
-    this.summonPet.hidden=!petActive&&!summon;
-    this.summonPet.disabled=!canManagePet||(!petActive&&!summon?.available);
-    this.summonPet.textContent=petActionLabel;
-    this.summonPet.title=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
+    const petActionTitle=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
     if(this.summonSlot){
       this.summonSlot.el.hidden=!petActive&&!summon;
       this.summonSlot.el.disabled=!canManagePet||(!petActive&&!summon?.available);
       this.summonSlot.el.setAttribute('aria-label',petActionLabel);
-      this.summonSlot.el.title=this.summonPet.title;
+      this.summonSlot.el.title=petActionTitle;
       this.summonSlot.el.classList.toggle('dismiss-ready',petActive&&canManagePet);
       this.summonSlot.el.setAttribute('aria-pressed',String(petActive));
     }
@@ -2254,35 +2268,25 @@ export class UI {
     const cx=zoom>1||pocket?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket?st.me.pos.z:annex?RIFT_ANNEX.z:0;
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
-    if(!area)g.drawImage(reachTerrain(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
-    if(area){g.strokeStyle=pocket?'#9c7a63':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
-    const zoneColours = { sanctum: '#6fe6ff', sporefield: '#c96fd0', relay: '#e0a35c', vault: '#a58cff', obelisk: '#7fd0ff', survey: '#d2a36e', sinter: '#bfb497', deep: '#788b88' };
+    if(!area)g.drawImage(reachMinimapArt(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
+    if(area){g.strokeStyle=pocket?'#607b84':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
+    const zoneColours = { sanctum: '#85a6b2', sporefield: '#7c8f91', relay: '#65828e', vault: '#788b9b', obelisk: '#6e9eae', survey: '#758d92', sinter: '#8d9d9b', deep: '#677c85' };
     for (const key of area?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
       g.beginPath();
       g.arc(X(zn.x), Z(zn.z), zn.r * k, 0, Math.PI * 2);
-      g.fillStyle = zoneColours[key] + '33';
+      g.fillStyle = zoneColours[key] + '16';
       g.fill();
     }
-    g.fillStyle = 'rgba(189, 186, 149, 0.32)';
-    g.strokeStyle='rgba(30, 43, 41, 0.65)';
+    g.fillStyle = 'rgba(92, 124, 137, 0.23)';
+    g.strokeStyle='rgba(30, 43, 41, 0.52)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
       g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);
     }
-    // Up to two nearby place names remain legible; avoid covering the player.
-    if(!area){
-      const labels=Object.values(ZONES)
-       .map(z=>({z,d:Math.hypot(z.x-st.me.pos.x,z.z-st.me.pos.z)}))
-       .filter(({d})=>d*k<R-30).sort((a,b)=>a.d-b.d).slice(0,2);
-      g.font='bold 13px sans-serif';g.textAlign='center';g.lineWidth=3.5;
-      for(const {z} of labels){
-        const x=X(z.x),y=Z(z.z),name=z.name;
-        g.strokeStyle='#101b1e';g.strokeText(name,x,y-10);
-        g.fillStyle='#f1ddb2';g.fillText(name,x,y-10);
-      }
-    }
+    // Region names are displayed alongside the map; avoid rendering large
+    // zone names across the illustrated terrain, player arrow and markers.
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
       if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
@@ -2299,7 +2303,7 @@ export class UI {
         g.closePath();
       }else if(ent.meta.k==='o')g.rect(px-radius,py-radius,radius*2,radius*2);
       else g.arc(px,py,radius,0,Math.PI*2);
-      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
+      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#a9c1c7':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#75b5ca';
       g.fill();g.lineWidth=1.8;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
@@ -2344,8 +2348,8 @@ export class UI {
       const x=px*scale,y=py*scale;
       g.save();g.translate(x,y);
       g.beginPath();g.moveTo(0,-9);g.lineTo(9,0);g.lineTo(0,9);g.lineTo(-9,0);g.closePath();
-      g.fillStyle='#f4d48c';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
-      if(scale<1){g.strokeStyle='#f4d48c';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
+      g.fillStyle='#75d0e1';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
+      if(scale<1){g.strokeStyle='#75d0e1';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
       g.restore();
     }
     const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members',

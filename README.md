@@ -27,7 +27,9 @@ See the [handoff](docs/HANDOFF.md) for verification and known limits.
 | Wheel | Zoom |
 | Click / Tab | Select a target / next enemy |
 | Right-click | Attack an enemy, or use an object |
-| F1 / Esc | Target yourself / clear the target |
+| F1 | Target yourself |
+| Esc | Dismiss the active panel; open or close the corner menu when no panel is open (also clears current targeting) |
+| M | Open the World Atlas; press M again to close it (unless editing a map field) |
 | 1 – 9 | Available abilities (class dependent) |
 | Shift + 1 – 5 | Companion: Triage / Bond / Attack / Follow / Stay |
 | F | Interact |
