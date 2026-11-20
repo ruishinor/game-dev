@@ -9,6 +9,7 @@ import { SILENT_FOUNDRY as F, FOUNDRY_LAYOUT as L, FOUNDRY_AREAS, inSilentFoundr
 import { noiseTexture, particleField } from './severance-gate.js';
 
 export const FOUNDRY_LIMITS = Object.freeze({ lights: 4, motes: 4 * 120 });
+export const FOUNDRY_KIT_URL = '/client/assets/foundry_kit.glb?v=c95f58b44395';
 const CEILING = 15;
 const FOG = { color: 0x0d0b10, near: 18, far: 120 };
 
@@ -74,10 +75,15 @@ export function buildSilentFoundry(T, scene, o = {}) {
   const stone = M(new T.MeshStandardMaterial({ color: 0x3d3634, roughness: 0.95, roughnessMap: noise }));
   const hot = M(new T.MeshStandardMaterial({ color: 0x1a0a04, emissive: 0xff6a1e, emissiveIntensity: 2.2 }));
   const teal = M(new T.MeshStandardMaterial({ color: 0x06201e, emissive: 0x3fd8cf, emissiveIntensity: 1.4 }));
-  const add = (geo, mat, x, y, z, { ry = 0, shadow = true } = {}) => {
+  const add = (geo, mat, x, y, z, { ry = 0, shadow = true, into = group } = {}) => {
     const m = new T.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry;
-    m.castShadow = shadow; m.receiveShadow = true; group.add(m); return m;
+    m.castShadow = shadow; m.receiveShadow = true; into.add(m); return m;
   };
+  // procedural stand-ins, hidden once the Blender kit (foundry_kit.glb) is in place
+  const proc = new T.Group();
+  proc.name = 'silent-foundry:procedural';
+  group.add(proc);
+  const addP = (geo, mat, x, y, z, opts = {}) => add(geo, mat, x, y, z, { ...opts, into: proc });
   const yAt = (u, v) => foundryHeight(F.x + u, F.z + v);
 
   // ---- shell: floor (follows the Depths ramp), walls, ceiling with beams
@@ -102,23 +108,23 @@ export function buildSilentFoundry(T, scene, o = {}) {
     add(new T.BoxGeometry(1.2, CEILING + 6, F.hd * 2), stone, F.x + s * (F.hw + 0.6), (CEILING + 6) / 2 - 5, F.z, { shadow: false });
     // buttresses with ochre panels between
     for (let v = -100; v <= 100; v += 10) {
-      add(new T.BoxGeometry(1.4, CEILING, 1.2), metal, F.x + s * (F.hw - 0.3), CEILING / 2 + yAt(0, v) - 0.5, F.z + v, { shadow: false });
-      if (Math.abs(v) % 20 === 10) add(new T.BoxGeometry(0.2, 5, 7.6), ochre, F.x + s * (F.hw - 0.1), 4 + yAt(0, v), F.z + v, { shadow: false });
+      addP(new T.BoxGeometry(1.4, CEILING, 1.2), metal, F.x + s * (F.hw - 0.3), CEILING / 2 + yAt(0, v) - 0.5, F.z + v, { shadow: false });
+      if (Math.abs(v) % 20 === 10) addP(new T.BoxGeometry(0.2, 5, 7.6), ochre, F.x + s * (F.hw - 0.1), 4 + yAt(0, v), F.z + v, { shadow: false });
     }
   }
   for (const s of [-1, 1]) add(new T.BoxGeometry(F.hw * 2 + 2, CEILING + 6, 1.2), stone, F.x, (CEILING + 6) / 2 - 5, F.z + s * (F.hd + 0.6), { shadow: false });
   const ceil = add(new T.BoxGeometry(F.hw * 2 + 2, 0.6, F.hd * 2 + 2), dark, F.x, CEILING + 0.3, F.z, { shadow: false });
   ceil.castShadow = false;
-  for (let v = -100; v <= 100; v += 10) add(new T.BoxGeometry(F.hw * 2, 0.8, 0.6), metal, F.x, CEILING - 0.4, F.z + v, { shadow: false });
+  for (let v = -100; v <= 100; v += 10) addP(new T.BoxGeometry(F.hw * 2, 0.8, 0.6), metal, F.x, CEILING - 0.4, F.z + v, { shadow: false });
   // partitions with framed doorways (colliders are the solid parts)
   for (const w of L.partitions) {
     add(new T.BoxGeometry(w.hw * 2, CEILING, w.hd * 2), stone, w.x, CEILING / 2 + yAt(w.x - F.x, w.z - F.z), w.z);
   }
   for (const v of [52, 0, -52]) {
     const y = yAt(0, v);
-    add(new T.BoxGeometry(F.door * 2 + 1.4, 1.2, 2.0), metal, F.x, y + 6.6, F.z + v);
-    for (const s of [-1, 1]) add(new T.BoxGeometry(0.7, 6.6, 2.0), metal, F.x + s * (F.door + 0.35), y + 3.3, F.z + v);
-    add(new T.BoxGeometry(F.door * 2, 0.08, 0.08), teal, F.x, y + 6.0, F.z + v - 1.02, { shadow: false });
+    addP(new T.BoxGeometry(F.door * 2 + 1.4, 1.2, 2.0), metal, F.x, y + 6.6, F.z + v);
+    for (const s of [-1, 1]) addP(new T.BoxGeometry(0.7, 6.6, 2.0), metal, F.x + s * (F.door + 0.35), y + 3.3, F.z + v);
+    addP(new T.BoxGeometry(F.door * 2, 0.08, 0.08), teal, F.x, y + 6.0, F.z + v - 1.02, { shadow: false });
   }
 
   // ---- Fabrication Hall: presses with hot slits, a gantry
@@ -126,10 +132,10 @@ export function buildSilentFoundry(T, scene, o = {}) {
   for (const p of L.fabrication) {
     if (p.type === 'foundry_press') {
       const y = yAt(p.x - F.x, p.z - F.z), inward = Math.sign(F.x - p.x);
-      add(new T.BoxGeometry(p.hw * 2, p.h, p.hd * 2), metal, p.x, y + p.h / 2, p.z);
-      add(new T.BoxGeometry(p.hw * 2 + 0.1, 0.5, p.hd * 2 + 0.1), ochre, p.x, y + p.h - 0.6, p.z);
-      add(new T.BoxGeometry(0.9, 2.4, 0.9), dark, p.x, y + p.h + 1.2, p.z);
-      slits.push(add(new T.BoxGeometry(0.06, 0.35, p.hd * 1.6), hot, p.x + inward * (p.hw + 0.02), y + 1.6, p.z, { shadow: false }));
+      addP(new T.BoxGeometry(p.hw * 2, p.h, p.hd * 2), metal, p.x, y + p.h / 2, p.z);
+      addP(new T.BoxGeometry(p.hw * 2 + 0.1, 0.5, p.hd * 2 + 0.1), ochre, p.x, y + p.h - 0.6, p.z);
+      addP(new T.BoxGeometry(0.9, 2.4, 0.9), dark, p.x, y + p.h + 1.2, p.z);
+      slits.push(addP(new T.BoxGeometry(0.06, 0.35, p.hd * 1.6), hot, p.x + inward * (p.hw + 0.02), y + 1.6, p.z, { shadow: false }));
     } else {
       add(new T.BoxGeometry(p.hw * 2, p.h, p.hd * 2), metal, p.x, yAt(0, p.z - F.z) + p.h / 2, p.z);
     }
@@ -146,7 +152,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
       liquids.push(liquid);
       add(new T.CylinderGeometry(p.r * 0.86, p.r * 0.86, p.h * 0.8, 24, 1, true), liquid, p.x, y + 0.5 + p.h * 0.4, p.z, { shadow: false });
       add(new T.CylinderGeometry(p.r * 0.92, p.r * 0.92, p.h * 0.95, 24, 1, true), glassMat, p.x, y + 0.45 + p.h * 0.475, p.z, { shadow: false });
-      for (const yy of [0.25, p.h + 0.3]) add(new T.CylinderGeometry(p.r, p.r, 0.5, 24), metal, p.x, y + yy, p.z);
+      for (const yy of [0.25, p.h + 0.3]) addP(new T.CylinderGeometry(p.r, p.r, 0.5, 24), metal, p.x, y + yy, p.z);
     } else {
       add(new T.BoxGeometry(p.hw * 2, p.h, p.hd * 2), metal, p.x, y + p.h / 2, p.z);
       for (const s of [-1, 1]) add(new T.CylinderGeometry(0.18, 0.18, 9.2, 8), ochre, p.x + s * 4.5, y + 0.5, p.z, { ry: 0 }).rotation.z = Math.PI / 2;
@@ -157,7 +163,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
   const R = L.harmonic.find((p) => p.type === 'foundry_resonator');
   const coreMat = M(new T.ShaderMaterial({ uniforms: { uNoise: U(noise), uTime: time, uGain: U(1), ...fogU() }, vertexShader: VS, fragmentShader: CORE_FS, fog: true }));
   const ry = yAt(R.x - F.x, R.z - F.z);
-  add(new T.CylinderGeometry(R.r * 1.05, R.r * 1.15, 1.2, 8), metal, R.x, ry + 0.6, R.z);
+  addP(new T.CylinderGeometry(R.r * 1.05, R.r * 1.15, 1.2, 8), metal, R.x, ry + 0.6, R.z);
   add(new T.CylinderGeometry(0.6, R.r * 0.55, R.h, 6), coreMat, R.x, ry + 1.2 + R.h / 2, R.z, { shadow: false });
   const runeMat = (color, gain) => M(new T.ShaderMaterial({ uniforms: { uTime: time, uGain: U(gain), uColor: U(new T.Color(color)) }, vertexShader: VS, fragmentShader: RUNE_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }));
   const rings = [];
@@ -172,7 +178,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
   floorRune.renderOrder = 5;
   for (const p of L.harmonic.filter((q) => q.type === 'foundry_pylon')) {
     const y = yAt(p.x - F.x, p.z - F.z);
-    add(new T.CylinderGeometry(p.r * 0.6, p.r, p.h, 6), metal, p.x, y + p.h / 2, p.z);
+    addP(new T.CylinderGeometry(p.r * 0.6, p.r, p.h, 6), metal, p.x, y + p.h / 2, p.z);
     add(new T.OctahedronGeometry(0.6), coreMat, p.x, y + p.h + 0.8, p.z, { shadow: false });
   }
 
@@ -228,6 +234,65 @@ export function buildSilentFoundry(T, scene, o = {}) {
     saved = null;
   }
 
+  // ---- the Blender architecture kit (foundry_kit.glb): one InstancedMesh per piece part
+  const kitState = { status: 'idle', instances: 0, draws: 0 };
+  const glow = { FK_Lamp: [], FK_Hot: [], FK_Strip: [] };
+  function kitPlacements() {
+    const out = [];
+    for (const s of [-1, 1]) for (let v = -100; v <= 100; v += 10) {
+      out.push({ piece: 'Wall_Bay', x: F.x + s * (F.hw - 0.05), y: yAt(0, v), z: F.z + v, ry: s < 0 ? Math.PI / 2 : -Math.PI / 2 });
+    }
+    for (const p of L.fabrication.filter((q) => q.type === 'foundry_press')) out.push({ piece: 'Press', x: p.x, y: yAt(p.x - F.x, p.z - F.z), z: p.z, ry: 0 });
+    for (const p of L.cultivation.filter((q) => q.type === 'foundry_vat')) out.push({ piece: 'Vat_Frame', x: p.x, y: yAt(p.x - F.x, p.z - F.z), z: p.z, ry: p.x > F.x ? Math.PI : 0 });
+    out.push({ piece: 'Resonator_Base', x: R.x, y: yAt(R.x - F.x, R.z - F.z), z: R.z, ry: 0 });
+    for (const p of L.harmonic.filter((q) => q.type === 'foundry_pylon')) out.push({ piece: 'Pylon', x: p.x, y: yAt(p.x - F.x, p.z - F.z), z: p.z, ry: 0 });
+    for (const v of [52, 0, -52]) out.push({ piece: 'Door_Frame', x: F.x, y: yAt(0, v), z: F.z + v, ry: 0 });
+    for (let v = -100; v <= 100; v += 10) for (const u of [-18, -6, 6, 18]) out.push({ piece: 'Truss', x: F.x + u, y: CEILING - 1.9, z: F.z + v, ry: 0 });
+    return out;
+  }
+  function adoptKit(gltf) {
+    gltf.scene.updateMatrixWorld(true);
+    const byPiece = new Map();
+    for (const p of kitPlacements()) { if (!byPiece.has(p.piece)) byPiece.set(p.piece, []); byPiece.get(p.piece).push(p); }
+    const m4 = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), one = new T.Vector3(1, 1, 1);
+    for (const [piece, list] of byPiece) {
+      const top = gltf.scene.getObjectByName(piece);
+      if (!top) continue;
+      top.traverse((n) => {
+        if (!n.isMesh) return;
+        const local = n.matrixWorld.clone();
+        let mat = n.material;
+        if (glow[mat?.name]) { mat = mat.clone(); glow[n.material.name].push(mat); }
+        else if (mat?.aoMap) mat.aoMapIntensity = 1;
+        const im = new T.InstancedMesh(n.geometry, mat, list.length);
+        list.forEach((p, i) => im.setMatrixAt(i, m4.compose(new T.Vector3(p.x, p.y, p.z), q.setFromAxisAngle(up, p.ry), one).clone().multiply(local)));
+        im.instanceMatrix.needsUpdate = true;
+        im.computeBoundingSphere();
+        const lit = !glow[n.material?.name];
+        im.castShadow = lit && piece !== 'Truss' && piece !== 'Wall_Bay';
+        im.receiveShadow = lit;
+        im.name = 'silent-foundry:kit:' + piece;
+        group.add(im);
+        kitState.instances += list.length; kitState.draws++;
+      });
+    }
+    proc.visible = false;
+  }
+  function loadKit() {
+    if (kitState.status !== 'idle') return;
+    kitState.status = 'loading';
+    if (!o.loader) { kitState.status = 'fallback'; return; }
+    o.loader.loadAsync(o.kitUrl || FOUNDRY_KIT_URL).then((gltf) => {
+      if (kitState.status === 'disposed') return;
+      adoptKit(gltf);
+      kitState.status = 'ready';
+    }).catch((err) => {
+      if (kitState.status === 'disposed') return;
+      console.warn('[foundry] kit GLB unavailable; keeping the procedural interior:', err?.message || err);
+      kitState.status = 'fallback';
+    });
+  }
+
   let t = 0, manual = false;
   return {
     group,
@@ -239,7 +304,11 @@ export function buildSilentFoundry(T, scene, o = {}) {
       if (inside && !saved) enter();
       else if (!inside && saved) leave();
       if (!inside) return;
+      if (kitState.status === 'idle') loadKit();
       t += manual ? 0 : dt;
+      for (const m of glow.FK_Hot) m.emissiveIntensity = 4 + 2.2 * Math.sin(t * 2.3);
+      for (const m of glow.FK_Lamp) m.emissiveIntensity = 3.5 * (manual ? 1 : 0.93 + 0.07 * Math.sin(t * 17.0));
+      for (const m of glow.FK_Strip) m.emissiveIntensity = 2.2 + 0.8 * Math.sin(t * 1.4);
       time.value = t;
       for (const r of rings) r.rotation.z += (manual ? 0 : dt) * 0.25;
       for (let i = 0; i < slits.length; i++) slits[i].material.emissiveIntensity = 1.8 + 0.6 * Math.sin(t * 2.3 + i);
@@ -253,8 +322,10 @@ export function buildSilentFoundry(T, scene, o = {}) {
         l.intensity = d < 80 ? l.userData.base * (i === 2 ? 0.85 + 0.15 * Math.sin(t * 1.7) : 1) : 0;
       });
     },
-    stats() { return { inside: !!saved, lights: lights.length, fields: fields.filter((f) => f.mesh.visible).length }; },
+    get kitStatus() { return kitState.status; },
+    stats() { return { inside: !!saved, lights: lights.length, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
     dispose() {
+      kitState.status = 'disposed';
       if (saved) leave();
       group.traverse((n) => n.geometry?.dispose?.());
       for (const m of mats) m.dispose();

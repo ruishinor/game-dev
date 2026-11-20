@@ -66,18 +66,35 @@ Branch `feat/severance-expanse-landscape`, PR #139. This is the broad-strokes pa
 - The rift browser walkthrough (`test/e2e/rift.mjs`) follows the new layout: the dormant gate wakes on approach, the player walks the passage, enters the Foundry and returns.
 - Review captures were made with `node tools/severance-expanse-capture.mjs <dir>`. That covers views 01–16 of the Expanse and views 20–24 of the Foundry, in software GL, kept out of Git.
 
-## Next passes (detailing)
+## Detail passes (2026-11-20, PR #160)
 
-1. **Outpost.** A Blender shelter asset to replace the procedural one, crew NPCs, and outpost VFX (generator heat shimmer, beacon flare).
-2. **Patrols.** Expanse-specific variant visuals: ash and amber tints and crystal growths on the rigs.
+1. **Outpost.**
+   - `outpost_shelter.glb`, built by `asset_pipeline/blender/outpost_shelter.py` from the owner's blueprint (kept in git-ignored `art-source/outpost-shelter/`). It is a faceted shell on a tube lattice with sled frames, with baked albedo, ORM and normal maps, and emissive lamps, strip and vent.
+   - A new shelter footprint with its open mouth facing the arrival.
+   - Crew: Surveyor Idris Vale and Signaller Maren Okafor, who give field talk when spoken to.
+   - A holo-map table, generator heat haze and sparks, and camp dust.
+2. **Regional enemy looks.** Expanse patrols are tagged `ash` and Foundry enemies `foundry` (`client/src/enemy-variants.js`). They get cloned tinted materials, object-space ember veins and crystal growths on the spine.
 3. **Foundry.**
-   - A Blender architecture kit for walls, presses, vats and the resonator.
-   - Mid-encounter set pieces.
-   - Overseer specials and their VFX.
-   - Retire the Annex code after owner confirmation.
-4. **Real-GPU profiling** (`ATTUNEMENT_GPU=1` or the owner's machine) and the owner's visual review.
-5. **Live world clock** driving the day/night loop.
-6. **Sanctum upgrade** (last stage).
+   - `foundry_kit.glb`, built by `asset_pipeline/blender/foundry_kit.py`: wall bays, presses, vat frames, the resonator base, pylons, door frames and trusses, all instanced.
+   - The Overseer's server-only specials, each with an engine VFX recipe: Press Slam, Slag Wave and Resonant Overload.
+4. **Profiling.**
+   - `tools/profile.mjs` now includes Expanse, outpost and Foundry scenes, limited with `ATTUNEMENT_SCENES=exp,foundry`.
+   - Software-GL budgets: 95–270 draw calls and 130k–550k triangles per view. The terrain accounts for about 175k triangles; the outpost view has the most draws.
+   - **Real-GPU numbers are blocked here.** The session has no shell on the owner's machine and no GPU in the cloud workspace. On the owner's machine, run: `ATTUNEMENT_GPU=1 ATTUNEMENT_HEADED=1 ATTUNEMENT_SCENES=exp,foundry node tools/profile.mjs 2,1`.
+5. **Live world clock.**
+   - `shared/world-clock.js` defines a 48-minute cycle (12 minutes per phase). It is server-owned and based on the wall clock, so it survives restarts, and its phase is sent in each player's private state.
+   - The Expanse follows it by default. `?tod=` previews and the capture controls still override it.
+6. **Sanctum upgrade: the Lattice Crown.**
+   - `client/src/sanctum-crown.js`: verdigris ribs rise from the existing pylon heads to a floating 38 m lattice spire, with a reconstitution core, armillary rings, resonance filaments and spiralling motes.
+   - It adds no colliders, and every service is unchanged.
+
+Capture tools: `tools/severance-expanse-capture.mjs` covers views 01–25, including patrol variants (17) and Overseer attacks (25); `tools/sanctum-capture.mjs` covers the Sanctum. Output stays out of Git.
+
+## Still open
+
+- Real-GPU profiling and the owner's visual review.
+- A Blender asset for the Sanctum crown, to replace the procedural one.
+- Retiring the Annex code after owner confirmation.
 
 ## Review gate (AGENTS.md)
 

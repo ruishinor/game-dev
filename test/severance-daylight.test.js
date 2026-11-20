@@ -5,8 +5,10 @@ import { parseTimeOfDay, todSegment, createTimeOfDay, TOD, TOD_KEYS } from '../c
 import { buildSeverancePocket } from '../client/src/severance-pocket.js';
 import { SEVERANCE_POCKET, SEVERANCE_GATE } from '../shared/severance-gate.js';
 
-test('preview request parsing: keys, positions, loop; anything else is off', () => {
-  assert.deepEqual(parseTimeOfDay(''), { mode: 'off' });
+test('preview request parsing: live world clock by default; keys, positions, loop; off on request', () => {
+  assert.deepEqual(parseTimeOfDay(''), { mode: 'live' });
+  assert.deepEqual(parseTimeOfDay('?tod=off'), { mode: 'off' });
+  assert.deepEqual(parseTimeOfDay('?tod=live'), { mode: 'live' });
   assert.deepEqual(parseTimeOfDay('?tod=noon'), { mode: 'off' });
   assert.deepEqual(parseTimeOfDay('?tod=night'), { mode: 'hold', t: 0.5, period: 28 });
   assert.deepEqual(parseTimeOfDay('?tod=day'), { mode: 'hold', t: 0, period: 28 });
@@ -118,4 +120,29 @@ test('pocket: time of day is independent of the gate phase, and a manual clock s
   pocket.update(0.1, 0, reach);
   assert.equal(snap(r), reachLook, 'back in the Reach: normal lighting');
   pocket.landmark.dispose();
+});
+
+test('live world clock: the server owns the phase, every player sees the same one, previews still override', async () => {
+  const { worldClockPhase, WORLD_CLOCK, worldClockLabel } = await import('../shared/world-clock.js');
+  const { makeGame, makeChar } = await import('./helpers.js');
+  const g = makeGame();
+  g.clockNow = () => WORLD_CLOCK.periodMs * 3 + WORLD_CLOCK.periodMs * 0.5;   // night
+  const a = g.addPlayer(makeChar('vanguard')), b = g.addPlayer(makeChar('keeper'));
+  assert.equal(g.privateState(a).wc, 5000);
+  assert.equal(g.privateState(b).wc, g.privateState(a).wc);
+  assert.equal(worldClockLabel(0.5), 'Night');
+  assert.equal(worldClockPhase(WORLD_CLOCK.periodMs * 0.25), 0.25);
+  assert.equal(WORLD_CLOCK.periodMs, 48 * 60 * 1000);
+  // the client presentation follows it only in live mode
+  const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x123456, 10, 300);
+  const tod = createTimeOfDay(THREE, { scene });
+  tod.configure({ mode: 'live' });
+  assert.equal(tod.active, false, 'nothing applied before the first server phase');
+  tod.setLive(0.5);
+  assert.equal(tod.active, true);
+  tod.update(0.1, true, { x: 0, z: 0 });
+  assert.equal(tod.state.t, 0.5);
+  tod.configure({ key: 'day' });
+  tod.setLive(0.75);
+  assert.equal(tod.state.t, 0, 'a held preview ignores the live clock');
 });

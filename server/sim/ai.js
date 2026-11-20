@@ -302,7 +302,7 @@ export function tickEnemy(game, e, dt) {
     e.state = 'combat';
     e.wander = null;
     e.nextAttack = game.time + 400;
-    for (const sp of def.specials || []) e.specialAt[sp.id] = game.time + sp.first;
+    for (const sp of e.specials || def.specials || []) e.specialAt[sp.id] = game.time + sp.first;
     e.progressAt = game.time + 1200;
     e.progressDist = Infinity;
   }
@@ -329,7 +329,7 @@ export function tickEnemy(game, e, dt) {
     return;
   }
 
-  for (const sp of def.specials || []) {
+  for (const sp of e.specials || def.specials || []) {
     if (game.time >= e.specialAt[sp.id] && hasLineOfSight(e,target)) {
       beginSpecial(game, e, sp, target);
       return;

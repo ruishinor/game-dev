@@ -20,6 +20,12 @@ const ENCOUNTER = [
   ['warden', 'Foundry Overseer', 2, 0, -84],
 ];
 const OVERSEER = 'Foundry Overseer';
+// The Overseer's own attacks (server-only definitions; clients see telegraphs and impacts).
+export const OVERSEER_SPECIALS = Object.freeze([
+  Object.freeze({ id: 'overseer_press_slam', name: 'Press Slam', cd: 11000, first: 4000, windup: 2000, radius: 6, dmg: 48, at: 'target' }),
+  Object.freeze({ id: 'overseer_slag_wave', name: 'Slag Wave', cd: 15000, first: 9000, windup: 2600, radius: 11, dmg: 38, at: 'self' }),
+  Object.freeze({ id: 'overseer_resonant_overload', name: 'Resonant Overload', cd: 21000, first: 15500, windup: 3200, radius: 40, dmg: 24, at: 'all' }),
+]);
 const CACHE = Object.freeze({ id: 'resonance_fragment', count: 4 });
 
 export function foundryArrival() { return { x: F.arrival.x, z: F.arrival.z }; }
@@ -30,7 +36,8 @@ export function openFoundry(game) {
   for (const [type, name, dl, u, v] of ENCOUNTER) {
     const def = ENEMIES[type];
     const e = { id: game.nextId++, kind: 'enemy', type, name, level: def.level + dl, radius: def.radius, home: { x: F.x + u, z: F.z + v },
-      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER };
+      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER, vx: 'foundry' };
+    if (e.overseer) e.specials = OVERSEER_SPECIALS;
     resetEnemy(game, e);
     game.enemies.push(e);
     game.ents.set(e.id, e);

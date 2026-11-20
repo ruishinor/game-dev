@@ -65,7 +65,10 @@ export function todSegment(t) {
 export function parseTimeOfDay(search) {
   const p = new URLSearchParams(search || '');
   const v = p.get('tod');
-  if (!v) return { mode: 'off' };
+  // no preview flag: follow the server's live world clock
+  if (!v) return { mode: 'live' };
+  if (v === 'off') return { mode: 'off' };
+  if (v === 'live') return { mode: 'live' };
   const period = Math.max(4, Math.min(3600, Number(p.get('todperiod')) || 28));
   if (Object.hasOwn(ANCHOR, v)) return { mode: 'hold', t: ANCHOR[v], period };
   if (v === 'loop') return { mode: 'loop', t: Number(p.get('todstart')) || 0, period };
@@ -155,10 +158,17 @@ export function createTimeOfDay(T, o) {
 
   return {
     get state() { return { ...state }; },
-    get active() { return state.mode !== 'off'; },
+    get active() { return state.mode !== 'off' && (state.mode !== 'live' || !!state.live); },
+    /** Live mode: the server's world clock phase (0..1). Ignored by previews. */
+    setLive(t) {
+      if (!Number.isFinite(t)) return;
+      state.live = true;
+      if (state.mode === 'live') state.t = ((t % 1) + 1) % 1;
+    },
     configure(req = {}) {
       const mode = req.mode ?? (Object.hasOwn(ANCHOR, req.key) ? 'hold' : state.mode);
       if (mode === 'off') { state.mode = 'off'; restore(); return this.state; }
+      if (mode === 'live') { state.mode = 'live'; return this.state; }
       state.mode = mode === 'loop' ? 'loop' : 'hold';
       if (Object.hasOwn(ANCHOR, req.key)) state.t = ANCHOR[req.key];
       else if (Number.isFinite(req.t)) state.t = ((req.t % 1) + 1) % 1;
@@ -167,7 +177,7 @@ export function createTimeOfDay(T, o) {
     },
     /** Advance (loop mode) and apply while the camera is in the Expanse; restore otherwise. */
     update(dt, inside, center) {
-      if (state.mode === 'off' || !inside) { restore(); return; }
+      if (state.mode === 'off' || !inside || (state.mode === 'live' && !state.live)) { restore(); return; }
       if (state.mode === 'loop' && dt > 0) state.t = (state.t + dt / state.period) % 1;
       apply(center);
     },

@@ -6,6 +6,7 @@
 // Nothing here decides gameplay: `st` and triggers only mirror what the server
 // reported, and model size never feeds back into collision or range.
 
+import { applyEnemyVariant } from './enemy-variants.js';
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
 import {createProductionWork} from './production-work.js';
@@ -632,13 +633,18 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  * or broken asset never removes an entity from the world.
  */
 export function createModel(assets, meta, glb = true) {
+  const model = buildModel(assets, meta, glb);
+  return meta.vx ? applyEnemyVariant(THREE, model, meta.vx) : model;
+}
+
+function buildModel(assets, meta, glb) {
   if(meta.c==='survey_strider')return createSurveyStrider();
   let model = null;
   const haloRole=haloRoleFor(meta);
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster', 'outpost_crew'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {

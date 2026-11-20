@@ -75,6 +75,8 @@ const LOOK_DEFAULTS = {
   archivist: 'f.human.1.crop.6',
   quartermaster: 'm.human.4.buzz.1',
   expedition_quartermaster: 'f.human.3.crop.2',
+  outpost_surveyor: 'm.human.5.crop.1',
+  outpost_signaller: 'f.human.6.crop.0',
 };
 const FALLBACK = 'm.human.3.crop.1';
 /** Outfits that belong to one race (Red Rucker is a Veyran Burdenkeeper). */

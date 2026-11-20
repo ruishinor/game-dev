@@ -283,6 +283,19 @@ LOOK_DEFS.expedition_quartermaster={
  accent:0x4fd1c5,gear:[],gloves:true,
  face:{tone:0xb98a6a,hair:0x3a2a20,eye:0x4a6a5a,hairStyle:'crop',brow:0.7,stubble:0,lip:0.3,morph:{age:0.35,heritage_a:0.3,heritage_b:0.35,heritage_c:0.2,cheekbones:0.55,jaw_width:0.45,face_angular:0.5}},
 };
+// Outpost crew: field surveyor (dusty khaki, teal visor accent) and signaller (slate rig coat).
+LOOK_DEFS.outpost_surveyor={
+ ...LOOK_DEFS.archivist,body:'humanoid_m',scale:1.0,
+ shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x7e6d4c,roughness:.93,map:'look_coat_panels'},upperarms:{color:0x4f4a3c,roughness:.9},forearms:{color:0x2e3434,roughness:.85},hood:{color:0x4f4a3c,roughness:.9}},
+ accent:0x4fd1c5,gear:[],gloves:true,
+ face:{tone:0x8e6248,hair:0x1e1814,eye:0x3a2a1a,hairStyle:'crop',brow:0.85,stubble:0.6,lip:0.15,morph:{age:0.55,heritage_a:0.6,heritage_b:0.2,heritage_c:0.1,jaw_width:0.6,face_angular:0.55}},
+};
+LOOK_DEFS.outpost_signaller={
+ ...LOOK_DEFS.archivist,body:'humanoid_f',scale:0.98,
+ shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x46505a,roughness:.88,map:'look_coat_panels'},upperarms:{color:0xb2793a,roughness:.85},forearms:{color:0x2b2f33,roughness:.85},hood:{color:0x46505a,roughness:.88}},
+ accent:0xffb36a,gear:[],gloves:true,
+ face:{tone:0x6b4532,hair:0x120e0c,eye:0x2a1a12,hairStyle:'crop',brow:0.7,stubble:0,lip:0.35,morph:{age:0.3,heritage_a:0.75,heritage_b:0.1,heritage_c:0.1,cheekbones:0.6,face_angular:0.45}},
+};
 /** Entity class -> look used when the server does not name one. */
 export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster', expedition_quartermaster:'expedition_quartermaster' };
 

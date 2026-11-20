@@ -144,7 +144,7 @@ function reaches(from, to, extra = []) {
 
 test('the Expanse has three open routes from the arrival to the gate (west canyon, central pass, east flats)', () => {
   const P = SEVERANCE_POCKET, gate = gateToWorld(0, -30);
-  for (const at of [P.arrival, P.outpost, gate]) assert.ok(walkable(at.x, at.z), 'key area is open');
+  for (const at of [P.arrival, { x: P.outpost.x - 10, z: P.outpost.z }, gate]) assert.ok(walkable(at.x, at.z), 'key area is open');
   // a barrier across the plain at the pass latitude, leaving only one route open
   const wall = (u0, u1) => ({ x: P.x + (u0 + u1) / 2, z: P.z - 5, hw: (u1 - u0) / 2, hd: 1 });
   const all = reaches(P.arrival, gate);

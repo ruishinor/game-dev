@@ -24,6 +24,7 @@ import {
 import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
+import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
@@ -69,6 +70,7 @@ export class Game {
     for (const o of OBJECTS) {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
       if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
+      if (o.look) obj.look = o.look;
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -399,7 +401,8 @@ export class Game {
     }
     tickRift(this);
     tickSeveranceGate(this);
-    for (const e of this.enemies) tickEnemy(this, e, dt);
+    // aiHold: server-side capture fixture only (never client reachable)
+    if (!this.aiHold) for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
     for (const p of this.players.values()) {
       if (p.inscription) tickInscription(this, p);
@@ -456,12 +459,17 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}), ...(ent.socialVisual ? { sv: ent.socialVisual } : ent.armourVisual ? { av: ent.armourVisual } : {}) };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:
-        return { i: ent.id, k: 'o', n: ent.name, c: ent.type, ...(ent.yaw !== undefined ? { y: ent.yaw, v: ent.variant } : {}) };
+        return { i: ent.id, k: 'o', n: ent.name, c: ent.type, ...(ent.yaw !== undefined ? { y: ent.yaw, v: ent.variant } : {}), ...(ent.look ? { a: ent.look } : {}) };
     }
+  }
+
+  /** World clock phase 0..1 (server-owned; wall-clock based so it survives restarts). */
+  worldClock() {
+    return worldClockPhase(this.clockNow ? this.clockNow() : Date.now());
   }
 
   /** Private per-tick state for the owning player. */
@@ -495,6 +503,7 @@ export class Game {
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
       safe: inSafeZone(p) ? 1 : 0,
+      wc: Math.round(this.worldClock() * 10000),
       workshop:workshopSite(p),
       kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),

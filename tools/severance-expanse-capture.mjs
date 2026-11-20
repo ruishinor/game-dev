@@ -72,13 +72,30 @@ try {
   await shot('12-overview-south', at(0, -100), N, { yaw: N, pitch: 0.55, dist: 60 }, { settle: 3500 });
   await shot('13-overview-west', at(-30, 20), Ea, { yaw: Ea, pitch: 0.5, dist: 55 }, { settle: 3500 });
   await shot('14-outpost-approach', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 });
-  await shot('14b-outpost-quartermaster', { x: E.outpost.x - 1, z: E.outpost.z + 4 }, Ea + 0.4, { yaw: Ea + 0.4, pitch: 0.12, dist: 5 });
+  await shot('14b-outpost-quartermaster', { x: E.outpost.x - 7.5, z: E.outpost.z + 0.4 }, Ea, { yaw: Ea, pitch: 0.1, dist: 3.5 });
+  await shot('14d-outpost-holo-map', { x: E.outpost.x - 4.2, z: E.outpost.z + 1.2 }, Ea + 0.9, { yaw: Ea + 0.9, pitch: 0.35, dist: 3 });
+  await shot('14e-outpost-shelter-side', { x: E.outpost.x + 3, z: E.outpost.z - 15 }, 0, { yaw: 0, pitch: 0.16, dist: 9 });
   await shot('14c-outpost-night', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 }, { tod: 'night' });
   await shot('15-arrival-live-default-lighting', E.arrival, N, { yaw: N, pitch: 0.14, dist: 7 }, { tod: 'off' });
   await shot('16-gate-live-default-lighting', gateToWorld(0, -70), N, { yaw: N, pitch: 0.16, dist: 9 }, { tod: 'off' });
+  // regional enemy looks: a line-up of Expanse patrollers held still, out of aggro range
+  if (!only.length || only.some((o) => o.startsWith('17'))) {
+    game.openExpanse();
+    game.aiHold = true;
+    const stand = { x: E.x - 70, z: E.z - 60 };
+    const lineup = ['sentinel', 'faultstalker', 'skitter', 'turret_drone'].map((t) => game.enemies.find((e) => e.severancePatrol && e.type === t));
+    lineup.forEach((e, i) => { e.x = stand.x - 6 + i * 4; e.z = stand.z + 14; e.home = { x: e.x, z: e.z }; e.post = { ...e.home }; e.wanderAt = Infinity; e.state = 'idle'; e.threat.clear(); e.yaw = Math.PI; });
+    await shot('17-expanse-patrol-variants', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { settle: 3500 });
+    await shot('17b-expanse-patrol-variants-night', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { tod: 'night', settle: 2500 });
+    for (const e of lineup) { e.state = 'dead'; e.deadAt = -1e9; e.respawnAt = Infinity; }
+    game.aiHold = false;
+  }
   await page.evaluate(() => window.__attune.timeOfDay({ mode: 'off' }));
   // the Silent Foundry behind the gate
   if (!only.length || only.some((o) => o.startsWith('2'))) {
+    const { openFoundry } = await import('../server/sim/silent-foundry.js');
+    openFoundry(game);
+    game.aiHold = true;   // the encounter stands still for the review views
     game.transferPlayer(p, { ...SF.arrival });
     await page.waitForFunction(() => window.__attune.state().you?.region === 'silent_foundry', null, { polling: 250 });
     const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
@@ -87,6 +104,23 @@ try {
     await shot('22-foundry-harmonic-chamber', f(0, -4), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('23-foundry-excavation-depths', f(0, -54), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('24-foundry-vats-close', f(5, 20), W + 0.4, { yaw: W + 0.4, pitch: 0.1, dist: 5 }, { tod: 'off' });
+    // the Overseer's attacks, as real world events in the Depths
+    const boss = game.enemies.find((e) => e.overseer);
+    const watch = f(0, -66);
+    for (const [k, r, settle] of [['overseer_press_slam', 6, 380], ['overseer_slag_wave', 11, 520], ['overseer_resonant_overload', 40, 420]]) {
+      if (only.length && !only.some((o) => '25'.startsWith(o) || o.startsWith('25'))) break;
+      p.x = watch.x; p.z = watch.z; p.yaw = S;
+      await page.waitForFunction(([x, z]) => { const s = window.__attune.state(); return Math.hypot(s.pos.x - x, s.pos.z - z) < 0.6; }, [watch.x, watch.z], { polling: 250 });
+      await page.evaluate(() => window.__attune.view({ face: Math.PI, yaw: Math.PI, pitch: 0.22, dist: 7 }));
+      await page.waitForTimeout(1200);
+      const at = k === 'overseer_press_slam' ? { x: boss.x + 2, z: boss.z + 6 } : { x: boss.x, z: boss.z };
+      game.emitWorldEvent({ e: 'fx', k, s: boss.id, x: at.x, z: at.z, r });
+      await page.waitForTimeout(settle);
+      const file = path.join(out, `25-${k}.png`);
+      await page.screenshot({ path: file });
+      log.push({ name: `25-${k}`, file });
+      console.log('25', k);
+    }
   }
   const graphics = await page.evaluate(() => { const gl = window.__attune.gfx.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); return { renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) }; });
   fs.writeFileSync(path.join(out, 'capture-log.json'), JSON.stringify({ graphics, software: SOFTWARE_GL, errors, views: log }, null, 1));

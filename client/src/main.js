@@ -841,6 +841,7 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  if (Number.isFinite(y.wc)) world.severancePocket?.timeOfDay.setLive(y.wc / 10000);
   if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
   if(S.followId){const own=S.ents.get(S.myId)?.row;if(own&&Number.isFinite(own.r))local.yaw=own.r;}
@@ -1700,7 +1701,7 @@ function updateEntities(dt, t, now) {
     ent.model.update(dt, {
       lookAt,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
-      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster') && !!lookAt,
+      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster' || ent.meta.c === 'outpost_crew') && !!lookAt,
       t,
       speed: ent.speed,
       travel,

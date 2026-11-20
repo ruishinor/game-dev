@@ -100,3 +100,50 @@ test('outpost presentation: bounded lights and halos, hidden far away, disposabl
   op.dispose();
   assert.equal(op.root.parent, null);
 });
+
+test('shelter GLB: versioned, valid, served, bounded; the shelter fits the camp and opens toward the arrival', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const validator = (await import('gltf-validator')).default;
+  const { OUTPOST_SHELTER_URL } = await import('../client/src/severance-outpost.js');
+  const bytes = readFileSync(new URL('../tools/asset-pipeline/assets/outpost_shelter/outputs/outpost_shelter.glb', import.meta.url));
+  assert.equal(OUTPOST_SHELTER_URL, '/client/assets/outpost_shelter.glb?v=' + createHash('sha256').update(bytes).digest('hex').slice(0, 12));
+  assert.ok(bytes.length < 2.5e6);
+  const report = await validator.validateBytes(new Uint8Array(bytes), { externalResourceFunction: () => Promise.reject(new Error('external')) });
+  assert.equal(report.issues.numErrors, 0);
+  const S = OP.shelter;
+  for (const c of OUTPOST_COLLIDERS) assert.ok(Math.hypot(c.x - OP.x, c.z - OP.z) + (c.r ?? Math.max(c.hw, c.hd)) < OP.r + 2, c.type + ' inside the camp');
+  // walk in through the open (west) mouth to the counter
+  const p = { x: S.x + S.front - 4, z: S.z, jy: 0, vy: 0 };
+  for (let i = 0; i < 240; i++) stepMoveTo(p, OP.counter.x - 1.2, OP.counter.z);
+  assert.ok(Math.hypot(p.x - (OP.counter.x - 1.2), p.z - OP.counter.z) < 0.3, 'the shelter mouth is open to the counter');
+  const { startServer } = await import('../server/index.js');
+  const srv = await startServer({ port: 0, dataFile: null });
+  try {
+    const res = await fetch('http://127.0.0.1:' + srv.port + OUTPOST_SHELTER_URL);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('cache-control'), /immutable/);
+  } finally { await srv.close(); }
+});
+
+test('outpost crew are present, speak a field line on interaction, and offer no services', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard'));
+  const crew = g.objects.filter((o) => o.type === 'outpost_crew');
+  assert.equal(crew.length, OP.crew.length);
+  for (const c of crew) {
+    assert.ok(Math.hypot(c.x - OP.x, c.z - OP.z) < OP.r, c.name + ' inside the camp');
+    assert.ok(g.metaFor(c).a, 'crew carry their look');
+    place(p, c.x + 1.2, c.z);
+    g.events.length = 0;
+    assert.ok(interact(g, p, c.id).ok);
+    assert.equal(p.vendor ?? null, null);
+  }
+});
+
+function stepMoveTo(p, x, z) {
+  const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz);
+  if (d < 0.05) return;
+  const s = Math.min(0.1, d);
+  p.x += dx / d * s; p.z += dz / d * s;
+  resolveCollisions(p, PLAYER_RADIUS);
+}
