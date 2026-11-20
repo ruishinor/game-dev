@@ -304,6 +304,7 @@ const net = new Net({
   onAccountFail: (reason) => {
     const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
     el.textContent = reason;
+    selectionView.setBusy(false);
     if (!net.accountToken && /session expired/i.test(reason)) {
       clearWorld();
       S.myId = 0;
@@ -324,7 +325,10 @@ const net = new Net({
     $('enter').disabled = false;
   },
   onStatus: (text) => {
-    if (text) stopAutomaticMovement();
+    if (text) {
+      stopAutomaticMovement();
+      if(document.body.classList.contains('character-selection-mode'))selectionView.setBusy(false);
+    }
     $('status').hidden = !text;
     $('status').textContent = text || '';
     if (text) input.reset();
@@ -604,6 +608,7 @@ function showRoster(m) {
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
+  ui.toggleSettings(false);
 }
 
 function buildAccountUI() {
@@ -618,6 +623,13 @@ function buildAccountUI() {
     net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
   });
   $('account-signout').addEventListener('click', () => net.signOut());
+  $('roster-settings').addEventListener('click', () => {
+    if(!net.accountLogged)return;
+    const open=ui.settingsPanel.hidden;
+    $('hud').hidden=!open;
+    ui.toggleSettings(open);
+    if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
+  });
   $('resume-saved-guest').addEventListener('click', () => {
     if (net.token) net.resumeGuest(net.token);
   });
@@ -810,6 +822,7 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   creationPreview.release();
   selectionView.release();
+  ui.toggleSettings(false);
   document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
