@@ -23,7 +23,7 @@ function rail(parent,a,b,radius,material){
  parent.add(mesh);return mesh;
 }
 
-export function createSelectionEnvironment(scene){
+export function createSelectionEnvironment(scene,assets){
  const root=new THREE.Group();root.name='selection-resonance-vestibule';scene.add(root);
  // The platform is human-scale; the gate behind it reads as an ancient machine.
  const floor=new THREE.Mesh(new THREE.CylinderGeometry(12,13,.3,48),basalt);
@@ -95,6 +95,34 @@ export function createSelectionEnvironment(scene){
  const cloudMat=new THREE.PointsMaterial({color:0x799cab,size:.027,transparent:true,opacity:.42,sizeAttenuation:true,depthWrite:false});
  const cloud=new THREE.Points(cloudGeo,cloudMat);root.add(cloud);
  const atmosphere=new THREE.PointLight(0x4d9fb8,1.1,16,2);atmosphere.position.set(0,4,-5.9);root.add(atmosphere);
+ // Prefer authentic Attunement Sanctum kit geometry when the bundle is ready.
+ // These instances share the gameplay bundle's immutable GLB geometry: never
+ // mutate its materials or dispose a bundle-owned geometry.
+ const ownedGeometry=new Set();
+ root.traverse(object=>{if(object.geometry)ownedGeometry.add(object.geometry);});
+ const ownedMaterials=new Set();
+ const kit=(piece,position,scale)=>{
+  const instance=assets?.instance('sanctum',piece);
+  if(!instance)return;
+  instance.position.set(...position);instance.scale.set(...scale);
+  instance.traverse(node=>{
+   if(!node.isMesh)return;
+   node.receiveShadow=true;node.castShadow=false;
+   const clone=material=>{
+    const m=material.clone();
+    // Suppress yellow/green kit accents in this distinct cold selection scene.
+    if(m.color)m.color.setHex(0x8ca7b9);
+    if(m.emissive)m.emissive.setHex(0x07151d);
+    ownedMaterials.add(m);return m;
+   };
+   node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);
+  });
+  root.add(instance);
+ };
+ kit('Platform_Round1',[0,-.13,0],[.77,.75,.77]);
+ kit('Door_Frame_Square',[0,.2,-6.58],[1.46,1.49,1.05]);
+ kit('Column_Hollow',[-5.15,-.15,-7.1],[1.07,1.6,1.07]);
+ kit('Column_Hollow',[5.15,-.15,-7.1],[1.07,1.6,1.07]);
  const update=(seconds,reducedMotion)=>{
   if(reducedMotion){cloud.rotation.y=0;innerRing.rotation.z=0;atmosphere.intensity=.8;return;}
   cloud.rotation.y=Math.sin(seconds*.045)*.012;
@@ -102,7 +130,9 @@ export function createSelectionEnvironment(scene){
   atmosphere.intensity=.85+.12*Math.sin(seconds*.55);
  };
  const dispose=()=>{
-  root.traverse(obj=>{obj.geometry?.dispose();if(obj.material===cloudMat)obj.material.dispose();});
+  for(const geometry of ownedGeometry)geometry.dispose();
+  for(const material of ownedMaterials)material.dispose();
+  cloudMat.dispose();
   scene.remove(root);
  };
  return {update,dispose};
