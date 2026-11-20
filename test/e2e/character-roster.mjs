@@ -37,7 +37,7 @@ try{
  await page.fill('#name','Roster Tester');
  await page.click('#enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
- await page.locator('.menu').getByRole('button',{name:'Menu [M]'}).click();
+ await page.locator('.menu').getByRole('button',{name:'Menu (Esc)'}).click();
  await page.locator('.menu-items').getByRole('button',{name:'Characters',exact:true}).click();
  await page.locator('#character-roster').waitFor({state:'visible'});
  await page.locator('#roster-list .roster-row').first().waitFor();
@@ -47,7 +47,7 @@ try{
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  await page.click('#roster-enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
- await page.locator('.menu').getByRole('button',{name:'Menu [M]'}).click();
+ await page.locator('.menu').getByRole('button',{name:'Menu (Esc)'}).click();
  await page.locator('.menu-items').getByRole('button',{name:'Characters',exact:true}).click();
  await page.locator('#character-roster').waitFor({state:'visible'});
  await page.click('#roster-delete');
