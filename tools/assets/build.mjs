@@ -208,6 +208,13 @@ async function main() {
     ...['m', 'f'].map((k) => [{ id: `armour_vanguard_set_${k}`, out: `armour_vanguard_set_${k}.glb`, kind: 'skinned', report: 'tools/asset-pipeline/assets/armour_vanguard_set/outputs/export.json', reportKey: k,
       sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
       note: `Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),
+    // the other three rare class families (docs/art/ARMOUR-3D.md)
+    ...[['keeper', 'Vesperglass Array (Aegis Keeper set), original porcelain-and-titanium resonance armour'],
+      ['surveyor', 'Strataweave Fieldkit (Brine Surveyor set), original industrial field-engineering armour'],
+      ['symbiotech', 'Mycelial Accord (Symbiotech Conductor set), original cultivated bio-armour']].flatMap(([fam, what]) => ['m', 'f'].map((k) => [{
+      id: `armour_${fam}_set_${k}`, out: `armour_${fam}_set_${k}.glb`, kind: 'skinned', report: `tools/asset-pipeline/assets/armour_${fam}_set/outputs/export.json`, reportKey: k,
+      sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
+      note: `${what} for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset])),
     ...['m', 'f'].map((k) => [{ id: `armour_chest_${k}`, out: `armour_chest_${k}.glb`, kind: 'skinned', report: 'tools/asset-pipeline/assets/armour_chest/outputs/export.json', reportKey: k,
       sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
       note: `Original body-fitted chest armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),

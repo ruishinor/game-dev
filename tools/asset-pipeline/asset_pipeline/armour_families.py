@@ -374,7 +374,7 @@ def vesperglass_gloves(body, base, m, kit=None):
                 if FM is None:
                     continue
                 t1 = 0.78 if seg != "03" else 0.72
-                P.append(Plate(it, f"finger_{fng}{seg}_{s}", m["plate" if seg != "02" else "trim"], FM, D([(-72, 0.06), (72, 0.06), (72, t1), (-72, t1)]),
+                P.append(Plate(it, f"finger_{fng}{seg}_{s}", m["trim" if seg == "01" else "plate"], FM, D([(-72, 0.06), (72, 0.06), (72, t1), (-72, t1)]),
                                0.0032, dome=0.0016, thickness=0.0026, bevel=0.0009, res=0.005, weights=pol([f"{fng}_{seg}"]),
                                weight_mode=["rigid"]).export())
     return P
@@ -396,18 +396,18 @@ def vesperglass_greaves(body, base, m, kit=None):
             P.append(Plate(it, f"{nm}_{s}", m["under"], M, D([(-179.5, t0), (179.5, t0), (179.5, t1), (-179.5, t1)]), 0.004, thickness=0.003,
                            bevel=0.0, segs=0, res=0.012, weights=pol).export())
         # tall porcelain thigh shell, diamond window with a prism panel
-        pl = Plate(it, f"thigh_shell_{s}", m["plate"], TM, D([(-74, 0.1), (74, 0.1), (82, 0.45), (60, 0.86), (0, 0.94), (-60, 0.86), (-82, 0.45)]),
-                   0.014, dome=0.005, thickness=0.009, bevel=0.003, segs=2, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=1.0)
-        pl.hole(D([(0, 0.24), (26, 0.48), (0, 0.74), (-26, 0.48)]))
-        pl.groove(D([(0, 0.18), (36, 0.48), (0, 0.8), (-36, 0.48)]), closed=True, width=0.003)
+        pl = Plate(it, f"thigh_shell_{s}", m["plate"], TM, D([(-46, 0.16), (46, 0.16), (62, 0.46), (50, 0.84), (0, 0.94), (-50, 0.84), (-62, 0.46)]),
+                   0.011, dome=0.003, thickness=0.008, bevel=0.003, segs=2, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=1.0)
+        pl.hole(D([(0, 0.26), (22, 0.5), (0, 0.76), (-22, 0.5)]))
+        pl.groove(D([(0, 0.2), (31, 0.5), (0, 0.82), (-31, 0.5)]), closed=True, width=0.003)
         P.append(pl.export())
-        P.append(glassy(Plate(it, f"thigh_prism_{s}", m["glass"], TM, D([(0, 0.21), (29, 0.48), (0, 0.77), (-29, 0.48)]), 0.017, thickness=0.003,
+        P.append(glassy(Plate(it, f"thigh_prism_{s}", m["glass"], TM, D([(0, 0.23), (25, 0.5), (0, 0.79), (-25, 0.5)]), 0.0135, thickness=0.003,
                               bevel=0.0008, weights=pt, weight_mode=["band", tax, 0.06]).export()))
         # titanium side frame
         sidep = lambda poly: poly if -sg > 0 else mirror_poly(poly)
-        pl = Plate(it, f"thigh_frame_{s}", m["trim"], TM, D(sidep([(84, 0.14), (140, 0.18), (140, 0.82), (84, 0.86)])), 0.01, thickness=0.007,
+        pl = Plate(it, f"thigh_frame_{s}", m["trim"], TM, D(sidep([(66, 0.2), (112, 0.22), (112, 0.8), (66, 0.84)])), 0.008, thickness=0.006,
                    bevel=0.0022, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=1.0)
-        pl.groove(D(sidep([(112, 0.2), (112, 0.8)])), width=0.0028)
+        pl.groove(D(sidep([(89, 0.26), (89, 0.78)])), width=0.0028)
         P.append(pl.export())
         # titanium diamond knee cop with an ice-blue ring line
         pl = Plate(it, f"knee_{s}", m["trim"], KM, D([(0, -0.05), (62, 0.5), (0, 1.05), (-62, 0.5)]), 0.024, dome=0.008, keel=0.004, thickness=0.01,
