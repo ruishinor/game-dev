@@ -8,6 +8,7 @@ import { craftRecipe,equipItem,unequipSlot } from '../server/sim/progress.js';
 import { previewRecipe,previewProduction,productionQuantities,productionTime,RECIPES } from '../shared/crafting.js';
 import { beginProduction,tickProduction } from '../server/sim/production.js';
 import { weaponBonus } from '../shared/condition.js';
+import { cataloguePortrait } from '../client/src/catalogue-portraits.js';
 
 test('non-reserved Sentinel part, vendor housing and module fabrication produce the established weapon',()=>{
  const g=makeGame(),enemy=enemyOf(g,'sentinel'),vendor=g.objects.find(o=>o.type==='quartermaster');
@@ -82,4 +83,14 @@ test('missing, installed and forged parts fail atomically and the original upgra
  assert.equal(RECIPES.dense_pulse_core.target,'tuned_emitter');
  assert.equal(RECIPES.assemble_dense_core_modular.output.item,'dense_pulse_core');
  assert.ok(productionTime(RECIPES.assemble_dense_core_modular)>0);
+});
+
+test('each recovered component has original, distinct catalogue artwork',()=>{
+ const ids=['pulse_housing','vector_matrix','pulse_cell','pulse_module'];
+ const art=ids.map(id=>cataloguePortrait(id));
+ for(const [i,fragment] of art.entries()){
+  assert.ok(fragment?.includes('<path'),ids[i]);
+  assert.ok(!/<(?:script|image|foreignObject)|\\bon\\w+=|href\\s*=/i.test(fragment),ids[i]);
+ }
+ assert.equal(new Set(art).size,ids.length);
 });
