@@ -1157,7 +1157,7 @@ try {
     return !s.compId && !document.querySelector('.summon-pet').hidden;
   }, null, 5000, 'companion dismissed by the return to the Sanctum');
   check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
-  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  await B.page.locator('.summon-pet').click();
   const recalled = await until(B, () => {
     const s = window.__attune.state();
     return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
@@ -1165,12 +1165,12 @@ try {
   check('8. the companion can be summoned again after recovery', recalled);
   const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
-  await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
+  await B.page.locator('.player-context').getByRole('button', { name: 'Dismiss companion', exact: true }).click();
   const dismissed = await until(B, () => {
     const s = window.__attune.state();
     return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
   }, null, 5000, 'companion dismissed and summon available');
-  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  await B.page.locator('.summon-pet').click();
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
