@@ -63,6 +63,8 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   }
   for(const b of inspectControls?.querySelectorAll('[data-preview-mode]')??[])b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
  };
+ // Player meshes face +Z (see looks.js); the preview camera looks from +Z.
+ // Yaw zero therefore presents their front to the player.
  const reset=()=>{yaw=0;pitch=.045;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
  const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment ? 0.75 : 0.65,environment ? 1.9 : 2.4);root.dataset.zoom=String(zoom);dirty=true;};
@@ -181,5 +183,5 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   }
  }
  function destroy(){observer.disconnect();motionPreference.removeEventListener('change',onMotionChange);release();environment?.dispose();renderer?.dispose();renderer?.forceContextLoss();renderer=null;failed=true;}
- return {update,release,active,destroy,closeInspector:()=>setInspector(false)};
+ return {update,release,resetView:reset,active,destroy,closeInspector:()=>setInspector(false)};
 }

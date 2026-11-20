@@ -89,6 +89,7 @@ try{
  assert.equal(await page.evaluate(fitsViewport),true,'roster has zero page scrolling');
  if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
  await page.click('#roster-create');
+ assert.equal(await page.locator('#creation-preview').getAttribute('data-yaw'),'0','new character opens facing forward');
  assert.equal(await page.locator('#character-roster').isHidden(),true);
  assert.equal(await page.locator('#creation-fields').isVisible(),true);
  assert.equal(await page.evaluate(fitsViewport),true,'creation page must not scroll');
@@ -154,6 +155,7 @@ try{
  await page.click('#creation-back');
  assert.equal(await page.locator('#character-roster').isVisible(),true);
  await page.click('#roster-create');
+ assert.equal(await page.locator('#creation-preview').getAttribute('data-yaw'),'0','reopening creator restores forward orientation');
  await page.fill('#name','Roster Tester');
  await page.click('#enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
@@ -167,6 +169,7 @@ try{
  assert.match(await page.locator('#roster-details').textContent(),/Location/);
  assert.equal(await page.locator('#roster-list .roster-select[aria-pressed="true"]').count(),1);
  assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-yaw'),'0','existing characters open facing forward');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
  assert.equal(await page.locator('.roster-cards .roster-preview-controls').count(),0,'inspection controls never overlap roster');
@@ -200,6 +203,7 @@ try{
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  // The roster's own New Character control must work, not only the footer.
  await page.click('#roster-list .roster-slot-vacant');
+ assert.equal(await page.locator('#creation-preview').getAttribute('data-yaw'),'0','New Character also starts front-facing');
  await page.locator('#creation-fields').waitFor({state:'visible'});
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  await page.click('#creation-back');

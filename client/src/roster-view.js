@@ -166,13 +166,13 @@ export class CharacterRosterView{
   }
   this.root.classList.toggle('roster-empty',!this.selected);
   this.capacity.textContent=`${this.characters.length} / ${this.maxSlots} CHARACTER SLOTS`;
-  this.setBusy(false);this.updateSelected();
+  this.setBusy(false);this.preview.resetView();this.updateSelected();
  }
  choose(id){
   if(this.busy)return;
   const c=this.characters.find(entry=>entry.id===id);
   if(!c||c.id===this.selected?.id)return;
-  this.selected=c;this.clearDelete();this.updateSelected();
+  this.selected=c;this.preview.resetView();this.clearDelete();this.updateSelected();
  }
  updateSelected(){
   const c=this.selected;

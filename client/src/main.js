@@ -476,6 +476,7 @@ function showCharacterCreation(){
   document.body.classList.remove('character-selection-mode');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
+  creationPreview.resetView();
   $('name').focus({preventScroll:true});
 }
 function backToRoster(){if(lastRoster&&net.accountLogged)showRoster(lastRoster);}
