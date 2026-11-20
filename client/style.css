@@ -924,3 +924,150 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 }
 .tip-meta.met { color: var(--green); }
 .tip-meta.unmet { opacity: 0.62; }
+
+
+/* Owner blueprint: widescreen interactive atlas — 2026-11-20 */
+/* Adapted from the supplied 2026-11-19 Aion-style map references:
+   dark catalogue/sidebar, full-frame richly shaded terrain, vertical map tools.
+   No source image or third-party map art is copied. */
+#hud .world-atlas{
+  inset:clamp(8px,3vh,30px) clamp(8px,2vw,34px);
+  border:1px solid #41545c;border-radius:8px;
+  background:#101619;color:#e2e9ea;
+  box-shadow:0 16px 54px #000e;
+  font-family:system-ui,sans-serif;
+}
+#hud .atlas-header{
+  min-height:54px;padding:10px 16px;
+  border-bottom:1px solid #374a53;
+  background:linear-gradient(#161e24,#10161b);
+}
+#hud .atlas-header h2{
+  font:650 clamp(17px,1.5vw,22px)/1.15 system-ui,sans-serif;
+  letter-spacing:.01em;color:#edf3f4;
+  text-shadow:none;margin:0;
+}
+#hud .atlas-header>button{
+  background:#202c34;border:1px solid #536b76;border-radius:5px;
+  color:#d8e5e9;font-size:12px;padding:7px 13px;
+}
+#hud .atlas-body{grid-template-columns:minmax(228px,25%) minmax(0,1fr);gap:0}
+#hud .atlas-tools{
+  padding:12px 14px;gap:9px;background:#11181d;
+  border-right:1px solid #36464e;min-width:0;
+  scrollbar-width:thin;scrollbar-color:#4d656f #172127;
+}
+#hud .atlas-region{
+  color:#9db6c1;letter-spacing:.11em;
+  font-weight:750;font-size:10px;line-height:1.4;
+  padding:5px 2px 8px;border-bottom:1px solid #30434c;
+}
+#hud .atlas-tools h3{
+  font-size:10px;font-weight:750;letter-spacing:.095em;
+  color:#8faab7;margin:6px 0 0;
+}
+#hud .atlas-tools input[type="search"]{
+  padding:9px 11px;border-radius:5px;
+  color:#e3ecee;background:#090e12;border:1px solid #3f525a;
+  font-size:12px;min-height:34px;
+}
+#hud .atlas-tools label{
+  display:flex;align-items:center;gap:6px;font-size:12px;
+  color:#cfdbdd;min-height:26px;cursor:pointer;
+}
+#hud .atlas-tools input[type="checkbox"]{accent-color:#5d9eae}
+#hud .atlas-legend{
+  padding:8px 0;border-top:1px solid #34444d;
+  border-bottom:1px solid #34444d;
+  color:#a9bcc2;font-size:10px;line-height:1.7;
+}
+#hud .atlas-details,#hud .atlas-waypoint-details{
+  font-size:12px;line-height:1.45;color:#c8d7da;
+}
+#hud .atlas-tools button{
+  border:1px solid #49616c;border-radius:5px;
+  background:#1a2931;color:#dce6e7;padding:7px 9px;
+}
+#hud .atlas-tools button:hover:not(:disabled),
+#hud .atlas-tools button:focus-visible{background:#293e49;border-color:#86b5c1}
+#hud .atlas-results{max-height:min(34vh,340px);overflow-y:auto;gap:3px}
+#hud .atlas-results button{text-align:left;background:#131f25;font-size:11px;line-height:1.3}
+#hud .atlas-view{background:#1d292d;min-width:0;overflow:hidden}
+#hud .atlas-view canvas{
+  background:#273339;image-rendering:auto;display:block;
+  width:100%;height:100%;
+}
+#hud .atlas-controls{
+  display:flex;flex-direction:column;flex-wrap:nowrap;
+  position:absolute;top:12px;right:12px;bottom:auto;
+  width:38px;gap:4px;align-items:stretch;
+}
+#hud .atlas-controls button{
+  display:grid;place-items:center;width:38px;height:38px;
+  min-width:38px;min-height:38px;padding:0;
+  border:1px solid #506a74;border-radius:5px;
+  background:#172329e8;color:#e6f0f1;
+  font:600 21px/1 system-ui,sans-serif;
+  box-shadow:0 1px 5px #0007;
+}
+#hud .atlas-controls button:hover,
+#hud .atlas-controls button:focus-visible{background:#29404b;border-color:#91bec8}
+#hud .atlas-controls button[aria-pressed="true"]{background:#30505c}
+@media(max-width:720px){
+  #hud .world-atlas{inset:5px;border-radius:3px}
+  #hud .atlas-header{min-height:42px;padding:7px 9px}
+  #hud .atlas-header h2{font-size:15px}
+  #hud .atlas-body{grid-template-columns:minmax(124px,37%) minmax(0,1fr)}
+  #hud .atlas-tools{padding:7px;gap:5px}
+  #hud .atlas-tools label{font-size:10px}
+  #hud .atlas-controls{top:5px;right:5px;width:28px;gap:3px}
+  #hud .atlas-controls button{width:28px;height:28px;min-height:28px;min-width:28px;font-size:17px}
+  #hud .atlas-region{font-size:9px}
+}
+
+/* Atlas saved notes and live player overlay — 2026-11-20 */
+#hud .atlas-player-marker{
+  position:absolute;z-index:3;pointer-events:none;
+  display:grid;place-items:center;
+  width:23px;height:23px;
+  color:#efffff;font:900 19px/1 system-ui,sans-serif;
+  text-shadow:0 0 3px #00131e,0 1px 4px #000,0 0 8px #7bcbe0;
+  transform-origin:center;
+  will-change:transform,left,top;
+}
+#hud .atlas-player-marker[hidden]{display:none}
+#hud .atlas-tools .atlas-marker-title,
+#hud .atlas-tools .atlas-marker-note{
+  width:100%;box-sizing:border-box;
+  border:1px solid #465c66;border-radius:5px;
+  padding:8px 9px;color:#e2eef0;background:#0c161b;
+  font:12px/1.45 system-ui,sans-serif;
+}
+#hud .atlas-tools .atlas-marker-note{resize:vertical;min-height:56px;max-height:125px}
+#hud .atlas-tools .atlas-marker-title:focus-visible,
+#hud .atlas-tools .atlas-marker-note:focus-visible{outline:2px solid #76b5c7;outline-offset:2px}
+#hud .atlas-note-status{font-size:11px;line-height:1.35;color:#abc3cb}
+#hud .atlas-saved-list{display:grid;gap:5px;padding:4px 0 12px}
+#hud .atlas-saved-point{
+  display:grid;grid-template-columns:minmax(0,1fr) 27px;gap:3px;
+  border:1px solid #2f454f;border-radius:5px;
+  padding:4px;background:#15232a;
+}
+#hud .atlas-saved-point .atlas-saved-select{
+  min-width:0;text-align:left;border:0;background:transparent;
+  color:#c4e2eb;font-size:12px;overflow-wrap:anywhere;padding:3px 4px;
+}
+#hud .atlas-saved-point .atlas-saved-note{
+  grid-column:1;grid-row:2;font-size:10px;line-height:1.4;
+  margin:0;padding:2px 4px;color:#a4bbc2;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+#hud .atlas-saved-point .atlas-saved-delete{
+  grid-column:2;grid-row:1;align-self:start;min-width:27px;
+  width:27px;height:27px;padding:1px;font-size:18px;
+  background:#24363d;border-color:#4a626e;
+}
+
+
+/* Search suggestions stay accessible under the search field. */
+#hud .atlas-results[hidden]{display:none!important}
+#hud .atlas-results:not([hidden]){flex:0 0 auto;max-height:min(30vh,245px);overflow-y:auto;min-height:0}
