@@ -50,6 +50,9 @@ try{
  await page.locator('#roster-import-trigger').click();
  await page.locator('#roster-import-dialog').waitFor({state:'visible'});
  assert.equal(await page.locator('#recovery-token').isVisible(),true,'recovery input is in separate dialog');
+ await page.locator('#import-legacy').click();
+ assert.match(await page.locator('#roster-import-error').textContent(),/64-character/i,'invalid recovery key is rejected locally');
+ assert.equal(await page.locator('#roster-import-dialog').isVisible(),true,'invalid import remains recoverable');
  assert.equal(await page.locator('#character-roster .legacy-link').count(),0,'no inline roster import');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2),true,'dialog cannot scroll the page');
  await page.locator('#roster-import-close').click();
@@ -201,13 +204,15 @@ try{
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  await page.click('#creation-back');
  await page.locator('#character-roster').waitFor({state:'visible'});
- if(evidence){
-  await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
-  await page.setViewportSize({width:390,height:844});
-  assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
-  await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
-  await page.setViewportSize({width:1360,height:850});
- }
+ if(evidence)await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
+ await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
+ assert.equal(await page.locator('.roster-cards [data-preview-inspect]').isVisible(),true,
+   'Inspect must not disappear on narrow viewports');
+ assert.equal(await page.locator('#roster-list .roster-slot-vacant').isVisible(),true,
+   'New Character must stay accessible on narrow viewports');
+ if(evidence)await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
+ await page.setViewportSize({width:1360,height:850});
  await page.click('#roster-enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
  await page.locator('#world-entry-curtain').waitFor({state:'hidden',timeout:90000});
