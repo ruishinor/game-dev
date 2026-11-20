@@ -95,6 +95,26 @@ try{
  assert.equal((await slot1.textContent()).trim(),'1');
  await panel.getByRole('button',{name:'Back to Settings'}).click();
  await page.locator('.settings-panel .close').click();
+ // Owner-approved HUD: there must not be a second summon/dismiss control
+ // underneath the character and companion portraits.
+ assert.equal(await page.locator('.summon-pet').count(),0);
+ const characterIcon=page.getByRole('button',{name:'Character (C)'});
+ const menuIcon=page.getByRole('button',{name:'Menu (Esc)'});
+ const helpIcon=page.getByRole('button',{name:'Help (H)'});
+ for(const control of [characterIcon,menuIcon,helpIcon]){
+  assert.equal(await control.locator('svg').count(),1,'Corner control must use a real icon');
+  assert.equal((await control.textContent()).trim(),'','Corner controls must not repeat labels in-game');
+ }
+ await page.locator('#view').focus();
+ await page.keyboard.press('KeyM');
+ await page.locator('.world-atlas').waitFor({state:'visible'});
+ await page.keyboard.press('Escape');
+ await page.locator('.world-atlas').waitFor({state:'hidden'});
+ await page.locator('#view').focus();
+ await page.keyboard.press('Escape');
+ await page.locator('.menu-items').waitFor({state:'visible'});
+ await page.keyboard.press('Escape');
+ await page.locator('.menu-items').waitFor({state:'hidden'});
  await mkdir('test/e2e/out',{recursive:true});
  for(const viewport of [{width:1280,height:860},{width:1366,height:768},{width:1920,height:1080},{width:320,height:720}]){
    await page.setViewportSize(viewport);
