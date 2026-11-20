@@ -27,7 +27,7 @@ export function deriveStats(char) {
   const hasSetPiece = SLOTS.some(slot => ITEMS[char.equipped[slot]]?.setId);
   const equipped = hasSetPiece ? resolveLoadout(char, char.equipped).equipped : char.equipped;
   const skills = computeSkills(char.cls, char.level, equipped);
-  const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0, shieldMul: 1 };
+  const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0, shieldMul: 1, barrierMul: 1, graftTicks: 0, relayRadius: 0, scanMs: 0, blastRadius: 0 };
   for (const slot of SLOTS) {
     const item = ITEMS[equipped[slot]];
     if (!item || !item.mods) continue;
@@ -58,6 +58,12 @@ export function deriveStats(char) {
     chargeMul: mods.chargeMul,
     dischargeRadius: mods.dischargeRadius,
     shieldMul: mods.shieldMul,
+    // class armour set effects (ARMOR_SETS)
+    barrierMul: mods.barrierMul,
+    graftTicks: mods.graftTicks,
+    relayRadius: mods.relayRadius,
+    scanMs: mods.scanMs,
+    blastRadius: mods.blastRadius,
     glyph: equipped.glyph || null,
   };
 }

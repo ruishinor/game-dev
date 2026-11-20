@@ -19,9 +19,9 @@ for (const [setId, set] of Object.entries(ARMOR_SETS)) {
       assert.equal(equip.ok,true);
       char.equipped=equip.equipped;
       const stat=deriveStats(char);
-      const hp=ids.slice(0,i+1).reduce((sum,id)=>sum+ITEMS[id].mods.hpAdd,0);
+      const hp=ids.slice(0,i+1).reduce((sum,id)=>sum+(ITEMS[id].mods?.hpAdd??0),0);
       let expectedHp=base.maxHp+hp;
-      for (const key of ['healMul','shieldMul','dmgMul']) {
+      for (const key of ['healMul','shieldMul','dmgMul','chargeMul','barrierMul']) {
         let expected=base[key];
         for(const n of [2,3,4]) if(i+1>=n) expected*=set.bonuses[n][key]??1;
         assert.ok(Math.abs(stat[key]-expected)<1e-10);

@@ -10,6 +10,11 @@ export const ATTRIBUTE_DISPLAY = {
   chargeMul: { name: 'Charge generation', unit: ' pp' },
   dischargeRadius: { name: 'Discharge radius', unit: ' m' },
   shieldMul: { name: 'Aegis capacity', unit: ' pp' },
+  barrierMul: { name: 'Projected barrier capacity', unit: ' pp' },
+  graftTicks: { name: 'Mending Graft ticks', unit: '' },
+  relayRadius: { name: 'Lattice Relay radius', unit: ' m' },
+  scanMs: { name: 'Fault Scan duration', unit: ' s' },
+  blastRadius: { name: 'Controlled Blast radius', unit: ' m' },
   weaponDamage: { name: 'Auto-attack damage' },
   weaponReach: { name: 'Auto-attack reach', unit: ' m' },
 };
@@ -24,6 +29,11 @@ export function equipmentAttributes(character, stats) {
     chargeMul: stats.chargeMul * 100,
     shieldMul: stats.shieldMul * 100,
     dischargeRadius: stats.dischargeRadius,
+    barrierMul: (stats.barrierMul ?? 1) * 100,
+    graftTicks: stats.graftTicks ?? 0,
+    relayRadius: stats.relayRadius ?? 0,
+    scanMs: (stats.scanMs ?? 0) / 1000,
+    blastRadius: stats.blastRadius ?? 0,
     weaponDamage: weaponBonus(character),
     weaponReach: weaponReach(character),
   };

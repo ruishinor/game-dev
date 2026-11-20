@@ -26,7 +26,7 @@ export function makeChar(cls, over = {}) {
 }
 
 export function makeGame(seed = 7) {
-  return new Game({ rng: mulberry32(seed), relicRng:()=>.999999, blueprintRng:()=>.999999 });
+  return new Game({ rng: mulberry32(seed), relicRng:()=>.999999, blueprintRng:()=>.999999, classArmourRng:()=>.999999 });
 }
 
 export function joinParty(game, owner, ...members) {

@@ -2,7 +2,7 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop} from './loot-tables.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
@@ -30,6 +30,8 @@ export function distributeCorpseLoot(game,e,credited){
   if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
   const print=blueprintDrop(e.type,game.blueprintRng);
   if(print&&(p.char.goods?.[print]||0)<goodsCap(print))entries.push({id:print,kind:'goods',quantity:1});
+  const armourPrint=classArmourBlueprintDrop(e.type,p.char,game.classArmourRng);
+  if(armourPrint&&Object.hasOwn(GOODS,armourPrint)&&(p.char.goods?.[armourPrint]||0)<goodsCap(armourPrint))entries.push({id:armourPrint,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
  }
 }

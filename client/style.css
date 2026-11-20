@@ -831,3 +831,5 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .atlas-controls button,.atlas-header button{border-color:#8d7d56;background:#1b262b;}
 .settings-panel{max-height:calc(100vh - 32px);overflow:auto;}
 @media(max-width:650px){.world-atlas{inset:8px;}.atlas-body{grid-template-columns:minmax(120px,36%) minmax(0,1fr);}.atlas-tools{padding:8px;}.atlas-header h2{font-size:16px;}.atlas-controls{right:4px;bottom:4px;}.atlas-controls button{padding:4px;font-size:10px;}.frame.player .unit-portrait{width:42px;height:42px;}#hud .frame.player{padding-left:50px;}}
+.tip-meta.met { color: var(--green); }
+.tip-meta.unmet { opacity: 0.62; }

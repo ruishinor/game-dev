@@ -1,6 +1,7 @@
 // The character sheet, inventory and Codex share a small visual language.
 // All displayed items, slots and requirements come from authoritative data.
-import { ITEMS, SLOT_NAMES, LOOKS } from '../../shared/content.js';
+import { ITEMS, SLOT_NAMES, LOOKS, ARMOR_SETS } from '../../shared/content.js';
+import { armorSetBonuses } from '../../shared/armor-set-bonuses.js';
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
@@ -89,6 +90,15 @@ function requirements(s,id) {
   });
 }
 
+// Class armour set: the threshold effects, lit when reached by distinct
+// equipped pieces (the same rule the server applies).
+function setBonusLines(sheet, item) {
+  const set = ARMOR_SETS[item.setId];
+  const worn = sheet ? armorSetBonuses(sheet.cls, sheet.equipped || {}, ITEMS, ARMOR_SETS).find((x) => x.setId === item.setId) : null;
+  const count = worn?.count || 0;
+  return [h('div', 'tip-meta', `${set.name} · ${set.title || 'Set'} (${count}/4)`),
+    ...[2, 3, 4].map((n) => h('div', 'tip-meta' + (count >= n ? ' met' : ' unmet'), `${n} pieces · ${set.bonuses[n]?.label || ''}`))];
+}
 export function itemTooltip(sheet, id, { owned, required } = {}) {
   const item = ITEMS[id], material = MATERIALS[id], goods = GOODS[id];
   const def = item || material || goods;
@@ -101,6 +111,9 @@ export function itemTooltip(sheet, id, { owned, required } = {}) {
   ];
   if (owned !== undefined) out.push(h('div', 'tip-meta', required === undefined ? `Owned ${owned}` : `Owned ${owned} · Required ${required}`));
   if (material?.source) out.push(h('div', 'tip-meta', `Source · ${material.source}`));
+  if (goods?.source) out.push(h('div', 'tip-meta', `Recovered from · ${goods.source}${goods.pending ? ' (not yet in the field)' : ''}`));
+  if (item?.summary) out.push(h('div', 'tip-meta', item.summary));
+  if (item?.setId && Object.hasOwn(ARMOR_SETS, item.setId)) out.push(...setBonusLines(sheet, item));
   if (material && sheet) {
     const uses=materialUses(sheet,id);
     out.push(h('div','tip-meta',uses.length?'Used in · '+uses.map(x=>x.name+' (×'+x.quantity+')').join('; '):'No compatible learned recipe recorded yet.'));
