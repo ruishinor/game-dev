@@ -123,6 +123,9 @@ export class CharacterRosterView{
  }
  updateSelected(){
   const c=this.selected;
+  this.preview.closeInspector();
+  const inspect=this.selectionPreview.querySelector('[data-preview-inspect]');
+  if(inspect)inspect.hidden=!c;
   for(const button of this.list.querySelectorAll('.roster-select')){
    button.setAttribute('aria-pressed',String(button.dataset.characterId===String(c?.id)));
   }
