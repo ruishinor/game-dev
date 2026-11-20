@@ -97,17 +97,17 @@ def add_glare(sc, threshold=0.85, size=0.78, strength=0.9):
     sc.render.use_compositing = True
 
 
-def boost_channels(strength):
+def boost_channels(strength, rgb=(1.0, 0.13, 0.05)):
     """The GLB carries the channels as a plain emissive factor; give them the
-    brightness the runtime shader reaches (white-hot core, red falloff)."""
+    brightness the runtime shader reaches (each family's own colour)."""
     for m in bpy.data.materials:
-        if not m.name.startswith("CL_Channel") or not m.use_nodes:
+        if not m.name.split(".")[0].endswith("_Channel") or not m.use_nodes:
             continue
         for n in m.node_tree.nodes:
             if n.type == "BSDF_PRINCIPLED":
-                n.inputs["Emission Color"].default_value = (1.0, 0.13, 0.05, 1)
+                n.inputs["Emission Color"].default_value = (*rgb, 1)
                 n.inputs["Emission Strength"].default_value = strength
-                n.inputs["Base Color"].default_value = (0.3, 0.02, 0.01, 1)
+                n.inputs["Base Color"].default_value = (rgb[0] * 0.3, rgb[1] * 0.3, rgb[2] * 0.3, 1)
 
 
 def belongs(o, item):
@@ -149,7 +149,7 @@ def op_icons(p):
         rig = p.get("rig", "soft")
         studio(sc, centre, max(size, 0.6) * (1.0 if rig == "hard" else 1.4), 0.9, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
-            boost_channels(p["channel_strength"])
+            boost_channels(p["channel_strength"], tuple(p.get("channel_rgb", (1.0, 0.13, 0.05))))
         glare_from(sc, p)
         v = {**p["view"], **p.get("views", {}).get(item, {})}
         # frame the silhouette: distance from the bounding radius and lens
@@ -161,7 +161,67 @@ def op_icons(p):
         sc.render.filepath = str(f)
         bpy.ops.render.render(write_still=True)
         icons[item] = str(f)
+        if p.get("blueprints"):
+            icons[f"blueprint_{item}"] = blueprint_render(sc, keep, out / f"blueprint_{item}_hero.png", p)
     finish(p, {"icons": icons})
+
+
+def blueprint_render(sc, objs, path, p):
+    """Technical schematic of the real piece: Freestyle linework (silhouette,
+    creases, borders) over a faint holographic fill; the gridded sheet is
+    composited afterwards (stage_icons)."""
+    bp = p.get("blueprint_style", {})
+    fill = bpy.data.materials.new("_bp_fill")
+    fill.use_nodes = True
+    nt = fill.node_tree
+    for n_ in list(nt.nodes):
+        nt.nodes.remove(n_)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    em = nt.nodes.new("ShaderNodeEmission")
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.35
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0.02, 0.12, 0.18, 1)
+    ramp.color_ramp.elements[1].color = tuple(bp.get("rim", (0.25, 0.75, 1.0))) + (1,)
+    nt.links.new(lw.outputs["Facing"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], em.inputs["Color"])
+    em.inputs["Strength"].default_value = 1.0
+    mix.inputs["Fac"].default_value = bp.get("opacity", 0.55)
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(em.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    saved = {}
+    for o in objs:
+        saved[o.name] = [s_.material for s_ in o.material_slots]
+        for s_ in o.material_slots:
+            s_.material = fill
+    sc.render.use_freestyle = True
+    sc.render.line_thickness_mode = "ABSOLUTE"
+    sc.render.line_thickness = bp.get("line", 1.1)
+    vl = sc.view_layers[0]
+    vl.use_freestyle = True
+    fs = vl.freestyle_settings
+    fs.crease_angle = math.radians(bp.get("crease", 150))
+    ls = fs.linesets[0] if len(fs.linesets) else fs.linesets.new("bp")
+    ls.select_by_visibility = True
+    ls.visibility = "VISIBLE"
+    for k in ("select_silhouette", "select_border", "select_crease", "select_external_contour"):
+        setattr(ls, k, True)
+    if ls.linestyle is None:
+        ls.linestyle = bpy.data.linestyles.new("bp")
+    ls.linestyle.color = tuple(bp.get("line_rgb", (0.62, 0.93, 1.0)))
+    ls.linestyle.thickness = bp.get("line", 1.1)
+    sc.view_settings.view_transform = "Standard"
+    sc.view_settings.look = "None"
+    sc.render.filepath = str(path)
+    bpy.ops.render.render(write_still=True)
+    sc.render.use_freestyle = False
+    for o in objs:
+        for s_, m0 in zip(o.material_slots, saved[o.name]):
+            s_.material = m0
+    return str(path)
 
 
 def mannequin_material(rgb=(0.42, 0.43, 0.44), roughness=0.7):
@@ -264,7 +324,7 @@ def op_worn(p):
         rig = p.get("rig", "soft")
         studio(sc, centre, max(size, 2.0) * (0.55 if rig == "hard" else 1.0), 0.55, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
-            boost_channels(p["channel_strength"])
+            boost_channels(p["channel_strength"], tuple(p.get("channel_rgb", (1.0, 0.13, 0.05))))
         glare_from(sc, p)
         g = ground(sc, float(lo[2]), max(size, 2.0))
         if p.get("ground_rgb"):

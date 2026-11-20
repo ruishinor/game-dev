@@ -117,6 +117,7 @@ def stage_inspect(asset, params):
 
 def stage_design(asset, params):
     from . import armour_cinderlock  # noqa: F401  (registers the Cinderlock designs)
+    from . import armour_families  # noqa: F401  (Vesperglass, Strataweave, Mycelial)
     from . import armour_design as ad
     from .humanoid_wardrobe import export_pieces
 
@@ -182,8 +183,8 @@ def stage_design(asset, params):
         cl = {}
         for pc in pieces:
             parts = pc["V"] if pc["F"] is None else [(pc["V"], pc["F"])]
-            V = np.concatenate([np.asarray(v, float) for v, _ in parts])
-            if len(V) == 0:  # generated in Blender (e.g. the anchor soles)
+            V = np.concatenate([np.asarray(v, float) for v, _ in parts]) if len(parts) else np.zeros((0, 3))
+            if len(V) == 0:  # generated in Blender (anchor soles) or FX-only (capillaries, lamps)
                 continue
             d = ad.clearance(body, V)
             cl[pc["name"]] = {"min_m": round(float(d.min()), 4), "p05_m": round(float(np.percentile(d, 5)), 4)}
@@ -264,6 +265,8 @@ def hs_material_specs(asset):
             spec = {k: v for k, v in m.items() if k not in ("base", "edge", "worn", "emission")}
             spec["base"] = srgb_to_linear(m["base"]).tolist()
             spec["edge"] = srgb_to_linear(m.get("edge", m.get("worn", m["base"]))).tolist()
+            if isinstance(m.get("pattern_rgb"), str):
+                spec["pattern_rgb"] = srgb_to_linear(m["pattern_rgb"]).tolist()
             out[f"{item}_{slot}"] = spec
     return out
 
@@ -478,6 +481,15 @@ def stage_rig(asset, params):
                     fi = w.mesh(f"{item}__fx", arr["FX_P"], arr["FX_I"], normals=arr["FX_N"], uvs=arr["FX_UV"], joints=FJ, weights=FW, material=fxmat)
                     w.node(f"{item}__fx", mesh=fi, skin=skin)
                     tri[item + "__fx"] = int(len(arr["FX_I"]))
+                if "GL_P" in arr.files:  # translucent layer (prisms, membranes, lenses)
+                    g = params.get("glass", {})
+                    glmat = w.material(g.get("material", "Armour_Glass"), base_factor=tuple(g.get("rgba", (0.6, 0.85, 1.0, 0.35))),
+                                       metallic=g.get("metallic", 0.0), roughness=g.get("roughness", 0.08),
+                                       emissive_factor=tuple(g.get("emissive", (0.0, 0.0, 0.0))), alpha_mode="BLEND", double_sided=True)
+                    GJ, GW = by_piece(arr["GL_P"], arr["GL_piece"])
+                    gi_ = w.mesh(f"{item}__glass", arr["GL_P"], arr["GL_I"], normals=arr["GL_N"], uvs=arr["GL_UV"], joints=GJ, weights=GW, material=glmat)
+                    w.node(f"{item}__glass", mesh=gi_, skin=skin)
+                    tri[item + "__glass"] = int(len(arr["GL_I"]))
                 continue
             Ps, Ns, UVs, Is, Js, Ws = [], [], [], [], [], []
             off = 0
@@ -645,6 +657,34 @@ def _decoded(asset, key):
     return dec
 
 
+def blueprint_sheet(rgba):
+    """Holographic schematic card: navy sheet, fine and major grid, a soft
+    projection glow under the linework, corner ticks (BGRA in, BGRA out)."""
+    import cv2
+
+    h, w = rgba.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    bg = np.zeros((h, w, 3), np.float32)
+    g = 0.65 + 0.35 * (1 - np.hypot(xx / w - 0.5, yy / h - 0.42) * 1.4)
+    bg[...] = np.array([0.15, 0.10, 0.03], np.float32)[None, None] * g[..., None]  # BGR navy
+    fine, major = max(8, w // 32), max(32, w // 8)
+    for step, col, a in ((fine, (0.34, 0.24, 0.08), 0.5), (major, (0.55, 0.40, 0.12), 0.85)):
+        grid = ((xx % step) < 1) | ((yy % step) < 1)
+        bg[grid] = bg[grid] * (1 - a) + np.array(col, np.float32) * a
+    al = rgba[..., 3:4].astype(np.float32) / 255
+    glow = cv2.GaussianBlur(al[..., 0], (0, 0), w / 60)[..., None]
+    bg = bg + np.array([1.0, 0.75, 0.25], np.float32) * glow * 0.25
+    fg = rgba[..., :3].astype(np.float32) / 255
+    out = bg * (1 - al) + fg * al
+    o8 = np.ascontiguousarray((np.clip(out, 0, 1) * 255).astype(np.uint8))
+    t, L, m = max(1, w // 128), w // 10, max(3, w // 40)
+    col = (255, 230, 140)
+    for (x0, y0, dx, dy) in ((m, m, 1, 1), (w - 1 - m, m, -1, 1), (m, h - 1 - m, 1, -1), (w - 1 - m, h - 1 - m, -1, -1)):
+        cv2.line(o8, (x0, y0), (x0 + dx * L, y0), col, t)
+        cv2.line(o8, (x0, y0), (x0, y0 + dy * L), col, t)
+    return np.dstack([o8, np.full((h, w), 255, np.uint8)])
+
+
 def stage_icons(asset, params):
     import cv2
 
@@ -656,6 +696,8 @@ def stage_icons(asset, params):
     sizes = {}
     for item, png in res["icons"].items():
         im = cv2.imread(png, cv2.IMREAD_UNCHANGED)
+        if item.startswith("blueprint_"):
+            im = blueprint_sheet(im)
         for s in params["export_sizes"]:
             sm = cv2.resize(im, (s, s), interpolation=cv2.INTER_AREA)
             f = out / f"{item}_{s}.webp"

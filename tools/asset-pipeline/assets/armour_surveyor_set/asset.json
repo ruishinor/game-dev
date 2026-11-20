@@ -1,0 +1,683 @@
+{
+ "id": "armour_surveyor_set",
+ "kind": "body-fitted-armour",
+ "description": "Strataweave Fieldkit, the Brine Surveyor armour set (Survey Harness, Calibration Gloves, Excavator Greaves, Traverse Boots): woven basalt field textile, weathered ochre plates with hazard bands, webbing straps and brass buckles, pouches, an instrument housing with a small amber display, a canister and lug soles, after the owner's reference sheet (2026-11-20). Fitted to both bodies, skinned, with rendered icons and schematic blueprint renders. Keyed to surveyor_field_set_*.",
+ "sources": [
+  {
+   "id": "body_m",
+   "path": "client/assets/humanoid_m.glb",
+   "sha256": "4d861bca31984d675354aa1400a9ca33329934f9490455829192f7466e6e48ec",
+   "provenance": "Project runtime body (built from CC0 sources, see assets/sources.json). Read-only fitting and skinning reference; none of its geometry is shipped in the armour except as the offset base of the glove and boot shells.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "body_f",
+   "path": "client/assets/humanoid_f.glb",
+   "sha256": "d19d78a6bf04f6ab81f9ec6341ea345b9081e39fee28444d0e03c527ff3bf90f",
+   "provenance": "As body_m.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "visual_aim",
+   "path": "owner reference (not in the repository)",
+   "provenance": "Owner-supplied concept sheet 'Cinderlock Regalia' and cuirass sample, shared in session 2026-11-19. Visual direction only: no image data is used.",
+   "role": "design reference"
+  }
+ ],
+ "armour": {
+  "bodies": {
+   "m": "body_m",
+   "f": "body_f"
+  },
+  "inspect": {
+   "clip_body": "body_m",
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ]
+  },
+  "design": {
+   "items": [
+    "surveyor_field_set_chest",
+    "surveyor_field_set_gloves",
+    "surveyor_field_set_greaves",
+    "surveyor_field_set_boots"
+   ],
+   "design_of": {
+    "surveyor_field_set_chest": "strataweave_chest",
+    "surveyor_field_set_gloves": "strataweave_gloves",
+    "surveyor_field_set_greaves": "strataweave_greaves",
+    "surveyor_field_set_boots": "strataweave_boots"
+   },
+   "fit_surfaces": [
+    "shell_shorts",
+    "shell_shoes",
+    "hands"
+   ],
+   "samples": 160000,
+   "base_offset": 0.009,
+   "min_gap": 0.003,
+   "relax": 6
+  },
+  "materials": {
+   "surveyor_field_set_chest": {
+    "plate": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18
+    },
+    "hazard": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18,
+     "pattern": "stripes",
+     "pattern_rgb": "#1c1b19",
+     "pattern_k": 0.9
+    },
+    "under": {
+     "base": "#3a3731",
+     "edge": "#58544b",
+     "roughness": 0.92,
+     "metallic": 0.0,
+     "wear": 0.35,
+     "tone": 0.18,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.8
+    },
+    "strap": {
+     "base": "#2c2a25",
+     "edge": "#4a463d",
+     "roughness": 0.88,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.8,
+     "pattern": "weave",
+     "pattern_k": 0.9
+    },
+    "trim": {
+     "base": "#7d5f2c",
+     "edge": "#d9b56a",
+     "roughness": 0.42,
+     "metallic": 0.9,
+     "wear": 0.6,
+     "tone": 0.12,
+     "scratch": 0.35,
+     "soot": 0.9,
+     "edge_polish": 0.16
+    },
+    "pouch": {
+     "base": "#4a4235",
+     "edge": "#6b624f",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.45,
+     "tone": 0.2,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.6
+    },
+    "leather": {
+     "base": "#2f2a24",
+     "edge": "#5b5244",
+     "roughness": 0.7,
+     "metallic": 0.0,
+     "wear": 0.55,
+     "tone": 0.2,
+     "scratch": 0.2,
+     "soot": 0.9
+    },
+    "sole": {
+     "base": "#1b1a19",
+     "edge": "#3a3835",
+     "roughness": 0.95,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.08,
+     "scratch": 0.0,
+     "soot": 0.6
+    },
+    "vent": {
+     "base": "#151413",
+     "edge": "#2d2b28",
+     "roughness": 0.4,
+     "metallic": 0.2,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.05,
+     "soot": 0.6
+    }
+   },
+   "surveyor_field_set_gloves": {
+    "plate": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18
+    },
+    "hazard": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18,
+     "pattern": "stripes",
+     "pattern_rgb": "#1c1b19",
+     "pattern_k": 0.9
+    },
+    "under": {
+     "base": "#3a3731",
+     "edge": "#58544b",
+     "roughness": 0.92,
+     "metallic": 0.0,
+     "wear": 0.35,
+     "tone": 0.18,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.8
+    },
+    "strap": {
+     "base": "#2c2a25",
+     "edge": "#4a463d",
+     "roughness": 0.88,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.8,
+     "pattern": "weave",
+     "pattern_k": 0.9
+    },
+    "trim": {
+     "base": "#7d5f2c",
+     "edge": "#d9b56a",
+     "roughness": 0.42,
+     "metallic": 0.9,
+     "wear": 0.6,
+     "tone": 0.12,
+     "scratch": 0.35,
+     "soot": 0.9,
+     "edge_polish": 0.16
+    },
+    "pouch": {
+     "base": "#4a4235",
+     "edge": "#6b624f",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.45,
+     "tone": 0.2,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.6
+    },
+    "leather": {
+     "base": "#2f2a24",
+     "edge": "#5b5244",
+     "roughness": 0.7,
+     "metallic": 0.0,
+     "wear": 0.55,
+     "tone": 0.2,
+     "scratch": 0.2,
+     "soot": 0.9
+    },
+    "sole": {
+     "base": "#1b1a19",
+     "edge": "#3a3835",
+     "roughness": 0.95,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.08,
+     "scratch": 0.0,
+     "soot": 0.6
+    },
+    "vent": {
+     "base": "#151413",
+     "edge": "#2d2b28",
+     "roughness": 0.4,
+     "metallic": 0.2,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.05,
+     "soot": 0.6
+    }
+   },
+   "surveyor_field_set_greaves": {
+    "plate": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18
+    },
+    "hazard": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18,
+     "pattern": "stripes",
+     "pattern_rgb": "#1c1b19",
+     "pattern_k": 0.9
+    },
+    "under": {
+     "base": "#3a3731",
+     "edge": "#58544b",
+     "roughness": 0.92,
+     "metallic": 0.0,
+     "wear": 0.35,
+     "tone": 0.18,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.8
+    },
+    "strap": {
+     "base": "#2c2a25",
+     "edge": "#4a463d",
+     "roughness": 0.88,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.8,
+     "pattern": "weave",
+     "pattern_k": 0.9
+    },
+    "trim": {
+     "base": "#7d5f2c",
+     "edge": "#d9b56a",
+     "roughness": 0.42,
+     "metallic": 0.9,
+     "wear": 0.6,
+     "tone": 0.12,
+     "scratch": 0.35,
+     "soot": 0.9,
+     "edge_polish": 0.16
+    },
+    "pouch": {
+     "base": "#4a4235",
+     "edge": "#6b624f",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.45,
+     "tone": 0.2,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.6
+    },
+    "leather": {
+     "base": "#2f2a24",
+     "edge": "#5b5244",
+     "roughness": 0.7,
+     "metallic": 0.0,
+     "wear": 0.55,
+     "tone": 0.2,
+     "scratch": 0.2,
+     "soot": 0.9
+    },
+    "sole": {
+     "base": "#1b1a19",
+     "edge": "#3a3835",
+     "roughness": 0.95,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.08,
+     "scratch": 0.0,
+     "soot": 0.6
+    },
+    "vent": {
+     "base": "#151413",
+     "edge": "#2d2b28",
+     "roughness": 0.4,
+     "metallic": 0.2,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.05,
+     "soot": 0.6
+    }
+   },
+   "surveyor_field_set_boots": {
+    "plate": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18
+    },
+    "hazard": {
+     "base": "#a26f22",
+     "edge": "#9c978c",
+     "roughness": 0.62,
+     "metallic": 0.3,
+     "wear": 0.75,
+     "tone": 0.2,
+     "scratch": 0.45,
+     "soot": 1.0,
+     "edge_polish": 0.18,
+     "pattern": "stripes",
+     "pattern_rgb": "#1c1b19",
+     "pattern_k": 0.9
+    },
+    "under": {
+     "base": "#3a3731",
+     "edge": "#58544b",
+     "roughness": 0.92,
+     "metallic": 0.0,
+     "wear": 0.35,
+     "tone": 0.18,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.8
+    },
+    "strap": {
+     "base": "#2c2a25",
+     "edge": "#4a463d",
+     "roughness": 0.88,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.8,
+     "pattern": "weave",
+     "pattern_k": 0.9
+    },
+    "trim": {
+     "base": "#7d5f2c",
+     "edge": "#d9b56a",
+     "roughness": 0.42,
+     "metallic": 0.9,
+     "wear": 0.6,
+     "tone": 0.12,
+     "scratch": 0.35,
+     "soot": 0.9,
+     "edge_polish": 0.16
+    },
+    "pouch": {
+     "base": "#4a4235",
+     "edge": "#6b624f",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.45,
+     "tone": 0.2,
+     "scratch": 0.05,
+     "soot": 0.9,
+     "pattern": "weave",
+     "pattern_k": 0.6
+    },
+    "leather": {
+     "base": "#2f2a24",
+     "edge": "#5b5244",
+     "roughness": 0.7,
+     "metallic": 0.0,
+     "wear": 0.55,
+     "tone": 0.2,
+     "scratch": 0.2,
+     "soot": 0.9
+    },
+    "sole": {
+     "base": "#1b1a19",
+     "edge": "#3a3835",
+     "roughness": 0.95,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.08,
+     "scratch": 0.0,
+     "soot": 0.6
+    },
+    "vent": {
+     "base": "#151413",
+     "edge": "#2d2b28",
+     "roughness": 0.4,
+     "metallic": 0.2,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.05,
+     "soot": 0.6
+    }
+   }
+  },
+  "build": {
+   "builder": "hardsurface",
+   "texture": {
+    "surveyor_field_set_chest": 2048,
+    "surveyor_field_set_gloves": 1024,
+    "surveyor_field_set_greaves": 1024,
+    "surveyor_field_set_boots": 1024
+   },
+   "samples": 16
+  },
+  "rig": {
+   "samples": 160000,
+   "k": 10,
+   "emissive_size": 512,
+   "arm_cap": {
+    "pauldron": 0.55,
+    "pauldron_rim": 0.6,
+    "pauldron_prism": 0.6,
+    "pauldron0": 0.5,
+    "pauldron1": 0.6,
+    "pauldron2": 0.7,
+    "shoulder_fin": 0.6
+   },
+   "weight_modes": {},
+   "stiffness": {
+    "vest": 0.5,
+    "pec": 1.5,
+    "sternum": 2.0,
+    "ab": 2.0,
+    "flank": 1.5,
+    "back_upper": 1.5,
+    "back_lower": 2.0,
+    "pauldron": 2.5,
+    "pauldron_lame": 2.5,
+    "collar": 1.0
+   },
+   "fx_material": "SW_Channel",
+   "fx_emissive": [
+    1.0,
+    0.55,
+    0.12
+   ],
+   "fx_anchors": true,
+   "hides": {
+    "surveyor_field_set_chest": [
+     "shell_chest",
+     "shell_coat",
+     "shell_belt",
+     "shell_upperarms",
+     "shell_hood"
+    ],
+    "surveyor_field_set_gloves": [
+     "shell_forearms"
+    ],
+    "surveyor_field_set_greaves": [
+     "shell_thighs",
+     "shell_shins"
+    ]
+   },
+   "glass": {
+    "material": "SW_Glass",
+    "rgba": [
+     1.0,
+     0.7,
+     0.3,
+     0.4
+    ],
+    "roughness": 0.1,
+    "metallic": 0.0,
+    "emissive": [
+     0.2,
+     0.1,
+     0.02
+    ]
+   }
+  },
+  "export": {
+   "max_texture": 1024,
+   "quality": 86
+  },
+  "validate": {
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ],
+   "frames": 8,
+   "surface_samples": 60000,
+   "under_shells": [
+    "shell_shoes",
+    "shell_shorts",
+    "hands"
+   ],
+   "arm_contact_items": [
+    "surveyor_field_set_chest"
+   ],
+   "max_inside_body_fraction": 0.015,
+   "max_inside_shell_fraction": 0.03,
+   "min_clearance_p05_m": -0.015,
+   "max_edge_strain_p99": 0.15,
+   "strain_vs_body": 1.15,
+   "strict": false
+  },
+  "icons": {
+   "body": "m",
+   "size": 768,
+   "samples": 64,
+   "view": {
+    "az": 24,
+    "el": 10
+   },
+   "export_sizes": [
+    256,
+    128
+   ],
+   "webp_quality": 90,
+   "keep_half": {
+    "surveyor_field_set_gloves": true
+   },
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.7,
+    "strength": 0.55
+   },
+   "channel_strength": 14,
+   "light_scale": 0.4,
+   "exposure": -0.2,
+   "turn": {
+    "surveyor_field_set_gloves": [
+     50,
+     45,
+     0
+    ]
+   },
+   "channel_rgb": [
+    1.0,
+    0.55,
+    0.12
+   ],
+   "blueprints": true
+  },
+  "evidence": {
+   "samples": 24,
+   "width": 1100,
+   "height": 1300,
+   "poses": [
+    null,
+    {
+     "action": "Idle_Loop",
+     "time": 0.5
+    },
+    {
+     "action": "Jog_Fwd_Loop",
+     "time": 0.25
+    }
+   ],
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.75,
+    "strength": 0.6
+   },
+   "channel_strength": 28,
+   "together": true,
+   "light_scale": 0.12,
+   "exposure": -0.3,
+   "mannequin_rgb": [
+    0.055,
+    0.057,
+    0.062
+   ],
+   "mannequin_roughness": 0.6,
+   "ground_rgb": [
+    0.03,
+    0.031,
+    0.034
+   ],
+   "channel_rgb": [
+    1.0,
+    0.55,
+    0.12
+   ]
+  },
+  "publish": {
+   "runtime": {
+    "m": "client/assets/armour_surveyor_set_m.glb",
+    "f": "client/assets/armour_surveyor_set_f.glb"
+   },
+   "icons_dir": "client/assets/icons/armour",
+   "icons_module": "client/src/item-renders.js",
+   "icon_size": 256
+  }
+ }
+}

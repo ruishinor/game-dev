@@ -1,0 +1,487 @@
+{
+ "id": "armour_symbiotech_set",
+ "kind": "body-fitted-armour",
+ "description": "Mycelial Accord, the Symbiotech Conductor armour set (Cultivation Carapace, Synapse Gloves, Tendril Greaves, Rootwalkers): a cultivated ivory carapace over living green tissue, jade membranes, ivory tendrils grown around the limbs and bioluminescent capillaries branching from a seed node; asymmetric, after the owner's reference sheet (2026-11-20). Fitted to both bodies, skinned, with rendered icons and schematic blueprint renders. Keyed to symbiotech_field_set_*.",
+ "sources": [
+  {
+   "id": "body_m",
+   "path": "client/assets/humanoid_m.glb",
+   "sha256": "4d861bca31984d675354aa1400a9ca33329934f9490455829192f7466e6e48ec",
+   "provenance": "Project runtime body (built from CC0 sources, see assets/sources.json). Read-only fitting and skinning reference; none of its geometry is shipped in the armour except as the offset base of the glove and boot shells.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "body_f",
+   "path": "client/assets/humanoid_f.glb",
+   "sha256": "d19d78a6bf04f6ab81f9ec6341ea345b9081e39fee28444d0e03c527ff3bf90f",
+   "provenance": "As body_m.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "visual_aim",
+   "path": "owner reference (not in the repository)",
+   "provenance": "Owner-supplied concept sheet 'Cinderlock Regalia' and cuirass sample, shared in session 2026-11-19. Visual direction only: no image data is used.",
+   "role": "design reference"
+  }
+ ],
+ "armour": {
+  "bodies": {
+   "m": "body_m",
+   "f": "body_f"
+  },
+  "inspect": {
+   "clip_body": "body_m",
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ]
+  },
+  "design": {
+   "items": [
+    "symbiotech_field_set_chest",
+    "symbiotech_field_set_gloves",
+    "symbiotech_field_set_greaves",
+    "symbiotech_field_set_boots"
+   ],
+   "design_of": {
+    "symbiotech_field_set_chest": "mycelial_chest",
+    "symbiotech_field_set_gloves": "mycelial_gloves",
+    "symbiotech_field_set_greaves": "mycelial_greaves",
+    "symbiotech_field_set_boots": "mycelial_boots"
+   },
+   "fit_surfaces": [
+    "shell_shorts",
+    "shell_shoes",
+    "hands"
+   ],
+   "samples": 160000,
+   "base_offset": 0.009,
+   "min_gap": 0.003,
+   "relax": 6
+  },
+  "materials": {
+   "symbiotech_field_set_chest": {
+    "plate": {
+     "base": "#d8cfb6",
+     "edge": "#f1ecdf",
+     "roughness": 0.4,
+     "metallic": 0.0,
+     "wear": 0.22,
+     "tone": 0.14,
+     "scratch": 0.06,
+     "soot": 0.6,
+     "edge_polish": 0.1,
+     "pattern": "cells",
+     "pattern_rgb": "#b3a684",
+     "pattern_k": 0.28
+    },
+    "trim": {
+     "base": "#a59a7f",
+     "edge": "#d7cfb9",
+     "roughness": 0.48,
+     "metallic": 0.0,
+     "wear": 0.3,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.7,
+     "pattern": "cells",
+     "pattern_rgb": "#7f7660",
+     "pattern_k": 0.3
+    },
+    "under": {
+     "base": "#1e3a30",
+     "edge": "#2f5a48",
+     "roughness": 0.5,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.2,
+     "scratch": 0.0,
+     "soot": 0.6,
+     "pattern": "cells",
+     "pattern_rgb": "#3f7a5c",
+     "pattern_k": 0.45
+    },
+    "sole": {
+     "base": "#5f5747",
+     "edge": "#9a8f76",
+     "roughness": 0.8,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.15,
+     "scratch": 0.0,
+     "soot": 0.8,
+     "pattern": "cells",
+     "pattern_rgb": "#433d31",
+     "pattern_k": 0.4
+    }
+   },
+   "symbiotech_field_set_gloves": {
+    "plate": {
+     "base": "#d8cfb6",
+     "edge": "#f1ecdf",
+     "roughness": 0.4,
+     "metallic": 0.0,
+     "wear": 0.22,
+     "tone": 0.14,
+     "scratch": 0.06,
+     "soot": 0.6,
+     "edge_polish": 0.1,
+     "pattern": "cells",
+     "pattern_rgb": "#b3a684",
+     "pattern_k": 0.28
+    },
+    "trim": {
+     "base": "#a59a7f",
+     "edge": "#d7cfb9",
+     "roughness": 0.48,
+     "metallic": 0.0,
+     "wear": 0.3,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.7,
+     "pattern": "cells",
+     "pattern_rgb": "#7f7660",
+     "pattern_k": 0.3
+    },
+    "under": {
+     "base": "#1e3a30",
+     "edge": "#2f5a48",
+     "roughness": 0.5,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.2,
+     "scratch": 0.0,
+     "soot": 0.6,
+     "pattern": "cells",
+     "pattern_rgb": "#3f7a5c",
+     "pattern_k": 0.45
+    },
+    "sole": {
+     "base": "#5f5747",
+     "edge": "#9a8f76",
+     "roughness": 0.8,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.15,
+     "scratch": 0.0,
+     "soot": 0.8,
+     "pattern": "cells",
+     "pattern_rgb": "#433d31",
+     "pattern_k": 0.4
+    }
+   },
+   "symbiotech_field_set_greaves": {
+    "plate": {
+     "base": "#d8cfb6",
+     "edge": "#f1ecdf",
+     "roughness": 0.4,
+     "metallic": 0.0,
+     "wear": 0.22,
+     "tone": 0.14,
+     "scratch": 0.06,
+     "soot": 0.6,
+     "edge_polish": 0.1,
+     "pattern": "cells",
+     "pattern_rgb": "#b3a684",
+     "pattern_k": 0.28
+    },
+    "trim": {
+     "base": "#a59a7f",
+     "edge": "#d7cfb9",
+     "roughness": 0.48,
+     "metallic": 0.0,
+     "wear": 0.3,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.7,
+     "pattern": "cells",
+     "pattern_rgb": "#7f7660",
+     "pattern_k": 0.3
+    },
+    "under": {
+     "base": "#1e3a30",
+     "edge": "#2f5a48",
+     "roughness": 0.5,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.2,
+     "scratch": 0.0,
+     "soot": 0.6,
+     "pattern": "cells",
+     "pattern_rgb": "#3f7a5c",
+     "pattern_k": 0.45
+    },
+    "sole": {
+     "base": "#5f5747",
+     "edge": "#9a8f76",
+     "roughness": 0.8,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.15,
+     "scratch": 0.0,
+     "soot": 0.8,
+     "pattern": "cells",
+     "pattern_rgb": "#433d31",
+     "pattern_k": 0.4
+    }
+   },
+   "symbiotech_field_set_boots": {
+    "plate": {
+     "base": "#d8cfb6",
+     "edge": "#f1ecdf",
+     "roughness": 0.4,
+     "metallic": 0.0,
+     "wear": 0.22,
+     "tone": 0.14,
+     "scratch": 0.06,
+     "soot": 0.6,
+     "edge_polish": 0.1,
+     "pattern": "cells",
+     "pattern_rgb": "#b3a684",
+     "pattern_k": 0.28
+    },
+    "trim": {
+     "base": "#a59a7f",
+     "edge": "#d7cfb9",
+     "roughness": 0.48,
+     "metallic": 0.0,
+     "wear": 0.3,
+     "tone": 0.14,
+     "scratch": 0.05,
+     "soot": 0.7,
+     "pattern": "cells",
+     "pattern_rgb": "#7f7660",
+     "pattern_k": 0.3
+    },
+    "under": {
+     "base": "#1e3a30",
+     "edge": "#2f5a48",
+     "roughness": 0.5,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.2,
+     "scratch": 0.0,
+     "soot": 0.6,
+     "pattern": "cells",
+     "pattern_rgb": "#3f7a5c",
+     "pattern_k": 0.45
+    },
+    "sole": {
+     "base": "#5f5747",
+     "edge": "#9a8f76",
+     "roughness": 0.8,
+     "metallic": 0.0,
+     "wear": 0.4,
+     "tone": 0.15,
+     "scratch": 0.0,
+     "soot": 0.8,
+     "pattern": "cells",
+     "pattern_rgb": "#433d31",
+     "pattern_k": 0.4
+    }
+   }
+  },
+  "build": {
+   "builder": "hardsurface",
+   "texture": {
+    "symbiotech_field_set_chest": 2048,
+    "symbiotech_field_set_gloves": 1024,
+    "symbiotech_field_set_greaves": 1024,
+    "symbiotech_field_set_boots": 1024
+   },
+   "samples": 16
+  },
+  "rig": {
+   "samples": 160000,
+   "k": 10,
+   "emissive_size": 512,
+   "arm_cap": {
+    "pauldron": 0.55,
+    "pauldron_rim": 0.6,
+    "pauldron_prism": 0.6,
+    "pauldron0": 0.5,
+    "pauldron1": 0.6,
+    "pauldron2": 0.7,
+    "shoulder_fin": 0.6
+   },
+   "weight_modes": {},
+   "stiffness": {
+    "vest": 0.5,
+    "pec": 1.5,
+    "sternum": 2.0,
+    "ab": 2.0,
+    "flank": 1.5,
+    "back_upper": 1.5,
+    "back_lower": 2.0,
+    "pauldron": 2.5,
+    "pauldron_lame": 2.5,
+    "collar": 1.0
+   },
+   "fx_material": "MY_Channel",
+   "fx_emissive": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "fx_anchors": true,
+   "hides": {
+    "symbiotech_field_set_chest": [
+     "shell_chest",
+     "shell_coat",
+     "shell_belt",
+     "shell_upperarms",
+     "shell_hood"
+    ],
+    "symbiotech_field_set_gloves": [
+     "shell_forearms"
+    ],
+    "symbiotech_field_set_greaves": [
+     "shell_thighs",
+     "shell_shins"
+    ]
+   },
+   "glass": {
+    "material": "MY_Glass",
+    "rgba": [
+     0.4,
+     0.95,
+     0.68,
+     0.32
+    ],
+    "roughness": 0.18,
+    "metallic": 0.0,
+    "emissive": [
+     0.03,
+     0.14,
+     0.08
+    ]
+   }
+  },
+  "export": {
+   "max_texture": 1024,
+   "quality": 86
+  },
+  "validate": {
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ],
+   "frames": 8,
+   "surface_samples": 60000,
+   "under_shells": [
+    "shell_shoes",
+    "shell_shorts",
+    "hands"
+   ],
+   "arm_contact_items": [
+    "symbiotech_field_set_chest"
+   ],
+   "max_inside_body_fraction": 0.015,
+   "max_inside_shell_fraction": 0.03,
+   "min_clearance_p05_m": -0.015,
+   "max_edge_strain_p99": 0.15,
+   "strain_vs_body": 1.15,
+   "strict": false
+  },
+  "icons": {
+   "body": "m",
+   "size": 768,
+   "samples": 64,
+   "view": {
+    "az": 24,
+    "el": 10
+   },
+   "export_sizes": [
+    256,
+    128
+   ],
+   "webp_quality": 90,
+   "keep_half": {
+    "symbiotech_field_set_gloves": true
+   },
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.7,
+    "strength": 0.55
+   },
+   "channel_strength": 28,
+   "light_scale": 0.4,
+   "exposure": -0.2,
+   "turn": {
+    "symbiotech_field_set_gloves": [
+     50,
+     45,
+     0
+    ]
+   },
+   "channel_rgb": [
+    0.3,
+    1.0,
+    0.55
+   ],
+   "blueprints": true
+  },
+  "evidence": {
+   "samples": 24,
+   "width": 1100,
+   "height": 1300,
+   "poses": [
+    null,
+    {
+     "action": "Idle_Loop",
+     "time": 0.5
+    },
+    {
+     "action": "Jog_Fwd_Loop",
+     "time": 0.25
+    }
+   ],
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.75,
+    "strength": 0.6
+   },
+   "channel_strength": 28,
+   "together": true,
+   "light_scale": 0.12,
+   "exposure": -0.3,
+   "mannequin_rgb": [
+    0.055,
+    0.057,
+    0.062
+   ],
+   "mannequin_roughness": 0.6,
+   "ground_rgb": [
+    0.03,
+    0.031,
+    0.034
+   ],
+   "channel_rgb": [
+    0.3,
+    1.0,
+    0.55
+   ]
+  },
+  "publish": {
+   "runtime": {
+    "m": "client/assets/armour_symbiotech_set_m.glb",
+    "f": "client/assets/armour_symbiotech_set_f.glb"
+   },
+   "icons_dir": "client/assets/icons/armour",
+   "icons_module": "client/src/item-renders.js",
+   "icon_size": 256
+  }
+ }
+}
