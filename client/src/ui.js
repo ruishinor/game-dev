@@ -218,12 +218,10 @@ export class UI {
         this.openCompanionMenu(r.left, r.bottom);
       }
     });
-    this.summonPet = h('button', 'summon-pet', 'Summon companion');
-    this.summonPet.type = 'button';
-    this.summonPet.hidden = true;
-    this.summonPet.addEventListener('click', () => this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
+    // The class action bar already owns the summon/dismiss command.
+    // Do not add a second standalone button beneath the portrait stack.
     const left = h('div', 'col');
-    left.append(this.player.el, this.pet, this.summonPet);
+    left.append(this.player.el, this.pet);
     frames.append(left, this.target.el);
     root.append(frames);
 
@@ -474,7 +472,17 @@ export class UI {
 
     // Corner menu
     const menu = h('div', 'menu');
-    this.buildBtn = h('button', 'menubtn', 'Character [C]');
+    // Compact iconic controls; native title + accessible name are retained
+    // for hover, keyboard navigation and screen-reader users.
+    const cornerButton=(label,paths)=>{
+      const button=h('button','menubtn hud-icon-btn');
+      button.type='button';
+      button.innerHTML=svg(paths);
+      button.title=label;
+      button.setAttribute('aria-label',label);
+      return button;
+    };
+    this.buildBtn = cornerButton('Character (C)','<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>');
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
@@ -482,9 +490,9 @@ export class UI {
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
-    const helpBtn = h('button', 'menubtn', 'Help [H]');
+    const helpBtn = cornerButton('Help (H)','<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.7 2.7 0 0 1 5.2 1c0 2-2.7 2.4-2.7 4.3M12 17h.01"/>');
     helpBtn.addEventListener('click', () => this.toggleHelp());
-    this.menuBtn = h('button', 'menubtn', 'Menu [M]');
+    this.menuBtn = cornerButton('Menu (Esc)','<path d="M4 6h16M4 12h16M4 18h16"/>');
     this.menuBtn.addEventListener('keydown', menuKeys);
     this.menuBtn.addEventListener('click', () => this.toggleMenu());
     this.menuItems = h('div', 'menu-items');
@@ -762,7 +770,8 @@ export class UI {
       ['L', 'Quest Journal: active, available and completed objectives'],
       ['P', 'Party: invite, accept, leave'],
       ['O', 'Settings: graphics preset, nameplates'],
-      ['M', 'Open the corner menu'],
+      ['M', 'World Atlas (interactive map and personal waypoints)'],
+      ['Esc', 'Close an active panel; open or close the corner menu when no panel is open'],
       ['H', 'Help and command reference'],
       ['Enter / /', 'Open chat. /p switches to party; /v switches to vicinity. Type a space or press Enter after the command.'],
       ['Chat icon', 'Choose vicinity or party. Right-click a player for private whispers.'],
@@ -1981,15 +1990,12 @@ export class UI {
         const petActive=!!st.comp;
     const canManagePet=!me.dead&&!(me.row.f&8);
     const petActionLabel=petActive?'Dismiss companion':summon?.available?`Summon ${summon.name}`:'Summon companion unavailable';
-    this.summonPet.hidden=!petActive&&!summon;
-    this.summonPet.disabled=!canManagePet||(!petActive&&!summon?.available);
-    this.summonPet.textContent=petActionLabel;
-    this.summonPet.title=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
+    const petActionTitle=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
     if(this.summonSlot){
       this.summonSlot.el.hidden=!petActive&&!summon;
       this.summonSlot.el.disabled=!canManagePet||(!petActive&&!summon?.available);
       this.summonSlot.el.setAttribute('aria-label',petActionLabel);
-      this.summonSlot.el.title=this.summonPet.title;
+      this.summonSlot.el.title=petActionTitle;
       this.summonSlot.el.classList.toggle('dismiss-ready',petActive&&canManagePet);
       this.summonSlot.el.setAttribute('aria-pressed',String(petActive));
     }
