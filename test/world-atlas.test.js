@@ -21,6 +21,10 @@ test('preview clock reports no invented time outside applied preview',()=>{
   assert.deepEqual(daylightDisplay({applied:true,t}),{minutes,phase,preview:true});
  }
 });
+test('live Expanse world clock is authoritative and not labelled a preview',()=>{
+ assert.deepEqual(daylightDisplay({applied:true,t:.25,mode:'live'}),{minutes:1080,phase:'night',preview:false});
+ assert.deepEqual(daylightDisplay({applied:true,t:.25,mode:'hold'}),{minutes:1080,phase:'night',preview:true});
+});
 test('digital clock formatting distinguishes midnight and noon',()=>{
  assert.equal(formatMinutes(0,'12'),'12:00 AM');assert.equal(formatMinutes(720,'12'),'12:00 PM');
  assert.equal(formatMinutes(5),'00:05');assert.equal(formatMinutes(1439),'23:59');
