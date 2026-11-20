@@ -9,11 +9,13 @@ export function regionFor(pos){
  return a?{area:a,name:a.name||'Current region',x:a.x,z:a.z,hw:a.hw,hd:a.hd}:{area:null,name:WORLD.name,x:0,z:0,hw:WORLD.radius,hd:WORLD.radius};
 }
 export function project(r,w,h,zoom=1,pan={x:0,z:0}){
- // Atlas blueprint: rectangular, edge-to-edge terrain plate (not a circle
- // centered inside unused black canvas). Keep independent axis scales so every
- // public region coordinate remains visible at zoom=1.
- const kx=(w-28)/(2*r.hw)*zoom,kz=(h-28)/(2*r.hd)*zoom;
- const k=Math.min(kx,kz);
+ // Verdigris Reach uses a circular world radius. Stretching independent
+ // X/Z axes to fill a widescreen viewport creates a false oval landscape.
+ // Preserve actual distances and geometry on the Reach only. Keep existing
+ // independent axes in other regions (including Claude-reserved geography).
+ const fitX=(w-28)/(2*r.hw)*zoom,fitZ=(h-28)/(2*r.hd)*zoom;
+ const k=Math.min(fitX,fitZ);
+ const kx=r.area?fitX:k,kz=r.area?fitZ:k;
  return {k,kx,kz,X:x=>w/2+(x-r.x-pan.x)*kx,Z:z=>h/2+(z-r.z-pan.z)*kz};
 }
 export function pointInsideRegion(r,x,z){
