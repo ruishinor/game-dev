@@ -102,7 +102,7 @@ export function createSelectionEnvironment(scene){
   const h=6.3+(i%3)*2.7+Math.abs(Math.sin(i*3.9))*2.1;
   const geo=geometry(new THREE.DodecahedronGeometry(1,1));
   const ridge=new THREE.Mesh(geo,cliffMat);
-  ridge.position.set(side*(11.7+i*3.7),h*.28,-18.5-i*4.1);
+  ridge.position.set(side*(11.7+i*3.7),h*.28,-28.5-i*4.1);
   ridge.scale.set(5.2+i*.48,h*.78,5.9+i*.9);
   ridge.rotation.set(.08*i,side*.15*i,.04*side*i);
   ridge.receiveShadow=true;root.add(ridge);
@@ -120,8 +120,8 @@ export function createSelectionEnvironment(scene){
  // scale it from a guessed bounding box or borrow the Sanctum's generic door.
  const gateway=new THREE.Group();
  gateway.name='existing-severance-gate-menu-instance';
- gateway.position.set(0,-.06,-12.8);
- gateway.scale.setScalar(.43);
+ gateway.position.set(0,-.06,-20);
+ gateway.scale.setScalar(.40);
  root.add(gateway);
  let loaded=false,unavailable=false,disposed=false,visual=null;
  const gateMats=[];
@@ -168,7 +168,7 @@ export function createSelectionEnvironment(scene){
  for(let i=0;i<3;i++){
   const geom=geometry(new THREE.TorusGeometry(5.45+i*.6,.013,4,128));
   const ring=new THREE.Mesh(geom,orbitMat);
-  ring.position.set(0,8.5+i*.5,-12.5);
+  ring.position.set(0,8.5+i*.5,-19.7);
   ring.rotation.set(.25+i*.2,.2+i*.55,.21+i*.33);
   root.add(ring);orbit.push(ring);
  }
@@ -179,7 +179,7 @@ export function createSelectionEnvironment(scene){
   depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending
  }));
  const beam=new THREE.Mesh(geometry(new THREE.CylinderGeometry(.035,.11,58,10,1,true)),beamMat);
- beam.position.set(0,34,-12.7);root.add(beam);
+ beam.position.set(0,34,-19.8);root.add(beam);
  const motesCount=140;
  const positions=new Float32Array(motesCount*3);
  for(let i=0;i<motesCount;i++){
@@ -196,7 +196,7 @@ export function createSelectionEnvironment(scene){
  }));
  const motes=new THREE.Points(moteGeom,moteMat);root.add(motes);
  const portalLamp=new THREE.PointLight(0xe4a879,1.6,21,2);
- portalLamp.position.set(0,3.9,-11.4);root.add(portalLamp);
+ portalLamp.position.set(0,3.9,-18.6);root.add(portalLamp);
  const lowFill=new THREE.PointLight(0x8596a9,1.15,11,2);
  lowFill.position.set(-3,2.6,2.3);root.add(lowFill);
 

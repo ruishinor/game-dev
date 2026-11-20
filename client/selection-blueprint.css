@@ -111,7 +111,7 @@
 }
 .character-selection-mode .roster-footer{bottom:31px;height:68px;}
 .character-selection-mode .roster-footer #roster-enter{
- left:50%;top:0;min-width:212px;
+ left:44%;top:0;min-width:212px;
  font:600 20px/1.4 Georgia,serif;letter-spacing:.035em;
  color:#f4f2ea;border:1px solid #abb4bd;
  background:linear-gradient(180deg,#202631cf,#11141adf);
