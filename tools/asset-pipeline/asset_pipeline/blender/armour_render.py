@@ -134,6 +134,13 @@ def op_icons(p):
                 bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.x < 0], context="VERTS")
                 bm.to_mesh(o.data)
                 bm.free()
+        turn = p.get("turn", {}).get(item)
+        if turn:  # present a piece at a readable angle (a T-posed glove lies flat)
+            from mathutils import Euler
+            for o in bpy.data.objects:
+                if o.parent is None and o.type in ("ARMATURE", "MESH", "EMPTY"):
+                    o.rotation_mode = "XYZ"
+                    o.rotation_euler = Euler([math.radians(a) for a in turn], "XYZ")
         bpy.context.view_layer.update()
         lo, hi = scene_bounds(keep)
         centre = (lo + hi) / 2
@@ -144,7 +151,7 @@ def op_icons(p):
         if p.get("channel_strength"):
             boost_channels(p["channel_strength"])
         glare_from(sc, p)
-        v = p["view"]
+        v = {**p["view"], **p.get("views", {}).get(item, {})}
         # frame the silhouette: distance from the bounding radius and lens
         lens = 60
         fov = 2 * math.atan(18 / lens)

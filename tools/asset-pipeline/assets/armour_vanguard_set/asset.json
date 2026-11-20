@@ -406,7 +406,14 @@
    },
    "channel_strength": 28,
    "light_scale": 0.4,
-   "exposure": -0.2
+   "exposure": -0.2,
+   "turn": {
+    "vanguard_field_set_gloves": [
+     50,
+     45,
+     0
+    ]
+   }
   },
   "evidence": {
    "samples": 24,
