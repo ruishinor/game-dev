@@ -1,6 +1,6 @@
 // Presentation-only attachments. See assets/weapon-sources.json for licensed donor bytes. Original Longpoint remains independent.
 import {solveArm,aimBone,recoilAmount} from './weapon-pose.js';
-export const WEAPON_MODELS=Object.freeze({"field":{"length":0.32,"axis":1,"sha":"8cd54a77bbf39083defc25168465d5c52402c7e1"},"tuned":{"length":0.36,"axis":1,"sha":"dec22f154f7ef51353ecd7b08896cb040a5380e9"},"dense":{"length":0.42,"axis":1,"sha":"08deefbd48caa7670b15a91181ddafd57e5885f2"}});
+export const WEAPON_MODELS=Object.freeze({"field":{"length":0.32,"axis":1,"sha":"8cd54a77bbf39083defc25168465d5c52402c7e1"},"tuned":{"length":0.36,"axis":1,"sha":"dec22f154f7ef51353ecd7b08896cb040a5380e9"}});
 export async function loadWeaponModels(assets){
  assets.weaponModels=new Map();
  await Promise.all(Object.entries(WEAPON_MODELS).map(async ([id,spec])=>{

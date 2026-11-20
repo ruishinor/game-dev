@@ -14,7 +14,8 @@ test('three recovered CC0 meshes retain exact signed-off source bytes and self-c
   const b=fs.readFileSync(new URL('../'+m.file,import.meta.url));
   assert.equal(b.length,m.bytes,id);assert.equal(b.toString('ascii',0,4),'glTF');
   assert.equal(crypto.createHash('sha1').update('blob '+b.length+String.fromCharCode(0)).update(b).digest('hex'),m.gitBlobSha,id);
-  assert.equal(WEAPON_MODELS[id].sha,m.gitBlobSha);
+  if(id==='dense')assert.equal(Object.hasOwn(WEAPON_MODELS,id),false,'unusable melee-core pistol is staged, not forced into gameplay');
+  else assert.equal(WEAPON_MODELS[id].sha,m.gitBlobSha);
   const len=b.readUInt32LE(12);const gltf=JSON.parse(b.subarray(20,20+len).toString());
   assert.equal(gltf.asset.version,'2.0');assert.ok(gltf.meshes?.length,id);
   assert.ok(![...(gltf.buffers||[]),...(gltf.images||[])].some(x=>x.uri));
@@ -25,12 +26,14 @@ test('three recovered CC0 meshes retain exact signed-off source bytes and self-c
 test('public presentation token is only issued for carried, ranged, owned equipment; original Longpoint preserved',()=>{
  const ranged=Object.keys(CLASSES).find(x=>CLASSES[x].auto?.kind==='bolt');
  assert.ok(ranged);
- for(const [item,expected] of [['field_emitter','field'],['tuned_emitter','tuned'],['dense_pulse_core','dense'],['longpoint_emitter','longpoint']]){
+ for(const [item,expected] of [['field_emitter','field'],['tuned_emitter','tuned'],['longpoint_emitter','longpoint']]){
   const c={cls:ranged,inventory:[item],equipped:{weapon:item}};
   assert.equal(publicWeaponVisual(c),expected,item);
   assert.equal(publicWeaponVisual({...c,inventory:[]}),null);
  }
  for(const bad of ['__proto__','constructor','toString',null])assert.equal(publicWeaponVisual({cls:ranged,equipped:{weapon:bad},inventory:[bad]}),null);
+ assert.equal(publicWeaponVisual({cls:'vanguard',inventory:['dense_pulse_core'],equipped:{weapon:'dense_pulse_core'}}),null,'melee core must not become an unapproved pistol');
+ assert.equal(Object.hasOwn(WEAPON_MODELS,'dense'),false);
  assert.equal(Object.hasOwn(WEAPON_MODELS,'longpoint'),false);
  assert.equal(shotProfile('longpoint'),null);
 });
