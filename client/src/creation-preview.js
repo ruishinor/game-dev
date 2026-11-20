@@ -49,13 +49,18 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    syncFrameSelection(button.dataset.frame);
   });
  }
- const setMode=next=>{
-  mode=next;zoom=1;dirty=true;root.dataset.mode=next;labels.hidden=next!=='frames';
+ const setMode=selected=>{
+  // Comparing two models splits the actual world canvas and pushes one
+  // character under the customisation panel. The saved body-frame chooser
+  // already provides the authoritative single-character preview.
+  const next=environment&&selected==='frames'?'body':selected;
+  mode=next;zoom=1;dirty=true;root.dataset.mode=next;
+  labels.hidden=environment||next!=='frames';
   if(next==='frames'){
    const meta=getMeta();
    syncFrameSelection(normalizeAppearance(meta.ap,meta.a).frame);
   }
-  for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
+  for(const b of inspectControls?.querySelectorAll('[data-preview-mode]')??[])b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
  };
  const reset=()=>{yaw=0;pitch=.045;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
@@ -86,7 +91,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   if(environment)root.dataset.sceneAsset=stageReady?'severance-gate-glb':stageFailed?'unavailable':'loading';
   const meta=getMeta();
   const appearance=meta?normalizeAppearance(meta.ap,meta.a):null;
-  const choices=!meta?[]:mode==='frames'
+  const choices=!meta?[]:environment?[meta]:mode==='frames'
    ?Object.values(FRAMES).map(({id})=>({...meta,ap:encodeAppearance({...appearance,frame:id})}))
    :[meta];
   const specs=choices.map(choice=>({choice,glb:useGlb(choice)}));
