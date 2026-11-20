@@ -28,15 +28,26 @@ export class Input {
     /** (button, clientX, clientY) for clicks that were not drags. */
     this.onClick = () => {};
 
-    const typing = () => {
+    const typing = (e) => {
       const el = document.activeElement;
-      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+      if (!el) return false;
+      if (['INPUT','TEXTAREA','SELECT'].includes(el.tagName) || el.isContentEditable) return true;
+      // Dialogs and binding capture own their keys. A clicked actionbar button
+      // does NOT swallow future shortcuts, while Tab/Enter/Space remain native.
+      // The hotkey editor captures bindings itself. Other gameplay panels
+      // must retain global I/B/J/O shortcuts even when their buttons focus.
+      if (el.closest?.('.keybindings-panel:not([hidden])')) return true;
+      if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button')
+        return e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space';
+      return false;
     };
 
     window.addEventListener('keydown', (e) => {
-      if (!this.enabled || typing()) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (MOVE_KEYS.has(e.code)) {
+      if (!this.enabled || typing(e)) return;
+      if (e.metaKey) return;
+      // Ctrl/Alt action-bar bindings may be handled by onAction; movement
+      // still uses the existing raw keys without modifiers.
+      if (MOVE_KEYS.has(e.code) && !e.ctrlKey && !e.altKey) {
         this.keys.add(e.code);
         e.preventDefault();
         return;
