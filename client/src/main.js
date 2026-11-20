@@ -901,7 +901,7 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   creationPreview.release();
   selectionView.release();
-  document.body.classList.remove('character-selection-mode','character-create-mode','gate-mode');
+  document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -2013,9 +2013,9 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
+    if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
-    const gated=document.body.classList.contains('gate-mode');
-    if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0,gated?2000:0))return;
+    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
