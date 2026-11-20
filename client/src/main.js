@@ -790,7 +790,7 @@ function syncSpindleFieldLights() {
     if (ent.spindleEmitter) ent.spindleEmitter.visible =
       ent.placed && ent.row?.li === 1 && ent.row?.a !== 'dormant';
   }
-  const sources = activeSpindleLights(S.ents.values(), camera.position);
+  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.compId);
   for (let i = 0; i < spindlePointLights.length; i++) {
     const light = spindlePointLights[i], source = sources[i];
     light.intensity = source ? SPINDLE_LIGHT.intensity : 0;
