@@ -15,6 +15,11 @@ test('detects numeric source-rule assignment but ignores harmless PR text',()=>{
   assert.deepEqual(publicationFindings('Level 15 milestone','+const title = "Level 15";',[]),[]);
 });
 
+test('ordinary CSS hidden/width declarations do not impersonate private loot odds',()=>{
+ const css='#hud .map-waypoint-brief { overflow:hidden; min-height:36px; max-width:100%; }';
+ assert.equal(disclosureSignal(css),false);
+ assert.deepEqual(publicationFindings('', '+'+css, ['client/style.css']),[]);
+});
 test('inspects added lines only and requires restricted reward-table review',()=>{
   assert.deepEqual(addedLines('--- a/old\n+++ b/new\n-removed\n+added\n same'),['added']);
   assert.deepEqual(publicationFindings('', '+const ok = true;', ['server/sim/loot-tables.js']),['restricted reward table changed in public repository']);
