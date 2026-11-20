@@ -75,7 +75,7 @@ export class WorldAtlas{
  mapTab.onclick=()=>selectTab('map');savedTab.onclick=()=>selectTab('saved');
  tabs.append(mapTab,savedTab);tools.append(tabs,mapPanel,savedPanel);selectTab('map');
  this.selectAtlasTab=selectTab;
- this.search=el('input');this.search.type='search';this.search.placeholder='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);mapPanel.append(this.regionName,this.search,el('h3',null,'Map layers'));
+ this.search=el('input');this.search.type='search';this.search.placeholder='Search places or visible entities';this.search.title='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search known places and visible non-hostile entities');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);mapPanel.append(this.regionName,this.search,el('h3',null,'Map layers'));
  for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['objects','Objects (visible)']]){
  const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));mapPanel.append(l);}
  this.details=el('p','atlas-details','');this.details.hidden=true;
