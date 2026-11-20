@@ -1,6 +1,6 @@
 // Account and character selection browser gate. No production data is modified.
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {startServer} from '../../server/index.js';
@@ -8,6 +8,8 @@ import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
 const temp=await mkdtemp(join(tmpdir(),'attune-roster-'));
 const server=await startServer({port:0,dataFile:join(temp,'characters.json')});
+const evidence=process.env.ATTUNEMENT_ROSTER_EVIDENCE_DIR||null;
+if(evidence)await mkdir(evidence,{recursive:true});
 let browser;
 try{
  browser=await launchBrowser();
@@ -38,6 +40,7 @@ try{
  assert.equal(await page.locator('#roster-settings').isVisible(),true);
  const viewport=await page.locator('#roster-preview canvas').boundingBox();
  assert.ok(viewport.width>1000 && viewport.height>700,'3D vestibule must occupy the viewport');
+ if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
  await page.click('#roster-create');
  assert.equal(await page.locator('#character-roster').isHidden(),true);
  assert.equal(await page.locator('#login-form').isVisible(),true);
@@ -59,6 +62,12 @@ try{
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
+ if(evidence){
+  await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
+  await page.setViewportSize({width:1360,height:850});
+ }
  await page.click('#roster-enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
  await page.locator('.menu').getByRole('button',{name:'Menu [M]'}).click();
