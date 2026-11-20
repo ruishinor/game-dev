@@ -42,6 +42,24 @@ try {
  await page.locator('.map-waypoint-brief').click();
  await atlas.waitFor({state:'visible'});
  assert.match(await page.locator('.atlas-waypoint-details').textContent(),/Lattice Sanctum/);
+ // Player notes are locally persisted per authenticated character and never
+ // auto-transmitted to the server; arbitrary text is displayed as text.
+ await atlas.locator('.atlas-marker-title').fill('Sanctum staging point');
+ await atlas.locator('.atlas-marker-note').fill('Return for crafting after patrol.');
+ await atlas.getByRole('button',{name:'Save point and note'}).click();
+ assert.match(await atlas.locator('.atlas-saved-point').first().textContent(),/Sanctum staging point/);
+ assert.match(await atlas.locator('.atlas-saved-point').first().textContent(),/Return for crafting/);
+ const storage=await page.evaluate(()=>{
+  const key=Object.keys(localStorage).find(k=>k.startsWith('attunement.atlas.saved.v1.'));
+  return key?JSON.parse(localStorage.getItem(key)):null;
+ });
+ assert.equal(storage?.length,1);
+ assert.equal(storage[0].note,'Return for crafting after patrol.');
+ // Static geographic rendering must not repaint solely for a live state tick.
+ const paintCount=await canvas.getAttribute('data-paint-count');
+ await page.waitForTimeout(650);
+ assert.equal(await canvas.getAttribute('data-paint-count'),paintCount,'Live state may only move the player marker, not repaint the atlas');
+ assert.equal(await atlas.locator('.atlas-player-marker').isVisible(),true);
  await mkdir('test/e2e/out',{recursive:true});
  const plate=await canvas.evaluate(node=>{
   const g=node.getContext('2d'),at=(px,py)=>[...g.getImageData(px,py,1,1).data];
