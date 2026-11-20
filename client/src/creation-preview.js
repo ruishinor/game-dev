@@ -12,8 +12,9 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
  const environment=variant==='selection'?createSelectionEnvironment(scene,assets):null;
  if(environment){
-  scene.background=new THREE.Color(0x06080e);
-  scene.fog=new THREE.FogExp2(0x080b13,.011);
+  // Preserve the actual image backdrop; only the live character is WebGL.
+  scene.background=null;
+  scene.fog=null;
   // Cooler neutral lighting respects the character's *actual* material colours.
   scene.children.find(obj=>obj.isHemisphereLight).color.setHex(0xd7dee8);
   scene.children.find(obj=>obj.isHemisphereLight).groundColor.setHex(0x1d2430);
@@ -88,7 +89,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   if(environment&&(stageReady!==lastStageReady||stageFailed&&root.dataset.sceneAsset!=='unavailable')){
    lastStageReady=stageReady;dirty=true;
   }
-  if(environment)root.dataset.sceneAsset=stageReady?'severance-gate-glb':stageFailed?'unavailable':'loading';
+  if(environment)root.dataset.sceneAsset=stageReady?'reference-image':stageFailed?'unavailable':'loading';
   const meta=getMeta();
   const appearance=meta?normalizeAppearance(meta.ap,meta.a):null;
   const choices=!meta?[]:environment?[meta]:mode==='frames'
@@ -102,7 +103,8 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   if(!dirty&&!resized&&next===keyState&&renderer&&(motionPreference.matches||now-lastDraw<1000/15))return true;
   try{
    if(!renderer){
-    renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
+    renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:!!environment,powerPreference:'low-power'});
+    if(environment)renderer.setClearColor(0x000000,0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
     renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=environment?1.17:1.15;
    }
@@ -114,9 +116,8 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      models.push(entry);
      scene.add(model.group);
      model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:choice.er===2?'dual':choice.er===1?'rod':null,reducedMotion:true});
-     // Place the actual character just left of the gate axis, as in the
-     // owner's cinematic composition. No look-alike proxy is introduced.
-     if(environment && mode!=='frames')model.group.position.x=-.55;
+     // Center the exact persisted character on the viewport axis.
+     if(environment)model.group.position.x=0;
      model.group.updateMatrixWorld(true);
      const bounds=new THREE.Box3().setFromObject(model.group),size=bounds.getSize(new THREE.Vector3());
      if(!Number.isFinite(size.y)||size.y<=0)throw Error('Invalid preview bounds');
@@ -155,7 +156,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     // The environment does not orbit with the character. Rotate the model
     // itself and keep the monument, ground and interface in a fixed frame.
     model.group.rotation.y=yaw;
-    if(environment&&mode==='body')focus.x=0;
+    if(environment)focus.x=center.x;
     if(mode==='face')focus.y+=height*.34;
     else if(environment&&camera.aspect<.8)focus.y+=height*.08;
     const framing=mode==='face'?height*.38:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.50:1.2),entry.width*1.22/camera.aspect)));
