@@ -348,6 +348,7 @@ export class WorldAtlas{
   }
  }
  this.staticPaints++;
+ this.canvas.dataset.paintCount=String(this.staticPaints);
  this.updatePlayerMarker();
  }
 }
