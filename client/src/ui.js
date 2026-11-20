@@ -722,7 +722,7 @@ export class UI {
     root.append(this.settingsPanel);
     this.buildHotkeySettings(root);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
-    this.zoneLabel.after(this.atlas.clock);
+    this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
     this.atlasButton=h('button','map-open','World map');this.atlasButton.type='button';this.atlasButton.setAttribute('aria-label','Open world atlas (Shift+M)');this.atlasButton.addEventListener('click',()=>this.toggleAtlas());mapControls.append(this.atlasButton);this.minimap.after(mapControls);
@@ -2333,7 +2333,21 @@ export class UI {
       g.textAlign = 'center';
       g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 4);
     }
-    const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members', ...partyLabels].join('. ');
+    const wp=this.atlas?.waypointFor(st.me.pos);
+    if(wp&&wp.distance>1.5){
+      // A clipped diamond shows the bearing when the personal waypoint is
+      // outside the minimap scale. This is NOT pathfinding or travel routing.
+      const px=X(wp.x),py=Z(wp.z);
+      const len=Math.hypot(px,py)||1,limit=R-22,scale=Math.min(1,limit/len);
+      const x=px*scale,y=py*scale;
+      g.save();g.translate(x,y);
+      g.beginPath();g.moveTo(0,-9);g.lineTo(9,0);g.lineTo(0,9);g.lineTo(-9,0);g.closePath();
+      g.fillStyle='#f4d48c';g.strokeStyle='#1e282c';g.lineWidth=2.5;g.fill();g.stroke();
+      if(scale<1){g.strokeStyle='#f4d48c';g.lineWidth=2;g.beginPath();g.arc(0,0,12,0,Math.PI*2);g.stroke();}
+      g.restore();
+    }
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members',
+      ...(wp?['Personal waypoint: '+wp.label+', '+Math.round(wp.distance)+' metres straight-line']:[]), ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));

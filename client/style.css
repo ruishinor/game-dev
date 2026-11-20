@@ -907,5 +907,20 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
  #hud .map-clock-row{font-size:11px;}
  #hud .zone-label{font-size:12px;}
 }
+
+/* Personal cartography waypoints — no authoritative travel or hidden data. */
+#hud .map-waypoint-brief{max-width:100%;width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:13px;font-weight:600;color:#ffdf95;background:#152228ed;border:1px solid #bb9e64;border-radius:3px;min-height:36px;padding:7px 9px;}
+#hud .map-waypoint-brief:hover,#hud .map-waypoint-brief:focus-visible{border-color:#f3cd7a;background:#283839;}
+#hud .atlas-waypoint-details{font-size:13px;line-height:1.5;color:#f3daaa;padding:8px 9px;border:1px solid #6a6349;background:#1a272a;}
+#hud .atlas-legend{font-size:13px;line-height:1.6;color:#e7dac2;border-bottom:1px solid #706248;padding:0 2px 8px;}
+#hud .atlas-tools>button{font-size:13px;padding:8px 10px;min-height:38px;text-align:left;}
+#hud .atlas-tools>button:disabled{opacity:.55;}
+#hud .world-atlas.atlas-fullscreen{inset:0;border-radius:0;max-width:none;max-height:none;z-index:45;}
+#hud .world-atlas.atlas-fullscreen .atlas-body{grid-template-columns:minmax(220px,22%) minmax(0,1fr);}
+@media(max-width:700px){
+  #hud .map-waypoint-brief{font-size:11px;min-height:34px;}
+  #hud .world-atlas.atlas-fullscreen .atlas-body{grid-template-columns:minmax(120px,35%) minmax(0,1fr);}
+  #hud .atlas-tools>button{font-size:12px;}
+}
 .tip-meta.met { color: var(--green); }
 .tip-meta.unmet { opacity: 0.62; }
