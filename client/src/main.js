@@ -10,6 +10,7 @@ import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { parseTimeOfDay } from './severance-daylight.js';
 import { buildWorld, makeEnvironment } from './scene.js';
+import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
@@ -90,6 +91,9 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0', reducedMotion: () => motionPreference.matches || params.get('q') === '0' });
+// Keep a reference only to presentation roots constructed by the world
+// loader. Dynamic actors/VFX added later must not appear in a world atlas.
+const atlasStaticRoots=new Set(scene.children);
 const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
@@ -348,6 +352,7 @@ let hallPreview=null;
 const ui = new UI({
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
+  terrainForAtlas:region=>captureStaticAtlas(renderer,scene,atlasStaticRoots,region,{lowSpec:params.get('q')==='0'}),
   bindings,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
