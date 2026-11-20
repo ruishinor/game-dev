@@ -55,7 +55,12 @@ try {
  await page.keyboard.press('ArrowRight');
  const markerAfter=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.left);
  assert.notEqual(markerAfter,markerBefore,'Arrow keys pan the canvas without moving the character');
+ const beforeZoom=await canvas.getAttribute('data-paint-count');
+ const playerBeforeZoom=await atlas.locator('.atlas-player-marker').evaluate(el=>({left:el.style.left,top:el.style.top}));
  await page.keyboard.press('+');
+ const playerAfterZoom=await atlas.locator('.atlas-player-marker').evaluate(el=>({left:el.style.left,top:el.style.top}));
+ assert.notDeepEqual(playerAfterZoom,playerBeforeZoom,'Keyboard zoom changes projected marker position');
+ assert.notEqual(await canvas.getAttribute('data-paint-count'),beforeZoom,'Keyboard zoom redraws the terrain at the new scale');
  await page.keyboard.press('Enter');
  await page.waitForFunction(()=>document.querySelector('.map-waypoint-brief')?.hidden===false);
  assert.match(await page.locator('.map-waypoint-brief').textContent(),/Custom waypoint/);
