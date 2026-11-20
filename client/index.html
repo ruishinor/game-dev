@@ -49,7 +49,8 @@
             <section id="roster-preview" aria-label="Selected character in 3D">
               <canvas tabindex="0" aria-label="Selected character 3D preview. Drag or use arrow keys to rotate."></canvas>
               <div data-preview-frames hidden><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
-              <div class="preview-controls roster-preview-controls">
+              <button type="button" class="preview-inspect-toggle" data-preview-inspect aria-expanded="false" aria-controls="roster-camera-controls">Inspect character</button>
+              <div class="preview-controls roster-preview-controls" id="roster-camera-controls" hidden>
                 <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button>
                 <button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
                 <button type="button" data-preview-mode="frames" aria-pressed="false" hidden>Frames</button>
@@ -138,7 +139,8 @@
             <h2>Inspect your character</h2>
             <canvas tabindex="0" aria-label="Live 3D character. Drag to rotate, arrow keys to rotate or zoom, Home to reset."></canvas>
             <div class="preview-frame-labels" data-preview-frames hidden role="group" aria-label="Select body frame"><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
-            <div class="preview-controls" role="group" aria-label="Preview camera">
+            <button type="button" class="preview-inspect-toggle" data-preview-inspect aria-expanded="false" aria-controls="creation-camera-controls">Inspect character</button>
+            <div class="preview-controls" id="creation-camera-controls" role="group" aria-label="Preview camera" hidden>
               <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button><button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
               <button type="button" data-preview-mode="frames" aria-pressed="false">Compare frames</button>
               <button type="button" data-preview-left aria-label="Rotate left">←</button><button type="button" data-preview-right aria-label="Rotate right">→</button>
