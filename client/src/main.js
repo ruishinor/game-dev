@@ -842,8 +842,9 @@ function onWelcome(m) {
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
-  // Input begins only when the authoritative local entity has been placed.
-  input.enabled = false;
+  // Preserve the existing input lifecycle; the transition veil only
+  // affects presentation, not authoritative game simulation or controls.
+  input.enabled = true;
   canvas.focus();
   if (!onWelcome.greeted) {
     onWelcome.greeted = true;
