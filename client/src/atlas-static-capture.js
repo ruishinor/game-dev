@@ -25,8 +25,15 @@ export function captureStaticAtlas(renderer,scene,staticRoots,region,{lowSpec=fa
   const previousFog=scene.fog,previousAutoClear=renderer.autoClear;
   const previousShadow=renderer.shadowMap.enabled;
   const previousVisibility=scene.children.map(root=>[root,root.visible]);
+  // A permanent geographical atlas must not inherit nighttime darkness.
+  // Restrict neutral survey illumination to Verdigris Reach; the reserved
+  // Expanse/Foundry content and its production day/night lighting are untouched.
+  const surveyFill=!region.area?new THREE.HemisphereLight(0xe7ede5,0x65736a,1.9):null;
+  const surveySun=!region.area?new THREE.DirectionalLight(0xffedd9,1.5):null;
   let target=null;
   try{
+    if(surveySun)surveySun.position.set(region.x-90,230,region.z-140);
+    if(surveyFill)scene.add(surveyFill,surveySun);
     target=new THREE.WebGLRenderTarget(width,height,{depthBuffer:true,stencilBuffer:false});
     // X right, -Z north/up. Unlike the old blurred plate this is a direct
     // orthographic rendering of the existing Three.js terrain and props.
@@ -65,6 +72,7 @@ export function captureStaticAtlas(renderer,scene,staticRoots,region,{lowSpec=fa
     console.warn('[atlas] Static world capture unavailable; using source-grounded fallback:',err.message||err);
     return null;
   }finally{
+    if(surveyFill)scene.remove(surveyFill,surveySun);
     renderer.setRenderTarget(previousTarget);
     renderer.setViewport(savedViewport);
     renderer.setScissor(savedScissor);
