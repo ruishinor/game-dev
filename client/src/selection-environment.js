@@ -63,19 +63,19 @@ const resonance = new THREE.MeshStandardMaterial({color:0x47788c,emissive:0x327a
  // The platform is human-scale; the gate behind it reads as an ancient machine.
  const floor=new THREE.Mesh(new THREE.CylinderGeometry(12,13,.3,48),basalt);
  floor.position.y=-.25;floor.receiveShadow=true;root.add(floor);
- const nearDeck=new THREE.Mesh(new THREE.CylinderGeometry(2.18,2.32,.1,48),brokenStone);
- nearDeck.position.y=-.07;nearDeck.receiveShadow=true;root.add(nearDeck);
- const seam=new THREE.Mesh(new THREE.TorusGeometry(2.13,.018,6,88),etched);
- seam.rotation.x=-Math.PI/2;seam.position.y=.005;root.add(seam);
+ const nearDeck=new THREE.Mesh(new THREE.CylinderGeometry(1.56,1.64,.1,48),brokenStone);
+ nearDeck.position.set(0,-.07,-.30);nearDeck.receiveShadow=true;root.add(nearDeck);
+ const seam=new THREE.Mesh(new THREE.TorusGeometry(1.52,.013,6,88),etched);
+ seam.rotation.x=-Math.PI/2;seam.position.set(0,.005,-.30);root.add(seam);
  for(let i=0;i<16;i++){
   const angle=i*Math.PI/8;
   const radial=new THREE.Mesh(new THREE.BoxGeometry(.012,.01,.36),etched);
-  radial.position.set(Math.sin(angle)*2.03,.008,Math.cos(angle)*2.03);
+  radial.position.set(Math.sin(angle)*1.46,.008,Math.cos(angle)*1.46-.30);
   radial.rotation.y=angle;root.add(radial);
  }
  // A recessed transit chamber: layered basalt anchors, metal ribs and
  // a restrained resonance seam. No gratuitous volumetric wash or golden glow.
- const gate=new THREE.Group();gate.position.z=-7.2;root.add(gate);
+ const gate=new THREE.Group();gate.position.z=-13.3;gate.scale.setScalar(.73);root.add(gate);
  block(gate,recess,[7.8,7.9,1.5],[0,3.9,-.42]);
  block(gate,basalt,[5.6,6.7,.34],[0,3.35,.43]);
  block(gate,recess,[4.45,5.75,.18],[0,3.0,.62]);
@@ -97,8 +97,8 @@ const resonance = new THREE.MeshStandardMaterial({color:0x47788c,emissive:0x327a
  innerVoid.position.set(0,4.08,.77);gate.add(innerVoid);
  const spindle=block(gate,resonance,[.065,5.7,.05],[0,4.13,.86]);
  const crown=block(gate,metal,[.52,.94,.43],[0,8.25,.83]);
- for(let step=0;step<5;step++){
-  block(root,step%2===0?basalt:brokenStone,[6.7-step*.15,.16,1.08],[0,-.17+step*.02,-4.02-step*.62]);
+ for(let step=0;step<6;step++){
+  block(root,step%2===0?basalt:brokenStone,[4.7-step*.11,.14,1.05],[0,-.15+step*.02,-5.5-step*1.05]);
  }
  // Deep strata and canyon walls, with deliberate asymmetric silhouettes.
  for(const side of [-1,1]){
@@ -162,28 +162,41 @@ const resonance = new THREE.MeshStandardMaterial({color:0x47788c,emissive:0x327a
  const ownedGeometry=new Set();
  root.traverse(object=>{if(object.geometry)ownedGeometry.add(object.geometry);});
  const ownedMaterials=new Set();
- const kit=(piece,position,scale)=>{
+ const kit=(piece,{x,y,z,height})=>{
   const instance=assets?.instance('sanctum',piece);
   if(!instance)return;
-  instance.position.set(...position);instance.scale.set(...scale);
+  // The authentic Sanctum bundle has authoring-unit dimensions distinct
+  // from this human-scale menu set. Normalize each *instance* to a measured
+  // height instead of guessing scale multipliers (the former caused the
+  // portal/columns to fill the screen and clip).
+  instance.scale.setScalar(1);instance.position.set(0,0,0);
+  instance.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(instance);
+  const size=bounds.getSize(new THREE.Vector3());
+  if(!Number.isFinite(size.y)||size.y<.01)return;
+  instance.scale.setScalar(Math.min(5,height/size.y));
+  instance.position.set(x,y,z);
+  instance.updateMatrixWorld(true);
+  const placed=new THREE.Box3().setFromObject(instance);
+  instance.position.y+=y-placed.min.y;
   instance.traverse(node=>{
    if(!node.isMesh)return;
    node.receiveShadow=true;node.castShadow=false;
    const clone=material=>{
     const m=material.clone();
-    // Suppress yellow/green kit accents in this distinct cold selection scene.
-    if(m.color)m.color.setHex(0x8ca7b9);
-    if(m.emissive)m.emissive.setHex(0x07151d);
+    if(m.color)m.color.multiply(new THREE.Color(0xb1c3d0));
+    if(m.emissive)m.emissive.multiplyScalar(.37);
     ownedMaterials.add(m);return m;
    };
    node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);
   });
   root.add(instance);
  };
- kit('Platform_Round1',[0,-.13,0],[.77,.75,.77]);
- kit('Door_Frame_Square',[0,.2,-6.58],[1.46,1.49,1.05]);
- kit('Column_Hollow',[-5.15,-.15,-7.1],[1.07,1.6,1.07]);
- kit('Column_Hollow',[5.15,-.15,-7.1],[1.07,1.6,1.07]);
+ // Avoid the older Sanctum round platform: it formed a giant foreground
+ // ring that swallowed the character's feet in the player's camera.
+ kit('Door_Frame_Square',{x:0,y:-.08,z:-13.0,height:6.3});
+ kit('Column_Hollow',{x:-4.5,y:-.12,z:-12.5,height:4.6});
+ kit('Column_Hollow',{x:4.5,y:-.12,z:-12.5,height:4.6});
  const update=(seconds,reducedMotion)=>{
   if(reducedMotion){cloud.rotation.y=0;innerRing.rotation.z=0;atmosphere.intensity=.8;return;}
   cloud.rotation.y=Math.sin(seconds*.045)*.012;
