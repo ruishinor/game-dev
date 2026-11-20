@@ -27,6 +27,7 @@ import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
 import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas, reachTerrain } from './world-atlas.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
@@ -165,6 +166,8 @@ export class UI {
     this.tipFor = null;
     this.buildLock = '';
     this.companionId = 0;
+    this.emptySlotMode='visible';
+    try{const v=localStorage.getItem('attunement.emptySlotMode');if(['visible','transparent','hidden'].includes(v))this.emptySlotMode=v;}catch{}
     this.root = document.getElementById('hud');
     this.overlay = document.getElementById('overlay');
     this.build();
@@ -216,7 +219,7 @@ export class UI {
     this.summonPet = h('button', 'summon-pet', 'Summon companion');
     this.summonPet.type = 'button';
     this.summonPet.hidden = true;
-    this.summonPet.addEventListener('click', () => this.a.managePet('summon'));
+    this.summonPet.addEventListener('click', () => this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
     const left = h('div', 'col');
     left.append(this.player.el, this.pet, this.summonPet);
     frames.append(left, this.target.el);
@@ -305,7 +308,7 @@ export class UI {
     this.minimap = document.createElement('canvas');
     this.minimap.width = 256;
     this.minimap.height = 256;
-    this.minimapZoom=1;
+    this.minimapZoom=1.5;
     this.minimap.className = 'minimap';
     this.minimap.setAttribute('role', 'img');
     this.minimap.setAttribute('aria-label', 'World minimap');
@@ -715,6 +718,7 @@ export class UI {
     alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
+    this.buildHotkeySettings(root);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
     this.zoneLabel.after(this.atlas.clock);
     const mapControls=h('div','map-controls');
@@ -792,33 +796,100 @@ export class UI {
     this.actionBar.replaceChildren();
     this.petBar.replaceChildren();
     this.abilityButtons = def.abilities.map((id, i) => {
-      const b = this.slotButton(ICONS[id], String(i + 1), ABILITIES[id].name);
+      const b = this.slotButton(ICONS[id], this.a.bindings?.label('ability:'+(i+1))??String(i+1), ABILITIES[id].name);
       b.el.addEventListener('click', () => this.a.useAbility(id));
       this.hover(b.el, () => this.abilityTip(id));
       this.actionBar.append(b.el);
       return { id, ...b };
     });
-    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),String(def.abilities.length+1),'Summon default companion');
-    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet('summon'));
+    this.summonSlot=this.slotButton(svg('<path d="M12 3v18M3 12h18M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3"/>'),this.a.bindings?.label('ability:'+(def.abilities.length+1))??String(def.abilities.length+1),'Summon or dismiss companion');
+    this.summonSlot.el.hidden=true;this.summonSlot.el.addEventListener('click',()=>this.a.managePet(this.companionId ? 'dismiss' : 'summon'));
     this.actionBar.append(this.summonSlot.el);
+    this.emptySlots=[];
+    for(let i=def.abilities.length+1;i<PRIMARY_SLOTS;i++){
+      const cell=this.slotButton('',this.a.bindings?.label('ability:'+(i+1))??'','Empty action slot');
+      cell.el.classList.add('empty');cell.el.disabled=true;cell.el.title='Unassigned action slot';
+      this.actionBar.append(cell.el);this.emptySlots.push(cell);
+    }
+    this.actionBar.dataset.emptyMode=this.emptySlotMode;
     this.petButtons = [];
     if (companionType) {
       const cdef = COMPANIONS[companionType];
       companionCommandKeys(companionType).forEach((mode, i) => {
         if(!Object.hasOwn(cdef.modes,mode))return;
-        const b = this.slotButton(ICONS[mode], `⇧${i + 1}`, cdef.modes[mode].name);
+        const b = this.slotButton(ICONS[mode], this.a.bindings?.label('companion:'+(i+1))??`⇧${i + 1}`, cdef.modes[mode].name);
         b.el.classList.add('small');
         b.el.addEventListener('click', () => this.a.pet(mode));
         this.hover(b.el, () => this.petTip(mode));
         this.petBar.append(b.el);
-        this.petButtons.push({ mode, ...b });
+        this.petButtons.push({ mode, bindingIndex:i, ...b });
       });
     }
     set(this.pet, 'hidden', !companionType);
     this.petBar.hidden = !companionType;
     this.autoButton.title = `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     this.player.res.wrap.classList.toggle('charge', def.resource.id === 'charge');
+    this.refreshHotkeys();
   }
+
+  refreshHotkeys(){
+    for(const [i,b] of this.abilityButtons.entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(i+1))??String(i+1);
+    for(const b of this.petButtons)b.el.querySelector('.key').textContent=this.a.bindings?.label('companion:'+(b.bindingIndex+1))??'⇧'+(b.bindingIndex+1);
+    if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+1))??String(this.abilityButtons.length+1);
+    for(const [j,b] of (this.emptySlots??[]).entries())b.el.querySelector('.key').textContent=this.a.bindings?.label('ability:'+(this.abilityButtons.length+j+2))??'';
+    for(const [name,btn] of (this.bindingRows??new Map()))btn.textContent=this.a.bindings?.label(name)??'Unbound';
+  }
+
+  buildHotkeySettings(root){
+    const section=h('div','hotkey-entry');
+    section.append(h('h3',null,'Action bar and hotkeys'));
+    const open=h('button',null,'Configure combat and companion hotkeys');
+    open.type='button';open.addEventListener('click',()=>this.openHotkeySettings());
+    section.append(open);
+    const label=h('label',null,'Empty action slots');
+    const select=h('select');select.id='empty-slot-mode';
+    for(const [value,text] of [['visible','Visible'],['transparent','Transparent'],['hidden','Invisible']]){
+      const option=h('option',null,text);option.value=value;select.append(option);
+    }
+    select.value=this.emptySlotMode;
+    select.addEventListener('change',()=>{this.emptySlotMode=select.value;this.actionBar.dataset.emptyMode=select.value;try{localStorage.setItem('attunement.emptySlotMode',select.value);}catch{}});
+    label.append(select);section.append(label,h('p','muted','Invisible slots keep their positions. Restore visibility here at any time.'));
+    this.settingsPanel.append(section);
+    const panel=h('div','panel keybindings-panel');panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Combat and companion keybindings');
+    const back=h('button','primary','Back to Settings');back.addEventListener('click',()=>this.closeHotkeySettings());
+    panel.append(h('h2',null,'Keybindings'),h('p','muted','Press a key or combination to assign it. Escape cancels; Delete clears. Movement, interface and browser shortcuts are reserved.'),back);
+    this.keyError=h('p','keybind-error');this.keyError.setAttribute('role','status');panel.append(this.keyError);
+    this.bindingRows=new Map();
+    const addRows=(title,prefix,total)=>{
+      panel.append(h('h3',null,title));
+      for(let i=1;i<=total;i++){
+        const action=prefix+':'+i,row=h('div','binding-row'),name=h('span',null,title==='Primary bar'?'Slot '+i:'Command '+i),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
+        button.type='button';button.setAttribute('aria-label','Change '+title+' '+i);
+        button.addEventListener('click',()=>{this.capturing=action;this.keyError.textContent='Press a key for '+title+' '+i+'…';button.textContent='Press key…';button.focus();});
+        button.addEventListener('blur',()=>{if(this.capturing===action)this.capturing=null;button.textContent=this.a.bindings?.label(action)??'Unbound';});
+        button.addEventListener('keydown',event=>{
+          if(this.capturing!==action)return;
+          if(event.key==='Tab')return;
+          event.preventDefault();event.stopPropagation();
+          if(event.key==='Escape'){this.capturing=null;this.keyError.textContent='Capture cancelled.';this.refreshHotkeys();return;}
+          const chord=event.code==='Backspace'||event.code==='Delete'?null:keyChord(event);
+          if(chord===null&&event.code!=='Backspace'&&event.code!=='Delete')return;
+          const result=this.a.bindings?.set(action,chord);
+          this.capturing=null;this.keyError.textContent=result?.ok?'Binding saved.':result?.reason??'Unable to save binding.';
+          this.refreshHotkeys();
+        });
+        row.append(name,button);panel.append(row);this.bindingRows.set(action,button);
+      }
+    };
+    addRows('Primary bar','ability',PRIMARY_SLOTS);
+    addRows('Companion bar','companion',COMPANION_SLOTS);
+    const reset=h('button',null,'Restore default hotkeys');
+    reset.addEventListener('click',()=>{this.a.bindings?.reset();this.refreshHotkeys();this.keyError.textContent='Default shortcuts restored.';});
+    panel.append(reset);this.keyPanel=panel;root.append(panel);
+    panel.addEventListener('keydown',e=>{if(e.key==='Escape'&&!this.capturing){e.stopPropagation();e.preventDefault();this.closeHotkeySettings();}});
+  }
+  openHotkeySettings(){this.settingsPanel.hidden=true;this.keyPanel.hidden=false;this.refreshHotkeys();this.keyPanel.querySelector('button')?.focus({preventScroll:true});}
+  closeHotkeySettings(){this.capturing=null;this.keyPanel.hidden=true;this.settingsPanel.hidden=false;this.settingsPanel.querySelector('button')?.focus({preventScroll:true});}
 
   slotButton(icon, key, label) {
     const el = h('button', 'slot');
@@ -969,6 +1040,7 @@ export class UI {
     this.fieldRecordPanel.hidden=true;
     this.root.classList.remove('inventory-front');
     this.help.hidden = this.partyPanel.hidden = this.settingsPanel.hidden = true;
+    if(this.keyPanel)this.keyPanel.hidden=true;
     this.menuItems.hidden = this.tooltip.hidden = true;
     this.closePlayerContext();
     this.closeCompanionDetails();
@@ -1623,8 +1695,9 @@ export class UI {
   /** Close transient panels; the persistent inventory has its own close control. */
   closePanels() {
     if(this.atlas?.close())return true;
-    const any = !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
+    const any = !this.keyPanel.hidden || !this.companionSheet.hidden || !this.questJournal.el.hidden || !this.vendor.el.hidden || !this.loot.el.hidden || !this.fieldRecordPanel.hidden || !this.workshopPanel.hidden || !this.npcPanel.hidden || !this.panel.hidden || !this.codexPanel.hidden || !this.help.hidden || !this.inspectBox.hidden || !this.partyPanel.hidden || !this.settingsPanel.hidden || !this.menuItems.hidden || !!this.selectedCompanionId || !this.playerContext.hidden;
     this.companionSheet.hidden = true;
+    this.keyPanel.hidden = true;
     this.questJournal.dismiss();
     this.codexPanel.hidden = this.workshopPanel.hidden = true;
     this.closeNpc();
@@ -1760,9 +1833,9 @@ export class UI {
 
   // --- per-frame ------------------------------------------------------------
 
-  unitPortrait(element,meta,style='bust') {
+  unitPortrait(element,meta,style='head') {
     if(!meta)return;
-    const signature=JSON.stringify([meta.k,meta.c,meta.n,meta.a,meta.ap,meta.sv]);
+    const signature=JSON.stringify([meta.k,meta.c,meta.n,meta.a,meta.ap,meta.sv,style]);
     if(element._portraitSignature===signature)return;
     element._portraitSignature=signature;
     let img=element.querySelector(':scope > .unit-portrait');
@@ -1897,10 +1970,21 @@ export class UI {
       if (!this.companionSheet.hidden) this.renderCompanionSheet();
     }
     const summon = roster.find(entry => entry.isDefault);
-    this.summonPet.hidden = !!st.comp || !summon;
-    this.summonPet.disabled = !summon?.available;
-    this.summonPet.title = summon?.available ? `Summon ${summon.name}` : 'Available outside combat while alive.';
-    if(this.summonSlot){this.summonSlot.el.hidden=!summon;this.summonSlot.el.disabled=!!st.comp||!summon?.available;this.summonSlot.el.title=st.comp?'Companion already active':this.summonPet.title;}
+        const petActive=!!st.comp;
+    const canManagePet=!me.dead&&!(me.row.f&8);
+    const petActionLabel=petActive?'Dismiss companion':summon?.available?`Summon ${summon.name}`:'Summon companion unavailable';
+    this.summonPet.hidden=!petActive&&!summon;
+    this.summonPet.disabled=!canManagePet||(!petActive&&!summon?.available);
+    this.summonPet.textContent=petActionLabel;
+    this.summonPet.title=!canManagePet?'Manage companions outside combat while alive.':petActionLabel;
+    if(this.summonSlot){
+      this.summonSlot.el.hidden=!petActive&&!summon;
+      this.summonSlot.el.disabled=!canManagePet||(!petActive&&!summon?.available);
+      this.summonSlot.el.setAttribute('aria-label',petActionLabel);
+      this.summonSlot.el.title=this.summonPet.title;
+      this.summonSlot.el.classList.toggle('dismiss-ready',petActive&&canManagePet);
+      this.summonSlot.el.setAttribute('aria-pressed',String(petActive));
+    }
     if (st.comp) {
       const c = st.comp.row;
       this.unitPortrait(this.pet,st.comp.meta,st.comp.meta.c==='spindle'?'portrait':'bust');
@@ -2180,20 +2264,43 @@ export class UI {
       g.fillStyle = zoneColours[key] + '33';
       g.fill();
     }
-    g.fillStyle = 'rgba(160, 175, 185, 0.5)';
+    g.fillStyle = 'rgba(189, 186, 149, 0.32)';
+    g.strokeStyle='rgba(30, 43, 41, 0.65)';
     for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
+      g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);
+    }
+    // Up to two nearby place names remain legible; avoid covering the player.
+    if(!area){
+      const labels=Object.values(ZONES)
+       .map(z=>({z,d:Math.hypot(z.x-st.me.pos.x,z.z-st.me.pos.z)}))
+       .filter(({d})=>d*k<R-30).sort((a,b)=>a.d-b.d).slice(0,2);
+      g.font='bold 13px sans-serif';g.textAlign='center';g.lineWidth=3.5;
+      for(const {z} of labels){
+        const x=X(z.x),y=Z(z.z),name=z.name;
+        g.strokeStyle='#101b1e';g.strokeText(name,x,y-10);
+        g.fillStyle='#f1ddb2';g.fillText(name,x,y-10);
+      }
     }
     const partyIds = new Set(st.party.map(member => member.id));
     for (const ent of st.ents.values()) {
       if (ent.id === st.me.id || ent.meta.k === 'c' || partyIds.has(ent.id)||!sameTravelRegion(st.me.pos,ent.pos)) continue;
       if (ent.meta.k === 'e' && ent.dead) continue;
       g.beginPath();
-      const big = ent.meta.el || ent.meta.k === 'o';
-      g.arc(X(ent.pos.x), Z(ent.pos.z), big ? 3.2 : 2.2, 0, Math.PI * 2);
-      g.fillStyle = ent.meta.k === 'e' ? (ent.meta.neu && !(ent.row?.f & 8) ? '#e6c58d' : '#ff6a5a') : ent.meta.k === 'p' ? '#7dffc4' : '#ffd27a';
-      g.fill();
+      const big=ent.meta.el || ent.meta.k==='o';
+      const px=X(ent.pos.x),py=Z(ent.pos.z),radius=big?6.5:5;
+      // Shape as well as hue: enemies are triangles, players circles,
+      // interactable objects squares. Useful for colour-blind readability.
+      if(ent.meta.k==='e'){
+        g.moveTo(px,py-radius);
+        g.lineTo(px+radius,py+radius*.75);
+        g.lineTo(px-radius,py+radius*.75);
+        g.closePath();
+      }else if(ent.meta.k==='o')g.rect(px-radius,py-radius,radius*2,radius*2);
+      else g.arc(px,py,radius,0,Math.PI*2);
+      g.fillStyle=ent.meta.k==='e'?(ent.meta.neu&&!(ent.row?.f&8)?'#ffde9b':'#ff7663'):ent.meta.k==='p'?'#8af2c0':'#ffe2a1';
+      g.fill();g.lineWidth=1.8;g.strokeStyle='#102028';g.stroke();
     }
     const partyLabels = [];
     const placed = [{ x: X(st.me.pos.x), z: Z(st.me.pos.z) }];
@@ -2217,30 +2324,31 @@ export class UI {
         g.stroke();
       }
       g.beginPath();
-      g.arc(marker.x, marker.z, 6.5, 0, Math.PI * 2);
+      g.arc(marker.x, marker.z, 8.5, 0, Math.PI * 2);
       g.fillStyle = ent.dead ? '#43332c' : '#123a46';
       g.fill();
       g.strokeStyle = '#a8e8f6';
-      g.lineWidth = 1;
+      g.lineWidth = 2;
       g.stroke();
       g.fillStyle = '#fff';
-      g.font = 'bold 9px sans-serif';
+      g.font = 'bold 12px sans-serif';
       g.textAlign = 'center';
-      g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 3);
+      g.fillText(ent.dead ? '×' : String(number), marker.x, marker.z + 4);
     }
-    const mapLabel = [annex?'Phase Annex minimap':'World minimap', ...partyLabels].join('. ');
+    const mapLabel = [annex?'Phase Annex minimap':'World minimap','Triangles are enemies; circles are players; squares are objects; numbered circles are party members', ...partyLabels].join('. ');
     if (c.getAttribute('aria-label') !== mapLabel) c.setAttribute('aria-label', mapLabel);
     // Player arrow
     g.translate(X(st.me.pos.x), Z(st.me.pos.z));
     g.rotate(Math.PI - st.yaw);
     g.beginPath();
-    g.moveTo(0, -6);
-    g.lineTo(4.2, 5);
-    g.lineTo(0, 2.5);
-    g.lineTo(-4.2, 5);
+    g.moveTo(0, -10);
+    g.lineTo(6.2, 7);
+    g.lineTo(0, 3.5);
+    g.lineTo(-6.2, 7);
     g.closePath();
     g.fillStyle = '#ffffff';
     g.fill();
+    g.lineWidth=2;g.strokeStyle='#1e2527';g.stroke();
     g.restore();
     g.beginPath();
     g.arc(R, R, R - 2, 0, Math.PI * 2);
