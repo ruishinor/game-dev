@@ -19,7 +19,6 @@ import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildSilentFoundry } from './silent-foundry.js';
-import { buildSanctumCrown } from './sanctum-crown.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
 
@@ -1322,9 +1321,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
   };
 
   if (kits) buildSanctum(c);
-  // The Lattice Crown: ribs from the pylon heads to a floating lattice spire (no colliders).
-  const crown = buildSanctumCrown(THREE, scene, { pylons: PROPS.filter((p) => p.type === 'pylon'), ground: groundHeight });
-  anim.push((dt) => crown.update(dt));
   if (!kits) {
     // Sanctum floor: a level dais with an inlaid ring of light.
     const dais = mesh(new THREE.CylinderGeometry(13, 13.6, 0.5, 40), mat(0x56666e, { rough: 0.7, metal: 0.2 }), 0, 0.2, 0);
@@ -1508,7 +1504,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severance: severance.landmark,
     severancePocket: severance,
     foundry,
-    crown,
     stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); } },
     occluders,
     /**
