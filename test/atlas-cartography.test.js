@@ -25,7 +25,8 @@ test('full-bleed atlas projection covers both axes while map selection stays wor
   assert.equal(p.Z(-region.hd),14);
   assert.equal(p.Z(region.hd),686);
   const place={x:ZONES.vault.x,z:ZONES.vault.z};
-  assert.deepEqual(pixelToWorld(region,p,1240,700,p.X(place.x),p.Z(place.z)),place);
+  const mapped=pixelToWorld(region,p,1240,700,p.X(place.x),p.Z(place.z));
+  assert.ok(Math.abs(mapped.x-place.x)<1e-9&&Math.abs(mapped.z-place.z)<1e-9,'World coordinates must round-trip within float precision');
   const q=project(region,1240,700,2,{x:15,z:-8});
   assert.equal(q.X(15),620);assert.equal(q.Z(-8),350);
 });
