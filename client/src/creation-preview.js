@@ -75,7 +75,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    ?Object.values(FRAMES).map(({id})=>({...meta,ap:encodeAppearance({...appearance,frame:id})}))
    :[meta];
   const specs=choices.map(choice=>({choice,glb:useGlb(choice)}));
-  const next=JSON.stringify([meta.ap,specs]);
+  const next=JSON.stringify([meta?.ap??null,specs]);
   const w=Math.max(1,Math.round(canvas.clientWidth)),h=Math.max(1,Math.round(canvas.clientHeight));
   const resized=canvas.width!==Math.floor(w*(renderer?.getPixelRatio()||1))
    ||canvas.height!==Math.floor(h*(renderer?.getPixelRatio()||1));
