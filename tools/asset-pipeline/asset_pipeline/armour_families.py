@@ -740,7 +740,7 @@ def mycelial_chest(body, base, m, kit=None):
     T = kit.torso(facets=0)
     rng = np.random.default_rng(11)
     seed_pt = T.point(deg(-10), 0.7, base + 0.012)
-    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=0.0, neck_front=0.9, neck_back=0.95, arm_u=0.76, top_u=0.98)]
+    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=0.04, neck_front=0.9, neck_back=0.95, arm_u=0.76, top_u=0.98)]
     pls = []
 
     def plate(name, poly, layer, mat="plate", **kw):
