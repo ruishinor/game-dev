@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import {setupCreationSections} from './creation-sections.js';
+import {setupRosterSettingsPages} from './menu-settings-pager.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
@@ -641,6 +642,7 @@ function buildAccountUI() {
   $('roster-settings').addEventListener('click', () => {
     if(!net.accountLogged)return;
     const open=ui.settingsPanel.hidden;
+    if(open)setupRosterSettingsPages(ui.settingsPanel);
     $('hud').hidden=!open;
     ui.toggleSettings(open);
     if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
