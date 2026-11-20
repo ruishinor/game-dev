@@ -6,6 +6,10 @@ import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterS
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
+// Long patrols leash to the point where they broke off their route (their
+// post), not to the route's start; static enemies and short circuits use home.
+const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
+
 export function resetEnemy(game, e) {
   const def = ENEMIES[e.type];
   e.x = e.home.x;
@@ -38,6 +42,7 @@ export function resetEnemy(game, e) {
   e.callUntil = 0;
   e.wander = null;
   e.steerUntil = 0;
+  e.post = e.patrol ? { x: e.home.x, z: e.home.z } : null;
   e.steerSign = 1;
   e.progressAt = 0;
   e.progressDist = Infinity;
@@ -137,18 +142,19 @@ export function tickEnemy(game, e, dt) {
 
   if (e.state === 'evade') {
     e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.5 * dt);
-    const d = dist(e, e.home);
+    const anchor = anchorOf(e);
+    const d = dist(e, anchor);
     if (d < 0.6 || game.time - e.evadeSince > 7000) {
-      e.x = e.home.x;
-      e.z = e.home.z;
+      e.x = anchor.x;
+      e.z = anchor.z;
       e.scale = 1;
       e.maxHp = def.hp;
       e.hp = e.maxHp;
       e.state = 'idle';
       e.wanderAt = game.time + 3000;
-      e.routeIndex = 1;
+      if (!e.patrol) e.routeIndex = 1;      // a patrol resumes its route where it left it
     } else {
-      moveToward(e, e.home.x, e.home.z, def.speed * 2.2 * dt, def.radius, 0);
+      moveToward(e, anchor.x, anchor.z, def.speed * 2.2 * dt, def.radius, 0);
     }
     return;
   }
@@ -159,7 +165,7 @@ export function tickEnemy(game, e, dt) {
   for (const p of game.players.values()) {
     if (def.aggro <= 0) break;
     if (p.dead || e.threat.has(p.id) || inSafeZone(p)) continue;
-    if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash && hasLineOfSight(e,p)) {
+    if (dist(e, p) <= def.aggro && dist(p, anchorOf(e)) <= def.leash && hasLineOfSight(e,p)) {
       addThreat(e, p.id, 1);
       if (def.social) {
         for (const o of game.enemies) {
@@ -229,6 +235,7 @@ export function tickEnemy(game, e, dt) {
       }
       const waypoint = e.route[e.routeIndex];
       const ox = e.x, oz = e.z;
+      if (e.patrol) e.post = { x: e.x, z: e.z };
       const pace = e.form === 'juvenile' ? 0.61 : e.form === 'shieldback' ? 0.38 : 0.47;
       if(e.form)e.ecologyMode='travel';
       const stalking=e.type==='faultstalker';
@@ -281,7 +288,7 @@ export function tickEnemy(game, e, dt) {
   // Player combat supersedes autonomous wildlife activity immediately.
   if(e.type==='faultstalker')cancelWildHunt(game,e);
   if(e.form)e.wildWound=0;
-  if (dist(e, e.home) > def.leash) {
+  if (dist(e, anchorOf(e)) > def.leash) {
     startEvade(game, e);
     return;
   }
