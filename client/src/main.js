@@ -653,6 +653,10 @@ function buildAccountUI() {
     if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
     else $('recovery-token').value = '';
   });
+  // Controls are disabled in the static HTML until both auth handlers exist.
+  // This prevents first-click loss during slow module initialization.
+  $('account-signin').disabled = false;
+  $('account-register').disabled = false;
 }
 
 function openCharacterMenu() {
