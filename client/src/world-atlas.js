@@ -420,7 +420,7 @@ export class WorldAtlas{
  this.entries=entries;
  if(sig!==this.sig){
   this.sig=sig;this.results.replaceChildren();
-  for(let i=0;i<Math.min(entries.length,6);i++){
+  for(let i=0;i<Math.min(entries.length,4);i++){
    const b=el('button',null,entries[i].name+' · '+entries[i].category);
    b.onclick=()=>{
     const e=this.entries[i];if(!e)return;
@@ -432,9 +432,9 @@ export class WorldAtlas{
    };
    this.results.append(b);
   }
-  if(entries.length>6){
+  if(entries.length>4){
     const hint=el('p','atlas-result-hint','Refine search ('+entries.length+' matches)');
-    hint.title='Search results are limited to six visible entries to keep Atlas controls fitted without scrolling.';
+    hint.title='Search results are limited to four visible entries to keep Atlas controls fitted without scrolling.';
     this.results.append(hint);
   }
  }
