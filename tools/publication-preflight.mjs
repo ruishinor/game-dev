@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
 
 export function disclosureSignal(text) {
   if (typeof text !== 'string') return false;
-  const odds = /\b(?:drop|loot|blueprint|reward|hidden|rare|roll|probability|chance|encounter)\b[^\n]{0,90}\b\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%[^\n]{0,90}\b(?:drop|loot|blueprint|reward|hidden|rare|roll|probability|chance|encounter)\b/i;
+  const odds = /\b(?:drop|loot|blueprint|reward|rare|roll|probability|chance|encounter)\b[^\n]{0,90}\b\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%[^\n]{0,90}\b(?:drop|loot|blueprint|reward|rare|roll|probability|chance|encounter)\b/i;
   const codeOdds = /\b(?:chance|probability|dropRate|lootRate|rollThreshold)\s*[:=]\s*(?:0?\.\d+|\d+\s*\/\s*\d+)/i;
   return odds.test(text) || codeOdds.test(text);
 }
