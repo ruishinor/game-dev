@@ -36,6 +36,40 @@ test('Spindle commissions and summons for every registered class without equipme
   }
 });
 
+test('Field light is an independent, opt-in, server-replicated Spindle utility', () => {
+  const game = makeGame(), p = game.addPlayer(makeChar('vanguard'));
+  assert.equal(petCommand(game, p, 'light').ok, false, 'unowned/unsummoned light is unavailable');
+  commission(game, p);
+  const c = deploy(game, p);
+  const row = () => game.buildRows().find(entry => entry.i === c.id);
+  assert.equal(c.lightOn, false, 'a fresh summon must not provide a free light');
+  assert.equal(row().li, 0);
+  assert.equal(petCommand(game, p, 'light').ok, true);
+  assert.equal(c.mode, 'follow', 'lighting cannot replace movement mode');
+  assert.equal(row().li, 1, 'lighting state reaches nearby clients through the ordinary snapshot');
+  assert.equal(petCommand(game, p, 'stay').ok, true);
+  assert.equal(c.mode, 'stay');
+  assert.equal(row().li, 1);
+  assert.equal(petCommand(game, p, 'inspect').ok, true);
+  assert.equal(c.mode, 'inspect');
+  assert.equal(row().li, 1, 'inspection does not disable lighting');
+  assert.equal(petCommand(game, p, 'light').ok, true);
+  assert.equal(c.mode, 'inspect', 'turning the lamp off cannot cancel inspection');
+  assert.equal(row().li, 0);
+  const other = game.addPlayer(makeChar('vanguard'));
+  assert.equal(petCommand(game, other, 'light').ok, false, 'another player cannot toggle this unit');
+  assert.equal(petCommand(game, p, 'not-a-command').ok, false);
+  assert.equal(petCommand(game, p, 'light').ok, true);
+  p.dead = true;
+  assert.equal(petCommand(game, p, 'light').ok, false, 'defeated owner cannot toggle');
+  tickSpindle(game, c, .05);
+  assert.equal(row().li, 0, 'defeat switches the lamp off');
+  p.dead = false;
+  assert.equal(manageCompanion(game, p, 'dismiss').ok, true);
+  const resummoned = deploy(game, p);
+  assert.equal(resummoned.lightOn, false, 'dismissal does not create an automatic lantern');
+});
+
 test('Spindle tune preserves player catch-up and reduces size and movement caps', () => {
   assert.equal(SPINDLE_TUNING.scale, .75);
   assert.equal(SPINDLE_TUNING.radius, .54);

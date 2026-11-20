@@ -30,7 +30,7 @@ export function spawnSpindle(game, p, spot) {
   if (!profile || !spot || p.dead || p.companion || p.char.companionDismissed) return;
   const c = {
     id: game.nextId++, kind: 'companion', type: 'spindle', name: profile.name, owner: p.id,
-    ...spot, yaw: p.yaw, mode: profile.mode, act: 'idle', actTarget: 0, host: 0, metaVer: 1,
+    ...spot, yaw: p.yaw, mode: profile.mode, lightOn: false, act: 'idle', actTarget: 0, host: 0, metaVer: 1,
     nav: {}, serviceEnd: 0, approachEnd: 0,
   };
   p.companion = c;
@@ -60,6 +60,9 @@ function conditionReport(char) {
 }
 
 export function commandSpindle(game, p, c, cmd) {
+  // A utility switch, not a movement mode. Do not interrupt inspection or Stay.
+  // The authenticated owner is checked by petCommand before reaching this function.
+  if (cmd === 'light') { c.lightOn = !c.lightOn; return { ok: true }; }
   if (cmd === 'inspect') {
     if (game.time < p.combatUntil) return { ok: false, reason: 'Inspect your equipment outside combat.' };
     if (c.mode === 'inspect') return { ok: true };
@@ -85,7 +88,7 @@ export function tickSpindle(game, c, dt) {
       finishInspection(c, p);
       game.message(p, 'info', c.name + ' stopped its equipment inspection.');
     }
-    if (p.dead) { c.act = 'dormant'; c.actTarget = 0; return; }
+    if (p.dead) { c.lightOn = false; c.act = 'dormant'; c.actTarget = 0; return; }
   }
   const gap = dist(c, p);
   if (c.mode === 'stay' && gap > STAY_LEASH) commandSpindle(game, p, c, 'follow');

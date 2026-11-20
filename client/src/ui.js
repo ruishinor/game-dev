@@ -59,6 +59,7 @@ const ICONS = {
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
   inspect: svg('<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/>'),
+  light: svg('<path d="M9 18h6m-5 3h4M8 14a7 7 0 1 1 8 0l-1 2H9zM12 1v2M2 12h2m16 0h2M4 4l2 2m12 0 2-2"/>'),
   follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
@@ -97,7 +98,7 @@ const GLYPH_NOTES = {
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', screening:'Projecting screen', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
-const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
+const SPINDLE_KEYS = ['inspect', 'light', null, 'follow', 'stay'];
 const STRIDER_KEYS=['screen','recover','assist','follow','stay'];
 export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
 const SKILL_INFO = {
@@ -2177,9 +2178,13 @@ export class UI {
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'stay' ? 'Holding position' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
-      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
+      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}${st.comp.meta.c === 'spindle' && c.li ? ' · Field light on' : ''}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
-      for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
+      for (const b of this.petButtons) {
+        const active = b.mode === 'light' ? st.comp.meta.c === 'spindle' && c.li === 1 : b.mode === c.md;
+        b.el.classList.toggle('active', active);
+        if (b.mode === 'light') b.el.setAttribute('aria-pressed', String(active));
+      }
     }
 
     // Auto-attack state is server-authoritative: it does not chase enemies or

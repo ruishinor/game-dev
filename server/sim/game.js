@@ -448,7 +448,7 @@ export class Game {
       });
     }
     for (const c of this.companions) {
-      rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host });
+      rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host, ...(c.type === 'spindle' ? { li: c.lightOn ? 1 : 0 } : {}) });
     }
     for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o), ...severanceRow(this,o) });
     return rows;
