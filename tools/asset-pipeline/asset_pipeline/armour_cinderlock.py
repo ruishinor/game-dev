@@ -387,8 +387,9 @@ def design_cuirass(body, base, m):
     cloud = np.concatenate([body.meshes["body"]["V"], body.meshes["head"]["V"]])
     cloud = cloud[(np.abs(cloud[:, 0]) < 0.1) & (cloud[:, 1] > nk[1] - 0.12) & (cloud[:, 1] < nk[1] + 0.12)]
     NM = LimbAdapter(LimbMap(np.array([0, nk[1] - 0.055, nk[2]]), np.array([0, nk[1] + 0.065, nk[2]]), [0, 0, 1.0], cloud,
-                             t_range=(-0.2, 1.2), half=0.01, rmax=0.12, facets=14))
-    for k, (t0, t1, op, lay) in enumerate(((0.0, 0.48, 16, 0.038), (0.52, 1.0, 22, 0.02))):
+                             t_range=(-0.2, 1.3), half=0.01, rmax=0.12, facets=14))
+    # raised containment collar (original concept): three stepped rings
+    for k, (t0, t1, op, lay) in enumerate(((0.0, 0.42, 16, 0.04), (0.45, 0.84, 20, 0.026), (0.87, 1.18, 27, 0.017))):
         pc = Plate(it, f"collar_{k}", m["plate"], NM, D([(op, t0), (360 - op, t0), (360 - op, t1), (op, t1)]), lay, dome=0.003, thickness=0.008,
                    bevel=0.0025, weight_mode=["band", "y", 0.03], flow_origin=core)
         pc.groove(D([(op + 7, t0 + 0.1), (op + 7, t1 - 0.1)]))
@@ -631,7 +632,7 @@ def design_boots(body, base, m):
         c = hull.mean(0)
         hull = c + (hull - c) * 1.06
         P.append(sheet_piece(it, f"sole_{s}", m["sole"], np.zeros((0, 3)), np.zeros((0, 3), int), 0.0, weights=pol, weight_mode=["rigid"],
-                             sole={"outline": hull.tolist(), "y0": float(y0 - 0.006), "y1": float(y0 + 0.022)}, bevel=0.003, bevel_segments=2))
+                             sole={"outline": hull.tolist(), "y0": float(y0 - 0.012), "y1": float(y0 + 0.026), "treads": 9}, bevel=0.003, bevel_segments=2))
     return P
 
 

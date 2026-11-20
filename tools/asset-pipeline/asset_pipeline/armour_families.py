@@ -266,28 +266,28 @@ def vesperglass_chest(body, base, m, kit=None):
         # large porcelain chest shell: one sweeping plate per side, cut back
         # around the central optical frame
         pl = plate(f"chest_shell_{s}", side([(22, 0.5), (52, 0.46), (72, 0.58), (70, 0.8), (54, 0.93), (24, 0.95), (17, 0.86), (24, 0.72)]),
-                   0.008, dome=0.006, thickness=0.009)
+                   0.013, dome=0.006, thickness=0.009)
         pl.groove(D([(f(26), 0.88), (f(50), 0.86), (f(64), 0.74)]), width=0.0032)
         pl.groove(D([(f(28), 0.56), (f(52), 0.52), (f(66), 0.6)]), width=0.0032)
         # titanium rib frame under the shell, on the flank
-        pl = plate(f"rib_frame_{s}", side([(48, 0.24), (86, 0.26), (96, 0.42), (92, 0.6), (74, 0.57), (54, 0.44)]), 0.004, mat="trim",
+        pl = plate(f"rib_frame_{s}", side([(48, 0.24), (86, 0.26), (96, 0.42), (92, 0.6), (74, 0.57), (54, 0.44)]), 0.008, mat="trim",
                    dome=0.002, thickness=0.006, bevel=0.0022, segs=1)
         pl.groove(D([(f(58), 0.32), (f(86), 0.36)]), width=0.003).groove(D([(f(62), 0.4), (f(88), 0.48)]), width=0.003)
         # translucent resonance panel layered over the flank frame
-        P.append(glassy(Plate(it, f"flank_prism_{s}", m["glass"], T, D(side([(60, 0.3), (82, 0.33), (88, 0.47), (70, 0.48)])), base + 0.011,
+        P.append(glassy(Plate(it, f"flank_prism_{s}", m["glass"], T, D(side([(60, 0.3), (82, 0.33), (88, 0.47), (70, 0.48)])), base + 0.015,
                               thickness=0.003, bevel=0.0008).export()))
         # porcelain abdominal segments, narrow and stepped
         for r, (u0, u1) in enumerate(((0.38, 0.45), (0.29, 0.36), (0.2, 0.27))):
-            plate(f"abdomen_{s}{r}", side([(5, u0), (26 - r * 2, u0), (31 - r * 2, (u0 + u1) / 2), (26 - r * 2, u1), (5, u1)]), 0.006 + 0.001 * r,
+            plate(f"abdomen_{s}{r}", side([(5, u0), (26 - r * 2, u0), (31 - r * 2, (u0 + u1) / 2), (26 - r * 2, u1), (5, u1)]), 0.011 + 0.001 * r,
                   dome=0.003, thickness=0.007)
         # back: porcelain shoulder blades and a titanium spine frame
         scap = [(180 - a, b) for a, b in [(10, 0.56), (44, 0.52), (64, 0.62), (62, 0.84), (40, 0.95), (12, 0.93)]][::-1]
-        pl = plate(f"back_shell_{s}", scap if sg > 0 else mirror_poly(scap, 180), 0.008, dome=0.006, thickness=0.009)
+        pl = plate(f"back_shell_{s}", scap if sg > 0 else mirror_poly(scap, 180), 0.013, dome=0.006, thickness=0.009)
         pl.groove(D([(180 - f(16), 0.88), (180 - f(46), 0.84), (180 - f(58), 0.7)]), width=0.0032)
         low = [(180 - a, b) for a, b in [(8, 0.2), (40, 0.2), (46, 0.34), (40, 0.48), (8, 0.48)]][::-1]
-        plate(f"back_low_{s}", low if sg > 0 else mirror_poly(low, 180), 0.006, dome=0.003, thickness=0.008)
+        plate(f"back_low_{s}", low if sg > 0 else mirror_poly(low, 180), 0.011, dome=0.003, thickness=0.008)
         # hip shells
-        plate(f"hip_{s}", side([(30, 0.05), (70, 0.08), (76, 0.2), (36, 0.19)]), 0.008, dome=0.003, thickness=0.007)
+        plate(f"hip_{s}", side([(30, 0.05), (70, 0.08), (76, 0.2), (36, 0.19)]), 0.012, dome=0.003, thickness=0.007)
     # central optical assembly: titanium frame, recessed well, faceted prism
     pl = plate("optic_frame", [(-17, 0.5), (17, 0.5), (24, 0.69), (17, 0.88), (-17, 0.88), (-24, 0.69)], 0.016, mat="trim", dome=0.004,
                thickness=0.011, bevel=0.0028)
