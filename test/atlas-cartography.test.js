@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WORLD,ZONES} from '../shared/world.js';
-import {atlasTerrainColor,clusterMapMarkers,atlasEntityCategory} from '../client/src/atlas-cartography.js';
+import {WORLD,ZONES,groundHeight} from '../shared/world.js';
+import {atlasTerrainColor,reachContourSegments,clusterMapMarkers,atlasEntityCategory} from '../client/src/atlas-cartography.js';
 import {regionFor,project,pixelToWorld} from '../client/src/world-atlas.js';
 
 test('cartography uses opaque, deterministic terrain over full rectangular atlas, never an alpha circle',()=>{
@@ -56,4 +56,17 @@ test('source-grounded atlas biome colours are distinct and retain material ident
   assert.equal(new Set(colors.map(v=>v.slice(0,3).join(','))).size,sites.length);
   assert.ok(colors[1][0]>colors[0][0],'Sinter sand must be warmer than Sporefield growth');
   assert.ok(colors[5][1]>colors[2][1],'Sanctum and Vault must not share the same tint');
+});
+
+
+test('Reach topographic lines follow the actual walkable heightfield, not invented features',()=>{
+  const segments=reachContourSegments(3,1);
+  assert.ok(segments.length>100,'Reach must produce surveyed elevation curves');
+  assert.ok(new Set(segments.map(s=>s.level)).size>=4,'survey lines must express changes in elevation');
+  for(const segment of segments.filter((_,i)=>i%Math.max(1,Math.floor(segments.length/100))===0)){
+    const x=(segment.x1+segment.x2)/2,z=(segment.z1+segment.z2)/2;
+    assert.ok(Math.hypot(x,z)<=WORLD.radius+1.01,'contours must not invent distant geography');
+    assert.ok(Math.abs(groundHeight(x,z)-segment.level)<.75,
+      'contours must track real Reach surface elevation');
+  }
 });
