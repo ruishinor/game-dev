@@ -450,6 +450,8 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
 let titleDrawAt=-Infinity;
 function showCharacterCreation(){
   if(!net.accountLogged||!lastRoster)return;
+  ui.toggleSettings(false);
+  $('hud').hidden=true;
   $('character-roster').hidden=true;
   $('login-form').hidden=false;
   $('creation-back').hidden=false;
