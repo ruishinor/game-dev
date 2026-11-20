@@ -46,6 +46,16 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2
    &&document.body.scrollHeight<=innerHeight+2),true,'settings page must not scroll');
  }
+ await page.getByRole('tab',{name:'More'}).click();
+ await page.locator('#roster-import-trigger').click();
+ await page.locator('#roster-import-dialog').waitFor({state:'visible'});
+ assert.equal(await page.locator('#recovery-token').isVisible(),true,'recovery input is in separate dialog');
+ assert.equal(await page.locator('#character-roster .legacy-link').count(),0,'no inline roster import');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2),true,'dialog cannot scroll the page');
+ await page.locator('#roster-import-close').click();
+ assert.equal(await page.locator('#roster-import-dialog').isHidden(),true);
+ assert.equal(await page.locator('#recovery-token').inputValue(),'');
+ await page.click('#roster-settings');
  await page.locator('.settings-panel button.close').click();
  // The exact owner-supplied source image (optimized WebP) must actually be
  // served and visible behind a transparent, centered gameplay-model canvas.
@@ -156,7 +166,7 @@ try{
  assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
- assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
+ assert.equal(await page.locator('.roster-cards .roster-preview-controls').count(),0,'inspection controls never overlap roster');
  await page.click('.roster-cards [data-preview-inspect]');
  await page.locator('#roster-inspection-screen').waitFor({state:'visible'});
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-inspection-mode')),true);
@@ -165,10 +175,16 @@ try{
  assert.equal(await page.locator('#roster-preview').getAttribute('data-model-count'),'1');
  assert.equal(await page.evaluate(fitsViewport),true,'inspect scene cannot scroll');
  if(evidence)await page.screenshot({path:join(evidence,'character-inspection-fullscreen.png')});
+ await page.locator('#roster-preview canvas').focus();
+ await page.keyboard.press('Escape');
+ assert.equal(await page.locator('#roster-inspection-screen').isHidden(),true,
+   'Escape closes Inspect even when 3D canvas has focus');
+ await page.click('.roster-cards [data-preview-inspect]');
+ await page.locator('#roster-inspection-screen').waitFor({state:'visible'});
  await page.click('.roster-inspection-close');
  assert.equal(await page.locator('#roster-inspection-screen').isHidden(),true);
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-inspection-mode')),false);
- assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
+ assert.equal(await page.locator('.roster-cards .roster-preview-controls').count(),0,'inspection controls never overlap roster');
  // Turning the character must leave the camera and architecture fixed.
  const yawBefore=await page.locator('#roster-preview').getAttribute('data-yaw');
  await page.locator('#roster-preview canvas').focus();
