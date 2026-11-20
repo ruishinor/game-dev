@@ -791,6 +791,7 @@ const chestOf = (ent) => () => ent.chest;
 function onWelcome(m) {
   clearWorld();
   ui.questTracker.useCharacter(m.charId);
+  ui.setAbilityOwner(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
@@ -1415,9 +1416,9 @@ input.onAction = (code, e) => {
       const pet=S.ents.get(S.compId)?.meta.c;
       const mode=companionCommandKeys(pet)[i];
       if(mode && COMPANIONS[pet]?.modes[mode])net.send({t:'pet',c:mode});
-    } else if(def.abilities[i]){
-      net.send({t:'use',a:def.abilities[i]});
-    } else if(i===def.abilities.length){
+    } else if(ui.hotbarAssignment(i)&&ui.hotbarAssignment(i)!=='@companion'){
+      net.send({t:'use',a:ui.hotbarAssignment(i)});
+    } else if(ui.hotbarAssignment(i)==='@companion'){
       const eligible=S.ents.get(S.myId);
       if(eligible&&!eligible.dead&&!(eligible.row?.f&8)){
         if(S.compId)net.send({t:'pet_manage',action:'dismiss'});
@@ -1446,6 +1447,7 @@ input.onAction = (code, e) => {
       break;
     case 'Escape':
       e.preventDefault();
+      if(ui.cancelHotbarDrag())break;
       stopAutomaticMovement();
       // Dismiss an active window first. Otherwise open/close the corner
       // menu, preserving the existing escape-to-clear-target behaviour.
@@ -1481,7 +1483,8 @@ input.onAction = (code, e) => {
       ui.toggleQuestJournal();
       break;
     case 'KeyP':
-      ui.toggleParty();
+      if(e.shiftKey)ui.toggleParty();
+      else ui.toggleAbilityMatrix();
       break;
     case 'KeyO':
       ui.toggleSettings();

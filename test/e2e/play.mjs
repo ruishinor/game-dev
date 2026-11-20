@@ -728,7 +728,7 @@ try {
   check('11. player context menu opens from frames and nameplate; native menu suppressed elsewhere',allyMenu&&targetMenu&&plateMenu&&nativeSuppressed&&(await state(B)).target===sa.myId);
   await B.page.locator('.frame.ally').click({ button: 'right' });
   await B.page.getByRole('button', { name: 'Invite to party', exact: true }).click();
-  await A.page.keyboard.press('KeyP');
+  await A.page.keyboard.press('Shift+KeyP');
   await A.page.locator('.party-panel').getByRole('button', { name: 'Accept', exact: true }).click();
   await A.page.keyboard.press('Escape');
   check('11. the minimap identifies visible party members', await until(B,

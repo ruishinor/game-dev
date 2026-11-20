@@ -95,6 +95,12 @@ try{
  assert.equal((await slot1.textContent()).trim(),'1');
  await panel.getByRole('button',{name:'Back to Settings'}).click();
  await page.locator('.settings-panel .close').click();
+ // The independent Ability Matrix can recover assignments after Ctrl-drag removal.
+ await page.locator('#view').focus();await page.keyboard.press('KeyP');
+ const matrix=page.locator('.ability-matrix');await matrix.waitFor({state:'visible'});
+ assert.ok((await matrix.locator('.ability-matrix-entry').count())>=1,'Known class abilities must be recoverable');
+ await matrix.getByRole('button',{name:'Close Ability Matrix'}).click();
+ await matrix.waitFor({state:'hidden'});
  // Owner-approved HUD: there must not be a second summon/dismiss control
  // underneath the character and companion portraits.
  assert.equal(await page.locator('.summon-pet').count(),0);
