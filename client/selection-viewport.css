@@ -276,3 +276,55 @@ body.character-create-mode #creation-back{
  body.character-selection-mode #roster-preview canvas,
  body.character-create-mode #creation-preview canvas{transition:none!important;}
 }
+
+
+/* Capacity stays visible without scrolling even with six occupied slots. */
+body.character-selection-mode .roster-cards {
+ max-height:calc(100dvh - 210px)!important;
+ overflow:visible!important;
+}
+body.character-selection-mode .roster-cards #roster-list {
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-auto-rows:minmax(0,auto)!important;
+ gap:4px!important;
+ max-height:none!important;
+ overflow:visible!important;
+}
+body.character-selection-mode .roster-cards #roster-list .roster-select {
+ min-height:clamp(42px,6dvh,62px)!important;
+ margin:0!important;
+ padding:6px 13px!important;
+}
+body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy strong {
+ font-size:clamp(13px,1.1vw,17px)!important;
+}
+@media(max-width:720px){
+ body.character-selection-mode .roster-cards {
+  top:108px!important;height:auto!important;
+  max-height:190px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:3px!important;max-height:none!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select{
+  min-width:0!important;width:100%!important;
+  height:43px!important;min-height:43px!important;
+  padding:2px 7px!important;margin:0!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy small{
+  font-size:8px!important;line-height:1.2!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy strong{
+  font-size:11px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-slot-vacant{
+  width:100%!important;height:43px!important;min-height:43px!important;
+  font-size:10px!important;padding:3px!important;
+ }
+ body.character-create-mode #creation-fields{
+  height:min(46dvh,300px)!important;
+ }
+}
