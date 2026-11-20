@@ -23,12 +23,22 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const key=new THREE.DirectionalLight(environment?0xe5f1fa:0xffeee0,environment?3.25:3.2);key.position.set(3,5,4);scene.add(key);
  const rim=new THREE.DirectionalLight(0x84bedb,environment?2.25:1.8);rim.position.set(-3,2,-3);scene.add(rim);
  let renderer=null,models=[],keyState='',failed=false,visible=false;
- let yaw=.36,pitch=.10,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
+ let yaw=.08,pitch=.08,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const release=()=>{
   for(const {model} of models){scene.remove(model.group);model.dispose?.();}
   models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;
  };
+ const inspectToggle=root.querySelector('[data-preview-inspect]');
+ const inspectControls=root.querySelector('.preview-controls');
+ const setInspector=open=>{
+  if(!inspectToggle||!inspectControls)return;
+  inspectControls.hidden=!open;
+  inspectToggle.setAttribute('aria-expanded',String(open));
+  inspectToggle.textContent=open?'Close inspection':'Inspect character';
+ };
+ inspectToggle?.addEventListener('click',()=>setInspector(inspectControls.hidden));
+ setInspector(false);
  const labels=root.querySelector('[data-preview-frames]');
  const syncFrameSelection=frame=>{
   for(const button of labels.children)button.setAttribute('aria-pressed',String(button.dataset.frame===frame));
@@ -47,7 +57,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   }
   for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
  };
- const reset=()=>{yaw=.36;pitch=.10;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
+ const reset=()=>{yaw=.08;pitch=.08;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
  const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment ? 0.75 : 0.65,environment ? 1.9 : 2.4);root.dataset.zoom=String(zoom);dirty=true;};
  const observer=new IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);if(!visible)release();else dirty=true;},{threshold:0.05});
@@ -146,5 +156,5 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   }
  }
  function destroy(){observer.disconnect();motionPreference.removeEventListener('change',onMotionChange);release();environment?.dispose();renderer?.dispose();renderer?.forceContextLoss();renderer=null;failed=true;}
- return {update,release,active,destroy};
+ return {update,release,active,destroy,closeInspector:()=>setInspector(false)};
 }
