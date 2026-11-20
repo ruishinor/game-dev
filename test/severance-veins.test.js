@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SEVERANCE_VEINS, SEVERANCE_EXPANSE as E } from '../shared/severance-gate.js';
-import { OBJECTS, travelRegionAt } from '../shared/world.js';
+import { SEVERANCE_VEINS, SEVERANCE_EXPANSE as E, SEVERANCE_PROPS, pocketHeight } from '../shared/severance-gate.js';
+import { OBJECTS, COLLIDERS, travelRegionAt, resolveCollisions, hasLineOfSight } from '../shared/world.js';
 import { MATERIAL_CAP } from '../shared/crafting.js';
 import { makeGame, makeChar, place, run } from './helpers.js';
 import { interact } from '../server/sim/progress.js';
@@ -21,7 +21,7 @@ function setup() {
 const fragments = (p) => p.char.materials?.resonance_fragment || 0;
 
 test('veins stand in the Expanse on clear ground, away from patrol routes and the outpost', () => {
-  assert.equal(SEVERANCE_VEINS.length, 5);
+  assert.equal(SEVERANCE_VEINS.length, 15);
   for (const v of SEVERANCE_VEINS) {
     assert.equal(travelRegionAt(v.x, v.z), 'severance_expanse', v.key);
     assert.ok(Math.hypot(v.x - E.outpost.x, v.z - E.outpost.z) > E.outpost.r + 8, v.key + ' outside the outpost');
@@ -29,6 +29,109 @@ test('veins stand in the Expanse on clear ground, away from patrol routes and th
     assert.equal(o.type, 'resonant_vein');
     for (const other of OBJECTS) if (other !== o && Number.isFinite(other.r) && other.r > 0) assert.ok(Math.hypot(other.x - o.x, other.z - o.z) > other.r + o.r + 2, v.key + ' clear of ' + other.key);
     for (const r of SEVERANCE_PATROLS) for (const q of r.route) assert.ok(Math.hypot(q.x - v.x, q.z - v.z) > 5, v.key + ' off patrol waypoints');
+  }
+});
+
+
+const originalSitePositions = [
+  ['vein_pass', 4, -104], ['vein_flats_north', 50, 48],
+  ['vein_flats_east', 88, 2], ['vein_canyon_west', -56, -38],
+  ['vein_canyon_north', -94, 66],
+];
+const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+const distanceToFootprint = (a, b) => b.r != null
+  ? distance(a, b) - b.r
+  : Math.hypot(Math.max(0, Math.abs(a.x - b.x) - (b.hw ?? 0)),
+    Math.max(0, Math.abs(a.z - b.z) - (b.hd ?? 0)));
+const distanceToSegment = (a, b, c) => {
+  const dx = c.x - b.x, dz = c.z - b.z, squared = dx * dx + dz * dz;
+  const t = squared ? Math.max(0, Math.min(1, ((a.x - b.x) * dx + (a.z - b.z) * dz) / squared)) : 0;
+  return Math.hypot(a.x - (b.x + dx * t), a.z - (b.z + dz * t));
+};
+
+test('added veins preserve all old keys/positions and remain well separated across the Expanse', () => {
+  assert.deepEqual(SEVERANCE_VEINS.slice(0, originalSitePositions.length).map(
+    ({ key, x, z }) => [key, x - E.x, z - E.z]), originalSitePositions);
+  assert.equal(SEVERANCE_VEINS.length, 15);
+  const keys = SEVERANCE_VEINS.map((v) => v.key);
+  assert.equal(new Set(keys).size, keys.length, 'unique keys keep replenishment independent');
+  const additional = SEVERANCE_VEINS.slice(originalSitePositions.length);
+  assert.equal(additional.length, 10);
+  for (const v of additional) {
+    const margin = Math.min(E.hw - Math.abs(v.x - E.x), E.hd - Math.abs(v.z - E.z));
+    assert.ok(margin >= E.rim + 7, v.key + ': clear of impassable rim');
+    assert.equal(travelRegionAt(v.x, v.z), 'severance_expanse', v.key);
+    assert.ok(Math.hypot(v.x - E.outpost.x, v.z - E.outpost.z) > E.outpost.r + 8, v.key + ': outside the outpost buffer');
+    for (const other of SEVERANCE_VEINS) if (other !== v) {
+      assert.ok(distance(v, other) >= 20, v.key + ': separated from ' + other.key);
+    }
+    // The actual movement collider set includes massifs, cliffs, ruin walls,
+    // rocks, crystal formations and the outpost construction.
+    for (const obstacle of SEVERANCE_PROPS) if (obstacle.r != null || obstacle.hw != null) {
+      assert.ok(distanceToFootprint(v, obstacle) > v.r + 5,
+        v.key + ': clearance from ' + obstacle.type);
+    }
+    const ownObject = OBJECTS.find((obj) => obj.key === v.key);
+    assert.equal(ownObject?.type, 'resonant_vein', v.key + ': server object registered');
+    for (const other of OBJECTS) if (other !== ownObject && !other.embedded && (other.r != null || other.hw != null)) {
+      assert.ok(distanceToFootprint(v, other) > v.r + 4,
+        v.key + ': clear of object ' + other.key);
+    }
+    // A route is a sequence of segments, not only a set of discrete patrol
+    // waypoints. Keep harvesting off the travelled corridors entirely.
+    for (const patrol of SEVERANCE_PATROLS) {
+      for (let i = 1; i < patrol.route.length; i++) {
+        assert.ok(distanceToSegment(v, patrol.route[i - 1], patrol.route[i]) > 10,
+          v.key + ': clear of patrol travel corridor');
+      }
+    }
+    // At least one physically available, near-level F-key interaction spot
+    // must exist on the correct side of every node.
+    const available = Array.from({ length: 16 }, (_, i) => {
+      const a = i * 2 * Math.PI / 16;
+      const spot = { x: v.x + Math.cos(a) * 2.4, z: v.z + Math.sin(a) * 2.4 };
+      const resolved = resolveCollisions({ ...spot }, .45);
+      return Math.hypot(resolved.x - spot.x, resolved.z - spot.z) < .05
+        && Math.abs(pocketHeight(spot.x, spot.z) - pocketHeight(v.x, v.z)) < 1.5
+        && hasLineOfSight(spot, v, COLLIDERS);
+    }).filter(Boolean).length;
+    assert.ok(available >= 8, v.key + ': F-key harvest ring reachable without collision or terrain step');
+  }
+});
+
+// Coarse but connected movement check: from the existing arrival, every new
+// vein must be reachable without crossing an impassable world collider.
+// This is deliberately a layout test, not an alteration to gameplay pathing.
+test('additional veins have a connected walkable approach from the existing arrival terrace', () => {
+  const step = 4, minX = -132, minZ = -156, width = 67, depth = 79;
+  const cells = new Uint8Array(width * depth);
+  const visited = new Uint8Array(width * depth);
+  const cell = (x, z) => z * width + x;
+  const world = (x, z) => ({ x: E.x + minX + step * x, z: E.z + minZ + step * z });
+  for (let z = 0; z < depth; z++) for (let x = 0; x < width; x++) {
+    const p = world(x, z), q = resolveCollisions({ ...p }, .45);
+    cells[cell(x, z)] = Math.hypot(q.x - p.x, q.z - p.z) < .05 ? 1 : 0;
+  }
+  const sx = Math.round((E.arrival.x - E.x - minX) / step);
+  const sz = Math.round((E.arrival.z - E.z - minZ) / step);
+  assert.ok(cells[cell(sx, sz)], 'existing arrival terrace is accessible');
+  const queue = [cell(sx, sz)]; visited[queue[0]] = 1;
+  for (let index = 0; index < queue.length; index++) {
+    const id = queue[index], x = id % width, z = Math.floor(id / width);
+    for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = x + dx, nz = z + dz;
+      if (nx < 0 || nz < 0 || nx >= width || nz >= depth || !cells[cell(nx, nz)]) continue;
+      if (dx && dz && (!cells[cell(x + dx, z)] || !cells[cell(x, z + dz)])) continue;
+      const next = cell(nx, nz);
+      if (!visited[next]) { visited[next] = 1; queue.push(next); }
+    }
+  }
+  for (const v of SEVERANCE_VEINS.slice(originalSitePositions.length)) {
+    const approachable = queue.some((id) => {
+      const p = world(id % width, Math.floor(id / width));
+      return distance(p, v) < 3.5 && hasLineOfSight(p, v, COLLIDERS);
+    });
+    assert.ok(approachable, v.key + ': continuous walkable approach from the arrival');
   }
 });
 
