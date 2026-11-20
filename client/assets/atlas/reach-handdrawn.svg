@@ -12,7 +12,7 @@
   <radialGradient id="sanctum"><stop stop-color="#517980"/><stop offset=".65" stop-color="#325b60"/><stop offset="1" stop-color="#2c4542"/></radialGradient>
   <pattern id="grain" width="50" height="50" patternUnits="userSpaceOnUse"><circle cx="7" cy="11" r="1" fill="#b9c3ac" opacity=".09"/><circle cx="34" cy="29" r=".7" fill="#e2c9a4" opacity=".11"/><path d="M14 41l5-3m21-30l4 1" stroke="#c3d3b7" opacity=".08"/></pattern>
   <pattern id="hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(31)"><path d="M0 0V16" stroke="#a2b6a3" stroke-width=".6" opacity=".14"/></pattern>
-  <clipPath id="reach"><circle cx="500" cy="500" r="476"/></clipPath>
+  <clipPath id="reach"><circle cx="500" cy="500" r="500"/></clipPath>
   <filter id="rough" x="-12%" y="-12%" width="124%" height="124%"><feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="3" seed="21" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="8"/></filter>
   <g id="ridge" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M-40 7Q-18-4 0-12T38-17M-43 17Q-18 8 1 1T42-6M-37 27Q-9 17 12 10T43 5" stroke="#142a2b" stroke-width="3" opacity=".48"/><path d="M-40 4Q-14-6 5-13T38-17M-40 14Q-14 5 4-2T40-7" stroke="#8c9b88" stroke-width="1.3" opacity=".6"/></g>
   <g id="rock" fill="#51605d" stroke="#adb29f" stroke-width="1.7" stroke-linejoin="round"><path d="M-11 5l4-13 12-4 10 7 3 10-8 9-14 3z"/><path d="M-7-8l7 11 15 2M0 3l-4 14" fill="none" stroke="#232e33" stroke-width="1.5"/></g>
@@ -57,14 +57,14 @@
 <path d="M369 911Q510 958 660 902M376 923Q508 969 673 915"/>
 </g>
 <!-- Site-specific authored shapes, aligned to existing centres. -->
-<g transform="translate(533 185)" fill="none" stroke="#a79cc5"><circle r="71" stroke-width="4" opacity=".6"/><circle r="51" stroke-width="2" opacity=".68"/><circle r="27" stroke-width="1.5" opacity=".78"/><path d="M0-84V-62M0 63v21M-84 0h21M64 0h20" stroke-width="4"/><path d="M0-14L13 0 0 14-13 0z" fill="#544a6c" stroke="#c2b5d3" stroke-width="2"/></g>
-<g transform="translate(734 321)" stroke="#c6b5a0" stroke-width="5" fill="none" opacity=".75"><path d="M-68-43l84-13 35 34M-56 27l-11-46M26 46l44-25-3-43"/><path d="M-33-13l29-8 25 12 2 26-33 11-19-14z" stroke-width="3"/></g>
-<g transform="translate(739 609)" stroke="#a6a295" fill="none" stroke-width="5" opacity=".77"><path d="M-57-40v75h35M-43-40h31M16-34h48v55H38M-5 44h44"/><circle cx="8" cy="1" r="16" stroke-width="3"/><path d="M8-18v37M-12 1h38" stroke-width="2"/></g>
-<g transform="translate(207 457)" fill="none" stroke="#a6aba7" opacity=".8"><rect x="-44" y="-27" width="88" height="55" stroke-width="4"/><path d="M-32-15h65M-32 0h65M-32 14h65M-19-25v50M17-25v50" stroke-width="1.5" opacity=".5"/><path d="M45-10l25 0M45 11l25 0" stroke-width="3"/></g>
-<g transform="translate(190 293)" fill="none" stroke="#a3b9b5" opacity=".7"><path d="M-30 22L0-38 31 22M-19 24H21M0-38V39" stroke-width="3"/><circle r="41" stroke-dasharray="7 10" stroke-width="2"/></g>
-<g transform="translate(272 641)"><use href="#mycel" transform="translate(-35 -16) rotate(-21)"/><use href="#mycel" transform="translate(17 -15) scale(.8)"/><use href="#mycel" transform="translate(-4 35) scale(1.2)"/><use href="#mycel" transform="translate(49 36) scale(.65)"/></g>
-<g transform="translate(533 815)" fill="none" stroke="#e0ceae" stroke-width="3" opacity=".64"><path d="M-70-22Q-32-52 2-23T68-23M-80-2Q-32-27 3 2T78 2M-70 23Q-25-3 5 25T67 26M-51 48Q0 18 52 45"/></g>
-<g transform="translate(500 500)" fill="none" stroke="#b0d3d0" opacity=".85"><circle r="54" stroke-width="3"/><circle r="39" stroke-width="1.2" stroke-dasharray="3 5"/><path d="M0-61V61M-61 0H61" stroke-width="1.3"/><path d="M0-15L15 0 0 15-15 0z" fill="#476870" stroke-width="2"/></g>
+<g data-site="vault" transform="translate(533 185)" fill="none" stroke="#a79cc5"><circle r="71" stroke-width="4" opacity=".6"/><circle r="51" stroke-width="2" opacity=".68"/><circle r="27" stroke-width="1.5" opacity=".78"/><path d="M0-84V-62M0 63v21M-84 0h21M64 0h20" stroke-width="4"/><path d="M0-14L13 0 0 14-13 0z" fill="#544a6c" stroke="#c2b5d3" stroke-width="2"/></g>
+<g data-site="survey" transform="translate(734 321)" stroke="#c6b5a0" stroke-width="5" fill="none" opacity=".75"><path d="M-68-43l84-13 35 34M-56 27l-11-46M26 46l44-25-3-43"/><path d="M-33-13l29-8 25 12 2 26-33 11-19-14z" stroke-width="3"/></g>
+<g data-site="relay" transform="translate(739 609)" stroke="#a6a295" fill="none" stroke-width="5" opacity=".77"><path d="M-57-40v75h35M-43-40h31M16-34h48v55H38M-5 44h44"/><circle cx="8" cy="1" r="16" stroke-width="3"/><path d="M8-18v37M-12 1h38" stroke-width="2"/></g>
+<g data-site="deep" transform="translate(207 457)" fill="none" stroke="#a6aba7" opacity=".8"><rect x="-44" y="-27" width="88" height="55" stroke-width="4"/><path d="M-32-15h65M-32 0h65M-32 14h65M-19-25v50M17-25v50" stroke-width="1.5" opacity=".5"/><path d="M45-10l25 0M45 11l25 0" stroke-width="3"/></g>
+<g data-site="obelisk" transform="translate(190 293)" fill="none" stroke="#a3b9b5" opacity=".7"><path d="M-30 22L0-38 31 22M-19 24H21M0-38V39" stroke-width="3"/><circle r="41" stroke-dasharray="7 10" stroke-width="2"/></g>
+<g data-site="sporefield" transform="translate(272 641)"><use href="#mycel" transform="translate(-35 -16) rotate(-21)"/><use href="#mycel" transform="translate(17 -15) scale(.8)"/><use href="#mycel" transform="translate(-4 35) scale(1.2)"/><use href="#mycel" transform="translate(49 36) scale(.65)"/></g>
+<g data-site="sinter" transform="translate(533 815)" fill="none" stroke="#e0ceae" stroke-width="3" opacity=".64"><path d="M-70-22Q-32-52 2-23T68-23M-80-2Q-32-27 3 2T78 2M-70 23Q-25-3 5 25T67 26M-51 48Q0 18 52 45"/></g>
+<g data-site="sanctum" transform="translate(500 500)" fill="none" stroke="#b0d3d0" opacity=".85"><circle r="54" stroke-width="3"/><circle r="39" stroke-width="1.2" stroke-dasharray="3 5"/><path d="M0-61V61M-61 0H61" stroke-width="1.3"/><path d="M0-15L15 0 0 15-15 0z" fill="#476870" stroke-width="2"/></g>
 <!-- Scatter vegetation and rocky soil, not gameplay markers. -->
 <g opacity=".45">
 <use href="#copse" transform="translate(422 272) scale(.75)"/><use href="#copse" transform="translate(349 405) scale(.8)"/>
@@ -77,6 +77,6 @@
 <rect width="1000" height="1000" fill="url(#grain)" opacity=".7"/>
 <rect width="1000" height="1000" fill="url(#hatch)" opacity=".2"/>
 </g>
-<circle cx="500" cy="500" r="477" fill="none" stroke="#a5a58c" stroke-width="3" opacity=".7"/>
-<circle cx="500" cy="500" r="486" fill="none" stroke="#293a41" stroke-width="4"/>
+<circle cx="500" cy="500" r="497" fill="none" stroke="#a5a58c" stroke-width="3" opacity=".7"/>
+<circle cx="500" cy="500" r="499" fill="none" stroke="#293a41" stroke-width="4"/>
 </svg>

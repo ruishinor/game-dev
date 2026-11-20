@@ -178,6 +178,35 @@ export function reachAtlasContours(){
   return contours;
 }
 
+/** Position known-location labels away from live markers and other labels.
+ * Cosmetic only: marker coordinates, click targets and world positions are untouched.
+ * measure(name) returns a canvas text width in pixels.
+ */
+export function placeAtlasLabels(labels,markers,width,height,measure){
+  const placed=[],bounds=[];
+  const offsets=[{dx:0,dy:-19},{dx:0,dy:29},{dx:0,dy:-38},
+    {dx:0,dy:48},{dx:-28,dy:-24},{dx:28,dy:-24}];
+  for(const label of labels){
+    if(!Number.isFinite(label.x)||!Number.isFinite(label.y))continue;
+    const textWidth=Math.ceil(measure(label.name))+10;
+    for(const offset of offsets){
+      const x=label.x+offset.dx,y=label.y+offset.dy;
+      const b={left:x-textWidth/2,right:x+textWidth/2,top:y-14,bottom:y+4};
+      if(b.left<4||b.right>width-4||b.top<4||b.bottom>height-4)continue;
+      if(bounds.some(p=>b.left<p.right&&b.right>p.left&&b.top<p.bottom&&b.bottom>p.top))continue;
+      if(markers.some(m=>{
+        const cx=Math.max(b.left,Math.min(m.x,b.right));
+        const cy=Math.max(b.top,Math.min(m.y,b.bottom));
+        return (cx-m.x)**2+(cy-m.y)**2<(m.r+3)**2;
+      }))continue;
+      placed.push({...label,x,y});
+      bounds.push(b);
+      break;
+    }
+  }
+  return placed;
+}
+
 /** No enemy location or density information is eligible for world-map display. */
 export function atlasEntityCategory(meta,member=false){
   if(meta?.k==='p')return member?'party':'players';
