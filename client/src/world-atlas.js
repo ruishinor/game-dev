@@ -27,7 +27,7 @@ export function daylightDisplay(state){
  if(!state?.applied||!Number.isFinite(state.t))return null;
  // Existing renderer anchors: day/noon 0, dusk .25, night .5, dawn .75.
  const minutes=((Math.floor(state.t*1440)+720)%1440+1440)%1440;
- return {minutes,phase:minutes>=360&&minutes<1080?'day':'night',preview:true};
+ return {minutes,phase:minutes>=360&&minutes<1080?'day':'night',preview:state.mode!=='live'};
 }
 export function formatMinutes(minutes,format='24'){
  const hours=Math.floor(minutes/60)%24,m=String(minutes%60).padStart(2,'0');
@@ -112,15 +112,15 @@ export class WorldAtlas{
  const s=this.state?.daylight;
  const inExpanse=this.region?.area===SEVERANCE_POCKET;
  const d=inExpanse?daylightDisplay(s):null,n=new Date();
- // Keep the indicator discoverable even where the authoritative cycle has not landed.
+ // Use the authoritative cycle when present; a deliberate preview must say so.
  // A paired icon is intentionally neutral, not a claim about actual world time.
  this.day.hidden=!this.prefs.phase.checked;
  this.day.textContent=d?(d.phase==='day'?'☀ Day':'☾ Night'):'☀ / ☾';
- this.day.title=d?'Expanse lighting preview · '+d.phase:inExpanse?'Expanse day/night cycle not active yet':'No active day/night cycle in this region';
+ this.day.title=d?(d.preview?'Expanse lighting preview · ':'Expanse world time · ')+d.phase:inExpanse?'Expanse day/night cycle not active yet':'No active day/night cycle in this region';
  this.day.setAttribute('aria-label',this.day.title);
  this.day.dataset.status=d?'active':'pending';
  this.game.hidden=!this.prefs.game.checked;
- this.game.textContent=d?'Preview '+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time unavailable';
+ this.game.textContent=d?(d.preview?'Preview ':'Game ')+formatMinutes(d.minutes,this.prefs.gameFormat.value):'Game time unavailable';
  this.real.hidden=!this.prefs.real.checked;
  this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);
  this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;
