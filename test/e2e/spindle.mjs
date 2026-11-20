@@ -26,7 +26,7 @@ try {
     return page;
   }
   async function openSheet(page) {
-    await page.getByRole('button',{name:'Menu [M]',exact:true}).click();
+    await page.getByRole('button',{name:'Menu (Esc)',exact:true}).click();
     await page.getByRole('button',{name:'Companion Sheet',exact:true}).click();
     return page.getByRole('dialog',{name:'Companion Sheet'});
   }
