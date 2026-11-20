@@ -1024,3 +1024,45 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
   #hud .atlas-region{font-size:9px}
 }
 
+/* Atlas saved notes and live player overlay — 2026-11-20 */
+#hud .atlas-player-marker{
+  position:absolute;z-index:3;pointer-events:none;
+  display:grid;place-items:center;
+  width:23px;height:23px;
+  color:#efffff;font:900 19px/1 system-ui,sans-serif;
+  text-shadow:0 0 3px #00131e,0 1px 4px #000,0 0 8px #7bcbe0;
+  transform-origin:center;
+  will-change:transform,left,top;
+}
+#hud .atlas-player-marker[hidden]{display:none}
+#hud .atlas-tools .atlas-marker-title,
+#hud .atlas-tools .atlas-marker-note{
+  width:100%;box-sizing:border-box;
+  border:1px solid #465c66;border-radius:5px;
+  padding:8px 9px;color:#e2eef0;background:#0c161b;
+  font:12px/1.45 system-ui,sans-serif;
+}
+#hud .atlas-tools .atlas-marker-note{resize:vertical;min-height:56px;max-height:125px}
+#hud .atlas-tools .atlas-marker-title:focus-visible,
+#hud .atlas-tools .atlas-marker-note:focus-visible{outline:2px solid #76b5c7;outline-offset:2px}
+#hud .atlas-note-status{font-size:11px;line-height:1.35;color:#abc3cb}
+#hud .atlas-saved-list{display:grid;gap:5px;padding:4px 0 12px}
+#hud .atlas-saved-point{
+  display:grid;grid-template-columns:minmax(0,1fr) 27px;gap:3px;
+  border:1px solid #2f454f;border-radius:5px;
+  padding:4px;background:#15232a;
+}
+#hud .atlas-saved-point .atlas-saved-select{
+  min-width:0;text-align:left;border:0;background:transparent;
+  color:#c4e2eb;font-size:12px;overflow-wrap:anywhere;padding:3px 4px;
+}
+#hud .atlas-saved-point .atlas-saved-note{
+  grid-column:1;grid-row:2;font-size:10px;line-height:1.4;
+  margin:0;padding:2px 4px;color:#a4bbc2;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+#hud .atlas-saved-point .atlas-saved-delete{
+  grid-column:2;grid-row:1;align-self:start;min-width:27px;
+  width:27px;height:27px;padding:1px;font-size:18px;
+  background:#24363d;border-color:#4a626e;
+}
+
