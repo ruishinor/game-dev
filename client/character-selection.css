@@ -1,3 +1,25 @@
+
+/* Guest creation remains a legacy, distinct entry path. Ensure the shared
+   heading introduced for account creation is legible there as well, rather
+   than running three text nodes together in the default login layout. */
+#login-form .creation-section-heading{
+ display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+ margin:0 0 17px;padding:0 0 13px;
+ border-bottom:1px solid #35576a;
+}
+#login-form .creation-section-heading>span{
+ display:block;color:#8fb9ca;letter-spacing:.17em;
+ font:600 11px/1.4 'Segoe UI',sans-serif;
+}
+#login-form .creation-section-heading>strong{
+ display:block;color:#e7f0f5;
+ font:600 21px/1.25 Georgia,serif;
+}
+#login-form .creation-section-heading>small{
+ display:block;color:#a3bbc6;
+ font:12px/1.45 'Segoe UI',sans-serif;
+}
+
 /* Cinematic resonance vestibule UI. Its 3D scene is the composition, not a card.
    Palette: midnight shale, cold steel, restrained cyan. No beige/amber default. */
 .character-selection-mode #login{
