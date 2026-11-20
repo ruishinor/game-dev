@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
+import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
@@ -33,6 +34,7 @@ import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 import {createCreationPreview} from './creation-preview.js';
+import {CharacterRosterView} from './roster-view.js';
 import {createKestrelAlarm} from './kestrel-alarm.js';
 
 const INTERP_MS = 110;
@@ -147,6 +149,7 @@ const rich = () => !!cvfx && quality > 0;
 // Severance Expanse time-of-day review preview (?tod=day|dusk|night|dawn|loop|0..1). Off by default.
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
+attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1 });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
@@ -298,7 +301,7 @@ const net = new Net({
   onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
   onAccountReady: showRoster,
   onAccountFail: (reason) => {
-    const el = net.accountLogged && !$('character-roster').hidden ? $('roster-error') : $('account-error');
+    const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
     el.textContent = reason;
     if (!net.accountToken && /session expired/i.test(reason)) {
       clearWorld();
@@ -432,7 +435,27 @@ const creationPreview=createCreationPreview({
     buildAppearance();
   },
 });
+let lastRoster=null;
+const selectionView=new CharacterRosterView({root:$('character-roster'),assets,useGlb,motionPreference,
+  onEnter:id=>net.selectCharacter(id),onCreate:showCharacterCreation,
+  onDelete:(id,name)=>net.deleteCharacter(id,name)
+});
 let titleDrawAt=-Infinity;
+function showCharacterCreation(){
+  if(!net.accountLogged||!lastRoster)return;
+  $('character-roster').hidden=true;
+  $('login-form').hidden=false;
+  $('creation-back').hidden=false;
+  $('enter').textContent='Create character';
+  $('enter').disabled=false;
+  $('login-error').textContent='';
+  document.body.classList.remove('character-selection-mode');
+  document.body.classList.add('character-create-mode');
+  creationPreview.release();
+  $('name').focus({preventScroll:true});
+}
+function backToRoster(){if(lastRoster&&net.accountLogged)showRoster(lastRoster);}
+
 function buildAppearance() {
   const pick = (id, items, current, onPick, label) => {
     const wrap = $(id);
@@ -538,6 +561,9 @@ function buildLogin() {
 }
 
 function showAccountLogin(message = '') {
+  selectionView.release();
+  document.body.classList.remove('character-selection-mode','character-create-mode');
+  $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
   $('account-auth').hidden = false;
@@ -556,62 +582,29 @@ function showAccountLogin(message = '') {
 }
 
 function showRoster(m) {
-  input.enabled = false;
-  $('login').hidden = false;
-  $('hud').hidden = true;
-  $('resuming').hidden = true;
-  $('account-auth').hidden = true;
-  $('guest-note').hidden = true;
-  $('character-roster').hidden = false;
-  $('login-form').hidden = false;
-  $('enter').textContent = 'Create character';
-  $('enter').disabled = false;
-  $('roster-error').textContent = '';
-  $('login-error').textContent = '';
-  $('roster-title').textContent = `${m.handle}'s characters`;
-  $('link-legacy').hidden = !net.token;
-
-  const rows = $('roster-list');
-  rows.replaceChildren();
-  if (!m.chars.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = 'No characters yet. Create one below or link a previous guest character.';
-    rows.append(empty);
-  }
-  for (const c of m.chars) {
-    const row = document.createElement('div');
-    row.className = 'roster-row';
-    const info = document.createElement('div');
-    const name = document.createElement('strong');
-    name.textContent = c.name;
-    const detail = document.createElement('div');
-    detail.className = 'muted';
-    detail.textContent = `Level ${c.level} · ${CLASSES[c.cls]?.name || c.cls}`;
-    info.append(name, detail);
-    const actions = document.createElement('div');
-    actions.className = 'roster-actions';
-    const play = document.createElement('button');
-    play.textContent = 'Play';
-    play.addEventListener('click', () => net.selectCharacter(c.id));
-    const remove = document.createElement('button');
-    remove.className = 'remove';
-    remove.textContent = 'Delete';
-    remove.title = 'Permanent. Requires a second click.';
-    remove.addEventListener('click', () => {
-      if (remove.dataset.confirm === '1') net.deleteCharacter(c.id, c.name);
-      else {
-        remove.dataset.confirm = '1';
-        remove.textContent = 'Confirm delete';
-      }
-    });
-    actions.append(play, remove);
-    row.append(info, actions);
-    rows.append(row);
-  }
+  lastRoster=m;
+  input.enabled=false;
+  $('login').hidden=false;
+  $('hud').hidden=true;
+  $('resuming').hidden=true;
+  $('account-auth').hidden=true;
+  $('guest-note').hidden=true;
+  $('character-roster').hidden=false;
+  $('login-form').hidden=true;
+  $('creation-back').hidden=true;
+  $('enter').textContent='Create character';
+  $('enter').disabled=false;
+  $('roster-error').textContent='';
+  $('login-error').textContent='';
+  $('link-legacy').hidden=!net.token;
+  document.body.classList.remove('character-create-mode');
+  document.body.classList.add('character-selection-mode');
+  creationPreview.release();
+  selectionView.render(m);
 }
 
 function buildAccountUI() {
+  $('creation-back').addEventListener('click',backToRoster);
   $('account-form').addEventListener('submit', (e) => {
     e.preventDefault();
     $('account-error').textContent = '';
@@ -710,7 +703,7 @@ function addEntity(meta) {
       if(quality===0)lowSpec(next.group,true);
     } else {
       if (ent.meta.wv !== meta.wv) ent.model.setWeaponVisual?.(meta.wv);
-      if (ent.meta.av !== meta.av) ent.model.setArmourVisual?.(meta.av);
+      if (JSON.stringify(ent.meta.av || null) !== JSON.stringify(meta.av || null)) ent.model.setArmourVisual?.(meta.av);
       if (ent.meta.sv !== meta.sv) ent.model.setSocialVisual?.(meta.sv);
     }
     ent.meta = meta;
@@ -809,6 +802,8 @@ function onWelcome(m) {
   local.seq = 0;
   local.err = { x: 0, z: 0 };
   creationPreview.release();
+  selectionView.release();
+  document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -951,11 +946,11 @@ function onEvent(e) {
           s.faceUntil = now + 500;
         }
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
-        if (e.k === 'bolt' && d) {
+        if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
-          if(!rich()&&e.wv==='longpoint'&&s.placed&&d.placed&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
+          if(e.wv==='longpoint'&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
             legacyFx.beam(()=>muzzle,chestOf(d),LONGPOINT_TRACE.color,LONGPOINT_TRACE.life*1000,LONGPOINT_TRACE.width);
-          }else fx.bolt(() => (e.ab === 'auto' ? s.model.weaponEffectOrigin?.() : null) || s.chest, chestOf(d), sourceColour(s));
+          }else legacyFx.bolt(() => muzzle || s.chest, chestOf(d), sourceColour(s), 200, s.meta.k==='e'?'hostile':s.meta.c);
         }
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);
         if(d?.placed&&s.placed&&['rending_arc','core_bore','phase_needle','resonant_reversal'].includes(e.ab)){
@@ -1470,7 +1465,7 @@ input.onAction = (code, e) => {
       ui.toggleSettings();
       break;
     case 'KeyM':
-      ui.toggleMenu();
+      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -1719,6 +1714,7 @@ function updateEntities(dt, t, now) {
       act: row ? row.a : undefined,
       casting,
       reducedMotion: motionPreference.matches || quality===0,
+      effectsQuality: quality,
       electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
       electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
@@ -1885,7 +1881,7 @@ function frame(now) {
 
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
-    const inspecting=creationPreview.update(now,dt);
+    const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
@@ -1958,7 +1954,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [] });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;
@@ -2004,7 +2000,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, armourWornAll: e.model.armourWornAll?.() || null, armourFx: e.model.armourFxInfo?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
         ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),

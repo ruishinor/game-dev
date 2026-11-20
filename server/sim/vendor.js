@@ -12,7 +12,7 @@ import {repairPrice} from './condition.js';
 // catalogue; the Expedition Outpost quartermaster supplies the field.
 const STOCK=Object.freeze({
  quartermaster:Object.freeze({
-  materials:Object.freeze({mire_fibre:8,sentinel_alloy:12}),
+  materials:Object.freeze({mire_fibre:8,sentinel_alloy:12,pulse_housing:14}),
   equipment:Object.freeze({field_emitter:12,electrical_combat_rod:24,social_service_coat:8,social_relay_coat:12}),
   utilities:Object.freeze({field_maintenance_kit:12}),
   site:inSanctum,

@@ -95,6 +95,7 @@ class FitBody:
             Ps.append(P), Ns.append(Nn), Ws.append(Wd), src.append(np.full(len(P), k))
         self.P, self.N, self.Wd, self.src = np.concatenate(Ps), np.concatenate(Ns), np.concatenate(Ws), np.concatenate(src)
         self.surfaces = names
+        self.meshes = body["meshes"]
         ji = {n: i for i, n in enumerate(self.joints)}
         torso = self.Wd[:, [ji[n] for n in TORSO_JOINTS]].sum(1)
         arm = self.Wd[:, [i for n, i in ji.items() if n.startswith(ARM_PREFIX)]].sum(1)

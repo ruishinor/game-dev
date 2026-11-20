@@ -727,3 +727,107 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .workshop-window .recipe-entry{padding:4px 6px;gap:6px}
 .recipe-pagination{display:flex;gap:4px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:11px}
 .recipe-pagination button{font-size:11px;padding:4px 6px}
+
+/* Cinematic account character selection, shared gameplay model preview. */
+.character-selection-mode #login{padding:10px;background:radial-gradient(ellipse at 50% 45%,#101d25db,#04080ced 80%);}
+.character-selection-mode #login .login-card{width:min(1500px,100%);max-height:calc(100vh - 20px);padding:14px 24px 18px;overflow:auto;background:linear-gradient(145deg,#151c22f0,#0a1015ee 80%);border:1px solid #786c52;border-radius:3px;}
+.character-selection-mode #login h1{font-family:Georgia,serif;font-size:28px;color:#e6d9ba;letter-spacing:.11em;text-shadow:none;}
+.character-selection-mode #login .tagline{font-size:11px;color:#afb2ae;margin:0 0 7px;}
+#character-roster{border:0;background:none;padding:0;margin:0;}
+#character-roster .roster-head{padding:7px 5px 11px;border-bottom:1px solid #75684d;}
+#character-roster .roster-head h2{font:22px Georgia,serif;color:#eadbbd;}
+.roster-stage{min-height:280px;height:min(62vh,620px);display:grid;grid-template-columns:minmax(175px,22%) minmax(270px,1fr) minmax(190px,25%);gap:12px;align-items:stretch;background:radial-gradient(ellipse at 50% 42%,#28394282,#0b1218aa);}
+.roster-facts{display:flex;flex-direction:column;justify-content:flex-end;padding:26px 12px;color:#e9dfca;}
+.roster-level{font-size:12px;color:#cfbd94;letter-spacing:.08em;text-transform:uppercase;}
+#character-roster h3.roster-character-name{font:28px Georgia,serif;color:#f0dfb9;text-transform:none;letter-spacing:.02em;margin:7px 0 16px;}
+.roster-fact{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #5f635c80;font-size:12px;}
+.roster-fact strong{font-weight:500;text-align:right;}
+#roster-preview{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+#roster-preview canvas{display:block;flex:1;min-height:0;width:100%;height:100%;outline:none;touch-action:none;cursor:grab;}
+#roster-preview canvas:active{cursor:grabbing;}
+#roster-preview .roster-preview-controls{position:absolute;bottom:33px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;max-width:98%;}
+#roster-preview .roster-preview-controls button{font-size:11px;padding:4px 7px;background:#19262acc;border-color:#89795c;border-radius:2px;color:#d9d0b9;}
+#roster-preview [data-preview-status]{position:absolute;bottom:1px;left:0;width:100%;font-size:10px;text-align:center;pointer-events:none;text-shadow:0 1px 4px #000;color:#c3c7c1;}
+.roster-cards{overflow-y:auto;padding:15px 5px 12px;}
+.roster-cards h3{font:16px Georgia,serif;color:#e4d5b1;text-transform:none;letter-spacing:0;margin:5px 0 15px;}
+.roster-cards .roster-row{border:1px solid #70654c;background:linear-gradient(90deg,#35372f,#171f24);padding:5px;gap:4px;margin:0 0 7px;border-radius:2px;}
+.roster-select{min-width:0;flex:1;display:grid;gap:3px;text-align:left;border:0;background:none;padding:8px 10px;color:#e9dfc9;}
+.roster-select strong{font:16px Georgia,serif;color:inherit;}
+.roster-select[aria-pressed=true]{outline:1px solid #c6ad7e;outline-offset:-2px;background:linear-gradient(90deg,#66513c88,#383b3666);}
+.roster-select .muted{font-size:10px;color:#c2c3b7;}
+.roster-direct-play{flex:0 0 auto;padding:6px 8px;font-size:11px;border-color:#786a50;}
+#roster-capacity{margin:15px 6px 0;font-size:12px;color:#bfb9a5;text-align:right;}
+.roster-footer{display:flex;justify-content:center;align-items:center;gap:12px;padding:14px 0 5px;}
+.roster-footer button{min-width:135px;border-radius:3px;border-color:#98805a;background:#242e31;color:#e8d7b4;}
+.roster-footer #roster-enter{background:linear-gradient(180deg,#62553e,#312d27);font:17px Georgia,serif;padding:10px 22px;color:#fae7c2;}
+.roster-footer .danger{margin-top:0;color:#f4b1aa;}
+.roster-delete-confirm{margin:9px auto 0;padding:13px 16px;border:1px solid #ab7770;background:#291f22;max-width:580px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.roster-delete-confirm p{width:100%;margin:0;color:#f0c0b0;}
+.roster-delete-confirm label{font-size:12px;}
+.roster-delete-confirm input{background:#111a20;color:#f7e9e0;border:1px solid #a58b7a;padding:6px;min-width:125px;}
+.roster-delete-confirm .danger{margin:0;}
+#character-roster .legacy-link{margin:9px 0 0;max-width:520px;color:#aeb6b4;font-size:12px;}
+#character-roster .legacy-link summary{cursor:pointer;}
+.character-create-mode #login .login-card{max-height:calc(100vh - 20px);overflow:auto;}
+#creation-back{display:block;margin:0 0 12px;background:#1a2529;border-color:#8f7d5e;}
+@media(max-width:790px){.roster-stage{grid-template-columns:minmax(150px,1fr) minmax(220px,2fr);height:auto;min-height:440px}.roster-facts{grid-column:1;grid-row:1;padding:12px;justify-content:center}.roster-cards{grid-column:1;grid-row:2;max-height:200px}.roster-stage #roster-preview{grid-column:2;grid-row:1 / span 2;min-height:440px}.roster-footer{flex-wrap:wrap}.roster-footer button{min-width:110px;}}
+@media(max-width:520px){.roster-stage{display:flex;flex-direction:column;min-height:0;}.roster-facts{order:2;padding:8px 12px}.roster-stage #roster-preview{order:1;min-height:325px;height:45vh;flex:none}.roster-cards{order:3;max-height:200px;padding:8px}.roster-footer button{flex:1;min-width:105px}.character-selection-mode #login .login-card{padding:9px;}}
+
+/* HUD / cartography foundation. Original Attunement materials, no donor UI art. */
+#hud .frame.player,#hud .frame.pet,#hud .frame.ally{
+ --unit-metal:#a99770;position:relative;background:linear-gradient(145deg,#303433ed,#10171ce8 55%,#1a2529ed);
+ border:1px solid #817859;border-radius:3px;padding:6px 8px 7px 54px;min-height:55px;
+ box-shadow:inset 0 0 0 1px #111a20,0 2px 6px #0007;
+}
+#hud .frame.player{width:min(240px,46vw);padding-left:66px;min-height:78px;}
+#hud .frame.pet{margin-left:18px;width:min(204px,42vw);}
+#hud .frame.ally{width:min(212px,44vw);min-height:62px;}
+.unit-portrait{position:absolute;left:4px;top:5px;width:44px;height:44px;object-fit:contain;border-radius:50%;border:2px solid #9e8a60;background:radial-gradient(circle,#53645e,#172124 70%);box-shadow:0 0 0 2px #161b1c;pointer-events:none;}
+.frame.player .unit-portrait{width:56px;height:56px;top:9px;}
+.frame.ally.party-member-live .unit-portrait{border-color:#80a994;}
+.frame.ally:not(.party-member-live){border-color:#59656a;}
+.frame .name{color:#f0e6cf;font-size:13px;}
+.frame .sub{color:#b7bcb4;font-size:10px;}
+.frame .bar{border:1px solid #736b53;border-radius:2px;background:#0a1215;}
+.frame .bar.hp .fill{background:linear-gradient(#65ad80,#286049);}
+.frame .bar.res .fill{background:linear-gradient(#63acc6,#275f78);}
+.frame .bar.res.charge .fill{background:linear-gradient(#d6ab5f,#925c25);}
+.party{top:205px;gap:7px;max-height:calc(100vh - 330px);overflow-y:auto;}
+.frame .buffs{gap:3px;}
+.frame .chip{border-radius:2px;font-size:9px;padding:1px 3px;}
+.frame .chip[data-effect]::before{content:'◆';display:inline-block;margin-right:3px;color:#afd8b6;}
+.frame .chip.bad[data-effect]::before{content:'◇';color:#ffaaa0;}
+.bars{width:min(630px,calc(100vw - 24px));}
+.actionbar{max-width:min(580px,calc(100vw - 68px));gap:4px;}
+.slot,.auto-toggle{border-radius:3px;border:1px solid #a18a62;background:linear-gradient(145deg,#46514c,#17232b 72%);box-shadow:inset 0 0 0 2px #101a20;}
+.slot{width:clamp(30px,4.3vw,48px);height:clamp(30px,4.3vw,48px);}
+.slot.small{width:34px;height:34px;border-radius:3px;}
+.slot .icon{color:#d3d8c7;}
+.slot.small .icon{color:#a9cfc4;}
+.slot.active{box-shadow:inset 0 0 0 2px #9acbb1;}
+.bars .bar.xp{max-width:350px;}
+.side{width:min(230px,40vw);gap:5px;}
+.minimap{display:block;width:min(186px,33vw);border-radius:50%;border:3px double #c1ab7c;box-shadow:0 0 0 2px #282b25,0 3px 9px #0009;background:#172025;}
+.map-controls{display:flex;gap:4px;align-items:center;justify-content:flex-end;width:100%;}
+.map-controls button{padding:3px 8px;font-size:11px;border-color:#817556;border-radius:3px;background:#172127ed;}
+.map-clock-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:flex-end;text-align:right;font-size:11px;font-variant-numeric:tabular-nums;color:#eedcaa;}
+.map-day,.map-game-clock,.map-real-clock{padding:3px 6px;background:#111a20e8;border:1px solid #817556;border-radius:3px;}
+.map-day{color:#f5d68d;line-height:14px;font-size:15px;}
+.zone-label{color:#e2d1a4;text-transform:none;letter-spacing:.04em;}
+.world-atlas{position:absolute;inset:4vh 3vw;z-index:35;background:#111a20f8;border:1px solid #9e8b63;display:flex;flex-direction:column;box-shadow:0 12px 40px #000c;color:#e8e0cd;overflow:hidden;}
+.atlas-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #6e634a;}
+.atlas-header h2{font:600 22px Georgia,serif;color:#e8d4ad;}
+.atlas-body{display:grid;grid-template-columns:minmax(175px,22%) minmax(0,1fr);flex:1;min-height:0;}
+.atlas-tools{padding:14px;overflow:auto;display:flex;flex-direction:column;gap:6px;border-right:1px solid #6e634a;}
+.atlas-tools input[type=search]{width:100%;padding:8px;color:#e8e0cd;background:#0b1217;border:1px solid #817556;border-radius:3px;}
+.atlas-tools label{font-size:13px;cursor:pointer;}
+.atlas-details{font-size:12px;color:#dbca9c;}
+.atlas-results{display:grid;gap:4px;}
+.atlas-results button{text-align:left;font-size:12px;padding:5px 7px;border-color:#5b645e;}
+.atlas-view{position:relative;min-height:0;min-width:0;overflow:hidden;}
+.atlas-view canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;}
+.atlas-view canvas:active{cursor:grabbing;}
+.atlas-controls{position:absolute;right:12px;bottom:12px;display:flex;gap:5px;flex-wrap:wrap;}
+.atlas-controls button,.atlas-header button{border-color:#8d7d56;background:#1b262b;}
+.settings-panel{max-height:calc(100vh - 32px);overflow:auto;}
+@media(max-width:650px){.world-atlas{inset:8px;}.atlas-body{grid-template-columns:minmax(120px,36%) minmax(0,1fr);}.atlas-tools{padding:8px;}.atlas-header h2{font-size:16px;}.atlas-controls{right:4px;bottom:4px;}.atlas-controls button{padding:4px;font-size:10px;}.frame.player .unit-portrait{width:42px;height:42px;}#hud .frame.player{padding-left:50px;}}

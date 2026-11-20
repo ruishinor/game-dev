@@ -56,6 +56,7 @@ try{
  assert.ok(phase.includes('opening'),'Expected opening after indexer activation, observed '+phase.join(', '));
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='unstable');
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:interference-membrane')));
+ assert.ok(await page.evaluate(()=>{const r=window.__attune.gfx.scene.getObjectByName('rift:phase-scar');return ['rift:depth-veil','rift:filaments','rift:field-motes','rift:footprint-halo'].every(n=>r?.getObjectByName(n));}),'Reach rift retains enhanced atmosphere');
  await page.evaluate(()=>window.__attune.pause(false));
  // Keep the fixture outside the hazard and use normal F interaction to stabilize.
  await page.screenshot({path:'rift-evidence/01-open.png'});
@@ -147,7 +148,9 @@ try{
    const membrane=root.getObjectByName('rift:interference-membrane');
    const pos=root.getWorldPosition(root.position.clone());
    return membrane?.material.uniforms.uStable.value===1&&membrane.material.uniforms.uPhase.value>0.5
-    &&!root.getObjectByName('rift:persistent-warning')&&Math.hypot(pos.x-x,pos.y-y,pos.z-z)<.15;
+    &&!root.getObjectByName('rift:persistent-warning')
+    &&['rift:depth-veil','rift:filaments','rift:field-motes','rift:footprint-halo'].every(n=>root.getObjectByName(n))
+    &&Math.hypot(pos.x-x,pos.y-y,pos.z-z)<.15;
  },{x:beacon.x,y:groundHeight(beacon.x,beacon.z),z:beacon.z},{polling:250});
  await page.screenshot({path:'rift-evidence/06-return-rift-approach.png'});
  await page.locator('#view').focus();

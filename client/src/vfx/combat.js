@@ -13,6 +13,7 @@
 import { CELL } from './textures.js';
 import { hot, shieldEnvelope } from './engine.js';
 import { LONGPOINT_TRACE } from '../longpoint.js';
+import { finiteVector, projectileStyle } from '../projectile-presentation.js';
 
 export const PALETTE = {
   kinetic: 0xff9a3c, kineticHot: 0xffd08a,
@@ -120,7 +121,7 @@ export class CombatVfx {
   /** Any damage event (auto-attacks and abilities); `kind` from the server. */
   hit(d, s, e) {
     // Confirmed Longpoint hits use the real fitted muzzle and a narrow trace.
-    // Other class projectiles retain their existing effects.
+    // Other ranged families use directional trails; preserve this fitted trace.
     const muzzle=e.ab==='auto'&&e.k==='bolt'&&e.wv==='longpoint'&&s?.placed&&s!==d?s.model?.weaponEffectOrigin?.():null;
     if(muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
       const from=muzzle.clone(),to=d.chest.clone();
@@ -166,34 +167,36 @@ export class CombatVfx {
   /** A projectile from s to d; class decides its form. */
   bolt(s, d, onArrive, weaponOrigin = null) {
     const v = this.v;
-    const a = weaponOrigin?.isVector3 && [weaponOrigin.x, weaponOrigin.y, weaponOrigin.z].every(Number.isFinite) ? weaponOrigin.clone() : s.chest.clone();
-    const len = a.distanceTo(d.chest);
+    const origin=weaponOrigin?.isVector3&&finiteVector(weaponOrigin)?weaponOrigin:s.chest;
+    if(!finiteVector(origin)||!finiteVector(d.chest)){onArrive?.();return;}
+    const a=origin.clone(),end=d.chest.clone();
+    const len = a.distanceTo(end);
     const life = Math.min(0.42, Math.max(0.12, len / 45));
     const c = s.meta.k === 'e' ? PALETTE.hostile : this.colour(s);
     const cls = s.meta.k === 'e' ? 'hostile' : s.meta.c;
-    const head = cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? CELL.diamond : CELL.glow;
+    const visual=projectileStyle(cls);
     // trail() samples follow() synchronously: seed at the actual emitter.
     const at = [a.x, a.y, a.z];
     const prev = [a.x, a.y, a.z];
-    v.burst({ at: a, count: 3, cell: CELL.glow, color: hot(c, 0.5), color2: c, size: [0.25, 0.4], sizeEnd: 0.05, life: 0.18, speed: [0.3, 1] });
+    v.burst({ at: a, count: 2, cell: CELL.streak, color: hot(c, .18), color2: c, size: [.065,.10], sizeEnd: .025, life: .11, speed: [.4,.8], alpha: .7 });
     // A continuous trail gives each discipline a readable path shape:
     // kinetic/hostile slugs leave hot streaks, symbiote spores a beaded
     // organic filament, resonance a double ribbon, survey a thin trace.
     const follow = () => at;
     const style = cls === 'symbiotech' ? 2 : 0;
-    const width = cls === 'surveyor' ? 0.035 : cls === 'symbiotech' ? 0.07 : cls === 'keeper' ? 0.06 : 0.08;
-    v.trail({ follow, life, length: cls === 'symbiotech' ? 0.22 : 0.12, fade: 0.14, width, color: hot(c, 0.55), color2: c, style, alpha: 0.85 });
+    v.trail({ follow, life, length: cls === 'symbiotech' ? 0.22 : 0.12, fade: 0.14, width:visual.width, color: hot(c, .18), color2: c, style, alpha: .82 });
     if (cls === 'keeper') v.trail({ follow: () => [at[0], at[1] + Math.sin(at[0] * 9 + at[2] * 9) * 0.06, at[2]], life, length: 0.18, fade: 0.18, width: 0.03, color: 0xd8ecff, color2: PALETTE.resonance, style: 0, alpha: 0.6 });
     v.emitter({
       life,
       tick: (k) => {
-        const b = d.chest;
-        at[0] = a.x + (b.x - a.x) * k;
-        at[1] = a.y + (b.y - a.y) * k + Math.sin(k * Math.PI) * (cls === 'symbiotech' ? 0.6 : 0.15);
-        at[2] = a.z + (b.z - a.z) * k;
-        const vel = [(at[0] - prev[0]) * 20, (at[1] - prev[1]) * 20, (at[2] - prev[2]) * 20];
-        v.burst({ at, count: 1, exact: true, cell: head, color: hot(c, 0.6), size: cls === 'surveyor' ? 0.32 : 0.45, life: 0.05, speed: 0 });
-        if (cls === 'keeper' || cls === 'surveyor' || cls === 'hostile') v.burst({ at, count: 1, exact: true, cell: CELL.streak, color: hot(c, 0.3), size: 0.18, life: 0.07, speed: 0, dir: vel });
+        if(finiteVector(d.chest))end.copy(d.chest);
+        at[0] = a.x + (end.x - a.x) * k;
+        at[1] = a.y + (end.y - a.y) * k + Math.sin(k * Math.PI) * (cls === 'symbiotech' ? 0.6 : 0.15);
+        at[2] = a.z + (end.z - a.z) * k;
+        const vel = [at[0]-prev[0],at[1]-prev[1],at[2]-prev[2]];
+        // No luminous spherical head. A narrow, velocity-aligned streak and the
+        // existing class trail provide a bounded and saturated flight silhouette.
+        if(Math.hypot(...vel)>1e-6)v.burst({at,count:1,exact:true,cell:CELL.streak,color:hot(c,.18),color2:c,size:visual.head,sizeEnd:.03,life:.05,speed:.8,dir:vel,spread:0,stretch:visual.stretch,alpha:.8});
         v.burst({ at, count: 2, cell: cls === 'symbiotech' ? CELL.spore : cls === 'keeper' ? [CELL.runeA, CELL.runeB, CELL.ember] : CELL.ember, color: hot(c, 0.3), color2: c, size: [0.05, 0.12], sizeEnd: 0.01, life: [0.2, 0.45], speed: [0.1, 0.6], drag: 2, gravity: cls === 'symbiotech' ? -0.5 : 0.5, turb: cls === 'symbiotech' ? 0.8 : 0.3, turbScale: 3 });
         if (k >= 1 && onArrive) {
           const f = onArrive;
