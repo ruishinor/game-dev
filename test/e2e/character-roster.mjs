@@ -38,6 +38,13 @@ try{
  assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),1,'one creation action, not six redundant cards');
  assert.equal(await page.locator('#roster-create').isEnabled(),true);
  assert.equal(await page.locator('#roster-settings').isVisible(),true);
+ // The menu must use the genuine in-game gateway asset, not a cyan procedural
+ // surrogate. Loading the file alone does not prove visual quality, but it
+ // prevents another dashboard/placeholder substitution from passing CI.
+ await page.waitForFunction(
+  ()=>document.querySelector('#roster-preview')?.dataset.sceneAsset==='severance-gate-glb',
+  null,{timeout:90000}
+ );
  const viewport=await page.locator('#roster-preview canvas').boundingBox();
  assert.ok(viewport.width>1000 && viewport.height>700,'3D vestibule must occupy the viewport');
  if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
@@ -47,6 +54,10 @@ try{
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
+ await page.waitForFunction(
+  ()=>document.querySelector('#creation-preview')?.dataset.sceneAsset==='severance-gate-glb',
+  null,{timeout:90000}
+ );
  assert.equal(await page.locator('#creation-preview .preview-controls').isHidden(),true,'creation camera tools collapse by default');
  await page.click('#creation-preview [data-preview-inspect]');
  assert.equal(await page.locator('#creation-preview [data-preview-inspect]').getAttribute('aria-expanded'),'true');
@@ -86,6 +97,15 @@ try{
   'inspection controls must sit to the left of the centre character');
  await page.click('#roster-preview [data-preview-inspect]');
  assert.equal(await page.locator('#roster-preview .roster-preview-controls').isHidden(),true);
+ // Turning the character must leave the camera and architecture fixed.
+ const yawBefore=await page.locator('#roster-preview').getAttribute('data-yaw');
+ await page.locator('#roster-preview canvas').focus();
+ await page.keyboard.press('ArrowRight');
+ await page.waitForFunction(
+  before=>document.querySelector('#roster-preview')?.dataset.yaw!==before,
+  yawBefore
+ );
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-scene-asset'),'severance-gate-glb');
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  if(evidence){
   await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
