@@ -40,6 +40,7 @@ export class CharacterRosterView{
   this.deleteButton=root.querySelector('#roster-delete');this.deleteArea=root.querySelector('#roster-delete-confirm');
   this.deleteName=root.querySelector('#roster-delete-name');this.deleteSubmit=root.querySelector('#roster-delete-submit');
   this.selectionPreview=root.querySelector('#roster-preview');
+  this.transition=root.querySelector('#roster-world-transition');
   this.capacity=root.querySelector('#roster-capacity');
   this.preview=createCreationPreview({
    root:this.selectionPreview,assets,useGlb,motionPreference,variant:'selection',
@@ -67,6 +68,7 @@ export class CharacterRosterView{
  }
  setBusy(busy,action=null){
   this.busy=busy;this.action=busy?action:null;
+  this.transition.hidden=!(busy&&action==='enter');
   this.enter.textContent=busy&&action==='enter'?'Entering World…':'Enter World';
   this.enter.disabled=busy||!this.selected;
   this.create.disabled=busy||this.characters.length>=this.maxSlots;
