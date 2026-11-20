@@ -178,6 +178,9 @@
   font-weight:500;
 }
 #hud .map-day{font-size:12px}
+#hud .map-day[data-status="pending"]{color:#a8c0c9;background:#15242c;border-color:#46616b}
+#hud .frame.player,#hud .frame.pet,#hud .frame.ally{--unit-metal:#66828c}
+#hud .frame.pet.mode-assist{border-left-color:#77a6b4}
 #hud .side .quest-tracker-group{max-width:100%}
 #hud .side .quest-tracker-header{gap:4px}
 #hud .side .quest-tracker-header button{font-size:10px;padding:3px 6px}
