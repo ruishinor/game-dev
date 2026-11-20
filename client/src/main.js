@@ -1445,8 +1445,12 @@ input.onAction = (code, e) => {
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
       break;
     case 'Escape':
+      e.preventDefault();
       stopAutomaticMovement();
-      if (!ui.closePanels() && S.target) setTarget(0);
+      // Esc dismisses the active window first. With no open window it toggles
+      // the corner menu. Clearing an active target stays possible via F1 and
+      // world selection, but is not allowed to block the requested menu.
+      if (!ui.closePanels()) ui.toggleMenu();
       break;
     case 'F1':
       e.preventDefault();
@@ -1481,7 +1485,8 @@ input.onAction = (code, e) => {
       ui.toggleSettings();
       break;
     case 'KeyM':
-      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
+      e.preventDefault();
+      ui.toggleAtlas();
       break;
     case 'KeyH':
       ui.toggleHelp();
