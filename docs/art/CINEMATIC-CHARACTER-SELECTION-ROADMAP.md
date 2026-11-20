@@ -2,6 +2,25 @@
 
 Owner brief: 2026-11-20. Feature branch: `feat/cinematic-character-selection-world-entry`.
 
+## Second owner screenshot review — account roster, 20 November 2026, 19:31 CET
+
+The owner retested **commit `c318651`** locally and supplied a genuine screenshot showing the account-owned character **Tish**, Level 1 Symbiotech Conductor, actual saved class/appearance and `1 / 6` occupied slots. This confirms the *account* roster is rendering a persistent character and the earlier six-empty-card defect is corrected. It does **not** establish visual acceptance.
+
+**Owner screenshot deficiencies:**
+- A huge foreground ring overwhelms the stage, the background gate structure is partly cropped, and visible architecture shows little fine material detail.
+- The full-body character is still awkwardly framed; the horizontal camera controls sit directly across the feet/shins and the center floor.
+- The current real Symbiotech Conductor gameplay mesh still has a conspicuous block over the lower face and insufficient facial/equipment quality. Replacing it with a fictional menu-only model is forbidden.
+- Primary and secondary buttons now exist, but their layout competes with the model instead of supporting it.
+
+**Second corrective batch, not yet visually accepted:**
+- Rebalanced the staging: subtle 1.56 m raised deck instead of giant round Sanctum platform; backdrop gate moved deeper and scaled; original Sanctum GLB components measured and normalized to human-scale heights rather than arbitrary multipliers; removed massive foreground kit disc.
+- Default camera yaw reduced to .08 radians to align the live character with the portal; both creator and selection retain drag, keyboard, bounded zoom and reduced-motion compatibility.
+- Collapsed the intrusive toolbar into an accessible **Inspect character** disclosure, closed by default; controls now appear to one side and disappear on switch. Added focused E2E assertions for inspector/default visibility and primary-action nonoverlap.
+- Replaced the Conductor's shared-gameplay floating mouth-block (in `client/src/looks.js`) with a lower-profile chamfered chin receiver and smaller side vents; affected game and menu use the *same* asset. Geometry fit still requires screenshot review.
+
+**Acceptance and test gates:** The earlier `c318651` roster browser CI passed, but that applies to **pre-correction code only**. It also reported a follow/inventory timeout inside the existing browser fixture and an HUD accessibility ctrl-drag assertion; these cannot be attributed to these scene corrections without investigation. After this batch, obtain fresh roster/creation browser captures and re-check the authentic model in both, with a particular focus on feet visibility, portal position, popup overlays and accessory fit. Owner approval not given. **Keep #180 draft/unmerged and #185 open.**
+
+---
 ## Owner visual rejection and corrective pass — 2026-11-20
 
 The owner performed a **real local test** of PR #180 at `http://127.0.0.1:8082/` using an isolated preview worktree (previous branch commit `2fe561b`). **Visual acceptance failed.** Source screenshots, provided in the conversation, show:
