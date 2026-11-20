@@ -1447,10 +1447,12 @@ input.onAction = (code, e) => {
     case 'Escape':
       e.preventDefault();
       stopAutomaticMovement();
-      // Esc dismisses the active window first. With no open window it toggles
-      // the corner menu. Clearing an active target stays possible via F1 and
-      // world selection, but is not allowed to block the requested menu.
-      if (!ui.closePanels()) ui.toggleMenu();
+      // Dismiss an active window first. Otherwise open/close the corner
+      // menu, preserving the existing escape-to-clear-target behaviour.
+      if (!ui.closePanels()) {
+        if (S.target) setTarget(0);
+        ui.toggleMenu();
+      }
       break;
     case 'F1':
       e.preventDefault();
