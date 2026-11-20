@@ -192,6 +192,24 @@
 #hud .menu>.menubtn{font-size:11px;padding:5px 9px;border-color:#74694d;border-radius:3px;background:#122027dd}
 #hud .menu .net{font-size:10px;min-width:auto;opacity:.7}
 
+#hud .menu>.hud-icon-btn{
+  display:grid;place-items:center;
+  width:35px;height:35px;min-width:35px;min-height:35px;
+  padding:6px;
+  color:#d7e5e9;
+  border:1px solid #4c6773;
+  border-radius:5px;
+  background:linear-gradient(#21323c,#0c1821);
+}
+#hud .menu>.hud-icon-btn svg{display:block;width:21px;height:21px;pointer-events:none}
+#hud .menu>.hud-icon-btn:hover,
+#hud .menu>.hud-icon-btn:focus-visible{background:#304853;border-color:#8eb6c5;outline-offset:2px}
+@media(max-width:700px){
+  #hud .menu>.hud-icon-btn{width:30px;height:30px;min-height:30px;min-width:30px;padding:5px}
+  #hud .menu>.hud-icon-btn svg{width:18px;height:18px}
+}
+
+
 @media(max-width:1100px){
   #hud .frame.player{width:min(224px,41vw);min-height:64px;padding-left:58px}
   #hud .frame.player .unit-portrait{width:46px;height:46px}
