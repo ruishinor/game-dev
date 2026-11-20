@@ -14,6 +14,7 @@ import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
+import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
@@ -76,6 +77,8 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Three existing licensed compact firearm meshes; Longpoint remains the authored original.
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
