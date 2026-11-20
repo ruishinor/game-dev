@@ -7,6 +7,9 @@ on:
       - 'client/style.css'
       - 'client/character-selection.css'
       - 'client/selection-blueprint.css'
+      - 'client/selection-viewport.css'
+      - 'client/src/creation-sections.js'
+      - 'client/assets/character-selection-gate.webp'
       - 'client/src/selection-blueprint-environment.js'
       - 'client/src/looks.js'
       - 'client/src/selection-environment.js'
@@ -35,6 +38,7 @@ jobs:
       - run: node --check client/src/selection-environment.js
       - run: node --check client/src/selection-blueprint-environment.js
       - run: node --check client/src/creation-preview.js
+      - run: node --check client/src/creation-sections.js
       - run: npx playwright install --with-deps chromium
       - name: Live roster journey and screenshots
         timeout-minutes: 15
