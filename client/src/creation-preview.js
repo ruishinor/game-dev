@@ -2,6 +2,7 @@
 // metadata. Preview state is presentation-only, never character authority.
 import * as THREE from '/vendor/three/three.module.js';
 import {createModel} from './characters.js';
+import {createSelectionEnvironment} from './selection-environment.js';
 import {encodeAppearance, FRAMES, normalizeAppearance} from '../../shared/appearance.js';
 
 export function createCreationPreview({root,assets,useGlb,motionPreference,getMeta,selectFrame,variant='creation'}){
@@ -9,31 +10,18 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.01,100);
  scene.background=new THREE.Color(0x132029);
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
- if(variant==='selection'){
-  // A small original architectural presentation stage, never the world or an Expanse asset.
-  scene.background=new THREE.Color(0x0a1016);
-  scene.fog=new THREE.Fog(0x0a1016,9,22);
-  const stone=new THREE.MeshStandardMaterial({color:0x3f4c50,roughness:.85,metalness:.15});
-  const bronze=new THREE.MeshStandardMaterial({color:0x82775e,roughness:.65,metalness:.55});
-  const base=new THREE.Mesh(new THREE.CylinderGeometry(2.8,3.1,.18,48),stone);
-  base.position.y=-.17;scene.add(base);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(2.5,.035,8,72),bronze);
-  ring.rotation.x=-Math.PI/2;ring.position.y=-.067;scene.add(ring);
-  for(const side of [-1,1]){
-   const monolith=new THREE.Mesh(new THREE.BoxGeometry(.65,4.6,.75),stone);
-   monolith.position.set(side*2.4,2,-3);monolith.rotation.z=side*.065;scene.add(monolith);
-   const inlay=new THREE.Mesh(new THREE.BoxGeometry(.07,3.2,.04),bronze);
-   inlay.position.set(side*2.4,2,-2.59);scene.add(inlay);
-  }
-  const lintel=new THREE.Mesh(new THREE.BoxGeometry(5.7,.55,1.0),stone);
-  lintel.position.set(0,4.55,-3);scene.add(lintel);
-  const halo=new THREE.Mesh(new THREE.TorusGeometry(1.4,.025,8,72),bronze);
-  halo.position.set(0,2.25,-2.85);scene.add(halo);
-  const atmosphere=new THREE.PointLight(0xc7b6a0,.8,10);atmosphere.position.set(0,3.8,-1.9);scene.add(atmosphere);
+ const environment=variant==='selection'?createSelectionEnvironment(scene):null;
+ if(environment){
+  scene.background=new THREE.Color(0x050b12);
+  scene.fog=new THREE.FogExp2(0x07111b,.032);
+  // Cooler neutral lighting respects the character's *actual* material colours.
+  scene.children.find(obj=>obj.isHemisphereLight).color.setHex(0xc3deec);
+  scene.children.find(obj=>obj.isHemisphereLight).groundColor.setHex(0x172330);
+  scene.children.find(obj=>obj.isHemisphereLight).intensity=1.65;
  }
 
- const key=new THREE.DirectionalLight(0xffeee0,3.2);key.position.set(3,5,4);scene.add(key);
- const rim=new THREE.DirectionalLight(0x91cfdf,1.8);rim.position.set(-3,2,-3);scene.add(rim);
+ const key=new THREE.DirectionalLight(environment?0xe6f3ff:0xffeee0,environment?2.9:3.2);key.position.set(3,5,4);scene.add(key);
+ const rim=new THREE.DirectionalLight(0x77b2d8,environment?1.75:1.8);rim.position.set(-3,2,-3);scene.add(rim);
  let renderer=null,models=[],keyState='',failed=false,visible=false;
  let yaw=.36,pitch=.10,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -61,7 +49,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  };
  const reset=()=>{yaw=.36;pitch=.10;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
- const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),.65,2.4);root.dataset.zoom=String(zoom);dirty=true;};
+ const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment?.75:.65,environment?1.9:2.4);root.dataset.zoom=String(zoom);dirty=true;};
  const observer=new IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);if(!visible)release();else dirty=true;},{threshold:0.05});
  observer.observe(canvas);
  const onMotionChange=()=>{dirty=true;};
@@ -82,8 +70,8 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  function update(now,dt){
   if(!active())return false;
   const meta=getMeta();
-  const appearance=normalizeAppearance(meta.ap,meta.a);
-  const choices=mode==='frames'
+  const appearance=meta?normalizeAppearance(meta.ap,meta.a):null;
+  const choices=!meta?[]:mode==='frames'
    ?Object.values(FRAMES).map(({id})=>({...meta,ap:encodeAppearance({...appearance,frame:id})}))
    :[meta];
   const specs=choices.map(choice=>({choice,glb:useGlb(choice)}));
@@ -114,15 +102,24 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      entry.width=Math.hypot(size.x,size.z);
     }
     keyState=next;
-    root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
-    status.textContent=models.every(({model})=>model.kind==='glb')?(models.length===1?'Live gameplay character':'Live gameplay models'):'Simplified gameplay asset; full model unavailable';
+    if(models.length){
+     root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
+     status.textContent=models.every(({model})=>model.kind==='glb')?'Actual gameplay model · drag to rotate':'Simplified gameplay model · detailed asset unavailable';
+    }else status.textContent='Select a character';
+
    }
-   if(mode==='frames')syncFrameSelection(appearance.frame);
+   if(mode==='frames'&&appearance)syncFrameSelection(appearance.frame);
    const d=renderer.getSize(new THREE.Vector2());
    if(d.x!==w||d.y!==h)renderer.setSize(w,h,false);
    const size=models.length;
+   environment?.update(now/1000,motionPreference.matches);
    const step=Number.isFinite(lastDraw)?clamp((now-lastDraw)/1000,0,.1):dt;
    renderer.setScissorTest(size>1);
+   if(!size){
+    camera.aspect=w/h;camera.position.set(1.2,4.1,12.5);
+    camera.lookAt(0,2.9,-4.5);camera.updateProjectionMatrix();
+    renderer.setViewport(0,0,w,h);renderer.render(scene,camera);
+   }
    for(const [i,{model,center,height,width}] of models.entries()){
     for(const entry of models)entry.model.group.visible=entry.model===model;
     const left=Math.floor(w*i/size),viewWidth=Math.max(1,Math.floor(w*(i+1)/size)-left);
@@ -144,6 +141,6 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    return false;
   }
  }
- function destroy(){observer.disconnect();motionPreference.removeEventListener('change',onMotionChange);release();renderer?.dispose();renderer?.forceContextLoss();renderer=null;failed=true;}
+ function destroy(){observer.disconnect();motionPreference.removeEventListener('change',onMotionChange);release();environment?.dispose();renderer?.dispose();renderer?.forceContextLoss();renderer=null;failed=true;}
  return {update,release,active,destroy};
 }
