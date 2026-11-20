@@ -49,3 +49,11 @@ test('world-map categories exclude hostiles even from delivered snapshots',()=>{
   assert.equal(groups.reduce((n,m)=>n+m.count,0),3);
   assert.deepEqual(clusterMapMarkers([{x:NaN,y:2,category:'objects'}]),[]);
 });
+
+test('source-grounded atlas biome colours are distinct and retain material identity',()=>{
+  const sites=[ZONES.sporefield,ZONES.sinter,ZONES.vault,ZONES.survey,ZONES.deep,ZONES.sanctum];
+  const colors=sites.map(p=>atlasTerrainColor(p.x,p.z));
+  assert.equal(new Set(colors.map(v=>v.slice(0,3).join(','))).size,sites.length);
+  assert.ok(colors[1][0]>colors[0][0],'Sinter sand must be warmer than Sporefield growth');
+  assert.ok(colors[5][1]>colors[2][1],'Sanctum and Vault must not share the same tint');
+});
