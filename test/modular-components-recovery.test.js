@@ -5,7 +5,7 @@ import { dealDamage } from '../server/sim/combat.js';
 import { openLoot,takeLoot,lootState } from '../server/sim/loot.js';
 import { openVendor,tradeVendor,vendorState } from '../server/sim/vendor.js';
 import { craftRecipe,equipItem,unequipSlot } from '../server/sim/progress.js';
-import { previewRecipe,previewProduction,productionTime,RECIPES } from '../shared/crafting.js';
+import { previewRecipe,previewProduction,productionQuantities,productionTime,RECIPES } from '../shared/crafting.js';
 import { beginProduction,tickProduction } from '../server/sim/production.js';
 import { weaponBonus } from '../shared/condition.js';
 
@@ -78,6 +78,7 @@ test('missing, installed and forged parts fail atomically and the original upgra
  assert.equal(previewRecipe({...p.char,materials:{vector_matrix:1}},'combine_pulse_module').ok,false);
  assert.equal(previewRecipe({...p.char,materials:{pulse_housing:1,pulse_module:1,kinetic_coupler:2,resonance_fragment:1}},'assemble_dense_core_modular').ok,false,'late recipe still requires progression');
  assert.equal(previewRecipe({...p.char,materials:{__proto__:{vector_matrix:99}}},'combine_pulse_module').ok,false);
+ assert.deepEqual(productionQuantities(RECIPES.extract_vector_matrix),[1],'unique donor extraction never advertises impossible batch sizes');
  assert.equal(RECIPES.dense_pulse_core.target,'tuned_emitter');
  assert.equal(RECIPES.assemble_dense_core_modular.output.item,'dense_pulse_core');
  assert.ok(productionTime(RECIPES.assemble_dense_core_modular)>0);

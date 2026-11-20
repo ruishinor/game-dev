@@ -105,7 +105,8 @@ export function canFabricateAt(recipe,site){return !!recipe && (site==='sanctum'
 
 export function productionQuantities(recipe) {
   const units = recipe.output.count || 1;
-  return recipe.output.item ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
+  // A unique equipment donor cannot supply five or ten extraction cycles.
+  return recipe.output.item || recipe.target || recipe.targets?.length ? [1] : [units, 5, 10].filter((count, index, all) => count % units === 0 && all.indexOf(count) === index);
 }
 
 export function productionTime(recipe) {
