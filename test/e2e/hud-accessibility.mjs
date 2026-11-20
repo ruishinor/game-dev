@@ -87,6 +87,24 @@ try{
  await panel.getByRole('button',{name:'Back to Settings'}).click();
  await page.locator('.settings-panel .close').click();
  await mkdir('test/e2e/out',{recursive:true});
+ for(const viewport of [{width:1280,height:860},{width:1366,height:768},{width:1920,height:1080},{width:320,height:720}]){
+   await page.setViewportSize(viewport);
+   const layout=await page.evaluate(()=>{
+     const box=s=>document.querySelector(s)?.getBoundingClientRect();
+     const player=box('.frame.player'),portrait=box('.frame.player .unit-portrait');
+     const map=box('.minimap'),action=box('.action-row');
+     const width=window.innerWidth;
+     return {width,playerRight:player?.right??0,portraitLeft:portrait?.left??0,
+       mapLeft:map?.left??0,mapRight:map?.right??0,
+       actionLeft:action?.left??0,actionRight:action?.right??0};
+   });
+   assert.ok(layout.playerRight<layout.mapLeft,'Unit strip and minimap must not overlap at '+viewport.width);
+   assert.ok(layout.portraitLeft>=-2,'Portrait must remain visible at '+viewport.width);
+   assert.ok(layout.mapRight<=layout.width+2,'Minimap must not clip at '+viewport.width);
+   assert.ok(layout.actionLeft>=-2&&layout.actionRight<=layout.width+2,'Main hotbar must fit at '+viewport.width);
+   await page.screenshot({path:'test/e2e/out/hud-'+viewport.width+'x'+viewport.height+'.png'});
+ }
+ await page.setViewportSize({width:1280,height:860});
  await page.screenshot({path:'test/e2e/out/hud-accessibility.png'});
  assert.deepEqual(errors,[]);
  console.log('PASS readable HUD, head portrait frame, visible day/night, companion summon/dismiss, slot visibility and hotkeys');
