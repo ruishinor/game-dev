@@ -109,10 +109,18 @@ export function productionQuantities(recipe) {
 }
 
 export function productionTime(recipe) {
-  if (recipe.kind === 'fusion') return 2600;
-  if (recipe.kind === 'upgrade') return 1900;
-  if (recipe.discipline === 'Research') return 1450;
-  return 1100;
+  // Keep the established Longpoint progression and quick consumable service.
+  // Sustained equipment work and component fabrication expose the authored
+  // preparation, working and inspection stages at a useful time scale.
+  if (recipe.output.item === 'longpoint_emitter') return 1900;
+  if (recipe.output.goods) return recipe.discipline === 'Research' ? 1450 : 1100;
+  if (recipe.kind === 'fusion') return 9000;
+  if (recipe.kind === 'upgrade') return 6500;
+  if (recipe.kind === 'restore') return 4000;
+  if (recipe.output.material) return recipe.discipline === 'Research' ? 4000 : 3000;
+  if (recipe.discipline === 'Research') return 5500;
+  if (recipe.kind === 'assembly') return 5000;
+  return 4000;
 }
 
 // The consequence is part of the player-facing recipe quote.

@@ -8,6 +8,7 @@ import { MATERIALS, RECIPES, previewRecipe, canFabricateAt, productionQuantities
 import { GOODS } from '../../shared/goods.js';
 import {recoveryRank} from '../../shared/recovery.js';
 import {disciplineProgress,disciplineDuration} from '../../shared/crafting-disciplines.js';
+import { productionEstimate } from './production-presentation.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
@@ -258,15 +259,16 @@ export function updateProduction(ui) {
   const body = ui.workshopBody;
   if (!job || !body.querySelector('.workshop-cycle-progress')) return;
   const cycle = body.querySelector('.workshop-cycle-progress');
+  const display=ui.productionDisplay??productionEstimate(job);
   cycle.max = job.total;
-  cycle.value = job.total - job.ms;
+  cycle.value = (display?.cycle??0)*cycle.max;
   const batch = body.querySelector('.workshop-batch-progress');
   if (batch) {
     batch.max = job.cycles;
-    batch.value = job.complete + cycle.value / cycle.max;
+    batch.value = display?.overall??job.complete;
   }
   const units = RECIPES[job.id].output.count || 1;
-  const text = `${job.complete * units} / ${job.quantity} produced`;
+  const text = `${display?.stage??'Working'} · ${job.complete * units} / ${job.quantity} produced`;
   const status = body.querySelector('.workshop-production-status');
   if (status.textContent !== text) status.textContent = text;
 }
