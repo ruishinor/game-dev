@@ -2,6 +2,27 @@
 
 Owner brief: 2026-11-20. Feature branch: `feat/cinematic-character-selection-world-entry`.
 
+## Reference-lock implementation pivot — 20 November 2026 (supersedes invented scene)
+
+The owner supplied the original cinematic MMORPG selection screenshot **again**, plus multiple real Attunement **Severance Gate** images at different daylight/activation states and a 35-second local walkthrough. These are **binding art and composition references**, not inspiration for another generic vestibule. The owner rejected all previous partial blue/cyan procedural gate adjustments. Earlier roadmap paragraphs describing the invented resonance vestibule are historical, not current design approval.
+
+**Implemented in the isolated PR branch after the rejection:**
+
+- Completely **retired** the improvised rectangular Sanctum gate, huge circular dais, cyan rings and oversized invented scenery. The old import module is now a compatibility re-export into `selection-blueprint-environment.js`.
+- The selection and creation scenes load the **actual existing Severance Gate Near-scene GLB** from `/client/assets/severance_gate.glb`, served by the existing game HTTP router. The loader uses the same Meshopt decoder as the gameplay asset factory and caches the decode between roster and creator. No GLB copy is checked into the PR. This uses established 3D art rather than an image-only or procedurally invented substitute.
+- Presentation-only custom camera staging (small published base scale, behind real character), sculpted/texture-mapped dark canyon terrain, existing rune/channel material colours, faint orbital bands, shaft and motes. No modifications to `client/src/severance-gate.js`, `shared/severance-gate.js`, the Expanse, Silent Foundry or their authority/travel state. This is a **menu visual**, not a gameplay instance.
+- Reference-based UI overlay: actual selected full-body model approximately central-left, truthful identity/progression lower left, actual account-owned roster upper right, restrained bottom Enter World and secondary actions. Empty slots are truthful, no fake residents or classes.
+- **Rotation now turns the actual character group**, not the camera and every environmental asset. Reduced camera pitch range; no large background swings while inspecting gear/face. Character model remains the exact existing `createModel` output with account-owned visual metadata, not a better-looking nonpersisted stand-in.
+- The existing model is framed against the gateway at human scale, with less cyan exposure and no circular stage. Creation uses the same scene while leaving class and physical customization as real inputs.
+- The stage GLB starts loading during the login module load, shares a cached immutable source and exposes a definite `data-scene-asset=severance-gate-glb` readiness state. Browser coverage must observe genuine GLB loading in **both** creation and selection; no procedural placeholder can pass.
+- World entry now uses a temporary veil until the server-owned local character is placed and at least one gameplay camera frame is rendered, preventing the previously seen empty title-camera/aerial interstitial. Existing simulation and input contracts remain unchanged.
+
+**Unverified/blocked:** No approved running screenshot has yet been taken of this *specific* new branch commit. The raw menu GLB has a faithful geometric/texture basis but its standalone material adaptation and stage positioning require actual browser evidence; do not call it 1:1 or visually accepted until inspected. Multi-race/model fidelity, facial detail, equipment fit, 320px layout, reduced motion, GLB fallback, GPU latency, authoritative enter/return are also acceptance gates. Issue #185 remains the separate character-asset quality blocker. PR #180 stays draft and **must not merge** on source inspection alone.
+
+**Security review:** Existing server-owned selection/creation/entry/deletion are unchanged. The menu consumes the already browser-accessible Gate GLB, with no private drop rates or hidden mechanics. No new secret files, persistence schema, rewards, world-collider, source imagery or server-visible actor state are introduced.
+
+---
+
 ## Second owner screenshot review — account roster, 20 November 2026, 19:31 CET
 
 The owner retested **commit `c318651`** locally and supplied a genuine screenshot showing the account-owned character **Tish**, Level 1 Symbiotech Conductor, actual saved class/appearance and `1 / 6` occupied slots. This confirms the *account* roster is rendering a persistent character and the earlier six-empty-card defect is corrected. It does **not** establish visual acceptance.
