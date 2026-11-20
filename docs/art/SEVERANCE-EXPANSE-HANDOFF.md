@@ -118,7 +118,7 @@ Capture tools: `tools/severance-expanse-capture.mjs` covers views 01–25, inclu
   - Art: `resonant_vein.glb`, built by `asset_pipeline/blender/resonant_vein.py`, plus `client/src/resonant-vein.js`, which drives the crystal shader states.
   - Captures: `node tools/vein-capture.mjs <dir>`.
 - **The Scrapyard (enemy camp).**
-  - Location: the south-west basin at u -104, v -126 from the Expanse centre, inside a ring palisade with an east entrance.
+  - Location: the south-west basin at u -88, v -146 from the Expanse centre, inside a ring palisade with an east entrance.
   - Art: `salvage_camp.glb`, built by `asset_pipeline/blender/salvage_camp.py`. The pieces are placed from `SALVAGE_CAMP_PIECES`, and the colliders are derived from the same data.
   - Garrison (server-only, `server/sim/severance-camps.js`): two Scrapyard Sentinels, two Yard Drones and the elite Forge Overseer.
   - Per-instance elite multipliers (`e.elite = {hp, dmg}`) are applied in `ai.js` (`baseHp`) and `combat.js`. Elites hold their posts and cannot be rooted. Snapshots carry only `el` and `vx`.

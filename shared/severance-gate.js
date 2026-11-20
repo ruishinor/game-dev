@@ -144,7 +144,7 @@ export const SEVERANCE_VEINS = Object.freeze(VEINS.map(([key, u, v], i) => Objec
 // scrap (salvage_camp.glb pieces). Visible layout and colliders only; who
 // guards it, their levels and posts are server-only (server/sim/severance-camps.js).
 // Local frame: +u east (the entrance faces east), +v north; metres.
-export const SALVAGE_CAMP = Object.freeze({ key: 'salvage_yard', name: 'Scrapyard', ...at(-104, -126), r: 12, wall: 10 });
+export const SALVAGE_CAMP = Object.freeze({ key: 'salvage_yard', name: 'Scrapyard', ...at(-88, -146), r: 12, wall: 10 });
 const CAMP_DECOR = [
   // piece, u, v, yaw (rad, three.js rotation.y), colliders [[du, dv, r]] in the piece frame
   ['CK_Forge', -5, 0.5, Math.PI / 2, [[0, 0, 1.45]]],
