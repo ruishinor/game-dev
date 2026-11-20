@@ -1167,3 +1167,84 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 #hud .atlas-legend {display:none!important}
 #hud .atlas-details[hidden],#hud .atlas-waypoint-details[hidden],#hud .atlas-note-status[hidden]{display:none!important}
 #hud .atlas-tools .atlas-saved-panel .atlas-saved-picker{width:100%;max-width:100%}
+
+/* --- Attunement gate: account sign-in over the owner-supplied key art ---
+   The key art (client/login/gate-2560.webp) has its form area painted out;
+   the live form is laid over the same spot. .gate-stage reproduces the art's
+   background-size: cover box, so stage percentages and cqw/cqh track the art
+   at any aspect ratio. */
+@font-face{font-family:'Cinzel';src:url('/client/login/cinzel-latin-600-normal.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap;}
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important;}
+.gate-art,#account-auth.gate{display:none;}
+.gate-mode #login{display:flex;flex-direction:column;align-items:stretch;padding:0 0 9vh;background:#07090c;overflow-x:hidden;overflow-y:auto;scroll-behavior:smooth;}
+.gate-mode .gate-art{display:block;position:fixed;inset:0;background:#07090c url('/client/login/gate-2560.webp') 50% 50%/cover no-repeat;}
+.gate-mode #account-auth.gate{display:block;}
+#account-auth.gate{--gold:#d9b36f;--gold-hi:#f6dda3;--ink-warm:#efe6d4;position:relative;flex:none;height:100vh;height:100dvh;min-height:500px;margin:0;padding:0;border:0;border-radius:0;background:none;overflow-x:clip;container-type:size;color:var(--ink-warm);}
+.gate-stage{position:absolute;left:50%;top:50%;width:max(100cqw,177.78cqh);aspect-ratio:16/9;transform:translate(-50%,-50%);container-type:size;pointer-events:none;}
+.gate-stage>*{pointer-events:auto;}
+#account-form.gate-form{position:absolute;left:50%;top:33.06%;transform:translateX(-50%);width:min(30.6cqw,calc(100vw - 32px),900px);margin:0;display:flex;flex-direction:column;align-items:center;gap:max(8px,2.2cqh);--h:max(44px,min(5.92cqh,72px));--fs:clamp(15px,2cqh,22px);}
+.gate-field{position:relative;display:flex;align-items:center;width:min(27.6cqw,100%,820px);height:var(--h);padding:0 calc(var(--h)*.42);gap:calc(var(--h)*.24);transition:filter .18s;}
+.gate-field-wide{width:min(29.9cqw,100%,870px);}
+.gate-frame,.gate-frame::after{position:absolute;inset:0;clip-path:polygon(calc(var(--h)*.26) 0,calc(100% - var(--h)*.26) 0,100% 50%,calc(100% - var(--h)*.26) 100%,calc(var(--h)*.26) 100%,0 50%);}
+.gate-frame{z-index:0;background:linear-gradient(90deg,#8d6f3fb0,#e8c88a 18%,#c9a466 50%,#e8c88a 82%,#8d6f3fb0);transition:background .18s;}
+.gate-frame::after{content:'';inset:1.5px;background:linear-gradient(180deg,#0b0c0ee6,#121214e0 55%,#08090be8);}
+.gate-field>:not(.gate-frame){position:relative;z-index:1;}
+.gate-icon,.gate-reveal svg{flex:none;width:calc(var(--h)*.46);height:calc(var(--h)*.46);fill:none;stroke:var(--gold);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.gate-sep{flex:none;width:1px;height:calc(var(--h)*.5);background:linear-gradient(#d9b36f00,#d9b36fcc,#d9b36f00);}
+#account-form .gate-field input{flex:1;width:auto;min-width:0;height:100%;padding:0 2px;margin:0;border:0;border-radius:0;background:transparent;color:var(--ink-warm);font:400 var(--fs)/1 'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:.02em;caret-color:var(--gold-hi);}
+#account-form .gate-field input::placeholder{color:#e4dccbd9;opacity:1;}
+#account-form .gate-field input:focus-visible{outline:none;}
+#account-form .gate-field input:-webkit-autofill{-webkit-text-fill-color:var(--ink-warm);caret-color:var(--gold-hi);transition:background-color 99999s;box-shadow:0 0 0 40px #0d0e10 inset;}
+.gate-field:focus-within{filter:drop-shadow(0 0 7px #ffc86b8c);}
+.gate-field:focus-within .gate-frame{background:linear-gradient(90deg,#c9a466,#ffe7b0 20%,#f0cf8f 50%,#ffe7b0 80%,#c9a466);}
+.gate-reveal{flex:none;display:grid;place-items:center;width:calc(var(--h)*.7);height:calc(var(--h)*.7);margin-right:calc(var(--h)*-.12);padding:0;border:0;border-radius:50%;background:none;}
+#account-auth .gate-reveal:hover:not(:disabled){background:#d9b36f1f;}
+.gate-reveal[aria-pressed='true'] svg{stroke:var(--gold-hi);}
+.gate-reveal[aria-pressed='true'] svg path{stroke-dasharray:none;}
+.gate-reveal[aria-pressed='true']::after{content:'';position:absolute;width:56%;height:1.5px;background:var(--gold-hi);transform:rotate(-38deg);border-radius:1px;}
+.gate-reveal:focus-visible{outline:1.5px solid var(--gold-hi);outline-offset:1px;}
+/* Gold metal SIGN IN plate: outer gold line, dark gap (inset shadow), brushed face. */
+#account-auth #account-signin{position:relative;isolation:isolate;width:min(100%,920px);height:max(48px,min(6.9cqh,84px));margin:0;padding:0 calc(var(--h)*.5);border:0;border-radius:0;background:none;color:#1e1408;font:600 clamp(17px,2.9cqh,32px)/1 'Cinzel',Georgia,'Times New Roman',serif;letter-spacing:.17em;text-transform:uppercase;text-shadow:0 1px 0 #f7dfa680;filter:drop-shadow(0 0 9px #f2a24a4d) drop-shadow(0 3px 6px #000a);transition:filter .18s;}
+#account-signin::before,#account-signin::after{content:'';position:absolute;z-index:-1;clip-path:polygon(calc(var(--h)*.34) 0,calc(100% - var(--h)*.34) 0,100% 50%,calc(100% - var(--h)*.34) 100%,calc(var(--h)*.34) 100%,0 50%);}
+#account-signin::before{inset:0;background:linear-gradient(180deg,#fff0c4,#b88c4c 50%,#f2d597);}
+#account-signin::after{inset:2px;background:radial-gradient(ellipse 60% 140% at 50% 40%,#f6dca0aa,#0000 70%),repeating-linear-gradient(100deg,#ffffff0a 0 2px,#0000 2px 7px),linear-gradient(180deg,#e7c482,#c99b58 46%,#ae8040 54%,#d6af6c);box-shadow:inset 0 0 0 2px #4a3416,inset 0 0 0 3.5px #f0d39466,inset 0 -8px 18px #6b46184d;}
+#account-auth #account-signin:hover:not(:disabled){background:none;filter:drop-shadow(0 0 14px #ffb45c80) drop-shadow(0 3px 6px #000a) brightness(1.07);}
+#account-auth #account-signin:focus-visible{outline:none;filter:drop-shadow(0 0 3px #fff3cf) drop-shadow(0 0 14px #ffc86bcc) brightness(1.08);}
+#account-auth #account-signin:active:not(:disabled){filter:drop-shadow(0 0 6px #f2a24a66) brightness(.95);}
+.gate-link,.gate-switch{border:0;border-radius:2px;background:none;padding:2px 4px;cursor:pointer;}
+#account-auth .gate-link:hover:not(:disabled),#account-auth .gate-switch:hover:not(:disabled){background:none;color:var(--gold-hi);}
+.gate-link:focus-visible,.gate-switch:focus-visible,.gate-guest:focus-visible,.gate-note a:focus-visible{outline:1.5px solid var(--gold-hi);outline-offset:3px;}
+.gate-link{position:relative;margin-top:max(2px,.4cqh);color:#ece5d6;font-size:clamp(14px,1.95cqh,20px);text-shadow:0 1px 4px #000;}
+.gate-link::after{content:'';position:absolute;left:-6%;right:-6%;bottom:-.45em;height:1px;background:linear-gradient(90deg,#d9b36f00,#e8c88a 30%,#fff1c6 50%,#e8c88a 70%,#d9b36f00);}
+.gate-mode #account-error{margin:0;min-height:1.2em;max-width:100%;text-align:center;color:#ffb4a6;font-size:clamp(13px,1.7cqh,16px);text-shadow:0 1px 3px #000,0 0 8px #000;}
+.gate-mode #account-error:empty{display:none;}
+.gate-note{width:min(100%,560px);margin:0;padding:10px 14px;border:1px solid #d9b36f59;border-radius:2px;background:#07080ad9;backdrop-filter:blur(4px);color:#d8d2c4;font-size:clamp(12.5px,1.6cqh,14.5px);line-height:1.5;text-align:center;}
+.gate-note p{margin:0;}.gate-note p+p{margin-top:6px;}
+.gate-note a{color:var(--gold-hi);}
+#account-form[data-mode='register'] #account-help-toggle,#account-form[data-mode='register'] #account-help{display:none;}
+/* Footer sits on the art's ground line, clamped inside the viewport. */
+.gate-foot{position:absolute;left:50%;top:min(calc(50cqh + .396*max(100cqh,56.25cqw)),calc(100cqh - 74px));transform:translate(-50%,-50%);width:min(calc(.406*max(100cqw,177.78cqh)),calc(100cqw - 24px));display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 0;text-align:center;background:radial-gradient(ellipse 50% 60% at 50% 38%,#05070ad9,#05070a99 55%,#05070a00);}
+.gate-switch-line{position:relative;display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:.2em .55em;margin:0;padding:0 12%;color:#e9e3d6;font-size:clamp(14px,1.95cqh,20px);text-shadow:0 1px 4px #000;}
+.gate-switch-line::before,.gate-switch-line::after{content:'';position:absolute;top:55%;width:9%;height:1px;background:linear-gradient(90deg,#d9b36f00,#cfa766);}
+.gate-switch-line::before{left:0;}.gate-switch-line::after{right:0;transform:scaleX(-1);}
+.gate-switch{position:relative;color:#e6bb6a;font-size:inherit;}
+.gate-switch::after{content:'';position:absolute;left:4px;right:4px;bottom:-1px;height:1px;background:#e6bb6aa6;}
+.gate-rule{position:relative;display:block;width:68%;height:12px;background:linear-gradient(90deg,#cfa76600,#cfa766 22%,#cfa766 45%,#cfa76600 47%,#cfa76600 53%,#cfa766 55%,#cfa766 78%,#cfa76600) 0 50%/100% 1px no-repeat;}
+.gate-rule::after{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;border:1.5px solid #e8c88a;background:#0b0c0e;transform:translate(-50%,-50%) rotate(45deg);}
+.gate-guest{margin-top:2px;padding:2px 6px;color:#b9b2a2;font-size:clamp(12px,1.55cqh,14.5px);letter-spacing:.06em;text-decoration:none;text-shadow:0 1px 4px #000;}
+.gate-guest::after{content:'';display:inline-block;width:.42em;height:.42em;margin:0 0 .18em .55em;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);}
+.gate-guest:hover{color:var(--gold-hi);}
+/* Guest access and character creation continue below the gate. */
+.gate-mode #login .login-card{position:relative;width:min(680px,calc(100% - 32px));margin:auto;border:1px solid #c9a46673;border-radius:3px;background:linear-gradient(160deg,#121518f2,#090b0df2 70%);box-shadow:0 18px 50px #000b;backdrop-filter:blur(6px);}
+.gate-mode #login .login-card h1{font:600 30px/1.15 'Cinzel',Georgia,serif;letter-spacing:.2em;color:#ead6a8;text-shadow:0 1px 3px #000;}
+.gate-mode #login .tagline{color:#b6b0a2;}
+.gate-mode #guest-note{scroll-margin-top:24px;}
+.gate-mode #login .login-card{--cyan:#e2bf7c;--edge:rgba(217,179,111,.36);}
+.gate-mode #login .login-card button.primary{background:linear-gradient(#b48a4c,#7a5a2c);border-color:#e8c88a;color:#1e1408;}
+.gate-mode #login .login-card button.primary:hover:not(:disabled){background:linear-gradient(#c79a56,#8a6633);}
+.gate-mode #login .login-card button:not(.primary):not(.danger){background:#1b1d1fe6;}
+.gate-mode #login .login-card button:not(.primary):not(.danger):hover:not(:disabled){background:#2a2722f0;}
+.gate-mode .classcard[aria-pressed='true'],.gate-mode .lookcard[aria-pressed='true'],.gate-mode .ap-choices button[aria-pressed='true']{background:#6b4f2a73;}
+.gate-mode #creation-preview{border-color:#d9b36f40;}
+@media (prefers-reduced-motion:reduce){.gate-mode #login{scroll-behavior:auto;}}
+@media (max-width:520px){#account-form.gate-form{width:calc(100vw - 32px);}.gate-field,.gate-field-wide{width:100%;}.gate-switch-line{padding:0 4%;}.gate-switch-line::before,.gate-switch-line::after{display:none;}}
