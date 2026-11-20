@@ -28,6 +28,10 @@ try {
  await atlas.getByRole('button',{name:'Full screen'}).click();
  assert.equal(await atlas.evaluate(el=>el.classList.contains('atlas-fullscreen')),true);
  const canvas=atlas.locator('.atlas-view canvas');
+ const terrainSource=await canvas.getAttribute('data-terrain-source');
+ assert.equal(terrainSource,'scene','The world atlas must show genuine textured terrain captured from the in-game 3D scene');
+ const initialCaptureCount=await canvas.getAttribute('data-terrain-capture-count');
+ assert.equal(initialCaptureCount,'1','The static 3D terrain must be captured once per region');
  await canvas.click({position:{x:320,y:255}});
  await page.waitForFunction(()=>document.querySelector('.map-waypoint-brief')?.hidden===false);
  assert.match(await page.locator('.map-waypoint-brief').textContent(),/Custom waypoint/);
@@ -63,6 +67,7 @@ try {
  const paintCount=await canvas.getAttribute('data-paint-count');
  await page.waitForTimeout(650);
  assert.equal(await canvas.getAttribute('data-paint-count'),paintCount,'Live state may only move the player marker, not repaint the atlas');
+ assert.equal(await canvas.getAttribute('data-terrain-capture-count'),initialCaptureCount,'Live movement must not re-render the static world scene');
  assert.equal(await atlas.locator('.atlas-player-marker').isVisible(),true);
  await mkdir('test/e2e/out',{recursive:true});
  const plate=await canvas.evaluate(node=>{
