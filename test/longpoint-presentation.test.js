@@ -8,12 +8,15 @@ import { dealDamage } from '../server/sim/combat.js';
 import { isolate, enemyOf, place } from './helpers.js';
 
 test('Longpoint visual is allowlisted, owned, ranged-only and cleared on loadout changes',()=>{
- const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'},condition:{longpoint_emitter:17}});
+ const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{ranged:'longpoint_emitter'},condition:{longpoint_emitter:17}});
  const p=game.addPlayer(char),v=p.metaVer;assert.equal(publicWeaponVisual(char),'longpoint');assert.equal(game.metaFor(p).wv,'longpoint');assert.equal(game.metaFor(p).condition,undefined);assert.equal(game.metaFor(p).inventory,undefined);
  game.refreshStats(p);assert.equal(p.metaVer,v);
- char.equipped.weapon=null;game.refreshStats(p);assert.equal(p.metaVer,v+1);assert.equal(game.metaFor(p).wv,undefined);
- char.equipped.weapon='longpoint_emitter';game.refreshStats(p);assert.equal(p.metaVer,v+2);assert.equal(game.metaFor(p).wv,'longpoint');
- assert.equal(publicWeaponVisual({...char,inventory:[]}),null);assert.equal(publicWeaponVisual({...char,cls:'vanguard'}),null);assert.equal(publicWeaponVisual({...char,equipped:{weapon:'untrusted/path'}}),null);assert.equal(publicWeaponVisual(null),null);
+ char.equipped.ranged=null;game.refreshStats(p);assert.equal(p.metaVer,v+1);assert.equal(game.metaFor(p).wv,undefined);
+ char.equipped.ranged='longpoint_emitter';game.refreshStats(p);assert.equal(p.metaVer,v+2);assert.equal(game.metaFor(p).wv,'longpoint');
+ assert.equal(publicWeaponVisual({...char,inventory:[]}),null);assert.equal(publicWeaponVisual({...char,equipped:{ranged:'untrusted/path'}}),null);assert.equal(publicWeaponVisual({...char,equipped:{weapon:'longpoint_emitter'}}),null);
+ // A Vanguard shows the rifle only while it is the active weapon, not while stowed behind the rod.
+ const vanguard={...char,cls:'vanguard',inventory:['longpoint_emitter','electrical_combat_rod'],equipped:{weapon:'electrical_combat_rod',ranged:'longpoint_emitter'}};
+ assert.equal(publicWeaponVisual(vanguard),null);assert.equal(publicWeaponVisual({...vanguard,activeWeapon:'ranged'}),'longpoint');assert.equal(publicWeaponVisual(null),null);
 });
 
 test('existing rich VFX takes the held prop origin only for ranged auto attacks, otherwise uses original chest origin',()=>{
@@ -36,23 +39,23 @@ test('real WebSocket observers receive the visual on equip and its removal on un
  try{
   const a=await owner.join('Longpoint One');await observer.join('Longpoint Two');const p=server.game.players.get(a.id);assert.ok(p);
   await until(()=>observer.meta.has(p.id),'initial observer metadata');assert.equal(observer.meta.get(p.id).wv,undefined);
-  p.char.inventory.push('longpoint_emitter');p.char.equipped.weapon='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
+  p.char.inventory.push('longpoint_emitter');p.char.equipped.ranged='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
   await until(()=>owner.meta.get(p.id)?.wv==='longpoint'&&observer.meta.get(p.id)?.wv==='longpoint','replicated equipped visual');
   const seen=observer.meta.get(p.id);assert.equal(seen.inventory,undefined);assert.equal(seen.condition,undefined);assert.equal(seen.equipped,undefined);
-  p.char.equipped.weapon=null;server.game.refreshStats(p);server.game.markDirty(p);
+  p.char.equipped.ranged=null;server.game.refreshStats(p);server.game.markDirty(p);
   await until(()=>owner.meta.get(p.id)?.wv===undefined&&observer.meta.get(p.id)?.wv===undefined,'replicated removal');
  }finally{owner.ws.close();observer.ws.close();await server.close();}
 });
 
 test('confirmed rifle auto hit exposes only allowlisted presentation metadata',()=>{
- const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'}});
+ const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{ranged:'longpoint_emitter'}});
  const p=game.addPlayer(char),enemy=enemyOf(game,'skitter');isolate(game,enemy);
  place(p,enemy.x+1,enemy.z);game.events.length=0;
  assert.ok(dealDamage(game,p,enemy,1,'auto',{kind:'bolt'})>0);
  const ev=game.events.find(x=>x.e==='dmg'&&x.s===p.id);assert.equal(ev.wv,'longpoint');
  for(const key of ['inventory','condition','equipped','charId'])assert.equal(ev[key],undefined);
  game.events.length=0;dealDamage(game,p,enemy,1,'core_bore',{kind:'bolt'});assert.equal(game.events.find(x=>x.e==='dmg'&&x.s===p.id)?.wv,undefined);
- char.equipped.weapon=null;game.events.length=0;dealDamage(game,p,enemy,1,'auto',{kind:'bolt'});assert.equal(game.events.find(x=>x.e==='dmg'&&x.s===p.id)?.wv,undefined);
+ char.equipped.ranged=null;game.events.length=0;dealDamage(game,p,enemy,1,'auto',{kind:'bolt'});assert.equal(game.events.find(x=>x.e==='dmg'&&x.s===p.id)?.wv,undefined);
 });
 
 test('rifle trace starts at the mounted muzzle and preserves confirmed impact',()=>{

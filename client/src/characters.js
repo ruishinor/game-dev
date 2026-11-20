@@ -224,8 +224,28 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const offHand=inst.getObjectByName('hand_l');
   const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
   const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
-  let heldRod=null,rodEffects=null,rodEngine=null;
-  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
+  // Stowed rod (ranged weapon active): diagonal across the back, clear of the
+  // Vanguard's dorsal stack. Bone-local transform captured once in bind pose.
+  const rodBack=inst.getObjectByName('spine_03')||inst.getObjectByName('spine_02');
+  let rodStow=null;
+  if(rodBack){
+    const probe=new THREE.Object3D();
+    probe.position.set(0,1.2,-.4);
+    probe.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(.45,1,0).normalize());
+    inst.add(probe);probe.updateMatrixWorld(true);rodBack.attach(probe);
+    rodStow={position:probe.position.clone(),quaternion:probe.quaternion.clone()};
+    probe.removeFromParent();
+  }
+  let heldRod=null,rodEffects=null,rodEngine=null,rodHeld=null,rodStowed=false;
+  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;rodHeld=null;rodStowed=false;};
+  function stowRod(stow){
+    if(!heldRod||stow===rodStowed)return;
+    rodStowed=stow;
+    const g=heldRod.group;
+    if(stow&&rodStow){rodBack.add(g);g.position.copy(rodStow.position);g.quaternion.copy(rodStow.quaternion);}
+    else if(!stow&&rodHeld){rodHand.add(g);g.position.copy(rodHeld.position);g.quaternion.copy(rodHeld.quaternion);}
+    g.name=stow?'StowedElectricalCombatRod':'HeldElectricalCombatRod';
+  }
   let weapon = null, visual = null;
   function setWeaponVisual(next) {
     next = next === 'longpoint' ? next : null;
@@ -289,10 +309,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, family: h.handle.fx?.family || null, hides: h.handle.hidden || [] }])),
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
-    rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
+    rodCharge(){return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.charge());},
     rodContact(at,ground,blocked=false){
-      return !!(heldRod?.group.visible&&rodEffects?.impact(at,{ground,blocked}));
+      return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
+    rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
@@ -326,18 +347,28 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
         weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy },step||dt);
-      if(st.electricalRod&&!heldRod&&rodHand){
+      const stowed=st.electricalRod==='stowed';
+      if(st.electricalRod&&!heldRod&&rodHand&&(!stowed||rodStow)){
         heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
-        heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
+        heldRod.setMode(stowed?'rod':st.electricalRod);heldRod.update(0,{reducedMotion:true});
+        rodHeld={position:heldRod.group.position.clone(),quaternion:heldRod.group.quaternion.clone()};
+        // A rod first seen in hand needs no draw flourish; one first seen stowed starts stowed.
+        rodStowed=false;if(stowed)stowRod(true);
       }
-      if(!st.electricalRod&&heldRod)releaseRod();
+      if((!st.electricalRod||(stowed&&!rodStow))&&heldRod)releaseRod();
       if(heldRod){
-        const active=!st.dead&&st.attack>.2;
+        const drawn=rodStowed&&!stowed;
+        stowRod(stowed);
+        const active=!stowed&&!st.dead&&st.attack>.2;
+        const live=!stowed&&!st.dead&&!working;
         heldRod.group.visible=!st.dead&&!working;
-        heldRod.setMode(st.electricalRod);
-        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm});
+        // A stowed rod keeps its saved configuration but is carried joined.
+        heldRod.setMode(stowed?'rod':st.electricalRod);
+        heldRod.update(dt,{energized:live,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead||stowed,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm,combat:!!st.combat});
+        if(stowed&&!st.dead)heldRod.setEnergy(.12);
         if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
-        rodEffects?.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0});
+        rodEffects?.update(dt,{energized:live,activity:active?st.attack:0,combat:!!st.combat});
+        if(drawn&&live)rodEffects?.draw?.();
       }
       flash(st.hit);
       if (ctx.coils.length) {
@@ -367,7 +398,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const combo = kind==='attack'&&id==='auto'&&!heldRod
         ? HUMANOID_MELEE_SEQUENCE[meleeIndex++%HUMANOID_MELEE_SEQUENCE.length] : null;
       const a = combo || (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
-      anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
+      // An in-hand rod snaps through its strike faster (presentation only;
+      // the server's attack interval and timing are unchanged).
+      const rodStrike = kind === 'attack' && heldRod && !rodStowed;
+      anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: (a.timeScale || 1) * (rodStrike ? 1.3 : 1), fadeOut: rodStrike ? 0.13 : a.fadeOut ?? 0.2 });
     },
     dispose() {
       releaseRod();

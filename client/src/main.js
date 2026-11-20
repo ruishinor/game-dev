@@ -31,6 +31,7 @@ import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
+import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -345,7 +346,30 @@ document.addEventListener('contextmenu', e=>{
 const portraits = makePortraits(assets, useGlb);
 const bindings=new ActionBindings(localStorage);
 let hallPreview=null;
+// Weapon commands are intent only; the server applies cooldowns, state and ownership.
+function switchWeapon() {
+  const s = S.sheet;
+  if (!s) return;
+  if (!canSwitchWeapons(s)) return ui.error(equippedWeapon(s, 'ranged') ? 'Equip a main weapon to switch to.' : 'Equip a ranged weapon in the Ranged slot first.');
+  net.send({ t: 'weapon_select', slot: activeWeaponSlot(s) === 'ranged' ? 'weapon' : 'ranged' });
+}
+function cycleRodConfig() {
+  const s = S.sheet;
+  if (!s) return;
+  if (s.cls !== 'vanguard' || s.equipped?.weapon !== 'electrical_combat_rod') return ui.error('Equip the Electrical Combat Rod first.');
+  if (!electricalRodActive(s)) return ui.error(`Select the rod as your active weapon first (${bindings.label('weapon:switch')}).`);
+  net.send({ t: 'rod_mode', mode: s.electricalRodMode === 'dual' ? 'rod' : 'dual' });
+}
+// Combat shortcuts never fire from a focused dialog, menu or form (the
+// keybindings panel and text entry are already filtered by Input).
+function combatKeysBlocked() {
+  const el = document.activeElement;
+  return !!el && el !== document.body && el !== canvas && !!el.closest?.('[role="dialog"],[role="menu"],[role="listbox"],[role="alertdialog"],.panel');
+}
 const ui = new UI({
+  selectWeapon: slot => net.send({ t: 'weapon_select', slot }),
+  switchWeapon: () => switchWeapon(),
+  cycleRodConfig: () => cycleRodConfig(),
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
   bindings,
@@ -1416,6 +1440,13 @@ input.onClick = (button, x, y) => {
 
 input.onAction = (code, e) => {
   const action=bindings.resolve(e);
+  // Weapon actions: never from a focused dialog, menu, form or key capture.
+  if (action === 'weapon:switch' || action === 'weapon:config') {
+    e.preventDefault();
+    if (!S.sheet || combatKeysBlocked()) return;
+    if (action === 'weapon:switch') switchWeapon(); else cycleRodConfig();
+    return;
+  }
   if(action && S.sheet) {
     const i=Number(action.split(':')[1])-1;
     const def=CLASSES[S.sheet.cls];
@@ -1748,7 +1779,7 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       effectsQuality: quality,
-      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):null,
       electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
       work:row?.work,

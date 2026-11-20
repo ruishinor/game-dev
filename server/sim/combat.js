@@ -6,6 +6,7 @@ import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLin
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import { autoProfile } from '../../shared/weapons.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
@@ -326,10 +327,12 @@ export function tickPlayerCombat(game, p, dt) {
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
     } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
-      p.nextAuto = game.time + cdef.auto.interval;
+      // The active weapon mode (melee or ranged) decides the attack profile.
+      const auto = autoProfile(p.char);
+      p.nextAuto = game.time + auto.interval;
       // fast swings: per-hit weapon bonus and Charge scale with the cadence (same per second)
-      const pace = cdef.auto.interval / AUTO_REFERENCE_MS;
-      dealDamage(game, p, t, cdef.auto.dmg + weaponBonus(p.char) * pace, 'auto', { kind: cdef.auto.kind });
+      const pace = auto.interval / AUTO_REFERENCE_MS;
+      dealDamage(game, p, t, auto.dmg + weaponBonus(p.char) * pace, 'auto', { kind: auto.kind });
       gainCharge(p, 5 * pace);
     }
   }

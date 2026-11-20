@@ -267,6 +267,16 @@ This checkpoint supersedes stale branch-only labels above without rewriting hist
 
 The original #89, #95 and #128 branches are retained; closing after scoped recovery is not a claim that the old PR itself merged. Generic weapon-family work remains under CB-01; no other legacy PR is retired at this checkpoint. Use current exact heads and integrated checks for every subsequent promotion; no routine owner decision is necessary.
 
+### Weapon slots, selection and rod V3 candidate — 2026-11-20
+
+Branch `feat/vanguard-ranged-slot-rod-vfx` (candidate; not merged). Status per item is evidence-based; automated checks are not owner visual or balance acceptance.
+
+| Scope | Candidate disposition | Remaining work |
+|---|---|---|
+| EQ-01 | Distinct `weapon` (main) and `ranged` slots; pulse emitters moved to `ranged`. Deterministic, idempotent legacy migration of an emitter saved in `weapon`. Server-owned active selection (`weapon_select`, explicit desired slot), persisted as `activeWeapon`; only the active weapon contributes bonus, reach, attack profile and defeat wear. Maintenance targets the damaged equipped weapon. Vanguard ranged profile `rangedAuto` (20m, 2s, 7) is a **provisional playtest value**. | Balance of the Vanguard ranged profile; generic weapon families (CB-01); other classes currently have no main-slot weapons. |
+| EQ-03 | Hotbar weapon group: Switch weapon (default X) and Rod configuration (default Z), added to the merged #151/#166 keybinding store and Settings → Keybindings panel (Weapon actions group), with its conflict and reserved-key checks. Switching works in combat with a 1s recovery and can only delay the next auto-attack; GCD and ability cooldowns untouched. Configuration keeps the existing out-of-combat rule and requires the rod to be active. Shortcuts are ignored in text entry, dialogs, menus and during capture. | Family-specific weapon actions (CB-01). Hotkey labels use physical key codes, as elsewhere. |
+| DEL-02, ART-06 | Rod V3: weapon-local persistent corona (sheath, emitter glow sprites, flickering crackle; no shared pool), combat floor, pulse escalation on transform/draw/charge/strike/impact; denser sparks, radial spokes, light pulse (pooled flash at high tier, flare substitute at standard), residual crackle; quicker strike onset and 1.3× rod strike animation (presentation only). Stowed rod on the back while the ranged weapon is active. | Owner visual acceptance; real-GPU frame time with several visible wielders; clipping of the stowed rod against other armour sets. |
+
 ## 10. Owner clarification — independent recovery and Claude-reserved world work (2026-11-19)
 
 This section supersedes earlier sequencing or ambiguous "partial recovery" labels. It does not authorize rewriting accepted assets, intervening in reserved branches, or treating automated visual assertions as artistic acceptance.

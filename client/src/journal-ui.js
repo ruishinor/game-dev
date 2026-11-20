@@ -7,7 +7,7 @@ import { GROUPS, ENTRIES } from './journal.js';
 import { MATERIALS } from '../../shared/crafting.js';
 import { materialUses } from './material-uses.js';
 import { GOODS } from '../../shared/goods.js';
-import { conditionOf } from '../../shared/condition.js';
+import { conditionOf, maintenanceTarget } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
 import { refinedItemMotif } from './item-artwork.js';
 import { renderedItemIcon } from './item-renders.js';
@@ -204,7 +204,7 @@ const LOADOUT_TABS = [
   {id:'glyphs',name:'Glyphs',slots:[present('glyph','Glyph',2,2,'glyph')]},
   {id:'weapons',name:'Weapons',slots:[
     present('weapon','Weapon',1,1,'weapon'),present('left-hand','Left hand',3,1),
-    present('ranged','Ranged',2,2),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
+    present('ranged','Ranged',2,2,'ranged'),present('utility-1','Utility 1',1,3),present('utility-2','Utility 2',3,3),
   ]},
   {id:'social',name:'Social clothing',slots:[
     present('back','Back',1,1),present('head','Head',2,1),present('face','Face',3,1),
@@ -239,7 +239,7 @@ export function renderLoadout(ui,body,stats) {
   const list=h('div','loadout-list');
   const detail=h('div','loadout-detail');
   const buttons=new Map();
-  const actualSlots=tab.id==='character'?['device','implant','glyph',...(s.equipped.weapon?['weapon']:[]),...['chest','gloves','greaves','boots','social_torso'].filter(slot=>s.equipped[slot])]:tab.slots.map(t=>t.slot).filter(Boolean);
+  const actualSlots=tab.id==='character'?['device','implant','glyph',...['weapon','ranged'].filter(slot=>s.equipped[slot]),...['chest','gloves','greaves','boots','social_torso'].filter(slot=>s.equipped[slot])]:tab.slots.map(t=>t.slot).filter(Boolean);
   const allowed=id=>!!ITEMS[id]&&s.inventory.includes(id)&&actualSlots.includes(ITEMS[id].slot);
   const renderDetail=()=>{
     detail.replaceChildren();
@@ -402,7 +402,7 @@ export function renderInventory(ui) {
   wallet.setAttribute('aria-label','Credit balance');
   root.append(wallet,tabs,count,grid);
   if((ui.inventoryFilter==='all'||ui.inventoryFilter==='utility')&&s.goods?.field_maintenance_kit>0){
-    const weapon=s.equipped?.weapon,condition=conditionOf(s,weapon),kit=h('section','inventory-detail');
+    const weapon=maintenanceTarget(s),condition=conditionOf(s,weapon),kit=h('section','inventory-detail');
     kit.append(h('strong',null,'Field Maintenance Kit × '+s.goods.field_maintenance_kit),h('p','muted',condition===null?'Equip a repairable weapon first.':ITEMS[weapon].name+' · '+condition+'% condition. Restores up to 25 points outside combat.'));
     const use=h('button','primary','Use Field Maintenance Kit');use.type='button';
     use.disabled=!!ui.buildLock||condition===null||condition===100||!Number.isSafeInteger(s.utilityRev);

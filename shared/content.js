@@ -13,8 +13,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots', social_torso:'Social torso' };
-export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest', 'gloves', 'greaves', 'boots', 'social_torso'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', ranged: 'Ranged weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots', social_torso:'Social torso' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'ranged', 'chest', 'gloves', 'greaves', 'boots', 'social_torso'];
 
 export const CLASSES = {
   vanguard: {
@@ -30,6 +30,9 @@ export const CLASSES = {
     primary: 'kinetics',
     threatMul: 2.2,
     auto: { range: 3.6, interval: 800, dmg: 4, kind: 'melee' },
+    // Provisional playtest profile while a ranged-slot weapon is the selected
+    // active weapon. The ranged item's own bonus/reach still applies on top.
+    rangedAuto: { range: 20, interval: 1000, dmg: 3.5, kind: 'bolt' },
     abilities: ['rending_arc', 'graviton_tether', 'kinetic_ward', 'discharge'],
     companion: null,
   },
@@ -398,10 +401,10 @@ export const ITEMS = {
   reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
   resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
   electrical_combat_rod:{name:'Electrical Combat Rod',slot:'weapon',cls:'vanguard',ql:2,repairable:true,autoBonus:3,rarity:'Common',summary:'QL 2 · +3 base melee auto-attack damage at full condition',desc:'A matched pair of insulated shock batons locked into a conductive combat rod. Vanguard field weapon, sold by the Sanctum quartermaster. Uses existing melee attacks; no additional stun or reach effect.'},
-  field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
-  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
-  dense_pulse_core:{name:'Dense Pulse Core',slot:'weapon',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
-  longpoint_emitter:{name:'Longpoint Emitter',slot:'weapon',ql:5,repairable:true,autoBonus:2,autoReachBonus:4,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +2 base auto-attack damage · +4m ranged auto-attack reach at full condition',desc:'An instrument-grade phase lens trades damage for precision at distance. Adds up to 4m reach to ranged auto-attacks only, scaled by condition; melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
+  field_emitter:{name:'Field Pulse Emitter',slot:'ranged',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
+  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'ranged',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
+  dense_pulse_core:{name:'Dense Pulse Core',slot:'ranged',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
+  longpoint_emitter:{name:'Longpoint Emitter',slot:'ranged',ql:5,repairable:true,autoBonus:2,autoReachBonus:4,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +2 base auto-attack damage · +4m ranged auto-attack reach at full condition',desc:'An instrument-grade phase lens trades damage for precision at distance. Adds up to 4m reach to ranged auto-attacks only, scaled by condition; melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
   keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
   keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},

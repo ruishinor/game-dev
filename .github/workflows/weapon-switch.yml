@@ -1,0 +1,43 @@
+name: Weapon slots and switching
+on:
+  pull_request:
+    paths:
+      - 'shared/weapons.js'
+      - 'shared/condition.js'
+      - 'shared/content.js'
+      - 'server/sim/progress.js'
+      - 'server/sim/combat.js'
+      - 'server/net.js'
+      - 'server/store.js'
+      - 'client/src/hotkey-bindings.js'
+      - 'client/src/ui.js'
+      - 'client/src/main.js'
+      - 'client/src/journal-ui.js'
+      - 'client/src/characters.js'
+      - 'client/src/vfx/electrical-rod.js'
+      - 'client/src/vfx/rod-corona.js'
+      - 'test/e2e/weapon-switch.mjs'
+      - '.github/workflows/weapon-switch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  weapon-switch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/weapon-switch.mjs
+        timeout-minutes: 20
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: weapon-switch-evidence
+          path: weapon-switch-evidence/
+          if-no-files-found: ignore

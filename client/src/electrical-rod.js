@@ -127,14 +127,14 @@ export function createElectricalRod({independentEmission=false}={}) {
     if(mode!=='dual'&&mode!=='rod')throw Error('Unknown rod presentation mode');
     target=mode==='rod'?1:0;
   }
-  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion}={}){
+  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion,combat=false}={}){
     if(disposed)return;
     const step=Number.isFinite(dt)&&dt>0?dt/ROD.duration:0;
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
     for(const m of channels){m.inlay.emissiveIntensity=k*(independentEmission?2.2:.55)+k*.38*clamp(Number.isFinite(activity)?activity:0);m.blue.emissiveIntensity=k*(independentEmission?1.1:.24);}
-    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.58)/.42)),quality,intensity,calm,reducedMotion:coronaReducedMotion});
+    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.66)/.34)),quality,intensity,calm,reducedMotion:coronaReducedMotion,combat,joined:p>=.95});
     if(!energized)coronaEnergy=0;
   }
   function setEnergy(right,left=right){
@@ -147,7 +147,9 @@ export function createElectricalRod({independentEmission=false}={}) {
     const marker=h.getObjectByName(h.name+name);if(!marker)throw Error('Unknown rod anchor');
     return marker.getWorldPosition(into);
   }
-  return {group,halves,setMode,update,setEnergy,anchor,get progress(){return p;},
+  // Brief weapon-local escalation (transform, draw, charge, contact). No-op without a corona.
+  function pulse(strength=1){if(!disposed)corona?.pulse(strength);}
+  return {group,halves,setMode,update,setEnergy,anchor,pulse,get progress(){return p;},
     dispose(){if(disposed)return;disposed=true;corona?.dispose();group.removeFromParent();
       geometry.forEach(g=>g.dispose());new Set(channels.flatMap(Object.values)).forEach(m=>m.dispose());}};
 }

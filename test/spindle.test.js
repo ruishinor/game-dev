@@ -98,7 +98,7 @@ test('Spindle does not take a Survey Strider link, cached mark or individual ide
 
 test('inspection requires uninterrupted proximity and gives one private, read-only loadout report', () => {
   const game = makeGame(), p = game.addPlayer(makeChar('vanguard', {
-    inventory: ['field_emitter'], condition: { field_emitter: 45 }, equipped: { weapon: 'field_emitter' },
+    inventory: ['field_emitter'], condition: { field_emitter: 45 }, equipped: { ranged: 'field_emitter' },
   }));
   const other = game.addPlayer(makeChar('keeper'));
   commission(game, p);

@@ -15,7 +15,7 @@ for(const [cls,id] of [['vanguard','dense_pulse_core'],['surveyor','longpoint_em
  place(p,38,-36.5);assert.equal(craftRecipe(g,p,id).ok,false);
  place(p,49,-36.5);
  assert.equal(JSON.stringify(p.char),initial);
- const old=p.char.equipped;p.char.equipped={...old,weapon:'tuned_emitter'};assert.equal(craftRecipe(g,p,id).ok,false);p.char.equipped=old;
+ const old=p.char.equipped;p.char.equipped={...old,ranged:'tuned_emitter'};assert.equal(craftRecipe(g,p,id).ok,false);p.char.equipped=old;
  assert.equal(JSON.stringify(p.char),initial);
  assert.ok(craftRecipe(g,p,id).ok);assert.deepEqual(p.char.inventory,[id]);assert.equal(ITEMS[id].ql,5);
  assert.ok(equipItem(g,p,id).ok);assert.equal(craftRecipe(g,p,id).ok,false);
@@ -23,16 +23,18 @@ for(const [cls,id] of [['vanguard','dense_pulse_core'],['surveyor','longpoint_em
 });
 test('condition scales only the additional damage and ranged reach; old attacks remain unchanged',()=>{
  for(const cls of Object.keys(CLASSES)){
-  const c=makeChar(cls,{inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'},condition:{longpoint_emitter:50}});
-  const base=CLASSES[cls].auto.range;
-  assert.equal(weaponReach(c),base+(CLASSES[cls].auto.kind==='bolt'?2:0));assert.equal(weaponBonus(c),1);
+  const c=makeChar(cls,{inventory:['longpoint_emitter'],equipped:{ranged:'longpoint_emitter'},condition:{longpoint_emitter:50}});
+  // A ranged-slot weapon uses the class's own bolt, or the melee class's ranged profile.
+  const ranged=CLASSES[cls].auto.kind==='bolt'?CLASSES[cls].auto:CLASSES[cls].rangedAuto,base=ranged.range;
+  assert.equal(weaponReach(c),base+2);assert.equal(weaponBonus(c),1);
   c.condition.longpoint_emitter=0;assert.equal(weaponReach(c),base);assert.equal(weaponBonus(c),0);
-  c.inventory=[];assert.equal(weaponReach(c),base);assert.equal(weaponBonus(c),0);
-  for(const id of ['field_emitter','tuned_emitter','dense_pulse_core'])assert.equal(weaponReach({...c,inventory:[id],equipped:{weapon:id}}),base);
+  // Unowned: unarmed class attack, unchanged.
+  c.inventory=[];assert.equal(weaponReach(c),CLASSES[cls].auto.range);assert.equal(weaponBonus(c),0);
+  for(const id of ['field_emitter','tuned_emitter','dense_pulse_core'])assert.equal(weaponReach({...c,inventory:[id],equipped:{ranged:id}}),base);
  }
 });
 test('Longpoint reaches a clear enemy outside ordinary auto-attack range, but not when depleted',()=>{
- const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{level:4,attunements:['resonance'],inventory:['longpoint_emitter'],equipped:{weapon:'longpoint_emitter'}}));
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{level:4,attunements:['resonance'],inventory:['longpoint_emitter'],equipped:{ranged:'longpoint_emitter'}}));
  const e=enemyOf(g,'skitter');isolate(g,e);const d=CLASSES.surveyor.auto.range+e.radius+3;
  let pos=null;for(let i=0;i<32;i++){const angle=i*Math.PI/16,q={x:e.x+Math.cos(angle)*d,z:e.z+Math.sin(angle)*d};if(Math.hypot(q.x,q.z)<WORLD.radius-1&&hasLineOfSight(q,e)&&deepLineClear(q,e)){pos=q;break;}}
  assert.ok(pos,'clear out-of-base-range test position');place(p,pos.x,pos.z);p.target=e.id;p.autoOn=true;
