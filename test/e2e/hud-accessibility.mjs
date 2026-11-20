@@ -31,7 +31,7 @@ try{
  const neutralTrims=await page.evaluate(()=>['.frame.player','.frame.pet','.minimap'].map(selector=>{
    const node=document.querySelector(selector);
    if(!node||node.hidden)return null;
-   return getComputedStyle(node).borderTopColor.match(/[\\d.]+/g)?.slice(0,3).map(Number);
+   return getComputedStyle(node).borderTopColor.match(/\d+/g)?.slice(0,3).map(Number);
   }));
   for(const rgb of neutralTrims.filter(Boolean)){
    const [red,green,blue]=rgb;
