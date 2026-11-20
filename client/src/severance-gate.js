@@ -221,7 +221,7 @@ function disposeTree(root) {
   for (const t of texs) t.dispose();
 }
 
-function particleField(T, count, opts) {
+export function particleField(T, count, opts) {
   const quad = new T.PlaneGeometry(1, 1);
   const geo = new T.InstancedBufferGeometry();
   geo.index = quad.index;

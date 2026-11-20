@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { startServer } from '../server/index.js';
 import { launchBrowser, SOFTWARE_GL } from './browser.mjs';
-import { gateToWorld, SEVERANCE_POCKET } from '../shared/severance-gate.js';
+import { gateToWorld, SEVERANCE_POCKET, SEVERANCE_GATE as G } from '../shared/severance-gate.js';
 import { liveFixturePlayer } from '../test/e2e/live-fixture.mjs';
 
 const out = process.argv[2] || 'docs/evidence/severance';
@@ -64,7 +64,7 @@ try {
   // yaw 0 faces +Z; the gate lies north (+Z) of the arrival. Camera yaw follows the facing.
   const north = 0, south = Math.PI;
   await shot('01-arrival-dormant-long-distance', SEVERANCE_POCKET.arrival, north, { yaw: north, pitch: 0.12, dist: 7 }, 4000);
-  await shot('02-approach-dormant', { x: -300, z: 0 }, north, { yaw: north, pitch: 0.16, dist: 9 });
+  await shot('02-approach-dormant', gateToWorld(0, -60), north, { yaw: north, pitch: 0.16, dist: 9 });
   await shot('03-stairs-dormant', gateToWorld(0, -22), north, { yaw: north, pitch: 0.28, dist: 11 });
   // wake the gate: the client witnesses dormant -> resonating -> active
   game.severance.hold = false;
@@ -75,10 +75,10 @@ try {
   await shot('05-stairs-active', gateToWorld(0, -22), north, { yaw: north, pitch: 0.28, dist: 11 });
   await shot('06-arrival-active-long-distance', SEVERANCE_POCKET.arrival, north, { yaw: north, pitch: 0.2, dist: 7 });
   await shot('06b-column-from-arrival', SEVERANCE_POCKET.arrival, north, { yaw: north, pitch: -0.18, dist: 4 });
-  await shot('07-approach-active-mid', { x: -300, z: -10 }, north, { yaw: north, pitch: 0.3, dist: 10 });
-  await shot('08-three-quarter', { x: -276, z: 26 }, -0.75, { yaw: -0.75, pitch: 0.3, dist: 14 });
-  await shot('09-side', { x: -270, z: 52 }, -Math.PI / 2, { yaw: -Math.PI / 2, pitch: 0.18, dist: 12 });
-  await shot('10-rear', { x: -300, z: 74 }, south, { yaw: south, pitch: 0.22, dist: 9 });
+  await shot('07-approach-active-mid', gateToWorld(0, -70), north, { yaw: north, pitch: 0.3, dist: 10 });
+  await shot('08-three-quarter', { x: G.x + 24, z: G.z - 20 }, -0.75, { yaw: -0.75, pitch: 0.3, dist: 14 });
+  await shot('09-side', { x: G.x + 30, z: G.z + 6 }, -Math.PI / 2, { yaw: -Math.PI / 2, pitch: 0.18, dist: 12 });
+  await shot('10-rear', { x: G.x, z: G.z + 28 }, south, { yaw: south, pitch: 0.22, dist: 9 });
   await shot('11-player-scale-stairs', gateToWorld(0, -12), north, { yaw: north - 0.5, pitch: 0.12, dist: 6 });
   await shot('12-landing-into-passage', gateToWorld(0, -7.6), north, { yaw: north, pitch: 0.06, dist: 5 });
   await shot('13-inside-passage', gateToWorld(0, -2.5), north, { yaw: north, pitch: 0.02, dist: 3.4 });

@@ -111,8 +111,57 @@ test('anchor transform round-trips and keeps colliders axis-aligned', () => {
   for (const c of GATE_COLLIDERS) { assert.ok(COLLIDERS.includes(c)); assert.ok(c.hw > 0 && c.hd > 0 && c.h > 0); assert.ok(inSeverancePocket(c.x, c.z)); }
 });
 
-test('the approach is physically traversable: arrival -> stairs -> passage -> portal, nothing else', () => {
-  const s = { ...SEVERANCE_POCKET.arrival, jy: 0, vy: 0 };
+// Walkability on a grid: inside the walkable bounds and clear of every collider.
+function walkable(x, z, extra = []) {
+  const P = SEVERANCE_POCKET, R = PLAYER_RADIUS;
+  if (Math.abs(x - P.x) > P.hw - P.rim - R || Math.abs(z - P.z) > P.hd - P.rim - R) return false;
+  for (const c of [...COLLIDERS, ...extra]) {
+    if (c.r !== undefined ? Math.hypot(x - c.x, z - c.z) < c.r + R : Math.abs(x - c.x) < c.hw + R && Math.abs(z - c.z) < c.hd + R) return false;
+  }
+  return true;
+}
+function reaches(from, to, extra = []) {
+  const P = SEVERANCE_POCKET, cell = 1.5, key = (i, j) => i * 4096 + j;
+  const i0 = Math.round((from.x - P.x) / cell), j0 = Math.round((from.z - P.z) / cell);
+  const q = [[i0, j0]], seen = new Set([key(i0, j0)]);
+  let steep = 0;
+  while (q.length) {
+    const [i, j] = q.shift();
+    const x = P.x + i * cell, z = P.z + j * cell;
+    if (Math.hypot(x - to.x, z - to.z) < cell * 1.5) return { ok: true, steep };
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = key(i + di, j + dj);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const nx = P.x + (i + di) * cell, nz = P.z + (j + dj) * cell;
+      if (!walkable(nx, nz, extra)) continue;
+      steep = Math.max(steep, Math.abs(groundHeight(nx, nz) - groundHeight(x, z)));
+      q.push([i + di, j + dj]);
+    }
+  }
+  return { ok: false, steep };
+}
+
+test('the Expanse has three open routes from the arrival to the gate (west canyon, central pass, east flats)', () => {
+  const P = SEVERANCE_POCKET, gate = gateToWorld(0, -30);
+  for (const at of [P.arrival, P.outpost, gate]) assert.ok(walkable(at.x, at.z), 'key area is open');
+  // a barrier across the plain at the pass latitude, leaving only one route open
+  const wall = (u0, u1) => ({ x: P.x + (u0 + u1) / 2, z: P.z - 5, hw: (u1 - u0) / 2, hd: 1 });
+  const all = reaches(P.arrival, gate);
+  assert.ok(all.ok, 'reachable');
+  assert.ok(all.steep < 1.0, 'no cliff between neighbouring walkable cells ' + all.steep);
+  assert.ok(reaches(P.arrival, gate, [wall(-14, 160)]).ok, 'west route alone');
+  assert.ok(reaches(P.arrival, gate, [wall(-160, 14)]).ok, 'east route alone');
+  assert.ok(reaches(P.arrival, gate, [wall(-160, -14), wall(14, 160)]).ok, 'central pass alone');
+  // the arrival rift and outpost are not walled in by the kit
+  for (const c of COLLIDERS.filter((o) => inSeverancePocket(o.x, o.z) && o.type !== 'severance_gate_body')) {
+    const clear = c.r ?? Math.max(c.hw, c.hd);
+    assert.ok(Math.hypot(c.x - P.arrival.x, c.z - P.arrival.z) > clear + 4, 'arrival clear of ' + (c.variant || c.type));
+  }
+});
+
+test('the ceremonial approach is physically traversable: stairs -> passage -> portal, nothing else', () => {
+  const s = { ...gateToWorld(0, -40), jy: 0, vy: 0 };
   let maxStep = 0, prev = groundHeight(s.x, s.z);
   for (let i = 0; i < 60 * 20; i++) {
     stepMove(s, { f: 1, s: 0, yaw: SEVERANCE_GATE.yaw + Math.PI, j: false }, 1);
@@ -164,11 +213,8 @@ test('pocket is a bounded, disconnected travel region with its own zone labels',
   assert.ok(inSeverancePocket(s.x, s.z) && Math.abs(s.x - P.x) <= P.hw - P.rim);
   assert.ok(Math.hypot(s.x, s.z) > WORLD.radius * 2, 'far outside the Reach');
   assert.equal(hasLineOfSight({ x: P.x, z: P.z }, { x: 0, z: 0 }), false);
-  // ruins and outcrops do not block the causeway or the arrival
-  for (const c of COLLIDERS.filter((o) => o.type === 'severance_ruin' || o.type === 'severance_outcrop')) {
-    const clear = c.r ?? Math.max(c.hw, c.hd);
-    assert.ok(Math.abs(c.x - P.x) - clear > 2.5, c.variant || c.type);
-    assert.ok(Math.hypot(c.x - P.arrival.x, c.z - P.arrival.z) > clear + 4);
+  for (const [x, z, label] of [[P.outpost.x, P.outpost.z, 'Expedition Outpost'], [P.x, P.z - 5, 'Severed Pass'], [P.x - 60, P.z, 'Causeway of Sentinels'], [P.x + 60, P.z - 30, 'Amber Flats']]) {
+    assert.equal(zoneAt(x, z), 'Severance Expanse · ' + label);
   }
 });
 
@@ -187,6 +233,10 @@ test('gate phase is server-owned: presence wakes it, absence returns it to dorma
   assert.equal(s.phase, 'dormant', 'nobody in the region');
   place(p, SEVERANCE_POCKET.arrival.x, SEVERANCE_POCKET.arrival.z);
   tick(g, 100);
+  assert.equal(s.phase, 'dormant', 'the arrival terrace is beyond the gate\'s presence radius');
+  const near = gateToWorld(0, -60);
+  place(p, near.x, near.z);
+  tick(g, 100);
   assert.equal(s.phase, 'resonating');
   tick(g, GATE_TIMING.resonateMs - 200);
   assert.equal(s.phase, 'resonating');
@@ -201,7 +251,7 @@ test('gate phase is server-owned: presence wakes it, absence returns it to dorma
   tick(g, 200);
   assert.equal(s.phase, 'dormant');
   // a dead player is not presence
-  place(p, SEVERANCE_POCKET.arrival.x, SEVERANCE_POCKET.arrival.z);
+  place(p, near.x, near.z);
   p.dead = true;
   tick(g, GATE_TIMING.idleMs + 1);
   assert.equal(s.phase, 'dormant');
@@ -283,8 +333,8 @@ test('landmark: hidden outside the region, bands with hysteresis, phase-driven l
   assert.equal(lm.root.visible, false);
   assert.equal(lm.status, 'idle', 'nothing is loaded from the Reach');
   const G = SEVERANCE_GATE;
-  lm.update(0.1, 0, { x: G.x, y: 3, z: G.z - 300 });
-  assert.equal(lm.root.visible, false, 'outside the pocket even when far south of it');
+  lm.update(0.1, 0, { x: G.x, y: 3, z: G.z + 300 });
+  assert.equal(lm.root.visible, false, 'outside the region even when straight behind the gate');
   const at = (d) => ({ x: G.x, y: 3, z: G.z - d });
   lm.update(0.1, 0, at(120));
   assert.equal(lm.root.visible, true);

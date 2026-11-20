@@ -12,7 +12,7 @@ export const PLAYER_RADIUS = 0.45;
 export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
 import { SEVERANCE_POCKET, SEVERANCE_PROPS, GATE_THRESHOLD, inSeverancePocket, clampToPocket, pocketHeight, pocketArea } from './severance-gate.js';
-export { SEVERANCE_POCKET, SEVERANCE_GATE, inSeverancePocket } from './severance-gate.js';
+export { SEVERANCE_POCKET, SEVERANCE_EXPANSE, SEVERANCE_GATE, inSeverancePocket } from './severance-gate.js';
 
 export const WORLD = {
   name: 'The Verdigris Reach',

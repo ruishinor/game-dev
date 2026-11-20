@@ -1484,13 +1484,16 @@ export function buildWorld(scene, assets = null, opts = {}) {
 
   const points = [];
   const coverRange = 30 + 55 * detail;
+  // Static Reach dressing, hidden while the camera is inside the Severance
+  // Expanse (700 m south, behind its ridge): nothing of it can be seen there.
+  severance.setRegionCull(scene.children.filter((c) => c !== severance.group && c !== skyGroup && !c.isLight && !c.isCamera));
   return {
     sun,
     ambient,
     ambientBase: ambient.intensity,
     severance: severance.landmark,
     severancePocket: severance,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); } },
     occluders,
     /**
      * @param focus the player's feet

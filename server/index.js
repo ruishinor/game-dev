@@ -69,6 +69,7 @@ function resolveStatic(urlPath) {
   // Owner-approved runtime export only; never mount pipeline sources or reports.
   if (urlPath === '/client/assets/stillpoint.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'stillpoint', 'outputs', 'stillpoint.glb');
   if (urlPath === '/client/assets/severance_gate.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_gate', 'outputs', 'severance_gate.glb');
+  if (urlPath === '/client/assets/severance_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'severance_kit', 'outputs', 'severance_kit.glb');
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);

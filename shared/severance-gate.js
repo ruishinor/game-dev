@@ -111,9 +111,11 @@ const CRYSTALS = [[40, -60, 1.6], [52, -40, 2.2], [66, -8, 1.4], [34, 10, 1.8], 
 export const SEVERANCE_CRYSTALS = Object.freeze(CRYSTALS.map(([u, v, r], i) => Object.freeze({ type: 'severance_crystal', ...at(u, v), r, h: 2.4 * r + 1, seed: 1500 + i, teal: i % 4 === 1 })));
 
 // The colossal ring: a broken ring of gate-builder stone standing across the
-// west route; travellers pass beneath it. Colliders are its two feet.
-export const SEVERANCE_RING = Object.freeze({ ...at(-48, 26), radius: 16, tube: 1.7, yaw: 0, arc: [0.18, 1.0] });
-const RING_FEET = [-1, 1].map((s) => Object.freeze({ type: 'severance_ring_foot', x: SEVERANCE_RING.x + s * SEVERANCE_RING.radius, z: SEVERANCE_RING.z, r: 2.6, h: 6 }));
+// west route, sunk into the ash (severance_kit.glb, Ring_Colossal). Travellers
+// pass beneath it along the route (the ring's plane faces +-z). Colliders are its
+// west foot and the east foot with the voussoirs that fell from the break.
+export const SEVERANCE_RING = Object.freeze({ ...at(-48, 26), radius: 16, tube: 2.6, sink: 0.22, yaw: 0 });
+const RING_FEET = [[-13.2, 2.2], [12.9, 3.4]].map(([dx, r]) => Object.freeze({ type: 'severance_ring_foot', x: SEVERANCE_RING.x + dx, z: SEVERANCE_RING.z, r, h: 6 }));
 
 // Ruins (variant names are nodes in the gate GLB's Ruins scene); colliders
 // follow the visible footprint. Paving is flush and has no collider.
@@ -197,6 +199,12 @@ export function massifLift(x, z) {
   return h;
 }
 
+/** The enclosure dips to a low saddle behind the gate so it stands against open sky. */
+export function expanseSaddle(x, z) {
+  const u = x - P.x, v = z - P.z;
+  return 1 - 0.78 * smooth(1 - Math.abs(u) / 90) * smooth((v - 95) / 45);
+}
+
 /** Expanse terrain: ash dunes, a dry lakebed, level terraces at the arrival, outpost and gate, massifs, enclosing ridge. */
 export function pocketHeight(x, z) {
   const g = gateGroundHeight(x, z);
@@ -213,7 +221,11 @@ export function pocketHeight(x, z) {
   h *= smooth((Math.hypot(x - P.outpost.x, z - P.outpost.z) - P.outpost.r) / 10);
   h += massifLift(x, z);
   const edge = Math.min(P.hw - Math.abs(u), P.hd - Math.abs(v));
-  if (edge < 22) h += (22 - edge) * (22 - edge) * 0.11 * (0.8 + 0.2 * Math.sin(x * 0.07 + z * 0.05));
+  // the enclosing ridge: a gentle rise across the last walkable metres, then a
+  // steep wall beyond the walkable limit (rim)
+  const wob = (0.8 + 0.2 * Math.sin(x * 0.07 + z * 0.05)) * expanseSaddle(x, z);
+  if (edge < P.rim + 4) h += (P.rim + 4 - edge) * (P.rim + 4 - edge) * 0.04 * wob;
+  if (edge < P.rim) h += (P.rim - edge) * (P.rim - edge) * 0.35 * wob;
   // Seat the shared Phase Scar foundation and its approach on a local level pad.
   h *= smooth((Math.hypot(x - P.beacon.x, z - P.beacon.z) - 5.5) / 4);
   return h;
@@ -225,7 +237,7 @@ export function pocketArea(x, z) {
   const { bx, by } = worldToGate(x, z);
   if (Math.abs(bx) < 55 && by > -40 && by < 50) return 'Severance Gate';
   if (Math.hypot(x - P.outpost.x, z - P.outpost.z) < P.outpost.r + 4) return 'Expedition Outpost';
-  if (Math.hypot(x - P.arrival.x, z - P.arrival.z) < 16) return 'Arrival Rift';
+  if (Math.hypot(x - P.arrival.x, z - P.arrival.z) < 16) return 'Arrival Terrace';
   if (Math.abs(u) < 15 && v > -22 && v < 14) return 'Severed Pass';
   if (u < -15) return 'Causeway of Sentinels';
   if (u > 15) return 'Amber Flats';
