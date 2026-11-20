@@ -17,17 +17,19 @@ test('cartography uses opaque, deterministic terrain over full rectangular atlas
   assert.ok(new Set(colors.map(x=>x.join(','))).size>=3,'landscape must show distinct terrain');
 });
 
-test('full-bleed atlas projection covers both axes while map selection stays world-correct',()=>{
+test('Reach Atlas preserves world geometry proportions and map selection coordinates',()=>{
   const region=regionFor({x:0,z:0}),p=project(region,1240,700);
-  assert.ok(p.kx>p.kz,'a wide atlas must use the space horizontally');
-  assert.equal(p.X(-region.hw),14);
-  assert.equal(p.X(region.hw),1226);
+  assert.equal(p.kx,p.kz,'a physically circular Reach must not be distorted into an ellipse');
   assert.equal(p.Z(-region.hd),14);
   assert.equal(p.Z(region.hd),686);
+  assert.equal(p.X(0),620);
+  assert.ok(p.X(-region.hw)>14&&p.X(region.hw)<1226,
+    'wide viewports have cartographic side margins rather than false world scale');
   const place={x:ZONES.vault.x,z:ZONES.vault.z};
   const mapped=pixelToWorld(region,p,1240,700,p.X(place.x),p.Z(place.z));
   assert.ok(Math.abs(mapped.x-place.x)<1e-9&&Math.abs(mapped.z-place.z)<1e-9,'World coordinates must round-trip within float precision');
   const q=project(region,1240,700,2,{x:15,z:-8});
+  assert.equal(q.kx,q.kz);
   assert.equal(q.X(15),620);assert.equal(q.Z(-8),350);
 });
 
