@@ -116,6 +116,97 @@ export function reachAtlasTerrain(){
   return c;
 }
 
+
+// Ground-truth elevation contours, sampled only from the same public
+// groundHeight used by the walkable Reach surface. No invented ridgelines,
+// waterways or hidden encounters. Kept separate from the material plate so
+// map detail remains legible above the scene photograph.
+export function reachContourSegments(step=2.5,interval=1){
+  const radius=WORLD.radius;
+  const cells=Math.ceil(2*radius/step),delta=2*radius/cells;
+  const heights=new Float64Array((cells+1)*(cells+1));
+  const at=(i,j)=>heights[j*(cells+1)+i];
+  for(let j=0;j<=cells;j++)for(let i=0;i<=cells;i++){
+    heights[j*(cells+1)+i]=groundHeight(-radius+i*delta,-radius+j*delta);
+  }
+  const segments=[];
+  for(let j=0;j<cells;j++)for(let i=0;i<cells;i++){
+    const x=-radius+i*delta,z=-radius+j*delta;
+    const corners=[
+      {x,z,h:at(i,j)},{x:x+delta,z,h:at(i+1,j)},
+      {x:x+delta,z:z+delta,h:at(i+1,j+1)},{x,z:z+delta,h:at(i,j+1)}
+    ];
+    const minimum=Math.min(...corners.map(p=>p.h));
+    const maximum=Math.max(...corners.map(p=>p.h));
+    for(let k=Math.ceil(minimum/interval);k*interval<maximum;k++){
+      const level=k*interval,points=[];
+      for(let edge=0;edge<4;edge++){
+        const a=corners[edge],b=corners[(edge+1)%4];
+        if((a.h<=level&&b.h>level)||(b.h<=level&&a.h>level)){
+          const t=(level-a.h)/(b.h-a.h);
+          points.push({x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t});
+        }
+      }
+      for(let m=0;m+1<points.length;m+=2){
+        const a=points[m],b=points[m+1];
+        if(Math.hypot((a.x+b.x)/2,(a.z+b.z)/2)>radius+1)continue;
+        segments.push({x1:a.x,z1:a.z,x2:b.x,z2:b.z,level});
+      }
+    }
+  }
+  return segments;
+}
+let contours;
+export function reachAtlasContours(){
+  if(contours)return contours;
+  const n=768,r=WORLD.radius,canvas=document.createElement('canvas');
+  canvas.width=canvas.height=n;
+  const ctx=canvas.getContext('2d'),scale=n/(2*r);
+  const segments=reachContourSegments();
+  for(const major of [false,true]){
+    ctx.beginPath();
+    for(const s of segments){
+      if((Math.abs(s.level%3)<1e-8)!==major)continue;
+      ctx.moveTo((s.x1+r)*scale,(s.z1+r)*scale);
+      ctx.lineTo((s.x2+r)*scale,(s.z2+r)*scale);
+    }
+    ctx.lineWidth=major?1.25:.72;
+    ctx.strokeStyle=major?'rgba(22,38,37,.51)':'rgba(20,38,35,.28)';
+    ctx.stroke();
+  }
+  contours=canvas;
+  return contours;
+}
+
+/** Position known-location labels away from live markers and other labels.
+ * Cosmetic only: marker coordinates, click targets and world positions are untouched.
+ * measure(name) returns a canvas text width in pixels.
+ */
+export function placeAtlasLabels(labels,markers,width,height,measure){
+  const placed=[],bounds=[];
+  const offsets=[{dx:0,dy:-19},{dx:0,dy:29},{dx:0,dy:-38},
+    {dx:0,dy:48},{dx:-28,dy:-24},{dx:28,dy:-24}];
+  for(const label of labels){
+    if(!Number.isFinite(label.x)||!Number.isFinite(label.y))continue;
+    const textWidth=Math.ceil(measure(label.name))+10;
+    for(const offset of offsets){
+      const x=label.x+offset.dx,y=label.y+offset.dy;
+      const b={left:x-textWidth/2,right:x+textWidth/2,top:y-14,bottom:y+4};
+      if(b.left<4||b.right>width-4||b.top<4||b.bottom>height-4)continue;
+      if(bounds.some(p=>b.left<p.right&&b.right>p.left&&b.top<p.bottom&&b.bottom>p.top))continue;
+      if(markers.some(m=>{
+        const cx=Math.max(b.left,Math.min(m.x,b.right));
+        const cy=Math.max(b.top,Math.min(m.y,b.bottom));
+        return (cx-m.x)**2+(cy-m.y)**2<(m.r+3)**2;
+      }))continue;
+      placed.push({...label,x,y});
+      bounds.push(b);
+      break;
+    }
+  }
+  return placed;
+}
+
 /** No enemy location or density information is eligible for world-map display. */
 export function atlasEntityCategory(meta,member=false){
   if(meta?.k==='p')return member?'party':'players';

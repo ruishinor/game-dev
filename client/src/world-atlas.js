@@ -1,6 +1,6 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
-import {reachAtlasTerrain,clusterMapMarkers,atlasEntityCategory} from './atlas-cartography.js';
+import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory,placeAtlasLabels} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -9,11 +9,13 @@ export function regionFor(pos){
  return a?{area:a,name:a.name||'Current region',x:a.x,z:a.z,hw:a.hw,hd:a.hd}:{area:null,name:WORLD.name,x:0,z:0,hw:WORLD.radius,hd:WORLD.radius};
 }
 export function project(r,w,h,zoom=1,pan={x:0,z:0}){
- // Atlas blueprint: rectangular, edge-to-edge terrain plate (not a circle
- // centered inside unused black canvas). Keep independent axis scales so every
- // public region coordinate remains visible at zoom=1.
- const kx=(w-28)/(2*r.hw)*zoom,kz=(h-28)/(2*r.hd)*zoom;
- const k=Math.min(kx,kz);
+ // Verdigris Reach uses a circular world radius. Stretching independent
+ // X/Z axes to fill a widescreen viewport creates a false oval landscape.
+ // Preserve actual distances and geometry on the Reach only. Keep existing
+ // independent axes in other regions (including Claude-reserved geography).
+ const fitX=(w-28)/(2*r.hw)*zoom,fitZ=(h-28)/(2*r.hd)*zoom;
+ const k=Math.min(fitX,fitZ);
+ const kx=r.area?fitX:k,kz=r.area?fitZ:k;
  return {k,kx,kz,X:x=>w/2+(x-r.x-pan.x)*kx,Z:z=>h/2+(z-r.z-pan.z)*kz};
 }
 export function pointInsideRegion(r,x,z){
@@ -47,18 +49,38 @@ export class WorldAtlas{
   this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
   this.captureTerrain=typeof captureTerrain==='function'?captureTerrain:null;
   this.terrainCache=new Map();this.terrainCaptureAttempts=0;
+  // Authored Verdigris Reach chart uses the canonical [-radius,+radius] square
+  // with (0,0) at SVG (500,500). All dynamic markers retain project() coordinates.
+  this.reachArtwork=typeof Image==='function'?new Image():null;
+  if(this.reachArtwork){
+   this.reachArtwork.onload=()=>{if(this.region&&!this.el.hidden&&!this.region.area)this.draw();};
+   this.reachArtwork.onerror=()=>console.warn('[atlas] authored Reach chart unavailable; using terrain fallback');
+   this.reachArtwork.src='/client/assets/atlas/reach-handdrawn.svg';
+  }
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
  full.addEventListener('click',()=>{const on=this.el.classList.toggle('atlas-fullscreen');full.setAttribute('aria-label',on?'Restore window':'Full screen');full.title=full.getAttribute('aria-label');full.textContent=on?'⤡':'⤢';full.setAttribute('aria-pressed',String(on));this.draw();});
  const close=el('button',null,'Close');close.onclick=()=>this.close();head.append(this.title,close);
  const body=el('div','atlas-body'),tools=el('aside','atlas-tools'),view=el('div','atlas-view');
- this.search=el('input');this.search.type='search';this.search.placeholder='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);tools.append(this.regionName,this.search,el('h3',null,'Map layers'));
+ const tabs=el('div','atlas-tabs'),mapTab=el('button',null,'Map'),savedTab=el('button',null,'Saved');
+ const mapPanel=el('div','atlas-tool-panel atlas-map-panel'),savedPanel=el('div','atlas-tool-panel atlas-saved-panel');
+ mapTab.type=savedTab.type='button';
+ mapTab.title='Map layers, search and waypoint controls';savedTab.title='Saved locations and notes';
+ const selectTab=tab=>{
+  const saved=tab==='saved';
+  mapPanel.hidden=saved;savedPanel.hidden=!saved;
+  mapTab.setAttribute('aria-pressed',String(!saved));savedTab.setAttribute('aria-pressed',String(saved));
+ };
+ mapTab.onclick=()=>selectTab('map');savedTab.onclick=()=>selectTab('saved');
+ tabs.append(mapTab,savedTab);tools.append(tabs,mapPanel,savedPanel);selectTab('map');
+ this.selectAtlasTab=selectTab;
+ this.search=el('input');this.search.type='search';this.search.placeholder='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);mapPanel.append(this.regionName,this.search,el('h3',null,'Map layers'));
  for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['objects','Objects (visible)']]){
- const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));tools.append(l);}
- this.details=el('p','atlas-details','Select a place or click the map to set a personal waypoint.');
+ const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));mapPanel.append(l);}
+ this.details=el('p','atlas-details','');this.details.hidden=true;
  this.details.setAttribute('aria-live','polite');
- this.waypointDetails=el('p','atlas-waypoint-details','No waypoint selected.');
+ this.waypointDetails=el('p','atlas-waypoint-details','');this.waypointDetails.hidden=true;
  this.results=el('div','atlas-results');
  this.setSelected=el('button',null,'Mark selected place');this.setSelected.disabled=true;
  this.setSelected.addEventListener('click',()=>{
@@ -70,13 +92,28 @@ export class WorldAtlas{
  this.noteInput=el('textarea','atlas-marker-note');this.noteInput.rows=2;this.noteInput.maxLength=MAX_NOTE_LENGTH;this.noteInput.placeholder='Optional note (private to this browser)';this.noteInput.setAttribute('aria-label','Saved marker note');
  this.savePointButton=el('button',null,'Save point and note');this.savePointButton.type='button';this.savePointButton.disabled=true;this.savePointButton.addEventListener('click',()=>this.savePoint());
  this.savedList=el('div','atlas-saved-list');this.savedList.setAttribute('aria-label','Saved map points');
- this.noteStatus=el('p','atlas-note-status','Saved points are local to this browser and character.');this.noteStatus.setAttribute('aria-live','polite');
- tools.append(el('p','atlas-legend','● Players   ◆ Objects   ◉ Party   ◇ Personal waypoint'),
-   this.details,this.setSelected,this.clearButton,this.waypointDetails,
-   el('h3',null,'Saved locations'),this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedList,
-   el('p','muted','Saved markers are private to this browser. Distances are straight-line estimates. Drag to pan; click to mark; scroll to zoom.'));
+ this.savedPointPicker=el('select','atlas-saved-picker');this.savedPointPicker.setAttribute('aria-label','Choose saved location');
+ this.savedPointPicker.title='Choose any saved location; no scrolling through the Atlas sidebar';
+ this.savedPointPicker.addEventListener('change',()=>{
+   const point=this.savedPoints.find(p=>p.id===this.savedPointPicker.value);
+   if(!point||!this.region||point.region!==this.region.name||!pointInsideRegion(this.region,point.x,point.z))return;
+   this.setWaypoint(point.x,point.z,point.label);
+   this.activeSavedId=point.id;
+   this.noteInput.value=point.note;
+   this.markerLabel.value=point.label;
+   this.pan={x:clamp(point.x-this.region.x,-this.region.hw,this.region.hw),z:clamp(point.z-this.region.z,-this.region.hd,this.region.hd)};
+   this.refreshSavedList();this.draw();
+ });
+ this.noteStatus=el('p','atlas-note-status','');this.noteStatus.hidden=true;this.noteStatus.setAttribute('aria-live','polite');
+ const legend=el('p','atlas-legend','● Players   ◆ Objects   ◉ Party   ◇ Waypoint');
+ legend.title='Player: circle · Visible object: diamond · Party: ring · Personal waypoint: hollow diamond';
+ this.details.title='Click the map to set a waypoint, or select a search result.';
+ this.waypointDetails.title='Distance is straight-line, not a navigation route.';
+ this.noteStatus.title='Saved markers remain private to this browser and character.';
+ mapPanel.append(legend,this.details,this.setSelected,this.clearButton,this.waypointDetails);
+ savedPanel.append(this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedPointPicker,this.savedList);
   this.search.after(this.results);this.results.hidden=true;
- this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
+ this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');this.canvas.title='Click to mark a waypoint; drag to pan; scroll to zoom. Distances are straight-line.';const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
  full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
@@ -139,11 +176,21 @@ export class WorldAtlas{
   this.savedList.replaceChildren();
   const region=this.region?.name;
   const points=this.savedPoints.filter(p=>p.region===region);
-  if(!points.length){
-   this.savedList.append(el('p','muted','No saved points in this region.'));
+  this.savedPointPicker.replaceChildren();
+  const placeholder=el('option',null,'Choose saved location');placeholder.value='';this.savedPointPicker.append(placeholder);
+  for(const point of points){
+    const option=el('option',null,point.label);option.value=point.id;this.savedPointPicker.append(option);
+  }
+  this.savedPointPicker.hidden=!points.length;
+  const selected=points.find(p=>p.id===this.activeSavedId)||points.at(-1);
+  if(!selected){
+   this.savedList.append(el('p','muted','No saved locations.'));
    return;
   }
-  for(const point of points){
+  this.savedPointPicker.value=selected.id;
+  // Only the selected record is expanded. All other saved records stay
+  // accessible through the native picker without an Atlas scrollbar.
+  for(const point of [selected]){
    const row=el('div','atlas-saved-point');
    const activate=el('button','atlas-saved-select',point.label);
    activate.type='button';activate.title=point.note||'Show saved point';
@@ -161,11 +208,11 @@ export class WorldAtlas{
    remove.addEventListener('click',()=>{
     const rest=this.savedPoints.filter(p=>p.id!==point.id);
     if(!persistSavedPoints(localStorage,this.owner,rest)){
-     this.noteStatus.textContent='Could not delete point from local storage.';return;
+     this.noteStatus.hidden=false;this.noteStatus.textContent='Could not delete point from local storage.';return;
     }
     this.savedPoints=rest;
     if(this.activeSavedId===point.id)this.activeSavedId=null;
-    this.noteStatus.textContent='Saved point deleted.';
+    this.noteStatus.hidden=false;this.noteStatus.textContent='Saved point deleted.';
     this.refreshSavedList();this.draw();
    });
    row.append(activate);
@@ -180,15 +227,15 @@ export class WorldAtlas{
   const id=this.activeSavedId||crypto.randomUUID();
   const point={id,x:this.waypoint.x,z:this.waypoint.z,region:this.waypoint.region,label,note};
   const rest=this.savedPoints.filter(p=>p.id!==id);
-  if(rest.length>=MAX_SAVED_POINTS){this.noteStatus.textContent='Maximum of '+MAX_SAVED_POINTS+' saved points reached.';return false;}
+  if(rest.length>=MAX_SAVED_POINTS){this.noteStatus.hidden=false;this.noteStatus.textContent='Maximum of '+MAX_SAVED_POINTS+' saved points reached.';return false;}
   const next=[...rest,point];
   if(!persistSavedPoints(localStorage,this.owner,next)){
-   this.noteStatus.textContent='Could not save. Local browser storage may be full or disabled.';
+   this.noteStatus.hidden=false;this.noteStatus.textContent='Could not save. Local browser storage may be full or disabled.';
    return false;
   }
   this.savedPoints=next;this.activeSavedId=id;this.waypoint={...this.waypoint,label};
-  this.noteStatus.textContent='Saved for this character on this browser.';
-  this.refreshSavedList();this.refreshWaypoint();this.draw();return true;
+  this.noteStatus.hidden=false;this.noteStatus.textContent='Saved for this character on this browser.';
+  this.refreshSavedList();this.refreshWaypoint();this.selectAtlasTab('saved');this.draw();return true;
  }
  updatePlayerMarker(){
   if(!this.playerMarker||this.el.hidden||!this.state?.me||!this.p){
@@ -247,7 +294,8 @@ export class WorldAtlas{
    this.waypointBrief.textContent='◇ '+wp.label+' · '+rounded+' m';
    this.waypointBrief.setAttribute('aria-label',wp.label+', approximately '+rounded+' metres straight line; open world atlas');
    this.waypointDetails.textContent='Waypoint: '+wp.label+' · '+rounded+' m straight-line';
-  }else this.waypointDetails.textContent='No personal waypoint selected.';
+  }else this.waypointDetails.textContent='';
+  this.waypointDetails.hidden=!wp;
  }
  open(){this.el.hidden=false;this.draw();this.updatePlayerMarker();this.el.querySelector('button')?.focus();}
  close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.playerMarker.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
@@ -259,7 +307,7 @@ export class WorldAtlas{
   const changed=!this.region||this.region.x!==next.x||this.region.z!==next.z;
   if(changed){
    this.zoom=1;this.pan={x:0,z:0};this.selection=null;this.setSelected.disabled=true;
-   this.details.textContent='Select a place or click the map to set a personal waypoint.';
+   this.details.textContent='';this.details.hidden=true;
    this.waypoint=null;this.activeSavedId=null;this.clearButton.disabled=true;
    this.savePointButton.disabled=true;this.markerLabel.value='';this.noteInput.value='';
   }
@@ -288,20 +336,32 @@ export class WorldAtlas{
  const w=Math.round(Math.min(rect.width,1400)),h=Math.round(Math.min(rect.height,1000));if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
  const g=c.getContext('2d'),r=this.region,st=this.state,p=project(r,w,h,this.zoom,this.pan);this.p=p;this.title.textContent=r.name+' · Atlas';this.regionName.textContent='ACTIVE REGION · '+r.name;
  g.fillStyle='#273339';g.fillRect(0,0,w,h);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
- const captured=this.terrainForRegion(r);
- c.dataset.terrainSource=captured?'scene':'fallback';
+ const captured=r.area?this.terrainForRegion(r):null;
+ const authored=!r.area&&!!this.reachArtwork?.naturalWidth;
+ c.dataset.terrainSource=authored?'authored':captured?'scene':'fallback';
  c.dataset.terrainCaptureCount=String(this.terrainCaptureAttempts);
- if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
- else if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
- else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
+ // Use authored cartography only for Verdigris Reach. Player markers,
+ // party and waypoints share this exact, aspect-preserving projection.
+ if(!r.area){
+   const left=p.X(-r.hw),top=p.Z(-r.hd),width=2*r.hw*p.kx,height=2*r.hd*p.kz;
+   if(authored)g.drawImage(this.reachArtwork,left,top,width,height);
+   else{g.drawImage(reachTerrain(),left,top,width,height);g.drawImage(reachAtlasContours(),left,top,width,height);}
+ }else if(captured){
+   g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ }else{
+   g.fillStyle='#3b4546';
+   g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ }
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
- const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelBounds=[],clusterCandidates=[];
+ const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelCandidates=[],markerObstacles=[],clusterCandidates=[];
   this.results.hidden=!term;
  const mark=(name,x,z,category,color,shape='dot')=>{
   if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
   entries.push({name,x,z,category});
   const px=p.X(x),py=p.Z(z),sz=shape==='place'?4.5:5;
+  if(shape==='place'||term)labelCandidates.push({name,x:px,y:py});
+  if(px>=0&&px<=w&&py>=0&&py<=h)markerObstacles.push({x:px,y:py,r:sz+3});
   if(!term&&this.zoom<=1.5&&category==='objects'){
    if(px>=0&&px<=w&&py>=0&&py<=h)clusterCandidates.push({x:px,y:py,category,color});
    return;
@@ -312,17 +372,7 @@ export class WorldAtlas{
   }else g.arc(px,py,sz,0,Math.PI*2);
   g.fill();g.strokeStyle='#111c22';g.lineWidth=2;g.stroke();
   if(category==='party'){g.beginPath();g.arc(px,py,sz+3,0,Math.PI*2);g.strokeStyle='#bce9f2';g.lineWidth=1.5;g.stroke();}
-  if(shape==='place'||term){
-    g.font='600 13px sans-serif';g.textAlign='center';
-    const labelY=py-12,labelWidth=g.measureText(name).width+10;
-    const bounds={left:px-labelWidth/2,right:px+labelWidth/2,top:labelY-14,bottom:labelY+3};
-    const visible=bounds.left>=4&&bounds.right<=w-4&&bounds.top>=4&&bounds.bottom<=h-4;
-    const overlaps=labelBounds.some(b=>bounds.left<b.right&&bounds.right>b.left&&bounds.top<b.bottom&&bounds.bottom>b.top);
-    if(visible&&!overlaps){
-      labelBounds.push(bounds);g.strokeStyle='#10171b';g.lineWidth=4;
-      g.strokeText(name,px,labelY);g.fillStyle='#e7eceb';g.fillText(name,px,labelY);
-    }
-  }
+  // Defer labels until all visible marker and cluster positions are known.
  };
  if(!r.area)for(const z of Object.values(ZONES))mark(z.name,z.x,z.z,'places','#a4c5ca','place');
  for(const e of st.ents.values()){
@@ -332,6 +382,7 @@ export class WorldAtlas{
  }
  for(const cluster of clusterMapMarkers(clusterCandidates,22)){
   const {x,y,count,color,category}=cluster,radius=count>1?11:5;
+  markerObstacles.push({x,y,r:radius+3});
   g.save();g.beginPath();
   if(count===1){
    g.moveTo(x,y-radius);g.lineTo(x+radius,y);g.lineTo(x,y+radius);g.lineTo(x-radius,y);g.closePath();
@@ -346,33 +397,49 @@ export class WorldAtlas{
   if(point.region!==r.name||!pointInsideRegion(r,point.x,point.z))continue;
   const x=p.X(point.x),y=p.Z(point.z);
   if(x<2||y<2||x>w-2||y>h-2)continue;
+  markerObstacles.push({x,y,r:9});
   g.save();g.translate(x,y);g.fillStyle='#4b9eb6';g.strokeStyle='#eef7f9';g.lineWidth=1.5;
   g.beginPath();g.arc(0,0,5,0,Math.PI*2);g.fill();g.stroke();g.restore();
  }
  if(this.waypoint?.region===r.name){
   const x=p.X(this.waypoint.x),y=p.Z(this.waypoint.z),s=9;
+  markerObstacles.push({x,y,r:16},{x,y:y-15,r:16});
   g.save();g.translate(x,y);g.beginPath();g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath();
   g.fillStyle='#7acbdf';g.strokeStyle='#17252a';g.lineWidth=3;g.fill();g.stroke();
   g.font='bold 14px sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#131c21';
   g.strokeText(this.waypoint.label,0,-15);g.fillStyle='#e3f0f2';g.fillText(this.waypoint.label,0,-15);g.restore();
  }
+ // Reserve the live player position as well as all visible marker clusters.
+ markerObstacles.push({x:p.X(st.me.pos.x),y:p.Z(st.me.pos.z),r:19});
+ g.save();g.font='600 13px sans-serif';g.textAlign='center';
+ for(const label of placeAtlasLabels(labelCandidates,markerObstacles,w,h,name=>g.measureText(name).width)){
+  g.lineJoin='round';g.strokeStyle='#10171b';g.lineWidth=4;
+  g.strokeText(label.name,label.x,label.y);
+  g.fillStyle='#e7eceb';g.fillText(label.name,label.x,label.y);
+ }
+ g.restore();
  // The player position is a lightweight DOM overlay, not static map paint.
  g.fillStyle='#dce8ea';g.font='bold 14px sans-serif';g.textAlign='left';g.fillText('N ↑',12,21);
  const sig=JSON.stringify(entries.map(e=>[e.name,e.category,e.x,e.z]));
  this.entries=entries;
  if(sig!==this.sig){
   this.sig=sig;this.results.replaceChildren();
-  for(let i=0;i<Math.min(entries.length,200);i++){
+  for(let i=0;i<Math.min(entries.length,4);i++){
    const b=el('button',null,entries[i].name+' · '+entries[i].category);
    b.onclick=()=>{
     const e=this.entries[i];if(!e)return;
     this.selection=e;this.setSelected.disabled=false;
     this.pan={x:clamp(e.x-r.x,-r.hw,r.hw),z:clamp(e.z-r.z,-r.hd,r.hd)};
     this.zoom=Math.max(2,this.zoom);
-    this.details.textContent=e.name+' · '+e.category+' · Select “Mark selected place” to create a waypoint.';
+    this.details.textContent=e.name+' · '+e.category;this.details.hidden=false;
     this.draw();
    };
    this.results.append(b);
+  }
+  if(entries.length>4){
+    const hint=el('p','atlas-result-hint','Refine search ('+entries.length+' matches)');
+    hint.title='Search results are limited to four visible entries to keep Atlas controls fitted without scrolling.';
+    this.results.append(hint);
   }
  }
  this.staticPaints++;

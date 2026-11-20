@@ -28,10 +28,26 @@ try {
  await atlas.getByRole('button',{name:'Full screen'}).click();
  assert.equal(await atlas.evaluate(el=>el.classList.contains('atlas-fullscreen')),true);
  const canvas=atlas.locator('.atlas-view canvas');
+ await page.waitForFunction(()=>document.querySelector('.world-atlas canvas')?.dataset.terrainSource==='authored');
  const terrainSource=await canvas.getAttribute('data-terrain-source');
- assert.equal(terrainSource,'scene','The world atlas must show genuine textured terrain captured from the in-game 3D scene');
+ assert.equal(terrainSource,'authored','Reach must render the source-grounded hand-authored SVG chart');
+ // Prevent a regression to the near-black overhead photo rejected in the
+ // owner playtest. Sample across the terrain, not HUD or sidebar chrome.
+ const visibility=await canvas.evaluate(node=>{
+  const {width,height}=node,rgba=node.getContext('2d').getImageData(0,0,width,height).data;
+  let count=0,tooDark=0;
+  for(let y=24;y<height-24;y+=12)for(let x=24;x<width-24;x+=12){
+   const offset=(y*width+x)*4;
+   const luminance=(rgba[offset]+rgba[offset+1]+rgba[offset+2])/3;
+   if(luminance<50)tooDark++;
+   count++;
+  }
+  return {tooDark,count};
+ });
+ assert.ok(visibility.count>100&&visibility.tooDark/visibility.count<.75,
+  'World atlas has become unreadably dark; most terrain must remain visually distinguishable regardless of game time');
  const initialCaptureCount=await canvas.getAttribute('data-terrain-capture-count');
- assert.equal(initialCaptureCount,'1','The static 3D terrain must be captured once per region');
+ assert.equal(initialCaptureCount,'0','Reach must not use a lighting-sensitive 3D scene capture');
  await canvas.click({position:{x:320,y:255}});
  await page.waitForFunction(()=>document.querySelector('.map-waypoint-brief')?.hidden===false);
  assert.match(await page.locator('.map-waypoint-brief').textContent(),/Custom waypoint/);
@@ -50,6 +66,7 @@ try {
  await page.locator('.map-waypoint-brief').click();
  await atlas.waitFor({state:'visible'});
  assert.match(await page.locator('.atlas-waypoint-details').textContent(),/Lattice Sanctum/);
+ await atlas.getByRole('button',{name:'Saved',exact:true}).click();
  // Player notes are locally persisted per authenticated character and never
  // auto-transmitted to the server; arbitrary text is displayed as text.
  await atlas.locator('.atlas-marker-title').fill('Sanctum staging point');
@@ -83,14 +100,27 @@ try {
  for(const viewport of [{width:1366,height:850},{width:1920,height:1080},{width:320,height:720}]){
   await page.setViewportSize(viewport);
   const layout=await atlas.evaluate(node=>{
-    const panel=node.querySelector('.atlas-tools').getBoundingClientRect();
+    const side=node.querySelector('.atlas-tools');
+    const panel=side.getBoundingClientRect();
+    const active=node.querySelector('.atlas-tool-panel:not([hidden])');
     const map=node.querySelector('.atlas-view canvas').getBoundingClientRect();
-    return {panelWidth:panel.width,mapWidth:map.width,mapRight:map.right,viewport:innerWidth};
+    return {panelWidth:panel.width,mapWidth:map.width,mapRight:map.right,
+      viewport:innerWidth,scrollExcess:side.scrollHeight-side.clientHeight,
+      activeOverflow:active.scrollHeight-active.clientHeight};
   });
   assert.ok(layout.panelWidth>=100&&layout.mapWidth>=100,'Sidebar and map must remain usable at '+viewport.width);
   assert.ok(layout.mapRight<=layout.viewport+2,'Atlas cannot escape the viewport');
+  assert.ok(layout.scrollExcess<=2&&layout.activeOverflow<=2,
+    'Atlas controls must fit without sidebar scrolling at '+viewport.width);
   await atlas.screenshot({path:'test/e2e/out/atlas-'+viewport.width+'-blueprint.png'});
  }
+ await atlas.getByRole('button',{name:'Map',exact:true}).click();
+ const mapPanelLayout=await atlas.evaluate(node=>{
+  const side=node.querySelector('.atlas-tools'),active=node.querySelector('.atlas-tool-panel:not([hidden])');
+  return {sideOverflow:side.scrollHeight-side.clientHeight,contentOverflow:active.scrollHeight-active.clientHeight};
+ });
+ assert.ok(mapPanelLayout.sideOverflow<=2&&mapPanelLayout.contentOverflow<=2,
+   'Map tab must fit without a scroll bar');
  await page.setViewportSize({width:1366,height:850});
  await page.screenshot({path:'test/e2e/out/atlas-waypoints.png'});
  assert.deepEqual(errors,[]);
