@@ -492,6 +492,8 @@ def design_gauntlets(body, base, m):
                            weights=pol([f"{fng}_{seg}"]), weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
                 if seg == "01":
                     pl.groove(D([(-30, 0.45), (30, 0.45)]), width=0.0022, depth=0.0016)
+                elif seg == "02":  # the concept's conduit runs down each finger
+                    pl.groove(D([(0, 0.16), (0, t1 - 0.14)]), width=0.0018, depth=0.0013)
                 P.append(pl.export())
         for seg, nxt in (("02", "03"), ("03", "04_leaf")):
             a, b = body.L.get(f"thumb_{seg}_{s}"), body.L.get(f"thumb_{nxt}_{s}")
