@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {WORLD,ZONES,groundHeight} from '../shared/world.js';
 import {atlasTerrainColor,reachContourSegments,clusterMapMarkers,atlasEntityCategory} from '../client/src/atlas-cartography.js';
@@ -72,5 +73,20 @@ test('Reach topographic lines follow the actual walkable heightfield, not invent
     // allow sub-metre interpolation error without accepting invented relief.
     assert.ok(Math.abs(groundHeight(x,z)-segment.level)<1,
       'contours must track real Reach surface elevation');
+  }
+});
+
+test('authored Reach map site anchors match canonical world coordinates',()=>{
+  const svg=readFileSync(new URL('../client/assets/atlas/reach-handdrawn.svg',import.meta.url),'utf8');
+  const anchors=new Map([...svg.matchAll(/<g data-site="([^"]+)" transform="translate\\(([-\\d.]+) ([-\\d.]+)\\)"/g)]
+    .map(m=>[m[1],{x:Number(m[2]),y:Number(m[3])}]));
+  assert.equal(anchors.size,Object.keys(ZONES).length,'Every approved Reach zone needs an authored map anchor');
+  for(const [id,site] of Object.entries(ZONES)){
+    const point=anchors.get(id);
+    assert.ok(point,'Missing map anchor for '+id);
+    const x=500+site.x*500/WORLD.radius;
+    const y=500+site.z*500/WORLD.radius;
+    assert.ok(Math.abs(point.x-x)<=1&&Math.abs(point.y-y)<=1,
+      id+' must have 1:1 atlas artwork/world positioning');
   }
 });
