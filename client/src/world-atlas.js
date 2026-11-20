@@ -1,6 +1,6 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
-import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory} from './atlas-cartography.js';
+import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory,placeAtlasLabels} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -354,12 +354,14 @@ export class WorldAtlas{
  }
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
- const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelBounds=[],clusterCandidates=[];
+ const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelCandidates=[],markerObstacles=[],clusterCandidates=[];
   this.results.hidden=!term;
  const mark=(name,x,z,category,color,shape='dot')=>{
   if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
   entries.push({name,x,z,category});
   const px=p.X(x),py=p.Z(z),sz=shape==='place'?4.5:5;
+  if(shape==='place'||term)labelCandidates.push({name,x:px,y:py});
+  if(px>=0&&px<=w&&py>=0&&py<=h)markerObstacles.push({x:px,y:py,r:sz+3});
   if(!term&&this.zoom<=1.5&&category==='objects'){
    if(px>=0&&px<=w&&py>=0&&py<=h)clusterCandidates.push({x:px,y:py,category,color});
    return;
@@ -370,17 +372,7 @@ export class WorldAtlas{
   }else g.arc(px,py,sz,0,Math.PI*2);
   g.fill();g.strokeStyle='#111c22';g.lineWidth=2;g.stroke();
   if(category==='party'){g.beginPath();g.arc(px,py,sz+3,0,Math.PI*2);g.strokeStyle='#bce9f2';g.lineWidth=1.5;g.stroke();}
-  if(shape==='place'||term){
-    g.font='600 13px sans-serif';g.textAlign='center';
-    const labelY=py-12,labelWidth=g.measureText(name).width+10;
-    const bounds={left:px-labelWidth/2,right:px+labelWidth/2,top:labelY-14,bottom:labelY+3};
-    const visible=bounds.left>=4&&bounds.right<=w-4&&bounds.top>=4&&bounds.bottom<=h-4;
-    const overlaps=labelBounds.some(b=>bounds.left<b.right&&bounds.right>b.left&&bounds.top<b.bottom&&bounds.bottom>b.top);
-    if(visible&&!overlaps){
-      labelBounds.push(bounds);g.strokeStyle='#10171b';g.lineWidth=4;
-      g.strokeText(name,px,labelY);g.fillStyle='#e7eceb';g.fillText(name,px,labelY);
-    }
-  }
+  // Defer labels until all visible marker and cluster positions are known.
  };
  if(!r.area)for(const z of Object.values(ZONES))mark(z.name,z.x,z.z,'places','#a4c5ca','place');
  for(const e of st.ents.values()){
@@ -390,6 +382,7 @@ export class WorldAtlas{
  }
  for(const cluster of clusterMapMarkers(clusterCandidates,22)){
   const {x,y,count,color,category}=cluster,radius=count>1?11:5;
+  markerObstacles.push({x,y,r:radius+3});
   g.save();g.beginPath();
   if(count===1){
    g.moveTo(x,y-radius);g.lineTo(x+radius,y);g.lineTo(x,y+radius);g.lineTo(x-radius,y);g.closePath();
@@ -404,16 +397,27 @@ export class WorldAtlas{
   if(point.region!==r.name||!pointInsideRegion(r,point.x,point.z))continue;
   const x=p.X(point.x),y=p.Z(point.z);
   if(x<2||y<2||x>w-2||y>h-2)continue;
+  markerObstacles.push({x,y,r:9});
   g.save();g.translate(x,y);g.fillStyle='#4b9eb6';g.strokeStyle='#eef7f9';g.lineWidth=1.5;
   g.beginPath();g.arc(0,0,5,0,Math.PI*2);g.fill();g.stroke();g.restore();
  }
  if(this.waypoint?.region===r.name){
   const x=p.X(this.waypoint.x),y=p.Z(this.waypoint.z),s=9;
+  markerObstacles.push({x,y,r:16},{x,y:y-15,r:16});
   g.save();g.translate(x,y);g.beginPath();g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath();
   g.fillStyle='#7acbdf';g.strokeStyle='#17252a';g.lineWidth=3;g.fill();g.stroke();
   g.font='bold 14px sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#131c21';
   g.strokeText(this.waypoint.label,0,-15);g.fillStyle='#e3f0f2';g.fillText(this.waypoint.label,0,-15);g.restore();
  }
+ // Reserve the live player position as well as all visible marker clusters.
+ markerObstacles.push({x:p.X(st.me.pos.x),y:p.Z(st.me.pos.z),r:19});
+ g.save();g.font='600 13px sans-serif';g.textAlign='center';
+ for(const label of placeAtlasLabels(labelCandidates,markerObstacles,w,h,name=>g.measureText(name).width)){
+  g.lineJoin='round';g.strokeStyle='#10171b';g.lineWidth=4;
+  g.strokeText(label.name,label.x,label.y);
+  g.fillStyle='#e7eceb';g.fillText(label.name,label.x,label.y);
+ }
+ g.restore();
  // The player position is a lightweight DOM overlay, not static map paint.
  g.fillStyle='#dce8ea';g.font='bold 14px sans-serif';g.textAlign='left';g.fillText('N ↑',12,21);
  const sig=JSON.stringify(entries.map(e=>[e.name,e.category,e.x,e.z]));
