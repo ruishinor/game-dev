@@ -45,6 +45,10 @@ try{
   ()=>document.querySelector('#roster-preview')?.dataset.sceneAsset==='severance-gate-glb',
   null,{timeout:90000}
  );
+ await page.waitForFunction(
+  ()=>document.querySelector('#roster-preview')?.dataset.frameReady==='yes',
+  null,{timeout:90000}
+ );
  const viewport=await page.locator('#roster-preview canvas').boundingBox();
  assert.ok(viewport.width>1000 && viewport.height>700,'3D vestibule must occupy the viewport');
  if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
@@ -56,6 +60,10 @@ try{
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
  await page.waitForFunction(
   ()=>document.querySelector('#creation-preview')?.dataset.sceneAsset==='severance-gate-glb',
+  null,{timeout:90000}
+ );
+ await page.waitForFunction(
+  ()=>document.querySelector('#creation-preview')?.dataset.frameReady==='yes',
   null,{timeout:90000}
  );
  assert.equal(await page.locator('#creation-preview .preview-controls').isHidden(),true,'creation camera tools collapse by default');
