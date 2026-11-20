@@ -30,7 +30,7 @@ export function openFoundry(game) {
   for (const [type, name, dl, u, v] of ENCOUNTER) {
     const def = ENEMIES[type];
     const e = { id: game.nextId++, kind: 'enemy', type, name, level: def.level + dl, radius: def.radius, home: { x: F.x + u, z: F.z + v },
-      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER };
+      route: null, form: null, metaVer: 1, foundryEncounter: true, overseer: name === OVERSEER, vx: 'foundry' };
     resetEnemy(game, e);
     game.enemies.push(e);
     game.ents.set(e.id, e);

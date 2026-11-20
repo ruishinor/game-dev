@@ -400,7 +400,8 @@ export class Game {
     }
     tickRift(this);
     tickSeveranceGate(this);
-    for (const e of this.enemies) tickEnemy(this, e, dt);
+    // aiHold: server-side capture fixture only (never client reachable)
+    if (!this.aiHold) for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
     for (const p of this.players.values()) {
       if (p.inscription) tickInscription(this, p);
@@ -457,7 +458,7 @@ export class Game {
       case 'player':
         return { i: ent.id, k: 'p', n: ent.name, c: ent.cls, l: ent.char.level, a: ent.char.look, ap: ent.char.appearance, ...(ent.weaponVisual ? { wv: ent.weaponVisual } : {}), ...(ent.socialVisual ? { sv: ent.socialVisual } : ent.armourVisual ? { av: ent.armourVisual } : {}) };
       case 'enemy':
-        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}) };
+        return { i: ent.id, k: 'e', n: ent.name, c: ent.type, l: ent.level, el: ENEMIES[ent.type].elite ? 1 : 0, ...(ENEMIES[ent.type].neutral ? { neu: 1 } : {}), ...(ent.form ? { form: ent.form } : {}), ...(ent.vx ? { vx: ent.vx } : {}) };
       case 'companion':
         return { i: ent.id, k: 'c', n: ent.name, c: ent.type, o: ent.owner };
       default:

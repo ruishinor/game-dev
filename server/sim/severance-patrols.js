@@ -36,7 +36,7 @@ export function spawnSeverancePatrols(game) {
   for (const p of SEVERANCE_PATROLS) {
     const def = ENEMIES[p.type];
     const e = { id: game.nextId++, kind: 'enemy', type: p.type, name: p.name, level: p.level, radius: def.radius,
-      home: { ...p.route[0] }, route: p.route.map((q) => ({ ...q })), patrol: true, form: null, metaVer: 1, severancePatrol: true };
+      home: { ...p.route[0] }, route: p.route.map((q) => ({ ...q })), patrol: true, form: null, metaVer: 1, severancePatrol: true, vx: 'ash' };
     resetEnemy(game, e);
     game.enemies.push(e);
     game.ents.set(e.id, e);

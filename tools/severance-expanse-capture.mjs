@@ -78,9 +78,24 @@ try {
   await shot('14c-outpost-night', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 }, { tod: 'night' });
   await shot('15-arrival-live-default-lighting', E.arrival, N, { yaw: N, pitch: 0.14, dist: 7 }, { tod: 'off' });
   await shot('16-gate-live-default-lighting', gateToWorld(0, -70), N, { yaw: N, pitch: 0.16, dist: 9 }, { tod: 'off' });
+  // regional enemy looks: a line-up of Expanse patrollers held still, out of aggro range
+  if (!only.length || only.some((o) => o.startsWith('17'))) {
+    game.openExpanse();
+    game.aiHold = true;
+    const stand = { x: E.x - 70, z: E.z - 60 };
+    const lineup = ['sentinel', 'faultstalker', 'skitter', 'turret_drone'].map((t) => game.enemies.find((e) => e.severancePatrol && e.type === t));
+    lineup.forEach((e, i) => { e.x = stand.x - 6 + i * 4; e.z = stand.z + 14; e.home = { x: e.x, z: e.z }; e.post = { ...e.home }; e.wanderAt = Infinity; e.state = 'idle'; e.threat.clear(); e.yaw = Math.PI; });
+    await shot('17-expanse-patrol-variants', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { settle: 3500 });
+    await shot('17b-expanse-patrol-variants-night', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { tod: 'night', settle: 2500 });
+    for (const e of lineup) { e.state = 'dead'; e.deadAt = -1e9; e.respawnAt = Infinity; }
+    game.aiHold = false;
+  }
   await page.evaluate(() => window.__attune.timeOfDay({ mode: 'off' }));
   // the Silent Foundry behind the gate
   if (!only.length || only.some((o) => o.startsWith('2'))) {
+    const { openFoundry } = await import('../server/sim/silent-foundry.js');
+    openFoundry(game);
+    game.aiHold = true;   // the encounter stands still for the review views
     game.transferPlayer(p, { ...SF.arrival });
     await page.waitForFunction(() => window.__attune.state().you?.region === 'silent_foundry', null, { polling: 250 });
     const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
