@@ -48,10 +48,10 @@ export class CharacterRosterView{
   });
   // Keep inspection out of the actor/character-details canvas entirely.
   // The preview controller has already captured these elements by reference.
-  // Put them in the roster's natural scroll flow, not an absolute overlay.
+  // Camera controls remain in the separate inspection view, never the roster.
   this.inspectToggle=this.selectionPreview.querySelector('[data-preview-inspect]');
   this.inspectControls=this.selectionPreview.querySelector('.roster-preview-controls');
-  this.capacity.after(this.inspectToggle,this.inspectControls);
+  this.capacity.after(this.inspectToggle);
   this.inspectScreen=el('section','roster-inspection-screen');
   this.inspectScreen.id='roster-inspection-screen';
   this.inspectScreen.setAttribute('aria-label','Full-screen character inspection');
@@ -61,13 +61,14 @@ export class CharacterRosterView{
   const close=el('button','roster-inspection-close','Return to character selection');
   close.type='button';
   close.addEventListener('click',()=>this.closeInspection(true));
-  this.inspectScreen.addEventListener('keydown',event=>{
-   if(event.key==='Escape'){
-    event.preventDefault();event.stopPropagation();this.closeInspection(true);
+  document.addEventListener('keydown',event=>{
+   if(event.key==='Escape'&&!this.inspectScreen.hidden){
+    event.preventDefault();event.stopImmediatePropagation();
+    this.closeInspection(true);
    }
-  });
+  },true);
   header.append(this.inspectHeading,close);
-  this.inspectScreen.append(header);
+  this.inspectScreen.append(header,this.inspectControls);
   this.root.append(this.inspectScreen);
   // The preview's original Inspect toggle still manages the actual controls.
   // Transfer those controls into an entirely separate view, not a roster popup.
@@ -111,7 +112,6 @@ export class CharacterRosterView{
  openInspection(){
   if(!this.selected||this.busy)return;
   this.inspectHeading.textContent='Inspect '+this.selected.name;
-  this.inspectScreen.append(this.inspectControls);
   this.inspectControls.hidden=false;
   this.inspectScreen.hidden=false;
   document.body.classList.add('character-inspection-mode');
@@ -122,7 +122,6 @@ export class CharacterRosterView{
   document.body.classList.remove('character-inspection-mode');
   this.inspectScreen.hidden=true;
   this.preview.closeInspector();
-  this.capacity.after(this.inspectControls);
   this.inspectControls.hidden=true;
   if(restoreFocus&&wasOpen&&!this.inspectToggle.hidden)
    this.inspectToggle.focus({preventScroll:true});
