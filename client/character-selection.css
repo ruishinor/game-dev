@@ -253,3 +253,231 @@
 @media(prefers-reduced-motion:reduce){
  .character-selection-mode #roster-world-transition:not([hidden]){animation:none}
 }
+
+
+/* 2026-11-20 owner screenshot correction — real shared environment for selection
+   AND creation; UI tools never intersect the bottom primary action. */
+.character-selection-mode #roster-preview .roster-preview-controls {
+ bottom: 134px; left: 50%; z-index: 5; transform: translateX(-50%);
+ width: max-content; max-width: min(94vw,410px);
+ flex-wrap: nowrap; gap: 3px; align-items: center;
+ padding: 5px; border: 1px solid #34506190;
+ background: #071722e3;
+}
+.character-selection-mode #roster-preview [data-preview-status] {
+ bottom: 112px; z-index: 4;
+ font: 10px/1.2 'Segoe UI',sans-serif; color:#a7cad8;
+}
+.character-selection-mode #character-roster.roster-empty #roster-preview .roster-preview-controls,
+.character-selection-mode #character-roster.roster-empty #roster-preview [data-preview-status] {
+ display:none;
+}
+.character-selection-mode #character-roster.roster-empty #roster-enter,
+.character-selection-mode #character-roster.roster-empty #roster-delete {display:none;}
+.character-selection-mode #character-roster.roster-empty #roster-create {
+ left:50%;right:auto;top:0;transform:translateX(-50%);
+ min-width:230px;padding:12px 26px;text-align:center;
+ font:600 17px/1.35 Georgia,serif;
+ background:linear-gradient(180deg,#30556b,#0d2635);
+ border-color:#8bbccd;
+}
+.character-selection-mode .roster-slot-vacant {
+ min-height:56px;margin:0;border:1px solid #638ca180;border-left:3px solid #73a8bd;
+ color:#d2e4eb;background:linear-gradient(100deg,#193044b8,#0c1b28a6);
+ clip-path:polygon(12px 0,100% 0,100% 100%,12px 100%,0 50%);
+ font:600 14px 'Segoe UI',sans-serif;letter-spacing:.04em;
+ justify-content:center;
+}
+.character-selection-mode #character-roster.roster-empty .roster-facts{
+ bottom:180px;font-size:13px;
+}
+.character-selection-mode #roster-preview:after {
+ background:
+ linear-gradient(90deg,#030a1296 0%,#030a1229 23%,transparent 57%,#030a125b 100%),
+ linear-gradient(0deg,#030910c8 0%,transparent 24%,transparent 78%,#0309105e 100%);
+}
+.character-create-mode #login{
+ position:fixed;inset:0;display:block;overflow:hidden;padding:0;background:#07111a;
+}
+.character-create-mode #login .login-card{
+ position:absolute;inset:0;width:100%;height:100%;max-height:none;
+ overflow:hidden;margin:0;padding:0;border:0;border-radius:0;
+ box-shadow:none;background:#07111a;backdrop-filter:none;
+}
+.character-create-mode #login .login-card>h1{
+ position:absolute;left:clamp(20px,3vw,58px);top:20px;z-index:8;
+ margin:0;color:#e3eef3;letter-spacing:.13em;
+ font:600 clamp(23px,2.15vw,36px)/1.2 Georgia,serif;
+ text-shadow:0 2px 12px #000b;
+}
+.character-create-mode #login .login-card>.tagline{display:none}
+.character-create-mode #login-form{
+ position:absolute;inset:0;display:block;margin:0;padding:0;
+ border:0;background:none;pointer-events:none;overflow:hidden;
+}
+.character-create-mode #login-form>*{pointer-events:auto;}
+.character-create-mode #creation-fields{
+ position:absolute;left:clamp(15px,3vw,58px);top:102px;bottom:114px;
+ z-index:3;width:clamp(304px,27.5vw,410px);padding:18px 18px 24px;
+ overflow-y:auto;overscroll-behavior:contain;
+ border-left:1px solid #5f8999;scrollbar-color:#48697b #071722;
+ background:linear-gradient(90deg,#08151fea 0%,#0a1c28dc 86%,#0a1c2818 100%);
+ box-shadow:20px 0 35px #02070d40;
+}
+.character-create-mode .creation-section-heading{
+ display:flex;flex-direction:column;gap:7px;margin:0 0 17px;
+ padding-bottom:14px;border-bottom:1px solid #375363;
+}
+.character-create-mode .creation-section-heading>span{
+ font:11px/1.5 'Segoe UI',sans-serif;letter-spacing:.2em;color:#7faec0;
+}
+.character-create-mode .creation-section-heading strong{
+ font:600 20px/1.2 Georgia,serif;color:#edf5f8;
+}
+.character-create-mode .creation-section-heading small{
+ font:11px/1.45 'Segoe UI',sans-serif;color:#96b2c0;
+}
+.character-create-mode #creation-back{
+ position:fixed;bottom:34px;left:clamp(15px,3vw,58px);
+ z-index:9;min-width:0;padding:8px 2px;
+ background:transparent;border:0;border-bottom:1px solid #6d94a7;
+ border-radius:0;color:#c5d9e2;font-size:12px;
+}
+.character-create-mode #login-form label,
+.character-create-mode #login-form .label{
+ color:#9fc3d1;font-size:11px;letter-spacing:.14em;margin:13px 0 6px;
+}
+.character-create-mode #name{
+ background:#06131ddc;border:1px solid #4c7186;border-radius:1px;
+ font-size:16px;padding:10px 12px;color:#eef5f9;
+}
+.character-create-mode #classes{
+ display:grid;grid-template-columns:1fr 1fr;gap:6px;
+}
+.character-create-mode #classes .classcard{
+ display:flex;flex-direction:column;justify-content:space-between;
+ min-height:68px;padding:10px 11px;
+ border:1px solid #3c5a6d;border-left:2px solid #507a8e;
+ background:#102330de;border-radius:0;color:#dbe9ee;
+}
+.character-create-mode #classes .classcard[aria-pressed="true"]{
+ border-color:#99cddd;border-left-color:#b5e4ee;
+ box-shadow:inset 0 0 0 1px #7bb5c583;
+ background:#2b5265db;
+}
+.character-create-mode #classes .classcard strong{
+ font-size:13px;line-height:1.3;font-weight:600;
+}
+.character-create-mode #classes .classcard .role{
+ display:block;font-size:10px;letter-spacing:.07em;
+ color:#98baca;line-height:1.3;margin-top:4px;
+}
+.character-create-mode #classes .classcard p{display:none;}
+.character-create-mode #appearance{
+ border:0;border-top:1px solid #446273;border-radius:0;
+ padding:15px 0 0;margin:17px 0 0;
+}
+.character-create-mode #appearance legend{
+ color:#a9d1df;font-size:11px;padding-right:9px;
+}
+.character-create-mode .ap-row{display:grid;grid-template-columns:55px minmax(0,1fr);gap:5px;margin:8px 0;}
+.character-create-mode .ap-name{width:auto;font-size:11px;color:#9ab3c0;}
+.character-create-mode .ap-choices{gap:5px;}
+.character-create-mode .ap-choices button{
+ background:#132b39d9;color:#c2d9e3;border:1px solid #45687d;
+ border-radius:2px;padding:4px 7px;font-size:11px;
+}
+.character-create-mode .ap-choices button[aria-pressed="true"]{
+ background:#2b6578a8;border-color:#a5d8e9;color:#f4f9fa;
+ box-shadow:inset 0 0 0 1px #78bfd05e;
+}
+.character-create-mode .ap-swatches button{
+ width:22px;height:22px;padding:0;border-radius:50%;
+ border:2px solid #243e4b;
+}
+.character-create-mode .ap-swatches button[aria-pressed="true"]{
+ box-shadow:0 0 0 2px #a6d9e7;
+}
+.character-create-mode .ap-blurb{
+ margin:4px 0 7px 62px;line-height:1.4;font-size:11px;color:#9cb6c0;
+}
+.character-create-mode #look-row{margin-bottom:14px}
+.character-create-mode #creation-preview{
+ position:absolute;inset:0;z-index:0;margin:0;padding:0;border:0;
+ border-radius:0;background:#06111c;overflow:hidden;
+}
+.character-create-mode #creation-preview canvas{
+ display:block;width:100%;height:100%;border:0;border-radius:0;
+ cursor:grab;touch-action:none;background:#06111c;
+}
+.character-create-mode #creation-preview canvas:active{cursor:grabbing;}
+.character-create-mode #creation-preview h2{
+ position:absolute;top:37px;right:clamp(22px,3vw,60px);z-index:2;
+ margin:0;font:600 11px/1.5 'Segoe UI',sans-serif;
+ letter-spacing:.2em;color:#a6c7d4;text-transform:uppercase;
+}
+.character-create-mode #creation-preview>.preview-controls{
+ position:absolute;left:50%;bottom:132px;z-index:4;
+ transform:translateX(-50%);
+ display:flex;flex-wrap:nowrap;gap:4px;
+ max-width:min(98vw,480px);padding:5px;margin:0;
+ background:#071722e3;border:1px solid #4a7084;
+}
+.character-create-mode #creation-preview .preview-controls button{
+ padding:5px 8px;border-radius:0;border-color:#54788a;
+ background:#102b3acc;color:#e0edf1;white-space:nowrap;font-size:11px;
+}
+.character-create-mode #creation-preview .preview-controls button[aria-pressed="true"]{
+ border-color:#b3d8e3;background:#244c60;
+}
+.character-create-mode #creation-preview [data-preview-status]{
+ position:absolute;bottom:109px;left:50%;z-index:4;
+ transform:translateX(-50%);margin:0;
+ color:#a8cedd;font-size:10px;text-shadow:0 2px 6px #000;
+ white-space:nowrap;
+}
+.character-create-mode #creation-preview [data-preview-frames]:not([hidden]){
+ position:absolute;z-index:6;bottom:183px;left:50%;
+ transform:translateX(-50%);background:#071722e8;border:1px solid #527385;
+}
+.character-create-mode #enter{
+ position:absolute;z-index:8;left:50%;bottom:36px;transform:translateX(-50%);
+ width:auto;min-width:250px;padding:12px 30px;
+ border-radius:1px;border:1px solid #a0d0df;
+ clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);
+ background:linear-gradient(180deg,#315b70,#0b2635);
+ color:#f4f8fb;font:600 17px/1.3 Georgia,serif;letter-spacing:.06em;
+ text-transform:uppercase;
+}
+.character-create-mode #login-error:not(:empty){
+ position:absolute;left:50%;bottom:191px;transform:translateX(-50%);
+ z-index:9;max-width:min(500px,85vw);
+ border:1px solid #a66c78;background:#25151ae8;padding:10px 18px;
+ text-align:center;font:12px/1.5 'Segoe UI',sans-serif;
+}
+.character-create-mode #creation-guest-hint{display:none}
+@media(max-width:850px){
+ .character-create-mode #creation-fields{
+  left:16px;top:90px;bottom:120px;width:290px;padding:12px;
+ }
+ .character-create-mode #creation-preview h2{top:26px;right:16px;}
+ .character-create-mode #creation-preview>.preview-controls{bottom:116px;}
+ .character-selection-mode #roster-preview .roster-preview-controls{bottom:120px;}
+}
+@media(max-width:620px){
+ .character-create-mode #creation-fields{
+  top:87px;left:10px;bottom:auto;right:10px;
+  width:auto;height:min(40vh,320px);padding:12px 13px;
+  background:#081721f0;
+ }
+ .character-create-mode #creation-preview h2{top:70px;right:12px;font-size:9px;}
+ .character-create-mode #creation-preview>.preview-controls{
+  bottom:125px;max-width:calc(100vw - 12px);gap:2px;
+ }
+ .character-create-mode #creation-preview .preview-controls button{padding:4px;font-size:10px;}
+ .character-create-mode #creation-preview [data-preview-status]{bottom:105px;}
+ .character-create-mode #enter{bottom:25px;min-width:190px;font-size:14px;}
+ .character-create-mode #creation-back{left:10px;bottom:27px;font-size:10px;}
+ .character-selection-mode #roster-preview .roster-preview-controls{bottom:142px;gap:2px;}
+ .character-selection-mode #roster-preview .roster-preview-controls button{padding:4px 5px;font-size:10px;}
+}
