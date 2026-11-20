@@ -38,6 +38,15 @@ try{
  assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),1,'one creation action, not six redundant cards');
  assert.equal(await page.locator('#roster-create').isEnabled(),true);
  assert.equal(await page.locator('#roster-settings').isVisible(),true);
+ await page.click('#roster-settings');
+ await page.locator('.settings-panel').waitFor({state:'visible'});
+ assert.equal(await page.locator('.settings-screen-tabs [role="tab"]').count(),3);
+ for(const label of ['Graphics','Interface','More']){
+  await page.locator('.settings-screen-tabs').getByRole('tab',{name:label}).click();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2
+   &&document.body.scrollHeight<=innerHeight+2),true,'settings page must not scroll');
+ }
+ await page.locator('.settings-panel button.close').click();
  // The exact owner-supplied source image (optimized WebP) must actually be
  // served and visible behind a transparent, centered gameplay-model canvas.
  const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/assets/character-selection-gate.webp');
@@ -147,19 +156,18 @@ try{
  assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
- assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true,'selection inspector is collapsed');
+ assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
  await page.click('.roster-cards [data-preview-inspect]');
- const rosterCamera=await page.locator('.roster-cards .roster-preview-controls').boundingBox();
- const sidebar=await page.locator('.roster-cards').boundingBox();
- const facts=await page.locator('.roster-facts').boundingBox();
- assert.ok(rosterCamera.x>=sidebar.x-2 && rosterCamera.x+rosterCamera.width<=sidebar.x+sidebar.width+2,
-  'inspection controls stay within the right roster panel');
- assert.ok(rosterCamera.x>facts.x+facts.width+16,
-  'inspection controls must never overlap character identity, race or location');
- assert.equal(await page.locator('#roster-preview').getAttribute('data-model-count'),'1',
-  'the account selection is exactly one persisted gameplay model');
- assert.equal(await page.evaluate(fitsViewport),true,'populated roster cannot scroll');
- await page.click('.roster-cards [data-preview-inspect]');
+ await page.locator('#roster-inspection-screen').waitFor({state:'visible'});
+ assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-inspection-mode')),true);
+ const panel=await page.locator('#roster-inspection-screen .roster-preview-controls').boundingBox();
+ assert.ok(panel && panel.y>viewport.height*.7,'inspection controls belong to separate bottom panel');
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-model-count'),'1');
+ assert.equal(await page.evaluate(fitsViewport),true,'inspect scene cannot scroll');
+ if(evidence)await page.screenshot({path:join(evidence,'character-inspection-fullscreen.png')});
+ await page.click('.roster-inspection-close');
+ assert.equal(await page.locator('#roster-inspection-screen').isHidden(),true);
+ assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-inspection-mode')),false);
  assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
  // Turning the character must leave the camera and architecture fixed.
  const yawBefore=await page.locator('#roster-preview').getAttribute('data-yaw');
@@ -171,6 +179,12 @@ try{
  );
  assert.equal(await page.locator('#roster-preview').getAttribute('data-scene-asset'),'reference-image');
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
+ // The roster's own New Character control must work, not only the footer.
+ await page.click('#roster-list .roster-slot-vacant');
+ await page.locator('#creation-fields').waitFor({state:'visible'});
+ assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
+ await page.click('#creation-back');
+ await page.locator('#character-roster').waitFor({state:'visible'});
  if(evidence){
   await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
   await page.setViewportSize({width:390,height:844});
