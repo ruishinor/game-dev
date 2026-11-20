@@ -79,7 +79,16 @@ export class WorldAtlas{
  full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
  this.playerMarker=el('div','atlas-player-marker','▲');this.playerMarker.setAttribute('role','img');this.playerMarker.setAttribute('aria-label','Your current position');this.playerMarker.title='Your current position';this.playerMarker.hidden=true;
  view.append(this.canvas,this.playerMarker,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
- this.el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();this.close();}});
+ this.el.addEventListener('keydown',e=>{
+  // The map owns focus while open. M should close it as well as open it,
+  // except when the user is editing a search, marker name or note.
+  e.stopPropagation();
+  if(e.key==='Escape'){e.preventDefault();this.close();return;}
+  if(e.code==='KeyM'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&
+     !['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)){
+   e.preventDefault();this.close();
+  }
+ });
  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.scale(e.deltaY<0?1.2:1/1.2);},{passive:false});
  this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;this.drag={x:e.clientX,y:e.clientY,moved:false};this.canvas.setPointerCapture(e.pointerId);});
  this.canvas.addEventListener('pointermove',e=>{if(!this.drag||!this.p)return;
