@@ -25,6 +25,10 @@ test('Spindle field light is exactly 10m and constrained to a fixed local light 
   assert.deepEqual(activeSpindleLights([], point), []);
   assert.deepEqual(activeSpindleLights([companion(3, 80)], point).map(e => e.id), [3]);
   assert.deepEqual(activeSpindleLights([companion(3, 80.001)], point), []);
+  // Three closer players must not crowd out your own nearby field light.
+  assert.deepEqual(activeSpindleLights([
+    companion(1, 1), companion(2, 2), companion(3, 3), companion(42, 9),
+  ], point, SPINDLE_LIGHT, 42).map(e => e.id), [42, 1, 2]);
 });
 
 test('light source eligibility is based on server state, not a locally selected mode', () => {
