@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD,ZONES} from '../shared/world.js';
-import {atlasTerrainColor} from '../client/src/atlas-cartography.js';
+import {atlasTerrainColor,clusterMapMarkers} from '../client/src/atlas-cartography.js';
 import {regionFor,project,pixelToWorld} from '../client/src/world-atlas.js';
 
 test('cartography uses opaque, deterministic terrain over full rectangular atlas, never an alpha circle',()=>{
@@ -28,4 +28,21 @@ test('full-bleed atlas projection covers both axes while map selection stays wor
   assert.deepEqual(pixelToWorld(region,p,1240,700,p.X(place.x),p.Z(place.z)),place);
   const q=project(region,1240,700,2,{x:15,z:-8});
   assert.equal(q.X(15),620);assert.equal(q.Z(-8),350);
+});
+
+test('visible monster and object markers cluster without merging categories or losing counts',()=>{
+  const marks=[
+    {x:110,y:130,category:'enemies',color:'#f66'},
+    {x:119,y:132,category:'enemies',color:'#f66'},
+    {x:110,y:130,category:'objects',color:'#7ac'},
+    {x:350,y:310,category:'enemies',color:'#f66'},
+  ];
+  const groups=clusterMapMarkers(marks,20);
+  assert.equal(groups.length,3);
+  assert.equal(groups[0].count,2);
+  assert.equal(groups[1].category,'objects');
+  assert.equal(groups[1].count,1);
+  assert.equal(groups[2].count,1);
+  assert.equal(groups.reduce((sum,x)=>sum+x.count,0),marks.length);
+  assert.deepEqual(clusterMapMarkers([{x:NaN,y:2,category:'enemies'}]),[]);
 });
