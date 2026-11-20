@@ -149,7 +149,7 @@ const rich = () => !!cvfx && quality > 0;
 // Severance Expanse time-of-day review preview (?tod=day|dusk|night|dawn|loop|0..1). Off by default.
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
-attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1 });
+attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, vfx: () => (rich() ? vfx : null) });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
@@ -971,6 +971,8 @@ function onEvent(e) {
       const s = S.ents.get(e.s);
       if (d) ui.floatText(toScreen(d.head), `+${e.a}`, 'heal');
       if (d?.placed && rich()) cvfx.heal(d, s);
+      if (s && s !== d) s.model.armourReact?.('heal', e.ab);
+      d?.model.armourReact?.('healed', e.ab);
       const mine = e.s === S.myId || e.s === S.compId;
       if (mine && d) ui.log(`${nameOf(s)}${e.s === S.myId ? 'r' : "'s"} ${abilityName(e.ab)} heals ${e.d === S.myId ? 'you' : d.meta.n} for ${e.a}.`, 'heal');
       else if (e.d === S.myId) ui.log(`${nameOf(s)}'s ${abilityName(e.ab)} heals you for ${e.a}.`, 'heal');

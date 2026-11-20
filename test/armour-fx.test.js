@@ -107,3 +107,37 @@ test('a worn piece hides the body shells it replaces, ref-counted across slots',
   gloves.dispose();
   assert.equal(shells.shell_forearms.visible, true);
 });
+
+test('each family keeps its own energy language and answers its own class abilities through the shared engine', async () => {
+  const { FAMILIES, familyOf, isChannelMaterial, isGlassMaterial } = await import('../client/src/armour-fx.js');
+  assert.deepEqual(Object.keys(FAMILIES).sort(), ['CL', 'MY', 'SW', 'VG']);
+  assert.equal(new Set(Object.values(FAMILIES).map((f) => f.mode)).size, 4, 'four distinct channel behaviours');
+  assert.equal(FAMILIES.SW.particles, null, 'Strataweave sheds nothing');
+  for (const k of ['CL', 'VG', 'MY', 'SW']) {
+    assert.ok(isChannelMaterial(`${k}_Channel`) && familyOf(`${k}_Channel`) === k);
+  }
+  assert.ok(isGlassMaterial('VG_Glass') && !isGlassMaterial('armour_keeper_field_set_chest'));
+  const bursts = [];
+  const engine = { burst: (o) => { bursts.push(o); return 1; }, flash: () => null };
+  attachArmourFxEnv({ quality: () => 2, reducedMotion: () => false, intensity: () => 1, vfx: () => engine });
+  const bone = new THREE.Bone();
+  const make = (fam) => createArmourFx([new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ name: `${fam}_Channel` }))],
+    [{ kind: 'core', bone, position: new THREE.Vector3() }],
+    [new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ name: `${fam}_Glass`, transparent: true }))]);
+  const vg = make('VG');
+  assert.equal(vg.family, 'VG');
+  vg.surge('ability', 'lattice_relay');
+  assert.ok(bursts.length > 0);
+  for (let i = 0; i < 30; i++) vg.update(0.05, {});
+  assert.ok(vg.sustain > 0.5, 'a barrier cast holds the prisms bright');
+  for (let i = 0; i < 200; i++) vg.update(0.05, {});
+  assert.ok(vg.sustain < 0.1, 'and lets them settle');
+  const n = bursts.length;
+  attachArmourFxEnv({ quality: () => 2, reducedMotion: () => true, intensity: () => 1, vfx: () => engine });
+  vg.surge('ability', 'hinge_field');
+  assert.equal(bursts.length, n, 'reduced motion adds no particles');
+  vg.setComplete(true);
+  vg.dispose();
+  assert.equal(bone.children.length, 0);
+  attachArmourFxEnv({ quality: () => 2, reducedMotion: () => false, intensity: () => 1, vfx: () => null });
+});
