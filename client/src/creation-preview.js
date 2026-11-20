@@ -10,7 +10,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(38,1,.01,100);
  scene.background=new THREE.Color(0x132029);
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
- const environment=variant==='selection'?createSelectionEnvironment(scene):null;
+ const environment=variant==='selection'?createSelectionEnvironment(scene,assets):null;
  if(environment){
   scene.background=new THREE.Color(0x050b12);
   scene.fog=new THREE.FogExp2(0x07111b,.032);
