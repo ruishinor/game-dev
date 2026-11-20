@@ -33,6 +33,9 @@ function gateSource(){
 }
 // Begin fetching while the user is at login, before the selection canvas starts.
 export function preloadSelectionGate(){return gateSource();}
+// Start the immutable artwork download at the login screen, not only after
+// the player authenticates. Character switching never restarts this request.
+const preloadedGate=preloadSelectionGate();
 
 function noise(x,z,seed=0){
  return Math.sin(x*.229+seed*3.17)*Math.cos(z*.311-seed*1.7)*.5
@@ -120,10 +123,11 @@ export function createSelectionEnvironment(scene){
  gateway.position.set(0,-.24,-12.8);
  gateway.scale.setScalar(.43);
  root.add(gateway);
- let loaded=false,disposed=false,visual=null;
+ let loaded=false,unavailable=false,disposed=false,visual=null;
  const gateMats=[];
  gateSource().then(source=>{
-  if(disposed||!source)return;
+  if(disposed)return;
+  if(!source){unavailable=true;return;}
   visual=source.clone(true);
   visual.name='Severance Gate | near-detail GLB';
   const cloned=new Map();
@@ -140,7 +144,7 @@ export function createSelectionEnvironment(scene){
     if(name==='SG_Rune'||name==='SG_RuneDim'){
      mat.color?.setHex(0xa66b4f);
      mat.emissive?.setHex(AMBER);
-     mat.emissiveIntensity=name==='SG_Rune'?.52:.13;
+     mat.emissiveIntensity=name==='SG_Rune' ? .52 : .13;
     }else if(name==='SG_Channel'||name==='SG_Lamp'){
      mat.color?.setHex(0x9a6858);
      mat.emissive?.setHex(0xbe794b);
@@ -205,5 +209,5 @@ export function createSelectionEnvironment(scene){
   grain.dispose();
   visual=null;
  }
- return {update,dispose,get ready(){return loaded;},root};
+ return {update,dispose,get ready(){return loaded;},get unavailable(){return unavailable;},root};
 }
