@@ -126,8 +126,12 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     renderer.setViewport(left,0,viewWidth,h);
     renderer.setScissor(left,0,viewWidth,h);
     camera.aspect=viewWidth/h;
-    const focus=center.clone();if(mode==='face')focus.y+=height*.34;
-    const framing=mode==='face'?height*.31:Math.max(...models.map(entry=>Math.max(entry.height*1.2,entry.width*1.22/camera.aspect)));
+    const focus=center.clone();
+    if(mode==='face')focus.y+=height*.34;
+    else if(environment&&camera.aspect<.8)focus.y+=height*.09;
+    // Respect the material's full-body frame; the previous 1.2x box made the
+    // human appear oversized and clipped the feet on real desktop captures.
+    const framing=mode==='face'?height*.37:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.52:1.2),entry.width*1.22/camera.aspect)));
     const distance=framing/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/zoom;
     camera.position.copy(focus).add(new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(distance));camera.lookAt(focus);camera.updateProjectionMatrix();
     if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:meta?.er===2?'dual':meta?.er===1?'rod':null,reducedMotion:motionPreference.matches});
