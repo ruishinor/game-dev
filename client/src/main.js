@@ -4,6 +4,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
+import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
@@ -148,6 +149,7 @@ const rich = () => !!cvfx && quality > 0;
 // Severance Expanse time-of-day review preview (?tod=day|dusk|night|dawn|loop|0..1). Off by default.
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
+attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1 });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
 const MUTED_FX = { bolt() {}, beam() {}, ring() {}, pillar() {}, burst() {}, telegraph() {} };
@@ -701,7 +703,7 @@ function addEntity(meta) {
       if(quality===0)lowSpec(next.group,true);
     } else {
       if (ent.meta.wv !== meta.wv) ent.model.setWeaponVisual?.(meta.wv);
-      if (ent.meta.av !== meta.av) ent.model.setArmourVisual?.(meta.av);
+      if (JSON.stringify(ent.meta.av || null) !== JSON.stringify(meta.av || null)) ent.model.setArmourVisual?.(meta.av);
       if (ent.meta.sv !== meta.sv) ent.model.setSocialVisual?.(meta.sv);
     }
     ent.meta = meta;
@@ -1998,7 +2000,7 @@ window.__attune = {
       pending: local.pending.length,
       you: S.you,
       sheet: S.sheet,
-      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
+      ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, armourWornAll: e.model.armourWornAll?.() || null, armourFx: e.model.armourFxInfo?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
         ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),

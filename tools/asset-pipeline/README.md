@@ -139,3 +139,13 @@ node tools/assets/build.mjs armour_chest_m armour_chest_f  # manifest entries (v
 | icons | Cycles renders of each item from the exported GLB -> transparent WebP icons | new `blender/armour_render.py` reusing `render_evidence` lighting |
 | evidence | worn renders on both bodies | new (same script) |
 | publish | runtime GLBs, icons and the generated `client/src/item-renders.js`, compact reports, editable `.blend` sources, JPEG evidence | new |
+
+**Hard-surface sets** (`assets/armour_vanguard_set`, `"builder": "hardsurface"`): the
+design stage authors plates in limb/torso parameter space (`armour_cinderlock.py`:
+faceted sections, plateau/ridge/lip profiles, grooves, vent holes, bolts, anchor soles);
+the build stage (`blender/armour_hardsurface.py`) solidifies, cuts exact boolean grooves,
+dissolves coplanar faces, bevels with hardened normals, adds emissive inlay strips with
+flow UVs and bakes edge wear, cavity, AO and a detail normal per item. The rig stage
+writes a second `item__fx` channel mesh, FX anchor nodes (`fxa--item--kind--n`) and
+`extras.hides` (body shells the piece replaces). `ARMOUR_PREVIEW=1` builds quarter-size
+textures with 4 bake samples for fast look iteration (separate cache key; never publish it).

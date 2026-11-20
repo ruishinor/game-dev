@@ -20,7 +20,9 @@ export function createSocialTorso(THREE,assets,entries){
     }
     for(const e of entries){
       const chosen=!!key&&e.shell==='coat';
-      e.mesh.visible=key?chosen:e.originalVisible;
+      const visible=key?chosen:e.originalVisible;
+      // a worn armour piece that replaces this shell keeps it hidden until removed
+      if(e.mesh.userData.armourHides)e.mesh.userData.armourShown=visible;else e.mesh.visible=visible;
       e.mesh.material=chosen?material:e.original;
     }
   }

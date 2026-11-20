@@ -1,0 +1,465 @@
+{
+ "id": "armour_vanguard_set",
+ "kind": "body-fitted-armour",
+ "description": "Cinderlock Regalia, the Kinetic Vanguard armour set (Reactor Cuirass, Induction Gauntlets, Impact Greaves, Anchor Boots): segmented black hard-surface plates over a dark undersuit with red emissive channels, after the owner's visual aim (2026-11-19). Fitted to both project bodies, skinned to the shared skeleton, with Cycles-rendered inventory icons. Keyed to the Vanguard class-set item ids of SYS-01 (vanguard_field_set_*).",
+ "sources": [
+  {
+   "id": "body_m",
+   "path": "client/assets/humanoid_m.glb",
+   "sha256": "4d861bca31984d675354aa1400a9ca33329934f9490455829192f7466e6e48ec",
+   "provenance": "Project runtime body (built from CC0 sources, see assets/sources.json). Read-only fitting and skinning reference; none of its geometry is shipped in the armour except as the offset base of the glove and boot shells.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "body_f",
+   "path": "client/assets/humanoid_f.glb",
+   "sha256": "d19d78a6bf04f6ab81f9ec6341ea345b9081e39fee28444d0e03c527ff3bf90f",
+   "provenance": "As body_m.",
+   "role": "fit + skeleton"
+  },
+  {
+   "id": "visual_aim",
+   "path": "owner reference (not in the repository)",
+   "provenance": "Owner-supplied concept sheet 'Cinderlock Regalia' and cuirass sample, shared in session 2026-11-19. Visual direction only: no image data is used.",
+   "role": "design reference"
+  }
+ ],
+ "armour": {
+  "bodies": {
+   "m": "body_m",
+   "f": "body_f"
+  },
+  "inspect": {
+   "clip_body": "body_m",
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ]
+  },
+  "design": {
+   "items": [
+    "vanguard_field_set_chest",
+    "vanguard_field_set_gloves",
+    "vanguard_field_set_greaves",
+    "vanguard_field_set_boots"
+   ],
+   "design_of": {
+    "vanguard_field_set_chest": "cinderlock_chest",
+    "vanguard_field_set_gloves": "cinderlock_gloves",
+    "vanguard_field_set_greaves": "cinderlock_greaves",
+    "vanguard_field_set_boots": "cinderlock_boots"
+   },
+   "fit_surfaces": [
+    "shell_shorts",
+    "shell_shoes",
+    "hands"
+   ],
+   "samples": 160000,
+   "base_offset": 0.009,
+   "min_gap": 0.003,
+   "relax": 6
+  },
+  "materials": {
+   "vanguard_field_set_chest": {
+    "under": {
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.2,
+     "tone": 0.12,
+     "scratch": 0.05,
+     "soot": 0.55
+    },
+    "plate": {
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
+     "tone": 0.16,
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
+    },
+    "trim": {
+     "base": "#1d1f22",
+     "edge": "#565b62",
+     "roughness": 0.44,
+     "metallic": 0.75,
+     "wear": 0.3,
+     "tone": 0.1,
+     "scratch": 0.2,
+     "soot": 0.9
+    },
+    "vent": {
+     "base": "#060607",
+     "edge": "#1a1b1d",
+     "roughness": 0.6,
+     "metallic": 0.6,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.0,
+     "soot": 0.3
+    }
+   },
+   "vanguard_field_set_gloves": {
+    "under": {
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.2,
+     "tone": 0.12,
+     "scratch": 0.05,
+     "soot": 0.55
+    },
+    "plate": {
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
+     "tone": 0.16,
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
+    },
+    "vent": {
+     "base": "#060607",
+     "edge": "#1a1b1d",
+     "roughness": 0.6,
+     "metallic": 0.6,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.0,
+     "soot": 0.3
+    }
+   },
+   "vanguard_field_set_greaves": {
+    "under": {
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.2,
+     "tone": 0.12,
+     "scratch": 0.05,
+     "soot": 0.55
+    },
+    "plate": {
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
+     "tone": 0.16,
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
+    },
+    "vent": {
+     "base": "#060607",
+     "edge": "#1a1b1d",
+     "roughness": 0.6,
+     "metallic": 0.6,
+     "wear": 0.1,
+     "tone": 0.05,
+     "scratch": 0.0,
+     "soot": 0.3
+    }
+   },
+   "vanguard_field_set_boots": {
+    "under": {
+     "base": "#101113",
+     "edge": "#26282b",
+     "roughness": 0.86,
+     "metallic": 0.0,
+     "wear": 0.2,
+     "tone": 0.12,
+     "scratch": 0.05,
+     "soot": 0.55
+    },
+    "plate": {
+     "base": "#17181b",
+     "edge": "#7c828b",
+     "roughness": 0.4,
+     "metallic": 0.62,
+     "wear": 0.45,
+     "tone": 0.16,
+     "scratch": 0.25,
+     "soot": 0.85,
+     "edge_polish": 0.12
+    },
+    "sole": {
+     "base": "#0d0d0f",
+     "edge": "#2b2c30",
+     "roughness": 0.9,
+     "metallic": 0.0,
+     "wear": 0.25,
+     "tone": 0.08,
+     "scratch": 0.0,
+     "soot": 0.5
+    }
+   }
+  },
+  "build": {
+   "builder": "hardsurface",
+   "texture": {
+    "vanguard_field_set_chest": 2048,
+    "vanguard_field_set_gloves": 1024,
+    "vanguard_field_set_greaves": 1024,
+    "vanguard_field_set_boots": 1024
+   },
+   "samples": 16
+  },
+  "rig": {
+   "samples": 160000,
+   "k": 10,
+   "emissive_size": 512,
+   "arm_cap": {
+    "pauldron": 0.55,
+    "pauldron_lame": 0.7,
+    "line_pauldron": 0.4
+   },
+   "weight_modes": {
+    "pec": [
+     "band",
+     "y",
+     0.05
+    ],
+    "line_pec": [
+     "band",
+     "y",
+     0.05
+    ],
+    "sternum": [
+     "rigid"
+    ],
+    "reactor_recess": [
+     "rigid"
+    ],
+    "reactor_vents": [
+     "rigid"
+    ],
+    "line_reactor": [
+     "rigid"
+    ],
+    "ab": [
+     "rigid"
+    ],
+    "line_ab": [
+     "rigid"
+    ],
+    "flank": [
+     "band",
+     "y",
+     0.05
+    ],
+    "flank_recess": [
+     "band",
+     "y",
+     0.05
+    ],
+    "flank_vents": [
+     "band",
+     "y",
+     0.05
+    ],
+    "line_flank": [
+     "band",
+     "y",
+     0.05
+    ],
+    "back_upper": [
+     "band",
+     "y",
+     0.05
+    ],
+    "line_back": [
+     "band",
+     "y",
+     0.05
+    ],
+    "back_lower": [
+     "rigid"
+    ],
+    "pauldron": [
+     "band",
+     "x",
+     0.025
+    ],
+    "pauldron_lame": [
+     "band",
+     "x",
+     0.025
+    ],
+    "line_pauldron": [
+     "band",
+     "x",
+     0.025
+    ],
+    "collar": [
+     "band",
+     "y",
+     0.03
+    ],
+    "line_collar": [
+     "band",
+     "y",
+     0.03
+    ]
+   },
+   "stiffness": {
+    "vest": 0.5,
+    "pec": 1.5,
+    "sternum": 2.0,
+    "ab": 2.0,
+    "flank": 1.5,
+    "back_upper": 1.5,
+    "back_lower": 2.0,
+    "pauldron": 2.5,
+    "pauldron_lame": 2.5,
+    "collar": 1.0
+   },
+   "fx_material": "CL_Channel",
+   "fx_emissive": [
+    1.0,
+    0.16,
+    0.08
+   ],
+   "fx_anchors": true,
+   "hides": {
+    "vanguard_field_set_chest": [
+     "shell_chest",
+     "shell_coat",
+     "shell_belt",
+     "shell_upperarms",
+     "shell_hood"
+    ],
+    "vanguard_field_set_gloves": [
+     "shell_forearms"
+    ],
+    "vanguard_field_set_greaves": [
+     "shell_thighs",
+     "shell_shins"
+    ]
+   }
+  },
+  "export": {
+   "max_texture": 1024,
+   "quality": 86
+  },
+  "validate": {
+   "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Interact",
+    "Spell_Simple_Shoot",
+    "Punch_Cross"
+   ],
+   "frames": 8,
+   "surface_samples": 60000,
+   "under_shells": [
+    "shell_shoes",
+    "shell_shorts",
+    "hands"
+   ],
+   "arm_contact_items": [
+    "vanguard_field_set_chest"
+   ],
+   "max_inside_body_fraction": 0.015,
+   "max_inside_shell_fraction": 0.03,
+   "min_clearance_p05_m": -0.015,
+   "max_edge_strain_p99": 0.15,
+   "strain_vs_body": 1.15,
+   "strict": false
+  },
+  "icons": {
+   "body": "m",
+   "size": 768,
+   "samples": 64,
+   "view": {
+    "az": 24,
+    "el": 10
+   },
+   "export_sizes": [
+    256,
+    128
+   ],
+   "webp_quality": 90,
+   "keep_half": {
+    "vanguard_field_set_gloves": true
+   },
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.7,
+    "strength": 0.55
+   },
+   "channel_strength": 28,
+   "light_scale": 0.4,
+   "exposure": -0.2,
+   "turn": {
+    "vanguard_field_set_gloves": [
+     50,
+     45,
+     0
+    ]
+   }
+  },
+  "evidence": {
+   "samples": 24,
+   "width": 1100,
+   "height": 1300,
+   "poses": [
+    null,
+    {
+     "action": "Idle_Loop",
+     "time": 0.5
+    },
+    {
+     "action": "Jog_Fwd_Loop",
+     "time": 0.25
+    }
+   ],
+   "rig": "hard",
+   "glare": {
+    "threshold": 1.6,
+    "size": 0.75,
+    "strength": 0.6
+   },
+   "channel_strength": 28,
+   "together": true,
+   "light_scale": 0.12,
+   "exposure": -0.3,
+   "mannequin_rgb": [
+    0.055,
+    0.057,
+    0.062
+   ],
+   "mannequin_roughness": 0.6,
+   "ground_rgb": [
+    0.03,
+    0.031,
+    0.034
+   ]
+  },
+  "publish": {
+   "runtime": {
+    "m": "client/assets/armour_vanguard_set_m.glb",
+    "f": "client/assets/armour_vanguard_set_f.glb"
+   },
+   "icons_dir": "client/assets/icons/armour",
+   "icons_module": "client/src/item-renders.js",
+   "icon_size": 256
+  }
+ }
+}

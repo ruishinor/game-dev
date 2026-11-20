@@ -86,6 +86,37 @@ See `tools/asset-pipeline/README.md` for the stage table. Decisions:
 * Arm contact (the resting arm touching the vest side) is reported, not gated, as for every existing chest shell.
 * Known weak points for the owner's review: the shoulder yokes flip up beside the neck, the textile wear reads streaky, and about 21k triangles per vest is heavy beside the 1.9k-vertex body (phase 5 LOD). Evidence: `outputs/evidence/*.jpg` (bind, idle and jog on both bodies; hero icons).
 
+## Cinderlock Regalia — the Vanguard class set in 3D (phase 4, first set)
+
+Visual aim: the owner's Cinderlock Regalia concept sheet (Kinetic Vanguard; Reactor Cuirass, Induction Gauntlets, Impact Greaves, Anchor Boots) and the black hard-surface cuirass sample with red emissive channels. The concept images are an owner reference and are **not** in the repository. The four pieces dress the live `vanguard_field_set_{chest,gloves,greaves,boots}` items (content names them "Bastion Circuit"; renaming the items to the Cinderlock names is a content decision left to the owner).
+
+Asset: `tools/asset-pipeline/assets/armour_vanguard_set` → `client/assets/armour_vanguard_set_{m,f}.glb` and four rendered icons.
+
+**Method** (the Severance Gate hard-surface standard, extended to worn armour):
+
+* *Design* (`armour_cinderlock.py`): plates are authored in limb/torso parameter space on the body's convex envelope — faceted cross-sections (flat planes between 10–26 facets), sections smoothed along the bone, a hard-surface height profile (flat plateau with chamfered margins, V ridge, ramped rolled lips), chevron-cut greave plates, layered vambrace bands, pauldrons mapped along the upper-arm bone, a lofted boot upper and an anchor sole. Grooves, vent holes and bolts are part of each plate's spec.
+* *Build* (`blender/armour_hardsurface.py`): solidify → exact boolean grooves/holes → planar dissolve → bevel with hardened normals; emissive inlay strips carry flow-distance UVs. Per item: material-id, field and edge bakes (convexity wear, AO cavity, scratches), AO against the body, a detail normal bake, and a numpy composite to base colour / roughness / metallic.
+* *Rig*: each item is two skinned meshes (`item` and `item__fx` with the `CL_Channel` material) plus FX anchor nodes `fxa--item--kind--n` parented to joints. Item nodes carry `extras.hides`: the body shells the piece replaces (coat, chest, belt, sleeves, hood; forearms; thighs and shins). Pieces are fitted to the bare body plus the shells that stay visible (shorts, shoes, hands).
+* *Runtime* (`client/src/armour-fx.js`): the channel shader animates the flow UVs, additive halos and ember points ride the anchors, a combat surge brightens them, quality and reduced motion are honoured. `wearArmour` hides the replaced shells while a piece is worn (ref-counted across slots) and restores them on removal.
+* *Evidence*: dark studio (AgX, fog-glow bloom on the channels only), the whole set on one mannequin, bind / idle / jog on both bodies.
+
+**Measured** (`validate`, seven clips × 8 frames; the phase-1 limits are *not yet met*, so the set validates with `strict: false` and is reported, not gated):
+
+| Body | Piece | Min clearance | Inside body (max frame) | Inside kept shells | Edge strain max (limit) |
+|---|---|---|---|---|---|
+| m | chest | -27 mm | 2.9 % | 0.6 % | 0.56 (0.83) |
+| m | gloves | -5 mm | 0.6 % | 4.1 % | 1.15 (0.83) |
+| m | greaves | -35 mm | 4.1 % | 2.0 % | 0.45 (0.83) |
+| m | boots | -17 mm | 0.1 % | 8.4 % | 0.39 (0.83) |
+| f | chest | -23 mm | 3.7 % | 0.8 % | 0.64 (0.89) |
+| f | gloves | -5 mm | 0.4 % | 3.1 % | 0.72 (0.89) |
+| f | greaves | -30 mm | 3.1 % | 2.0 % | 0.39 (0.89) |
+| f | boots | -23 mm | 0.9 % | 9.5 % | 0.34 (0.89) |
+
+Body penetration concentrates where rigid plates cross deforming joints in sprint and punch frames; the shoe and hand shells sit under the boot and glove liners. The gloves' strain on the male body exceeds the limit.
+
+**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
+
 ## Roadmap to complete
 
 | Phase | Work | Acceptance |
@@ -94,6 +125,7 @@ See `tools/asset-pipeline/README.md` for the stage table. Decisions:
 | 2 | **Owner visual review and polish** of the three vests: silhouette, material wear, decal/stencil detail, emissive strength; worn screenshots in the Sanctum under game lighting; adjust per feedback | Owner art sign-off; side-by-side with the vector art |
 | 3 | **Look coverage**: check every look's shells (hood, helmet, coat, harness gear in `looks.js`, signature gear) against each vest; per-look exceptions (hide or refit) where gear collides | Validation extended to each look's gear; no visible clipping in the appearance capture tool |
 | 4 | **Class armour sets** (SYS-01, PR #119): gloves, greaves and boots × four class sets (Bastion Circuit, Verdant Conduit, Hinge Array, Faultline Harness). First original vector inventory art for each piece, then 3D through this route with new lofts (forearm/hand over the `hands` mesh, shin, foot over the shoe shell) | Each piece worn and rendered like the chests; set identity readable at a distance; `av` generalised to a per-slot allowlist |
+| 4b | **Cinderlock Regalia** (Vanguard set, this change): four slots × two bodies on the hard-surface route, emissive channel VFX, shells hidden under worn pieces, multi-slot `av`, rendered icons. Next: validation to the phase-1 limits, LOD/tangents, owner art review, then the other three class sets | Worn by wearer and observer in all four slots with FX (browser e2e); icons load; owner art sign-off against the concept sheet |
 | 5 | **Distance LOD** (a decimated variant per item) and a **texture budget** check with many armoured characters on screen | Frame time and memory within the low-spec preset; no pop at the LOD switch |
 | 6 | **Rendered icons for other item families** (devices, implants, glyphs, weapons via ART-01): reuse the icon stage on their 3D models where those exist; the vector art stays the fallback | Every item with a finished model has a rendered icon; the rest keep vector art |
 
@@ -104,8 +136,9 @@ Out of scope until decided: cosmetic armour transmog, dyes, damage states.
 1. **Authority / trust boundary.** Equipping is unchanged and server
    validated. `av` is derived by the server from the authoritative loadout; a
    client cannot set it, and an unowned or unknown item yields nothing.
-2. **Data exposed.** Observers receive only the allowlisted item id of the
-   worn chest piece, which is already visible on the character. No inventory,
+2. **Data exposed.** Observers receive only the allowlisted item ids of the
+   worn armour pieces per slot (chest, gloves, greaves, boots; omitted while
+   social clothing conceals the armour), which is already visible on the character. No inventory,
    condition, stats or requirements are sent. GLBs and icons are public
    presentation assets of live items; no unreleased content.
 3. **Abuse cases.** Forged equip of an unowned item, forged path-like ids and

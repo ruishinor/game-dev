@@ -35,6 +35,39 @@
    ],
    "note": "Original body-fitted chest armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md"
   },
+  "armour_vanguard_set_f": {
+   "kind": "skinned",
+   "url": "armour_vanguard_set_f.glb",
+   "bytes": 3939248,
+   "rawBytes": 26034432,
+   "hash": "a8b388769e25",
+   "tris": 115070,
+   "textures": 12,
+   "meshes": 8,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "makehuman"
+   ],
+   "note": "Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_f, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_vanguard_set_m": {
+   "kind": "skinned",
+   "url": "armour_vanguard_set_m.glb",
+   "bytes": 4021356,
+   "rawBytes": 26148124,
+   "hash": "97cdfedf3d8a",
+   "tris": 120708,
+   "textures": 12,
+   "meshes": 8,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
   "creatures": {
    "kind": "kit",
    "url": "creatures.glb",
@@ -1310,6 +1343,50 @@
     "makehuman"
    ],
    "note": "Inventory icon rendered in Cycles from the armour_chest pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "vanguard_field_set_boots": {
+   "url": "icons/armour/vanguard_field_set_boots.webp",
+   "bytes": 9060,
+   "hash": "14eca508e816",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "vanguard_field_set_chest": {
+   "url": "icons/armour/vanguard_field_set_chest.webp",
+   "bytes": 7920,
+   "hash": "e63f9241f49b",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "vanguard_field_set_gloves": {
+   "url": "icons/armour/vanguard_field_set_gloves.webp",
+   "bytes": 4442,
+   "hash": "72808f0ce871",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "vanguard_field_set_greaves": {
+   "url": "icons/armour/vanguard_field_set_greaves.webp",
+   "bytes": 8146,
+   "hash": "62f4e18c64cc",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
   }
  }
 }

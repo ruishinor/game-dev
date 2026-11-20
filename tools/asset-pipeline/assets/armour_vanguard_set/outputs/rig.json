@@ -1,0 +1,30 @@
+{
+ "m": {
+  "triangles": {
+   "vanguard_field_set_chest": 38626,
+   "vanguard_field_set_chest__fx": 684,
+   "vanguard_field_set_gloves": 33584,
+   "vanguard_field_set_gloves__fx": 312,
+   "vanguard_field_set_greaves": 24080,
+   "vanguard_field_set_greaves__fx": 432,
+   "vanguard_field_set_boots": 22294,
+   "vanguard_field_set_boots__fx": 696
+  },
+  "bytes": 26148124,
+  "joints": 67
+ },
+ "f": {
+  "triangles": {
+   "vanguard_field_set_chest": 35970,
+   "vanguard_field_set_chest__fx": 684,
+   "vanguard_field_set_gloves": 32856,
+   "vanguard_field_set_gloves__fx": 312,
+   "vanguard_field_set_greaves": 21470,
+   "vanguard_field_set_greaves__fx": 432,
+   "vanguard_field_set_boots": 22770,
+   "vanguard_field_set_boots__fx": 576
+  },
+  "bytes": 26034432,
+  "joints": 67
+ }
+}

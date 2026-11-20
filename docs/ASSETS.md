@@ -32,6 +32,11 @@ original project work too: authored in `tools/asset-pipeline` (route
 `body-fitted-armour`) from the project's own vector inventory art, fitted to and
 skinned on the CC0-derived bodies above, with no third-party armour geometry or
 texture ([record](art/ARMOUR-3D.md)).
+The Cinderlock Regalia armour (`client/assets/armour_vanguard_set_{m,f}.glb`, the
+Vanguard class set's four icons) is original project work through the same route's
+hard-surface builder, modelled to the owner's Cinderlock concept sheet and cuirass
+sample. Those references are proprietary owner material, kept out of the repository
+and not covered by any open licence; nothing from them is embedded in the assets.
 
 **Red Rucker** is the owner's own character. The owner's reference
 illustrations were used only to match proportions, colours and kit; they are
