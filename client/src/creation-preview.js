@@ -12,18 +12,18 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
  const environment=variant==='selection'?createSelectionEnvironment(scene,assets):null;
  if(environment){
-  scene.background=new THREE.Color(0x091723);
-  scene.fog=new THREE.FogExp2(0x0b1b27,.021);
+  scene.background=new THREE.Color(0x06080e);
+  scene.fog=new THREE.FogExp2(0x080b13,.011);
   // Cooler neutral lighting respects the character's *actual* material colours.
-  scene.children.find(obj=>obj.isHemisphereLight).color.setHex(0xc3deec);
-  scene.children.find(obj=>obj.isHemisphereLight).groundColor.setHex(0x172330);
-  scene.children.find(obj=>obj.isHemisphereLight).intensity=2.3;
+  scene.children.find(obj=>obj.isHemisphereLight).color.setHex(0xd7dee8);
+  scene.children.find(obj=>obj.isHemisphereLight).groundColor.setHex(0x1d2430);
+  scene.children.find(obj=>obj.isHemisphereLight).intensity=1.6;
  }
 
- const key=new THREE.DirectionalLight(environment?0xe5f1fa:0xffeee0,environment?3.25:3.2);key.position.set(3,5,4);scene.add(key);
- const rim=new THREE.DirectionalLight(0x84bedb,environment?2.25:1.8);rim.position.set(-3,2,-3);scene.add(rim);
- let renderer=null,models=[],keyState='',failed=false,visible=false;
- let yaw=.08,pitch=.08,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
+ const key=new THREE.DirectionalLight(environment?0xe3e6ed:0xffeee0,environment?2.3:3.2);key.position.set(3,5,4);scene.add(key);
+ const rim=new THREE.DirectionalLight(0x849cb3,environment?1.65:1.8);rim.position.set(-3,2,-3);scene.add(rim);
+ let renderer=null,models=[],keyState='',failed=false,visible=false,lastStageReady=false;
+ let yaw=0,pitch=.045,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const release=()=>{
   for(const {model} of models){scene.remove(model.group);model.dispose?.();}
@@ -57,7 +57,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   }
   for(const b of root.querySelectorAll('[data-preview-mode]'))b.setAttribute('aria-pressed',String(b.dataset.previewMode===next));
  };
- const reset=()=>{yaw=.08;pitch=.08;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
+ const reset=()=>{yaw=0;pitch=.045;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
  const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment ? 0.75 : 0.65,environment ? 1.9 : 2.4);root.dataset.zoom=String(zoom);dirty=true;};
  const observer=new IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);if(!visible)release();else dirty=true;},{threshold:0.05});
@@ -71,7 +71,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  root.querySelector('[data-preview-in]').addEventListener('click',()=>magnify(.2));
  root.querySelector('[data-preview-out]').addEventListener('click',()=>magnify(-.2));
  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});e.preventDefault();});
- canvas.addEventListener('pointermove',e=>{if(drag?.id!==e.pointerId)return;rotate((drag.x-e.clientX)*.012);pitch=clamp(pitch+(e.clientY-drag.y)*.006,-.55,.65);drag.x=e.clientX;drag.y=e.clientY;});
+ canvas.addEventListener('pointermove',e=>{if(drag?.id!==e.pointerId)return;rotate((drag.x-e.clientX)*.012);pitch=clamp(pitch+(e.clientY-drag.y)*.003,-.16,.22);drag.x=e.clientX;drag.y=e.clientY;});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(drag?.id===e.pointerId)drag=null;});
  canvas.addEventListener('wheel',e=>{if(document.activeElement!==canvas)return;e.preventDefault();magnify(-e.deltaY*.001);},{passive:false});
  canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Home'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(e.key==='ArrowLeft')rotate(-.24);else if(e.key==='ArrowRight')rotate(.24);else if(e.key==='ArrowUp'||e.key==='+')magnify(.18);else if(e.key==='ArrowDown'||e.key==='-')magnify(-.18);else reset();});
@@ -79,6 +79,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const active=()=>visible&&!failed&&!document.hidden&&canvas.getClientRects().length>0;
  function update(now,dt){
   if(!active())return false;
+  if(environment && environment.ready!==lastStageReady){lastStageReady=environment.ready;dirty=true;}
   const meta=getMeta();
   const appearance=meta?normalizeAppearance(meta.ap,meta.a):null;
   const choices=!meta?[]:mode==='frames'
@@ -94,7 +95,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    if(!renderer){
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
-    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=environment?1.36:1.15;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=environment?1.17:1.15;
    }
    if(next!==keyState){
     release();
@@ -104,6 +105,9 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      models.push(entry);
      scene.add(model.group);
      model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:choice.er===2?'dual':choice.er===1?'rod':null,reducedMotion:true});
+     // Place the actual character just left of the gate axis, as in the
+     // owner's cinematic composition. No look-alike proxy is introduced.
+     if(environment && mode!=='frames')model.group.position.x=-.55;
      model.group.updateMatrixWorld(true);
      const bounds=new THREE.Box3().setFromObject(model.group),size=bounds.getSize(new THREE.Vector3());
      if(!Number.isFinite(size.y)||size.y<=0)throw Error('Invalid preview bounds');
@@ -137,13 +141,16 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     renderer.setScissor(left,0,viewWidth,h);
     camera.aspect=viewWidth/h;
     const focus=center.clone();
+    // The environment does not orbit with the character. Rotate the model
+    // itself and keep the monument, ground and interface in a fixed frame.
+    model.group.rotation.y=yaw;
+    if(environment&&mode!=='frames')focus.x=0;
     if(mode==='face')focus.y+=height*.34;
-    else if(environment&&camera.aspect<.8)focus.y+=height*.09;
-    // Respect the material's full-body frame; the previous 1.2x box made the
-    // human appear oversized and clipped the feet on real desktop captures.
-    const framing=mode==='face'?height*.37:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.52:1.2),entry.width*1.22/camera.aspect)));
+    else if(environment&&camera.aspect<.8)focus.y+=height*.08;
+    const framing=mode==='face'?height*.38:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.50:1.2),entry.width*1.22/camera.aspect)));
     const distance=framing/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/zoom;
-    camera.position.copy(focus).add(new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(distance));camera.lookAt(focus);camera.updateProjectionMatrix();
+    camera.position.set(focus.x,focus.y+Math.sin(pitch)*distance,focus.z+Math.cos(pitch)*distance);
+    camera.lookAt(focus);camera.updateProjectionMatrix();
     if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:meta?.er===2?'dual':meta?.er===1?'rod':null,reducedMotion:motionPreference.matches});
     renderer.render(scene,camera);
    }
