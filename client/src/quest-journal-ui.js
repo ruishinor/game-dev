@@ -51,9 +51,10 @@ export class QuestJournal{
   details.append(rewards);
  }
  draw(){
-  const focused=this.el.contains(document.activeElement)?document.activeElement?.dataset.focus:null;
+  const hadFocus=this.el.contains(document.activeElement);
+  const focused=hadFocus?document.activeElement?.dataset.focus:null;
   this.content.replaceChildren();
-  const close=button('×',()=>this.dismiss());close.className='close';close.setAttribute('aria-label','Close Quest Journal');
+  const close=button('×',()=>this.dismiss());close.className='close';close.dataset.focus='close';close.setAttribute('aria-label','Close Quest Journal');
   this.content.append(h('div','kicker','ATTUNEMENT'),h('h2',null,'Quest Journal'),close);
   const filters=h('div','quest-filters');
   for(const [id,title] of [['all','All'],['active','Active'],['available','Available'],['completed','Completed']]){
@@ -74,6 +75,10 @@ export class QuestJournal{
   if(q){details.append(h('div','kicker',q.group+' · '+labels[q.status]),h('h3',null,q.title),h('p',null,q.text));if(q.progress)details.append(h('div','quest-progress',q.progress));this.drawRewards(details,q);if(q.status!=='completed'){const tracker=this.ui.questTracker,tracked=tracker.has(q),b=button(tracked?'Untrack quest':'Track quest',()=>{tracker.toggle(q);this.draw();});b.dataset.focus='tracking';b.setAttribute('aria-pressed',String(tracked));b.disabled=!tracked&&!tracker.canAdd();details.append(b,h('p','muted',tracker.selected().length+' / 3 quests tracked'));}}
   else details.append(h('p','muted','Select a quest to view its objectives.'));
   layout.append(nav,details);this.content.append(layout);
-  if(focused)[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focused)?.focus({preventScroll:true});
+  if(hadFocus){
+   const next=[...this.el.querySelectorAll('button')].find(b=>b.dataset.focus===focused&&!b.disabled)
+    ||this.el.querySelector('button.close');
+   next?.focus({preventScroll:true});
+  }
  }
 }
