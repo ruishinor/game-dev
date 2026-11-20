@@ -11,11 +11,11 @@
 #hud .frame.player,
 #hud .frame.pet,
 #hud .frame.ally {
-  border:1px solid #b09a70;
+  border:1px solid #546a76;
   border-radius:8px 4px 4px 8px;
   background:linear-gradient(108deg,rgba(38,37,40,.94),rgba(14,18,25,.92) 55%,rgba(12,21,27,.88));
-  box-shadow:inset 0 0 0 1px #171d21,inset 0 1px #c3a7734d,0 2px 5px #000a;
-  color:#ece3d0;
+  box-shadow:inset 0 0 0 1px #171d21,inset 0 1px #a9c5d128,0 2px 5px #000a;
+  color:#dbe5e8;
 }
 #hud .frame.player {
   width:min(258px,40vw);
@@ -33,9 +33,9 @@
   top:4px;
   width:43px;
   height:43px;
-  border:2px solid #ad9060;
+  border:2px solid #66818c;
   background:radial-gradient(ellipse at 38% 30%,#596267,#141b23 80%);
-  box-shadow:0 0 0 2px #20252a,inset 0 0 0 1px #ead29c;
+  box-shadow:0 0 0 2px #20252a,inset 0 0 0 1px #c0d1d8;
 }
 #hud .frame.player .unit-portrait {
   left:5px;
@@ -43,7 +43,7 @@
   width:52px;
   height:52px;
 }
-#hud .frame .name {font-size:13px;line-height:1.2;font-weight:700;color:#f0e2bf}
+#hud .frame .name {font-size:13px;line-height:1.2;font-weight:700;color:#e4edf0}
 #hud .frame .sub {font-size:10px;line-height:1.2;color:#bbbdbc;margin:0 0 3px}
 #hud .frame .bar {margin-top:3px;border-radius:2px;border:1px solid #393a3b;background:#091116}
 #hud .frame .bar.hp {height:12px}
@@ -57,7 +57,7 @@
 #hud .frame.pet .companion-icon{width:20px;height:20px}
 #hud .frame .buffs {gap:3px;margin-top:3px}
 #hud .frame .chip{padding:1px 3px;font-size:9px;line-height:1.1}
-#hud .summon-pet {font-size:11px;padding:4px 8px;border:1px solid #947e59;border-radius:3px;background:#14252bcf;margin-left:12px}
+#hud .summon-pet {font-size:11px;padding:4px 8px;border:1px solid #587681;border-radius:3px;background:#14252bcf;margin-left:12px}
 
 /* The reference portraits protrude from the horizontal status strip rather
    than living inside a wide card. Preserve a strong circular head silhouette. */
@@ -134,47 +134,47 @@
 #hud .bars .bar.xp .label{line-height:7px;font-size:9px}
 
 /* The minimap is a framed cartographic instrument, not a flat web dashboard. */
-#hud .side{right:12px;top:11px;width:min(252px,30vw);gap:4px;align-items:flex-end}
+#hud .side{right:12px;top:9px;width:min(186px,23vw);gap:4px;align-items:flex-end}
 #hud .minimap{
-  width:clamp(178px,13.7vw,236px);
+  width:clamp(96px,7.2vw,140px);
   max-width:100%;
   aspect-ratio:1;
-  border:5px ridge #ab8d59;
+  border:2px solid #64808c;
   border-radius:50%;
   background:#161d28;
   box-shadow:
-    inset 0 0 0 2px #322b23,
-    0 0 0 2px #352c22,
-    0 0 0 4px #a18a59,
-    0 1px 10px #000d;
+    inset 0 0 0 2px #0c151c,
+    0 0 0 2px #172832,
+    0 0 0 4px #465f69,
+    0 2px 8px #000b;
   image-rendering:auto;
 }
 #hud .map-controls{gap:3px;justify-content:flex-end;margin-top:1px}
 #hud .map-controls button{
-  min-width:28px;min-height:27px;
-  padding:3px 7px;
-  font-size:11px;line-height:1.1;
+  min-width:24px;min-height:23px;
+  padding:2px 6px;
+  font-size:10px;line-height:1.1;
   border-radius:2px;
-  border:1px solid #88724f;
-  background:linear-gradient(#293436,#101c23);
-  color:#e5d9be;
+  border:1px solid #4a626b;
+  background:linear-gradient(#273941,#0d1920);
+  color:#dce9ed;
 }
-#hud .map-controls .map-open{min-width:76px}
+#hud .map-controls .map-open{min-width:72px}
 #hud .zone-label{
-  font-size:11px;line-height:1.2;
-  font-family:Georgia,serif;
+  font-size:10px;line-height:1.2;
+  font-family:system-ui,sans-serif;
   letter-spacing:.01em;text-align:right;
-  color:#eadab2;
+  color:#d6e4ea;
 }
 #hud .map-clock-row{font-size:10px;gap:3px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap}
 #hud .map-day,#hud .map-game-clock,#hud .map-real-clock {
-  border:1px solid #776846;
+  border:1px solid #47606c;
   border-radius:2px;
-  padding:3px 5px;
-  min-height:23px;
+  padding:2px 4px;
+  min-height:20px;
   font-size:10px;line-height:1.1;
-  background:#111d24d9;
-  color:#d8c59c;
+  background:#101c23df;
+  color:#cbdbe1;
   font-weight:500;
 }
 #hud .map-day{font-size:12px}
@@ -195,7 +195,7 @@
   #hud .frame.pet{width:min(195px,39vw);padding-left:48px}
   #hud .unit-portrait{width:38px;height:38px}
   #hud .side{width:min(205px,35vw)}
-  #hud .minimap{width:clamp(158px,17vw,188px)}
+  #hud .minimap{width:clamp(90px,9vw,116px)}
   #hud .party{top:154px}
 }
 @media(max-width:700px){
@@ -209,7 +209,7 @@
   #hud .frame .bar.res{height:9px}
   #hud .unit-portrait{left:3px;top:3px;width:36px;height:36px}
   #hud .side{right:6px;top:7px;width:min(154px,43vw)}
-  #hud .minimap{width:clamp(112px,35vw,155px);border-width:3px}
+  #hud .minimap{width:clamp(76px,25vw,94px);border-width:2px}
   #hud .map-controls button{min-width:24px;padding:3px 5px;font-size:10px}
   #hud .map-controls .map-open{min-width:58px}
   #hud .zone-label{font-size:10px}
