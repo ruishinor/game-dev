@@ -2304,6 +2304,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
+    else if(st.nearObject?.meta.c==='resonant_vein'){const d=you.veins?.depleted?.find(v=>v.id===st.nearObject.id),ch=you.veins?.channel;set(this.interact,'text',ch?'Extracting resonance… hold still':lock?'Resonant shard vein · disengage first':d?'Resonant shard vein · regrowing ('+Math.ceil(d.ms/60000)+' min)':'[F] Extract resonance');}
     else if(st.nearObject?.meta.c==='rift_return')set(this.interact,'text',lock?'Phase gate · disengage first':'[F] Return to the Severance Gate');
     else if(st.nearObject?.meta.c==='severance_return')set(this.interact,'text',lock?'Return beacon · disengage first':'[F] Return to the Reach');
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');
