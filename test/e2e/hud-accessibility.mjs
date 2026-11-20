@@ -52,6 +52,7 @@ try{
  // even though the build panel is itself a dialog.
  await page.locator('#view').focus();await page.keyboard.press('KeyC');
  await page.locator('.panel.build').waitFor({state:'visible'});
+ await page.locator('.doll-tabs [data-tab="gear"]').click();
  await page.locator('.equipment-slot-grid .doll-slot').first().click();
  await page.keyboard.press('KeyI');
  await page.locator('.inventory-window').waitFor({state:'visible'});
