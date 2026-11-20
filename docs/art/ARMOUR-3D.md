@@ -117,6 +117,25 @@ Body penetration concentrates where rigid plates cross deforming joints in sprin
 
 **Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
 
+## Rare class armour collection (owner specification, 2026-11-20)
+
+Four class sets, 16 pieces, 16 blueprints, 16 recipes, 12 cumulative effects. Owner references: four armour sheets (Cinderlock Regalia, Mycelial Accord, Vesperglass Array, Strataweave Fieldkit) and four VFX family sheets (Kinetic Vanguard, Symbiotech Conductor, Aegis Keeper, Brine Surveyor). They are owner material, kept out of the repository; the sheet borders and UI frames are not armour colours.
+
+**Ids.** The pieces keep the SYS-01 ids (`<class>_field_set_<slot>`, sets `<class>_field_set`) so existing saves and loadouts stay valid; names, attributes and effects are the owner's. The provisional "Bastion Circuit / Verdant Conduit / Hinge Array / Faultline Harness" names are retired. Legs = `greaves`, Feet = `boots`.
+
+| Set (class) | Pieces | 2 / 3 / 4 pieces | Full set |
+|---|---|---|---|
+| Cinderlock Regalia (Vanguard) | Reactor Cuirass +18 HP · Induction Gauntlets +1 Kinetics · Impact Greaves +10 HP · Anchor Boots +6 HP +1 Instrumentation | +10 HP / +8% Charge generation / +1 m Discharge radius | +44 HP, +1 Kin, +1 Instr |
+| Mycelial Accord (Symbiotech) | Cultivation Carapace +12 · Synapse Gloves +1 Biotech · Tendril Greaves +8 · Rootwalkers +4 HP +1 Instr | +6% healing / +8 HP / Mending Graft +1 tick | +32 HP, +1 Bio, +1 Instr |
+| Vesperglass Array (Keeper) | Harmonic Cuirass +14 · Projection Gauntlets +1 Instr · Lattice Greaves +8 · Phasewalkers +5 HP +1 Kin | +8 HP / +6% projected barrier capacity / +1 m Lattice Relay radius | +35 HP, +1 Instr, +1 Kin |
+| Strataweave Fieldkit (Surveyor) | Survey Harness +12 · Calibration Gloves +1 Instr · Excavator Greaves +8 · Traverse Boots +5 HP +1 Kin | +4% damage / +2 s Fault Scan / +1 m Controlled Blast radius | +25 HP, +1 Instr, +1 Kin |
+
+**Mechanics.** One set engine (`shared/armor-set-bonuses.js`): distinct equipped, owned, class-matching pieces in their own slots; thresholds cumulative; removal drops them immediately; `deriveStats` is the only stat path. New effects are resolved in the real abilities: `barrierMul` multiplies the Keeper's projected barriers (Hinge Field, Lattice Relay; the Aegis glyph keeps `shieldMul`), `relayRadius`, `graftTicks` (same amount per tick, one more second), `scanMs`, `blastRadius` (the blast itself and the public rig radius).
+
+**Acquisition.** Each piece: one personal, non-consumed blueprint (`blueprint_<item>`) and one recipe (`fabricate_<item>`): class-locked, Engineering (Research for Mycelial), primary skill 13, existing materials only, unique output. No finished pieces drop. Each eligible corpse recipient gets at most one independent 3% roll for its own class's blueprint from that source, only while unknown (`server/sim/loot-tables.js`, own RNG stream). Sources that exist: Vault Warden, Rogue Sentinel, Turret Drone, Faultstalker, Mire Skitter, Quarantine Custodian, Sinter Grazer. **Not yet in the world** (blueprints listed with a "not yet in the field" note, not obtainable): Brineworks Research Cache (Mycelial Rootwalkers), Resonance Echo (Vesperglass Lattice Greaves), Phase Scar Archive (Vesperglass Phasewalkers), Brineworks Engineering Cache (Strataweave Traverse Boots).
+
+**Status.** Mechanics, blueprints, recipes and drops: integrated and tested (`test/rare-class-sets.test.js`, `test/class-armour-acquisition.test.js`). 3D: Cinderlock rendered and worn; Mycelial, Vesperglass and Strataweave in production on the same route. Inventory art: rendered from the 3D models where they exist, otherwise the vector portrait; blueprint art: a schematic of the piece's own portrait until the 3D blueprint render replaces it.
+
 ## Roadmap to complete
 
 | Phase | Work | Acceptance |
