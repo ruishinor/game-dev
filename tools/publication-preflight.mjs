@@ -36,7 +36,7 @@ export function isOwnerExemptedScrapyard(event, rewardBlob) {
 
 export function excludeApprovedRewardTableDiff(diff) {
   return String(diff).split(/(?=^diff --git )/m)
-    .filter(block => !block.startsWith('diff --git a/server/sim/loot-tables.js b/server/sim/loot-tables.js\\n'))
+    .filter(block => !block.startsWith('diff --git a/server/sim/loot-tables.js b/server/sim/loot-tables.js\n'))
     .join('');
 }
 
