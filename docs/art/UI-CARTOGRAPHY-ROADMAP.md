@@ -56,3 +56,14 @@ Three attached live screenshots demonstrate that the first merged HUD iteration 
 - CI screenshot and browser gate must verify actual computed slot dimensions, icon/portrait frame visibility, keyboard configuration and summon/dismiss round trip. Human legibility and visual acceptance remain separate from automated pass.
 
 Implemented candidate: `feat/hud-actionbar-keybindings`. Visual proof is only valid after its head passes browser rendering checks; do not mark fully accepted without inspection.
+
+## Party frame and active-effect refinement — 2026-11-20
+
+Branch: `feat/hud-party-status-buffs`, stacked on the HUD readability PR #151.
+
+- Dedicated **party** frame stack is ordered by the server-issued `party.members` roster. Nearby visible non-members remain in their own labelled stack with existing targeting/context actions; no targeting functionality is removed.
+- Members outside the local entity visibility set retain a name/class/level placeholder labelled **Out of visible range**. Their health, energy, buffs and appearance are not supplied by server party metadata and must **not** be fabricated or displayed as current.
+- Party and player status effects render distinct per-effect vector artwork from existing Attunement spell/ability language. Icons have accessible names and full effect/tooltips. Effects only appear while present in the already scoped snapshot; no future buff system is invented.
+- Focused real-browser two-session gate: join actual server party, verify party grouping and active buff icon, then move one member out of view and verify fallback without fake values. Full two-player regression remains necessary.
+
+Deferred: remote teammate authoritative health/buff channels, class-specific party formations, raid/large-group layout, permanent buffs, future spell icons and personalized equipment portraits. Do not extend data visibility without an explicit server privacy/authority model.
