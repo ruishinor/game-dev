@@ -12,16 +12,16 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  scene.add(new THREE.HemisphereLight(0xd4efff,0x3a352f,2.4));
  const environment=variant==='selection'?createSelectionEnvironment(scene,assets):null;
  if(environment){
-  scene.background=new THREE.Color(0x050b12);
-  scene.fog=new THREE.FogExp2(0x07111b,.032);
+  scene.background=new THREE.Color(0x091723);
+  scene.fog=new THREE.FogExp2(0x0b1b27,.021);
   // Cooler neutral lighting respects the character's *actual* material colours.
   scene.children.find(obj=>obj.isHemisphereLight).color.setHex(0xc3deec);
   scene.children.find(obj=>obj.isHemisphereLight).groundColor.setHex(0x172330);
-  scene.children.find(obj=>obj.isHemisphereLight).intensity=1.65;
+  scene.children.find(obj=>obj.isHemisphereLight).intensity=2.3;
  }
 
- const key=new THREE.DirectionalLight(environment?0xe6f3ff:0xffeee0,environment?2.9:3.2);key.position.set(3,5,4);scene.add(key);
- const rim=new THREE.DirectionalLight(0x77b2d8,environment?1.75:1.8);rim.position.set(-3,2,-3);scene.add(rim);
+ const key=new THREE.DirectionalLight(environment?0xe5f1fa:0xffeee0,environment?3.25:3.2);key.position.set(3,5,4);scene.add(key);
+ const rim=new THREE.DirectionalLight(0x84bedb,environment?2.25:1.8);rim.position.set(-3,2,-3);scene.add(rim);
  let renderer=null,models=[],keyState='',failed=false,visible=false;
  let yaw=.36,pitch=.10,zoom=1,mode='body',drag=null,lastDraw=-Infinity,dirty=true;
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -84,7 +84,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
    if(!renderer){
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
-    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=environment?1.36:1.15;
    }
    if(next!==keyState){
     release();
@@ -105,7 +105,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     if(models.length){
      root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
      status.textContent=models.every(({model})=>model.kind==='glb')?'Actual gameplay model · drag to rotate':'Simplified gameplay model · detailed asset unavailable';
-    }else status.textContent='Select a character';
+    }else status.textContent='';
 
    }
    if(mode==='frames'&&appearance)syncFrameSelection(appearance.frame);
