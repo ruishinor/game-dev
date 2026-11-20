@@ -5,17 +5,22 @@ const button=(label,fn)=>{const el=h('button',null,label);el.type='button';el.ad
 const labels={active:'Active',completed:'Completed',available:'Available'};
 export class QuestJournal{
  constructor(ui){
-  this.ui=ui;this.entries=[];this.signature='';this.filter='all';this.selected=null;
+  this.ui=ui;this.entries=[];this.signature='';this.filter='all';this.selected=null;this.returnFocus=null;
   this.el=h('section','panel quest-journal');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','Quest Journal');
   this.el.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();this.dismiss();}else if(['Tab','Enter',' ','ArrowUp','ArrowDown'].includes(e.key))e.stopPropagation();});
   this.content=h('div','managed-window-content');this.el.append(this.content);ui.root.append(this.el);
  }
  dismiss(){
-  if(this.el.contains(document.activeElement))document.getElementById('view')?.focus({preventScroll:true});
+  const hadFocus=this.el.contains(document.activeElement);
   this.el.hidden=true;
+  if(hadFocus){
+   const target=this.returnFocus?.isConnected&&!this.returnFocus.closest('[hidden]')?this.returnFocus:document.getElementById('view');
+   target?.focus({preventScroll:true});
+  }
+  this.returnFocus=null;
  }
  reset(){this.dismiss();this.entries=[];this.signature='';this.selected=null;this.filter='all';}
- show(sheet,trial=null){if(!sheet)return;this.el.hidden=false;this.sync(sheet,trial,true);}
+ show(sheet,trial=null){if(!sheet)return;if(this.el.hidden)this.returnFocus=document.activeElement;this.el.hidden=false;this.sync(sheet,trial,true);}
  sync(sheet,trial=null,force=false){
   // Cap guidance depends on level even when the quest projection is unchanged.
   const entries=questLog(sheet,trial),sig=JSON.stringify([entries,sheet?.level>=MAX_LEVEL]);
