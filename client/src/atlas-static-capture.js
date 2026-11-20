@@ -24,16 +24,24 @@ export function captureStaticAtlas(renderer,scene,staticRoots,region,{lowSpec=fa
   const savedScissorTest=renderer.getScissorTest();
   const previousFog=scene.fog,previousAutoClear=renderer.autoClear;
   const previousShadow=renderer.shadowMap.enabled;
+  const previousExposure=renderer.toneMappingExposure;
   const previousVisibility=scene.children.map(root=>[root,root.visible]);
   // A permanent geographical atlas must not inherit nighttime darkness.
   // Restrict neutral survey illumination to Verdigris Reach; the reserved
   // Expanse/Foundry content and its production day/night lighting are untouched.
-  const surveyFill=!region.area?new THREE.HemisphereLight(0xe7ede5,0x65736a,1.9):null;
-  const surveySun=!region.area?new THREE.DirectionalLight(0xffedd9,1.5):null;
+  const surveyFill=!region.area?new THREE.HemisphereLight(0xdbe7e2,0x53605b,.95):null;
+  const surveySun=!region.area?new THREE.DirectionalLight(0xfff0d9,1.15):null;
+  const existingLights=[];
+  if(surveyFill)scene.traverse(obj=>{if(obj.isLight)existingLights.push([obj,obj.visible]);});
   let target=null;
   try{
     if(surveySun)surveySun.position.set(region.x-90,230,region.z-140);
+    // Do not accumulate neutral survey lights on top of live day/night,
+    // local worklights or transient effects. Their prior visibility is
+    // restored immediately after the one-time static atlas capture.
+    for(const [light] of existingLights)light.visible=false;
     if(surveyFill)scene.add(surveyFill,surveySun);
+    if(surveyFill)renderer.toneMappingExposure=1;
     target=new THREE.WebGLRenderTarget(width,height,{depthBuffer:true,stencilBuffer:false});
     // X right, -Z north/up. Unlike the old blurred plate this is a direct
     // orthographic rendering of the existing Three.js terrain and props.
@@ -73,6 +81,8 @@ export function captureStaticAtlas(renderer,scene,staticRoots,region,{lowSpec=fa
     return null;
   }finally{
     if(surveyFill)scene.remove(surveyFill,surveySun);
+    for(const [light,visible] of existingLights)light.visible=visible;
+    renderer.toneMappingExposure=previousExposure;
     renderer.setRenderTarget(previousTarget);
     renderer.setViewport(savedViewport);
     renderer.setScissor(savedScissor);
