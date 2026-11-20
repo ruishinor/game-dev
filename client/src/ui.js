@@ -60,6 +60,16 @@ const ICONS = {
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
 
+const BUFF_ICONS={
+ ward:ICONS.kinetic_ward,
+ hot:ICONS.mending_graft,
+ bond:ICONS.guard,
+ shield:svg('<path d="M12 2 21 7v7c0 5-4 8-9 9-5-1-9-4-9-9V7z"/><path d="M12 7v10M8 12h8"/>'),
+ sap:svg('<path d="M5 16 9 12 7 8M19 8l-5 4 3 4"/><path d="M12 4v16"/>'),
+ corrode:svg('<circle cx="12" cy="12" r="9"/><path d="M5 9l4 3-3 4M13 6l3 5-4 6"/>'),
+ carapace_imprint:svg('<path d="M12 3 20 8 17 19 12 21 7 19 4 8Z"/><path d="m9 9 6 6m0-6-6 6"/>'),
+ root:svg('<path d="M12 3v11m0 0-6 7m6-7 6 7M6 9l6 5 6-5"/>')
+};
 const BUFFS = {
   ward: ['Kinetic Ward', 'good'],
   hot: ['Mending Graft', 'good'],
@@ -162,6 +172,7 @@ export class UI {
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
+    this.partyGhostRows=new Map();
     this.lastInventory = 0;
     this.tipFor = null;
     this.buildLock = '';
@@ -264,8 +275,11 @@ export class UI {
     this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.codexBody, this.renameRow);
     root.append(this.inspectBox);
 
-    this.party = h('div', 'party');
-    root.append(this.party);
+    this.party = h('div', 'party');this.party.setAttribute('role','group');this.party.setAttribute('aria-label','Party members');
+    this.nearby=h('div','nearby-players');this.nearby.setAttribute('role','group');this.nearby.setAttribute('aria-label','Nearby players');
+    const nearbyTitle=h('div','nearby-title','Nearby players');this.nearby.append(nearbyTitle);
+    this.partyFrameStacks=h('div','party-frame-stacks');this.partyFrameStacks.append(this.party,this.nearby);
+    root.append(this.partyFrameStacks);
     this.playerContext = h('div', 'player-context');
     this.playerContext.hidden = true;
     root.append(this.playerContext);
@@ -1853,9 +1867,12 @@ export class UI {
     if (el._sig === sig) return;
     el._sig = sig;
     el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
-      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
-      chip.dataset.effect=k;chip.setAttribute('aria-label',chip.textContent);chip.title=chip.textContent;
+      const text=k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0];
+      const chip=h('span',`chip buff-chip ${BUFFS[k][1]}`);
+      chip.dataset.effect=k;chip.setAttribute('role','img');chip.setAttribute('aria-label',text);chip.title=text;
       if(k==='shield')chip.title+=' · Damage absorption; finite capacity, not a solid collision wall.';
+      const pict=h('span','buff-icon');pict.innerHTML=BUFF_ICONS[k]??ICONS.guard;
+      chip.append(pict,h('span','buff-label',text));
       return chip;
     }));
   }
@@ -2062,7 +2079,7 @@ export class UI {
         row.el.tabIndex=0;
         row.el.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.a.target(ent.id);}});
         this.bindPlayerContext(row.el,()=>ent.id);
-        this.party.append(row.el);
+        this.nearby.append(row.el);
         this.partyRows.set(ent.id, row);
       }
       set(row.name, 'text', ent.meta.n);
@@ -2070,7 +2087,10 @@ export class UI {
       this.frameBars(row, ent.row.h, ent.row.m);
       this.buffChips(row.buffs, ent.row.b || []);
       this.unitPortrait(row.el,ent.meta);
-      row.el.classList.toggle('party-member-live',!!you.party?.members?.some(m=>m.id===ent.id));
+      const member=!!you.party?.members?.some(m=>m.id===ent.id);
+      row.el.classList.toggle('party-member-live',member);
+      const list=member?this.party:this.nearby;
+      if(row.el.parentElement!==list)list.append(row.el);
       row.el.classList.toggle('selected', !!target && target.id === ent.id);
       row.el.classList.toggle('dead', ent.dead);
     }
@@ -2080,7 +2100,30 @@ export class UI {
         this.partyRows.delete(id);
       }
     }
-
+    // Server partyState identifies members even outside our visible entity
+    // snapshot. Never fabricate their health, buffs or physical appearance.
+    const memberList=(you.party?.members??[]).filter(m=>m.id!==me.id);
+    const activeParty=new Set(memberList.map(m=>m.id));
+    for(const [id,ghost] of this.partyGhostRows){
+      if(!activeParty.has(id)||seen.has(id)){ghost.remove();this.partyGhostRows.delete(id);}
+    }
+    for(const member of memberList){
+      if(seen.has(member.id))continue;
+      let ghost=this.partyGhostRows.get(member.id);
+      if(!ghost){
+        ghost=h('div','frame ally party-member-unavailable');
+        ghost.setAttribute('role','status');
+        ghost.append(h('span','party-avatar-placeholder','?'),h('div','name'),h('div','sub'));
+        this.partyGhostRows.set(member.id,ghost);
+      }
+      set(ghost.querySelector('.name'),'text',member.name);
+      set(ghost.querySelector('.sub'),'text',`Level ${member.level} ${CLASSES[member.cls]?.name??member.cls} · Out of visible range`);
+    }
+    const partyNodes=memberList.map(m=>this.partyRows.get(m.id)?.el??this.partyGhostRows.get(m.id)).filter(Boolean);
+    if(partyNodes.length!==this.party.children.length||partyNodes.some((n,i)=>this.party.children[i]!==n))
+      this.party.replaceChildren(...partyNodes);
+    this.party.hidden=partyNodes.length===0;
+    this.nearby.hidden=this.nearby.children.length<=1;
     if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
