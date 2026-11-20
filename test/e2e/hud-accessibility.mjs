@@ -95,6 +95,12 @@ try{
  assert.equal((await slot1.textContent()).trim(),'1');
  await panel.getByRole('button',{name:'Back to Settings'}).click();
  await page.locator('.settings-panel .close').click();
+ // The independent Ability Matrix can recover assignments after Ctrl-drag removal.
+ await page.locator('#view').focus();await page.keyboard.press('KeyP');
+ const matrix=page.locator('.ability-matrix');await matrix.waitFor({state:'visible'});
+ assert.ok((await matrix.locator('.ability-matrix-entry').count())>=1,'Known class abilities must be recoverable');
+ await matrix.getByRole('button',{name:'Close Ability Matrix'}).click();
+ await matrix.waitFor({state:'hidden'});
  // Owner-approved HUD: there must not be a second summon/dismiss control
  // underneath the character and companion portraits.
  assert.equal(await page.locator('.summon-pet').count(),0);
@@ -141,6 +147,53 @@ try{
  }
  await page.setViewportSize({width:1280,height:860});
  await page.screenshot({path:'test/e2e/out/hud-accessibility.png'});
+ // Functional hotbar checks run after the approved visual evidence is captured.
+ const slot=i=>page.locator('.actionbar .slot[data-slot-index="'+i+'"]');
+ const first=await slot(0).getAttribute('data-ability');
+ const second=await slot(1).getAttribute('data-ability');
+ assert.ok(first&&second,'Two assigned abilities are needed for swap validation');
+ const ctrlDrag=async(from,to)=>{
+   const origin=await slot(from).boundingBox();
+   assert.ok(origin,'Source ability must have a visible slot');
+   await page.keyboard.down('Control');
+   await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
+   await page.mouse.down();
+   assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true');
+   const dest=to===null?{x:Math.floor(page.viewportSize().width/2),y:Math.floor(page.viewportSize().height/2)}:await slot(to).boundingBox();
+   assert.ok(dest,'Drop target must be reachable');
+   await page.mouse.move(to===null?dest.x:dest.x+dest.width/2,to===null?dest.y:dest.y+dest.height/2,{steps:8});
+   await page.mouse.up();
+   await page.keyboard.up('Control');
+ };
+ await ctrlDrag(0,7);
+ assert.equal(await slot(7).getAttribute('data-ability'),first,'Ctrl-drag into empty slot moves the assigned ability');
+ assert.equal(await slot(0).getAttribute('data-ability'),null,'Source slot must be empty after relocation');
+ await ctrlDrag(7,1);
+ assert.equal(await slot(1).getAttribute('data-ability'),first,'Occupied slot must receive the dragged ability');
+ assert.equal(await slot(7).getAttribute('data-ability'),second,'Occupied-slot swap must preserve the displaced ability');
+ // Escape cancels the drag even if the pointer is already outside the bar.
+ const from=await slot(1).boundingBox();
+ await page.keyboard.down('Control');
+ await page.mouse.move(from.x+from.width/2,from.y+from.height/2);
+ await page.mouse.down();
+ await page.mouse.move(640,300,{steps:8});
+ await page.keyboard.press('Escape');
+ await page.mouse.up();
+ await page.keyboard.up('Control');
+ assert.equal(await slot(1).getAttribute('data-ability'),first,'Esc must cancel without unassigning');
+ await ctrlDrag(1,null);
+ assert.equal(await slot(1).getAttribute('data-ability'),null,'Intentional Ctrl-drop outside removes only the hotbar assignment');
+ await page.locator('#view').focus();
+ await page.keyboard.press('KeyP');
+ await matrix.waitFor({state:'visible'});
+ const recovery=matrix.locator('.ability-matrix-entry').first();
+ await recovery.locator('select').selectOption('8');
+ await recovery.getByRole('button',{name:/Assign/}).click();
+ assert.equal(await slot(8).getAttribute('data-ability'),first,'P matrix must recover the learned ability into a valid slot');
+ const saved=await page.evaluate(()=>Object.entries(localStorage).find(([k])=>k.startsWith('attunement.hotbar.v1.'))?.[1]??null);
+ assert.ok(saved,'Character-scoped hotbar must persist in browser storage');
+ assert.equal(JSON.parse(saved)[8],first);
+ await matrix.getByRole('button',{name:'Close Ability Matrix'}).click();
  assert.deepEqual(errors,[]);
  console.log('PASS readable HUD, head portrait frame, visible day/night, companion summon/dismiss, slot visibility and hotkeys');
 }finally{await browser?.close();await server.close();await rm(work,{recursive:true,force:true});}

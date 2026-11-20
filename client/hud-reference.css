@@ -249,3 +249,18 @@
   #hud .menu{bottom:5px;right:5px}
   #hud .menu>.menubtn{font-size:9px;padding:4px 6px}
 }
+
+/* Configurable slots are exposed only during deliberate Ctrl-drag. Idle HUD unchanged. */
+#hud .actionbar[data-rearranging="true"] .slot.empty{
+ visibility:visible!important;opacity:.7!important;pointer-events:auto;
+ border-style:dashed;
+}
+#hud .ability-matrix{left:50%;top:48%;transform:translate(-50%,-50%);width:min(540px,calc(100vw - 22px));max-height:82vh;overflow:auto;padding:16px;z-index:42}
+#hud .ability-matrix h2{margin:0 32px 9px 0}
+#hud .ability-matrix-list{display:grid;gap:7px;margin-top:10px}
+#hud .ability-matrix-entry{display:grid;grid-template-columns:minmax(120px,1fr) minmax(115px,1fr) auto;gap:6px;align-items:center;padding:7px;border:1px solid #40535d;background:#14242b}
+#hud .ability-matrix-entry select{grid-column:2;padding:5px;color:inherit;background:#162c35;border:1px solid #50636c}
+#hud .ability-matrix-entry small{grid-column:1;grid-row:2}
+#hud .ability-matrix-entry button{padding:5px 8px;font-size:11px}
+#hud .ability-matrix-entry button:last-child{grid-column:3}
+@media(max-width:580px){#hud .ability-matrix-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#hud .ability-matrix-entry button:last-child{grid-column:2}}
