@@ -26,7 +26,7 @@ export function reachMinimapArt(){
     const grain=(noise(x,y)-.5)*13;
     const warm=clamp((h+1.5)/9,0,1);
     const low=clamp((-h-2)/9,0,1);
-    const base=[61+warm*38-low*9,67+warm*29+low*4,69+warm*19+low*15];
+    const base=[43+warm*20-low*7,53+warm*22+low*4,62+warm*22+low*12];
     const light=clamp(ridge+broad+grain,-23,25);
     const idx=(y*n+x)*4;
     pixels.data[idx]=clamp(base[0]+light,15,160);
