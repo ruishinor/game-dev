@@ -103,7 +103,7 @@ try{
  await page.screenshot({path:'rift-evidence/04-severance-expanse.png'});
  assert.ok(!server.game.enemies.some(e=>e.name==='Displaced Sentinel'),'the Annex is not opened by entering the expanse');
  // Walk the last metres into the passage with real input, then use the portal.
- const landing=gateToWorld(0,-5.5),inside=gateToWorld(0,0.9).z;p.x=landing.x;p.z=landing.z;
+ const landing=gateToWorld(0,-5.5),inside=gateToWorld(0,0.2).z;p.x=landing.x;p.z=landing.z;
  await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.pos.x-x,s.pos.z-z)<.6;},[landing.x,landing.z],{polling:250});
  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.1,dist:4,face:0}));
  await page.locator('#view').focus();await page.keyboard.down('KeyW');
