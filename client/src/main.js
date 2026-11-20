@@ -30,6 +30,7 @@ import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
+import {ActionBindings} from './hotkey-bindings.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -342,10 +343,12 @@ document.addEventListener('contextmenu', e=>{
 },true);
 
 const portraits = makePortraits(assets, useGlb);
+const bindings=new ActionBindings(localStorage);
 let hallPreview=null;
 const ui = new UI({
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
+  bindings,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
@@ -1404,18 +1407,28 @@ input.onClick = (button, x, y) => {
 };
 
 input.onAction = (code, e) => {
-  const digit = /^Digit([1-9])$/.exec(code);
-  if (digit && S.sheet) {
-    const i = Number(digit[1]) - 1;
-    const def = CLASSES[S.sheet.cls];
-    if (e.shiftKey) {
-      const pet = S.ents.get(S.compId)?.meta.c;
-      const mode = companionCommandKeys(pet)[i];
-      if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
-    } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
-    else if(i===def.abilities.length&&!S.compId&&S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
+  const action=bindings.resolve(e);
+  if(action && S.sheet) {
+    const i=Number(action.split(':')[1])-1;
+    const def=CLASSES[S.sheet.cls];
+    if(action.startsWith('companion:')){
+      const pet=S.ents.get(S.compId)?.meta.c;
+      const mode=companionCommandKeys(pet)[i];
+      if(mode && COMPANIONS[pet]?.modes[mode])net.send({t:'pet',c:mode});
+    } else if(def.abilities[i]){
+      net.send({t:'use',a:def.abilities[i]});
+    } else if(i===def.abilities.length){
+      const eligible=S.ents.get(S.myId);
+      if(eligible&&!eligible.dead&&!(eligible.row?.f&8)){
+        if(S.compId)net.send({t:'pet_manage',action:'dismiss'});
+        else if(S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
+      }
+    }
+    e.preventDefault();
     return;
   }
+  // Modified unbound keys must not trigger unrelated built-in actions.
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
   switch (code) {
     case 'NumLock':
       e.preventDefault();
