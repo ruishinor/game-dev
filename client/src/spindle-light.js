@@ -11,7 +11,7 @@ export const SPINDLE_LIGHT = Object.freeze({
 });
 
 /** Select the nearest eligible sources for a bounded Three.js light pool. */
-export function activeSpindleLights(entities, viewer, tuning = SPINDLE_LIGHT) {
+export function activeSpindleLights(entities, viewer, tuning = SPINDLE_LIGHT, preferredId = 0) {
   const sources = [];
   const rangeSq = tuning.maxViewDistance ** 2;
   for (const ent of entities) {
@@ -21,6 +21,12 @@ export function activeSpindleLights(entities, viewer, tuning = SPINDLE_LIGHT) {
     const d2 = dx * dx + dy * dy + dz * dz;
     if (d2 <= rangeSq) sources.push({ ent, d2 });
   }
-  sources.sort((a, b) => a.d2 - b.d2 || a.ent.id - b.ent.id);
+  // Never crowd out the local player's own light with nearby party companions
+  // while it is close enough to be useful for their navigation.
+  sources.sort((a, b) => {
+    const aOwn = a.ent.id === preferredId && a.d2 <= (tuning.range + 5) ** 2;
+    const bOwn = b.ent.id === preferredId && b.d2 <= (tuning.range + 5) ** 2;
+    return aOwn === bOwn ? a.d2 - b.d2 || a.ent.id - b.ent.id : aOwn ? -1 : 1;
+  });
   return sources.slice(0, tuning.maxSources).map(source => source.ent);
 }
