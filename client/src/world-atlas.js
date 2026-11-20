@@ -1,6 +1,6 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
-import {reachAtlasTerrain,clusterMapMarkers,atlasEntityCategory} from './atlas-cartography.js';
+import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -291,23 +291,28 @@ export class WorldAtlas{
  const captured=this.terrainForRegion(r);
  c.dataset.terrainSource=captured?'scene':'fallback';
  c.dataset.terrainCaptureCount=String(this.terrainCaptureAttempts);
- if(captured&&!r.area){
-   // A real scene capture records props and material identity, but a top-down
-   // view under game lighting is not legible cartography by itself. Show
-   // elevation, existing biome footprints and source-grounded relief first,
-   // then overlay genuine static 3D scenery without darkening the terrain.
-   g.save();
-   g.filter='brightness(1.5) contrast(1.06)';
-   g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
-   g.restore();
-   g.save();
-   g.globalCompositeOperation='screen';
-   g.globalAlpha=.82;
+ // Reach map uses the actual shared elevation/biome plate as its
+ // cartographic foundation. A separately lit 3D capture supplies texture,
+ // vegetation and architecture; soft-light cannot bleach the terrain like
+ // the rejected 'screen' blend. Elevation lines are placed on top.
+ if(!r.area){
+   const left=p.X(-r.hw),top=p.Z(-r.hd),width=2*r.hw*p.kx,height=2*r.hd*p.kz;
+   g.drawImage(reachTerrain(),left,top,width,height);
+   if(captured){
+     g.save();
+     g.globalCompositeOperation='soft-light';
+     g.globalAlpha=.58;
+     g.filter='contrast(1.16) saturate(.8)';
+     g.drawImage(captured,left,top,width,height);
+     g.restore();
+   }
+   g.drawImage(reachAtlasContours(),left,top,width,height);
+ }else if(captured){
    g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
-   g.restore();
- }else if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
- else if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
- else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
+ }else{
+   g.fillStyle='#3b4546';
+   g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ }
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
  const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelBounds=[],clusterCandidates=[];
