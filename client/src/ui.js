@@ -275,7 +275,8 @@ export class UI {
     this.party = h('div', 'party');this.party.setAttribute('role','group');this.party.setAttribute('aria-label','Party members');
     this.nearby=h('div','nearby-players');this.nearby.setAttribute('role','group');this.nearby.setAttribute('aria-label','Nearby players');
     const nearbyTitle=h('div','nearby-title','Nearby players');this.nearby.append(nearbyTitle);
-    root.append(this.party,this.nearby);
+    this.partyFrameStacks=h('div','party-frame-stacks');this.partyFrameStacks.append(this.party,this.nearby);
+    root.append(this.partyFrameStacks);
     this.playerContext = h('div', 'player-context');
     this.playerContext.hidden = true;
     root.append(this.playerContext);
