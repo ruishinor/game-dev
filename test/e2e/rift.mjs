@@ -61,12 +61,24 @@ try{
  // Keep the fixture outside the hazard and use normal F interaction to stabilize.
  await page.screenshot({path:'rift-evidence/01-open.png'});
  await move(f.regulator);
- await page.waitForFunction(()=>{const a=window.__attune.state().ents.find(e=>e.c==='phase_scar');return a?.row.rf==='unstable'&&a.row.rw===0;});
- await page.locator('#view').focus();await page.keyboard.press('KeyF');
- await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='stabilized');
+ // The regulator accepts the counterphase only between releases. On a slow
+ // (software-rendered) client the press can arrive after the next warning has
+ // begun; the server correctly refuses it, so press again in the next window,
+ // as a player would. Stabilization must still happen through the real F path.
+ await page.locator('#view').focus();
+ for(let attempt=0;;attempt++){
+   await page.waitForFunction(()=>{const a=window.__attune.state().ents.find(e=>e.c==='phase_scar');return a?.row.rf==='unstable'&&a.row.rw===0;});
+   await page.keyboard.press('KeyF');
+   const done=await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='stabilized',null,{timeout:6000}).then(()=>true,()=>false);
+   if(done)break;
+   assert.ok(attempt<3,'regulator never accepted the counterphase between releases');
+   assert.equal(f.phase,'unstable','a refused press leaves the field unstable');
+ }
+ // the server holds the stabilized phase (asserted before the slow software screenshot,
+ // which can outlast the 15 s stable window on a ~2 s/frame client)
+ assert.equal(f.phase,'stabilized');
  await page.evaluate(()=>window.__attune.view({yaw:-Math.PI/2,pitch:.22,dist:10,face:-Math.PI/2}));
  await page.screenshot({path:'rift-evidence/02-stabilized.png'});
- assert.equal(f.phase,'stabilized');
  await page.waitForFunction(()=>window.__attune.state().sheet.fieldQuests?.some(q=>q.id==='field:rift_calibration'&&q.progress==='1 / 2 stages'));
  await move(f.core,3.6);
  await page.waitForFunction(()=>{

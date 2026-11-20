@@ -305,9 +305,18 @@ export class CombatVfx {
       if(!Number.isFinite(e.x)||!Number.isFinite(e.z)||!Number.isFinite(e.r))return;
       const f=[e.x,groundHeightOr(e,s),e.z],pulse=e.k==='rift_pulse',closing=e.k==='rift_stabilize'||e.k==='rift_collapse';
       const colour=pulse?0xd98e75:closing?0x8fc5b8:0xada7d3;
+      // The rift model flares its own membrane; the engine adds the spatial
+      // response: a ground shock, and either an implosion of streaks drawn
+      // into the throat (open/close) or a shard spray and scorch (discharge).
+      const core=[f[0],f[1]+2.45,f[2]];
       v.shock({at:f,radius:e.r,color:colour,life:pulse?.7:1.2,width:pulse?.14:.08});
-      v.shell({at:f,radius:pulse?e.r:2.15,height:pulse?1.15:4.1,kind:'wall',color:colour,life:pulse?.65:1.1,from:closing?1:.26,to:closing?.22:1,alpha:.45,streak:1.2});
-      v.burst({at:[f[0],f[1]+1.9,f[2]],shape:'sphere',radius:1.2,count:pulse?26:18,cell:[CELL.shard,CELL.streak],color:hot(colour,.36),color2:colour,size:[.06,.18],sizeEnd:.025,life:[.55,1.2],speed:[.9,2.7],gravity:pulse?2:0,spin:[-3,3]});
+      if(!pulse)v.shock({at:f,radius:2.6,color:hot(colour,.3),life:.8,width:.05});
+      if(pulse){
+        v.burst({at:core,shape:'sphere',radius:.6,count:30,cell:[CELL.shard,CELL.streak],color:hot(colour,.4),color2:colour,size:[.05,.16],sizeEnd:.02,life:[.45,1.0],speed:[3.5,7.5],gravity:3.2,drag:.8,spin:[-4,4],stretch:.05});
+        v.scorch({at:f,radius:Math.min(e.r*.55,3.2),color:colour,life:2.4});
+      }else{
+        v.burst({at:core,shape:'sphere',radius:closing?2.6:3.4,count:closing?22:30,cell:[CELL.streak,CELL.glow],color:hot(colour,.5),color2:colour,size:[.04,.11],sizeEnd:.015,life:[.5,.95],speed:.2,attract:core,pull:closing?14:10,stretch:.06});
+      }
       if(pulse)v.flash({at:[f[0],f[1]+1.2,f[2]],color:colour,intensity:7,life:.25});
       return;
     }

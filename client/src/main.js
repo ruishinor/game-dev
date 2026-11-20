@@ -1055,6 +1055,7 @@ function onEvent(e) {
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
       if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+        S.ents.get(e.s)?.model?.flare?.(e.k);
         if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
           const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
           fx.ring(e.x,e.z,e.r,colour,850);
@@ -1194,7 +1195,9 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
-      if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      // world anomalies show their own build-up; the enemy wind-up dome is for creatures
+      if (ent?.model?.charge) ent.model.charge(e.ms);
+      else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);

@@ -32,7 +32,7 @@ import { wearArmour, armourBundle } from './armour-visual.js';
 import { createSocialTorso } from './social-torso.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
-import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate } from './models.js';
+import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate, RIFT_KINDS, riftModel } from './models.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -667,6 +667,7 @@ function buildModel(assets, meta, glb) {
       }
       if (!model) model = makeMender(assets);
     } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
+    else if (RIFT_KINDS.has(meta.c)) model=riftModel(meta.c,assets.loader);
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);
