@@ -276,6 +276,8 @@ async function workshopPlaytest(){
   await (await revealRecipe(page.locator('.workshop-window'),'coupler')).click();
   await page.locator('[data-craft="coupler"]').click();
   await page.waitForFunction(()=>document.querySelector('.workshop-window').hidden&&!document.querySelector('.production-status').hidden,null,{timeout:10000});
+  await page.waitForFunction(()=>{const status=document.querySelector('.production-status');return !status.hidden&&status.textContent.includes('Working');},null,{timeout:10000});
+  check('fabrication HUD exposes a working stage before confirmed output',!page.isClosed());
   await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1,null,{timeout:10000});
   await page.waitForFunction(()=>document.querySelector('.production-status').hidden,null,{timeout:10000});
   check('workshop closes on accepted production and stays closed after completion',await page.locator('.workshop-window').isHidden());
