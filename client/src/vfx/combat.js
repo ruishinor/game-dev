@@ -29,7 +29,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_restorative','field_recovery',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -426,6 +426,45 @@ export class CombatVfx {
       this.dust(f, e.r * .55, 10);
       v.scorch({ at: f, radius: Math.min(e.r * .6, 3.4), color: 0xe07234, life: 3.2 });
       v.flash({ at: [f[0], f[1] + 1, f[2]], color: PALETTE.hostileHot, intensity: 12, life: .3 });
+      return;
+    }
+    if (e.k === 'overseer_press_slam') {
+      // a press die the size of a door drops: a falling shaft, a molten splash, a scored ring
+      if (!Number.isFinite(e.x) || !Number.isFinite(e.z) || !Number.isFinite(e.r)) return;
+      const f = [e.x, groundHeightOr(e, s), e.z];
+      v.shell({ at: f, radius: e.r * 0.42, height: 9, kind: 'pillar', color: 0xff8a3a, life: 0.35, from: 1, to: 0.15, alpha: 0.55, streak: 1.6, flow: -4 });
+      v.shock({ at: f, radius: e.r, color: 0xffb060, life: 0.55, width: 0.12 });
+      v.shock({ at: f, radius: e.r * 1.35, color: 0xff5a14, life: 0.9, width: 0.05 });
+      v.shell({ at: f, radius: e.r, height: 1.6, color: 0xff6a20, kind: 'wall', life: 0.55, from: 0.2, growPart: 0.5, streak: 1.1 });
+      v.scorch({ at: f, radius: Math.min(e.r * 0.75, 6), color: 0xff4a10, life: 4.5 });
+      v.burst({ at: [f[0], f[1] + 0.3, f[2]], shape: 'disc', radius: e.r * 0.5, count: 46, cell: [CELL.ember, CELL.shard], color: 0xffd090, color2: 0xff4a10, size: [0.08, 0.2], sizeEnd: 0.02, life: [0.6, 1.3], speed: [4, 9], dir: [0, 1, 0], spread: 0.75, gravity: 16, drag: 0.4 });
+      this.dust(f, e.r * 0.7, 22);
+      v.flash({ at: [f[0], f[1] + 1.5, f[2]], color: 0xffa040, intensity: 22, life: 0.45, distance: 16 });
+      return;
+    }
+    if (e.k === 'overseer_slag_wave') {
+      // a ring of molten slag rolls outward from the Overseer's feet
+      if (!Number.isFinite(e.x) || !Number.isFinite(e.z) || !Number.isFinite(e.r)) return;
+      const f = [e.x, groundHeightOr(e, s), e.z];
+      v.shell({ at: f, radius: e.r, height: 1.3, color: 0xff5a14, kind: 'wall', life: 1.1, from: 0.08, to: 1, growPart: 0.85, alpha: 0.75, streak: 1.4 });
+      v.shell({ at: f, radius: e.r * 0.92, height: 0.6, color: 0xffc070, kind: 'wall', life: 1.0, from: 0.05, to: 1, growPart: 0.8, alpha: 0.5 });
+      v.shock({ at: f, radius: e.r, color: 0xff7a2a, life: 1.1, width: 0.16 });
+      v.scorch({ at: f, radius: e.r * 0.9, color: 0xc83a08, life: 5 });
+      v.burst({ at: f, shape: 'ring', radius: e.r * 0.85, ground: true, lift: 0.2, count: 60, cell: [CELL.ember, CELL.flare], color: 0xffd090, color2: 0xff4a10, size: [0.1, 0.24], sizeEnd: 0.03, life: [0.7, 1.4], speed: [1.2, 3.2], dir: [0, 1, 0], spread: 0.35, gravity: 4 });
+      v.flash({ at: [f[0], f[1] + 1, f[2]], color: 0xff6a20, intensity: 18, life: 0.6, distance: e.r * 1.6 });
+      return;
+    }
+    if (e.k === 'overseer_resonant_overload') {
+      // the Overseer vents the Foundry's harmonic charge through the whole chamber
+      const at = s ? this.feet(s)() : [e.x, groundHeightOr(e, s), e.z];
+      const chest = s ? s.chest : { x: at[0], y: at[1] + 2.5, z: at[2] };
+      v.shell({ at, radius: 1.4, height: 14, kind: 'pillar', color: 0x8fd8ff, life: 1.2, streak: 1.8, flow: 3 });
+      v.shell({ at: chest, radius: 4, color: 0x5ff0e0, kind: 'sphere', life: 0.7, from: 0.15, to: 2.4, alpha: 0.45 });
+      v.sigil({ at, radius: 9, style: 'hazard', color: 0xff8a3a, life: 1.4, spin: 1.6, grow: 0.25 });
+      v.shock({ at, radius: Math.min(Number.isFinite(e.r) ? e.r : 30, 30), color: 0x8fd8ff, life: 1.2, width: 0.05 });
+      v.shock({ at, radius: 12, color: 0xff8a3a, life: 0.8, width: 0.1 });
+      v.burst({ at: [chest.x, chest.y, chest.z], shape: 'sphere', radius: 1.2, count: 54, cell: [CELL.shard, CELL.streak, CELL.glow], color: 0xdff8ff, color2: 0x5ff0e0, size: [0.08, 0.22], sizeEnd: 0.02, life: [0.6, 1.2], speed: [6, 14], drag: 1.4 });
+      v.flash({ at: [chest.x, chest.y, chest.z], color: 0x8fd8ff, intensity: 26, life: 0.6, distance: 30 });
       return;
     }
     if (e.k === 'seismic_slam') {

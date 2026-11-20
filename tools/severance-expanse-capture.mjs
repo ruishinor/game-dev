@@ -104,6 +104,23 @@ try {
     await shot('22-foundry-harmonic-chamber', f(0, -4), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('23-foundry-excavation-depths', f(0, -54), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('24-foundry-vats-close', f(5, 20), W + 0.4, { yaw: W + 0.4, pitch: 0.1, dist: 5 }, { tod: 'off' });
+    // the Overseer's attacks, as real world events in the Depths
+    const boss = game.enemies.find((e) => e.overseer);
+    const watch = f(0, -66);
+    for (const [k, r, settle] of [['overseer_press_slam', 6, 380], ['overseer_slag_wave', 11, 520], ['overseer_resonant_overload', 40, 420]]) {
+      if (only.length && !only.some((o) => '25'.startsWith(o) || o.startsWith('25'))) break;
+      p.x = watch.x; p.z = watch.z; p.yaw = S;
+      await page.waitForFunction(([x, z]) => { const s = window.__attune.state(); return Math.hypot(s.pos.x - x, s.pos.z - z) < 0.6; }, [watch.x, watch.z], { polling: 250 });
+      await page.evaluate(() => window.__attune.view({ face: Math.PI, yaw: Math.PI, pitch: 0.22, dist: 7 }));
+      await page.waitForTimeout(1200);
+      const at = k === 'overseer_press_slam' ? { x: boss.x + 2, z: boss.z + 6 } : { x: boss.x, z: boss.z };
+      game.emitWorldEvent({ e: 'fx', k, s: boss.id, x: at.x, z: at.z, r });
+      await page.waitForTimeout(settle);
+      const file = path.join(out, `25-${k}.png`);
+      await page.screenshot({ path: file });
+      log.push({ name: `25-${k}`, file });
+      console.log('25', k);
+    }
   }
   const graphics = await page.evaluate(() => { const gl = window.__attune.gfx.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); return { renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) }; });
   fs.writeFileSync(path.join(out, 'capture-log.json'), JSON.stringify({ graphics, software: SOFTWARE_GL, errors, views: log }, null, 1));

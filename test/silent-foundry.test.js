@@ -132,3 +132,22 @@ test('Foundry presentation: hidden outside, bounded lights, restores lighting on
   assert.equal(f.group.parent, null);
   assert.ok(COLLIDERS.length > 0);
 });
+
+test('the Foundry Overseer fights with its own server-only specials, each with an engine recipe', async () => {
+  const { OVERSEER_SPECIALS } = await import('../server/sim/silent-foundry.js');
+  const { AREA_KINDS } = await import('../client/src/vfx/combat.js');
+  const { ENEMIES } = await import('../shared/content.js');
+  for (const sp of OVERSEER_SPECIALS) {
+    assert.ok(AREA_KINDS.has(sp.id), sp.id + ' has a VFX recipe');
+    assert.ok(!Object.values(ENEMIES).some((d) => (d.specials || []).some((x) => x.id === sp.id)), 'not in the public enemy table');
+  }
+  const g = makeGame(), p = ready(g);
+  assert.ok((await travelToFoundry(g, p)).ok);
+  const boss = g.enemies.find((e) => e.overseer);
+  place(p, boss.x + 3, boss.z);
+  p.hp = p.maxHp = 100000;
+  g.events.length = 0;
+  for (let i = 0; i < 20 * 25; i++) g.tick(50);
+  const seen = new Set(g.events.filter((e) => e.e === 'tele').map((e) => e.k));
+  for (const sp of OVERSEER_SPECIALS) assert.ok(seen.has(sp.id), sp.id + ' is telegraphed in a 25 s fight');
+});
