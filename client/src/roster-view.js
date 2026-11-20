@@ -63,7 +63,7 @@ export class CharacterRosterView{
  meta(){
   const c=this.selected;
   return c?{k:'p',c:c.cls,a:c.look,n:c.name,ap:c.appearance,
-   wv:c.wv??null,av:c.av??null,sv:c.sv??null}:null;
+   wv:c.wv??null,av:c.av??null,sv:c.sv??null,er:c.er??null}:null;
  }
  setBusy(busy,action=null){
   this.busy=busy;this.action=busy?action:null;
