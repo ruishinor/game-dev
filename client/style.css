@@ -1092,3 +1092,44 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 /* Search suggestions stay accessible under the search field. */
 #hud .atlas-results[hidden]{display:none!important}
 #hud .atlas-results:not([hidden]){flex:0 0 auto;max-height:min(30vh,245px);overflow-y:auto;min-height:0}
+
+
+/* Atlas owner acceptance: zero sidebar scrolling, viewport-fit controls.
+   Secondary saved locations live in a dedicated tab; help is hover-only. */
+#hud .world-atlas{inset:clamp(4px,1vh,12px) clamp(4px,1vw,16px)}
+#hud .atlas-header{min-height:46px;padding:6px 12px;flex:0 0 auto}
+#hud .atlas-body{min-height:0;overflow:hidden;grid-template-columns:minmax(210px,24%) minmax(0,1fr)}
+#hud .atlas-tools{overflow:hidden!important;min-height:0;gap:0;padding:8px 10px;display:flex;flex-direction:column}
+#hud .atlas-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:0 0 auto;margin-bottom:8px}
+#hud .atlas-tabs button{min-height:31px;padding:4px 7px;font-size:12px;font-weight:650}
+#hud .atlas-tabs button[aria-pressed="true"]{border-color:#80b9c6;background:#294650}
+#hud .atlas-tool-panel{display:flex;flex-direction:column;gap:clamp(3px,.7vh,8px);min-height:0;overflow:hidden}
+#hud .atlas-tool-panel[hidden]{display:none!important}
+#hud .atlas-tool-panel h3{margin:2px 0 0}
+#hud .atlas-map-panel label{min-height:clamp(20px,3.2vh,27px)}
+#hud .atlas-region{padding:3px 0 5px}
+#hud .atlas-legend{padding:3px 0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud .atlas-details{margin:0;font-size:11px;line-height:1.3;max-height:2.7em;overflow:hidden}
+#hud .atlas-waypoint-details{margin:0;padding:5px 7px;font-size:11px;line-height:1.3}
+#hud .atlas-tools button{min-height:30px;padding:5px 7px}
+#hud .atlas-results:not([hidden]){max-height:min(20vh,145px);overflow:auto}
+#hud .atlas-saved-panel .atlas-marker-note{min-height:45px;max-height:70px;resize:none}
+#hud .atlas-saved-list{min-height:0;overflow:hidden;padding:0;gap:3px}
+#hud .atlas-saved-point:nth-child(n+5){display:none}
+#hud .atlas-note-status{margin:0;font-size:10px}
+@media(max-height:650px){
+ #hud .atlas-header{min-height:37px}
+ #hud .atlas-tabs{margin-bottom:4px}
+ #hud .atlas-tool-panel{gap:2px}
+ #hud .atlas-map-panel label{min-height:19px}
+ #hud .atlas-legend{display:none}
+ #hud .atlas-tools input[type="search"]{min-height:29px;padding:4px 7px}
+ #hud .atlas-details{max-height:1.4em;white-space:nowrap;text-overflow:ellipsis}
+}
+@media(max-width:700px){
+ #hud .atlas-body{grid-template-columns:minmax(125px,35%) minmax(0,1fr)}
+ #hud .atlas-tools{padding:5px}
+ #hud .atlas-tabs button{font-size:11px;min-height:28px}
+ #hud .atlas-legend{display:none}
+ #hud .atlas-details{font-size:10px}
+}
