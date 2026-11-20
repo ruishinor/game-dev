@@ -138,7 +138,7 @@ try {
   assert.equal(await observer.getByText(/Spindle inspection:/).count(),0);
   await owner.screenshot({path:path.join(out,'inspection-result.png')});
   await owner.locator('.pet-select').click({button:'right'});
-  await owner.getByRole('button',{name:'Dismiss companion',exact:true}).click();
+  await owner.locator('.player-context').getByRole('button',{name:'Dismiss companion',exact:true}).click();
   await observer.waitForFunction(id=>!window.__attune.state().ents.some(e=>e.id===id),id);
   assert.equal(p.companion,null);
   assert.deepEqual(errors,[]);
