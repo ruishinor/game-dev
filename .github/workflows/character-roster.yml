@@ -6,6 +6,9 @@ on:
       - 'client/index.html'
       - 'client/style.css'
       - 'client/character-selection.css'
+      - 'client/selection-blueprint.css'
+      - 'client/src/selection-blueprint-environment.js'
+      - 'client/src/looks.js'
       - 'client/src/selection-environment.js'
       - 'server/store.js'
       - 'test/character-selection.test.js'
@@ -30,6 +33,7 @@ jobs:
       - run: npm ci
       - run: node --test test/character-selection.test.js
       - run: node --check client/src/selection-environment.js
+      - run: node --check client/src/selection-blueprint-environment.js
       - run: node --check client/src/creation-preview.js
       - run: npx playwright install --with-deps chromium
       - name: Live roster journey and screenshots
