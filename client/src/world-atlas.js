@@ -1,6 +1,7 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
 import {reachAtlasTerrain,clusterMapMarkers} from './atlas-cartography.js';
+import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function regionFor(pos){
@@ -43,6 +44,7 @@ export const reachTerrain=reachAtlasTerrain;
 export class WorldAtlas{
  constructor(root,settings,focusWorld){
  this.focusWorld=focusWorld;this.zoom=1;this.pan={x:0,z:0};this.waypoint=null;this.selection=null;this.layers=new Set(['places','party','players','enemies','objects']);
+  this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
@@ -62,13 +64,21 @@ export class WorldAtlas{
  });
  this.clearButton=el('button',null,'Clear waypoint');this.clearButton.disabled=true;
  this.clearButton.addEventListener('click',()=>this.clearWaypoint());
+ this.markerLabel=el('input','atlas-marker-title');this.markerLabel.type='text';this.markerLabel.maxLength=52;this.markerLabel.placeholder='Marker name';this.markerLabel.setAttribute('aria-label','Saved marker name');
+ this.noteInput=el('textarea','atlas-marker-note');this.noteInput.rows=2;this.noteInput.maxLength=MAX_NOTE_LENGTH;this.noteInput.placeholder='Optional note (private to this browser)';this.noteInput.setAttribute('aria-label','Saved marker note');
+ this.savePointButton=el('button',null,'Save point and note');this.savePointButton.type='button';this.savePointButton.disabled=true;this.savePointButton.addEventListener('click',()=>this.savePoint());
+ this.savedList=el('div','atlas-saved-list');this.savedList.setAttribute('aria-label','Saved map points');
+ this.noteStatus=el('p','atlas-note-status','Saved points are local to this browser and character.');this.noteStatus.setAttribute('aria-live','polite');
  tools.append(el('p','atlas-legend','▲ Enemies   ● Players   ◆ Objects   ◉ Party   ◇ Personal waypoint'),
    this.details,this.setSelected,this.clearButton,this.waypointDetails,
-   this.results,el('p','muted','Personal map marker only. Distances are straight-line estimates, not navigable routes. Drag to pan; click to mark; scroll to zoom.'));
+   el('h3',null,'Saved locations'),this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedList,
+   this.results,el('p','muted','Saved markers are private to this browser. Distances are straight-line estimates. Drag to pan; click to mark; scroll to zoom.'));
  this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
- full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);view.append(this.canvas,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
+ full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
+ this.playerMarker=el('div','atlas-player-marker','▲');this.playerMarker.setAttribute('role','img');this.playerMarker.setAttribute('aria-label','Your current position');this.playerMarker.title='Your current position';this.playerMarker.hidden=true;
+ view.append(this.canvas,this.playerMarker,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
  this.el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();this.close();}});
  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.scale(e.deltaY<0?1.2:1/1.2);},{passive:false});
  this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;this.drag={x:e.clientX,y:e.clientY,moved:false};this.canvas.setPointerCapture(e.pointerId);});
