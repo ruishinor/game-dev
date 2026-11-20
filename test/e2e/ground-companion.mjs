@@ -41,7 +41,7 @@ try{
  // Actual command click; its scan logic and cover are separately unit tested.
  await page.getByRole('button',{name:'Analyze target',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='assist'));
- await page.getByRole('button',{name:'Menu [M]',exact:true}).click();
+ await page.getByRole('button',{name:'Menu (Esc)',exact:true}).click();
  await page.getByRole('button',{name:'Companion Sheet',exact:true}).click();
  await page.getByRole('button',{name:'Dismiss Survey Strider',exact:true}).click();
  await page.waitForFunction(()=>{const s=window.__attune.state();return !s.compId&&!s.ents.some(e=>e.c==='survey_strider')&&!s.sheet.equipped.device&&s.sheet.striderLearned;});

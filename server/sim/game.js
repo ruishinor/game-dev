@@ -151,6 +151,7 @@ export class Game {
       socialVisual: publicSocialVisual(char),
       metaVer: 1,
       companion: null,
+      spindleCompanion: null,
       brineTrial: null,
       brineServiceUntil: 0,
       surveyKit: char.cls === 'surveyor' ? { mark: null, rig: null } : null,
@@ -174,9 +175,9 @@ export class Game {
     forgetLoot(this,p);
     removePartyPlayer(this, p);
     clearThreatFor(this, p.id);
-    if (p.companion) {
-      this.companions = this.companions.filter((c) => c !== p.companion);
-      this.ents.delete(p.companion.id);
+    for (const c of new Set([p.companion, p.spindleCompanion].filter(Boolean))) {
+      this.companions = this.companions.filter(active => active !== c);
+      this.ents.delete(c.id);
     }
     for(const other of this.players.values())if(other.followId===id)this.stopFollow(other);
     this.players.delete(id);
@@ -392,8 +393,10 @@ export class Game {
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
-      if (!p.companion && !p.dead && p.deployRetryAt != null && this.time >= p.deployRetryAt)
+      if (!p.dead && p.deployRetryAt != null && this.time >= p.deployRetryAt) {
+        p.deployRetryAt = null;
         restoreCompanion(this, p);
+      }
       if (p.target) {
         const t = this.ents.get(p.target);
         if (!t || (t.kind === 'enemy' && t.state === 'dead' && this.time - t.deadAt > CORPSE_MS)) {
@@ -452,7 +455,7 @@ export class Game {
       });
     }
     for (const c of this.companions) {
-      rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host });
+      rows.push({ i: c.id, x: r2(c.x), z: r2(c.z), r: r2(c.yaw), md: c.mode, a: c.act, t: c.actTarget, hs: c.host, ...(c.type === 'spindle' ? { li: c.lightOn ? 1 : 0 } : {}) });
     }
     for (const o of this.objects) rows.push({ i: o.id, x: o.x, z: o.z, ...riftRow(this,o), ...severanceRow(this,o) });
     return rows;
@@ -488,6 +491,7 @@ export class Game {
       region: travelRegionAt(p.x, p.z),
       ack: p.lastSeq,
       comp:p.companion?.id??0,
+      spindleId:p.spindleCompanion?.id??0,
       ...lootState(this,p),
       recoveryMs:recoveryRemaining(p.char,this.wallNow()),
       ...(travelRegionAt(p.x, p.z) === 'severance_expanse' ? { veins: veinState(this, p) } : {}),

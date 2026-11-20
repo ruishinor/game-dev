@@ -25,6 +25,7 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
+import {createWeaponCarry,WEAPON_MODELS} from './weapon-visuals.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
@@ -227,16 +228,38 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
   let heldRod=null,rodEffects=null,rodEngine=null;
   const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
-  let weapon = null, visual = null;
+  let weapon = null, visual = null, sidearm = null, lastWeaponAim = null;
   function setWeaponVisual(next) {
-    next = next === 'longpoint' ? next : null;
+    next = next === 'longpoint' || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
     if (next === visual) return;
     weapon?.dispose(); weapon = null; visual = next;
+    sidearm?.apply(null);
     if (!next) return;
-    const prop = assets.instance(next);
-    if (!prop) return;
-    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
-    if (!weapon) disposeInstance(prop);
+    if (next === 'longpoint') {
+      // Preserve the authored original Longpoint mesh, two-hand fit and recoil.
+      const prop = assets.instance(next);
+      if (!prop) return;
+      weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
+      if (!weapon) disposeInstance(prop);
+      return;
+    }
+    if (!assets.weaponModels?.has(next)) return;
+    sidearm ??= createWeaponCarry(THREE, assets, inst);
+    sidearm.apply(next);
+    weapon = {
+      restore:()=>sidearm.restorePose(),
+      update(st,dt){
+        lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
+        sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
+      },
+      fire(){
+        const origin=inst.getWorldPosition(new THREE.Vector3());
+        const forward=new THREE.Vector3(0,0,1).applyQuaternion(inst.getWorldQuaternion(new THREE.Quaternion()));
+        return sidearm.fire(next,lastWeaponAim??origin.addScaledVector(forward,12));
+      },
+      origin:()=>sidearm.muzzle(),
+      dispose:()=>{sidearm.apply(null);lastWeaponAim=null;}
+    };
   }
   setWeaponVisual(opts.weaponVisual);
   // Worn armour (presentation metadata `av`: slot -> item, or a legacy chest
@@ -373,6 +396,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       releaseRod();
       weapon?.dispose();
+      sidearm?.dispose();
       disposed = true;
       for (const h of armours.values()) h.handle?.dispose();
       armours.clear();

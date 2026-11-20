@@ -1,0 +1,266 @@
+/* Attunement HUD fidelity correction.
+ * Source: owner-supplied original compact portrait/actionbar/terrain-map references,
+ * 20 Nov 2026. Original styling; no reference artwork copied.
+ * This file is intentionally independent of the atlas/party integration branches.
+ */
+
+/* Keep the world visible. The player/companion frames are a compact stack,
+   not an oversized dashboard card. The target frame remains separate. */
+#hud .frames {left:12px;top:11px;gap:7px}
+#hud .frames>.col{gap:4px;min-width:0}
+#hud .frame.player,
+#hud .frame.pet,
+#hud .frame.ally {
+  border:1px solid #546a76;
+  border-radius:8px 4px 4px 8px;
+  background:linear-gradient(108deg,rgba(38,37,40,.94),rgba(14,18,25,.92) 55%,rgba(12,21,27,.88));
+  box-shadow:inset 0 0 0 1px #171d21,inset 0 1px #a9c5d128,0 2px 5px #000a;
+  color:#dbe5e8;
+}
+#hud .frame.player {
+  width:min(258px,40vw);
+  min-height:68px;
+  padding:6px 8px 6px 64px;
+}
+#hud .frame.pet {
+  width:min(225px,37vw);
+  margin-left:14px;
+  min-height:54px;
+  padding:5px 7px 5px 53px;
+}
+#hud .unit-portrait {
+  left:4px;
+  top:4px;
+  width:43px;
+  height:43px;
+  border:2px solid #66818c;
+  background:radial-gradient(ellipse at 38% 30%,#596267,#141b23 80%);
+  box-shadow:0 0 0 2px #20252a,inset 0 0 0 1px #c0d1d8;
+}
+#hud .frame.player .unit-portrait {
+  left:5px;
+  top:7px;
+  width:52px;
+  height:52px;
+}
+#hud .frame .name {font-size:13px;line-height:1.2;font-weight:700;color:#e4edf0}
+#hud .frame .sub {font-size:10px;line-height:1.2;color:#bbbdbc;margin:0 0 3px}
+#hud .frame .bar {margin-top:3px;border-radius:2px;border:1px solid #393a3b;background:#091116}
+#hud .frame .bar.hp {height:12px}
+#hud .frame .bar.hp .label {font-size:10px;line-height:10px}
+#hud .frame .bar.res {height:10px}
+#hud .frame .bar.res .label {font-size:9px;line-height:8px}
+#hud .frame .bar.hp .fill {background:linear-gradient(180deg,#db6c5b,#872c29 70%,#60221e)}
+#hud .frame .bar.res .fill {background:linear-gradient(#5d9db3,#234d75 75%,#1a334a)}
+#hud .frame .bar.res.charge .fill{background:linear-gradient(#dcab62,#92602c)}
+#hud .frame.pet .pet-select {font-size:12px;line-height:1.1}
+#hud .frame.pet .companion-icon{width:20px;height:20px}
+#hud .frame .buffs {gap:3px;margin-top:3px}
+#hud .frame .chip{padding:1px 3px;font-size:9px;line-height:1.1}
+#hud .summon-pet {font-size:11px;padding:4px 8px;border:1px solid #587681;border-radius:3px;background:#14252bcf;margin-left:12px}
+
+/* The reference portraits protrude from the horizontal status strip rather
+   than living inside a wide card. Preserve a strong circular head silhouette. */
+#hud .frame.player{margin-left:15px;width:min(224px,38vw);padding-left:43px}
+#hud .frame.player .unit-portrait{left:-17px;top:6px;width:53px;height:53px}
+#hud .frame.pet{margin-left:28px;width:min(190px,35vw);padding-left:35px}
+#hud .frame.pet .unit-portrait{left:-14px;top:4px;width:41px;height:41px}
+#hud .frame.player .bar.hp .fill{background:linear-gradient(#80b77d,#39784f 60%,#20513c)}
+#hud .frame.pet .bar.hp .fill{background:linear-gradient(#80b77d,#39784f 60%,#20513c)}
+
+/* Party row hierarchy follows the reference: portraits and short HP/resource
+   tracks in a vertical stack, with authentic server-sourced effect chips. */
+#hud .party{left:12px;top:173px;gap:4px;max-height:min(45vh,400px);overflow-y:auto}
+#hud .frame.ally {width:min(194px,35vw);min-height:55px;padding:6px 7px 5px 40px;margin-left:16px}
+#hud .frame.ally .unit-portrait {width:43px;height:43px;top:5px;left:-14px}
+#hud .frame.ally .sub{font-size:9px;margin-bottom:1px}
+#hud .frame.ally .bar.hp{height:10px}
+#hud .frame.ally .bar.res{height:8px}
+#hud .frame.ally .chip{font-size:8.5px}
+#hud .frame.ally:not(.party-member-live){opacity:.76}
+#hud .party-frame-stacks{top:163px;left:12px;width:min(235px,38vw);gap:6px}
+#hud .party-frame-stacks .party{gap:4px}
+#hud .party-frame-stacks .nearby-players{gap:4px}
+#hud .party-frame-stacks .nearby-title{font-size:10px;padding:4px 4px 1px}
+#hud .party-frame-stacks .frame.ally.party-member-unavailable{min-height:48px;padding:6px 5px 5px 40px}
+#hud .party-avatar-placeholder{left:-14px;top:4px;width:40px;height:40px;font-size:17px}
+#hud .frame.ally .buff-chip{min-width:25px;min-height:25px;padding:2px}
+#hud .frame.ally .buff-chip .buff-icon{width:19px;height:19px}
+@media(max-width:700px){#hud .party-frame-stacks{top:122px;left:7px;width:min(170px,50vw)}#hud .party-avatar-placeholder{width:34px;height:34px;left:-10px}}
+
+
+/* Compact layered hotbars: independent small companion commands above the main
+   action row; real ability art, legible keys and usable mouse/keyboard targets. */
+#hud .bars{width:min(650px,calc(100vw - 24px));bottom:8px;gap:2px}
+#hud .action-row{gap:4px;flex-wrap:nowrap;max-width:calc(100vw - 14px)}
+#hud .actionbar{gap:3px;max-width:calc(100vw - 60px);flex-wrap:nowrap}
+#hud .petbar{gap:3px;margin-bottom:5px;flex-wrap:nowrap;justify-content:center}
+#hud .slot{
+  flex:0 0 auto;
+  width:clamp(39px,3.1vw,51px);
+  height:clamp(39px,3.1vw,51px);
+  border-radius:3px;
+  border:1px solid #ac8c5e;
+  background:linear-gradient(145deg,#6b5940,#29303a 9%,#111b26 88%,#66563c);
+  box-shadow:inset 0 0 0 2px #0b1820,0 1px 2px #000e;
+}
+#hud .slot.small {width:clamp(32px,2.45vw,38px);height:clamp(32px,2.45vw,38px)}
+#hud .auto-toggle {flex-basis:39px;width:39px;height:39px;border-radius:3px;padding:8px;border:1px solid #88704b;background:linear-gradient(#303b40,#111921)}
+#hud .slot .icon {
+  inset:3px;
+  border-radius:1px;
+  overflow:hidden;
+  color:#d2e2d9;
+  background:
+    radial-gradient(circle at 27% 24%,#e7c28655,transparent 42%),
+    linear-gradient(145deg,#34424b,#121b2c 66%,#3a2a2e);
+  box-shadow:inset 0 0 5px #02070dba;
+  pointer-events:none;
+}
+#hud .slot .icon svg{width:100%;height:100%;display:block}
+#hud .slot[data-art="painted"] .icon{inset:2px;background:#101824}
+#hud .slot[data-art="painted"] .icon svg{filter:saturate(1.14) contrast(1.05)}
+#hud .slot:not([data-art="painted"]) .icon svg{padding:5px;filter:drop-shadow(0 1px 2px #000)}
+#hud .slot .key{top:2px;left:3px;font-size:10px;font-weight:700;line-height:1;color:#fff4d7;text-shadow:0 1px 3px #000,0 0 2px #000;z-index:3}
+#hud .slot.small .key{font-size:9px}
+#hud .slot .cdtext{font-size:15px}
+#hud .slot .pip{width:6px;height:6px;top:3px;right:3px;box-shadow:0 0 3px #fbd48b}
+#hud .slot.empty {border:1px solid #6f685b88;background:#1520288c;box-shadow:inset 0 0 0 1px #19262c}
+#hud .actionbar[data-empty-mode="transparent"] .slot.empty{opacity:.07}
+#hud .actionbar[data-empty-mode="visible"] .slot.empty{opacity:.5}
+#hud .actionbar[data-empty-mode="hidden"] .slot.empty{visibility:hidden}
+#hud .slot:focus-visible,#hud .auto-toggle:focus-visible{outline:2px solid #ffda93;outline-offset:2px}
+#hud .bars .bar.xp{height:9px;max-width:340px;margin-top:3px;border-radius:2px}
+#hud .bars .bar.xp .label{line-height:7px;font-size:9px}
+
+/* The minimap is a framed cartographic instrument, not a flat web dashboard. */
+#hud .side{right:12px;top:9px;width:min(186px,23vw);gap:4px;align-items:flex-end}
+#hud .minimap{
+  width:clamp(96px,7.2vw,140px);
+  max-width:100%;
+  aspect-ratio:1;
+  border:2px solid #64808c;
+  border-radius:50%;
+  background:#161d28;
+  box-shadow:
+    inset 0 0 0 2px #0c151c,
+    0 0 0 2px #172832,
+    0 0 0 4px #465f69,
+    0 2px 8px #000b;
+  image-rendering:auto;
+}
+#hud .map-controls{gap:3px;justify-content:flex-end;margin-top:1px}
+#hud .map-controls button{
+  min-width:24px;min-height:23px;
+  padding:2px 6px;
+  font-size:10px;line-height:1.1;
+  border-radius:2px;
+  border:1px solid #4a626b;
+  background:linear-gradient(#273941,#0d1920);
+  color:#dce9ed;
+}
+#hud .map-controls .map-open{min-width:72px}
+#hud .zone-label{
+  font-size:10px;line-height:1.2;
+  font-family:system-ui,sans-serif;
+  letter-spacing:.01em;text-align:right;
+  color:#d6e4ea;
+}
+#hud .map-clock-row{font-size:10px;gap:3px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap}
+#hud .map-day,#hud .map-game-clock,#hud .map-real-clock {
+  border:1px solid #47606c;
+  border-radius:2px;
+  padding:2px 4px;
+  min-height:20px;
+  font-size:10px;line-height:1.1;
+  background:#101c23df;
+  color:#cbdbe1;
+  font-weight:500;
+}
+#hud .map-day{font-size:12px}
+#hud .map-day[data-status="pending"]{color:#a8c0c9;background:#15242c;border-color:#46616b}
+#hud .frame.player,#hud .frame.pet,#hud .frame.ally{--unit-metal:#66828c}
+#hud .frame.pet.mode-assist{border-left-color:#77a6b4}
+#hud .side .quest-tracker-group{max-width:100%}
+#hud .side .quest-tracker-header{gap:4px}
+#hud .side .quest-tracker-header button{font-size:10px;padding:3px 6px}
+#hud .side .quest-tracker-cards{font-size:11px}
+#hud .side .quest-tracker-other{font-size:11px}
+
+/* Keep secondary command buttons visually subordinate to the game world. */
+#hud .menu{right:12px;bottom:8px;gap:4px}
+#hud .menu>.menubtn{font-size:11px;padding:5px 9px;border-color:#74694d;border-radius:3px;background:#122027dd}
+#hud .menu .net{font-size:10px;min-width:auto;opacity:.7}
+
+#hud .menu>.hud-icon-btn{
+  display:grid;place-items:center;
+  width:35px;height:35px;min-width:35px;min-height:35px;
+  padding:6px;
+  color:#d7e5e9;
+  border:1px solid #4c6773;
+  border-radius:5px;
+  background:linear-gradient(#21323c,#0c1821);
+}
+#hud .menu>.hud-icon-btn svg{display:block;width:21px;height:21px;pointer-events:none}
+#hud .menu>.hud-icon-btn:hover,
+#hud .menu>.hud-icon-btn:focus-visible{background:#304853;border-color:#8eb6c5;outline-offset:2px}
+@media(max-width:700px){
+  #hud .menu>.hud-icon-btn{width:30px;height:30px;min-height:30px;min-width:30px;padding:5px}
+  #hud .menu>.hud-icon-btn svg{width:18px;height:18px}
+}
+
+
+@media(max-width:1100px){
+  #hud .frame.player{width:min(224px,41vw);min-height:64px;padding-left:58px}
+  #hud .frame.player .unit-portrait{width:46px;height:46px}
+  #hud .frame.pet{width:min(195px,39vw);padding-left:48px}
+  #hud .unit-portrait{width:38px;height:38px}
+  #hud .side{width:min(205px,35vw)}
+  #hud .minimap{width:clamp(90px,9vw,116px)}
+  #hud .party{top:154px}
+}
+@media(max-width:700px){
+  #hud .frames{top:7px;left:7px}
+  #hud .frame.player{width:min(145px,43vw);min-height:57px;padding:5px 5px 5px 46px}
+  #hud .frame.player .unit-portrait{left:3px;top:8px;width:38px;height:38px}
+  #hud .frame.pet{margin-left:7px;width:min(160px,49vw);min-height:44px;padding:4px 5px 4px 44px}
+  #hud .frame .name{font-size:11px}
+  #hud .frame .sub{font-size:9px}
+  #hud .frame .bar.hp{height:10px}
+  #hud .frame .bar.res{height:9px}
+  #hud .unit-portrait{left:3px;top:3px;width:36px;height:36px}
+  #hud .side{right:6px;top:7px;width:min(154px,43vw)}
+  #hud .minimap{width:clamp(76px,25vw,94px);border-width:2px}
+  #hud .map-controls button{min-width:24px;padding:3px 5px;font-size:10px}
+  #hud .map-controls .map-open{min-width:58px}
+  #hud .zone-label{font-size:10px}
+  #hud .map-clock-row{flex-wrap:wrap;font-size:9px}
+  #hud .map-day,#hud .map-game-clock,#hud .map-real-clock{font-size:9px;padding:2px 4px;min-height:21px}
+  #hud .party{left:7px;top:125px}
+  #hud .frame.ally{width:min(155px,47vw);padding-left:43px;min-height:45px}
+  #hud .frame.ally .unit-portrait{width:34px;height:34px}
+  #hud .actionbar{gap:2px;max-width:calc(100vw - 46px)}
+  #hud .slot{width:clamp(27px,6.2vw,39px);height:clamp(27px,6.2vw,39px)}
+  #hud .slot.small{width:clamp(25px,5.6vw,31px);height:clamp(25px,5.6vw,31px)}
+  #hud .auto-toggle{width:29px;height:29px;flex-basis:29px;padding:4px}
+  #hud .slot .icon{inset:2px}
+  #hud .slot .key{font-size:9px}
+  #hud .bars{bottom:6px}
+  #hud .menu{bottom:5px;right:5px}
+  #hud .menu>.menubtn{font-size:9px;padding:4px 6px}
+}
+
+/* Configurable slots are exposed only during deliberate Ctrl-drag. Idle HUD unchanged. */
+#hud .actionbar[data-rearranging="true"] .slot.empty{
+ visibility:visible!important;opacity:.7!important;pointer-events:auto;
+ border-style:dashed;
+}
+#hud .ability-matrix{left:50%;top:48%;transform:translate(-50%,-50%);width:min(540px,calc(100vw - 22px));max-height:82vh;overflow:auto;padding:16px;z-index:42}
+#hud .ability-matrix h2{margin:0 32px 9px 0}
+#hud .ability-matrix-list{display:grid;gap:7px;margin-top:10px}
+#hud .ability-matrix-entry{display:grid;grid-template-columns:minmax(120px,1fr) minmax(115px,1fr) auto;gap:6px;align-items:center;padding:7px;border:1px solid #40535d;background:#14242b}
+#hud .ability-matrix-entry select{grid-column:2;padding:5px;color:inherit;background:#162c35;border:1px solid #50636c}
+#hud .ability-matrix-entry small{grid-column:1;grid-row:2}
+#hud .ability-matrix-entry button{padding:5px 8px;font-size:11px}
+#hud .ability-matrix-entry button:last-child{grid-column:3}
+@media(max-width:580px){#hud .ability-matrix-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#hud .ability-matrix-entry button:last-child{grid-column:2}}
