@@ -2,13 +2,6 @@
 // This scene does not instantiate world gameplay or the owner-reserved Expanse.
 import * as THREE from '/vendor/three/three.module.js';
 
-const basalt = new THREE.MeshStandardMaterial({color:0x263744,roughness:.94,metalness:.06,flatShading:true});
-const brokenStone = new THREE.MeshStandardMaterial({color:0x304552,roughness:.93,metalness:.04,flatShading:true});
-const recess = new THREE.MeshStandardMaterial({color:0x0c1a27,roughness:.91,metalness:.22});
-const metal = new THREE.MeshStandardMaterial({color:0x4f7083,roughness:.52,metalness:.66});
-const etched = new THREE.MeshStandardMaterial({color:0x739aab,roughness:.45,metalness:.62});
-const resonance = new THREE.MeshStandardMaterial({color:0x47788c,emissive:0x327a94,emissiveIntensity:.72,roughness:.35,metalness:.42});
-
 
 function block(parent,material,size,pos,rotation=0){
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(...size),material);
@@ -50,6 +43,15 @@ function createStrataTexture(){
 }
 
 export function createSelectionEnvironment(scene,assets){
+const basalt = new THREE.MeshStandardMaterial({color:0x263744,roughness:.94,metalness:.06,flatShading:true});
+const brokenStone = new THREE.MeshStandardMaterial({color:0x304552,roughness:.93,metalness:.04,flatShading:true});
+const recess = new THREE.MeshStandardMaterial({color:0x0c1a27,roughness:.91,metalness:.22});
+const metal = new THREE.MeshStandardMaterial({color:0x4f7083,roughness:.52,metalness:.66});
+const etched = new THREE.MeshStandardMaterial({color:0x739aab,roughness:.45,metalness:.62});
+const resonance = new THREE.MeshStandardMaterial({color:0x47788c,emissive:0x327a94,emissiveIntensity:.72,roughness:.35,metalness:.42});
+
+
+
  const root=new THREE.Group();root.name='selection-resonance-vestibule';scene.add(root);
  const strata=createStrataTexture();
  // Share one texture across low-count rock meshes; dispose with this scene.
@@ -191,6 +193,7 @@ export function createSelectionEnvironment(scene,assets){
  const dispose=()=>{
   for(const geometry of ownedGeometry)geometry.dispose();
   for(const material of ownedMaterials)material.dispose();
+  for(const material of [basalt,brokenStone,recess,metal,etched,resonance])material.dispose();
   cloudMat.dispose();
   strata?.dispose();
   basalt.map=basalt.bumpMap=brokenStone.map=brokenStone.bumpMap=null;
