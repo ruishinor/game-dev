@@ -78,6 +78,14 @@ Object.assign(scenes, {
   follow: {top:"#1f3b53",bottom:"#10232e",glow:"#9acced",bright:"#e5f4ef",shapes:"<path d=\"M20 13Q8 22 14 34L23 41 33 30 28 15Z\" fill=\"#587b90\" stroke=\"#c7f5ef\" stroke-width=\"3\"/><path d=\"M40 27Q30 34 36 47l10 9 10-14-5-15Z\" fill=\"#7994a2\" stroke=\"#d4e6e3\" stroke-width=\"3\"/><path d=\"M13 44 20 50M28 48l7 7M45 9l7 6\" stroke=\"#a5e1ff\" stroke-width=\"2\"/><circle cx=\"23\" cy=\"18\" r=\"3\" fill=\"#fff3d2\"/>"}
 });
 
+// supplemental: companion two
+Object.assign(scenes, {
+  stay: {top:"#3c3a2c",bottom:"#111c26",glow:"#ead19a",bright:"#ffecc6",shapes:"<circle cx=\"32\" cy=\"32\" r=\"24\" fill=\"#536064\" stroke=\"#e5c78a\" stroke-width=\"4\"/><path d=\"M23 23h18v18H23Z\" fill=\"#8e7053\" stroke=\"#fff0c7\" stroke-width=\"4\"/><circle cx=\"32\" cy=\"32\" r=\"5\" fill=\"#fbebc5\"/><path d=\"M32 5v9M32 50v9M5 32h9M50 32h9\" stroke=\"#e0b77c\" stroke-width=\"3\"/>"},
+  screen: {top:"#1a3b55",bottom:"#13202f",glow:"#a5e6f4",bright:"#edfdfd",shapes:"<path d=\"M9 51V22L32 7l23 15v29Z\" fill=\"#3b6b83\" stroke=\"#a8e5f6\" stroke-width=\"3\"/><path d=\"M15 46V26l17-12 17 12v20Z\" fill=\"#8ed6e5\" opacity=\".38\"/><path d=\"M13 32h38M32 12v42\" stroke=\"#d9fafd\" stroke-width=\"3\"/><path d=\"M18 49h29\" stroke=\"#fef4ce\" stroke-width=\"3\"/><circle cx=\"32\" cy=\"31\" r=\"5\" fill=\"#fffef2\"/>"},
+  recover: {top:"#3b4131",bottom:"#162533",glow:"#dfc78e",bright:"#f9e8be",shapes:"<path d=\"M11 15 25 6l5 19-13 12Z\" fill=\"#9d8263\" stroke=\"#fff2b8\" stroke-width=\"2.5\"/><path d=\"M39 14 54 23 47 42 30 34Z\" fill=\"#50797d\" stroke=\"#b4ecdf\" stroke-width=\"2.5\"/><path d=\"M17 34 35 52 42 58M41 35l-4 21\" stroke=\"#e8c893\" stroke-width=\"5\"/><path d=\"M12 53h14M47 51h12\" stroke=\"#c2f1de\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"33\" r=\"5\" fill=\"#fff1c4\"/>"},
+  inspect: {top:"#1c4250",bottom:"#121f2a",glow:"#a2e3ee",bright:"#e9f6e3",shapes:"<circle cx=\"26\" cy=\"25\" r=\"18\" fill=\"#2e6773\" stroke=\"#c5f3e7\" stroke-width=\"4\"/><circle cx=\"26\" cy=\"25\" r=\"10\" fill=\"#8ed1d5\" opacity=\".6\"/><path d=\"M38 39 57 58\" stroke=\"#d1b98c\" stroke-width=\"8\" stroke-linecap=\"round\"/><path d=\"M37 38 55 56\" stroke=\"#4c6a77\" stroke-width=\"3\"/><path d=\"M18 25h17M26 16v18\" stroke=\"#fff9db\" stroke-width=\"2\"/><circle cx=\"26\" cy=\"25\" r=\"4\" fill=\"#fffced\"/>"}
+});
+
 // The ids are static, authored game content. No dynamic user input or markup.
 export function paintedAbilityArt(id) {
   if (!Object.hasOwn(scenes, id)) return null;
