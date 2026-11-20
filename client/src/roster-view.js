@@ -60,7 +60,12 @@ export class CharacterRosterView{
   this.inspectHeading=el('h2',null,'Inspect character');
   const close=el('button','roster-inspection-close','Return to character selection');
   close.type='button';
-  close.addEventListener('click',()=>this.closeInspection());
+  close.addEventListener('click',()=>this.closeInspection(true));
+  this.inspectScreen.addEventListener('keydown',event=>{
+   if(event.key==='Escape'){
+    event.preventDefault();event.stopPropagation();this.closeInspection(true);
+   }
+  });
   header.append(this.inspectHeading,close);
   this.inspectScreen.append(header);
   this.root.append(this.inspectScreen);
@@ -112,12 +117,15 @@ export class CharacterRosterView{
   document.body.classList.add('character-inspection-mode');
   this.inspectScreen.querySelector('.roster-inspection-close')?.focus({preventScroll:true});
  }
- closeInspection(){
+ closeInspection(restoreFocus=false){
+  const wasOpen=!this.inspectScreen.hidden;
   document.body.classList.remove('character-inspection-mode');
   this.inspectScreen.hidden=true;
   this.preview.closeInspector();
   this.capacity.after(this.inspectControls);
   this.inspectControls.hidden=true;
+  if(restoreFocus&&wasOpen&&!this.inspectToggle.hidden)
+   this.inspectToggle.focus({preventScroll:true});
  }
  enterSelected(){
   if(!this.selected||this.busy)return;
