@@ -53,7 +53,7 @@ try{
  await page.locator('.menu').getByRole('button',{name:'Menu [M]'}).click();
  await page.locator('.menu-items').getByRole('button',{name:'Characters',exact:true}).click();
  await page.locator('#character-roster').waitFor({state:'visible'});
- await page.locator('#roster-list .roster-row').first().waitFor();
+ await page.locator('#roster-list .roster-select').first().waitFor();
  assert.match(await page.locator('#roster-details').textContent(),/Roster Tester/);
  assert.match(await page.locator('#roster-details').textContent(),/Kinetic Vanguard|Symbiotech Conductor|Aegis Keeper|Brine Surveyor/);
  assert.match(await page.locator('#roster-details').textContent(),/Location/);
