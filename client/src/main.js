@@ -455,11 +455,13 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
 });
 let titleDrawAt=-Infinity;
 let worldEntryPending=false;
-let creationSections=null;
+const creationSections=setupCreationSections();
 function showCharacterCreation(){
-  if(!net.accountLogged||!lastRoster)return;
-  creationSections??=setupCreationSections();
-  creationSections?.show('identity');
+  if(!net.accountLogged||!lastRoster){
+    $('roster-error').textContent='Your account session is unavailable. Sign in again to create a character.';
+    return;
+  }
+  creationSections.show('identity');
   ui.toggleSettings(false);
   $('hud').hidden=true;
   $('character-roster').hidden=true;
@@ -606,6 +608,7 @@ function showRoster(m) {
   worldEntryPending=false;
   $('world-entry-curtain').hidden=true;
   lastRoster=m;
+  if($('roster-import-dialog').open)$('roster-import-dialog').close();
   input.enabled=false;
   $('login').hidden=false;
   $('hud').hidden=true;
@@ -642,7 +645,23 @@ function buildAccountUI() {
   $('roster-settings').addEventListener('click', () => {
     if(!net.accountLogged)return;
     const open=ui.settingsPanel.hidden;
-    if(open)setupRosterSettingsPages(ui.settingsPanel);
+    if(open){
+      setupRosterSettingsPages(ui.settingsPanel);
+      const more=ui.settingsPanel.querySelector('#settings-screen-page-2');
+      if(more&&!more.querySelector('#roster-import-trigger')){
+        const button=document.createElement('button');
+        button.id='roster-import-trigger';
+        button.type='button';
+        button.textContent='Import previous guest character';
+        button.addEventListener('click',()=>{
+          ui.toggleSettings(false);
+          $('hud').hidden=true;
+          $('roster-import-dialog').showModal();
+          $('recovery-token').focus({preventScroll:true});
+        });
+        more.append(button);
+      }
+    }
     $('hud').hidden=!open;
     ui.toggleSettings(open);
     if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
@@ -681,13 +700,18 @@ function buildAccountUI() {
     if (!net.resumeGuest(token)) $('guest-error').textContent = 'Enter a valid 64-character recovery key.';
     else { $('guest-resume-key').value = ''; $('guest-error').textContent = ''; }
   });
-  $('link-legacy').addEventListener('click', () => {
-    if (net.token) net.claimLegacy(net.token);
+  const importDialog=$('roster-import-dialog');
+  $('roster-import-close').addEventListener('click',()=>importDialog.close());
+  importDialog.addEventListener('close',()=>{
+    $('recovery-token').value='';
+    $('roster-import-error').textContent='';
+    if(document.body.classList.contains('character-selection-mode'))$('roster-settings').focus({preventScroll:true});
   });
-  $('import-legacy').addEventListener('click', () => {
-    const token = $('recovery-token').value.trim();
-    if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
-    else $('recovery-token').value = '';
+  $('link-legacy').addEventListener('click',()=>{if(net.token)net.claimLegacy(net.token);});
+  $('import-legacy').addEventListener('click',()=>{
+    const token=$('recovery-token').value.trim();
+    if(!net.claimLegacy(token))$('roster-import-error').textContent='Enter a valid 64-character guest recovery key.';
+    else {$('roster-import-error').textContent='Import requested. Awaiting account confirmation…';$('recovery-token').value='';}
   });
   // Controls are disabled in the static HTML until both auth handlers exist.
   // This prevents first-click loss during slow module initialization.
