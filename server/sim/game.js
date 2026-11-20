@@ -49,7 +49,8 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000 } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000, eliteRng=()=>randomInt(1000000)/1000000 } = {}) {
+    this.eliteRng=eliteRng;
     this.relicRng=relicRng;
     this.blueprintRng=blueprintRng;
     this.classArmourRng=classArmourRng;
