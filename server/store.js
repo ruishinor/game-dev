@@ -110,6 +110,11 @@ function sanitize(raw) {
       name: validCompanionName(raw.spindle.name) ? raw.spindle.name : COMPANIONS.spindle.name,
       mode: raw.spindle.mode === 'stay' ? 'stay' : 'follow',
     };
+    // Independent persistent utility slot. Legacy saves stored a summoned
+    // Spindle in the exclusive activeCompanion field.
+    c.spindleDismissed = raw.spindleDismissed === false ? false
+      : raw.spindleDismissed === true ? true
+      : !(raw.activeCompanion === 'spindle' && raw.companionDismissed !== true);
   }
   const owned = ownedCompanionTypes(c);
   c.defaultCompanion = owned.includes(raw.defaultCompanion) ? raw.defaultCompanion : null;

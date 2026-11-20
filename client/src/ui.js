@@ -59,6 +59,7 @@ const ICONS = {
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
   inspect: svg('<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/>'),
+  light: svg('<path d="M9 18h6m-5 3h4M8 14a7 7 0 1 1 8 0l-1 2H9zM12 1v2M2 12h2m16 0h2M4 4l2 2m12 0 2-2"/>'),
   follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
@@ -97,7 +98,7 @@ const GLYPH_NOTES = {
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', screening:'Projecting screen', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
-const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
+const SPINDLE_KEYS = ['inspect', 'light', null, 'follow', 'stay'];
 const STRIDER_KEYS=['screen','recover','assist','follow','stay'];
 export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
 const SKILL_INFO = {
@@ -262,8 +263,8 @@ export class UI {
     this.renameRow.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = this.renameInput.value.trim();
-      if (name && this.dialogCompanionId === this.companionId) {
-        this.a.petRename(name);
+      if (name && (this.dialogCompanionId === this.companionId || this.dialogCompanionId === this.spindleCompanionId)) {
+        this.a.petRename(name, this.dialogCompanionId === this.spindleCompanionId ? 'spindle' : undefined);
         this.closeCompanionDetails();
       }
     });
@@ -746,7 +747,7 @@ export class UI {
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
     root.append(this.settingsPanel);
     this.buildHotkeySettings(root);
-    this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}));
+    this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}),this.a.terrainForAtlas);
     this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
@@ -1270,7 +1271,7 @@ export class UI {
     const focusedAction = document.activeElement?.dataset.companionAction;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
-      const { type, name, active, available, isDefault } = companion;
+      const { type, name, active, available, isDefault, lightOn } = companion;
       const definition = COMPANIONS[type];
       const section = h('section', 'companion-sheet-entry');
       const portrait = this.a.portrait({ k: 'c', c: type });
@@ -1282,7 +1283,7 @@ export class UI {
       }
       section.append(h('h3', null, name));
       if (definition.name !== name) section.append(h('p', 'muted', definition.name));
-      section.append(h('p', null, active ? 'Active' : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
+      section.append(h('p', null, active ? (type === 'spindle' ? 'Active utility companion · independent of class companion' : 'Active') : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
         const row = h('li');
@@ -1294,6 +1295,23 @@ export class UI {
       useDefault.dataset.companionAction = 'default-' + type;
       useDefault.addEventListener('click', () => this.a.managePet('default', type));
       section.append(modes);
+      if (active && type === 'spindle') {
+        const controls = h('div', 'companion-sheet-utility-controls');
+        for (const command of ['light', 'inspect', 'follow', 'stay']) {
+          const button = h('button', null, command === 'light' ? `Field light: ${lightOn ? 'On' : 'Off'}` : definition.modes[command].name);
+          button.dataset.companionAction = 'spindle-' + command;
+          button.disabled = !!this.selfDead || (command === 'inspect' && !!this.buildLock);
+          if (command === 'light') button.setAttribute('aria-pressed', String(!!lightOn));
+          button.addEventListener('click', () => this.a.pet(command, 'spindle'));
+          controls.append(button);
+        }
+        const rename = h('button', null, 'Rename ' + name);
+        rename.dataset.companionAction = 'rename-spindle';
+        rename.disabled = !available;
+        rename.addEventListener('click', () => this.openCompanionDetails(this.liveEntities?.get(this.spindleCompanionId), 'rename'));
+        controls.append(rename);
+        section.append(controls);
+      }
       if (!active) {
         const summon = h('button', null, 'Summon ' + name);
         summon.disabled = !available;
@@ -1303,7 +1321,7 @@ export class UI {
       } else {
         const dismiss=h('button',null,'Dismiss '+name);dismiss.disabled=!available;
         dismiss.dataset.companionAction='dismiss-'+type;
-        dismiss.addEventListener('click',()=>this.a.managePet('dismiss'));section.append(dismiss);
+        dismiss.addEventListener('click',()=>this.a.managePet('dismiss',type));section.append(dismiss);
       }
       section.append(useDefault);
       body.append(section);
@@ -1855,7 +1873,7 @@ export class UI {
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
-    if (ent.id !== this.companionId) return;
+    if (ent.id !== this.companionId && ent.id !== this.spindleCompanionId) return;
     this.hideJournalPanels();
     this.dialogCompanionId = ent.id;
     this.inspectName.textContent = 'Rename companion';
@@ -2146,6 +2164,8 @@ export class UI {
 
     // Companion frame
     this.companionId = st.comp?.id || 0;
+    this.spindleCompanionId = you.spindleId || 0;
+    this.selfDead = !!me.dead;
     this.currentCompanion = st.comp;
     const roster = you.companions ?? [];
     const rosterSignature = JSON.stringify(roster);
@@ -2177,9 +2197,13 @@ export class UI {
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'stay' ? 'Holding position' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
-      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
+      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}${st.comp.meta.c === 'spindle' && c.li ? ' · Field light on' : ''}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
-      for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
+      for (const b of this.petButtons) {
+        const active = b.mode === 'light' ? st.comp.meta.c === 'spindle' && c.li === 1 : b.mode === c.md;
+        b.el.classList.toggle('active', active);
+        if (b.mode === 'light') b.el.setAttribute('aria-pressed', String(active));
+      }
     }
 
     // Auto-attack state is server-authoritative: it does not chase enemies or

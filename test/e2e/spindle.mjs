@@ -46,6 +46,13 @@ try {
   await owner.screenshot({path:path.join(out,'companion-sheet.png')});
   console.log('Owner commissioned and summoned the GLB. Portrait rendered.');
   await sheet.getByRole('button',{name:'Close Companion Sheet'}).click();
+  // The lamp must be an explicit server command, not a free ambient effect.
+  assert.equal(p.companion.lightOn, false);
+  await owner.getByRole('button',{name:'Field light',exact:true}).click();
+  await owner.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 1), id);
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 10 && o.intensity > 0));
+  assert.equal(p.companion.lightOn, true);
+  await owner.screenshot({path:path.join(out,'field-light-on.png')});
   // Drive the real camera and verify actual visible geometry, not just a flag.
   const visibleTriangles = () => {
     const rig = window.__attune.gfx.scene.getObjectByName('spindle:precision-machine');
@@ -89,13 +96,19 @@ try {
   await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&e.c==='spindle'&&e.model==='glb'),id,{polling:100});
   assert.equal(await observer.evaluate(()=>window.__attune.state().compId),0);
   if(SOFTWARE_GL) await observer.evaluate(()=>window.__attune.pause(true));
-  console.log('Second browser resolved the authoritative companion.');
+  // The observer receives the exact same server-authorized lamp state.
+  await observer.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 1), id);
+  console.log('Second browser resolved the authoritative companion and field light.');
   // Both clients have rendered the same authoritative companion. Move the
   // owner with ordinary input and sample the real wheel on the other client.
   const phase=await observer.evaluate(()=>window.__attune.gfx.scene.getObjectByName('Roll').rotation.x);
   await owner.bringToFront();
   if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(false));
   await owner.locator('#view').focus();
+  await owner.keyboard.press('Shift+2');
+  await observer.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 0), id);
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.filter(o => o.isPointLight && o.distance === 10).every(o => o.intensity === 0));
+  assert.equal(p.companion.lightOn, false);
   const before={x:p.companion.x,z:p.companion.z};
   await owner.keyboard.down('KeyW');
   try {
