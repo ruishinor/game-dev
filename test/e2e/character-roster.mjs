@@ -32,6 +32,12 @@ try{
  assert.equal(await page.locator('#login-form').isHidden(),true);
  assert.equal(await page.locator('#roster-enter').isDisabled(),true);
  assert.match(await page.locator('#roster-capacity').textContent(),/0 \/ 6/);
+ assert.equal(await page.locator('#roster-list .roster-select').count(),0,'no invented characters');
+ assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),6);
+ assert.equal(await page.locator('#roster-create').isEnabled(),true);
+ assert.equal(await page.locator('#roster-settings').isVisible(),true);
+ const viewport=await page.locator('#roster-preview canvas').boundingBox();
+ assert.ok(viewport.width>1000 && viewport.height>700,'3D vestibule must occupy the viewport');
  await page.click('#roster-create');
  assert.equal(await page.locator('#character-roster').isHidden(),true);
  assert.equal(await page.locator('#login-form').isVisible(),true);
@@ -46,6 +52,10 @@ try{
  await page.locator('#character-roster').waitFor({state:'visible'});
  await page.locator('#roster-list .roster-row').first().waitFor();
  assert.match(await page.locator('#roster-details').textContent(),/Roster Tester/);
+ assert.match(await page.locator('#roster-details').textContent(),/Kinetic Vanguard|Symbiotech Conductor|Aegis Keeper|Brine Surveyor/);
+ assert.match(await page.locator('#roster-details').textContent(),/Location/);
+ assert.equal(await page.locator('#roster-list .roster-select[aria-pressed="true"]').count(),1);
+ assert.ok(await page.locator('#roster-preview').getAttribute('data-character-id'),'selected account character id is bound to 3D preview');
  await page.locator('#roster-preview canvas').scrollIntoViewIfNeeded();
  await page.waitForFunction(()=>!!document.querySelector('#roster-preview')?.dataset.model);
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
