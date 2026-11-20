@@ -110,10 +110,34 @@ const CRYSTALS = [[40, -60, 1.6], [52, -40, 2.2], [66, -8, 1.4], [34, 10, 1.8], 
   [80, -50, 1.9], [24, -32, 1.2], [90, -18, 2.1], [38, 86, 1.5], [74, 12, 1.2], [44, -84, 1.7]];
 export const SEVERANCE_CRYSTALS = Object.freeze(CRYSTALS.map(([u, v, r], i) => Object.freeze({ type: 'severance_crystal', ...at(u, v), r, h: 2.4 * r + 1, seed: 1500 + i, teal: i % 4 === 1 })));
 
-// Resonant shard veins: gatherable outcrops (sites only; the yield, channel and
-// replenishment rules are server-only in server/sim/severance-veins.js). Sites
-// sit on level ground clear of colliders, patrol routes and the outpost.
-const VEINS = [['vein_pass', 4, -104], ['vein_flats_north', 50, 48], ['vein_flats_east', 88, 2], ['vein_canyon_west', -56, -38], ['vein_canyon_north', -94, 66]];
+// Resonant shard veins: gatherable outcrops (sites only; extraction and
+// replenishment remain server-authoritative in server/sim/severance-veins.js).
+// Coordinates are (u,v) relative to the Expanse centre. Retain the original
+// five keys/positions and their array indices: existing character save data
+// persists replenishment under those keys, and visual seed/yaw uses the index.
+// Added locations occupy separate traversable ground away from ridge, ruins,
+// patrol corridors, the arrival terrace, outpost and rift/gate approaches.
+const VEINS = [
+  // Original five — never rename or relocate existing persisted sites.
+  ['vein_pass', 4, -104],
+  ['vein_flats_north', 50, 48],
+  ['vein_flats_east', 88, 2],
+  ['vein_canyon_west', -56, -38],
+  ['vein_canyon_north', -94, 66],
+  // Western outskirts, south-to-north.
+  ['vein_west_south', -114, -128],
+  ['vein_west_lower', -114, -72],
+  ['vein_west_mid', -102, 0],
+  ['vein_west_upper', -86, 128],
+  // Open southern plain and a separate pocket east of the central spine.
+  ['vein_south_plain', -10, -136],
+  ['vein_south_east', 18, -84],
+  // Eastern outskirts, south-to-north.
+  ['vein_east_south', 114, -128],
+  ['vein_east_lower', 110, -48],
+  ['vein_east_upper', 114, 84],
+  ['vein_east_north', 82, 128],
+];
 export const SEVERANCE_VEINS = Object.freeze(VEINS.map(([key, u, v], i) => Object.freeze({ key, ...at(u, v), r: 0.95, yaw: (i * 2.39996) % (Math.PI * 2), seed: 2200 + i })));
 
 // The colossal ring: a broken ring of gate-builder stone standing across the
