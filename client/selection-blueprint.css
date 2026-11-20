@@ -268,3 +268,20 @@
 @media(prefers-reduced-motion:reduce){
  #world-entry-curtain:not([hidden]){transition:none;}
 }
+
+/* A real rendered gateway frame fades into selection/creation; neither a
+   black WebGL canvas nor a half-constructed title camera may flash onscreen. */
+.character-selection-mode #roster-preview canvas,
+.character-create-mode #creation-preview canvas{
+ opacity:0;transition:opacity .52s ease;
+}
+.character-selection-mode #roster-preview[data-frame-ready="yes"][data-scene-asset="severance-gate-glb"] canvas,
+.character-create-mode #creation-preview[data-frame-ready="yes"][data-scene-asset="severance-gate-glb"] canvas,
+.character-selection-mode #roster-preview[data-frame-ready="yes"][data-scene-asset="unavailable"] canvas,
+.character-create-mode #creation-preview[data-frame-ready="yes"][data-scene-asset="unavailable"] canvas{
+ opacity:1;
+}
+@media(prefers-reduced-motion:reduce){
+ .character-selection-mode #roster-preview canvas,
+ .character-create-mode #creation-preview canvas{transition:none}
+}

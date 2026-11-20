@@ -27,7 +27,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const release=()=>{
   for(const {model} of models){scene.remove(model.group);model.dispose?.();}
-  models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;
+  models=[];keyState='';delete root.dataset.model;delete root.dataset.appearance;delete root.dataset.frameReady;
  };
  const inspectToggle=root.querySelector('[data-preview-inspect]');
  const inspectControls=root.querySelector('.preview-controls');
@@ -160,6 +160,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     renderer.render(scene,camera);
    }
    renderer.setScissorTest(false);
+   root.dataset.frameReady='yes';
    lastDraw=now;dirty=false;return true;
   }catch(err){
    release();renderer?.dispose();renderer=null;failed=true;
