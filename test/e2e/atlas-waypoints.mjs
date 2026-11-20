@@ -48,6 +48,19 @@ try {
   'World atlas has become unreadably dark; most terrain must remain visually distinguishable regardless of game time');
  const initialCaptureCount=await canvas.getAttribute('data-terrain-capture-count');
  assert.equal(initialCaptureCount,'0','Reach must not use a lighting-sensitive 3D scene capture');
+ // Keyboard-only map interaction: focus, pan, zoom and mark center.
+ await canvas.focus();
+ assert.equal(await canvas.evaluate(el=>document.activeElement===el),true);
+ const markerBefore=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.transform);
+ await page.keyboard.press('ArrowRight');
+ const markerAfter=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.transform);
+ assert.notEqual(markerAfter,markerBefore,'Arrow keys pan the canvas without moving the character');
+ await page.keyboard.press('+');
+ await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>document.querySelector('.map-waypoint-brief')?.hidden===false);
+ assert.match(await page.locator('.map-waypoint-brief').textContent(),/Custom waypoint/);
+ await atlas.getByRole('button',{name:'Clear waypoint'}).click();
+ await atlas.getByRole('button',{name:'Reset view'}).click();
  await canvas.click({position:{x:320,y:255}});
  await page.waitForFunction(()=>document.querySelector('.map-waypoint-brief')?.hidden===false);
  assert.match(await page.locator('.map-waypoint-brief').textContent(),/Custom waypoint/);
