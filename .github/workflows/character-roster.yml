@@ -5,6 +5,10 @@ on:
       - 'server/net.js'
       - 'client/index.html'
       - 'client/style.css'
+      - 'client/character-selection.css'
+      - 'client/src/selection-environment.js'
+      - 'server/store.js'
+      - 'test/character-selection.test.js'
       - 'client/src/main.js'
       - 'client/src/creation-preview.js'
       - 'client/src/roster-view.js'
@@ -24,5 +28,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: node --test test/character-selection.test.js
+      - run: node --check client/src/selection-environment.js
+      - run: node --check client/src/creation-preview.js
       - run: npx playwright install --with-deps chromium
       - run: node test/e2e/character-roster.mjs
