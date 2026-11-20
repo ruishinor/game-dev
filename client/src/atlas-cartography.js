@@ -2,7 +2,7 @@
 // Draws solely from public shared terrain geometry and already-public zone
 // descriptors. No private encounter/reward tables, borrowed map tiles or
 // unexplored-area client payloads are referenced.
-import {WORLD,ZONES,groundHeight} from '../../shared/world.js';
+import {WORLD,ZONES,COLLIDERS,groundHeight} from '../../shared/world.js';
 
 const clamp=(n,a=0,b=255)=>Math.max(a,Math.min(b,n));
 const smooth=t=>{const c=clamp(t,0,1);return c*c*(3-2*c);};
@@ -69,6 +69,35 @@ export function reachAtlasTerrain(){
     for(let i=0;i<4;i++)pixels.data[at+i]=rgba[i];
   }
   ctx.putImageData(pixels,0,0);
+  // Actual public world geometry is etched into the terrain plate with low
+  // contrast. Only structures/canopies, not every collision shape; avoids
+  // the square-debug-overlay look of the rejected world map.
+  const scale=n/(2*r),toX=x=>(x+r)*scale,toY=z=>(z+r)*scale;
+  const structures=new Set(['beacon','pylon','gatepost','relaytower','wall',
+    'dish','survey_pump','survey_tower','survey_workstation',
+    'survey_engineering','deep_wall','sinter_colony']);
+  for(const o of COLLIDERS){
+    if(Math.hypot(o.x,o.z)>r)continue;
+    const x=toX(o.x),y=toY(o.z);
+    if(o.type==='sporetree'){
+      ctx.beginPath();ctx.arc(x,y,Math.max(1.3,(o.r??1)*scale*1.8),0,Math.PI*2);
+      ctx.fillStyle='rgba(30,62,49,.23)';ctx.fill();
+      continue;
+    }
+    if(!structures.has(o.type))continue;
+    const hw=Math.max(.55,o.hw??o.r??.6)*scale;
+    const hd=Math.max(.55,o.hd??o.r??.6)*scale;
+    ctx.fillStyle='rgba(28,45,49,.37)';
+    ctx.strokeStyle='rgba(151,179,183,.40)';
+    ctx.lineWidth=.85;
+    if(o.hw!==undefined||o.hd!==undefined){
+      ctx.fillRect(x-hw,y-hd,hw*2,hd*2);
+      ctx.strokeRect(x-hw,y-hd,hw*2,hd*2);
+    }else{
+      ctx.beginPath();ctx.arc(x,y,Math.max(1.6,hw),0,Math.PI*2);
+      ctx.fill();ctx.stroke();
+    }
+  }
   cached=c;
   return c;
 }
