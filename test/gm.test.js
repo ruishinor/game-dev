@@ -105,7 +105,7 @@ test('real WebSocket: only authorized signed-in owner account can invoke GM; gue
    b.ws.send(JSON.stringify({t:'create',name:'PlainGuest',cls:'vanguard'}));
    await wait(()=>b.messages.find(m=>m.t==='welcome'));
    b.ws.send(JSON.stringify({t:'gm',line:'level 15'}));
-   await wait(()=>[...srv.game.players.values()].some(p=>p.name==='PlainGuest'&&p.outbox.some(e=>/GM access denied/.test(e.m))));
+   await wait(()=>b.messages.some(m=>m.t==='s'&&(m.pv||[]).some(e=>/GM access denied/.test(e.m))));
    assert.equal([...srv.game.players.values()].find(p=>p.name==='PlainGuest').char.level,1);
  }finally{
    for(const ws of clients)ws.terminate();
