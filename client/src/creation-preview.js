@@ -79,7 +79,11 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  const active=()=>visible&&!failed&&!document.hidden&&canvas.getClientRects().length>0;
  function update(now,dt){
   if(!active())return false;
-  if(environment && environment.ready!==lastStageReady){lastStageReady=environment.ready;dirty=true;}
+  const stageReady=!!environment?.ready,stageFailed=!!environment?.unavailable;
+  if(environment&&(stageReady!==lastStageReady||stageFailed&&root.dataset.sceneAsset!=='unavailable')){
+   lastStageReady=stageReady;dirty=true;
+  }
+  if(environment)root.dataset.sceneAsset=stageReady?'severance-gate-glb':stageFailed?'unavailable':'loading';
   const meta=getMeta();
   const appearance=meta?normalizeAppearance(meta.ap,meta.a):null;
   const choices=!meta?[]:mode==='frames'
@@ -118,10 +122,11 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     keyState=next;
     if(models.length){
      root.dataset.model=models[0].model.kind;root.dataset.appearance=meta.ap;
-     status.textContent=models.every(({model})=>model.kind==='glb')?'Actual gameplay model · drag to rotate':'Simplified gameplay model · detailed asset unavailable';
+     status.textContent=models.every(({model})=>model.kind==='glb')?'':'Simplified gameplay model · detailed asset unavailable';
     }else status.textContent='';
 
    }
+   if(stageFailed)status.textContent='Gate artwork unavailable. Your character and world entry still work.';
    if(mode==='frames'&&appearance)syncFrameSelection(appearance.frame);
    const d=renderer.getSize(new THREE.Vector2());
    if(d.x!==w||d.y!==h)renderer.setSize(w,h,false);
