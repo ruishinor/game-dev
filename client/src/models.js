@@ -6,6 +6,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
+import { buildResonantVein } from './resonant-vein.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { severanceLink } from './severance-gate.js';
 
@@ -908,6 +909,7 @@ export const MODEL_FACTORIES = {
   // Existing mineral-bed scene geometry is the visible resource; only the interaction anchor is instanced here.
   sinter_recovery:()=>({group:new THREE.Group(),height:.65,radius:1.2,hover:0,update(){}}),
   phase_scar:()=>riftModel('phase_scar'),
+  resonant_vein:()=>buildResonantVein(THREE),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
   annex_cache:()=>{

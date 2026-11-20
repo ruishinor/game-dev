@@ -25,6 +25,7 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
+import {createWeaponCarry,WEAPON_MODELS} from './weapon-visuals.js';
 import { rodPalette } from './rod-palette.js';
 import { createSitPose } from './sit-pose.js';
 import { createSurveyStrider } from './survey-strider-model.js';
@@ -35,6 +36,7 @@ import { createSocialTorso } from './social-torso.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
 import { MODEL_FACTORIES as PROCEDURAL, buildPhaseGate, RIFT_KINDS, riftModel } from './models.js';
+import { buildResonantVein } from './resonant-vein.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -248,7 +250,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     else if(!stow&&rodHeld){rodHand.add(g);g.position.copy(rodHeld.position);g.quaternion.copy(rodHeld.quaternion);}
     g.name=stow?'StowedElectricalCombatRod':'HeldElectricalCombatRod';
   }
-  let weapon = null, visual = null, stowedRifle = null;
+  let weapon = null, visual = null, stowedRifle = null, sidearm = null, lastWeaponAim = null;
   // Stowed rifle: across the back, crossing the stowed rod's diagonal. The
   // bone-local transform is captured once in bind pose (like the rod's).
   let rifleStow = null;
@@ -263,12 +265,36 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     probe.removeFromParent();
   }
   function setWeaponVisual(next) {
-    next = next === 'longpoint' || next === 'longpoint-stowed' ? next : null;
+    next = next === 'longpoint' || next === 'longpoint-stowed' || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
     if (next === visual) return;
     weapon?.dispose(); weapon = null;
+    sidearm?.apply(null);
     if (stowedRifle) { stowedRifle.removeFromParent(); disposeInstance(stowedRifle); stowedRifle = null; }
     visual = next;
+    sidearm?.apply(null);
     if (!next) return;
+    if (Object.hasOwn(WEAPON_MODELS,next)) {
+      // Keep #155's authored compact firearm models and muzzle/recoil pipeline.
+      // Selection is already server-authorized; this only presents the token.
+      if (!assets.weaponModels?.has(next)) return;
+      sidearm ??= createWeaponCarry(THREE, assets, inst);
+      sidearm.apply(next);
+      weapon = {
+        restore:()=>sidearm.restorePose(),
+        update(st,dt){
+          lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
+          sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
+        },
+        fire(){
+          const origin=inst.getWorldPosition(new THREE.Vector3());
+          const forward=new THREE.Vector3(0,0,1).applyQuaternion(inst.getWorldQuaternion(new THREE.Quaternion()));
+          return sidearm.fire(next,lastWeaponAim??origin.addScaledVector(forward,12));
+        },
+        origin:()=>sidearm.muzzle(),
+        dispose:()=>{sidearm.apply(null);lastWeaponAim=null;}
+      };
+      return;
+    }
     const prop = assets.instance('longpoint');
     if (!prop) return;
     if (next === 'longpoint-stowed') {
@@ -437,6 +463,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       releaseRod();
       weapon?.dispose();
+      sidearm?.dispose();
       disposed = true;
       for (const h of armours.values()) h.handle?.dispose();
       armours.clear();
@@ -733,6 +760,7 @@ function buildModel(assets, meta, glb) {
       if (!model) model = makeMender(assets);
     } else if (meta.c==='rift_return') model=buildPhaseGate(true,assets);
     else if (RIFT_KINDS.has(meta.c)) model=riftModel(meta.c,assets.loader);
+    else if (meta.c==='resonant_vein') model=buildResonantVein(THREE,{loader:assets.loader,seed:(meta.id??1)%97});
     else if (CREATURES[meta.c]) model = makeCreature(assets, meta.c);
   } catch (err) {
     console.warn(`[models] ${meta.c}: falling back to the procedural model:`, err.message || err);

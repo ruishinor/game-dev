@@ -14,9 +14,11 @@ import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
+import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
+import { SPINDLE_LIGHT, activeSpindleLights } from './spindle-light.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -66,6 +68,23 @@ const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
 const stoneLight = new THREE.PointLight(0xffffff, 0);
 const stoneUp = new THREE.Vector3(0, 1, 0);
 scene.add(stoneLight);
+// Keep a fixed light count for shader stability: inactive sources have intensity
+// zero, and at most three nearby active Spindles can light the local scene.
+const spindlePointLights = Array.from({ length: SPINDLE_LIGHT.maxSources }, () => {
+  const light = new THREE.PointLight(SPINDLE_LIGHT.color, 0, SPINDLE_LIGHT.range, 2);
+  light.castShadow = false;
+  scene.add(light);
+  return light;
+});
+// Lightweight emissive markers also show which distant companions have their
+// light switched on, including when the limited point-light pool is occupied.
+const spindleBulbGeometry = new THREE.SphereGeometry(0.11, 12, 8);
+const spindleHaloGeometry = new THREE.SphereGeometry(0.28, 12, 8);
+const spindleBulbMaterial = new THREE.MeshBasicMaterial({ color: SPINDLE_LIGHT.color, toneMapped: false });
+const spindleHaloMaterial = new THREE.MeshBasicMaterial({
+  color: SPINDLE_LIGHT.color, transparent: true, opacity: 0.15,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+});
 
 // Models come from GLB bundles, loaded once before anything is drawn. If a
 // bundle is missing, the affected entities use their procedural stand-ins.
@@ -77,6 +96,8 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Three existing licensed compact firearm meshes; Longpoint remains the authored original.
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -382,8 +403,8 @@ const ui = new UI({
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
-  pet: (c) => net.send({ t: 'pet', c }),
-  petRename: (name) => net.send({ t: 'pet_rename', name }),
+  pet: (c, type) => net.send({ t: 'pet', c, ...(type ? { type } : {}) }),
+  petRename: (name, type) => net.send({ t: 'pet_rename', name, ...(type ? { type } : {}) }),
   managePet: (action, type) => net.send({ t: 'pet_manage', action, type }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
@@ -780,8 +801,31 @@ function addEntity(meta) {
     chest: new THREE.Vector3(),
     head: new THREE.Vector3(),
   };
+  if (meta.k === 'c' && meta.c === 'spindle') {
+    const emitter = new THREE.Group();
+    emitter.name = 'spindle:field-light-emitter';
+    emitter.position.y = SPINDLE_LIGHT.height;
+    emitter.add(new THREE.Mesh(spindleHaloGeometry, spindleHaloMaterial));
+    emitter.add(new THREE.Mesh(spindleBulbGeometry, spindleBulbMaterial));
+    emitter.visible = false;
+    holder.add(emitter);
+    ent.spindleEmitter = emitter;
+  }
   S.ents.set(ent.id, ent);
   return ent;
+}
+
+function syncSpindleFieldLights() {
+  for (const ent of S.ents.values()) {
+    if (ent.spindleEmitter) ent.spindleEmitter.visible =
+      ent.placed && ent.row?.li === 1 && ent.row?.a !== 'dormant';
+  }
+  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.you?.spindleId || S.compId);
+  for (let i = 0; i < spindlePointLights.length; i++) {
+    const light = spindlePointLights[i], source = sources[i];
+    light.intensity = source ? SPINDLE_LIGHT.intensity : 0;
+    if (source) light.position.set(source.pos.x, source.pos.y + SPINDLE_LIGHT.height, source.pos.z);
+  }
 }
 
 function removeEntity(ent) {
@@ -1154,6 +1198,13 @@ function onEvent(e) {
           fx.ring(o.pos.x,o.pos.z,1.5,0xbacb9a,700,o.pos.y);
           if (!motionPreference.matches && quality > 0) fx.beam(() => o.head,chestOf(s),0xbacb9a,850,0.09);
         }
+        break;
+      }
+      if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){
+        const o=S.ents.get(e.o);
+        if(e.k==='vein_extract'){o?.model?.extract?.(e.ms);s?.model?.trigger?.('gather','gather');}
+        else if(e.k==='vein_harvest')o?.model?.harvest?.();
+        else o?.model?.breakOff?.();
         break;
       }
       if(e.k==='field_recovery'){
@@ -1795,6 +1846,7 @@ function updateEntities(dt, t, now) {
       work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
+      veinMs: ent.meta.c==='resonant_vein' ? (S.you?.veins?.depleted?.find((d)=>d.id===ent.id)?.ms ?? 0) : 0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
@@ -1986,6 +2038,7 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
+  syncSpindleFieldLights();
   if (!inspectVfx || !S.paused) advanceEffects(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 

@@ -1,11 +1,15 @@
-// Public weapon appearance: only an allowlisted visual key leaves the server.
-// 'longpoint' = rifle in hand (ranged mode active); 'longpoint-stowed' = rifle
-// carried on the back while the melee mode is active. No inventory, condition
-// or selection state is disclosed beyond what the character visibly carries.
-import { activeWeapon, autoProfile, equippedWeapon } from './weapons.js';
+// Public, allowlisted weapon visual identity. The server decides the selected
+// slot; no inventory list, condition, hidden odds or arbitrary asset paths leave.
+import {activeWeaponSlot,autoProfile,equippedWeapon} from './weapons.js';
 
-export function publicWeaponVisual(char) {
-  if (activeWeapon(char) === 'longpoint_emitter' && autoProfile(char)?.kind === 'bolt') return 'longpoint';
-  if (equippedWeapon(char, 'ranged') === 'longpoint_emitter') return 'longpoint-stowed';
-  return null;
+const RANGED=Object.freeze({field_emitter:'field',tuned_emitter:'tuned'});
+export function publicWeaponVisual(char){
+ const equipped=equippedWeapon(char,'ranged');
+ if(!equipped)return null;
+ if(activeWeaponSlot(char)==='ranged'&&autoProfile(char)?.kind==='bolt'){
+   if(equipped==='longpoint_emitter')return 'longpoint';
+   return Object.hasOwn(RANGED,equipped)?RANGED[equipped]:null;
+ }
+ // The original Longpoint remains visibly carried when melee is drawn.
+ return equipped==='longpoint_emitter'?'longpoint-stowed':null;
 }

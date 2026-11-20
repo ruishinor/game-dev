@@ -65,10 +65,21 @@ const ICONS = {
   guard: svg('<path d="M12 3 20 6v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>'),
   assist: svg('<path d="M4 20 20 4M20 4h-7M20 4v7"/>'),
   inspect: svg('<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/>'),
+  light: svg('<path d="M9 18h6m-5 3h4M8 14a7 7 0 1 1 8 0l-1 2H9zM12 1v2M2 12h2m16 0h2M4 4l2 2m12 0 2-2"/>'),
   follow: svg('<circle cx="12" cy="5" r="2.5"/><path d="M12 8v6m-4-3 4-3 4 3m-4 3-4 6m4-6 4 6"/>'),
   stay: svg('<rect x="7" y="7" width="10" height="10" rx="1"/><circle cx="12" cy="12" r="9"/>'),
 };
 
+const BUFF_ICONS={
+ ward:ICONS.kinetic_ward,
+ hot:ICONS.mending_graft,
+ bond:ICONS.guard,
+ shield:svg('<path d="M12 2 21 7v7c0 5-4 8-9 9-5-1-9-4-9-9V7z"/><path d="M12 7v10M8 12h8"/>'),
+ sap:svg('<path d="M5 16 9 12 7 8M19 8l-5 4 3 4"/><path d="M12 4v16"/>'),
+ corrode:svg('<circle cx="12" cy="12" r="9"/><path d="M5 9l4 3-3 4M13 6l3 5-4 6"/>'),
+ carapace_imprint:svg('<path d="M12 3 20 8 17 19 12 21 7 19 4 8Z"/><path d="m9 9 6 6m0-6-6 6"/>'),
+ root:svg('<path d="M12 3v11m0 0-6 7m6-7 6 7M6 9l6 5 6-5"/>')
+};
 const BUFFS = {
   ward: ['Kinetic Ward', 'good'],
   hot: ['Mending Graft', 'good'],
@@ -93,7 +104,7 @@ const GLYPH_NOTES = {
 
 const ACT_TEXT = { idle: 'Following', mending: 'Mending', bonding: 'Moving to bond', bonded: 'Bonded to', harrying: 'Attacking', surveying:'Analyzing', screening:'Projecting screen', approaching: 'Moving to inspect', inspecting: 'Inspecting equipment on', stranded:'Tether lost — redeploy outside combat', dormant: 'Dormant' };
 const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
-const SPINDLE_KEYS = ['inspect', null, null, 'follow', 'stay'];
+const SPINDLE_KEYS = ['inspect', 'light', null, 'follow', 'stay'];
 const STRIDER_KEYS=['screen','recover','assist','follow','stay'];
 export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
 const SKILL_INFO = {
@@ -171,6 +182,7 @@ export class UI {
     this.cls = null;
     this.plates = new Map();
     this.partyRows = new Map();
+    this.partyGhostRows=new Map();
     this.lastInventory = 0;
     this.tipFor = null;
     this.buildLock = '';
@@ -257,8 +269,8 @@ export class UI {
     this.renameRow.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = this.renameInput.value.trim();
-      if (name && this.dialogCompanionId === this.companionId) {
-        this.a.petRename(name);
+      if (name && (this.dialogCompanionId === this.companionId || this.dialogCompanionId === this.spindleCompanionId)) {
+        this.a.petRename(name, this.dialogCompanionId === this.spindleCompanionId ? 'spindle' : undefined);
         this.closeCompanionDetails();
       }
     });
@@ -273,8 +285,11 @@ export class UI {
     this.inspectBox.append(this.inspectClose, this.inspectName, this.inspectSub, this.codexBody, this.renameRow);
     root.append(this.inspectBox);
 
-    this.party = h('div', 'party');
-    root.append(this.party);
+    this.party = h('div', 'party');this.party.setAttribute('role','group');this.party.setAttribute('aria-label','Party members');
+    this.nearby=h('div','nearby-players');this.nearby.setAttribute('role','group');this.nearby.setAttribute('aria-label','Nearby players');
+    const nearbyTitle=h('div','nearby-title','Nearby players');this.nearby.append(nearbyTitle);
+    this.partyFrameStacks=h('div','party-frame-stacks');this.partyFrameStacks.append(this.party,this.nearby);
+    root.append(this.partyFrameStacks);
     this.playerContext = h('div', 'player-context');
     this.playerContext.hidden = true;
     root.append(this.playerContext);
@@ -1341,7 +1356,7 @@ export class UI {
     const focusedAction = document.activeElement?.dataset.companionAction;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
-      const { type, name, active, available, isDefault } = companion;
+      const { type, name, active, available, isDefault, lightOn } = companion;
       const definition = COMPANIONS[type];
       const section = h('section', 'companion-sheet-entry');
       const portrait = this.a.portrait({ k: 'c', c: type });
@@ -1353,7 +1368,7 @@ export class UI {
       }
       section.append(h('h3', null, name));
       if (definition.name !== name) section.append(h('p', 'muted', definition.name));
-      section.append(h('p', null, active ? 'Active' : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
+      section.append(h('p', null, active ? (type === 'spindle' ? 'Active utility companion · independent of class companion' : 'Active') : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
         const row = h('li');
@@ -1365,6 +1380,23 @@ export class UI {
       useDefault.dataset.companionAction = 'default-' + type;
       useDefault.addEventListener('click', () => this.a.managePet('default', type));
       section.append(modes);
+      if (active && type === 'spindle') {
+        const controls = h('div', 'companion-sheet-utility-controls');
+        for (const command of ['light', 'inspect', 'follow', 'stay']) {
+          const button = h('button', null, command === 'light' ? `Field light: ${lightOn ? 'On' : 'Off'}` : definition.modes[command].name);
+          button.dataset.companionAction = 'spindle-' + command;
+          button.disabled = !!this.selfDead || (command === 'inspect' && !!this.buildLock);
+          if (command === 'light') button.setAttribute('aria-pressed', String(!!lightOn));
+          button.addEventListener('click', () => this.a.pet(command, 'spindle'));
+          controls.append(button);
+        }
+        const rename = h('button', null, 'Rename ' + name);
+        rename.dataset.companionAction = 'rename-spindle';
+        rename.disabled = !available;
+        rename.addEventListener('click', () => this.openCompanionDetails(this.liveEntities?.get(this.spindleCompanionId), 'rename'));
+        controls.append(rename);
+        section.append(controls);
+      }
       if (!active) {
         const summon = h('button', null, 'Summon ' + name);
         summon.disabled = !available;
@@ -1374,7 +1406,7 @@ export class UI {
       } else {
         const dismiss=h('button',null,'Dismiss '+name);dismiss.disabled=!available;
         dismiss.dataset.companionAction='dismiss-'+type;
-        dismiss.addEventListener('click',()=>this.a.managePet('dismiss'));section.append(dismiss);
+        dismiss.addEventListener('click',()=>this.a.managePet('dismiss',type));section.append(dismiss);
       }
       section.append(useDefault);
       body.append(section);
@@ -1933,7 +1965,7 @@ export class UI {
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
-    if (ent.id !== this.companionId) return;
+    if (ent.id !== this.companionId && ent.id !== this.spindleCompanionId) return;
     this.hideJournalPanels();
     this.dialogCompanionId = ent.id;
     this.inspectName.textContent = 'Rename companion';
@@ -2114,9 +2146,12 @@ export class UI {
     if (el._sig === sig) return;
     el._sig = sig;
     el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
-      const chip=h('span',`chip ${BUFFS[k][1]}`,k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0]);
-      chip.dataset.effect=k;chip.setAttribute('aria-label',chip.textContent);chip.title=chip.textContent;
+      const text=k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0];
+      const chip=h('span',`chip buff-chip ${BUFFS[k][1]}`);
+      chip.dataset.effect=k;chip.setAttribute('role','img');chip.setAttribute('aria-label',text);chip.title=text;
       if(k==='shield')chip.title+=' · Damage absorption; finite capacity, not a solid collision wall.';
+      const pict=h('span','buff-icon');pict.innerHTML=BUFF_ICONS[k]??ICONS.guard;
+      chip.append(pict,h('span','buff-label',text));
       return chip;
     }));
   }
@@ -2221,6 +2256,8 @@ export class UI {
 
     // Companion frame
     this.companionId = st.comp?.id || 0;
+    this.spindleCompanionId = you.spindleId || 0;
+    this.selfDead = !!me.dead;
     this.currentCompanion = st.comp;
     const roster = you.companions ?? [];
     const rosterSignature = JSON.stringify(roster);
@@ -2252,9 +2289,13 @@ export class UI {
       const who = c.t && st.ents.get(c.t);
       const whoName = who ? (who.id === me.id ? 'you' : who.meta.n) : '';
       const act = c.a === 'idle' && c.md === 'stay' ? 'Holding position' : c.a === 'idle' && c.md === 'assist' ? 'Awaiting a target' : c.a === 'idle' && c.md === 'triage' ? 'Watching for wounds' : ACT_TEXT[c.a] || c.a;
-      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}`);
+      set(this.petAct, 'text', `${cdef.modes[c.md].name} · ${whoName && c.a !== 'idle' && c.a !== 'dormant' ? `${act} ${whoName}` : act}${st.comp.meta.c === 'spindle' && c.li ? ' · Field light on' : ''}`);
       set(this.pet, 'cls', `frame pet mode-${c.a === 'dormant' ? 'dormant' : c.md}${inspected?.id === st.comp.id ? ' selected' : ''}`);
-      for (const b of this.petButtons) b.el.classList.toggle('active', b.mode === c.md);
+      for (const b of this.petButtons) {
+        const active = b.mode === 'light' ? st.comp.meta.c === 'spindle' && c.li === 1 : b.mode === c.md;
+        b.el.classList.toggle('active', active);
+        if (b.mode === 'light') b.el.setAttribute('aria-pressed', String(active));
+      }
     }
 
     // Auto-attack state is server-authoritative: it does not chase enemies or
@@ -2324,7 +2365,7 @@ export class UI {
         row.el.tabIndex=0;
         row.el.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();this.a.target(ent.id);}});
         this.bindPlayerContext(row.el,()=>ent.id);
-        this.party.append(row.el);
+        this.nearby.append(row.el);
         this.partyRows.set(ent.id, row);
       }
       set(row.name, 'text', ent.meta.n);
@@ -2332,7 +2373,10 @@ export class UI {
       this.frameBars(row, ent.row.h, ent.row.m);
       this.buffChips(row.buffs, ent.row.b || []);
       this.unitPortrait(row.el,ent.meta);
-      row.el.classList.toggle('party-member-live',!!you.party?.members?.some(m=>m.id===ent.id));
+      const member=!!you.party?.members?.some(m=>m.id===ent.id);
+      row.el.classList.toggle('party-member-live',member);
+      const list=member?this.party:this.nearby;
+      if(row.el.parentElement!==list)list.append(row.el);
       row.el.classList.toggle('selected', !!target && target.id === ent.id);
       row.el.classList.toggle('dead', ent.dead);
     }
@@ -2342,7 +2386,30 @@ export class UI {
         this.partyRows.delete(id);
       }
     }
-
+    // Server partyState identifies members even outside our visible entity
+    // snapshot. Never fabricate their health, buffs or physical appearance.
+    const memberList=(you.party?.members??[]).filter(m=>m.id!==me.id);
+    const activeParty=new Set(memberList.map(m=>m.id));
+    for(const [id,ghost] of this.partyGhostRows){
+      if(!activeParty.has(id)||seen.has(id)){ghost.remove();this.partyGhostRows.delete(id);}
+    }
+    for(const member of memberList){
+      if(seen.has(member.id))continue;
+      let ghost=this.partyGhostRows.get(member.id);
+      if(!ghost){
+        ghost=h('div','frame ally party-member-unavailable');
+        ghost.setAttribute('role','status');
+        ghost.append(h('span','party-avatar-placeholder','?'),h('div','name'),h('div','sub'));
+        this.partyGhostRows.set(member.id,ghost);
+      }
+      set(ghost.querySelector('.name'),'text',member.name);
+      set(ghost.querySelector('.sub'),'text',`Level ${member.level} ${CLASSES[member.cls]?.name??member.cls} · Out of visible range`);
+    }
+    const partyNodes=memberList.map(m=>this.partyRows.get(m.id)?.el??this.partyGhostRows.get(m.id)).filter(Boolean);
+    if(partyNodes.length!==this.party.children.length||partyNodes.some((n,i)=>this.party.children[i]!==n))
+      this.party.replaceChildren(...partyNodes);
+    this.party.hidden=partyNodes.length===0;
+    this.nearby.hidden=this.nearby.children.length<=1;
     if (!this.partyPanel.hidden) this.renderParty(st);
 
     // Death
@@ -2357,6 +2424,7 @@ export class UI {
     set(this.interact, 'hidden', !st.nearObject);
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
+    else if(st.nearObject?.meta.c==='resonant_vein'){const d=you.veins?.depleted?.find(v=>v.id===st.nearObject.id),ch=you.veins?.channel;set(this.interact,'text',ch?'Extracting resonance… hold still':lock?'Resonant shard vein · disengage first':d?'Resonant shard vein · regrowing ('+Math.ceil(d.ms/60000)+' min)':'[F] Extract resonance');}
     else if(st.nearObject?.meta.c==='rift_return')set(this.interact,'text',lock?'Phase gate · disengage first':'[F] Return to the Severance Gate');
     else if(st.nearObject?.meta.c==='severance_return')set(this.interact,'text',lock?'Return beacon · disengage first':'[F] Return to the Reach');
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');

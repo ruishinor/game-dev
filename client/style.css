@@ -913,6 +913,27 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
  #hud .zone-label{font-size:12px;}
 }
 
+/* Explicit party membership. Unseen members have NO invented health/state. */
+#hud .party-frame-stacks{position:absolute;top:220px;left:14px;width:min(286px,50vw);max-height:calc(100vh - 342px);overflow-y:auto;display:flex;flex-direction:column;gap:9px;}
+#hud .party-frame-stacks .party{position:static;left:auto;top:auto;max-height:none;overflow:visible;display:flex;flex-direction:column;gap:7px;width:100%;}
+#hud .party-frame-stacks .nearby-players{display:flex;flex-direction:column;gap:6px;width:100%;}
+#hud .party-frame-stacks .nearby-title{color:#d5c5a5;font-weight:600;font-size:12px;line-height:1.4;letter-spacing:.04em;padding:5px 5px 2px;border-top:1px solid #8b7754;}
+#hud .party-frame-stacks .nearby-players .frame.ally{opacity:.9;}
+#hud .party-frame-stacks .party .frame.ally{border-color:#a38e6b;}
+#hud .party-frame-stacks .frame.ally.party-member-unavailable{position:relative;min-height:72px;padding:10px 8px 8px 69px;border-style:dashed;color:#d1d1c7;opacity:.83;cursor:default;}
+#hud .party-avatar-placeholder{position:absolute;top:7px;left:6px;display:grid;place-items:center;width:54px;height:54px;border:2px solid #8a846e;border-radius:50%;background:#222d31;color:#d8c9ad;font:600 22px Georgia,serif;}
+#hud .buff-chip{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;min-width:29px;min-height:29px;padding:3px;border:1px solid #758d7b;background:#233b37;}
+#hud .buff-chip.bad{border-color:#bd8b76;background:#442e2d;}
+#hud .buff-chip::before{content:none!important;}
+#hud .buff-chip .buff-icon{display:inline-grid;place-items:center;width:23px;height:23px;color:#b0edcc;}
+#hud .buff-chip.bad .buff-icon{color:#ffc0ab;}
+#hud .buff-chip .buff-icon svg{width:100%;height:100%;display:block;}
+#hud .frame.ally .buff-chip .buff-label{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap;}
+#hud .frame.ally .buff-chip{min-width:34px;min-height:34px;}
+#hud .frame.ally .buff-chip .buff-icon{width:25px;height:25px;}
+#hud .frame.ally .buffs{gap:4px;}
+@media(max-width:700px){#hud .party-frame-stacks{top:205px;width:min(210px,52vw);left:7px;max-height:calc(100vh - 290px);}#hud .frame.ally .buff-chip{min-width:30px;min-height:30px;}}
+
 /* Personal cartography waypoints — no authoritative travel or hidden data. */
 #hud .map-waypoint-brief{max-width:100%;width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:13px;font-weight:600;color:#ffdf95;background:#152228ed;border:1px solid #bb9e64;border-radius:3px;min-height:36px;padding:7px 9px;}
 #hud .map-waypoint-brief:hover,#hud .map-waypoint-brief:focus-visible{border-color:#f3cd7a;background:#283839;}
