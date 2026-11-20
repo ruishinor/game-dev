@@ -1918,6 +1918,9 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
+    // The cinematic roster owns its live 3D scene. Do not also render a second
+    // hidden world scene behind the full-viewport presentation canvas.
+    if(document.body.classList.contains('character-selection-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
