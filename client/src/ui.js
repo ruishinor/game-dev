@@ -263,8 +263,8 @@ export class UI {
     this.renameRow.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = this.renameInput.value.trim();
-      if (name && this.dialogCompanionId === this.companionId) {
-        this.a.petRename(name);
+      if (name && (this.dialogCompanionId === this.companionId || this.dialogCompanionId === this.spindleCompanionId)) {
+        this.a.petRename(name, this.dialogCompanionId === this.spindleCompanionId ? 'spindle' : undefined);
         this.closeCompanionDetails();
       }
     });
@@ -1271,7 +1271,7 @@ export class UI {
     const focusedAction = document.activeElement?.dataset.companionAction;
     body.replaceChildren();
     for (const companion of this.companionRoster || []) {
-      const { type, name, active, available, isDefault } = companion;
+      const { type, name, active, available, isDefault, lightOn } = companion;
       const definition = COMPANIONS[type];
       const section = h('section', 'companion-sheet-entry');
       const portrait = this.a.portrait({ k: 'c', c: type });
@@ -1283,7 +1283,7 @@ export class UI {
       }
       section.append(h('h3', null, name));
       if (definition.name !== name) section.append(h('p', 'muted', definition.name));
-      section.append(h('p', null, active ? 'Active' : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
+      section.append(h('p', null, active ? (type === 'spindle' ? 'Active utility companion · independent of class companion' : 'Active') : available ? 'Learned · ready to summon' : 'Unavailable during combat or defeat'));
       const modes = h('ul');
       for (const mode of Object.values(definition.modes)) {
         const row = h('li');
@@ -1295,6 +1295,23 @@ export class UI {
       useDefault.dataset.companionAction = 'default-' + type;
       useDefault.addEventListener('click', () => this.a.managePet('default', type));
       section.append(modes);
+      if (active && type === 'spindle') {
+        const controls = h('div', 'companion-sheet-utility-controls');
+        for (const command of ['light', 'inspect', 'follow', 'stay']) {
+          const button = h('button', null, command === 'light' ? `Field light: ${lightOn ? 'On' : 'Off'}` : definition.modes[command].name);
+          button.dataset.companionAction = 'spindle-' + command;
+          button.disabled = !!this.selfDead || (command === 'inspect' && !!this.buildLock);
+          if (command === 'light') button.setAttribute('aria-pressed', String(!!lightOn));
+          button.addEventListener('click', () => this.a.pet(command, 'spindle'));
+          controls.append(button);
+        }
+        const rename = h('button', null, 'Rename ' + name);
+        rename.dataset.companionAction = 'rename-spindle';
+        rename.disabled = !available;
+        rename.addEventListener('click', () => this.openCompanionDetails(this.liveEntities?.get(this.spindleCompanionId), 'rename'));
+        controls.append(rename);
+        section.append(controls);
+      }
       if (!active) {
         const summon = h('button', null, 'Summon ' + name);
         summon.disabled = !available;
@@ -1304,7 +1321,7 @@ export class UI {
       } else {
         const dismiss=h('button',null,'Dismiss '+name);dismiss.disabled=!available;
         dismiss.dataset.companionAction='dismiss-'+type;
-        dismiss.addEventListener('click',()=>this.a.managePet('dismiss'));section.append(dismiss);
+        dismiss.addEventListener('click',()=>this.a.managePet('dismiss',type));section.append(dismiss);
       }
       section.append(useDefault);
       body.append(section);
@@ -1856,7 +1873,7 @@ export class UI {
   openCompanionDetails(ent, kind) {
     if (!ent || ent.meta.k !== 'c') return;
     if (kind === 'info') { this.toggleCodex(true, ent.meta.c); return; }
-    if (ent.id !== this.companionId) return;
+    if (ent.id !== this.companionId && ent.id !== this.spindleCompanionId) return;
     this.hideJournalPanels();
     this.dialogCompanionId = ent.id;
     this.inspectName.textContent = 'Rename companion';
@@ -2147,6 +2164,8 @@ export class UI {
 
     // Companion frame
     this.companionId = st.comp?.id || 0;
+    this.spindleCompanionId = you.spindleId || 0;
+    this.selfDead = !!me.dead;
     this.currentCompanion = st.comp;
     const roster = you.companions ?? [];
     const rosterSignature = JSON.stringify(roster);

@@ -373,8 +373,8 @@ const ui = new UI({
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
-  pet: (c) => net.send({ t: 'pet', c }),
-  petRename: (name) => net.send({ t: 'pet_rename', name }),
+  pet: (c, type) => net.send({ t: 'pet', c, ...(type ? { type } : {}) }),
+  petRename: (name, type) => net.send({ t: 'pet_rename', name, ...(type ? { type } : {}) }),
   managePet: (action, type) => net.send({ t: 'pet_manage', action, type }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
@@ -790,7 +790,7 @@ function syncSpindleFieldLights() {
     if (ent.spindleEmitter) ent.spindleEmitter.visible =
       ent.placed && ent.row?.li === 1 && ent.row?.a !== 'dormant';
   }
-  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.compId);
+  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.you?.spindleId || S.compId);
   for (let i = 0; i < spindlePointLights.length; i++) {
     const light = spindlePointLights[i], source = sources[i];
     light.intensity = source ? SPINDLE_LIGHT.intensity : 0;
