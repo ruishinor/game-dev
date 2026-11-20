@@ -2,9 +2,11 @@ name: Atlas waypoint interaction
 on:
   pull_request:
     paths:
+      - 'client/src/atlas-cartography.js'
       - 'client/src/world-atlas.js'
       - 'client/src/ui.js'
       - 'client/style.css'
+      - 'test/atlas-cartography.test.js'
       - 'test/world-atlas.test.js'
       - 'test/e2e/atlas-waypoints.mjs'
       - '.github/workflows/atlas-waypoints.yml'
@@ -28,5 +30,5 @@ jobs:
         if: always()
         with:
           name: atlas-waypoints-evidence
-          path: test/e2e/out/atlas-waypoints.png
+          path: test/e2e/out/atlas-*.png
           if-no-files-found: ignore
