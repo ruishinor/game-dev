@@ -46,6 +46,12 @@ export class CharacterRosterView{
    root:this.selectionPreview,assets,useGlb,motionPreference,variant:'selection',
    getMeta:()=>this.meta(),selectFrame:()=>{}
   });
+  // Keep inspection out of the actor/character-details canvas entirely.
+  // The preview controller has already captured these elements by reference.
+  // Put them in the roster's natural scroll flow, not an absolute overlay.
+  this.inspectToggle=this.selectionPreview.querySelector('[data-preview-inspect]');
+  this.inspectControls=this.selectionPreview.querySelector('.roster-preview-controls');
+  this.capacity.after(this.inspectToggle,this.inspectControls);
   this.enter.addEventListener('click',()=>this.enterSelected());
   this.create.addEventListener('click',()=>{if(!this.busy&&this.characters.length<this.maxSlots)onCreate();});
   this.deleteButton.addEventListener('click',()=>{
@@ -124,8 +130,7 @@ export class CharacterRosterView{
  updateSelected(){
   const c=this.selected;
   this.preview.closeInspector();
-  const inspect=this.selectionPreview.querySelector('[data-preview-inspect]');
-  if(inspect)inspect.hidden=!c;
+  if(this.inspectToggle)this.inspectToggle.hidden=!c;
   for(const button of this.list.querySelectorAll('.roster-select')){
    button.setAttribute('aria-pressed',String(button.dataset.characterId===String(c?.id)));
   }
