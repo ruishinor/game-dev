@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
-import {SEVERANCE_POCKET} from '../../shared/world.js';
+import {SEVERANCE_POCKET,travelRegionAt} from '../../shared/world.js';
 const dir=await mkdtemp(join(tmpdir(),'attune-party-hud-'));
 const server=await startServer({port:0,dataFile:join(dir,'characters.json')});
 let browser;
@@ -41,9 +41,11 @@ try {
  const icon=A.locator('.party-frame-stacks .party .buff-chip[data-effect="ward"]');
  assert.match(await icon.getAttribute('aria-label'),/Kinetic Ward/);
  assert.equal(await icon.locator('.buff-icon svg').count(),1);
- // When the party member leaves local visibility, membership must remain
- // visible without inventing health or active effects.
- second.player.x=80;second.player.z=0;
+ // Snapshot visibility follows travel region, not distance within the Reach.
+ // Moving a member to a different region preserves party membership but hides
+ // unobserved live health, buffs and portraits.
+ second.player.x=SEVERANCE_POCKET.arrival.x;second.player.z=SEVERANCE_POCKET.arrival.z;
+ assert.notEqual(travelRegionAt(first.player.x,first.player.z),travelRegionAt(second.player.x,second.player.z),'fixture must leave the shared region');
  await A.waitForFunction(id=>!window.__attune.state().ents.some(e=>e.id===id),second.player.id,{timeout:45000});
  await A.waitForFunction(()=>document.querySelector('.party-frame-stacks .party .party-member-unavailable')!==null);
  assert.match(await A.locator('.party-member-unavailable .sub').textContent(),/Out of visible range/);
