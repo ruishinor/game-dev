@@ -13,7 +13,7 @@ test('three recovered CC0 meshes retain exact signed-off source bytes and self-c
  for(const [id,m] of Object.entries(ledger.models)){
   const b=fs.readFileSync(new URL('../'+m.file,import.meta.url));
   assert.equal(b.length,m.bytes,id);assert.equal(b.toString('ascii',0,4),'glTF');
-  assert.equal(crypto.createHash('sha1').update('blob '+b.length+'\\0'.replace('\\0','\\0')).update(b).digest('hex'),m.gitBlobSha,id);
+  assert.equal(crypto.createHash('sha1').update('blob '+b.length+String.fromCharCode(0)).update(b).digest('hex'),m.gitBlobSha,id);
   assert.equal(WEAPON_MODELS[id].sha,m.gitBlobSha);
   const len=b.readUInt32LE(12);const gltf=JSON.parse(b.subarray(20,20+len).toString());
   assert.equal(gltf.asset.version,'2.0');assert.ok(gltf.meshes?.length,id);
