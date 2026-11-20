@@ -2,7 +2,7 @@
 // Every outcome a client sees originates here.
 
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
+import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
 import { weaponBonus, weaponReach } from '../../shared/condition.js';
@@ -79,7 +79,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if (dst.kind === 'player' && dst.dead) return 0;
   // Last line of defence for the safe zone, including late telegraphed AoE.
   // Threat cleanup alone is not a damage-authorisation boundary.
-  if (dst.kind === 'player' && inSanctum(dst)) return 0;
+  if (dst.kind === 'player' && inSafeZone(dst)) return 0;
   if (src && (!sameTravelRegion(src, dst) || !deepLineClear(opts.origin || src,dst))) return 0;
 
   let amt = base;
@@ -292,6 +292,15 @@ export function tickPlayerCombat(game, p, dt) {
     if (actual > 0) game.emitWorldEvent({ e: 'heal', s: healer ? healer.id : 0, d: p.id, a: actual, ab: 'mending_graft' });
   }
 
+  // Field Restorative (server/sim/utility.js): a fixed-size heal over time.
+  const rest = getBuff(p, 'restorative');
+  if (rest && game.time >= rest.next && rest.next <= rest.until && !p.dead) {
+    rest.next += 1000;
+    const actual = Math.max(0, Math.min(rest.per, Math.ceil(p.maxHp - p.hp)));
+    p.hp = Math.min(p.maxHp, p.hp + rest.per);
+    if (actual > 0) game.emitWorldEvent({ e: 'heal', s: p.id, d: p.id, a: actual, ab: 'field_restorative' });
+  }
+
   if (p.cls === 'surveyor' && p.surveyKit) {
     const kit = p.surveyKit;
     if (kit.mark && (kit.mark.until <= game.time || !game.ents.get(kit.mark.id) || ['dead', 'evade'].includes(game.ents.get(kit.mark.id).state))) kit.mark = null;
@@ -301,7 +310,7 @@ export function tickPlayerCombat(game, p, dt) {
   if (res.regen) p.res = Math.min(res.max, p.res + res.regen * dt);
   if (res.decay && !inCombat) p.res = Math.max(0, p.res - res.decay * dt);
 
-  if (inSanctum(p)) {
+  if (inSafeZone(p)) {
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.15 * dt);
     if (res.regen) p.res = Math.min(res.max, p.res + res.max * 0.2 * dt);
   } else if (!inCombat) {

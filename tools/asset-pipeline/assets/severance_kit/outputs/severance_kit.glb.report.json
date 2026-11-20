@@ -1,0 +1,56 @@
+{
+ "file": "assets/severance_kit/outputs/severance_kit.glb",
+ "bytes": 2280600,
+ "inputBytes": 17675720,
+ "triangles": 6062,
+ "meshes": 15,
+ "materials": [
+  "SG_Stone_Kit",
+  "SG_Crystal",
+  "SG_Channel"
+ ],
+ "textures": [
+  {
+   "name": "kit_normal",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 1024094
+  },
+  {
+   "name": "kit_orm",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 593134
+  },
+  {
+   "name": "kit_albedo",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 396404
+  }
+ ],
+ "skins": [],
+ "animations": [],
+ "nodes": [],
+ "extensionsUsed": [
+  "KHR_materials_emissive_strength",
+  "EXT_texture_webp",
+  "KHR_mesh_quantization",
+  "EXT_meshopt_compression"
+ ],
+ "validator": {
+  "errors": 0,
+  "warnings": 0,
+  "infos": 20,
+  "messages": []
+ }
+}

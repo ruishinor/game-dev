@@ -5,7 +5,8 @@
 // sequence) from that phase locally. Traversal emits one world cue; the full
 // response is throttled so a party walking through does not replay it per player.
 // Timings, presence radius and travel validation stay here.
-import { dist, hasLineOfSight, RIFT_ANNEX } from '../../shared/world.js';
+import { dist, hasLineOfSight } from '../../shared/world.js';
+import { openFoundry, foundryArrival } from './silent-foundry.js';
 import { inSeverancePocket, SEVERANCE_POCKET, GATE_THRESHOLD, GATE_FRONT, SEVERANCE_GATE } from '../../shared/severance-gate.js';
 
 export const GATE_TIMING = Object.freeze({ resonateMs: 6500, idleMs: 40000, fullTraverseMs: 8000, presence: 120 });
@@ -46,7 +47,7 @@ export function severanceRow(game, obj) {
   return s && obj === s.gate ? { gp: s.phase } : {};
 }
 
-/** Annex return destination: the foot of the gate's stairs. */
+/** Foundry (and legacy Annex) return destination: the foot of the gate's stairs. */
 export function gateFront() {
   return { x: GATE_FRONT.x, z: GATE_FRONT.z };
 }
@@ -74,13 +75,13 @@ export function travelSeverance(game, p, obj) {
   if (dist(p, obj) > GATE_THRESHOLD.range || !hasLineOfSight(p, obj)) return deny('Walk through the passage to the portal.');
   if (s.phase !== 'active') return deny('The Severance Gate is still resonating. Wait for the portal to stabilize.');
   if (p.char.level < 3 || !p.char.attunements.includes('resonance') || p.char.riftCalibration !== 'completed') return deny('The portal does not answer an uncalibrated traveller.');
-  game.openAnnex();
+  openFoundry(game);
   const full = game.time - s.lastFull >= GATE_TIMING.fullTraverseMs;
   if (full) s.lastFull = game.time;
   s.traversals++;
   game.emitWorldEvent({ e: 'fx', k: 'severance_traverse', s: s.gate.id, x: s.gate.x, z: s.gate.z, r: 2.4, m: full ? 0 : 1 });
-  game.transferPlayer(p, { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ });
-  game.message(p, 'info', 'Through the Severance Gate: Phase Annex, Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. The arrival gate returns you to the Severance Gate.');
+  game.transferPlayer(p, foundryArrival());
+  game.message(p, 'info', 'Through the Severance Gate: the Silent Foundry. Fight from the Fabrication Hall through the Cultivation Vault and the Harmonic Chamber to the Excavation Depths. The portal behind you returns to the Severance Gate.');
   return { ok: true };
 }
 

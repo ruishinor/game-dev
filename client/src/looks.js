@@ -275,8 +275,16 @@ LOOK_DEFS.quartermaster={
  // The Sanctum Quartermaster: weathered, bearded, practical.
  face:{tone:0xa98066,hair:0x2e1f16,eye:0x3b2414,hairStyle:'buzz',brow:0.95,stubble:0.95,lip:0.12,morph:{age:0.45,heritage_a:0.55,heritage_b:0.05,heritage_c:0.25,jaw_width:0.7,brow_ridge:0.6,nose_width:0.4,face_angular:0.6}},
 };
+// The Expedition Quartermaster: field supplier at the Severance Expanse outpost.
+// Ash-dusted ochre field coat, teal service accents, goggles-tanned face.
+LOOK_DEFS.expedition_quartermaster={
+ ...LOOK_DEFS.archivist,body:'humanoid_f',scale:1.0,
+ shells:{...LOOK_DEFS.archivist.shells,coat:{color:0x8a6a44,roughness:.92,map:'look_coat_panels'},upperarms:{color:0x5a4a3a,roughness:.88},forearms:{color:0x2f3a3a,roughness:.85},hood:{color:0x5a4a3a,roughness:.88}},
+ accent:0x4fd1c5,gear:[],gloves:true,
+ face:{tone:0xb98a6a,hair:0x3a2a20,eye:0x4a6a5a,hairStyle:'crop',brow:0.7,stubble:0,lip:0.3,morph:{age:0.35,heritage_a:0.3,heritage_b:0.35,heritage_c:0.2,cheekbones:0.55,jaw_width:0.45,face_angular:0.5}},
+};
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster' };
+export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster', expedition_quartermaster:'expedition_quartermaster' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;

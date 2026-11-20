@@ -78,7 +78,8 @@ export function isolate(game, enemy) {
 
 // Phase Scar -> Severance Expanse -> Severance Gate -> Phase Annex, through the
 // real interactions. The gate is first brought to its active phase by presence.
-export async function travelToAnnex(game, player) {
+/** Phase Scar -> Expanse -> Severance Gate -> Silent Foundry. */
+export async function travelToFoundry(game, player) {
   const { interact } = await import('../server/sim/progress.js');
   const { gateToWorld } = await import('../shared/severance-gate.js');
   const entry = game.rift.entry;

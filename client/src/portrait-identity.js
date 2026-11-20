@@ -8,7 +8,7 @@ export function characterPortraitMeta(sheet){
  return {k:'p',c:sheet.cls,a:sheet.look,n:sheet.name,ap:sheet.appearance,...(sv?{sv}:{})};
 }
 export function portraitCacheKey(meta,style,glb){
- const humanoid=meta.k==='p'||meta.c==='archivist'||meta.c==='quartermaster';
+ const humanoid=meta.k==='p'||meta.c==='archivist'||meta.c==='quartermaster'||meta.c==='expedition_quartermaster';
  return JSON.stringify([meta.k,meta.c,meta.a??null,humanoid?meta.n??null:null,
   humanoid?meta.ap??null:null,meta.sv??null,style,!!glb]);
 }

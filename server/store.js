@@ -76,6 +76,8 @@ function sanitize(raw) {
     riftCalibration:sanitizeRiftCalibration(raw.riftCalibration),
     annexProgress:int(raw.annexProgress,0,3,0),
     annexClaimed:raw.annexClaimed===true&&raw.annexProgress===3,
+    foundryProgress:int(raw.foundryProgress,0,3,0),
+    foundryClaimed:raw.foundryClaimed===true&&raw.foundryProgress===3,
     recoverySamples:recoverySamples(raw.recoverySamples),
     craftingDisciplines:sanitizeCraftingDisciplines(raw.craftingDisciplines),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),

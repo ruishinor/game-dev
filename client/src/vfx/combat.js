@@ -29,7 +29,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_recovery',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_restorative','field_recovery',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -474,6 +474,15 @@ export class CombatVfx {
     } else if (e.k === 'field_maintenance') {
       v.sigil({at:f,radius:1.15,style:'kinetic',color:0xd6b788,life:1.15,spin:.3});
       v.burst({at:s.chest,shape:'sphere',radius:.2,count:9,cell:CELL.ember,color:0xe9d1a1,color2:0xa6bdad,size:[.035,.06],life:[.28,.55],speed:[.3,.8],gravity:1});
+    } else if (e.k === 'field_restorative') {
+      // Expedition ampoule: a teal sigil under the feet, an amber-teal helix
+      // rising through the body, a soft pillar and a short chest bloom.
+      v.sigil({at:f,radius:1.25,style:'resonance',color:0x4fd1c5,life:1.4,spin:.6,grow:.25});
+      v.shell({at:f,radius:.75,height:2.6,kind:'pillar',color:0x7fe3d6,life:1.1,alpha:.35,streak:1.2,flow:1.6});
+      this.rising(f,.55,[CELL.ember,CELL.glow],0xffb36a,14,2.4);
+      this.rising(f,.45,[CELL.cross,CELL.glow],0x6ff0e0,12,2.8);
+      v.burst({at:s.chest,shape:'sphere',radius:.25,count:10,cell:[CELL.glow,CELL.cross],color:0xfff0c8,color2:0x4fd1c5,size:[.06,.14],sizeEnd:.02,life:[.5,.9],speed:[.4,1],dir:[0,1,0],spread:.5,drag:1});
+      v.flash({at:s.chest,color:0x8ff0e4,intensity:5,life:.35});
     } else if (e.k === 'equip') {
       v.sigil({ at: f, radius: 1.4, style: 'kinetic', color: PALETTE.gold, life: 1.2, spin: 1.5 });
       this.rising(f, 0.5, [CELL.flare, CELL.ember], PALETTE.gold, 14, 2);

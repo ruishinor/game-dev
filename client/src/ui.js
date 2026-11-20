@@ -1396,6 +1396,12 @@ export class UI {
       if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
       if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
     }
+    if (id === 'field_restorative') {
+      const use = h('button', null, 'Use restorative');
+      use.disabled = !!s.dead;
+      use.addEventListener('click', () => { this.closePlayerContext(); this.a.useUtility(id, '', s.utilityRev); });
+      this.playerContext.append(use);
+    }
     if (id === 'field_maintenance_kit') {
       const weapon = s.equipped.weapon;
       const condition = conditionOf(s, weapon);
@@ -2010,6 +2016,8 @@ export class UI {
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');
     else if(st.nearObject?.meta.c==='phase_scar')set(this.interact,'text',lock?'Phase Scar · disengage first':'[F] Inspect / traverse Phase Scar');
     else if(st.nearObject?.meta.c==='annex_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Null Chamber cache');
+    else if(st.nearObject?.meta.c==='foundry_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Depths recovery cache');
+    else if(st.nearObject?.meta.c==='foundry_return')set(this.interact,'text',lock?'Return portal · disengage first':'[F] Return to the Severance Gate');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_') || ['sanctum_fabricator','initiation_terminal'].includes(st.nearObject.meta.c)) ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
@@ -2035,7 +2043,7 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
-      if(ent.meta.k==='o'&&ent.meta.c==='quartermaster'){
+      if(ent.meta.k==='o'&&(ent.meta.c==='quartermaster'||ent.meta.c==='expedition_quartermaster')){
         const interact=e=>{e.preventDefault();e.stopPropagation();this.a.interact(ent.id);};
         el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');el.dataset.npc='quartermaster';
         el.addEventListener('click',interact);el.addEventListener('contextmenu',interact);

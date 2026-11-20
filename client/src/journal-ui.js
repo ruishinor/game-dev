@@ -395,6 +395,13 @@ export function renderInventory(ui) {
     use.disabled=!!ui.buildLock||condition===null||condition===100||!Number.isSafeInteger(s.utilityRev);
     use.addEventListener('click',()=>ui.a.useUtility('field_maintenance_kit',weapon,s.utilityRev));kit.append(use);root.append(kit);
   }
+  if((ui.inventoryFilter==='all'||ui.inventoryFilter==='utility')&&s.goods?.field_restorative>0){
+    const vial=h('section','inventory-detail');
+    vial.append(h('strong',null,'Field Restorative × '+s.goods.field_restorative),h('p','muted','Restores 30% of maximum health over 5 seconds, in or out of combat.'));
+    const use=h('button','primary','Use Field Restorative');use.type='button';
+    use.disabled=!!s.dead||!Number.isSafeInteger(s.utilityRev);
+    use.addEventListener('click',()=>ui.a.useUtility('field_restorative','',s.utilityRev));vial.append(use);root.append(vial);
+  }
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'?'No weapons carried. Purchase or fabricate a starter emitter.':ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
     const card=equipmentCard(ui,ui.inventorySelection,false,null,true);

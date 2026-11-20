@@ -6,6 +6,7 @@ export const GOODS = Object.freeze({
   vault_memory_foil:Object.freeze({name:'Vault Memory Foil',category:'relic',rarity:'Rare',cap:1,desc:'An etched memory surface from an obsolete containment apparatus. Retain it as an archival specimen; it has no combat modifier or trade value.'}),
   vault_witness_seal:Object.freeze({name:'Lattice Witness Seal',category:'relic',rarity:'Very rare',cap:1,desc:'A finely laminated seal bearing a witness mark that survived a containment event. A personal archival distinction, not a power upgrade or currency.'}),
   spent_contact: Object.freeze({name:'Spent contact assembly',category:'junk',desc:'A heat-damaged electrical contact. Unfit for field fabrication; recoverable as scrap.'}),
+  field_restorative: Object.freeze({name:'Field Restorative',category:'utility',desc:'Single-use resonant ampoule issued at the Expedition Outpost. Restores 30 percent of maximum health over 5 seconds, in or out of combat. 20 second recovery between doses.'}),
   field_maintenance_kit: Object.freeze({name:'Field Maintenance Kit',category:'utility',desc:'Single-use conductive repair cassette. Restores up to 25 percentage points of condition to your equipped weapon outside combat. No health recovery.'}),
   mire_husk: Object.freeze({name:'Torn mire husk',category:'junk',desc:'Discarded organic casing. No functional equipment or fabrication use.'}),
 });

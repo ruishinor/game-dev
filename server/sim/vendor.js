@@ -1,20 +1,34 @@
 // Server-owned, visit-scoped trading. All quote tables are server-only.
 // Public playtest prices are provisional; inventory and wallet mutate together.
 import {randomUUID} from 'node:crypto';
-import {dist,hasLineOfSight,inSanctum} from '../../shared/world.js';
+import {dist,hasLineOfSight,inSanctum,inExpeditionOutpost} from '../../shared/world.js';
 import {MATERIALS,MATERIAL_CAP,sanitizeMaterials} from '../../shared/crafting.js';
 import {GOODS,GOODS_CAP,sanitizeGoods} from '../../shared/goods.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {ITEMS} from '../../shared/content.js';
 import {sanitizeCondition,conditionOf} from '../../shared/condition.js';
 import {repairPrice} from './condition.js';
-const BUY=Object.freeze({mire_fibre:8,sentinel_alloy:12,pulse_housing:14});
-const BUY_EQUIPMENT=Object.freeze({field_emitter:12,electrical_combat_rod:24,social_service_coat:8,social_relay_coat:12});
-const BUY_UTILITIES=Object.freeze({field_maintenance_kit:12});
+// Stock profiles per vendor (server-only). The Sanctum quartermaster keeps its
+// catalogue; the Expedition Outpost quartermaster supplies the field.
+const STOCK=Object.freeze({
+ quartermaster:Object.freeze({
+  materials:Object.freeze({mire_fibre:8,sentinel_alloy:12,pulse_housing:14}),
+  equipment:Object.freeze({field_emitter:12,electrical_combat_rod:24,social_service_coat:8,social_relay_coat:12}),
+  utilities:Object.freeze({field_maintenance_kit:12}),
+  site:inSanctum,
+ }),
+ expedition_quartermaster:Object.freeze({
+  materials:Object.freeze({}),
+  equipment:Object.freeze({}),
+  utilities:Object.freeze({field_restorative:9,field_maintenance_kit:12}),
+  site:inExpeditionOutpost,
+ }),
+});
+const stockOf=o=>STOCK[o?.type]||null;
 const SELL=Object.freeze({mire_husk:2,spent_contact:3});
 const RANGE=5,BUYBACK_LIMIT=8;
 const fail=reason=>({ok:false,reason});
-const permitted=(game,p,o)=>!!p&&!p.dead&&game.time>=p.combatUntil&&o?.kind==='object'&&o.type==='quartermaster'&&inSanctum(p)&&dist(p,o)<=RANGE&&hasLineOfSight(p,o);
+const permitted=(game,p,o)=>!!p&&!p.dead&&game.time>=p.combatUntil&&o?.kind==='object'&&!!stockOf(o)&&stockOf(o).site(p)&&dist(p,o)<=RANGE&&hasLineOfSight(p,o);
 const current=(game,p)=>p.vendor&&permitted(game,p,game.ents.get(p.vendor.id))?p.vendor:null;
 export function closeVendor(p){p.vendor=null;}
 export function openVendor(game,p,id){
@@ -30,6 +44,7 @@ export function vendorState(game,p){
  const session=current(game,p);if(!session)return null;
  const goods=sanitizeGoods(p.char.goods),materials=sanitizeMaterials(p.char.materials);
  const credits=sanitizeCredits(p.char.credits);
+ const {materials:BUY,utilities:BUY_UTILITIES,equipment:BUY_EQUIPMENT}=stockOf(game.ents.get(session.id));
  return {id:session.id,name:game.ents.get(session.id).name,ticket:session.ticket,rev:session.rev,credits,
   buy:[...Object.entries(BUY).map(([id,price])=>({id,name:MATERIALS[id].name,price,max:Math.min(MATERIAL_CAP-(materials[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_UTILITIES).map(([id,price])=>({id,name:GOODS[id].name,price,max:Math.min(GOODS_CAP-(goods[id]||0),Math.floor(credits/price))})),...Object.entries(BUY_EQUIPMENT).map(([id,price])=>({id,name:ITEMS[id].name,price,ql:ITEMS[id].ql,...(ITEMS[id].slot==='social_torso'?{cosmetic:true}:{}),max:!p.char.inventory.includes(id)&&credits>=price&&(!ITEMS[id].cls||ITEMS[id].cls===p.cls)?1:0}))],
   repair:p.char.inventory.flatMap(id=>{const price=repairPrice(p.char,id);return price===null?[]:[{id,name:ITEMS[id].name,price,condition:conditionOf(p.char,id),max:credits>=price?1:0}];}),
@@ -44,6 +59,7 @@ export function tradeVendor(game,p,msg){
  const goods=sanitizeGoods(p.char.goods),materials=sanitizeMaterials(p.char.materials);
  const credits=sanitizeCredits(p.char.credits);
  const inventory=[...p.char.inventory],condition=sanitizeCondition(p.char.condition,inventory);
+ const {materials:BUY,utilities:BUY_UTILITIES,equipment:BUY_EQUIPMENT}=stockOf(game.ents.get(session.id));
  let delta=0,receipts=[...session.buyback],label='',newItem=null;
  const record=(id,quantity)=>{
   const total=SELL[id]*quantity;
