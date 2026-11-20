@@ -20,7 +20,14 @@ export class QuestJournal{
   this.returnFocus=null;
  }
  reset(){this.dismiss();this.entries=[];this.signature='';this.selected=null;this.filter='all';}
- show(sheet,trial=null){if(!sheet)return;if(this.el.hidden)this.returnFocus=document.activeElement;this.el.hidden=false;this.sync(sheet,trial,true);}
+ show(sheet,trial=null){
+  if(!sheet)return;
+  const opening=this.el.hidden;
+  if(opening)this.returnFocus=document.activeElement;
+  this.el.hidden=false;this.sync(sheet,trial,true);
+  // Enter the dialog only on its first opening; refreshes must not steal focus.
+  if(opening)this.el.querySelector('button.close')?.focus({preventScroll:true});
+ }
  sync(sheet,trial=null,force=false){
   // Cap guidance depends on level even when the quest projection is unchanged.
   const entries=questLog(sheet,trial),sig=JSON.stringify([entries,sheet?.level>=MAX_LEVEL]);
