@@ -20,14 +20,27 @@ try{
   const read=sel=>{const n=document.querySelector(sel),css=n&&getComputedStyle(n);return {width:n?.getBoundingClientRect().width||0,height:n?.getBoundingClientRect().height||0,hidden:n?.hidden,visibility:css?.visibility,fontSize:css?.fontSize}};
   return {main:read('.actionbar .slot:not(.empty)'),pet:read('.petbar .slot.small'),map:read('.minimap'),day:read('.map-day'),name:read('.frame.player .name'),portrait:read('.frame.player .unit-portrait'),empty:read('.actionbar .slot.empty')};
  });
- assert.ok(frames.main.width>=50,'Primary hotbar must be legible');
- assert.ok(frames.pet.width>=41,'Companion hotbar must be legible');
- assert.ok(Math.abs(frames.pet.width/frames.main.width-.85)<.03,'Companion controls must be about 85% of the main slots');
- assert.ok(frames.map.width>=220,'Minimap must be legible on a desktop viewport');
+ assert.ok(frames.main.width>=39&&frames.main.width<=52,'Primary hotbar should remain compact without becoming unreadable');
+ assert.ok(frames.pet.width>=32&&frames.pet.width<=40,'Companion hotbar must be compact but usable');
+ assert.ok(frames.pet.width/frames.main.width>=.78&&frames.pet.width/frames.main.width<=.90,'Companion bar must remain subordinate to the primary bar');
+ assert.ok(frames.map.width>=175&&frames.map.width<=238,'Minimap should be bounded without becoming illegible');
  assert.equal(frames.day.hidden,false,'The day/night indicator must remain visible when the preview is not active');
- assert.ok(frames.portrait.width>=60,'Head-focused portrait must be legible');
- assert.ok(parseFloat(frames.name.fontSize)>=14,'Status names must not collapse to tiny text');
+ assert.ok(frames.portrait.width>=46&&frames.portrait.width<=58,'Character portrait must be legible and compact');
+ assert.ok(parseFloat(frames.name.fontSize)>=12,'Status names must remain readable without dominating the world');
  assert.ok(frames.empty.width>0,'Logical empty slots must be present');
+ const presentation=await page.evaluate(()=>{
+   const el=selector=>document.querySelector(selector);
+   const bar=el('.actionbar'),player=el('.frame.player'),map=el('.minimap');
+   const frame=player?.getBoundingClientRect(),m=map?.getBoundingClientRect();
+   return {barWidth:bar?.getBoundingClientRect().width||0,playerWidth:frame?.width||0,
+     overlaps:!!(frame&&m&&frame.right>m.left),
+     defaults:bar?.dataset.emptyMode};
+ });
+ assert.ok(presentation.playerWidth<=270,'Player portrait must not become a dashboard card');
+ assert.ok(presentation.barWidth<=500,'Hotbar must remain compact at a desktop viewport');
+ assert.equal(presentation.overlaps,false,'Portrait and map should occupy distinct corners');
+ assert.equal(presentation.defaults,'transparent','New characters should not start with prominent empty slots');
+ // Rendered screenshots are functional evidence, not artistic acceptance.
  const iconText=await page.locator('.map-day').textContent();assert.match(iconText,/☀|☾/);
  const companionActive=await page.evaluate(()=>Boolean(window.__attune?.state().compId));
  if(companionActive){
