@@ -1,0 +1,509 @@
+/* Owner-approved correction: one viewport, zero scrolling, a real centered
+   gameplay character over the supplied original Gate image. This is loaded
+   LAST to retire accumulated legacy viewport and scroll overrides. */
+body.character-selection-mode,
+body.character-create-mode,
+body.character-selection-mode #login,
+body.character-create-mode #login,
+body.character-selection-mode #login .login-card,
+body.character-create-mode #login .login-card {
+ position:fixed!important;inset:0!important;
+ width:100vw!important;height:100dvh!important;
+ min-height:0!important;max-height:100dvh!important;
+ margin:0!important;padding:0!important;
+ overflow:hidden!important;overscroll-behavior:none;
+}
+body.character-selection-mode #character-roster,
+body.character-selection-mode .roster-stage,
+body.character-create-mode #login-form,
+body.character-selection-mode #roster-preview,
+body.character-create-mode #creation-preview {
+ position:absolute!important;inset:0!important;
+ display:block;width:100%;height:100%;min-height:0!important;
+ max-height:none!important;margin:0!important;padding:0!important;
+ overflow:hidden!important;
+}
+body.character-selection-mode #roster-preview,
+body.character-create-mode #creation-preview {
+ background-image:
+  linear-gradient(90deg,rgba(0,2,8,.50) 0%,rgba(0,2,8,.17) 26%,rgba(0,2,8,.10) 68%,rgba(0,2,8,.38) 100%),
+  url('/client/assets/character-selection-gate.webp')!important;
+ background-position:center center!important;
+ background-size:cover!important;
+ background-repeat:no-repeat!important;
+ background-color:#080a12!important;
+}
+body.character-selection-mode #roster-preview:after,
+body.character-create-mode #creation-preview:after {
+ display:none!important;
+}
+body.character-selection-mode #roster-preview canvas,
+body.character-create-mode #creation-preview canvas {
+ position:absolute;inset:0;width:100%!important;height:100%!important;
+ background:transparent!important;z-index:1;
+}
+body.character-selection-mode #roster-preview canvas[data-unavailable],
+body.character-create-mode #creation-preview canvas[data-unavailable] {
+ opacity:0;
+}
+/* Match the original image, while allowing the model preview to render without
+   waiting for a second GLB/architecture download. */
+body.character-selection-mode #roster-preview[data-scene-asset="reference-image"][data-frame-ready="yes"] canvas,
+body.character-create-mode #creation-preview[data-scene-asset="reference-image"][data-frame-ready="yes"] canvas {
+ opacity:1!important;
+}
+body.character-selection-mode .roster-head,
+body.character-selection-mode .roster-facts,
+body.character-selection-mode .roster-cards,
+body.character-selection-mode .roster-footer,
+body.character-selection-mode #roster-world-transition,
+body.character-selection-mode .legacy-link,
+body.character-create-mode #creation-fields,
+body.character-create-mode #creation-preview [data-preview-inspect],
+body.character-create-mode #creation-preview .preview-controls,
+body.character-create-mode #enter,
+body.character-create-mode #creation-back {
+ z-index:4;
+}
+body.character-selection-mode .roster-facts {
+ width:min(270px,23vw)!important;
+ left:clamp(20px,7vw,145px)!important;
+ bottom:clamp(146px,18dvh,220px)!important;
+ top:auto!important;right:auto!important;
+ background:rgba(3,6,12,.12)!important;
+ padding:0!important;
+}
+body.character-selection-mode .roster-fact {
+ grid-template-columns:76px minmax(0,1fr)!important;
+ line-height:1.35!important;
+}
+body.character-selection-mode .roster-fact strong {overflow-wrap:break-word;}
+body.character-selection-mode .roster-cards {
+ left:auto!important;right:clamp(18px,3vw,53px)!important;
+ top:17%!important;width:clamp(245px,22vw,375px)!important;
+ height:auto!important;max-height:min(55dvh,510px)!important;
+ overflow:hidden!important;
+}
+body.character-selection-mode .roster-cards #roster-list {
+ max-height:32dvh;overflow:hidden!important;
+}
+body.character-selection-mode .roster-footer{
+ height:70px!important;bottom:28px!important;
+}
+body.character-selection-mode .roster-footer #roster-enter {
+ left:50%!important;transform:translateX(-50%)!important;
+}
+body.character-selection-mode .roster-cards [data-preview-inspect] {
+ margin:10px 1px 2px auto!important;
+}
+body.character-selection-mode .roster-cards .roster-preview-controls:not([hidden]) {
+ max-height:158px!important;
+ overflow:hidden!important;
+}
+/* Character creation: separate screens, not a scrollable form. */
+body.character-create-mode #creation-fields {
+ position:absolute!important;top:112px!important;
+ bottom:auto!important;
+ left:clamp(16px,3vw,55px)!important;
+ width:clamp(290px,24vw,390px)!important;
+ height:min(68dvh,570px)!important;
+ min-height:0!important;max-height:calc(100dvh - 225px)!important;
+ padding:14px 17px!important;
+ overflow:hidden!important;overscroll-behavior:none!important;
+ display:flex;flex-direction:column;gap:9px;
+ background:#080f1aeF!important;
+ box-shadow:0 12px 35px #0008!important;
+}
+body.character-create-mode #creation-fields .creation-section-heading {
+ flex:0 0 auto;margin:0!important;padding:0 0 8px!important;gap:3px!important;
+}
+body.character-create-mode #creation-fields .creation-section-heading>strong {font-size:19px!important;}
+body.character-create-mode #creation-fields .creation-section-heading>small{
+ font-size:10px!important;line-height:1.3!important;
+}
+body.character-create-mode #creation-fields #creation-back{position:fixed!important;}
+body.character-create-mode #creation-fields .creation-screen-tabs{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ flex:0 0 auto;gap:5px;width:100%;
+ margin:0 0 2px;
+}
+body.character-create-mode #creation-fields .creation-screen-tab{
+ min-width:0;border:1px solid #4e6270;background:#121f2ce9;
+ color:#aebfc9;font:600 11px/1.3 'Segoe UI',sans-serif;
+ padding:9px 4px;border-radius:1px;white-space:nowrap;
+}
+body.character-create-mode #creation-fields .creation-screen-tab[aria-selected="true"]{
+ background:#315065;border-color:#a0cedd;color:#f5f8fa;
+}
+body.character-create-mode #creation-fields .creation-screen-tab:focus-visible{
+ outline:2px solid #bddfeb;outline-offset:2px;
+}
+body.character-create-mode #creation-fields .creation-screen-step {
+ display:flex;flex:1 1 auto;flex-direction:column;
+ min-height:0;overflow:hidden!important;gap:7px;
+}
+body.character-create-mode #creation-fields .creation-screen-step[hidden]{
+ display:none!important;
+}
+body.character-create-mode #creation-fields .creation-screen-step label,
+body.character-create-mode #creation-fields .creation-screen-step .label{
+ margin:3px 0 0!important;font-size:10px!important;
+}
+body.character-create-mode #creation-fields .creation-screen-step #name{
+ height:41px;flex:0 0 41px;
+}
+body.character-create-mode #creation-fields #classes{
+ display:grid;grid-template-columns:1fr 1fr;
+ grid-template-rows:repeat(2,minmax(0,1fr));
+ gap:6px;flex:0 1 230px;min-height:135px;max-height:230px;
+}
+body.character-create-mode #creation-fields #classes .classcard{
+ min-height:0!important;height:100%!important;
+ padding:8px 10px!important;
+}
+body.character-create-mode #creation-fields #classes .classcard strong{font-size:12px!important;}
+body.character-create-mode #creation-fields #classes .classcard .role{font-size:9px!important;}
+body.character-create-mode #creation-fields #classes .classcard p{display:none!important;}
+body.character-create-mode #creation-fields #appearance,
+body.character-create-mode #creation-fields .creation-details{
+ border:0;border-top:1px solid #374a58;
+ margin:0!important;padding:9px 0!important;
+ min-height:0!important;max-height:none!important;
+ overflow:hidden!important;
+}
+body.character-create-mode #creation-fields .ap-row{
+ margin:4px 0!important;gap:5px!important;
+ grid-template-columns:52px minmax(0,1fr)!important;
+}
+body.character-create-mode #creation-fields .ap-choices{gap:4px!important;}
+body.character-create-mode #creation-fields .ap-choices button{
+ font-size:11px!important;padding:4px 7px!important;
+}
+body.character-create-mode #creation-fields .ap-swatches button{
+ padding:0!important;width:20px!important;height:20px!important;
+}
+body.character-create-mode #creation-fields .ap-blurb{
+ font-size:10px;line-height:1.3;margin:5px 0 5px 57px!important;
+}
+body.character-create-mode #creation-fields [hidden]{display:none!important;}
+body.character-create-mode #creation-preview [data-preview-inspect]{
+ right:clamp(18px,3vw,55px)!important;
+ left:auto!important;
+ bottom:clamp(130px,17dvh,175px)!important;top:auto!important;
+}
+body.character-create-mode #creation-preview .preview-controls:not([hidden]){
+ right:clamp(18px,3vw,55px)!important;
+ bottom:clamp(167px,22dvh,215px)!important;
+ left:auto!important;top:auto!important;
+}
+body.character-create-mode #enter{
+ left:50%!important;transform:translateX(-50%)!important;
+ bottom:24px!important;
+}
+body.character-create-mode #creation-back{
+ left:clamp(15px,3vw,55px)!important;bottom:34px!important;
+}
+/* Short landscape viewports retain exact same sections, with smaller spacing. */
+@media(max-height:740px){
+ body.character-create-mode #creation-fields{
+  top:78px!important;height:calc(100dvh - 177px)!important;
+  max-height:none!important;padding:9px 12px!important;gap:5px!important;
+ }
+ body.character-create-mode #creation-fields .creation-section-heading>small {display:none;}
+ body.character-create-mode #creation-fields .creation-section-heading>strong {font-size:17px!important;}
+ body.character-create-mode #creation-fields .creation-screen-tab{padding:5px 2px!important;}
+ body.character-create-mode #creation-fields #classes {min-height:118px;}
+ body.character-selection-mode .roster-facts{bottom:135px!important;}
+}
+@media(max-width:720px){
+ body.character-selection-mode .roster-head{left:12px!important;top:54px!important;}
+ body.character-selection-mode .roster-cards{
+  left:10px!important;right:10px!important;
+  width:calc(100% - 20px)!important;
+  top:115px!important;height:104px!important;
+  max-height:104px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list{
+  display:flex!important;overflow:hidden!important;
+  max-height:64px!important;gap:4px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select{
+  flex:0 0 185px!important;min-width:185px!important;
+  min-height:52px!important;padding:5px 9px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-capacity{display:none!important;}
+ body.character-selection-mode .roster-facts{
+  left:12px!important;right:12px!important;
+  width:calc(100% - 24px)!important;
+  bottom:143px!important;padding:8px 10px!important;
+  background:#050b15d9!important;
+ }
+ body.character-selection-mode .roster-footer{bottom:10px!important;}
+ body.character-create-mode #creation-fields{
+  top:92px!important;left:8px!important;right:8px!important;
+  width:calc(100% - 16px)!important;
+  height:min(39dvh,270px)!important;
+  max-height:none!important;padding:8px 10px!important;gap:4px!important;
+ }
+ body.character-create-mode #creation-fields .creation-section-heading>small{display:none;}
+ body.character-create-mode #creation-fields .creation-section-heading>strong{font-size:15px!important;}
+ body.character-create-mode #creation-fields .creation-screen-tabs{gap:3px!important;}
+ body.character-create-mode #creation-fields .creation-screen-tab{
+  padding:5px 2px!important;font-size:10px!important;
+ }
+ body.character-create-mode #creation-fields #classes{
+  min-height:85px!important;max-height:125px!important;
+ }
+ body.character-create-mode #creation-fields #classes .classcard{
+  padding:4px 6px!important;
+ }
+ body.character-create-mode #creation-fields #classes .classcard strong{
+  font-size:10px!important;
+ }
+ body.character-create-mode #creation-fields #creation-preview{
+  z-index:1!important;
+ }
+ body.character-create-mode #creation-preview [data-preview-inspect]{
+  right:10px!important;bottom:118px!important;
+ }
+ body.character-create-mode #enter{bottom:16px!important;min-width:175px!important;}
+ body.character-create-mode #creation-back{left:8px!important;bottom:21px!important;font-size:10px!important;}
+}
+@media(prefers-reduced-motion:reduce){
+ body.character-selection-mode #roster-preview canvas,
+ body.character-create-mode #creation-preview canvas{transition:none!important;}
+}
+
+
+/* Capacity stays visible without scrolling even with six occupied slots. */
+body.character-selection-mode .roster-cards {
+ max-height:calc(100dvh - 210px)!important;
+ overflow:visible!important;
+}
+body.character-selection-mode .roster-cards #roster-list {
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-auto-rows:minmax(0,auto)!important;
+ gap:4px!important;
+ max-height:none!important;
+ overflow:visible!important;
+}
+body.character-selection-mode .roster-cards #roster-list .roster-select {
+ min-height:clamp(42px,6dvh,62px)!important;
+ margin:0!important;
+ padding:6px 13px!important;
+}
+body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy strong {
+ font-size:clamp(13px,1.1vw,17px)!important;
+}
+@media(max-width:720px){
+ body.character-selection-mode .roster-cards {
+  top:108px!important;height:auto!important;
+  max-height:190px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:3px!important;max-height:none!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select{
+  min-width:0!important;width:100%!important;
+  height:43px!important;min-height:43px!important;
+  padding:2px 7px!important;margin:0!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy small{
+  font-size:8px!important;line-height:1.2!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-select .roster-entry-copy strong{
+  font-size:11px!important;
+ }
+ body.character-selection-mode .roster-cards #roster-list .roster-slot-vacant{
+  width:100%!important;height:43px!important;min-height:43px!important;
+  font-size:10px!important;padding:3px!important;
+ }
+ body.character-create-mode #creation-fields{
+  height:min(46dvh,300px)!important;
+ }
+}
+
+
+/* Owner correction: Inspect is a separate full-screen state, not a popover
+   that collides with Create/Delete and the persistent character roster. */
+body.character-selection-mode #roster-inspection-screen[hidden] {
+ display:none!important;
+}
+body.character-selection-mode #roster-inspection-screen:not([hidden]) {
+ position:fixed;inset:0;z-index:35;
+ display:block;overflow:hidden!important;pointer-events:none;
+ background:linear-gradient(180deg,rgba(0,2,9,.48),transparent 22%,transparent 78%,rgba(0,2,8,.68));
+}
+body.character-selection-mode #roster-inspection-screen .roster-inspection-header {
+ position:absolute;top:24px;left:clamp(20px,3.2vw,60px);right:clamp(20px,3.2vw,60px);
+ display:flex;align-items:center;justify-content:space-between;gap:15px;
+ pointer-events:none;
+}
+body.character-selection-mode #roster-inspection-screen .roster-inspection-header h2{
+ font:600 clamp(18px,1.7vw,29px)/1.25 Georgia,serif;
+ color:#e6e8eb;letter-spacing:.09em;text-transform:uppercase;
+ text-shadow:0 2px 9px #000;
+}
+body.character-selection-mode #roster-inspection-screen .roster-inspection-close{
+ pointer-events:auto;min-width:150px;
+ padding:9px 13px; background:rgba(7,14,24,.9);color:#f0f1f2;
+ border:1px solid #899cac;font:12px Georgia,serif;
+}
+body.character-selection-mode #roster-inspection-screen .roster-preview-controls:not([hidden]){
+ position:absolute!important;top:auto!important;
+ left:50%!important;right:auto!important;
+ bottom:clamp(27px,5dvh,55px)!important;
+ transform:translateX(-50%)!important;
+ display:flex!important;flex-flow:row nowrap!important;
+ justify-content:center;align-items:center;gap:6px;
+ width:max-content!important;max-width:calc(100vw - 28px)!important;
+ height:auto;max-height:70px!important;
+ padding:10px!important;border:1px solid #667887;
+ background:rgba(7,13,23,.87)!important;
+ box-shadow:0 10px 25px #000a;
+ pointer-events:auto!important;
+}
+body.character-selection-mode #roster-inspection-screen .roster-preview-controls:not([hidden]) button{
+ flex:0 0 auto!important;width:auto!important;min-width:0!important;
+ padding:8px 11px!important;font:12px/1.3 'Segoe UI',sans-serif;
+ text-align:center!important;
+}
+body.character-inspection-mode #login .login-card>h1,
+body.character-inspection-mode #character-roster>.roster-head,
+body.character-inspection-mode .roster-facts,
+body.character-inspection-mode .roster-cards,
+body.character-inspection-mode .roster-footer,
+body.character-inspection-mode #character-roster .legacy-link{
+ visibility:hidden!important;pointer-events:none!important;
+}
+body.character-inspection-mode #roster-preview canvas{
+ cursor:grab;
+}
+/* The empty slot and Create action must be actionable even over WebGL. */
+body.character-selection-mode #character-roster .roster-cards{
+ z-index:9!important;pointer-events:auto!important;
+}
+body.character-selection-mode #character-roster #roster-list{
+ position:relative;z-index:10;pointer-events:auto!important;
+}
+body.character-selection-mode #character-roster button.roster-slot-vacant{
+ position:relative;z-index:11;pointer-events:auto!important;
+ cursor:pointer!important;
+}
+body.character-selection-mode #roster-preview canvas{
+ z-index:1!important;pointer-events:auto;
+}
+body.character-selection-mode .roster-footer{z-index:12!important;}
+/* Settings is also an independent non-scrolling multi-section view. */
+body.character-selection-mode .settings-panel:not([hidden]){
+ position:fixed!important;z-index:90!important;
+ left:50%!important;top:50%!important;
+ transform:translate(-50%,-50%)!important;
+ width:min(720px,calc(100vw - 32px))!important;
+ height:min(640px,calc(100dvh - 48px))!important;
+ max-height:calc(100dvh - 48px)!important;
+ padding:22px 24px!important;
+ overflow:hidden!important;
+ display:flex!important;flex-direction:column!important;gap:10px!important;
+ background:#07121cf7!important;
+}
+body.character-selection-mode .settings-panel .settings-screen-tabs{
+ display:flex;flex:0 0 auto;gap:7px;justify-content:flex-start;
+}
+body.character-selection-mode .settings-panel .settings-screen-tabs button{
+ flex:1;min-width:0;padding:9px 8px;
+ font:600 12px/1.35 'Segoe UI',sans-serif;
+ border:1px solid #536777;background:#152432;color:#aebfcc;
+}
+body.character-selection-mode .settings-panel .settings-screen-tabs button[aria-selected="true"]{
+ background:#304a60;color:#eef8fd;border-color:#86afbf;
+}
+body.character-selection-mode .settings-panel .settings-screen-page{
+ display:flex!important;flex:1 1 auto!important;
+ min-height:0!important;flex-direction:column;gap:8px;
+ overflow:hidden!important;
+}
+body.character-selection-mode .settings-panel .settings-screen-page[hidden]{
+ display:none!important;
+}
+body.character-selection-mode .settings-panel .settings-screen-page>label{
+ font-size:12px;margin:3px 0 0;
+}
+body.character-selection-mode .settings-panel .settings-screen-page>select,
+body.character-selection-mode .settings-panel .settings-screen-page>button{
+ flex:0 0 auto;padding:8px;font-size:12px;
+}
+body.character-selection-mode .settings-panel .settings-screen-page>.muted{
+ margin:0;font-size:11px;line-height:1.4;
+}
+@media(max-width:720px){
+ body.character-selection-mode #roster-inspection-screen .roster-inspection-header{
+  top:15px;left:12px;right:12px;
+ }
+ body.character-selection-mode #roster-inspection-screen .roster-inspection-header h2{
+  font-size:16px;
+ }
+ body.character-selection-mode #roster-inspection-screen .roster-inspection-close{
+  min-width:0;font-size:10px;padding:7px;
+ }
+ body.character-selection-mode #roster-inspection-screen .roster-preview-controls:not([hidden]){
+  max-height:90px!important;
+  flex-wrap:wrap!important;
+  width:calc(100% - 24px)!important;
+  gap:4px!important;
+ }
+ body.character-selection-mode #roster-inspection-screen .roster-preview-controls:not([hidden]) button{
+  padding:6px!important;font-size:10px;
+ }
+ body.character-selection-mode .settings-panel:not([hidden]){
+  width:calc(100vw - 20px)!important;height:calc(100dvh - 20px)!important;
+  max-height:calc(100dvh - 20px)!important;padding:14px!important;
+ }
+ body.character-selection-mode .settings-panel .settings-screen-tabs button{
+  padding:7px 4px;font-size:10px;
+ }
+}
+
+/* Guest recovery is separate from the roster, accessed via Settings > More. */
+body.character-selection-mode #roster-import-dialog{
+ width:min(430px,calc(100vw - 28px));max-width:calc(100vw - 28px);
+ max-height:calc(100dvh - 36px);margin:auto;padding:22px;
+ border:1px solid #667b8b;border-radius:2px;background:#0b1520;color:#e5e9ef;
+ box-shadow:0 20px 70px #000d;overflow:hidden;overscroll-behavior:none;
+}
+body.character-selection-mode #roster-import-dialog:not([open]){display:none!important}
+body.character-selection-mode #roster-import-dialog::backdrop{background:rgba(0,2,8,.78)}
+body.character-selection-mode #roster-import-dialog h3{
+ color:#e7e9ed;font:600 19px/1.35 Georgia,serif;letter-spacing:.025em;
+ margin:0 0 12px;text-transform:none;
+}
+body.character-selection-mode #roster-import-dialog .hint{margin:0 0 14px;line-height:1.5}
+body.character-selection-mode #roster-import-dialog label{
+ display:block;margin:12px 0 7px;font:600 11px 'Segoe UI',sans-serif;
+ color:#c3d2db;text-transform:uppercase;letter-spacing:.1em;
+}
+body.character-selection-mode #roster-import-dialog input{
+ width:100%;min-width:0;padding:10px;background:#101f2a;
+ border:1px solid #63788a;color:#edf2f5;
+}
+body.character-selection-mode #roster-import-dialog #roster-import-error{
+ min-height:16px;color:#e3a7a7;font-size:12px;
+}
+body.character-selection-mode .roster-import-actions{
+ display:flex;justify-content:flex-end;gap:9px;margin-top:12px;
+}
+body.character-selection-mode .roster-import-actions button{min-width:0;padding:8px 10px}
+body.character-selection-mode #settings-screen-page-2 #roster-import-trigger{
+ flex:0 0 auto;align-self:flex-start;margin-top:8px;font-size:12px;padding:8px 10px;
+}
+@media(max-width:720px){
+ body.character-selection-mode .roster-cards [data-preview-inspect]:not([hidden]){
+  display:block!important;position:relative!important;
+  top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+  width:max-content!important;margin:5px 0 0 auto!important;
+  padding:4px 7px!important;font-size:10px!important;
+ }
+}

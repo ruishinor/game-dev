@@ -27,14 +27,13 @@ export function spindleSpawnPoint(game, owner) {
 
 export function spawnSpindle(game, p, spot) {
   const profile = p.char.spindle;
-  if (!profile || !spot || p.dead || p.spindleCompanion) return;
+  if (!profile || !spot || p.dead || p.companion || p.char.companionDismissed) return;
   const c = {
     id: game.nextId++, kind: 'companion', type: 'spindle', name: profile.name, owner: p.id,
-    ...spot, yaw: p.yaw, mode: profile.mode, lightOn: false, act: 'idle', actTarget: 0, host: 0, metaVer: 1,
+    ...spot, yaw: p.yaw, mode: profile.mode, act: 'idle', actTarget: 0, host: 0, metaVer: 1,
     nav: {}, serviceEnd: 0, approachEnd: 0,
   };
-  p.spindleCompanion = c;
-  if (!p.companion) p.companion = c; // legacy HUD fallback when no class companion is active
+  p.companion = c;
   game.companions.push(c);
   game.ents.set(c.id, c);
   game.markDirty(p);
@@ -61,9 +60,6 @@ function conditionReport(char) {
 }
 
 export function commandSpindle(game, p, c, cmd) {
-  // A utility switch, not a movement mode. Do not interrupt inspection or Stay.
-  // The authenticated owner is checked by petCommand before reaching this function.
-  if (cmd === 'light') { c.lightOn = !c.lightOn; return { ok: true }; }
   if (cmd === 'inspect') {
     if (game.time < p.combatUntil) return { ok: false, reason: 'Inspect your equipment outside combat.' };
     if (c.mode === 'inspect') return { ok: true };
@@ -83,13 +79,13 @@ export function commandSpindle(game, p, c, cmd) {
 
 export function tickSpindle(game, c, dt) {
   const p = game.players.get(c.owner);
-  if (!p || p.spindleCompanion !== c) return;
+  if (!p || p.companion !== c) return;
   if (p.dead || (c.mode === 'inspect' && game.time < p.combatUntil)) {
     if (c.mode === 'inspect') {
       finishInspection(c, p);
       game.message(p, 'info', c.name + ' stopped its equipment inspection.');
     }
-    if (p.dead) { c.lightOn = false; c.act = 'dormant'; c.actTarget = 0; return; }
+    if (p.dead) { c.act = 'dormant'; c.actTarget = 0; return; }
   }
   const gap = dist(c, p);
   if (c.mode === 'stay' && gap > STAY_LEASH) commandSpindle(game, p, c, 'follow');

@@ -3,6 +3,8 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
+import {setupCreationSections} from './creation-sections.js';
+import {setupRosterSettingsPages} from './menu-settings-pager.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
@@ -10,7 +12,6 @@ import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { parseTimeOfDay } from './severance-daylight.js';
 import { buildWorld, makeEnvironment } from './scene.js';
-import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
@@ -19,7 +20,6 @@ import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
-import { SPINDLE_LIGHT, activeSpindleLights } from './spindle-light.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -68,23 +68,6 @@ const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
 const stoneLight = new THREE.PointLight(0xffffff, 0);
 const stoneUp = new THREE.Vector3(0, 1, 0);
 scene.add(stoneLight);
-// Keep a fixed light count for shader stability: inactive sources have intensity
-// zero, and at most three nearby active Spindles can light the local scene.
-const spindlePointLights = Array.from({ length: SPINDLE_LIGHT.maxSources }, () => {
-  const light = new THREE.PointLight(SPINDLE_LIGHT.color, 0, SPINDLE_LIGHT.range, 2);
-  light.castShadow = false;
-  scene.add(light);
-  return light;
-});
-// Lightweight emissive markers also show which distant companions have their
-// light switched on, including when the limited point-light pool is occupied.
-const spindleBulbGeometry = new THREE.SphereGeometry(0.11, 12, 8);
-const spindleHaloGeometry = new THREE.SphereGeometry(0.28, 12, 8);
-const spindleBulbMaterial = new THREE.MeshBasicMaterial({ color: SPINDLE_LIGHT.color, toneMapped: false });
-const spindleHaloMaterial = new THREE.MeshBasicMaterial({
-  color: SPINDLE_LIGHT.color, transparent: true, opacity: 0.15,
-  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-});
 
 // Models come from GLB bundles, loaded once before anything is drawn. If a
 // bundle is missing, the affected entities use their procedural stand-ins.
@@ -112,9 +95,6 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0', reducedMotion: () => motionPreference.matches || params.get('q') === '0' });
-// Keep a reference only to presentation roots constructed by the world
-// loader. Dynamic actors/VFX added later must not appear in a world atlas.
-const atlasStaticRoots=new Set(scene.children);
 const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
@@ -327,8 +307,12 @@ const net = new Net({
   onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
   onAccountReady: showRoster,
   onAccountFail: (reason) => {
-    const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
+    const el = net.accountLogged
+      ? ($('character-roster').hidden ? $('login-error')
+        : $('roster-import-dialog').open ? $('roster-import-error') : $('roster-error'))
+      : $('account-error');
     el.textContent = reason;
+    selectionView.setBusy(false);
     if (!net.accountToken && /session expired/i.test(reason)) {
       clearWorld();
       S.myId = 0;
@@ -349,7 +333,11 @@ const net = new Net({
     $('enter').disabled = false;
   },
   onStatus: (text) => {
-    if (text) stopAutomaticMovement();
+    if (text) {
+      stopAutomaticMovement();
+      if(document.body.classList.contains('character-selection-mode'))selectionView.setBusy(false);
+      if(worldEntryPending){worldEntryPending=false;$('world-entry-curtain').hidden=true;}
+    }
     $('status').hidden = !text;
     $('status').textContent = text || '';
     if (text) input.reset();
@@ -373,13 +361,12 @@ let hallPreview=null;
 const ui = new UI({
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
-  terrainForAtlas:region=>captureStaticAtlas(renderer,scene,atlasStaticRoots,region,{lowSpec:params.get('q')==='0'}),
   bindings,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
-  pet: (c, type) => net.send({ t: 'pet', c, ...(type ? { type } : {}) }),
-  petRename: (name, type) => net.send({ t: 'pet_rename', name, ...(type ? { type } : {}) }),
+  pet: (c) => net.send({ t: 'pet', c }),
+  petRename: (name) => net.send({ t: 'pet_rename', name }),
   managePet: (action, type) => net.send({ t: 'pet_manage', action, type }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
@@ -456,7 +443,7 @@ let chosenLook = defaultLook(chosenClass);
 let chosenAp = defaultAppearance(chosenLook);
 let apTouched = false;
 const creationPreview=createCreationPreview({
-  root:$('creation-preview'),assets,useGlb,motionPreference,
+  root:$('creation-preview'),assets,useGlb,motionPreference,variant:'selection',
   getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))}),
   selectFrame:frame=>{
     apTouched=true;
@@ -470,8 +457,16 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
   onDelete:(id,name)=>net.deleteCharacter(id,name)
 });
 let titleDrawAt=-Infinity;
+let worldEntryPending=false;
+const creationSections=setupCreationSections();
 function showCharacterCreation(){
-  if(!net.accountLogged||!lastRoster)return;
+  if(!net.accountLogged||!lastRoster){
+    $('roster-error').textContent='Your account session is unavailable. Sign in again to create a character.';
+    return;
+  }
+  creationSections.show('identity');
+  ui.toggleSettings(false);
+  $('hud').hidden=true;
   $('character-roster').hidden=true;
   $('login-form').hidden=false;
   $('creation-back').hidden=false;
@@ -481,6 +476,7 @@ function showCharacterCreation(){
   document.body.classList.remove('character-selection-mode','gate-mode');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
+  creationPreview.resetView();
   $('name').focus({preventScroll:true});
 }
 function backToRoster(){if(lastRoster&&net.accountLogged)showRoster(lastRoster);}
@@ -590,6 +586,8 @@ function buildLogin() {
 }
 
 function showAccountLogin(message = '') {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
   document.body.classList.add('gate-mode');
@@ -615,7 +613,10 @@ function showAccountLogin(message = '') {
 }
 
 function showRoster(m) {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   lastRoster=m;
+  if($('roster-import-dialog').open)$('roster-import-dialog').close();
   input.enabled=false;
   $('login').hidden=false;
   $('hud').hidden=true;
@@ -634,6 +635,7 @@ function showRoster(m) {
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
+  ui.toggleSettings(false);
 }
 
 // The gate form signs in or creates an account; the footer switch flips the mode.
@@ -682,6 +684,37 @@ function buildAccountUI() {
     ($('resume-saved-guest').offsetParent ? $('resume-saved-guest') : $('login-form').hidden ? $('guest-resume-key') : $('name')).focus({ preventScroll: true });
   });
   $('account-signout').addEventListener('click', () => net.signOut());
+  $('roster-settings').addEventListener('click', () => {
+    if(!net.accountLogged)return;
+    const open=ui.settingsPanel.hidden;
+    if(open){
+      setupRosterSettingsPages(ui.settingsPanel);
+      const more=ui.settingsPanel.querySelector('#settings-screen-page-2');
+      if(more&&!more.querySelector('#roster-import-trigger')){
+        const button=document.createElement('button');
+        button.id='roster-import-trigger';
+        button.type='button';
+        button.textContent='Import previous guest character';
+        button.addEventListener('click',()=>{
+          ui.toggleSettings(false);
+          $('hud').hidden=true;
+          $('roster-import-dialog').showModal();
+          $('recovery-token').focus({preventScroll:true});
+        });
+        more.append(button);
+      }
+    }
+    $('hud').hidden=!open;
+    ui.toggleSettings(open);
+    if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
+  });
+  // Settings can also close itself via its own X and Escape handlers.
+  // Once it is closed, never leave an otherwise hidden gameplay HUD in front
+  // of the account roster.
+  new MutationObserver(()=>{
+    if(document.body.classList.contains('character-selection-mode')
+       &&ui.settingsPanel.hidden)$('hud').hidden=true;
+  }).observe(ui.settingsPanel,{attributes:true,attributeFilter:['hidden']});
   $('resume-saved-guest').addEventListener('click', () => {
     if (net.token) net.resumeGuest(net.token);
   });
@@ -709,13 +742,18 @@ function buildAccountUI() {
     if (!net.resumeGuest(token)) $('guest-error').textContent = 'Enter a valid 64-character recovery key.';
     else { $('guest-resume-key').value = ''; $('guest-error').textContent = ''; }
   });
-  $('link-legacy').addEventListener('click', () => {
-    if (net.token) net.claimLegacy(net.token);
+  const importDialog=$('roster-import-dialog');
+  $('roster-import-close').addEventListener('click',()=>importDialog.close());
+  importDialog.addEventListener('close',()=>{
+    $('recovery-token').value='';
+    $('roster-import-error').textContent='';
+    if(document.body.classList.contains('character-selection-mode'))$('roster-settings').focus({preventScroll:true});
   });
-  $('import-legacy').addEventListener('click', () => {
-    const token = $('recovery-token').value.trim();
-    if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
-    else $('recovery-token').value = '';
+  $('link-legacy').addEventListener('click',()=>{if(net.token)net.claimLegacy(net.token);});
+  $('import-legacy').addEventListener('click',()=>{
+    const token=$('recovery-token').value.trim();
+    if(!net.claimLegacy(token))$('roster-import-error').textContent='Enter a valid 64-character guest recovery key.';
+    else {$('roster-import-error').textContent='Import requested. Awaiting account confirmation…';$('recovery-token').value='';}
   });
   // Controls are disabled in the static HTML until both auth handlers exist.
   // This prevents first-click loss during slow module initialization.
@@ -815,31 +853,8 @@ function addEntity(meta) {
     chest: new THREE.Vector3(),
     head: new THREE.Vector3(),
   };
-  if (meta.k === 'c' && meta.c === 'spindle') {
-    const emitter = new THREE.Group();
-    emitter.name = 'spindle:field-light-emitter';
-    emitter.position.y = SPINDLE_LIGHT.height;
-    emitter.add(new THREE.Mesh(spindleHaloGeometry, spindleHaloMaterial));
-    emitter.add(new THREE.Mesh(spindleBulbGeometry, spindleBulbMaterial));
-    emitter.visible = false;
-    holder.add(emitter);
-    ent.spindleEmitter = emitter;
-  }
   S.ents.set(ent.id, ent);
   return ent;
-}
-
-function syncSpindleFieldLights() {
-  for (const ent of S.ents.values()) {
-    if (ent.spindleEmitter) ent.spindleEmitter.visible =
-      ent.placed && ent.row?.li === 1 && ent.row?.a !== 'dormant';
-  }
-  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.you?.spindleId || S.compId);
-  for (let i = 0; i < spindlePointLights.length; i++) {
-    const light = spindlePointLights[i], source = sources[i];
-    light.intensity = source ? SPINDLE_LIGHT.intensity : 0;
-    if (source) light.position.set(source.pos.x, source.pos.y + SPINDLE_LIGHT.height, source.pos.z);
-  }
 }
 
 function removeEntity(ent) {
@@ -874,7 +889,6 @@ function clearWorld() {
   svfx?.clear();
   fx.clearFauna();
   ui.clearPlates();
-  ui.atlas?.setOwner(null);
 }
 
 const chestOf = (ent) => () => ent.chest;
@@ -885,7 +899,6 @@ function onWelcome(m) {
   clearWorld();
   ui.questTracker.useCharacter(m.charId);
   ui.setAbilityOwner(m.charId);
-  ui.atlas.setOwner(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
@@ -901,10 +914,16 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   creationPreview.release();
   selectionView.release();
+  ui.toggleSettings(false);
+  worldEntryPending=true;
+  $('world-entry-curtain').classList.remove('dismissed');
+  $('world-entry-curtain').hidden=false;
   document.body.classList.remove('character-selection-mode','character-create-mode');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
+  // Preserve the existing input lifecycle; the transition veil only
+  // affects presentation, not authoritative game simulation or controls.
   input.enabled = true;
   canvas.focus();
   if (!onWelcome.greeted) {
@@ -2013,9 +2032,9 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
+    // Dedicated cinematic scenes own both character screens.
+    if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
-    // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
-    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
@@ -2045,7 +2064,6 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
-  syncSpindleFieldLights();
   if (!inspectVfx || !S.paused) advanceEffects(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 
@@ -2103,6 +2121,18 @@ function frame(now) {
     renderer.render(scene, camera);
     lastDraw = now;
     S.drawn++;
+    if(worldEntryPending&&me?.placed&&me.row&&S.you){
+      // Never reveal the title camera's vacant aerial scene before the
+      // selected, server-owned character is instantiated and framed.
+      worldEntryPending=false;
+      input.enabled=true;
+      const curtain=$('world-entry-curtain');
+      curtain.classList.add('dismissed');
+      if(motionPreference.matches)curtain.hidden=true;
+      else curtain.addEventListener('transitionend',()=>{
+        if(!worldEntryPending)curtain.hidden=true;
+      },{once:true});
+    }
   }
   S.frames++;
   S.frameMs += (performance.now() - now - S.frameMs) * 0.2;

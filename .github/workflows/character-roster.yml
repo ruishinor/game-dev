@@ -5,6 +5,17 @@ on:
       - 'server/net.js'
       - 'client/index.html'
       - 'client/style.css'
+      - 'client/character-selection.css'
+      - 'client/selection-blueprint.css'
+      - 'client/selection-viewport.css'
+      - 'client/src/creation-sections.js'
+      - 'client/src/menu-settings-pager.js'
+      - 'client/assets/character-selection-gate.webp'
+      - 'client/src/selection-blueprint-environment.js'
+      - 'client/src/looks.js'
+      - 'client/src/selection-environment.js'
+      - 'server/store.js'
+      - 'test/character-selection.test.js'
       - 'client/src/main.js'
       - 'client/src/creation-preview.js'
       - 'client/src/roster-view.js'
@@ -16,7 +27,7 @@ permissions:
 jobs:
   roster:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -24,5 +35,21 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: node --test test/character-selection.test.js
+      - run: node --check client/src/selection-environment.js
+      - run: node --check client/src/selection-blueprint-environment.js
+      - run: node --check client/src/creation-preview.js
+      - run: node --check client/src/creation-sections.js
+      - run: node --check client/src/menu-settings-pager.js
       - run: npx playwright install --with-deps chromium
-      - run: node test/e2e/character-roster.mjs
+      - name: Live roster journey and screenshots
+        timeout-minutes: 15
+        run: node test/e2e/character-roster.mjs
+        env:
+          ATTUNEMENT_ROSTER_EVIDENCE_DIR: test/e2e/roster-evidence
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cinematic-roster-browser-captures
+          path: test/e2e/roster-evidence/
+          if-no-files-found: ignore

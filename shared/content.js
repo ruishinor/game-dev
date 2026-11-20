@@ -190,7 +190,6 @@ export const COMPANIONS = {
     name: 'Spindle',
     modes: {
       inspect: { name: 'Inspect equipment', desc: 'Approaches you, gauges your equipped weapon and reports its condition and maintenance needs. Use outside combat.' },
-      light: { name: 'Field light', desc: 'Toggle a 10 m fading light around Spindle. Works in any environment and independently of Follow, Stay or inspection. Off when summoned.' },
       follow: { name: 'Follow', desc: 'Rolls behind you along clear ground.' },
       stay: { name: 'Stay', desc: 'Parks here until recalled or you move beyond its tether.' },
     },

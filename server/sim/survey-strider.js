@@ -34,13 +34,13 @@ function dismiss(game,p){
  const c=p.companion;if(c?.type!==TYPE)return;
  if(p.surveyKit?.mark?.source===c.id)p.surveyKit.mark=null;
  p.char.petName=c.name;p.char.petMode=c.mode;
- game.companions=game.companions.filter(x=>x!==c);game.ents.delete(c.id);p.companion=p.spindleCompanion??null;
+ game.companions=game.companions.filter(x=>x!==c);game.ents.delete(c.id);p.companion=null;
  game.markDirty(p);
 }
 export function syncSurveyStrider(game,p,spotOverride){
  if(p.cls!=='surveyor')return;
  if(!wantsSurveyStrider(p)){dismiss(game,p);return;}
- if((p.companion&&p.companion.type!=='spindle')||p.dead||p.char.companionDismissed)return;
+ if(p.companion||p.dead||p.char.companionDismissed)return;
  const spot=spotOverride??striderSpawnPoint(p);if(!spot)return;
  const mode=p.char.petMode!=='recover'&&Object.hasOwn(def.modes,p.char.petMode)?p.char.petMode:'follow';
  const c={id:game.nextId++,kind:'companion',type:TYPE,name:p.char.petName&&p.char.petName!==COMPANIONS.mender.name?p.char.petName:def.name,owner:p.id,...spot,yaw:p.yaw,mode,host:0,act:'idle',actTarget:0,nextPulse:game.time+1000,nextRegen:0,metaVer:1,nav:{}};

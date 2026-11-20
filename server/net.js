@@ -13,6 +13,7 @@ import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
 import { useUtility } from './sim/utility.js';
 import { sameTravelRegion, travelRegionAt } from '../shared/world.js';
+import { MAX_ACCOUNT_CHARACTERS } from './store.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -208,7 +209,7 @@ export class NetServer {
   }
 
   sendRoster(conn, token) {
-    const msg = { t: 'account_ready', handle: conn.account.handle, chars: this.store.listCharacters(conn.account) };
+    const msg = { t: 'account_ready', handle: conn.account.handle, chars: this.store.listCharacters(conn.account), maxSlots: MAX_ACCOUNT_CHARACTERS };
     if (token) msg.token = token;
     send(conn.ws, msg);
   }
@@ -368,17 +369,15 @@ export class NetServer {
         else reply(startAttack(game, p));
         break;
       case 'pet':
-        if (msg.type !== undefined && (typeof msg.type !== 'string' || msg.type.length > 40)) return this.strike(conn);
-        reply(petCommand(game, p, msg.c, msg.type));
+        reply(petCommand(game, p, msg.c));
         break;
       case 'pet_rename':
-        if (msg.type !== undefined && (typeof msg.type !== 'string' || msg.type.length > 40)) return this.strike(conn);
-        reply(renameCompanion(game, p, msg.name, msg.type));
+        reply(renameCompanion(game, p, msg.name));
         break;
       case 'pet_manage':
         if (!['commission', 'default', 'dismiss', 'summon'].includes(msg.action) ||
-          (msg.type != null && (typeof msg.type !== 'string' || msg.type.length > 40)) ||
-          ((msg.action === 'default' || msg.action === 'commission') && msg.type == null)) return this.strike(conn);
+          ((msg.action === 'default' || msg.action === 'commission' || (msg.action === 'summon' && msg.type != null)) &&
+            (typeof msg.type !== 'string' || msg.type.length > 40))) return this.strike(conn);
         reply(manageCompanion(game, p, msg.action, msg.type));
         break;
       case 'party_invite':
