@@ -35,7 +35,13 @@
           <p class="hint">Passwords are not recoverable by email in this prototype. Use a unique password and keep a secure backup.</p>
         </section>
         <section id="character-roster" hidden aria-label="Your characters">
-          <div class="roster-head"><h2 id="roster-title">Character selection</h2><button id="account-signout" type="button">Sign out</button></div>
+          <div class="roster-head">
+            <div class="roster-head-copy">
+              <h2 id="roster-title">Character Selection</h2>
+              <p id="roster-realm">The Verdigris Reach <span aria-hidden="true">/</span> <span id="roster-account"></span></p>
+            </div>
+            <button id="account-signout" type="button">Return to Login</button>
+          </div>
           <div class="roster-stage">
             <aside class="roster-facts" aria-label="Selected character information"><div id="roster-details"></div></aside>
             <section id="roster-preview" aria-label="Selected character in 3D">
@@ -63,6 +69,7 @@
             <button id="roster-enter" class="primary" type="button" disabled>Enter World</button>
             <button id="roster-create" type="button">Create character</button>
             <button id="roster-delete" class="danger" type="button" disabled>Delete selected</button>
+            <button id="roster-settings" type="button">Settings</button>
           </div>
           <div id="roster-delete-confirm" class="roster-delete-confirm" hidden>
             <p>Deletion is permanent. Type the selected character's exact name to confirm.</p>
