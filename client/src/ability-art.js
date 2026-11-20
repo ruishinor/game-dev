@@ -45,6 +45,14 @@ const scenes = {
   }
 };
 
+// supplemental: symbiotech
+Object.assign(scenes, {
+  neural_lash: {top:"#402045",bottom:"#10142c",glow:"#fb619c",bright:"#ffe3fc",shapes:"<path d=\"M5 51Q26 5 55 16T41 52\" fill=\"none\" stroke=\"#aa2fac\" stroke-width=\"14\" opacity=\".55\"/><path d=\"M4 52Q26 8 53 17T38 50\" fill=\"none\" stroke=\"#ff98c7\" stroke-width=\"4\"/><path d=\"M9 45 18 37 14 28 25 24 30 13\" fill=\"none\" stroke=\"#fbe9ee\" stroke-width=\"2.5\"/><path d=\"M38 49 47 44 43 36 55 30\" fill=\"none\" stroke=\"#f26a8e\" stroke-width=\"3\"/><circle cx=\"51\" cy=\"17\" r=\"4\" fill=\"#fff2ed\"/>"},
+  mending_graft: {top:"#154c38",bottom:"#112432",glow:"#9df1ac",bright:"#f2efad",shapes:"<path d=\"M32 60V8M12 31h40\" fill=\"none\" stroke=\"#2cb98e\" stroke-width=\"18\" opacity=\".45\"/><path d=\"M32 12v41M13 31h38\" stroke=\"#fff0ba\" stroke-width=\"9\" stroke-linecap=\"round\"/><path d=\"M32 12v41M13 31h38\" stroke=\"#6ff5a5\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M18 51C4 37 11 24 22 20M47 50c11-14 7-26-3-32\" fill=\"none\" stroke=\"#c8ffa9\" stroke-width=\"3\"/><circle cx=\"32\" cy=\"32\" r=\"6\" fill=\"#e8ffcb\"/>"},
+  spore_snare: {top:"#443323",bottom:"#14251f",glow:"#c4e99b",bright:"#ffe5bb",shapes:"<path d=\"M17 39Q9 29 21 15Q34 5 46 16Q54 25 44 33Z\" fill=\"#9b6b4a\" stroke=\"#f3d1a1\" stroke-width=\"2\"/><path d=\"M21 35Q16 25 27 17Q35 13 42 23Q45 28 37 34Z\" fill=\"#d6b277\"/><path d=\"M31 30v30M31 41l-18 12M32 43l17 13M29 47l-7 14\" fill=\"none\" stroke=\"#a6db92\" stroke-width=\"3\"/><circle cx=\"19\" cy=\"22\" r=\"3\" fill=\"#fff6d1\"/><circle cx=\"41\" cy=\"19\" r=\"4\" fill=\"#d5ffbb\"/><circle cx=\"50\" cy=\"36\" r=\"3\" fill=\"#ffeec0\"/>"},
+  overgrowth_surge: {top:"#19412f",bottom:"#101c24",glow:"#8ce86d",bright:"#f5ffd0",shapes:"<path d=\"M32 59Q19 40 32 25Q41 12 30 4\" fill=\"none\" stroke=\"#a8f380\" stroke-width=\"8\"/><path d=\"M31 40Q8 39 9 18Q30 15 31 40M36 30Q49 10 59 19Q57 37 36 30M29 52Q12 54 10 40Q29 36 29 52\" fill=\"#4a9e67\" stroke=\"#cdf2a0\" stroke-width=\"2\"/><path d=\"M33 55Q43 49 50 56M23 25 16 20M44 24l8-6\" fill=\"none\" stroke=\"#f4ffd6\" stroke-width=\"3\"/><circle cx=\"33\" cy=\"30\" r=\"5\" fill=\"#e3ffc1\"/>"}
+});
+
 // The ids are static, authored game content. No dynamic user input or markup.
 export function paintedAbilityArt(id) {
   if (!Object.hasOwn(scenes, id)) return null;
