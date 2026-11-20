@@ -14,12 +14,16 @@ try{
  const page=await browser.newPage({viewport:{width:1360,height:850},reducedMotion:'reduce'});
  page.setDefaultTimeout(60000);
  const errors=[];page.on('pageerror',err=>errors.push(err.message));
- await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
- // the form is in the page before the client module has attached its handlers
- await page.waitForFunction(()=>!!window.__attune,null,{timeout:120000});
+ const entry='http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':'');
+ // Check the static markup before any JavaScript module attaches account handlers.
+ const entryHtml=await (await page.request.get(entry)).text();
+ assert.ok(entryHtml.includes('id="account-signin" type="submit" class="primary" disabled>'));
+ assert.ok(entryHtml.includes('id="account-register" type="button" disabled>'));
+ await page.goto(entry);
+ // Do not wait on an internal client hook; the actual control readiness gates first use.
  await page.fill('#account-handle','roster_validator');
  await page.fill('#account-password','TemporaryUniqueRosterTestPassphrase2026!');
- await page.click('#account-register');
+ await page.click('#account-register',{timeout:120000});
  await page.locator('#character-roster').waitFor({state:'visible'});
  const rosterConn=[...server.net.conns].find(conn=>conn.account?.handle==='roster_validator');
  assert.ok(rosterConn,'authenticated account connection exists before entering world');
