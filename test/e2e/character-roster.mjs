@@ -38,11 +38,18 @@ try{
  assert.equal(await page.locator('#roster-list .roster-slot-vacant').count(),1,'one creation action, not six redundant cards');
  assert.equal(await page.locator('#roster-create').isEnabled(),true);
  assert.equal(await page.locator('#roster-settings').isVisible(),true);
- // The menu must use the genuine in-game gateway asset, not a cyan procedural
- // surrogate. Loading the file alone does not prove visual quality, but it
- // prevents another dashboard/placeholder substitution from passing CI.
+ // The exact owner-supplied source image (optimized WebP) must actually be
+ // served and visible behind a transparent, centered gameplay-model canvas.
+ const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/assets/character-selection-gate.webp');
+ assert.equal(bgResponse.status(),200);
+ assert.match(bgResponse.headers()['content-type'],/image\/webp/);
+ assert.ok((await bgResponse.body()).length>4000);
+ const backdrop=await page.locator('#roster-preview').evaluate(el=>getComputedStyle(el).backgroundImage);
+ assert.match(backdrop,/character-selection-gate\.webp/);
+ const fitsViewport=()=>document.documentElement.scrollHeight<=innerHeight+2
+   &&document.body.scrollHeight<=innerHeight+2;
  await page.waitForFunction(
-  ()=>document.querySelector('#roster-preview')?.dataset.sceneAsset==='severance-gate-glb',
+  ()=>document.querySelector('#roster-preview')?.dataset.sceneAsset==='reference-image',
   null,{timeout:90000}
  );
  await page.waitForFunction(
@@ -50,16 +57,31 @@ try{
   null,{timeout:90000}
  );
  const viewport=await page.locator('#roster-preview canvas').boundingBox();
- assert.ok(viewport.width>1000 && viewport.height>700,'3D vestibule must occupy the viewport');
+ assert.ok(viewport.width>1000 && viewport.height>700,'3D preview must occupy the viewport');
+ assert.equal(await page.evaluate(fitsViewport),true,'roster has zero page scrolling');
  if(evidence)await page.screenshot({path:join(evidence,'empty-roster-desktop.png')});
  await page.click('#roster-create');
  assert.equal(await page.locator('#character-roster').isHidden(),true);
  assert.equal(await page.locator('#creation-fields').isVisible(),true);
+ assert.equal(await page.evaluate(fitsViewport),true,'creation page must not scroll');
+ assert.equal(await page.locator('.creation-screen-tab').count(),3);
+ assert.equal(await page.locator('#creation-step-identity').isVisible(),true);
+ assert.equal(await page.locator('#creation-step-body').isHidden(),true);
+ await page.getByRole('button',{name:'2. Body'}).click();
+ assert.equal(await page.locator('#appearance').isVisible(),true);
+ assert.equal(await page.locator('#creation-step-identity').isHidden(),true);
+ assert.equal(await page.evaluate(fitsViewport),true);
+ await page.getByRole('button',{name:'3. Details'}).click();
+ assert.equal(await page.locator('#ap-hair').isVisible(),true);
+ assert.equal(await page.locator('#ap-colour').isVisible(),true);
+ assert.equal(await page.evaluate(fitsViewport),true);
+ await page.getByRole('button',{name:'1. Identity'}).click();
+ assert.equal(await page.locator('#name').isVisible(),true);
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
  const creationCanvas=await page.locator('#creation-preview canvas').boundingBox();
  assert.ok(creationCanvas.width>1000&&creationCanvas.height>700,'creation must retain the entire cinematic environment');
  await page.waitForFunction(
-  ()=>document.querySelector('#creation-preview')?.dataset.sceneAsset==='severance-gate-glb',
+  ()=>document.querySelector('#creation-preview')?.dataset.sceneAsset==='reference-image',
   null,{timeout:90000}
  );
  await page.waitForFunction(
@@ -110,6 +132,7 @@ try{
   'inspection controls must never overlap character identity, race or location');
  assert.equal(await page.locator('#roster-preview').getAttribute('data-model-count'),'1',
   'the account selection is exactly one persisted gameplay model');
+ assert.equal(await page.evaluate(fitsViewport),true,'populated roster cannot scroll');
  await page.click('.roster-cards [data-preview-inspect]');
  assert.equal(await page.locator('.roster-cards .roster-preview-controls').isHidden(),true);
  // Turning the character must leave the camera and architecture fixed.
@@ -120,11 +143,12 @@ try{
   before=>document.querySelector('#roster-preview')?.dataset.yaw!==before,
   yawBefore
  );
- assert.equal(await page.locator('#roster-preview').getAttribute('data-scene-asset'),'severance-gate-glb');
+ assert.equal(await page.locator('#roster-preview').getAttribute('data-scene-asset'),'reference-image');
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  if(evidence){
   await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
   await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
   await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
   await page.setViewportSize({width:1360,height:850});
  }
