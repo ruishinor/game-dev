@@ -1,18 +1,20 @@
-// Weapon slots and the active-weapon selection. Shared so the client can
-// explain availability and project reach; only the server's state is applied.
+// Weapon slots and the active weapon mode. Shared so the client can explain
+// availability and project reach; only the server's state is applied.
 //
-// Two weapon slots exist: `weapon` (main/melee, e.g. the Electrical Combat Rod)
-// and `ranged` (pulse emitters). Both may be equipped at once. Exactly one is
-// active: its bonus, reach, condition wear and attack kind are used. The
-// selection is persisted as `char.activeWeapon` ('weapon' | 'ranged').
+// Every class has two attack modes: melee (`weapon` slot) and ranged
+// (`ranged` slot). A class's own attack is its primary mode; the other mode
+// is a provisional off-mode profile (CLASSES[cls].meleeAuto / rangedAuto).
+// A weapon in the slot of the active mode adds its bonus, reach, condition
+// wear and visuals; the other slot's weapon is carried stowed. The selection
+// is persisted as `char.activeWeapon` ('weapon' | 'ranged').
 import { CLASSES, ITEMS } from './content.js';
 
 export const WEAPON_SLOTS = Object.freeze(['weapon', 'ranged']);
 export const isWeaponSlot = (slot) => slot === 'weapon' || slot === 'ranged';
 
-// Switching is off the global cooldown but has its own recovery, and it can
-// only ever delay (never advance) the next auto-attack.
-export const WEAPON_SWITCH = Object.freeze({ cooldownMs: 1000, autoDelayMs: 750 });
+// Switching is off the global cooldown but has its own short recovery, and it
+// can only ever delay (never advance) the next auto-attack.
+export const WEAPON_SWITCH = Object.freeze({ cooldownMs: 500, autoDelayMs: 400 });
 
 /** The owned, correctly slotted item in `slot`, or null. */
 export function equippedWeapon(char, slot) {
@@ -22,45 +24,52 @@ export function equippedWeapon(char, slot) {
     Array.isArray(char.inventory) && char.inventory.includes(id) ? id : null;
 }
 
-/** Slot the character prefers when both are filled (melee classes start on their main weapon). */
-export function selectedWeaponSlot(char) {
-  if (char?.activeWeapon === 'ranged' || char?.activeWeapon === 'weapon') return char.activeWeapon;
-  return CLASSES[char?.cls]?.auto?.kind === 'bolt' ? 'ranged' : 'weapon';
+/** The class's primary mode: the slot matching its own attack kind. */
+export function primaryWeaponSlot(cls) {
+  return CLASSES[cls]?.auto?.kind === 'bolt' ? 'ranged' : 'weapon';
 }
 
 /**
- * The slot actually in use. An empty selection falls back to the other filled
- * slot, so an equipped weapon is never silently ignored; null means unarmed
- * (the class's own attack with no weapon bonus).
+ * The mode in use. An explicit selection always wins (an empty slot means the
+ * class's innate attack for that mode). Without one, an equipped weapon is
+ * never ignored: a single equipped weapon decides the mode (this also covers
+ * legacy saves for every class); otherwise the class's primary mode.
  */
 export function activeWeaponSlot(char) {
-  const selected = selectedWeaponSlot(char);
-  if (equippedWeapon(char, selected)) return selected;
-  const other = selected === 'ranged' ? 'weapon' : 'ranged';
-  return equippedWeapon(char, other) ? other : null;
+  if (char?.activeWeapon === 'ranged' || char?.activeWeapon === 'weapon') return char.activeWeapon;
+  const main = equippedWeapon(char, 'weapon'), ranged = equippedWeapon(char, 'ranged');
+  if (main && !ranged) return 'weapon';
+  if (ranged && !main) return 'ranged';
+  return primaryWeaponSlot(char?.cls);
 }
 
+/** The weapon item in use, or null for the innate attack of the active mode. */
 export function activeWeapon(char) {
-  const slot = activeWeaponSlot(char);
-  return slot ? equippedWeapon(char, slot) : null;
+  return equippedWeapon(char, activeWeaponSlot(char));
 }
 
-/** Auto-attack profile for the active weapon: {range, interval, dmg, kind}. */
-export function autoProfile(char) {
-  const def = CLASSES[char?.cls];
+/** Auto-attack profile of a class in a mode: {range, interval, dmg, kind}. */
+export function profileFor(cls, slot) {
+  const def = CLASSES[cls];
   if (!def) return null;
-  if (activeWeaponSlot(char) === 'ranged' && def.auto.kind !== 'bolt' && def.rangedAuto) return def.rangedAuto;
-  return def.auto;
+  const want = slot === 'ranged' ? 'bolt' : 'melee';
+  if (def.auto.kind === want) return def.auto;
+  return (want === 'bolt' ? def.rangedAuto : def.meleeAuto) ?? def.auto;
 }
 
-/** True when both slots hold a weapon, so there is something to switch between. */
+/** Auto-attack profile for the active mode. */
+export function autoProfile(char) {
+  return profileFor(char?.cls, activeWeaponSlot(char));
+}
+
+/** Every class can switch between its melee and ranged modes. */
 export function canSwitchWeapons(char) {
-  return !!(equippedWeapon(char, 'weapon') && equippedWeapon(char, 'ranged'));
+  return !!CLASSES[char?.cls];
 }
 
-/** True while the Electrical Combat Rod is equipped and is the active weapon. */
+/** True while the Electrical Combat Rod is equipped and in the active mode. */
 export function electricalRodActive(char) {
-  return char?.cls === 'vanguard' && activeWeapon(char) === 'electrical_combat_rod';
+  return activeWeapon(char) === 'electrical_combat_rod';
 }
 
 /** Persisted selection from untrusted save data. */

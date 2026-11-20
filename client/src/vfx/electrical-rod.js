@@ -11,7 +11,7 @@
 // intensity) and reduced motion, and rate-limited per weapon.
 import {playElectricalStrike} from './electrical-strike.js';
 import {CELL} from './textures.js';
-const C={ice:0xcaf7ff,cyan:0x61d7ff,blue:0x2675ef,deep:0x344bcc,violet:0x7254e8};
+import {DEFAULT_ROD_PALETTE} from '../rod-palette.js';
 const clamp=x=>Math.max(0,Math.min(1,Number.isFinite(x)?x:0));
 const finite=p=>p&&[p.x,p.y,p.z].every(Number.isFinite);
 const clone=p=>p.clone?p.clone():{x:p.x,y:p.y,z:p.z};
@@ -21,6 +21,8 @@ export const ROD_VFX=Object.freeze({
  sparks:{joined:96,dual:56,calm:8},spokes:{joined:3,dual:2},residual:{joined:1.2,dual:.8,step:.18},
 });
 export function createElectricalRodVfx(rod,vfx){
+ // Class colourway carried by the rod model (cobalt by default).
+ const C=rod.palette??DEFAULT_ROD_PALETTE;
  let cooldown=0,contactCooldown=0,transformCooldown=0,drawCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true,sequence=null;
  let combat=false,residual=0,residualClock=0,flicker=1;
  const handles=new Set(),idleLayers=new Set();
@@ -129,7 +131,7 @@ export function createElectricalRodVfx(rod,vfx){
    const tips=[rod.anchor(0,'Tip'),rod.anchor(1,'Tip')].filter(finite);
    const tip=tips.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y,a.z-p.z)-Math.hypot(b.x-p.x,b.y-p.y,b.z-p.z))[0];
    sequence?.cancel();
-   sequence=playElectricalStrike(vfx,{from:tip,target:p,ground,joined:long,blocked,active:rich,remember});
+   sequence=playElectricalStrike(vfx,{from:tip,target:p,ground,joined:long,blocked,active:rich,remember,palette:C});
    if(sequence)rod.group.userData.rodStrikeSequences=(rod.group.userData.rodStrikeSequences??0)+1;
   }
   sparks(clone(p),layered?(long?ROD_VFX.sparks.joined:ROD_VFX.sparks.dual):16,scale);

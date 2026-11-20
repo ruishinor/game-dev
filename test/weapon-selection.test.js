@@ -6,11 +6,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { makeGame, makeChar, place, enemyOf, isolate } from './helpers.js';
-import { CLASSES } from '../shared/content.js';
+import { CLASSES, AUTO_REFERENCE_MS } from '../shared/content.js';
 import { equipItem, unequipSlot, setElectricalRodMode, selectWeapon } from '../server/sim/progress.js';
 import { tickPlayerCombat, useAbility, dealDamage } from '../server/sim/combat.js';
 import { weaponBonus, weaponReach, conditionOf } from '../shared/condition.js';
-import { WEAPON_SWITCH, activeWeaponSlot, autoProfile, canSwitchWeapons, migrateWeaponSlots } from '../shared/weapons.js';
+import { WEAPON_SWITCH, activeWeaponSlot, autoProfile, canSwitchWeapons, migrateWeaponSlots, profileFor } from '../shared/weapons.js';
 import { CharacterStore } from '../server/store.js';
 import { startServer } from '../server/index.js';
 import WebSocket from 'ws';
@@ -18,6 +18,8 @@ import WebSocket from 'ws';
 const ROD = 'electrical_combat_rod', EMITTER = 'field_emitter';
 const armed = (over = {}) => makeChar('vanguard', { inventory: [ROD, EMITTER], ...over });
 const rowOf = (g, p) => g.buildRows().find(r => r.i === p.id);
+// Per-hit damage under the cadence: weapon bonus is paced so damage per second is unchanged.
+const hit = (p, prof, bonus) => Math.round((prof.dmg + bonus * prof.interval / AUTO_REFERENCE_MS) * p.stats.power * p.stats.dmgMul);
 const snapshot = p => JSON.stringify({ inventory: p.char.inventory, equipped: p.char.equipped, condition: p.char.condition ?? {} });
 
 test('rod and emitter occupy independent slots; equipping either preserves the other', () => {
@@ -56,7 +58,7 @@ test('selection switches attack profile, reach, bonus, presentation and keeps in
   const e = enemyOf(g, 'skitter'); isolate(g, e);
   place(p, e.x + 10, e.z); p.target = e.id; p.autoOn = true; p.nextAuto = 0;
   const hp = e.hp; tickPlayerCombat(g, p, 0);
-  assert.equal(hp - e.hp, Math.round((CLASSES.vanguard.rangedAuto.dmg + 2) * p.stats.power * p.stats.dmgMul));
+  assert.equal(hp - e.hp, hit(p, CLASSES.vanguard.rangedAuto, 2));
   assert.equal(g.events.filter(x => x.e === 'dmg' && x.s === p.id).at(-1).k, 'bolt');
   // Back on the rod, the same distance is out of melee reach.
   g.time += WEAPON_SWITCH.cooldownMs;
@@ -65,7 +67,7 @@ test('selection switches attack profile, reach, bonus, presentation and keeps in
   g.time += 5000; const hp2 = e.hp; tickPlayerCombat(g, p, 0);
   assert.equal(e.hp, hp2, 'melee cannot hit at ranged distance');
   place(p, e.x + 1, e.z); tickPlayerCombat(g, p, 0);
-  assert.equal(hp2 - e.hp, Math.round((CLASSES.vanguard.auto.dmg + 3) * p.stats.power * p.stats.dmgMul));
+  assert.equal(hp2 - e.hp, hit(p, CLASSES.vanguard.auto, 3));
   assert.equal(g.events.filter(x => x.e === 'dmg' && x.s === p.id).at(-1).k, 'melee');
 });
 
@@ -101,39 +103,52 @@ test('switching works in combat but cannot bypass auto-attack, ability or switch
   assert.equal(useAbility(g, p, 'rending_arc').ok, false, 'switching does not reset ability cooldowns');
 });
 
-test('invalid selections, forged slots, empty slots and restricted states are rejected without mutation', () => {
+test('invalid selections, forged slots and restricted states are rejected; an empty slot is the innate attack', () => {
   const g = makeGame(), p = g.addPlayer(armed());
   equipItem(g, p, ROD);
   const before = snapshot(p);
   for (const bad of ['main', 'device', '__proto__', '', null, 1, 'constructor']) assert.equal(selectWeapon(g, p, bad).ok, false, String(bad));
-  assert.equal(selectWeapon(g, p, 'ranged').ok, false, 'empty ranged slot');
-  assert.equal(canSwitchWeapons(p.char), false);
-  equipItem(g, p, EMITTER);
   p.dead = true; assert.equal(selectWeapon(g, p, 'ranged').ok, false); p.dead = false;
   p.production = { id: 'x' }; assert.equal(selectWeapon(g, p, 'ranged').ok, false); p.production = null;
   p.inscription = { itemId: 'x' }; assert.equal(selectWeapon(g, p, 'ranged').ok, false); p.inscription = null;
   assert.equal(activeWeaponSlot(p.char), 'weapon');
-  assert.deepEqual(p.char.inventory, JSON.parse(before).inventory, 'rejected selections never touch inventory');
-  // A ranged item can never be forced into the main slot, nor the rod into ranged.
-  const forged = { ...p.char, equipped: { ...p.char.equipped, weapon: EMITTER, ranged: ROD } };
-  assert.equal(activeWeaponSlot(forged), null, 'mis-slotted items are ignored');
-  // Unowned items do not count.
-  const unowned = { ...p.char, inventory: [] };
-  assert.equal(activeWeaponSlot(unowned), null);
+  assert.equal(snapshot(p), before, 'rejected selections never touch inventory or slots');
+  // Every class can switch; an empty ranged slot uses the class's innate ranged attack.
+  assert.ok(canSwitchWeapons(p.char));
+  assert.ok(selectWeapon(g, p, 'ranged').ok);
+  assert.equal(autoProfile(p.char), CLASSES.vanguard.rangedAuto);
+  assert.equal(weaponBonus(p.char), 0, 'no weapon in the active slot, no bonus');
+  assert.equal(rowOf(g, p).er, 3, 'the rod is stowed while ranged is active');
+  // Mis-slotted or unowned items never count.
+  const forged = { ...p.char, activeWeapon: undefined, equipped: { ...p.char.equipped, weapon: EMITTER, ranged: ROD } };
+  assert.equal(weaponBonus(forged), 0);
+  const unowned = { ...p.char, activeWeapon: 'weapon', inventory: [] };
   assert.equal(weaponBonus(unowned), 0);
 });
 
-test('other classes keep their emitter as their only, active weapon', () => {
+test('every class has melee and ranged modes, can carry the rod, and keeps its primary attack by default', () => {
   for (const cls of ['symbiotech', 'keeper', 'surveyor']) {
     const g = makeGame(), p = g.addPlayer(makeChar(cls, { inventory: [EMITTER, ROD] }));
     assert.ok(equipItem(g, p, EMITTER).ok);
-    assert.equal(equipItem(g, p, ROD).ok, false, 'the rod remains Vanguard-only');
     assert.equal(activeWeaponSlot(p.char), 'ranged');
     assert.equal(autoProfile(p.char), CLASSES[cls].auto, 'class attack unchanged');
     assert.equal(weaponBonus(p.char), 2);
-    assert.equal(selectWeapon(g, p, 'weapon').ok, false);
-    assert.equal(rowOf(g, p).er, undefined);
+    assert.ok(equipItem(g, p, ROD).ok, 'the rod is no longer class-locked');
+    assert.equal(activeWeaponSlot(p.char), 'ranged', 'the emitter in use stays active');
+    assert.equal(rowOf(g, p).er, 3, 'rod carried stowed');
+    assert.ok(selectWeapon(g, p, 'weapon').ok);
+    assert.equal(autoProfile(p.char), CLASSES[cls].meleeAuto);
+    assert.equal(profileFor(cls, 'weapon').kind, 'melee');
+    assert.equal(weaponBonus(p.char), 3);
+    assert.equal(rowOf(g, p).er, 1);
+    // The off-mode is weaker than the primary mode in damage per second.
+    const dps = a => a.dmg / a.interval;
+    assert.ok(dps(CLASSES[cls].meleeAuto) < dps(CLASSES[cls].auto));
+    // A fresh character with nothing equipped uses its primary mode.
+    assert.equal(activeWeaponSlot(makeChar(cls)), 'ranged');
   }
+  assert.equal(activeWeaponSlot(makeChar('vanguard')), 'weapon');
+  assert.ok(CLASSES.vanguard.rangedAuto.dmg / CLASSES.vanguard.rangedAuto.interval < CLASSES.vanguard.auto.dmg / CLASSES.vanguard.auto.interval);
 });
 
 test('rod configuration requires the rod to be active and is retained across ranged selection', () => {
@@ -177,8 +192,13 @@ test('legacy single-slot saves migrate deterministically; selection and configur
     const current = store.create('Current Vanguard', 'vanguard');
     current.char.inventory = [ROD, EMITTER]; Object.assign(current.char.equipped, { weapon: ROD, ranged: EMITTER });
     current.char.activeWeapon = 'ranged'; current.char.electricalRodMode = 'dual';
+    const innate = store.create('Innate Vanguard', 'vanguard');
+    innate.char.inventory = [ROD]; innate.char.equipped.weapon = ROD; innate.char.activeWeapon = 'ranged';
     const forged = store.create('Forged Vanguard', 'vanguard');
-    forged.char.inventory = [ROD]; forged.char.equipped.weapon = ROD; forged.char.activeWeapon = 'ranged';
+    forged.char.inventory = [ROD]; forged.char.equipped.weapon = ROD; forged.char.activeWeapon = '__proto__';
+    // Global legacy rule: any class whose only weapon is ranged attacks with it.
+    const surveyorLegacy = store.create('Legacy Surveyor', 'surveyor');
+    surveyorLegacy.char.inventory = [EMITTER]; surveyorLegacy.char.equipped.weapon = EMITTER;
     store.markDirty(); store.flush();
     const reloaded = new CharacterStore(file);
     const a = reloaded.authenticate(legacy.token);
@@ -187,9 +207,12 @@ test('legacy single-slot saves migrate deterministically; selection and configur
     const b = reloaded.authenticate(current.token);
     assert.equal(b.equipped.weapon, ROD); assert.equal(b.equipped.ranged, EMITTER);
     assert.equal(b.activeWeapon, 'ranged'); assert.equal(b.electricalRodMode, 'dual');
+    assert.equal(reloaded.authenticate(innate.token).activeWeapon, 'ranged', 'an innate-mode selection persists');
     const c = reloaded.authenticate(forged.token);
-    assert.equal(c.activeWeapon, undefined, 'a selection of an empty slot is dropped');
+    assert.equal(c.activeWeapon, undefined, 'a forged selection is dropped');
     assert.equal(activeWeaponSlot(c), 'weapon');
+    const d = reloaded.authenticate(surveyorLegacy.token);
+    assert.equal(d.equipped.ranged, EMITTER); assert.equal(activeWeaponSlot(d), 'ranged');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

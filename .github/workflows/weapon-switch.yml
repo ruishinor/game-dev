@@ -1,15 +1,19 @@
-name: Weapon slots and switching
+name: Weapon slots, switching and sit emote
 on:
   pull_request:
     paths:
       - 'shared/weapons.js'
+      - 'shared/weapon-visual.js'
+      - 'server/sim/posture.js'
+      - 'client/src/sit-pose.js'
+      - 'client/src/rod-palette.js'
+      - 'client/src/hotkey-bindings.js'
       - 'shared/condition.js'
       - 'shared/content.js'
       - 'server/sim/progress.js'
       - 'server/sim/combat.js'
       - 'server/net.js'
       - 'server/store.js'
-      - 'client/src/hotkey-bindings.js'
       - 'client/src/ui.js'
       - 'client/src/main.js'
       - 'client/src/journal-ui.js'

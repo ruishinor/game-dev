@@ -1,14 +1,16 @@
 // Presentation-only mapping of action-bar shortcuts; server validates each action.
 export const PRIMARY_SLOTS=9;
 export const COMPANION_SLOTS=5;
-// Weapon actions: switch the active weapon (main/ranged) and cycle the
-// Electrical Combat Rod configuration. X/Z are unused by every existing
-// shortcut and sit beside the movement keys for in-combat use.
+// Weapon actions: switch melee/ranged (Z) and cycle the Electrical Combat
+// Rod configuration (G). Emote: sit or stand (X). All three keys sit beside
+// the movement keys and are unused by every built-in shortcut.
 export const WEAPON_ACTIONS=Object.freeze({'weapon:switch':'Switch weapon','weapon:config':'Rod configuration'});
+export const EMOTE_ACTIONS=Object.freeze({'emote:sit':'Sit / stand'});
+const ACTION_LABELS={...WEAPON_ACTIONS,...EMOTE_ACTIONS};
 export const DEFAULT_BINDINGS=Object.freeze(Object.fromEntries([
  ...Array.from({length:PRIMARY_SLOTS},(_,i)=>['ability:'+(i+1),'Digit'+(i+1)]),
  ...Array.from({length:COMPANION_SLOTS},(_,i)=>['companion:'+(i+1),'Shift+Digit'+(i+1)]),
- ['weapon:switch','KeyX'],['weapon:config','KeyZ'],
+ ['weapon:switch','KeyZ'],['weapon:config','KeyG'],['emote:sit','KeyX'],
 ]));
 const CODES=/^(?:Digit[0-9]|Key[A-Z]|Numpad[0-9]|F(?:[1-9]|1[0-2])|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote)$/;
 const MOVEMENT=new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -58,7 +60,7 @@ export class ActionBindings{
   if(!Object.hasOwn(DEFAULT_BINDINGS,action))return {ok:false,reason:'Unknown hotkey action'};
   if(!bindingPermitted(chord))return {ok:false,reason:'This shortcut is reserved for movement, the interface or the browser'};
   const conflict=Object.keys(this.map).find(key=>key!==action&&chord!==null&&this.map[key]===chord);
-  if(conflict)return {ok:false,reason:'Already assigned to '+(WEAPON_ACTIONS[conflict]||conflict),conflict};
+  if(conflict)return {ok:false,reason:'Already assigned to '+(ACTION_LABELS[conflict]||conflict),conflict};
   this.map[action]=chord;this.persist();return {ok:true};
  }
  reset(actions=null){

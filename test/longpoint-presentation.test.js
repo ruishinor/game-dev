@@ -7,16 +7,18 @@ import { CombatVfx } from '../client/src/vfx/combat.js';
 import { dealDamage } from '../server/sim/combat.js';
 import { isolate, enemyOf, place } from './helpers.js';
 
-test('Longpoint visual is allowlisted, owned, ranged-only and cleared on loadout changes',()=>{
+test('Longpoint visual is allowlisted, owned, in hand only while ranged is active, stowed otherwise, and cleared on loadout changes',()=>{
  const game=makeGame(),char=makeChar('surveyor',{inventory:['longpoint_emitter'],equipped:{ranged:'longpoint_emitter'},condition:{longpoint_emitter:17}});
  const p=game.addPlayer(char),v=p.metaVer;assert.equal(publicWeaponVisual(char),'longpoint');assert.equal(game.metaFor(p).wv,'longpoint');assert.equal(game.metaFor(p).condition,undefined);assert.equal(game.metaFor(p).inventory,undefined);
  game.refreshStats(p);assert.equal(p.metaVer,v);
  char.equipped.ranged=null;game.refreshStats(p);assert.equal(p.metaVer,v+1);assert.equal(game.metaFor(p).wv,undefined);
  char.equipped.ranged='longpoint_emitter';game.refreshStats(p);assert.equal(p.metaVer,v+2);assert.equal(game.metaFor(p).wv,'longpoint');
  assert.equal(publicWeaponVisual({...char,inventory:[]}),null);assert.equal(publicWeaponVisual({...char,equipped:{ranged:'untrusted/path'}}),null);assert.equal(publicWeaponVisual({...char,equipped:{weapon:'longpoint_emitter'}}),null);
- // A Vanguard shows the rifle only while it is the active weapon, not while stowed behind the rod.
+ // Any class: the rifle is in hand while ranged is active and carried on the back while melee is active.
  const vanguard={...char,cls:'vanguard',inventory:['longpoint_emitter','electrical_combat_rod'],equipped:{weapon:'electrical_combat_rod',ranged:'longpoint_emitter'}};
- assert.equal(publicWeaponVisual(vanguard),null);assert.equal(publicWeaponVisual({...vanguard,activeWeapon:'ranged'}),'longpoint');assert.equal(publicWeaponVisual(null),null);
+ assert.equal(publicWeaponVisual(vanguard),'longpoint-stowed');assert.equal(publicWeaponVisual({...vanguard,activeWeapon:'ranged'}),'longpoint');
+ assert.equal(publicWeaponVisual({...char,activeWeapon:'weapon'}),'longpoint-stowed','a Surveyor in melee mode carries the rifle stowed');
+ assert.equal(publicWeaponVisual(null),null);
 });
 
 test('existing rich VFX takes the held prop origin only for ranged auto attacks, otherwise uses original chest origin',()=>{

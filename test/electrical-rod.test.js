@@ -277,3 +277,18 @@ test('combat shortens the idle cadence without exceeding the per-weapon bound',(
   assert.ok(combat<=2*Math.ceil(3/ROD_VFX.combatCadence)+2);
  }finally{fx.dispose();rod.dispose();}
 });
+test('every class has a complete, distinct rod colourway applied to model and corona; untrusted ids fall back',async()=>{
+ const {ROD_PALETTES,rodPalette,DEFAULT_ROD_PALETTE}=await import('../client/src/rod-palette.js');
+ const {CLASSES}=await import('../shared/content.js');
+ const keys=Object.keys(DEFAULT_ROD_PALETTE);
+ for(const cls of Object.keys(CLASSES)){const pal=rodPalette(cls);assert.deepEqual(Object.keys(pal).sort(),[...keys].sort(),cls);}
+ const glows=Object.values(ROD_PALETTES).map(p=>p.inlayGlow);assert.equal(new Set(glows).size,glows.length,'colourways are distinct');
+ for(const bad of ['__proto__','constructor','missing',null,7])assert.equal(rodPalette(bad),DEFAULT_ROD_PALETTE);
+ const rod=createElectricalRod({independentEmission:true,palette:rodPalette('surveyor')});
+ try{
+  assert.equal(rod.palette.name,'Amber');
+  const inlay=rod.group.getObjectByName('RodRight_inlay').material;assert.equal(inlay.emissive.getHex(),ROD_PALETTES.surveyor.inlayGlow);
+  assert.equal(rod.halves[0].getObjectByName('RodEmitterGlow0').material.color.getHex(),ROD_PALETTES.surveyor.tip);
+ }finally{rod.dispose();}
+ const plain=createElectricalRod();try{assert.equal(plain.group.getObjectByName('RodRight_inlay').material.emissive.getHex(),DEFAULT_ROD_PALETTE.inlayGlow,'exports keep cobalt');}finally{plain.dispose();}
+});

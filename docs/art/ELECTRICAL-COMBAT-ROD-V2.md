@@ -27,3 +27,7 @@ Candidate on `feat/vanguard-ranged-slot-rod-vfx`. Presentation only: damage, rea
 - **Stowed.** While the ranged weapon is active the joined rod is carried diagonally across the back (`spine_03`), unlit, and keeps its saved configuration. Drawing it plays a draw discharge.
 
 Evidence: `test/e2e/weapon-switch.mjs` captures idle joined/dual, transform, stowed, ranged fire, dual and joined contact and residual crackle under software GL. No real-GPU performance or owner visual acceptance is claimed.
+
+### Update — class colourways and cross-class use — 2026-11-20
+
+The rod is no longer Vanguard-only. Each class carries it in its own colourway (`client/src/rod-palette.js`: Vanguard cobalt, Symbiotech verdant, Keeper resonant violet, Surveyor amber), applied to the inlay and energy-channel materials, the weapon-local corona and the shared-engine discharge layers. The colourway is chosen from the wielder's public class; untrusted values fall back to cobalt, and exports remain cobalt. Strike timing follows main's combat cadence (0.8 s melee swings at unchanged damage per second). Any class's ability cast surges a held rod. The stowed rod is carried while the ranged mode is active, and a Longpoint is carried crossing it while the melee mode is active.

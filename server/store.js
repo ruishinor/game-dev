@@ -15,7 +15,7 @@ import { appearanceString } from '../shared/appearance.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
-import { migrateWeaponSlots, sanitizeActiveWeapon, equippedWeapon } from '../shared/weapons.js';
+import { migrateWeaponSlots, sanitizeActiveWeapon } from '../shared/weapons.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
 import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
@@ -120,7 +120,7 @@ function sanitize(raw) {
   }
   if(c.cls==='vanguard'&&c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
   const activeWeapon=sanitizeActiveWeapon(raw.activeWeapon);
-  if(activeWeapon&&equippedWeapon(c,activeWeapon))c.activeWeapon=activeWeapon;
+  if(activeWeapon)c.activeWeapon=activeWeapon;
   return c;
 }
 

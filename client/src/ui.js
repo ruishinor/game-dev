@@ -30,7 +30,7 @@ import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas } from './world-atlas.js';
 import { reachMinimapArt } from './minimap-art.js';
 import { paintedAbilityArt } from './ability-art.js';
-import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,WEAPON_ACTIONS} from './hotkey-bindings.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,WEAPON_ACTIONS,EMOTE_ACTIONS} from './hotkey-bindings.js';
 import {COMPANION_ACTION,defaultHotbar,loadHotbar,storeHotbar,editHotbar,normalizeHotbar} from './hotbar-layout.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
@@ -781,8 +781,9 @@ export class UI {
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
       ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
-      [this.a.bindings?.label('weapon:switch') || 'X', 'Switch weapon: main weapon ↔ ranged weapon (both must be equipped). Works in combat. Remap in Settings.'],
-      [this.a.bindings?.label('weapon:config') || 'Z', 'Electrical Combat Rod: joined rod ↔ dual batons, out of combat with the rod active.'],
+      [this.a.bindings?.label('weapon:switch') || 'Z', 'Switch weapon: melee ↔ ranged (every class; an empty slot uses your innate attack). Works in combat. Remap in Settings → Keybindings.'],
+      [this.a.bindings?.label('weapon:config') || 'G', 'Electrical Combat Rod: joined rod ↔ dual batons, out of combat with the rod drawn.'],
+      [this.a.bindings?.label('emote:sit') || 'X', 'Sit down / stand up. Moving, attacking or abilities stand you up.'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
@@ -1081,6 +1082,8 @@ export class UI {
     addRows('Companion bar','companion',COMPANION_SLOTS);
     panel.append(h('h3',null,'Weapon actions'));
     for(const [action,label] of Object.entries(WEAPON_ACTIONS))addRow(action,label,label);
+    panel.append(h('h3',null,'Emotes'));
+    for(const [action,label] of Object.entries(EMOTE_ACTIONS))addRow(action,label,label);
     const reset=h('button',null,'Restore default hotkeys');
     reset.addEventListener('click',()=>{this.a.bindings?.reset();this.refreshHotkeys();this.keyError.textContent='Default shortcuts restored.';});
     panel.append(reset);this.keyPanel=panel;root.append(panel);
@@ -1122,42 +1125,36 @@ export class UI {
   /** Per-frame state of the weapon actions, mirroring (not replacing) server rules. */
   updateWeaponActions(me, you) {
     const s = this.sheet;
-    const vanguard = s?.cls === 'vanguard';
-    const show = !!s && (vanguard || canSwitchWeapons(s));
-    this.weaponBar.hidden = !show;
-    if (!show) return;
+    this.weaponBar.hidden = !s || !canSwitchWeapons(s);
+    if (this.weaponBar.hidden) return;
     const busy = me.dead ? 'Unavailable while defeated.' : you.inscription ? 'Finish or cancel the current inscription.' : you.production ? 'Finish or cancel production first.' : '';
-    // Switch weapon
-    const active = activeWeaponSlot(s), main = equippedWeapon(s, 'weapon'), ranged = equippedWeapon(s, 'ranged');
+    const key = action => this.a.bindings?.get(action) ? ' (' + this.a.bindings.label(action) + ')' : '';
+    // Switch weapon mode: every class has melee and ranged; an empty slot uses the innate attack.
+    const active = activeWeaponSlot(s), other = active === 'ranged' ? 'weapon' : 'ranged';
+    const modeName = slot => { const id = equippedWeapon(s, slot); return id ? ITEMS[id].name : (slot === 'ranged' ? 'Innate ranged attack' : 'Unarmed melee'); };
     const sw = this.weaponSwitch, cdMs = you.weaponSwitchMs || 0;
-    const switchWhy = busy || (!main && !ranged ? 'Equip a main and a ranged weapon.' : !ranged ? 'Equip a ranged weapon in the Ranged slot.' : !main ? 'Equip a main weapon (Weapon slot).' : '');
-    const activeName = active ? ITEMS[equippedWeapon(s, active)].name : 'Unarmed';
-    const nextName = active === 'ranged' ? (main ? ITEMS[main].name : '') : (ranged ? ITEMS[ranged].name : '');
-    this.weaponState['weapon:switch'] = { text: `Active: ${activeName}.` + (nextName ? ` Switches to ${nextName}. Usable in combat; 1s recovery.` : ''), why: switchWhy };
-    const swIcon = active === 'ranged' ? 'weapon_ranged' : main ? (s.electricalRodMode === 'dual' ? 'weapon_dual' : 'weapon_rod') : 'weapon_empty';
+    this.weaponState['weapon:switch'] = { text: `Active: ${active === 'ranged' ? 'Ranged' : 'Melee'} — ${modeName(active)}. Switches to ${other === 'ranged' ? 'ranged' : 'melee'}: ${modeName(other)}. Usable in combat; ${WEAPON_SWITCH.cooldownMs / 1000}s recovery.`, why: busy };
+    const swIcon = active === 'ranged' ? 'weapon_ranged' : equippedWeapon(s, 'weapon') === 'electrical_combat_rod' ? (s.electricalRodMode === 'dual' ? 'weapon_dual' : 'weapon_rod') : equippedWeapon(s, 'weapon') ? 'weapon_rod' : 'weapon_empty';
     if (sw.el.dataset.icon !== swIcon) { sw.el.dataset.icon = swIcon; sw.el.querySelector('.icon').innerHTML = ICONS[swIcon]; }
-    sw.el.dataset.active = active || 'none';
-    sw.el.disabled = !!switchWhy;
-    sw.el.classList.toggle('unusable', !!switchWhy);
+    sw.el.dataset.active = active;
+    sw.el.disabled = !!busy;
+    sw.el.classList.toggle('unusable', !!busy);
     sw.el.classList.toggle('active', active === 'ranged');
     set(sw.cd, '--cd', cdMs > 0 ? String(Math.min(1, cdMs / WEAPON_SWITCH.cooldownMs).toFixed(2)) : '0');
-    sw.el.setAttribute('aria-label', `Switch weapon. Active: ${activeName}` + (switchWhy ? `. Unavailable: ${switchWhy}` : ''));
-    // Rod configuration
+    sw.el.setAttribute('aria-label', `Switch weapon. Active: ${active === 'ranged' ? 'ranged' : 'melee'}, ${modeName(active)}` + (busy ? `. Unavailable: ${busy}` : ''));
+    // Rod configuration (any class carrying the rod).
     const rc = this.rodConfig;
-    rc.el.hidden = !vanguard;
-    if (vanguard) {
-      const hasRod = main === 'electrical_combat_rod', dual = s.electricalRodMode === 'dual';
-      const combat = !!(me.row?.f & 8);
-      const why = !hasRod ? 'Equip the Electrical Combat Rod (Weapon slot).' : busy || (!electricalRodActive(s) ? `Select the rod as your active weapon first${this.a.bindings?.get('weapon:switch') ? ' (' + this.a.bindings.label('weapon:switch') + ')' : ''}.` : combat ? 'Unavailable in combat.' : you.auto ? 'Stop auto-attack first (R).' : '');
-      const icon = dual ? 'weapon_dual' : 'weapon_rod';
-      if (rc.el.dataset.icon !== icon) { rc.el.dataset.icon = icon; rc.el.querySelector('.icon').innerHTML = ICONS[icon]; }
-      rc.el.dataset.mode = hasRod ? (dual ? 'dual' : 'rod') : 'none';
-      rc.el.disabled = !!why;
-      rc.el.classList.toggle('unusable', !!why);
-      rc.el.classList.toggle('active', hasRod && dual);
-      this.weaponState['weapon:config'] = { text: hasRod ? `Current: ${dual ? 'Dual batons' : 'Joined rod'}. Switches to ${dual ? 'the joined rod' : 'dual batons'}. Out of combat only; kept while the rod is stowed.` : 'Cycles the Electrical Combat Rod between joined rod and dual batons.', why };
-      rc.el.setAttribute('aria-label', `Rod configuration: ${hasRod ? (dual ? 'dual batons' : 'joined rod') : 'no rod equipped'}` + (why ? `. Unavailable: ${why}` : ''));
-    }
+    const hasRod = equippedWeapon(s, 'weapon') === 'electrical_combat_rod', dual = s.electricalRodMode === 'dual';
+    const combat = !!(me.row?.f & 8);
+    const why = !hasRod ? 'Equip the Electrical Combat Rod (Weapon slot).' : busy || (!electricalRodActive(s) ? `Select melee to draw the rod first${key('weapon:switch')}.` : combat ? 'Unavailable in combat.' : you.auto ? 'Stop auto-attack first (R).' : '');
+    const icon = dual ? 'weapon_dual' : 'weapon_rod';
+    if (rc.el.dataset.icon !== icon) { rc.el.dataset.icon = icon; rc.el.querySelector('.icon').innerHTML = ICONS[icon]; }
+    rc.el.dataset.mode = hasRod ? (dual ? 'dual' : 'rod') : 'none';
+    rc.el.disabled = !!why;
+    rc.el.classList.toggle('unusable', !!why);
+    rc.el.classList.toggle('active', hasRod && dual);
+    this.weaponState['weapon:config'] = { text: hasRod ? `Current: ${dual ? 'Dual batons' : 'Joined rod'}. Switches to ${dual ? 'the joined rod' : 'dual batons'}. Out of combat only; kept while the rod is stowed.` : 'Cycles the Electrical Combat Rod between joined rod and dual batons.', why };
+    rc.el.setAttribute('aria-label', `Rod configuration: ${hasRod ? (dual ? 'dual batons' : 'joined rod') : 'no rod equipped'}` + (why ? `. Unavailable: ${why}` : ''));
   }
 
   hover(el, makeTip) {

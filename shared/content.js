@@ -30,8 +30,8 @@ export const CLASSES = {
     primary: 'kinetics',
     threatMul: 2.2,
     auto: { range: 3.6, interval: 800, dmg: 4, kind: 'melee' },
-    // Provisional playtest profile while a ranged-slot weapon is the selected
-    // active weapon. The ranged item's own bonus/reach still applies on top.
+    // Off-mode profile (ranged). Every class has a melee and a ranged attack;
+    // the off-mode is a provisional playtest value at 70% of the primary DPS.
     rangedAuto: { range: 20, interval: 1000, dmg: 3.5, kind: 'bolt' },
     abilities: ['rending_arc', 'graviton_tether', 'kinetic_ward', 'discharge'],
     companion: null,
@@ -49,6 +49,8 @@ export const CLASSES = {
     primary: 'biotech',
     threatMul: 1,
     auto: { range: 26, interval: 1000, dmg: 2.5, kind: 'bolt' },
+    // Off-mode profile (melee), provisional: about 70% of the primary DPS.
+    meleeAuto: { range: 3.6, interval: 800, dmg: 1.4, kind: 'melee' },
     abilities: ['neural_lash', 'mending_graft', 'spore_snare', 'overgrowth_surge'],
     companion: 'mender',
   },
@@ -58,6 +60,8 @@ export const CLASSES = {
     baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
     skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
     auto:{range:22,interval:1000,dmg:3,kind:'bolt'},
+    // Off-mode profile (melee), provisional: about 70% of the primary DPS.
+    meleeAuto:{range:3.6,interval:800,dmg:1.7,kind:'melee'},
     abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition'],companion:null,
   },
   surveyor: {
@@ -67,6 +71,8 @@ export const CLASSES = {
     resource: { id: 'cells', name: 'Power Cells', max: 100, start: 60, regen: 0, decay: 0 },
     skills: { kinetics: 5, biotech: 3, instrumentation: 10 }, primary: 'instrumentation', threatMul: 1,
     auto: { range: 22, interval: 900, dmg: 3.5, kind: 'bolt' },
+    // Off-mode profile (melee), provisional: about 70% of the primary DPS.
+    meleeAuto: { range: 3.6, interval: 800, dmg: 2.2, kind: 'melee' },
     abilities: ['fault_scan', 'core_bore', 'field_rig', 'controlled_blast'], companion: null,
   },
 };
@@ -400,7 +406,7 @@ export const ITEMS = {
   field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
   reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
   resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
-  electrical_combat_rod:{name:'Electrical Combat Rod',slot:'weapon',cls:'vanguard',ql:2,repairable:true,autoBonus:3,rarity:'Common',summary:'QL 2 · +3 base melee auto-attack damage at full condition',desc:'A matched pair of insulated shock batons locked into a conductive combat rod. Vanguard field weapon, sold by the Sanctum quartermaster. Uses existing melee attacks; no additional stun or reach effect.'},
+  electrical_combat_rod:{name:'Electrical Combat Rod',slot:'weapon',ql:2,repairable:true,autoBonus:3,rarity:'Common',summary:'QL 2 · +3 base melee auto-attack damage at full condition',desc:'A matched pair of insulated shock batons locked into a conductive combat rod. Field weapon usable by every class, sold by the Sanctum quartermaster. Uses existing melee attacks; no additional stun or reach effect.'},
   field_emitter:{name:'Field Pulse Emitter',slot:'ranged',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
   tuned_emitter:{name:'Tuned Pulse Emitter',slot:'ranged',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
   dense_pulse_core:{name:'Dense Pulse Core',slot:'ranged',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},

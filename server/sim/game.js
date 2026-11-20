@@ -8,6 +8,7 @@ import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { activeWeaponSlot, electricalRodActive } from '../../shared/weapons.js';
+import { tickPosture } from './posture.js';
 import { publicArmourVisual, sameArmourVisual } from '../../shared/armour-visual.js';
 import { publicSocialVisual } from '../../shared/social-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
@@ -387,6 +388,7 @@ export class Game {
       this.tickFollow(p,dt);
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
+      tickPosture(this, p);
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
@@ -425,10 +427,11 @@ export class Game {
         r: r2(p.yaw),
         h: Math.max(0, Math.ceil(p.hp)),
         m: p.maxHp,
-        f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
+        // 16: seated (sit/stand emote), public presentation only.
+        f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0) | (p.sitting ? 16 : 0),
         t: p.target,
         // Rod appearance: 1 joined / 2 dual in hand, 3 stowed while the ranged weapon is active.
-        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:!electricalRodActive(p.char)?3:p.char.electricalRodMode==='dual'?2:1}:{}),
+        ...(p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:!electricalRodActive(p.char)?3:p.char.electricalRodMode==='dual'?2:1}:{}),
         ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: blastRadiusFor(p) } } : {}),

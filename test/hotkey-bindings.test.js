@@ -36,19 +36,20 @@ test('malformed or duplicated saved mapping falls back safely',()=>{
 });
 test('weapon actions default to free keys, resolve, remap with named conflicts and reset alone',()=>{
  const store=storage(),b=new ActionBindings(store);
- assert.equal(b.get('weapon:switch'),'KeyX');assert.equal(b.get('weapon:config'),'KeyZ');
+ assert.equal(b.get('weapon:switch'),'KeyZ');assert.equal(b.get('weapon:config'),'KeyG');assert.equal(b.get('emote:sit'),'KeyX');
  const defaults=Object.values(new ActionBindings(storage()).map).filter(Boolean);
  assert.equal(new Set(defaults).size,defaults.length,'every default is unique');
  for(const chord of defaults)assert.ok(bindingPermitted(chord),chord);
- assert.equal(b.resolve({code:'KeyX',key:'x',shiftKey:false,ctrlKey:false,altKey:false,metaKey:false}),'weapon:switch');
- assert.equal(b.resolve({code:'KeyX',key:'X',shiftKey:true,ctrlKey:false,altKey:false,metaKey:false}),null);
- assert.match(b.set('ability:1','KeyX').reason,/Switch weapon/);
+ assert.equal(b.resolve({code:'KeyZ',key:'z',shiftKey:false,ctrlKey:false,altKey:false,metaKey:false}),'weapon:switch');
+ assert.equal(b.resolve({code:'KeyX',key:'x',shiftKey:false,ctrlKey:false,altKey:false,metaKey:false}),'emote:sit');
+ assert.equal(b.resolve({code:'KeyZ',key:'Z',shiftKey:true,ctrlKey:false,altKey:false,metaKey:false}),null);
+ assert.match(b.set('ability:1','KeyZ').reason,/Switch weapon/);assert.match(b.set('ability:1','KeyX').reason,/Sit \/ stand/);
  assert.equal(bindingPermitted('Slash'),false,'chat command key stays reserved');
- assert.ok(b.set('weapon:switch','KeyG').ok);assert.ok(b.set('ability:2','KeyT').ok);
- assert.equal(new ActionBindings(store).get('weapon:switch'),'KeyG');
+ assert.ok(b.set('weapon:switch','KeyN').ok);assert.ok(b.set('ability:2','KeyT').ok);
+ assert.equal(new ActionBindings(store).get('weapon:switch'),'KeyN');
  b.reset(['weapon:switch','weapon:config']);
- assert.equal(b.get('weapon:switch'),'KeyX');assert.equal(b.get('ability:2'),'KeyT','partial reset keeps other remaps');
- b.set('ability:3','KeyZ');b.set('weapon:config',null);b.set('ability:3','KeyZ');
+ assert.equal(b.get('weapon:switch'),'KeyZ');assert.equal(b.get('ability:2'),'KeyT','partial reset keeps other remaps');
+ b.set('weapon:config',null);b.set('ability:3','KeyG');
  b.reset(['weapon:config']);
  const bound=Object.values(b.map).filter(Boolean);assert.equal(new Set(bound).size,bound.length,'partial reset never duplicates a key');
 });

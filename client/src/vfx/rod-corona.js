@@ -12,6 +12,7 @@
 // `activity` (attack animation) and `surge` (pulses from transform, draw,
 // charge and contact) escalate every layer; `combat` raises the idle floor.
 import * as THREE from 'three';
+import {DEFAULT_ROD_PALETTE} from '../rod-palette.js';
 
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,Number.isFinite(x)?x:0));
 const CRACKLE_VARIANTS=6;
@@ -48,7 +49,8 @@ function crackleGeometry(rand){
  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,false,'catmullrom',.1),28,.0042,4,false);
 }
 
-export function createRodCorona(halves){
+export function createRodCorona(halves,palette=DEFAULT_ROD_PALETTE){
+ const P=palette;
  const variants=[0,1].map(lane=>{
   const points=[];
   for(let i=0;i<=20;i++){
@@ -68,8 +70,8 @@ export function createRodCorona(halves){
  const glow=radialGlow();
  const groups=halves.map((half,i)=>{
   const group=new THREE.Group();group.name='RodCorona'+i;
-  const core=new THREE.MeshBasicMaterial({color:0xc3f6ff,toneMapped:false,transparent:true,opacity:.94,depthWrite:false});
-  const halo=new THREE.MeshBasicMaterial({color:0x249cff,toneMapped:false,transparent:true,opacity:.18,depthWrite:false,blending:THREE.AdditiveBlending});
+  const core=new THREE.MeshBasicMaterial({color:P.core,toneMapped:false,transparent:true,opacity:.94,depthWrite:false});
+  const halo=new THREE.MeshBasicMaterial({color:P.halo,toneMapped:false,transparent:true,opacity:.18,depthWrite:false,blending:THREE.AdditiveBlending});
   const strands=variants.map(([g,h],j)=>{
    const strand=new THREE.Group();strand.name='ElectricalFilament'+j;
    strand.add(new THREE.Mesh(g,core),new THREE.Mesh(h,halo));group.add(strand);return strand;
@@ -77,14 +79,14 @@ export function createRodCorona(halves){
   // Detail layers live in a separate child group so the filament contract
   // (children[0..1] are the helical strands) stays stable.
   const detail=new THREE.Group();detail.name='RodCoronaDetail'+i;
-  const spark=new THREE.MeshBasicMaterial({color:0xe6fbff,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+  const spark=new THREE.MeshBasicMaterial({color:P.spark,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
   const crackle=new THREE.Group();crackle.name='RodCrackle'+i;
   const arcs=crackles.map((g,j)=>{const m=new THREE.Mesh(g,spark);m.name='RodCrackleArc'+j;m.visible=false;crackle.add(m);return m;});
-  const sheathMat=new THREE.MeshBasicMaterial({color:0x3fb8ff,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
-  const outerMat=new THREE.MeshBasicMaterial({color:0x2a64ff,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  const sheathMat=new THREE.MeshBasicMaterial({color:P.sheath,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  const outerMat=new THREE.MeshBasicMaterial({color:P.outer,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
   const sheath=new THREE.Mesh(sheathGeometry,sheathMat);sheath.name='RodPlasmaSheath'+i;
   const outer=new THREE.Mesh(outerGeometry,outerMat);outer.name='RodPlasmaHalo'+i;
-  const tipMat=new THREE.SpriteMaterial({map:glow,color:0xbff4ff,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+  const tipMat=new THREE.SpriteMaterial({map:glow,color:P.tip,toneMapped:false,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
   const tip=new THREE.Sprite(tipMat);tip.name='RodEmitterGlow'+i;tip.position.y=.735;
   for(const o of [sheath,outer,tip,...arcs])o.renderOrder=2;
   detail.add(crackle,sheath,outer,tip);

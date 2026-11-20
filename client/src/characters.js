@@ -25,6 +25,8 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
+import { rodPalette } from './rod-palette.js';
+import { createSitPose } from './sit-pose.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
@@ -246,18 +248,43 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     else if(!stow&&rodHeld){rodHand.add(g);g.position.copy(rodHeld.position);g.quaternion.copy(rodHeld.quaternion);}
     g.name=stow?'StowedElectricalCombatRod':'HeldElectricalCombatRod';
   }
-  let weapon = null, visual = null;
+  let weapon = null, visual = null, stowedRifle = null;
+  // Stowed rifle: across the back, crossing the stowed rod's diagonal. The
+  // bone-local transform is captured once in bind pose (like the rod's).
+  let rifleStow = null;
+  if (rodBack) {
+    const probe = new THREE.Object3D();
+    probe.position.set(0, 1.22, -.46);
+    const x = new THREE.Vector3(-.5, 1, 0).normalize(), y = new THREE.Vector3(0, 0, -1);
+    y.addScaledVector(x, -y.dot(x)).normalize();
+    probe.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, new THREE.Vector3().crossVectors(x, y)));
+    inst.add(probe); probe.updateMatrixWorld(true); rodBack.attach(probe);
+    rifleStow = { position: probe.position.clone(), quaternion: probe.quaternion.clone() };
+    probe.removeFromParent();
+  }
   function setWeaponVisual(next) {
-    next = next === 'longpoint' ? next : null;
+    next = next === 'longpoint' || next === 'longpoint-stowed' ? next : null;
     if (next === visual) return;
-    weapon?.dispose(); weapon = null; visual = next;
+    weapon?.dispose(); weapon = null;
+    if (stowedRifle) { stowedRifle.removeFromParent(); disposeInstance(stowedRifle); stowedRifle = null; }
+    visual = next;
     if (!next) return;
-    const prop = assets.instance(next);
+    const prop = assets.instance('longpoint');
     if (!prop) return;
+    if (next === 'longpoint-stowed') {
+      if (!rifleStow) { disposeInstance(prop); return; }
+      prop.scale.setScalar(.43); prop.name = 'StowedLongpoint';
+      prop.position.copy(rifleStow.position); prop.quaternion.copy(rifleStow.quaternion);
+      rodBack.add(prop); stowedRifle = prop;
+      return;
+    }
     weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
     if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
+  // Sit/stand emote: procedural seated pose layered on the sampled animation.
+  const sitPose = createSitPose(THREE, inst);
+  let sitBlend = 0;
   // Worn armour (presentation metadata `av`: slot -> item, or a legacy chest
   // id): each slot's piece is loaded on first use and bound to this skeleton.
   const armours = new Map();
@@ -313,6 +340,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     rodContact(at,ground,blocked=false){
       return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
+    sitState:()=>({blend:sitBlend,available:!!sitPose}),
     rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
@@ -339,17 +367,20 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const step = throttle(lod, dt, st.interval);
       // Both cosmetic systems own the arm rotations. Restore before sampling
       // animation, and give fabrication exclusive priority over weapon carry.
+      const seated = !!st.sitting && !st.dead && !st.air;
+      sitBlend = st.reducedMotion ? (seated ? 1 : 0) : Math.max(0, Math.min(1, sitBlend + (seated ? 1 : -1) * dt / .35));
       if (step) {
         weapon?.restore();
         work.restorePose();
         anim.update(step);
         if (working) work.pose(st.work, st.t, st.reducedMotion);
+        else if (sitBlend > 0) sitPose?.apply(sitBlend * sitBlend * (3 - 2 * sitBlend));
       }
-      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
-        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy },step||dt);
+      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy || sitBlend > 0))
+        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy || sitBlend > 0 },step||dt);
       const stowed=st.electricalRod==='stowed';
       if(st.electricalRod&&!heldRod&&rodHand&&(!stowed||rodStow)){
-        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
+        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm,palette:rodPalette(st.rodClass)});
         heldRod.setMode(stowed?'rod':st.electricalRod);heldRod.update(0,{reducedMotion:true});
         rodHeld={position:heldRod.group.position.clone(),quaternion:heldRod.group.quaternion.clone()};
         // A rod first seen in hand needs no draw flourish; one first seen stowed starts stowed.

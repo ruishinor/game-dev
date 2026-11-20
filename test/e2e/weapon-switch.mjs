@@ -32,11 +32,11 @@ try{
  const bar=page.locator('.weaponbar'),switchBtn=bar.locator('[data-action="weapon:switch"]'),configBtn=bar.locator('[data-action="weapon:config"]');
  const view=page.locator('#view');
 
- // 1. Unavailable states with no weapons: visible, disabled and explained.
+ // 1. With no weapons: switching melee/ranged is available (innate attacks); rod configuration is unavailable and explained.
  await bar.waitFor({state:'visible'});
- assert.ok(await switchBtn.isDisabled());assert.match(await switchBtn.getAttribute('aria-label'),/Unavailable: Equip a main and a ranged weapon/);
+ assert.ok(!(await switchBtn.isDisabled()));assert.match(await switchBtn.getAttribute('aria-label'),/Active: melee, Unarmed melee/);
  assert.ok(await configBtn.isDisabled());assert.match(await configBtn.getAttribute('aria-label'),/no rod equipped/);
- assert.equal(await switchBtn.locator('.key').innerText(),'X');assert.equal(await configBtn.locator('.key').innerText(),'Z');
+ assert.equal(await switchBtn.locator('.key').innerText(),'Z');assert.equal(await configBtn.locator('.key').innerText(),'G');
 
  // 2. Ownership fixture, then equip both through the regular loadout UI.
  p.char.inventory.push('electrical_combat_rod','field_emitter');server.game.markDirty(p);
@@ -64,7 +64,7 @@ try{
  await shot('02-joined-idle-standing');
 
  // 4. Rod configuration via the hotbar binding, out of combat, with transform evidence.
- await view.focus();await page.keyboard.press('KeyZ');
+ await view.focus();await page.keyboard.press('KeyG');
  await until(()=>{const s=window.__attune.state();return s.sheet.electricalRodMode==='dual'&&s.ents.find(e=>e.id===s.myId)?.row?.er===2;});
  await page.waitForTimeout(450);await shot('03-transform-to-dual');
  assert.equal(await configBtn.getAttribute('data-mode'),'dual');
@@ -72,11 +72,11 @@ try{
  // Hover explains the action, its binding and current state.
  await configBtn.hover();
  const tip=page.locator('.tooltip');await tip.waitFor({state:'visible'});
- assert.match(await tip.innerText(),/Rod configuration \(Z\)[\s\S]*Current: Dual batons/);
+ assert.match(await tip.innerText(),/Rod configuration \(G\)[\s\S]*Current: Dual batons/);
  // The hotbar button itself also works (pointer path) and returns to joined.
  await configBtn.click();
  await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
- await view.focus();await page.keyboard.press('KeyZ');
+ await view.focus();await page.keyboard.press('KeyG');
  await until(()=>window.__attune.state().sheet.electricalRodMode==='dual');
 
  // 5. Text entry focus: typing the hotkeys into chat does not fire combat actions.
@@ -97,26 +97,26 @@ try{
  const change=keys.locator('[data-binding="weapon:switch"]');
  await change.click();await page.keyboard.press('Digit1');
  assert.match(await keys.locator('.keybind-error').innerText(),/Already assigned to ability:1/);
- await change.click();await page.keyboard.press('KeyG');
+ await change.click();await page.keyboard.press('KeyN');
  assert.match(await keys.locator('.keybind-error').innerText(),/Binding saved/);
- assert.equal(await change.innerText(),'G');
+ assert.equal(await change.innerText(),'N');
  // While capturing, the key never reached the game: nothing switched.
  assert.equal((await state()).active,'weapon');
  await keys.getByRole('button',{name:'Back to Settings',exact:true}).click();
  await settings.getByRole('button',{name:'Close settings'}).click();
- assert.equal(await switchBtn.locator('.key').innerText(),'G');
- await view.focus();await page.keyboard.press('KeyX');
+ assert.equal(await switchBtn.locator('.key').innerText(),'N');
+ await view.focus();await page.keyboard.press('KeyZ');
  await page.waitForTimeout(500);assert.equal((await state()).active,'weapon','old key unbound');
- await page.keyboard.press('KeyG');
+ await page.keyboard.press('KeyN');
  await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
  const stowed=await state();
  assert.equal(stowed.er,3);assert.equal(stowed.mode,'dual','configuration retained while stowed');
  await until(()=>{const r=window.__attune.gfx.scene.getObjectByName('StowedElectricalCombatRod');return /^spine_0/.test(r?.parent?.name||'')&&r.visible;});
  // Config is unavailable while the rod is stowed, and says why.
- assert.ok(await configBtn.isDisabled());assert.match(await configBtn.getAttribute('aria-label'),/Select the rod as your active weapon first \(G\)/);
+ assert.ok(await configBtn.isDisabled());assert.match(await configBtn.getAttribute('aria-label'),/Select melee to draw the rod first \(N\)/);
  await switchBtn.hover();await tip.waitFor({state:'visible'});
- assert.match(await tip.innerText(),/Switch weapon \(G\)[\s\S]*Active: Field Pulse Emitter/);
- await page.keyboard.press('KeyZ');await page.waitForTimeout(400);assert.equal(p.char.electricalRodMode,'dual');
+ assert.match(await tip.innerText(),/Switch weapon \(N\)[\s\S]*Active: Ranged — Field Pulse Emitter/);
+ await page.keyboard.press('KeyG');await page.waitForTimeout(400);assert.equal(p.char.electricalRodMode,'dual');
  await page.evaluate(()=>window.__attune.view({yaw:Math.PI*.15,pitch:.2,dist:3.4}));
  await shot('05-ranged-active-rod-stowed');
  await view.focus();await page.keyboard.press('KeyO');
@@ -125,7 +125,7 @@ try{
  await keys.getByRole('button',{name:'Restore default hotkeys',exact:true}).click();
  await keys.getByRole('button',{name:'Back to Settings',exact:true}).click();
  await settings.getByRole('button',{name:'Close settings'}).click();
- assert.equal(await switchBtn.locator('.key').innerText(),'X');
+ assert.equal(await switchBtn.locator('.key').innerText(),'Z');
 
  // 7. Combat: isolated enemy; ranged auto-attack from beyond melee reach.
  p.hp=p.maxHp;
@@ -159,18 +159,14 @@ try{
  assert.ok(Math.hypot(p.x-enemy.x,p.z-enemy.z)>CLASSES.vanguard.auto.range+2,'from beyond melee reach');
  await shot('06-ranged-fire');
 
- // 8. Switch in combat; the next swing is delayed, not advanced; quick re-switch is refused.
+ // 8. Switch in combat; the next swing is delayed, not advanced (recovery timing is covered by Node tests).
  assert.ok(server.game.time<p.combatUntil,'in combat');
  const nextBefore=p.nextAuto;
- await page.keyboard.press('KeyX');
+ await page.keyboard.press('KeyZ');
  await until(()=>window.__attune.state().sheet.activeWeapon==='weapon');
  assert.ok(p.nextAuto>=nextBefore,'switching never advances the next auto-attack');
- await page.keyboard.press('KeyX');
- await page.waitForTimeout(250);
- assert.equal(p.char.activeWeapon,'weapon','switch recovery refuses an immediate second switch');
- assert.ok(server.game.time<p.weaponSwitchReady);
  // Config is refused in combat (existing rule) and the hotbar says so.
- await page.keyboard.press('KeyZ');await page.waitForTimeout(300);assert.equal(p.char.electricalRodMode,'dual');
+ await page.keyboard.press('KeyG');await page.waitForTimeout(300);assert.equal(p.char.electricalRodMode,'dual');
  assert.match(await configBtn.getAttribute('aria-label'),/Unavailable in combat|Stop auto-attack/);
  // Close in for melee: the dual configuration strikes with the rod.
  const near=clearCombatSpot(enemy,0,1.6);p.x=near.x;p.z=near.z;p.yaw=Math.atan2(enemy.x-near.x,enemy.z-near.z);
@@ -186,7 +182,7 @@ try{
  // Fixture: software-GL captures take real seconds while the server keeps
  // simulating; restore health so slow evidence frames cannot decide the fight.
  p.hp=p.maxHp;
- await page.keyboard.press('KeyZ');
+ await page.keyboard.press('KeyG');
  await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
  await page.waitForTimeout(1200);
  const near2=clearCombatSpot(second,0,1.6);p.x=near2.x;p.z=near2.z;p.yaw=Math.atan2(second.x-near2.x,second.z-near2.z);
@@ -202,14 +198,14 @@ try{
  await page.waitForTimeout(500);await shot('09-joined-residual');
 
  // 10. Switch to ranged and back (in combat) keeps the rod configuration.
- await page.keyboard.press('KeyX');await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
+ await page.keyboard.press('KeyZ');await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
  await page.waitForTimeout(WEAPON_SWITCH.cooldownMs+200);
- await page.keyboard.press('KeyX');await until(()=>window.__attune.state().sheet.activeWeapon==='weapon');
+ await page.keyboard.press('KeyZ');await until(()=>window.__attune.state().sheet.activeWeapon==='weapon');
  assert.equal((await state()).mode,'rod');assert.equal((await state()).er,1);
  p.hp=p.maxHp;await finish(second);
 
  // 11. Reload: equipped slots, active selection and configuration persist.
- await page.keyboard.press('KeyX');await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
+ await page.keyboard.press('KeyZ');await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
  await page.reload();
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2;});
  await paused(true);
@@ -218,15 +214,29 @@ try{
  p=await liveFixturePlayer(page,server,'Switch Tester');
  assert.equal(p.char.inventory.filter(id=>id==='electrical_combat_rod').length,1,'no duplicated item state');
 
- // 12. Empty ranged slot: the switch action becomes unavailable and the rod is active.
+ // 12. Empty ranged slot: removing the weapon in use falls back to the rod; switching
+ // stays available and selects the class's innate ranged attack.
  await view.focus();await page.keyboard.press('KeyC');
  await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
  await loadout.getByRole('button',{name:'Ranged: Field Pulse Emitter',exact:true}).press('Shift+F10');
  await page.locator('.player-context').getByRole('button',{name:'Unequip',exact:true}).click();
  await until(()=>{const s=window.__attune.state();return !s.sheet.equipped.ranged&&s.sheet.activeWeapon==='weapon';});
  await loadout.getByRole('button',{name:'Close',exact:true}).click();
- assert.ok(await switchBtn.isDisabled());assert.match(await switchBtn.getAttribute('aria-label'),/Equip a ranged weapon in the Ranged slot/);
- assert.equal((await state()).er,1);
+ assert.ok(!(await switchBtn.isDisabled()));assert.equal((await state()).er,1);
+ await view.focus();await page.keyboard.press('KeyZ');
+ await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');
+ assert.equal((await state()).er,3,'rod stowed while the innate ranged attack is active');
+ await page.waitForTimeout(WEAPON_SWITCH.cooldownMs+200);
+ await page.keyboard.press('KeyZ');await until(()=>window.__attune.state().sheet.activeWeapon==='weapon');
+
+ // 13. Sit / stand emote (X): seated flag replicated; moving stands up.
+ const seated=()=>page.evaluate(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return !!(me?.row?.f&16);});
+ assert.equal(await seated(),false,'typing x in chat earlier did not sit');
+ await page.keyboard.press('KeyX');await until(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return me?.row?.f&16;});
+ await page.waitForTimeout(600);await shot('10-seated');
+ await page.keyboard.press('KeyX');await until(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return !(me?.row?.f&16);});
+ await page.keyboard.press('KeyX');await until(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return me?.row?.f&16;});
+ await page.keyboard.down('KeyW');await until(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return !(me?.row?.f&16);});await page.keyboard.up('KeyW');
  assert.deepEqual(errors,[]);
- console.log('PASS Vanguard weapon slots, selection hotkey, rod configuration action, remap, focus routing and persistence');
+ console.log('PASS weapon slots, melee/ranged switch (Z), rod configuration (G), sit/stand (X), remap, focus routing and persistence');
 }finally{await browser?.close();await server.close();}

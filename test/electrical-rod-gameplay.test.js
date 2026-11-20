@@ -28,9 +28,12 @@ test('electrical rod acquisition, class and public presentation are server autho
  p.char.condition={[ID]:50};assert.equal(weaponBonus(p.char),1.5);assert.ok(tradeVendor(g,p,req('repair')).ok);assert.equal(weaponBonus(p.char),3);assert.equal(p.char.credits,16);
  assert.ok(unequipSlot(g,p,'weapon').ok);assert.equal(row().er,undefined);assert.equal(weaponBonus(p.char),0);
  const other=g.addPlayer(makeChar('surveyor',{credits:50}));place(other,npc.x,npc.z+2);assert.ok(openVendor(g,other,npc.id).ok);
- assert.equal(vendorState(g,other).buy.find(row=>row.id===ID).max,0);
- assert.equal(tradeVendor(g,other,{op:'buy',id:ID,qty:1,ticket:other.vendor.ticket,rev:other.vendor.rev}).ok,false);assert.equal(other.char.credits,50);
- other.char.inventory.push(ID);assert.equal(equipItem(g,other,ID).ok,false);
+ // The rod is no longer class-locked: any class can buy, equip and configure it.
+ assert.equal(vendorState(g,other).buy.find(row=>row.id===ID).max,1);
+ assert.ok(tradeVendor(g,other,{op:'buy',id:ID,qty:1,ticket:other.vendor.ticket,rev:other.vendor.rev}).ok);assert.equal(other.char.credits,26);
+ assert.ok(equipItem(g,other,ID).ok);assert.equal(g.buildRows().find(r=>r.i===other.id).er,1);assert.ok(setElectricalRodMode(g,other,'dual').ok);
+ // A unique weapon cannot be bought twice.
+ assert.equal(tradeVendor(g,other,{op:'buy',id:ID,qty:1,ticket:other.vendor.ticket,rev:other.vendor.rev}).ok,false);assert.equal(other.char.credits,26);
 });
 test('purchased rod persists as ordinary condition-bearing equipment',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attune-rod-')),file=path.join(dir,'characters.json');
