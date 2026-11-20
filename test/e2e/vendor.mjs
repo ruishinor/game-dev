@@ -171,7 +171,7 @@ try{
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');assert.equal(p.char.equipped.ranged,'field_emitter');
  // Draw the rod with the default weapon-switch hotkey.
  await inventory.getByRole('button',{name:'Close inventory'}).click();
- await page.locator('#view').focus();await page.keyboard.press('KeyX');
+ await page.locator('#view').focus();await page.keyboard.press('KeyZ');
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.activeWeapon==='weapon'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.ranged,'field_emitter','drawing the rod keeps the emitter equipped');
  await page.keyboard.press('KeyI');await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
