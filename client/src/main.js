@@ -307,7 +307,10 @@ const net = new Net({
   onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
   onAccountReady: showRoster,
   onAccountFail: (reason) => {
-    const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
+    const el = net.accountLogged
+      ? ($('character-roster').hidden ? $('login-error')
+        : $('roster-import-dialog').open ? $('roster-import-error') : $('roster-error'))
+      : $('account-error');
     el.textContent = reason;
     selectionView.setBusy(false);
     if (!net.accountToken && /session expired/i.test(reason)) {
