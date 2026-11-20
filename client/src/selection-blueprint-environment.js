@@ -172,6 +172,14 @@ export function createSelectionEnvironment(scene){
   ring.rotation.set(.25+i*.2,.2+i*.55,.21+i*.33);
   root.add(ring);orbit.push(ring);
  }
+ // Fine celestial seam and faint broken resonance rings from the accepted
+ // gateway imagery. These are decorative VFX on the *real* gate backdrop.
+ const beamMat=material(new THREE.MeshBasicMaterial({
+  color:0xd2c8b9,transparent:true,opacity:.09,
+  depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending
+ }));
+ const beam=new THREE.Mesh(geometry(new THREE.CylinderGeometry(.035,.11,58,10,1,true)),beamMat);
+ beam.position.set(0,34,-12.7);root.add(beam);
  const motesCount=140;
  const positions=new Float32Array(motesCount*3);
  for(let i=0;i<motesCount;i++){
@@ -199,6 +207,7 @@ export function createSelectionEnvironment(scene){
   });
   motes.rotation.y=motion*Math.sin(t*.036)*.016;
   portalLamp.intensity=loaded?1.45+(motion*.13*Math.sin(t*.42)):.5;
+  beamMat.opacity=.075+(motion*.017*Math.sin(t*.21));
  }
  function dispose(){
   disposed=true;
