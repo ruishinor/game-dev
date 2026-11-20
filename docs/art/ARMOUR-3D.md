@@ -115,7 +115,7 @@ Asset: `tools/asset-pipeline/assets/armour_vanguard_set` → `client/assets/armo
 
 Body penetration concentrates where rigid plates cross deforming joints in sprint and punch frames; the shoe and hand shells sit under the boot and glove liners. The gloves' strain on the male body exceeds the limit.
 
-**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (≈100k triangles per full set), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
+**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
 
 ## Roadmap to complete
 
