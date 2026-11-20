@@ -275,9 +275,10 @@ def _build_hardsurface(asset, params):
         d_dir = asset.path("design", key)
         out = asset.dir("build", key)
         tex = {k: (v // 4 if params.get("preview") else v) for k, v in params["texture"].items()}
+        extra = {k: params[k] for k in ("groups", "budget", "lods") if k in params}
         res = run_blender("asset_pipeline.blender.armour_hardsurface", {
             "work": str(asset.work), "out": str(out), "pieces_npz": str(d_dir / "pieces.npz"), "pieces_json": str(d_dir / "pieces.json"),
-            "body_npz": str(d_dir / "body.npz"), "materials": hs_material_specs(asset), "texture": tex,
+            "body_npz": str(d_dir / "body.npz"), "materials": hs_material_specs(asset), "texture": tex, **extra,
             "samples": 4 if params.get("preview") else params.get("samples", 16), "blend_name": f"armour_{key}_source.blend"}, timeout=14400)
         res["hardsurface"] = True
         write_json(out / "build.json", res)
@@ -426,21 +427,29 @@ def stage_rig(asset, params):
         tri = {}
         skin_store = {}
         bdir = asset.path("build", key)
+        group_mats = {}  # shared atlases: one material set per atlas group
         for item, info in build["sets"].items():
             imgs = info["images"]
-            rough = cv2.imread(str(bdir / imgs["roughness"]), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255
-            metal = cv2.imread(str(bdir / imgs["metallic"]), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255
-            orm = np.stack([np.ones_like(rough), rough, metal], -1)
-            tb = w.image((bdir / imgs["basecolor"]).read_bytes(), item + "_basecolor")
-            to = w.image(gi.png_bytes(orm), item + "_orm")
-            tn = w.image((bdir / imgs["normal"]).read_bytes(), item + "_normal")
-            em = None
-            if "emissive" in imgs:
-                ei = cv2.imread(str(bdir / imgs["emissive"]))[..., ::-1].astype(np.float32) / 255
-                es = params.get("emissive_size", 512)
-                em = w.image(gi.png_bytes(cv2.resize(ei, (es, es), interpolation=cv2.INTER_AREA)), item + "_emissive")
-            mat = w.material(f"armour_{item}", base=tb, orm=to, normal=tn, emissive=em,
-                             emissive_factor=(1.0, 1.0, 1.0) if em is not None else (0, 0, 0))
+            gkey = info.get("group", item)
+            if gkey not in group_mats:
+                rough = cv2.imread(str(bdir / imgs["roughness"]), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255
+                metal = cv2.imread(str(bdir / imgs["metallic"]), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255
+                orm = np.stack([np.ones_like(rough), rough, metal], -1)
+                tb = w.image((bdir / imgs["basecolor"]).read_bytes(), gkey + "_basecolor")
+                to = w.image(gi.png_bytes(orm), gkey + "_orm")
+                tn = w.image((bdir / imgs["normal"]).read_bytes(), gkey + "_normal")
+                em = None
+                if "emissive" in imgs:
+                    ei = cv2.imread(str(bdir / imgs["emissive"]))[..., ::-1].astype(np.float32) / 255
+                    es = params.get("emissive_size", 512)
+                    em = w.image(gi.png_bytes(cv2.resize(ei, (es, es), interpolation=cv2.INTER_AREA)), gkey + "_emissive")
+                near = w.material(f"armour_{gkey}", base=tb, orm=to, normal=tn, emissive=None if "group" in info else em,
+                                  emissive_factor=(1.0, 1.0, 1.0) if em is not None and "group" not in info else (0, 0, 0))
+                # distance LODs: the channels are a static emissive map instead of animated strips
+                far = w.material(f"armour_{gkey}_far", base=tb, orm=to, normal=tn, emissive=em,
+                                 emissive_factor=(1.0, 1.0, 1.0)) if "group" in info and em is not None else near
+                group_mats[gkey] = (near, far)
+            mat, far_mat = group_mats[gkey]
             arr = np.load(bdir / info["npz"])
 
             def weights_for(pname, Pp):
@@ -465,11 +474,20 @@ def stage_rig(asset, params):
                     return J, Wt
                 P, N, UV, I = arr["P"], arr["N"], arr["UV"], arr["I"]
                 J, Wt = by_piece(P, arr["piece"])
-                mi = w.mesh(item, P, I, normals=N, uvs=UV, joints=J, weights=Wt, material=mat)
+                mi = w.mesh(item, P, I, normals=N, uvs=UV, joints=J, weights=Wt, material=mat, tangents=arr["T"] if "T" in arr.files else None)
                 # body shells this piece replaces (the runtime hides them while it is worn)
                 hides = params.get("hides", {}).get(item)
                 w.node(item, mesh=mi, skin=skin, **({"extras": {"hides": list(hides)}} if hides else {}))
                 tri[item] = int(len(I))
+                for k in (1, 2, 3):  # distance LODs share the atlas
+                    pre = f"L{k}_"
+                    if pre + "P" not in arr.files:
+                        break
+                    LJ, LW = by_piece(arr[pre + "P"], arr[pre + "piece"])
+                    li = w.mesh(f"{item}__lod{k}", arr[pre + "P"], arr[pre + "I"], normals=arr[pre + "N"], uvs=arr[pre + "UV"], joints=LJ, weights=LW,
+                                material=far_mat, tangents=arr[pre + "T"])
+                    w.node(f"{item}__lod{k}", mesh=li, skin=skin, extras={"lod": k})
+                    tri[f"{item}__lod{k}"] = int(len(arr[pre + "I"]))
                 skin_store.update({f"{item}_P": P, f"{item}_I": I, f"{item}_J": J, f"{item}_W": Wt})
                 if "FX_P" in arr.files:
                     fxmat = w.material(f"{params.get('fx_material', 'CL_Channel')}", base_factor=(0.05, 0.01, 0.01, 1), metallic=0.0, roughness=0.4,
@@ -749,9 +767,9 @@ STAGES = [
     ("inspect", stage_inspect, lambda a: [a.config_path, PIPELINE_DIR / "js" / "dequantize.mjs", PIPELINE_DIR / "js" / "extract-rig.mjs"]
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
     ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
-    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py"],
+    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py", HERE / "blender" / "armour_hardsurface.py"],
      lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"], **({"preview": True} if os.environ.get("ARMOUR_PREVIEW") else {})}),
-    ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
+    ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "armour_cinderlock.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
     ("validate", stage_validate, lambda a: [a.path("rig"), a.path("inspect"), HERE / "armour.py"], lambda a: _cfg(a, "validate")),
     ("icons", stage_icons, lambda a: [a.path("export"), HERE / "blender" / "armour_render.py"], lambda a: _cfg(a, "icons")),

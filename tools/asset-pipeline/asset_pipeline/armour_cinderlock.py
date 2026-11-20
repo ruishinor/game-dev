@@ -225,6 +225,31 @@ class Plate:
         self.grooves.append(dict(pts=pts, width=width, depth=depth, inlay=inlay, closed=closed, n_per=n_per))
         return self
 
+    def metric(self):
+        """Metres per parameter unit along a and b at the plate centre."""
+        ac, bc = (self.amin + self.amax) / 2, (self.bmin + self.bmax) / 2
+        e = 1e-3
+        sa = np.linalg.norm(self.m.point(ac + e, bc, self.off) - self.m.point(ac - e, bc, self.off)) / (2 * e)
+        sb = np.linalg.norm(self.m.point(ac, bc + e, self.off) - self.m.point(ac, bc - e, self.off)) / (2 * e)
+        return sa, sb
+
+    def inset(self, d, poly=None):
+        """The plate outline (or `poly`) moved inward by about d metres."""
+        sa, sb = self.metric()
+        return inset_poly(self.poly if poly is None else poly, sa, sb, d)
+
+    def trace(self, d=0.0075, chain=None, **kw):
+        """An emissive channel tracing the plate perimeter d metres inside its
+        edge (the reference's outlined plates). `chain=(i, j)` keeps only the
+        run of corners i..j (forward, wrapping): an open trace along some edges."""
+        P = self.inset(d)
+        if chain is None:
+            return self.groove(P, closed=True, **kw)
+        i, j = chain
+        n = len(P)
+        run = [P[(i + k) % n] for k in range(((j - i) % n) + 1)]
+        return self.groove(run, **kw)
+
     def hole(self, poly):
         self.holes.append(poly)
         return self
@@ -279,6 +304,56 @@ class Plate:
         return out
 
 
+def inset_poly(poly, sa, sb, d):
+    """Offset a convex polygon (parameter space, metric scales sa, sb) inward
+    by d metres: each edge line moves inward, corners are the intersections
+    of neighbouring lines (clamped where an edge is very short)."""
+    P = np.asarray(poly, float) * [sa, sb]
+    n = len(P)
+    area = 0.5 * sum(P[i, 0] * P[(i + 1) % n, 1] - P[(i + 1) % n, 0] * P[i, 1] for i in range(n))
+    sgn = 1.0 if area > 0 else -1.0  # inward is to the left of a CCW edge
+    lines = []
+    for i in range(n):
+        p, q = P[i], P[(i + 1) % n]
+        t = (q - p) / max(np.linalg.norm(q - p), 1e-12)
+        lines.append((p + sgn * np.array([-t[1], t[0]]) * d, t))
+    out = []
+    for i in range(n):
+        (p1, t1), (p2, t2) = lines[i - 1], lines[i]
+        A = np.array([t1, -t2]).T
+        if abs(np.linalg.det(A)) < 1e-6:
+            c = (p1 + p2) / 2
+        else:
+            s_ = np.linalg.solve(A, p2 - p1)[0]
+            c = p1 + s_ * t1
+            if np.linalg.norm(c - P[i]) > 4 * d:  # a sharp spike: fall back to the bisector point
+                c = P[i] + (((p1 - P[i]) + (p2 - P[i])) / 2)
+        out.append(c / [sa, sb])
+    return [tuple(map(float, c)) for c in out]
+
+
+def bar(item, name, mat, segs, weights=None, weight_mode=None, bevel=0.0009):
+    """Small solid bars (straps, buckles, fins): [(p0, p1, nrm, width, height)],
+    each a bevelled box from p0 to p1 standing `height` off the surface."""
+    from .humanoid_wardrobe import box
+
+    parts = []
+    for p0, p1, nrm, w, h in segs:
+        p0, p1, nrm = (np.asarray(x, float) for x in (p0, p1, nrm))
+        L = np.linalg.norm(p1 - p0)
+        d = (p1 - p0) / L
+        nrm = nrm - d * (nrm @ d)
+        nrm /= np.linalg.norm(nrm)
+        parts.append(box((p0 + p1) / 2 + nrm * h / 2, (w, h, L), nrm, d))
+    out = {"name": f"{item}__{name}", "set": item, "mat": mat, "V": parts, "F": None, "multi": True, "core": True, "hs": True, "thickness": 0.0,
+           "bevel": bevel, "bevel_segments": 1, "grooves": [], "holes": [], "bolts": [], "relax": False, "gap": 0.0, "even": False}
+    if weights:
+        out["weights"] = weights
+    if weight_mode:
+        out["weight_mode"] = weight_mode
+    return out
+
+
 def mirror_poly(poly, about=0.0):
     return [(2 * about - a, b) for a, b in poly][::-1]
 
@@ -324,95 +399,194 @@ def joint_weight(body, prefixes, side=None):
     return body.Wd[:, cols].sum(1)
 
 
-# ---------------------------------------------------------------- cuirass
+# ---------------------------------------------------------------- shared
+
+
+def side_chain(chain, n, sg):
+    """A corner run authored on the left-side polygon, for the mirrored side
+    (mirror_poly reverses the corner order)."""
+    if chain is None or sg > 0:
+        return chain
+    i, j = chain
+    return (n - 1 - j, n - 1 - i)
+
+
+def surfaces_mask(body, names):
+    return np.isin(body.src, [body.surfaces.index(x) for x in names if x in body.surfaces])
+
+
+# ---------------------------------------------------------------- A. reactor cuirass
+#
+# Heavy segmented chest rig ending at the natural waist (the belt of the
+# trousers covers the hem). Front: a recessed hexagonal reactor vent flanked by
+# angled trapezoidal pectoral plates, three tiers of abdominal plates and
+# lateral rib-cage vents. Back: a four-segment vertebral column between two
+# vertical heat-sink housings. High stand-up collar with a throat notch and a
+# raised nape guard. Emissive channels trace the reactor, the pectorals and
+# the collar trim.
 
 
 def design_cuirass(body, base, m):
     it = "vanguard_field_set_chest"
     T = TorsoMap(body, facets=26)
     core = T.point(0.0, 0.7, base + 0.03)
-    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=0.03, neck_front=0.92, neck_back=0.95, arm_u=0.76, top_u=0.98)]
+    P = [ad.vest_body(body, it, m["under"], base - 0.002, hem_u=0.06, neck_front=0.92, neck_back=0.95, arm_u=0.76, top_u=0.98)]
     pls = []
+    band = ["band", "y", 0.05]
 
     def plate(name, poly, layer, mat="plate", **kw):
         kw.setdefault("flow_origin", core)
+        kw.setdefault("weight_mode", band)
         pl = Plate(it, name, m[mat], T, D(poly), base + layer, **kw)
         pls.append(pl)
         return pl
 
+    def bars(name, a0, a1, us, off, mat="trim", w=0.0042, h=0.0042, vertical=False):
+        segs = []
+        for u in us:
+            p0, p1 = T.point(deg(a0), u, off), T.point(deg(a1), u, off)
+            segs.append((p0, p1, T.normal(deg((a0 + a1) / 2), u, off), w, h))
+        P.append(bar(it, name, m[mat], segs, weight_mode=band))
+
     for s, sg in SIDES:
         f = lambda a: sg * a
         side = lambda poly: poly if sg > 0 else mirror_poly(poly)
-        pl = plate(f"pec_{s}", side([(6, 0.62), (40, 0.6), (58, 0.68), (61, 0.82), (46, 0.94), (15, 0.96), (6, 0.89)]), 0.006, dome=0.003, thickness=0.009)
-        pl.groove(D([(f(10), 0.9), (f(34), 0.75), (f(55), 0.73)]))
-        pl.groove(D([(f(9), 0.645), (f(38), 0.63), (f(52), 0.68)]))
-        for a, b in ((f(12), 0.925), (f(54), 0.79), (f(42), 0.615)):
+        # pectoral: angled trapezoid, traced on its whole perimeter
+        pec = [(6, 0.62), (40, 0.6), (58, 0.68), (61, 0.82), (46, 0.94), (15, 0.96), (6, 0.89)]
+        pl = plate(f"pec_{s}", side(pec), 0.006, dome=0.003, thickness=0.009)
+        pl.trace(0.0085, width=0.0046, n_per=8)
+        pl.groove(D([(f(18), 0.7), (f(44), 0.66)]), width=0.0034)
+        for a, b in ((f(12), 0.93), (f(54), 0.79), (f(38), 0.625)):
             pl.bolt(deg(a), b)
-        for r, (u0, u1) in enumerate(((0.45, 0.555), (0.325, 0.43), (0.2, 0.305))):
-            pl = plate(f"ab_{s}{r}", side([(3.5, u0), (33, u0), (41, u0 + 0.035), (41, u1), (3.5, u1)]), 0.004 + 0.0015 * r, dome=0.004, thickness=0.008)
+        # three tiered abdominal plates per side, short horizontal channels
+        for r, (u0, u1) in enumerate(((0.43, 0.535), (0.305, 0.41), (0.18, 0.285))):
+            pl = plate(f"ab_{s}{r}", side([(3.5, u0), (33, u0), (41, u0 + 0.035), (41, u1), (3.5, u1)]), 0.004 + 0.0015 * r, dome=0.004,
+                       thickness=0.008, weight_mode=["rigid"])
             mid = (u0 + u1) / 2
-            pl.groove(D([(f(25), mid), (f(37), mid)]))
+            pl.groove(D([(f(22), mid), (f(36), mid)]))
             pl.bolt(deg(f(7.5)), mid)
-        vent = [(69, 0.41), (87, 0.41), (91, 0.5), (87, 0.59), (69, 0.59), (65, 0.5)]
+        # lateral rib-cage vent: a framed window with fins behind it
         pl = plate(f"flank_{s}", side([(60, 0.3), (92, 0.3), (99, 0.4), (97, 0.62), (66, 0.66), (58, 0.5)]), 0.005, dome=0.004, thickness=0.008)
         pl.hole(D(side([(71, 0.425), (85, 0.425), (89, 0.5), (85, 0.575), (71, 0.575), (67, 0.5)])))
         pl.groove(D([(f(a), b) for a, b in [(69.2, 0.405), (86.8, 0.405), (91.5, 0.5), (86.8, 0.595), (69.2, 0.595), (64.5, 0.5)]]), closed=True, width=0.0034)
         pl.bolt(deg(f(63)), 0.34).bolt(deg(f(94)), 0.6)
-        P.append(Plate(it, f"flank_vent_{s}", m["vent"], T, D(side(vent)), base + 0.0015, thickness=0.003, bevel=0.0008).export())
-        P.append(slats(it, f"flank_slats_{s}", m["trim"], T, deg(f(70)), deg(f(86)), 0.44, 0.56, 5, base + 0.008))
-        # back: scapular plates (the pec layout mirrored to the back), rows
-        scap = [(180 - a, b) for a, b in [(6, 0.6), (40, 0.58), (57, 0.67), (60, 0.82), (46, 0.94), (12, 0.96), (6, 0.9)]][::-1]
-        pl = plate(f"scapula_{s}", scap if sg > 0 else mirror_poly(scap, 180), 0.006, dome=0.003, thickness=0.009)
-        pl.groove(D([(180 - f(12), 0.9), (180 - f(36), 0.74), (180 - f(54), 0.72)]))
+        P.append(Plate(it, f"flank_vent_{s}", m["vent"], T, D(side([(69, 0.41), (87, 0.41), (91, 0.5), (87, 0.59), (69, 0.59), (65, 0.5)])), base + 0.0015,
+                       thickness=0.003, bevel=0.0008, weight_mode=band).export())
+        bars(f"flank_fins_{s}", f(70), f(86), np.linspace(0.445, 0.555, 5), base + 0.006, w=0.0036, h=0.0036)
+        # back: scapular plates and three rows, clear of the spine housings
+        back = lambda poly: [(180 - a, b) for a, b in poly][::-1] if sg > 0 else mirror_poly([(180 - a, b) for a, b in poly][::-1], 180)
+        pl = plate(f"scapula_{s}", back([(30, 0.6), (48, 0.58), (58, 0.67), (60, 0.82), (48, 0.94), (30, 0.95)]), 0.006, dome=0.003, thickness=0.009)
+        pl.trace(0.008, width=0.0038, n_per=8)
         for r, (u0, u1) in enumerate(((0.43, 0.545), (0.3, 0.415), (0.17, 0.285))):
-            row = [(180 - a, b) for a, b in [(4, u0), (36, u0), (42, u0 + 0.035), (42, u1), (4, u1)]][::-1]
-            plate(f"back_{s}{r}", row if sg > 0 else mirror_poly(row, 180), 0.004 + 0.0015 * r, dome=0.003, thickness=0.008)
-        pl = plate(f"fauld_{s}", side([(19, 0.07), (44, 0.09), (47, 0.19), (21, 0.185)]), 0.007, dome=0.003, thickness=0.007)
-        pl.groove(D([(f(24), 0.13), (f(42), 0.14)]))
-    # sternum frame around the reactor window
-    pl = plate("sternum", [(-16, 0.555), (16, 0.555), (20.5, 0.7), (16, 0.845), (-16, 0.845), (-20.5, 0.7)], 0.014, dome=0.004, thickness=0.01, bevel=0.003)
+            pl = plate(f"back_{s}{r}", back([(30, u0), (52, u0), (57, u0 + 0.035), (57, u1), (30, u1)]), 0.004 + 0.0015 * r, dome=0.003, thickness=0.008,
+                       weight_mode=["rigid"])
+            pl.groove(D([(180 - f(36), (u0 + u1) / 2), (180 - f(50), (u0 + u1) / 2)]), width=0.0034)
+        # vertical heat-sink housing beside the spine
+        hs = back([(11, 0.36), (25, 0.36), (27, 0.42), (27, 0.84), (25, 0.88), (11, 0.88)])
+        pl = plate(f"sink_{s}", hs, 0.012, dome=0.003, thickness=0.012, bevel=0.003)
+        pl.hole(D(back([(14, 0.45), (22, 0.45), (22, 0.8), (14, 0.8)])))
+        pl.trace(0.0055, width=0.0034, n_per=8)
+        pl.bolt(deg(180 - f(18)), 0.395).bolt(deg(180 - f(18)), 0.845)
+        P.append(Plate(it, f"sink_vent_{s}", m["vent"], T, D(back([(13, 0.44), (23, 0.44), (23, 0.81), (13, 0.81)])), base + 0.006, thickness=0.004,
+                       bevel=0.0008, weight_mode=band).export())
+        bars(f"sink_fins_{s}", 180 - f(14.5), 180 - f(21.5), np.linspace(0.47, 0.78, 9), base + 0.011, w=0.0032, h=0.006)
+    # sternum frame around the hexagonal reactor window
+    pl = plate("sternum", [(-16, 0.555), (16, 0.555), (20.5, 0.7), (16, 0.845), (-16, 0.845), (-20.5, 0.7)], 0.014, dome=0.004, thickness=0.01, bevel=0.003,
+               weight_mode=["rigid"])
     pl.hole(D([(-9.5, 0.615), (9.5, 0.615), (12.5, 0.7), (9.5, 0.785), (-9.5, 0.785), (-12.5, 0.7)]))
-    pl.groove(D([(-13, 0.585), (13, 0.585), (16.8, 0.7), (13, 0.815), (-13, 0.815), (-16.8, 0.7)]), closed=True, width=0.0038)
+    pl.groove(D([(-13, 0.585), (13, 0.585), (16.8, 0.7), (13, 0.815), (-13, 0.815), (-16.8, 0.7)]), closed=True, width=0.0052, depth=0.003)
+    pl.trace(0.0045, width=0.0028, n_per=6)
     for a, b in ((-15, 0.572), (15, 0.572), (-15, 0.828), (15, 0.828)):
         pl.bolt(deg(a), b, r=0.0028)
     P.append(Plate(it, "reactor_back", m["vent"], T, D([(-13, 0.6), (13, 0.6), (16, 0.7), (13, 0.8), (-13, 0.8), (-16, 0.7)]), base + 0.006,
-                   thickness=0.004, bevel=0.0008).export())
-    P.append(slats(it, "reactor_slats", m["trim"], T, deg(-11), deg(11), 0.63, 0.775, 6, base + 0.013))
-    pl = plate("fauld_c", [(-16, 0.06), (16, 0.06), (18, 0.185), (-18, 0.185)], 0.008, dome=0.003, thickness=0.008)
-    pl.groove(D([(-10, 0.165), (0, 0.1), (10, 0.165)]))
-    pl = plate("spine", [(174, 0.3), (186, 0.3), (187, 0.92), (173, 0.92)], 0.012, keel=0.004, thickness=0.009)
-    pl.groove(D([(180, 0.34), (180, 0.88)]))
-    # collar: two segmented rings around the neck, open at the throat
+                   thickness=0.004, bevel=0.0008, weight_mode=["rigid"]).export())
+    bars("reactor_fins", -11.5, 11.5, np.linspace(0.635, 0.765, 6), base + 0.011, w=0.004, h=0.006)
+    # central abdominal spine strip between the tiers
+    pl = plate("linea", [(-3, 0.18), (3, 0.18), (3, 0.54), (-3, 0.54)], 0.009, keel=0.002, thickness=0.006, mat="trim")
+    # back: four interlocking vertebral segments
+    for k, (u0, u1) in enumerate(((0.3, 0.44), (0.455, 0.595), (0.61, 0.75), (0.765, 0.905))):
+        pl = plate(f"spine_{k}", [(173, u0 + 0.025), (180, u0), (187, u0 + 0.025), (187, u1 - 0.01), (180, u1 + 0.012), (173, u1 - 0.01)],
+                   0.013, keel=0.004, dome=0.002, thickness=0.009, weight_mode=["rigid"])
+        pl.groove(D([(180, u0 + 0.035), (180, u1 - 0.02)]), width=0.0036)
+    # collar: two segmented rings open at the throat, trimmed with channels
     nk = body.L["neck_01"]
     cloud = np.concatenate([body.meshes["body"]["V"], body.meshes["head"]["V"]])
     cloud = cloud[(np.abs(cloud[:, 0]) < 0.1) & (cloud[:, 1] > nk[1] - 0.12) & (cloud[:, 1] < nk[1] + 0.12)]
     NM = LimbAdapter(LimbMap(np.array([0, nk[1] - 0.055, nk[2]]), np.array([0, nk[1] + 0.065, nk[2]]), [0, 0, 1.0], cloud,
-                             t_range=(-0.2, 1.2), half=0.01, rmax=0.12, facets=14))
+                             t_range=(-0.2, 1.3), half=0.01, rmax=0.12, facets=14))
     for k, (t0, t1, op, lay) in enumerate(((0.0, 0.48, 16, 0.038), (0.52, 1.0, 22, 0.02))):
         pc = Plate(it, f"collar_{k}", m["plate"], NM, D([(op, t0), (360 - op, t0), (360 - op, t1), (op, t1)]), lay, dome=0.003, thickness=0.008,
                    bevel=0.0025, weight_mode=["band", "y", 0.03], flow_origin=core)
         pc.groove(D([(op + 7, t0 + 0.1), (op + 7, t1 - 0.1)]))
         pc.groove(D([(353 - op, t0 + 0.1), (353 - op, t1 - 0.1)]))
+        if k == 1:
+            pc.trace(0.006, chain=(2, 3), width=0.0034, n_per=40)
         pls.append(pc)
-    # pauldrons: domed caps wrapping the shoulder ball and deltoid (mapped
-    # along the upper-arm bone, phi 0 = up), with a lame below
-    for s, sg in SIDES:
-        ua, la = body.L["upperarm_" + s], body.L["lowerarm_" + s]
-        sel = ~body.head & (np.abs(body.P[:, 0]) > 0.1) & (np.sign(body.P[:, 0]) == sg)
-        YM = LimbAdapter(LimbMap(ua, la, [0, 1.0, 0], body.P[sel], t_range=(-0.5, 0.8), half=0.012, rmax=0.13, facets=12))
-        pc = Plate(it, f"pauldron_{s}", m["plate"], YM, D([(-115, -0.32), (115, -0.32), (124, 0.1), (108, 0.4), (-108, 0.4), (-124, 0.1)]),
-                   base + 0.026, dome=0.008, thickness=0.01, bevel=0.003, weight_mode=["band", "x", 0.03], flow_origin=core)
-        pc.groove(D([(-95, -0.22), (-104, 0.12), (-88, 0.33), (88, 0.33), (104, 0.12), (95, -0.22)]))
-        pc.bolt(deg(-70), -0.2).bolt(deg(70), -0.2).bolt(0.0, 0.02, r=0.0042, h=0.0035)
-        pls.append(pc)
-        pc = Plate(it, f"pauldron_lame_{s}", m["plate"], YM, D([(-100, 0.36), (100, 0.36), (92, 0.6), (-92, 0.6)]), base + 0.03, dome=0.006,
-                   thickness=0.008, bevel=0.0025, weight_mode=["band", "x", 0.03], flow_origin=core)
-        pc.groove(D([(-70, 0.5), (70, 0.5)]))
-        pls.append(pc)
+    pc = Plate(it, "nape", m["plate"], NM, D([(146, 0.12), (214, 0.12), (220, 0.7), (206, 1.18), (154, 1.18), (140, 0.7)]), 0.05, dome=0.004,
+               thickness=0.008, bevel=0.0025, weight_mode=["rigid"], flow_origin=core)
+    pc.trace(0.006, chain=(2, 5), width=0.0034, n_per=8)
+    pls.append(pc)
     return P + [pl.export() for pl in pls]
 
 
-# ---------------------------------------------------------------- gauntlets
+# ---------------------------------------------------------------- B. deltoid caps and bicep guards
+#
+# Low, close-fitting deltoid caps over a dark ribbed undersuit sleeve, with a
+# wrap-around outer bicep guard held by two tension straps. The inner armpit
+# and the elbow crease stay plate-free. Each cap is one rigid island blended
+# between clavicle and upper arm (a "floating" cap: the shared runtime
+# skeleton has no extra socket bones); bicep guards are rigid on the upper arm.
+
+
+def design_arms(body, base, m):
+    it = "cinderlock_arms"
+    T = TorsoMap(body)
+    core = T.point(0.0, 0.7, base + 0.03)
+    P = []
+    skin = surfaces_mask(body, ["body"])
+    for s, sg in SIDES:
+        ua, la = body.L["upperarm_" + s], body.L["lowerarm_" + s]
+        f = lambda a: sg * a  # +phi = front on the left arm, back on the right
+        side = lambda poly: poly if sg > 0 else mirror_poly(poly)
+        cl = body.P[(joint_weight(body, ["upperarm"], s) > 0.4) & skin]
+        AM = LimbAdapter(LimbMap(ua, la, [0, 1.0, 0], cl, t_range=(-0.35, 1.3), half=0.012, rmax=0.11, tsmooth=0.05))
+        ax = list(map(float, (la - ua) / np.linalg.norm(la - ua)))
+        sleeve_pol = {"joints": ["upperarm", "clavicle", "lowerarm"], "side": s, "surfaces": ["body"]}
+        sl = Plate(it, f"sleeve_{s}", m["under"], AM, D([(-179.5, -0.02), (179.5, -0.02), (179.5, 1.12), (-179.5, 1.12)]), 0.0045, thickness=0.0025,
+                   bevel=0.0, segs=0, res=0.01, weights=sleeve_pol)
+        for k in range(8):  # ribbed weave toward the elbow (baked into the low mesh's normal map)
+            sl.groove(D([(-178, 0.6 + k * 0.065), (178, 0.6 + k * 0.065)]), inlay=False, width=0.0026, depth=0.0011, n_per=64)
+        P.append(sl.export())
+        # deltoid cap over the shoulder ball, crimson piping along its lower edge
+        sel = ~body.head & (np.abs(body.P[:, 0]) > 0.1) & (np.sign(body.P[:, 0]) == sg)
+        YM = LimbAdapter(LimbMap(ua, la, [0, 1.0, 0], body.P[sel], t_range=(-0.5, 0.8), half=0.012, rmax=0.13, facets=12))
+        cap = Plate(it, f"deltoid_{s}", m["plate"], YM, D([(-104, -0.28), (104, -0.28), (114, 0.06), (100, 0.31), (-100, 0.31), (-114, 0.06)]),
+                    base + 0.014, dome=0.007, thickness=0.009, bevel=0.003, weights={"joints": ["clavicle", "upperarm"], "side": s, "surfaces": ["body"]},
+                    weight_mode=["rigid"], flow_origin=core)
+        cap.trace(0.0065, chain=(2, 5), width=0.0046, n_per=24)
+        cap.groove(D([(-70, -0.16), (70, -0.16)]), width=0.0028, n_per=16)
+        cap.bolt(deg(-82), -0.18).bolt(deg(82), -0.18).bolt(0.0, -0.05, r=0.0042, h=0.0035)
+        P.append(cap.export())
+        # outer bicep guard: U-shaped trace, two tension straps around the back of the arm
+        bic = [(-56, 0.3), (82, 0.3), (90, 0.55), (78, 0.8), (-46, 0.8), (-54, 0.55)]
+        pl = Plate(it, f"bicep_{s}", m["plate"], AM, D(side(bic)), 0.0115, dome=0.004, keel=0.002, thickness=0.008, bevel=0.0028,
+                   weights={"joints": ["upperarm"], "side": s, "surfaces": ["body"]}, weight_mode=["rigid"], flow_origin=core)
+        pl.trace(0.0065, chain=side_chain((1, 0), len(bic), sg), width=0.0042, n_per=10)
+        pl.bolt(deg(f(-40)), 0.36).bolt(deg(f(66)), 0.36)
+        P.append(pl.export())
+        for k, t in enumerate((0.42, 0.68)):
+            st = Plate(it, f"strap_{k}_{s}", m["trim"], AM, D(side([(88, t - 0.032), (304, t - 0.032), (304, t + 0.032), (88, t + 0.032)])), 0.0062,
+                       thickness=0.0032, bevel=0.001, res=0.008, weights={"joints": ["upperarm"], "side": s, "surfaces": ["body"]}, weight_mode=["band", ax, 0.05])
+            P.append(st.export())
+            segs = []
+            for a in (f(86), f(-52)):  # strap tabs riding over the guard's edges
+                p0, p1 = AM.point(deg(a) - deg(f(5)), t, 0.021), AM.point(deg(a) + deg(f(5)), t, 0.021)
+                segs.append((p0, p1, AM.normal(deg(a), t, 0.021), 0.012, 0.0035))
+            P.append(bar(it, f"tab_{k}_{s}", m["trim"], segs, weights={"joints": ["upperarm"], "side": s, "surfaces": ["body"]}, weight_mode=["rigid"]))
+    return P
+
+
+# ---------------------------------------------------------------- C. induction gauntlets
 
 
 def hand_dorsal_dir(body, side):
@@ -438,7 +612,7 @@ def design_gauntlets(body, base, m):
         side_v = np.sign(hm["V"][:, 0]) == sg
         Dn = hand_dorsal_dir(body, s)
         hand_axis = body.L[f"middle_01_{s}"] - body.L["hand_" + s]
-        pol = lambda joints: {"joints": joints, "side": s, "surfaces": ["hands", "body", "shell_forearms"]}
+        pol = lambda joints: {"joints": joints, "side": s, "surfaces": ["hands", "body"]}
         origin = body.L["lowerarm_" + s]
         # glove liner: the hand surface lifted 2.6 mm and relaxed
         Fh = hm["F"][side_v[hm["F"]].all(1)]
@@ -453,31 +627,45 @@ def design_gauntlets(body, base, m):
             c = [i for i, n in enumerate(jn) if n in names]
             w = (np.isin(hm["J"], c) * hm["W"]).sum(1)
             return hm["V"][side_v & (w > 0.5)]
-        on_skin = np.isin(body.src, [body.surfaces.index(x) for x in ("body", "hands") if x in body.surfaces])
+        on_skin = surfaces_mask(body, ["body", "hands"])
         fa = body.P[(joint_weight(body, ["lowerarm"], s) > 0.5) & on_skin]
         VM = LimbAdapter(LimbMap(body.L["lowerarm_" + s], body.L["hand_" + s], Dn, fa, t_range=(-0.1, 1.15), half=0.014, rmax=0.075, facets=14, tsmooth=0.04))
         ax = (body.L["hand_" + s] - body.L["lowerarm_" + s])
         ax = list(map(float, ax / np.linalg.norm(ax)))
-        for k, (t0, t1) in enumerate(((0.16, 0.54), (0.58, 0.98))):
-            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.0055 + 0.0015 * k, thickness=0.006, lip0=0.0035,
-                       bevel=0.0024, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05], flow_origin=origin, flow_scale=0.6)
-            pl.groove(D([(-150, t0 + 0.05), (150, t0 + 0.05)]), width=0.0035)
+        # forearm sleeve under the bracer (elbow to wrist)
+        P.append(Plate(it, f"cuff_liner_{s}", m["under"], VM, D([(-179.5, -0.04), (179.5, -0.04), (179.5, 1.0), (-179.5, 1.0)]), 0.0035, thickness=0.0022,
+                       bevel=0.0, segs=0, res=0.01, weights=pol(["lowerarm", "hand", "upperarm"])).export())
+        for k, (t0, t1) in enumerate(((0.16, 0.54), (0.58, 0.93))):
+            pl = Plate(it, f"vambrace_{k}_{s}", m["plate"], VM, D([(-179, t0), (179, t0), (179, t1), (-179, t1)]), 0.0075 + 0.0015 * k, thickness=0.006, lip0=0.0035,
+                       bevel=0.0024, weights=pol(["lowerarm"]), weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
+            pl.groove(D([(-150, t0 + 0.05), (150, t0 + 0.05)]), width=0.0032, inlay=False, n_per=40)
             P.append(pl.export())
-        pl = Plate(it, f"vambrace_plate_{s}", m["plate"], VM, D([(-50, 0.22), (50, 0.22), (58, 0.6), (44, 0.95), (-44, 0.95), (-58, 0.6)]), 0.0135,
-                   dome=0.004, keel=0.003, thickness=0.008, bevel=0.0028, weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.05],
+        # layered outer ulna shield: the conduit runs down its ridge through the core
+        pl = Plate(it, f"ulna_{s}", m["plate"], VM, D([(-50, 0.2), (50, 0.2), (58, 0.6), (44, 0.92), (-44, 0.92), (-58, 0.6)]), 0.0155,
+                   dome=0.004, keel=0.003, thickness=0.008, bevel=0.0028, weights=pol(["lowerarm"]), weight_mode=["rigid"],
                    flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-28, 0.28), (-34, 0.62), (-26, 0.9)])).groove(D([(28, 0.28), (34, 0.62), (26, 0.9)]))
+        pl.groove(D([(0, 0.25), (0, 0.39)]), width=0.0044).groove(D([(0, 0.61), (0, 0.9)]), width=0.0044)
+        pl.trace(0.007, chain=(1, 3), width=0.0032, n_per=8).trace(0.007, chain=(4, 0), width=0.0032, n_per=8)
         pl.hole(D([(-12, 0.4), (12, 0.4), (14, 0.5), (12, 0.6), (-12, 0.6), (-14, 0.5)]))
-        for a, b in ((-44, 0.3), (44, 0.3), (-38, 0.88), (38, 0.88)):
+        for a, b in ((-44, 0.28), (44, 0.28), (-36, 0.86), (36, 0.86)):
             pl.bolt(deg(a), b, r=0.0026)
         P.append(pl.export())
-        P.append(Plate(it, f"vambrace_core_{s}", m["vent"], VM, D([(-14, 0.38), (14, 0.38), (16, 0.5), (14, 0.62), (-14, 0.62), (-16, 0.5)]), 0.0095,
+        P.append(Plate(it, f"ulna_core_{s}", m["vent"], VM, D([(-14, 0.38), (14, 0.38), (16, 0.5), (14, 0.62), (-14, 0.62), (-16, 0.5)]), 0.0115,
                        thickness=0.005, bevel=0.0008, weights=pol(["lowerarm"]), weight_mode=["rigid"]).export())
+        # heavy buckled wrist cuff
+        P.append(Plate(it, f"wrist_strap_{s}", m["trim"], VM, D([(-179, 0.9), (179, 0.9), (179, 1.0), (-179, 1.0)]), 0.0175, thickness=0.004, bevel=0.0012,
+                       weights=pol(["lowerarm", "hand"]), weight_mode=["band", ax, 0.03]).export())
+        bp0, bp1 = VM.point(deg(90 * sg), 0.91, 0.022), VM.point(deg(90 * sg), 0.99, 0.022)
+        P.append(bar(it, f"buckle_{s}", m["plate"], [(bp0, bp1, VM.normal(deg(90 * sg), 0.95, 0.022), 0.018, 0.004)],
+                     weights=pol(["lowerarm", "hand"]), weight_mode=["rigid"]))
         HM = LimbAdapter(LimbMap(body.L["hand_" + s], body.L[f"middle_01_{s}"], Dn, cloud_for([f"hand_{s}"]), t_range=(-0.2, 1.25), half=0.01, rmax=0.08, facets=8))
+        # dorsal metacarpal plate: the conduit splits into a fan toward the knuckles
         pl = Plate(it, f"hand_plate_{s}", m["plate"], HM, D([(-62, 0.12), (62, 0.12), (70, 0.6), (58, 0.92), (-58, 0.92), (-70, 0.6)]), 0.006, dome=0.004,
                    thickness=0.006, bevel=0.002, res=0.006, weights=pol(["hand"]), weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(0, 0.2), (0, 0.84)]), width=0.0034).groove(D([(-36, 0.3), (-40, 0.78)]), width=0.003).groove(D([(36, 0.3), (40, 0.78)]), width=0.003)
+        for a in (-36, -12, 12, 36):
+            pl.groove(D([(0, 0.2), (a * 0.5, 0.5), (a, 0.86)]), width=0.0024, depth=0.002)
         P.append(pl.export())
+        # individually segmented phalanges, a thin strip along each segment
         for fng in ("index", "middle", "ring", "pinky"):
             for seg, nxt in (("01", "02"), ("02", "03"), ("03", "04_leaf")):
                 a, b = body.L.get(f"{fng}_{seg}_{s}"), body.L.get(f"{fng}_{nxt}_{s}")
@@ -489,8 +677,7 @@ def design_gauntlets(body, base, m):
                 pl = Plate(it, f"finger_{fng}{seg}_{s}", m["plate"], FM, D([(-70, 0.05), (70, 0.05), (70, t1), (-70, t1)]),
                            0.0032 if seg != "01" else 0.0045, dome=0.0015, thickness=0.0028, bevel=0.0009, res=0.005,
                            weights=pol([f"{fng}_{seg}"]), weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-                if seg == "01":
-                    pl.groove(D([(-30, 0.45), (30, 0.45)]), width=0.0022, depth=0.0016)
+                pl.groove(D([(0, 0.16), (0, t1 - 0.14)]), width=0.0017, depth=0.0013, n_per=4)
                 P.append(pl.export())
         for seg, nxt in (("02", "03"), ("03", "04_leaf")):
             a, b = body.L.get(f"thumb_{seg}_{s}"), body.L.get(f"thumb_{nxt}_{s}")
@@ -500,12 +687,110 @@ def design_gauntlets(body, base, m):
             ref = np.cross(b - a, hand_axis)
             ref = ref * np.sign(ref @ Dn) if np.linalg.norm(ref) > 1e-6 else Dn
             FM = LimbAdapter(LimbMap(a, b, ref, cl, t_range=(-0.3, 1.3), step=0.05, half=0.006, rmax=0.03, facets=6))
-            P.append(Plate(it, f"thumb_{seg}_{s}", m["plate"], FM, D([(-75, 0.05), (75, 0.05), (75, 0.8), (-75, 0.8)]), 0.0035, dome=0.0015,
-                           thickness=0.0028, bevel=0.0009, res=0.005, weights=pol([f"thumb_{seg}"]), weight_mode=["rigid"]).export())
+            pl = Plate(it, f"thumb_{seg}_{s}", m["plate"], FM, D([(-75, 0.05), (75, 0.05), (75, 0.8), (-75, 0.8)]), 0.0035, dome=0.0015,
+                       thickness=0.0028, bevel=0.0009, res=0.005, weights=pol([f"thumb_{seg}"]), weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
+            pl.groove(D([(0, 0.16), (0, 0.64)]), width=0.0017, depth=0.0013, n_per=4)
+            P.append(pl.export())
     return P
 
 
-# ---------------------------------------------------------------- greaves
+# ---------------------------------------------------------------- D. tactical trousers, belt and thigh plates
+
+
+def design_legs(body, base, m):
+    it = "cinderlock_legs"
+    T = TorsoMap(body, facets=26)
+    P = []
+    fwd = [0, 0, 1.0]
+    # trousers seat: the shorts shell lifted 4.5 mm, from under the belt down
+    # past the crotch; the legs below are lofted tubes (they follow the shorts'
+    # outer surface where it is looser than the thigh and taper to the knee)
+    ms = body.meshes["shell_shorts"]
+    belt_top = float(body.y(0.075))
+    crotch_y = float(ms["V"][np.abs(ms["V"][:, 0]) < 0.025][:, 1].min())
+    cy = ms["V"][ms["F"]].mean(1)[:, 1]
+    keep = (cy < belt_top - 0.004) & (cy > crotch_y - 0.035)
+    Fs = ms["F"][keep]
+    used = np.unique(Fs)
+    rm = -np.ones(len(ms["V"]), int)
+    rm[used] = np.arange(len(used))
+    F = rm[Fs]
+    P.append(sheet_piece(it, "trousers", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.0045, F, 2, 0.3), F, 0.0024,
+                         weights={"joints": ["pelvis", "spine_01", "thigh", "calf"], "surfaces": ["shell_shorts", "body"]}))
+    # 5 cm webbing belt, matte metal buckle, two side pouches, on a waist map
+    # built from the hips and the trousers (the torso map stops at the pelvis)
+    ya, yb = float(body.y(-0.25)), float(body.y(0.2))
+    zc = float(body.centre(body.y(0.03))[2])
+    wsel = ~body.head & ~body.arm & (body.P[:, 1] > ya - 0.03) & (body.P[:, 1] < yb + 0.03) & (np.abs(body.P[:, 0]) < 0.3)
+    WM = LimbAdapter(LimbMap(np.array([0.0, ya, zc]), np.array([0.0, yb, zc]), [0, 0, 1.0], body.P[wsel], t_range=(-0.1, 1.1), half=0.01, rmax=0.3,
+                             facets=26, tsmooth=0.03))
+    tw = lambda u: (float(body.y(u)) - ya) / (yb - ya)
+    W = lambda poly: [(a, tw(u)) for a, u in poly]
+    flow0 = WM.point(0.0, tw(0.03), 0.02)
+    band = ["band", "y", 0.05]
+    pl = Plate(it, "belt", m["trim"], WM, D(W([(-179.5, -0.015), (179.5, -0.015), (179.5, 0.075), (-179.5, 0.075)])), 0.012, thickness=0.005,
+               bevel=0.0015, res=0.01, weight_mode=band)
+    pl.groove(D(W([(-178, 0.005), (178, 0.005)])), inlay=False, width=0.0018, depth=0.001, n_per=80)
+    pl.groove(D(W([(-178, 0.055), (178, 0.055)])), inlay=False, width=0.0018, depth=0.001, n_per=80)
+    P.append(pl.export())
+    bk = Plate(it, "buckle", m["metal"], WM, D(W([(-8, -0.005), (8, -0.005), (8, 0.065), (-8, 0.065)])), 0.0185, dome=0.002, thickness=0.006, bevel=0.0018,
+               weight_mode=["rigid"])
+    bk.hole(D(W([(-4.5, 0.012), (4.5, 0.012), (4.5, 0.048), (-4.5, 0.048)])))
+    P.append(bk.export())
+    for s, sg in SIDES:
+        side = lambda poly: poly if sg > 0 else mirror_poly(poly)
+        po = Plate(it, f"pouch_{s}", m["trim"], WM, D(W(side([(54, -0.075), (76, -0.075), (78, 0.065), (52, 0.065)]))), 0.019, dome=0.004, thickness=0.024,
+                   bevel=0.004, segs=2, weight_mode=["rigid"])
+        P.append(po.export())
+        fl = Plate(it, f"pouch_flap_{s}", m["trim"], WM, D(W(side([(53, 0.0), (77, 0.0), (77.5, 0.07), (52.5, 0.07)]))), 0.0445, dome=0.003, thickness=0.004,
+                   bevel=0.0014, weight_mode=["rigid"])
+        fl.bolt(deg(sg * 65), tw(0.012), r=0.0035)
+        P.append(fl.export())
+    # legs
+    surf = ["body", "shell_shorts"]
+    ins = surfaces_mask(body, surf)
+    for s, sg in SIDES:
+        th, ca, ft = body.L["thigh_" + s], body.L["calf_" + s], body.L["foot_" + s]
+        mt = body.P[ins & ~body.arm & (np.sign(body.P[:, 0]) == sg) & (body.P[:, 1] < crotch_y + 0.02) & (body.P[:, 1] > ca[1] - 0.06)]
+        mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & ins]
+        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.15, 1.15), rmax=0.16, tsmooth=0.08))
+        CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(-0.25, 1.1), tsmooth=0.04))
+        tax = list(map(float, (ca - th) / np.linalg.norm(ca - th)))
+        t_crotch = float((th[1] - crotch_y) / (th[1] - ca[1]))
+        pt = {"joints": ["thigh", "calf"], "side": s, "surfaces": surf}
+        pc = {"joints": ["calf", "thigh", "foot"], "side": s, "surfaces": surf}
+        o = -sg  # outer side: +phi points to -x on a downward bone with a forward ref
+        sidep = lambda poly: poly if o > 0 else mirror_poly(poly)
+        # trouser legs below the shorts shell, tucked under the greaves and boots
+        P.append(Plate(it, f"leg_thigh_{s}", m["under"], TM, D([(-179.5, t_crotch - 0.02), (179.5, t_crotch - 0.02), (179.5, 1.06), (-179.5, 1.06)]), 0.0075, thickness=0.0024,
+                       bevel=0.0, segs=0, res=0.011, weights=pt).export())
+        P.append(Plate(it, f"leg_calf_{s}", m["under"], CM, D([(-179.5, -0.08), (179.5, -0.08), (179.5, 0.84), (-179.5, 0.84)]), 0.0042, thickness=0.0024,
+                       bevel=0.0, segs=0, res=0.011, weights=pc).export())
+        # hip seam piping down the outer thigh
+        sm = Plate(it, f"seam_{s}", m["trim"], TM, D(sidep([(121, t_crotch), (129, t_crotch), (129, 0.92), (121, 0.92)])), 0.0105, thickness=0.0026, bevel=0.0008,
+                   res=0.01, weights=pt, weight_mode=["band", tax, 0.08], flow_origin=flow0, flow_scale=1.0)
+        sm.groove(D([(o * 125, t_crotch + 0.02), (o * 125, 0.9)]), width=0.0026, depth=0.0018, n_per=12)
+        P.append(sm.export())
+        # angled outer-quadriceps guard, tapering toward the knee, outlined
+        t0 = t_crotch + 0.03
+        qd = [(4, t0 + 0.04), (106, t0), (110, t0 + 0.24), (84, 0.76), (34, 0.8), (10, t0 + 0.42)]
+        pl = Plate(it, f"thigh_{s}", m["plate"], TM, D(sidep(qd)), 0.016, dome=0.0035, keel=0.005, thickness=0.009, bevel=0.003,
+                   weights={"joints": ["thigh"], "side": s, "surfaces": surf}, weight_mode=["rigid"], flow_origin=flow0, flow_scale=1.0)
+        pl.trace(0.0075, width=0.0044, n_per=10)
+        pl.bolt(deg(o * 14), t0 + 0.08).bolt(deg(o * 98), t0 + 0.05)
+        P.append(pl.export())
+        # hip plate (tasset) hung from the belt, blended between pelvis and thigh
+        side = lambda poly: poly if sg > 0 else mirror_poly(poly)
+        hp = [(66, -0.25), (114, -0.25), (120, -0.12), (112, -0.025), (72, -0.025), (60, -0.12)]
+        pl = Plate(it, f"hip_{s}", m["plate"], WM, D(W(side(hp))), 0.026, dome=0.004, thickness=0.008, bevel=0.0028,
+                   weights={"joints": ["pelvis", "thigh_" + s], "surfaces": surf}, weight_mode=["rigid"], flow_origin=flow0, flow_scale=1.0)
+        pl.trace(0.007, chain=side_chain((5, 2), len(hp), sg), width=0.0036, n_per=10)
+        pl.bolt(deg(sg * 92), tw(-0.05), r=0.0038)
+        P.append(pl.export())
+    return P
+
+
+# ---------------------------------------------------------------- E. impact greaves
 
 
 def design_greaves(body, base, m):
@@ -514,56 +799,42 @@ def design_greaves(body, base, m):
     fwd = [0, 0, 1.0]
     for s, sg in SIDES:
         th, ca, ft = body.L["thigh_" + s], body.L["calf_" + s], body.L["foot_" + s]
-        surf = ["body", "shell_thighs", "shell_shins", "shell_shorts"]
-        ins = np.isin(body.src, [body.surfaces.index(x) for x in surf if x in body.surfaces])
+        surf = ["body", "shell_shorts"]
+        ins = surfaces_mask(body, surf)
         mt = body.P[(joint_weight(body, ["thigh"], s) > 0.45) & ins]
         mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & ins]
-        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.1, 1.15), facets=12, tsmooth=0.04))
         CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(-0.25, 1.1), facets=12, tsmooth=0.04))
-        tax = list(map(float, (ca - th) / np.linalg.norm(ca - th)))
-        cax = list(map(float, (ft - ca) / np.linalg.norm(ft - ca)))
-        pt = {"joints": ["thigh", "calf"], "side": s, "surfaces": surf}
-        pc = {"joints": ["calf", "thigh", "foot"], "side": s, "surfaces": surf}
-        o = -sg  # outer side: +phi points to -x on a downward bone with a forward ref
-        sidep = lambda poly: poly if o > 0 else mirror_poly(poly)
-        for nm, M, t0, t1, pol, ax in (("legging_thigh", TM, 0.06, 1.0, pt, tax), ("legging_calf", CM, -0.02, 0.95, pc, cax)):
-            P.append(Plate(it, f"{nm}_{s}", m["under"], M, D([(-179.5, t0), (179.5, t0), (179.5, t1), (-179.5, t1)]), 0.004, thickness=0.003,
-                           bevel=0.0, segs=0, res=0.012, weights=pol).export())
-        for k, (t0, t1) in enumerate(((0.12, 0.5), (0.53, 0.86))):
-            w = 1.0 - 0.12 * k  # the lower plate narrows toward the knee
-            pl = Plate(it, f"thigh_{k}_{s}", m["plate"], TM, D([(-66 * w, t0), (66 * w, t0), (74 * w, (t0 + t1) / 2), (58 * w, t1 - 0.04), (0, t1 + 0.02),
-                                                               (-58 * w, t1 - 0.04), (-74 * w, (t0 + t1) / 2)]),
-                       0.014 + 0.002 * k, dome=0.0025, keel=0.009, lip1=0.004, thickness=0.009, bevel=0.003, weights=pt, weight_mode=["band", tax, 0.06],
-                       flow_origin=th, flow_scale=1.0)
-            pl.groove(D([(-30 * w, t0 + 0.05), (-36 * w, t1 - 0.08), (-14, t1 - 0.03)])).groove(D([(30 * w, t0 + 0.05), (36 * w, t1 - 0.08), (14, t1 - 0.03)]))
-            pl.bolt(deg(-56 * w), t0 + 0.04).bolt(deg(56 * w), t0 + 0.04)
-            P.append(pl.export())
-        pl = Plate(it, f"thigh_side_{s}", m["plate"], TM, D(sidep([(92, 0.2), (150, 0.24), (150, 0.8), (92, 0.84)])), 0.012, dome=0.004, thickness=0.008,
-                   bevel=0.0026, weights=pt, weight_mode=["band", tax, 0.06], flow_origin=th, flow_scale=1.0)
-        pl.hole(D(sidep([(112, 0.42), (130, 0.42), (130, 0.62), (112, 0.62)])))
-        P.append(pl.export())
-        P.append(Plate(it, f"thigh_vent_{s}", m["vent"], TM, D(sidep([(109, 0.4), (133, 0.4), (133, 0.64), (109, 0.64)])), 0.007, thickness=0.004,
-                       bevel=0.0008, weights=pt, weight_mode=["band", tax, 0.06]).export())
+        pc = {"joints": ["calf"], "side": s, "surfaces": surf}
+        origin = th
+        # hexagonal knee cop on its own rigid thigh/calf blend (floats over the joint)
         KM = LimbAdapter(LimbMap(ca - (ft - ca) * 0.16, ca + (ft - ca) * 0.16, fwd, np.concatenate([mt, mc]), t_range=(-0.3, 1.3), half=0.012, facets=10))
-        pl = Plate(it, f"knee_{s}", m["plate"], KM, D([(-55, 0.0), (55, 0.0), (72, 0.5), (55, 1.0), (-55, 1.0), (-72, 0.5)]), 0.022, dome=0.008,
+        pl = Plate(it, f"knee_{s}", m["plate"], KM, D([(-55, 0.0), (55, 0.0), (72, 0.5), (55, 1.0), (-55, 1.0), (-72, 0.5)]), 0.024, dome=0.008,
                    thickness=0.01, bevel=0.003, weights={"joints": ["calf", "thigh"], "side": s, "surfaces": surf}, weight_mode=["rigid"],
-                   flow_origin=th, flow_scale=1.0)
-        pl.groove(D([(-38, 0.18), (38, 0.18), (50, 0.5), (38, 0.82), (-38, 0.82), (-50, 0.5)]), closed=True)
-        pl.bolt(0.0, 0.5, r=0.0045, h=0.004)
+                   flow_origin=origin, flow_scale=1.0)
+        pl.trace(0.0075, width=0.0044, n_per=8)
+        pl.groove(D([(-30, 0.52), (0, 0.78), (30, 0.52)]), width=0.0044)  # the chevron
+        pl.bolt(0.0, 0.34, r=0.0045, h=0.004)
         P.append(pl.export())
-        for k, (t0, t1) in enumerate(((0.14, 0.52), (0.55, 0.9))):
-            pl = Plate(it, f"shin_{k}_{s}", m["plate"], CM, D([(-80, t0), (80, t0), (88, (t0 + t1) / 2), (70, t1 - 0.04), (0, t1 + 0.02), (-70, t1 - 0.04), (-88, (t0 + t1) / 2)]),
-                       0.013, dome=0.004, keel=0.011, lip1=0.004, thickness=0.009, bevel=0.003, weights=pc, weight_mode=["band", cax, 0.06],
-                       flow_origin=th, flow_scale=1.0)
-            pl.groove(D([(-62, t0 + 0.05), (-66, t1 - 0.05)])).groove(D([(62, t0 + 0.05), (66, t1 - 0.05)]))
+        # forward-swept tibia blade in two segments, conduits down both sides of the ridge
+        for k, (t0, t1) in enumerate(((0.1, 0.4), (0.43, 0.86))):
+            sh = [(-80, t0), (80, t0), (88, (t0 + t1) / 2), (70, t1 - 0.04), (0, t1 + 0.02), (-70, t1 - 0.04), (-88, (t0 + t1) / 2)]
+            pl = Plate(it, f"shin_{k}_{s}", m["plate"], CM, D(sh), 0.014, dome=0.004, keel=0.012, lip1=0.004, thickness=0.009, bevel=0.003,
+                       weights=pc, weight_mode=["rigid"], flow_origin=origin, flow_scale=1.0)
+            pl.groove(D([(-20, t0 + 0.04), (-26, t1 - 0.06)]), width=0.0042).groove(D([(20, t0 + 0.04), (26, t1 - 0.06)]), width=0.0042)
+            pl.trace(0.007, chain=(2, 6), width=0.003, inlay=False, n_per=8)
             pl.bolt(deg(-74), (t0 + t1) / 2).bolt(deg(74), (t0 + t1) / 2)
             P.append(pl.export())
-        P.append(Plate(it, f"calf_guard_{s}", m["plate"], CM, D(sidep([(120, 0.15), (235, 0.15), (235, 0.62), (120, 0.62)])), 0.011, dome=0.005,
-                       thickness=0.008, bevel=0.0026, weights=pc, weight_mode=["band", cax, 0.06]).export())
+        # hinged rear calf shell
+        pl = Plate(it, f"calf_{s}", m["plate"], CM, D([(92, 0.1), (268, 0.1), (262, 0.74), (98, 0.74)]), 0.0115, dome=0.005, thickness=0.008,
+                   bevel=0.0026, weights=pc, weight_mode=["rigid"], flow_origin=origin, flow_scale=1.0)
+        pl.groove(D([(140, 0.18), (220, 0.18)]), width=0.0032, inlay=False, n_per=10)
+        for b in (0.2, 0.62):
+            pl.bolt(deg(96), b, r=0.004, h=0.0035).bolt(deg(264), b, r=0.004, h=0.0035)
+        P.append(pl.export())
     return P
 
 
-# ---------------------------------------------------------------- boots
+# ---------------------------------------------------------------- F. anchor boots
 
 
 def design_boots(body, base, m):
@@ -580,15 +851,11 @@ def design_boots(body, base, m):
         used = np.unique(Fs)
         rm = -np.ones(len(ms["V"]), int)
         rm[used] = np.arange(len(used))
-        pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body", "shell_shins"]}
+        pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body"]}
         F = rm[Fs]
         P.append(sheet_piece(it, f"boot_{s}", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.0035, F, 2, 0.3), F, 0.0025, weights=pol))
         cloud = ms["V"][side_v]
-        ft, ball = body.L["foot_" + s], body.L["ball_" + s]
-        leaf = body.L.get(f"ball_leaf_{s}", ball + (ball - ft) * 0.5)
         origin = body.L["calf_" + s]
-        # armoured upper: a faceted shell lofted heel -> toe around the foot
-        # (phi 0 = up), open underneath where the anchor sole sits
         zc = cloud[:, 2]
         xc = float(np.median(cloud[:, 0]))
         heel = np.array([xc, y0 + 0.05, zc.min() + 0.012])
@@ -598,43 +865,57 @@ def design_boots(body, base, m):
         pb = {**pol, "joints": ["foot", "ball"]}
         pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-150, -0.02), (150, -0.02), (150, 0.86), (96, 1.05), (-96, 1.05), (-150, 0.86)]), 0.006,
                    thickness=0.007, bevel=0.0026, res=0.011, weights=pb, weight_mode=["band", bax, 0.05], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-112, 0.1), (-112, 0.78), (-76, 0.96)]), width=0.0036).groove(D([(112, 0.1), (112, 0.78), (76, 0.96)]), width=0.0036)
+        pl.groove(D([(-118, 0.3), (-118, 0.66)]), width=0.0034).groove(D([(118, 0.3), (118, 0.66)]), width=0.0034)
         P.append(pl.export())
-        pl = Plate(it, f"instep_{s}", m["plate"], BM, D([(-52, 0.36), (52, 0.36), (60, 0.55), (48, 0.74), (-48, 0.74), (-60, 0.55)]), 0.0145, dome=0.003,
-                   keel=0.004, thickness=0.008, bevel=0.0026, res=0.008, weights=pb, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-30, 0.42), (-34, 0.68)])).groove(D([(30, 0.42), (34, 0.68)]))
-        pl.bolt(0.0, 0.4, r=0.0036)
+        # wide angled instep strap with a buckle
+        pl = Plate(it, f"instep_{s}", m["trim"], BM, D([(-112, 0.46), (112, 0.34), (112, 0.5), (-112, 0.62)]), 0.0145, dome=0.002,
+                   thickness=0.005, bevel=0.0016, res=0.008, weights=pb, weight_mode=["band", bax, 0.05])
         P.append(pl.export())
-        pl = Plate(it, f"toe_cap_{s}", m["plate"], BM, D([(-100, 0.78), (100, 0.78), (96, 0.94), (60, 1.06), (-60, 1.06), (-96, 0.94)]), 0.0145, dome=0.002,
+        bp0, bp1 = BM.point(deg(70 * sg), 0.4, 0.021), BM.point(deg(70 * sg), 0.5, 0.021)
+        P.append(bar(it, f"instep_buckle_{s}", m["metal"], [(bp0, bp1, BM.normal(deg(70 * sg), 0.45, 0.021), 0.02, 0.0045)], weights=pb, weight_mode=["rigid"]))
+        # armoured toe cap with a glowing bumper strip wrapping its lower perimeter
+        tc = [(-104, 0.74), (104, 0.74), (100, 0.94), (64, 1.07), (-64, 1.07), (-100, 0.94)]
+        pl = Plate(it, f"toe_cap_{s}", m["plate"], BM, D(tc), 0.0145, dome=0.002,
                    thickness=0.008, bevel=0.0028, res=0.008, weights={**pol, "joints": ["ball", "foot"]}, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-74, 0.84), (0, 0.99), (74, 0.84)]))
+        pl.trace(0.0065, chain=(1, 0), width=0.0046, n_per=10)
         P.append(pl.export())
-        P.append(Plate(it, f"heel_{s}", m["plate"], BM, D([(-120, -0.04), (120, -0.04), (110, 0.2), (-110, 0.2)]), 0.0145, thickness=0.008, bevel=0.0026,
-                       res=0.008, weights=pb, weight_mode=["rigid"]).export())
+        # heel counter with vertical accent lines
+        pl = Plate(it, f"heel_{s}", m["plate"], BM, D([(-104, 0.0), (104, 0.0), (100, 0.24), (-100, 0.24)]), 0.016, thickness=0.008, bevel=0.0026,
+                   res=0.008, weights=pb, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
+        for a in (-1, 1):  # vertical accents down the sides of the counter
+            for t in (0.03, 0.13):
+                pl.groove(D([(a * 66, t + 0.02), (a * 96, t + 0.02)]), width=0.0034, n_per=6)
+        P.append(pl.export())
+        # high ankle collar tucked under the greaves
         ca = body.L["calf_" + s]
-        ins = np.isin(body.src, [body.surfaces.index(x) for x in ("body", "shell_shins", "shell_shoes") if x in body.surfaces])
+        ft = body.L["foot_" + s]
+        ins = surfaces_mask(body, ("body", "shell_shoes"))
         mc = body.P[(joint_weight(body, ["calf", "foot"], s) > 0.45) & ins & (body.P[:, 1] > ft[1] - 0.025)]
         CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(0.5, 1.15), half=0.015, rmax=0.085, facets=12, tsmooth=0.05))
         cax = list(map(float, (ft - ca) / np.linalg.norm(ft - ca)))
-        pl = Plate(it, f"cuff_{s}", m["plate"], CM, D([(-179, 0.74), (179, 0.74), (179, 1.03), (-179, 1.03)]), 0.011, lip0=0.005, thickness=0.008, bevel=0.003,
+        pl = Plate(it, f"cuff_{s}", m["plate"], CM, D([(-179, 0.76), (179, 0.76), (179, 1.03), (-179, 1.03)]), 0.011, lip0=0.005, thickness=0.008, bevel=0.003,
                    weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["band", cax, 0.04], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-150, 0.8), (150, 0.8)]), width=0.0036)
+        pl.groove(D([(-150, 0.82), (150, 0.82)]), width=0.0032, inlay=False, n_per=40)
         P.append(pl.export())
         for k, (p0, p1) in enumerate(((60, 120), (-120, -60))):
             pl = Plate(it, f"ankle_{k}_{s}", m["plate"], CM, D([(p0, 0.84), (p1, 0.84), (p1 - 6, 1.0), (p0 + 6, 1.0)]), 0.026, dome=0.006, thickness=0.008,
                        bevel=0.0026, weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-            pl.groove(D([((p0 + p1) / 2, 0.87), ((p0 + p1) / 2, 0.97)]))
             pl.bolt(deg((p0 + p1) / 2), 0.92, r=0.0035)
             P.append(pl.export())
+        # 4 cm deeply lugged outsole with a recessed heel block (built in Blender)
         hp = cloud[cloud[:, 1] < y0 + 0.02][:, [0, 2]]
         hull = hp[ConvexHull(hp).vertices]
         c = hull.mean(0)
-        hull = c + (hull - c) * 1.06
+        hull = c + (hull - c) * 1.07
+        zs = hull[:, 1]
         P.append(sheet_piece(it, f"sole_{s}", m["sole"], np.zeros((0, 3)), np.zeros((0, 3), int), 0.0, weights=pol, weight_mode=["rigid"],
-                             sole={"outline": hull.tolist(), "y0": float(y0 - 0.006), "y1": float(y0 + 0.022)}, bevel=0.003, bevel_segments=2))
+                             sole={"outline": hull.tolist(), "y0": float(y0 - 0.004), "y1": float(y0 + 0.036), "lug_depth": 0.011, "lugs": 9,
+                                   "arch": [float(zs.min() + 0.3 * (zs.max() - zs.min())), float(zs.min() + 0.52 * (zs.max() - zs.min())), 0.012],
+                                   "channel_front": float(zs.min() + 0.55 * (zs.max() - zs.min()))},
+                             bevel=0.003, bevel_segments=2))
     return P
 
 
-DESIGNS = {"cinderlock_chest": design_cuirass, "cinderlock_gloves": design_gauntlets,
-           "cinderlock_greaves": design_greaves, "cinderlock_boots": design_boots}
+DESIGNS = {"cinderlock_chest": design_cuirass, "cinderlock_arms": design_arms, "cinderlock_gloves": design_gauntlets,
+           "cinderlock_legs": design_legs, "cinderlock_greaves": design_greaves, "cinderlock_boots": design_boots}
 ad.DESIGNS.update(DESIGNS)

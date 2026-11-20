@@ -44,6 +44,17 @@ def v3(p):
     return Vector((p[0], -p[2], p[1]))
 
 
+def weld(o, dist=2e-5):
+    """Merge coincident vertices (sheets copied from the body's shells keep
+    their UV-seam splits): an open seam would solidify into walls that the
+    decimator cannot collapse."""
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+    bm.to_mesh(o.data)
+    bm.free()
+
+
 def solidify(o, thickness):
     m = o.modifiers.new("solid", "SOLIDIFY")
     m.thickness = thickness
@@ -163,27 +174,36 @@ def bolt_obj(name, p, n, r, h):
     return o
 
 
+def _slab(name, x0, x1, z0, z1, y0, y1):
+    c = mesh_obj(name, [(x0, -z0, y0), (x1, -z0, y0), (x1, -z1, y0), (x0, -z1, y0), (x0, -z0, y1), (x1, -z0, y1), (x1, -z1, y1), (x0, -z1, y1)],
+                 [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)])
+    fix_normals(c)
+    return c
+
+
 def sole_obj(name, spec, segments_cut):
-    """Anchor sole: the footprint outline extruded, chamfered, with tread cuts."""
+    """Anchor sole: the footprint outline extruded, chamfered, with deep lug
+    cuts across the tread and (optionally) a recessed heel block under the arch."""
     out = np.asarray(spec["outline"], float)
     y0, y1 = spec["y0"], spec["y1"]
     lo = [Vector((x, -z, y0)) for x, z in out]
     hi = [Vector((x, -z, y1)) for x, z in out]
     o = prism(name, hi, lo)
     xs, zs = out[:, 0], out[:, 1]
-    for k, z in enumerate(np.linspace(zs.min() + 0.03, zs.max() - 0.03, segments_cut)):
-        c = mesh_obj(f"_tread{k}", [(xs.min() - 0.02, -z - 0.003, y0 - 0.01), (xs.max() + 0.02, -z - 0.003, y0 - 0.01),
-                                    (xs.max() + 0.02, -z + 0.003, y0 - 0.01), (xs.min() - 0.02, -z + 0.003, y0 - 0.01),
-                                    (xs.min() - 0.02, -z - 0.003, y0 + 0.004), (xs.max() + 0.02, -z - 0.003, y0 + 0.004),
-                                    (xs.max() + 0.02, -z + 0.003, y0 + 0.004), (xs.min() - 0.02, -z + 0.003, y0 + 0.004)],
-                     [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)])
-        fix_normals(c)
+    depth = spec.get("lug_depth", 0.004)
+    for k, z in enumerate(np.linspace(zs.min() + 0.03, zs.max() - 0.03, spec.get("lugs", segments_cut))):
+        c = _slab(f"_tread{k}", xs.min() - 0.02, xs.max() + 0.02, z - 0.0035, z + 0.0035, y0 - 0.01, y0 + depth)
+        boolean(o, c)
+        delete([c])
+    if spec.get("arch"):
+        z0, z1, h = spec["arch"]
+        c = _slab("_arch", xs.min() - 0.02, xs.max() + 0.02, z0, z1, y0 - 0.01, y0 + h)
         boolean(o, c)
         delete([c])
     return o
 
 
-def build_piece(meta, arr, fx):
+def build_piece(meta, arr, fx, details=None):
     """One designed piece -> a finished solid object (or None)."""
     name = meta["name"]
     if meta.get("sole"):
@@ -194,6 +214,11 @@ def build_piece(meta, arr, fx):
         c = out.mean(0)
         ring = np.r_[out, out[:1]]
         dense = np.concatenate([np.linspace(ring[i], ring[i + 1], 6, endpoint=False) for i in range(len(ring) - 1)] + [ring[-1:]])
+        if meta["sole"].get("channel_front") is not None:  # the bumper strip wraps the toe only
+            front = dense[:, 1] > meta["sole"]["channel_front"]
+            k0 = int(np.argmin(front))  # roll so the run of front points is contiguous
+            dense = np.roll(dense[:-1], -k0, axis=0)
+            dense = dense[dense[:, 1] > meta["sole"]["channel_front"]]
         P = np.c_[dense[:, 0], np.full(len(dense), ym), dense[:, 1]]
         N = np.c_[dense[:, 0] - c[0], np.zeros(len(dense)), dense[:, 1] - c[1]]
         N /= np.linalg.norm(N, axis=1, keepdims=True)
@@ -216,6 +241,7 @@ def build_piece(meta, arr, fx):
     if len(V) == 0:
         return None
     o = mesh_obj(name, G2B(V), [tuple(f) for f in F])
+    weld(o)
     if meta.get("thickness", 0) > 0:
         solidify(o, meta["thickness"])
     for k, h in enumerate(meta.get("holes", [])):
@@ -232,10 +258,11 @@ def build_piece(meta, arr, fx):
     # normals (the crumpled shading on small curved plates)
     planar(o, 1.5)
     bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 1))
-    parts = [o]
-    for k, b in enumerate(meta.get("bolts", [])):
-        parts.append(bolt_obj(f"{name}_bolt{k}", b["p"], b["n"], b["r"], b["h"]))
-    return join(parts, name)
+    bolts = [bolt_obj(f"{name}_bolt{k}", b["p"], b["n"], b["r"], b["h"]) for k, b in enumerate(meta.get("bolts", []))]
+    if details is not None:  # bolts only feed the bakes of the low mesh
+        details.extend(bolts)
+        return o
+    return join([o] + bolts, name)
 
 
 # ---------------------------------------------------------------- materials and bakes
@@ -435,6 +462,8 @@ def set_piece_attr(o, k):
 
 def main():
     p = payload()
+    if p.get("groups"):
+        return main_groups(p)
     sc = reset_scene()
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
@@ -585,6 +614,416 @@ def unwrap(o, margin=0.003):
     bpy.ops.uv.smart_project(angle_limit=math.radians(70), island_margin=margin, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.pack_islands(margin=margin, rotate=True, shape_method="CONCAVE")
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+
+# ---------------------------------------------------------------- game-ready modules: budget, high -> low, shared atlases, LODs
+#
+# Each atlas group (upper body: cuirass, arms, gauntlets; lower body: legs,
+# greaves, boots) is built at full detail (the "high"), then every module is
+# decimated to its triangle budget with the emissive channels' groove
+# geometry protected (the "low", LOD0). The modules of a group are unwrapped
+# together into one atlas, and every map is baked from the high onto the low
+# (selected to active): material id, wear/cavity fields, AO against the body,
+# a tangent-space normal map that carries the bevels, bolts, ribs and stitch
+# lines the low no longer has, and an emissive mask of the channels for the
+# distance LODs. LOD1 and LOD2 are decimated from LOD0 and share its UVs and
+# textures. Tangents (MikkTSpace, as baked) are exported with every LOD.
+
+
+def tri_count(o):
+    return sum(len(p.vertices) - 2 for p in o.data.polygons)
+
+
+def copy_obj(o, name):
+    c = o.copy()
+    c.data = o.data.copy()
+    c.name = name
+    bpy.context.scene.collection.objects.link(c)
+    return c
+
+
+def decimate(o, target, protect=None):
+    """Collapse-decimate `o` to about `target` triangles. `protect`: vertex
+    indices kept (the groove walls and floors under the inlays); if the
+    protected result is still over budget, a second, unprotected pass meets it."""
+    have = tri_count(o)
+    if have <= target:
+        return have
+    bpy.context.view_layer.objects.active = o
+    if protect is not None and len(protect):
+        vg = o.vertex_groups.new(name="protect")
+        vg.add([int(i) for i in protect], 1.0, "REPLACE")
+    m = o.modifiers.new("dec", "DECIMATE")
+    m.decimate_type = "COLLAPSE"
+    m.ratio = max(0.01, target / have)
+    m.use_collapse_triangulate = True
+    if protect is not None and len(protect):
+        m.vertex_group = "protect"
+        m.invert_vertex_group = True
+        m.vertex_group_factor = 1.0
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    have = tri_count(o)
+    if have > target * 1.02:
+        m = o.modifiers.new("dec2", "DECIMATE")
+        m.decimate_type = "COLLAPSE"
+        m.ratio = target / have
+        m.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier=m.name)
+    for vg in list(o.vertex_groups):
+        o.vertex_groups.remove(vg)
+    return tri_count(o)
+
+
+def groove_vertices(o, pts_list, radius):
+    """Indices of vertices within `radius` of any groove centreline sample."""
+    from mathutils.kdtree import KDTree
+
+    pts = [q for pts in pts_list for q in pts]
+    if not pts:
+        return []
+    kd = KDTree(len(pts))
+    for i, q in enumerate(pts):
+        kd.insert(Vector(q), i)
+    kd.balance()
+    keep = []
+    for v in o.data.vertices:
+        if kd.find(v.co)[2] <= radius:
+            keep.append(v.index)
+    return keep
+
+
+def densify(P, step=0.0012):
+    P = np.asarray(P, float)
+    out = [P[0]]
+    for a, b in zip(P[:-1], P[1:]):
+        n = max(1, int(np.ceil(np.linalg.norm(b - a) / step)))
+        out += [a + (b - a) * (k / n) for k in range(1, n + 1)]
+    return np.array(out)
+
+
+def set_ray_visibility(o, on):
+    for k in ("visible_diffuse", "visible_glossy", "visible_transmission", "visible_volume_scatter", "visible_shadow"):
+        setattr(o, k, on)
+
+
+def bake_s2a(target, sources, mat, kind, size, samples, name, extrusion=0.006, ray=0.014):
+    """Bake `mat` evaluated on `sources` onto `target`'s UVs (selected to active)."""
+    img = bpy.data.images.new(name, size, size, alpha=False, float_buffer=True)
+    img.colorspace_settings.name = "Non-Color"
+    saved = {o.name: [s_.material for s_ in o.material_slots] for o in sources}
+    if mat is not None:
+        for o in sources:
+            if not o.material_slots:
+                o.data.materials.append(mat)
+            for s_ in o.material_slots:
+                s_.material = mat
+    tm = bpy.data.materials.get("_bake_target") or bpy.data.materials.new("_bake_target")
+    tm.use_nodes = True
+    target.data.materials.clear()
+    target.data.materials.append(tm)
+    nt = tm.node_tree
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    nt.nodes.active = tex
+    sc = bpy.context.scene
+    sc.cycles.samples = samples
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in sources:
+        o.select_set(True)
+    target.select_set(True)
+    bpy.context.view_layer.objects.active = target
+    b = sc.render.bake
+    b.margin = 6
+    b.margin_type = "EXTEND"
+    b.use_selected_to_active = True
+    b.cage_extrusion = extrusion
+    b.max_ray_distance = ray
+    if kind == "NORMAL":
+        b.normal_space = "TANGENT"
+    set_ray_visibility(target, False)
+    bpy.ops.object.bake(type=kind)
+    set_ray_visibility(target, True)
+    arr = np.array(img.pixels[:], dtype=np.float32).reshape(size, size, 4)[..., :3].copy()
+    nt.nodes.remove(tex)
+    for o in sources:
+        for s_, m0 in zip(o.material_slots, saved[o.name]):
+            s_.material = m0
+    b.use_selected_to_active = False
+    return arr
+
+
+def channel_emit_material():
+    m = bpy.data.materials.get("_channel_emit") or bpy.data.materials.new("_channel_emit")
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    out = node(nt, "ShaderNodeOutputMaterial", (600, 0))
+    em = node(nt, "ShaderNodeEmission", (300, 0))
+    tc = node(nt, "ShaderNodeTexCoord", (-600, 0))
+    sep = node(nt, "ShaderNodeSeparateXYZ", (-400, 0))
+    nt.links.new(tc.outputs["UV"], sep.inputs[0])
+    # brightest along the channel's centre (UV.y = 0.5), fading to the edges
+    sub = node(nt, "ShaderNodeMath", (-200, 0))
+    sub.operation = "SUBTRACT"
+    nt.links.new(sep.outputs["Y"], sub.inputs[0])
+    sub.inputs[1].default_value = 0.5
+    ab = node(nt, "ShaderNodeMath", (0, 0))
+    ab.operation = "ABSOLUTE"
+    nt.links.new(sub.outputs[0], ab.inputs[0])
+    lin = node(nt, "ShaderNodeMapRange", (150, 0))
+    lin.inputs["From Min"].default_value = 0.0
+    lin.inputs["From Max"].default_value = 0.5
+    lin.inputs["To Min"].default_value = 1.0
+    lin.inputs["To Max"].default_value = 0.45
+    nt.links.new(ab.outputs[0], lin.inputs["Value"])
+    nt.links.new(lin.outputs[0], em.inputs["Strength"])
+    em.inputs["Color"].default_value = (1, 1, 1, 1)
+    nt.links.new(em.outputs[0], out.inputs[0])
+    return m
+
+
+def black_material():
+    return emit_material("_black", lambda nt, dst: None)
+
+
+def mesh_arrays_t(o):
+    """Like mesh_arrays, plus MikkTSpace tangents (xyz, w = bitangent sign)."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = o.evaluated_get(dg)
+    me = ev.to_mesh()
+    me.calc_loop_triangles()
+    me.calc_tangents(uvmap=me.uv_layers.active.name)
+    uvl = me.uv_layers.active.data
+    co = np.array([v.co[:] for v in me.vertices])
+    corner_n = np.array([cn.vector[:] for cn in me.corner_normals])
+    pid = me.attributes.get("piece")
+    fp = np.array([pid.data[i].value for i in range(len(me.polygons))]) if pid else np.zeros(len(me.polygons), int)
+    key, P, N, UV, TG, PI, idx = {}, [], [], [], [], [], []
+    for tri in me.loop_triangles:
+        for li in tri.loops:
+            lp = me.loops[li]
+            vi = lp.vertex_index
+            uv = uvl[li].uv
+            n = corner_n[li]
+            t = lp.tangent
+            k = (vi, round(uv[0], 5), round(uv[1], 5), round(n[0], 3), round(n[1], 3), round(n[2], 3), round(t[0], 2), round(t[1], 2), round(t[2], 2),
+                 lp.bitangent_sign)
+            if k not in key:
+                key[k] = len(P)
+                P.append(co[vi])
+                N.append(n)
+                UV.append((uv[0], 1 - uv[1]))
+                TG.append((t[0], t[1], t[2], lp.bitangent_sign))
+                PI.append(fp[tri.polygon_index])
+            idx.append(key[k])
+    ev.to_mesh_clear()
+    TG = np.array(TG, float)
+    # glTF frame: xyz like positions; the UV v flip mirrors the bitangent
+    TG = np.c_[B2G(TG[:, :3]), -TG[:, 3]]
+    return B2G(np.array(P)), B2G(np.array(N)), np.array(UV), TG, np.array(idx).reshape(-1, 3), np.array(PI)
+
+
+def split_by_item(arrs, piece_item, items):
+    """Group arrays (P, N, UV, T, I, PI) -> {item: arrays} by the piece id of each face."""
+    P, N, UV, TG, I, PI = arrs
+    out = {}
+    face_item = np.array([piece_item[PI[f[0]]] for f in I])
+    for it in items:
+        sel = I[face_item == it]
+        if not len(sel):
+            continue
+        used = np.unique(sel)
+        rm = -np.ones(len(P), int)
+        rm[used] = np.arange(len(used))
+        out[it] = (P[used], N[used], UV[used], TG[used], rm[sel], PI[used])
+    return out
+
+
+def snap_strips(fx, lo):
+    """Lift inlay vertices that the decimated low surface now covers onto it."""
+    from mathutils.bvhtree import BVHTree
+
+    if not fx["V"]:
+        return 0
+    dg = bpy.context.evaluated_depsgraph_get()
+    bvh = BVHTree.FromObject(lo, dg)
+    moved = 0
+    for i, q in enumerate(fx["V"]):
+        p = v3(q)
+        loc, nrm, _, d = bvh.find_nearest(p)
+        if loc is None or d > 0.004:
+            continue
+        if (p - loc).dot(nrm) < 0.0003:
+            fx["V"][i] = B2G(np.array([loc + nrm * 0.0004]))[0]
+            moved += 1
+    return moved
+
+
+def main_groups(p):
+    sc = reset_scene()
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    out = Path(p["out"])
+    out.mkdir(parents=True, exist_ok=True)
+    meta = json.loads(Path(p["pieces_json"]).read_text())
+    npz = np.load(p["pieces_npz"])
+    specs = p["materials"]
+    budget = p["budget"]
+    lods = p.get("lods", [0.5, 0.25])
+    body = np.load(p["body_npz"])
+    occ = mesh_obj("_body", G2B(body["V"]), [tuple(f) for f in body["F"]])
+    report = {"sets": {}, "groups": {}}
+    by_item = {}
+    for m in meta:
+        by_item.setdefault(m["set"], []).append(m)
+    for group, items in p["groups"].items():
+        items = [it for it in items if it in by_item]
+        fx = {"V": [], "N": [], "UV": [], "F": [], "piece": []}
+        names, mats, piece_item = [], [], []
+        hi_objs, lo_objs, info = [], [], {}
+        for item in items:
+            mains, details, grooves = [], [], []
+            fx_f0 = len(fx["F"])
+            for m in by_item[item]:
+                V, F = npz[m["name"] + "_V"], npz[m["name"] + "_F"]
+                arr = split_parts(V, F) if m.get("multi") else (V, F)
+                fx_before = len(fx["V"])
+                det = []
+                o = build_piece(m, arr, fx, det)
+                if o is None:
+                    continue
+                if m["mat"] not in mats:
+                    mats.append(m["mat"])
+                for x in [o] + det:
+                    set_piece_attr(x, len(names))
+                    x.data.materials.clear()
+                    x.data.materials.append(bpy.data.materials.get(m["mat"]) or bpy.data.materials.new(m["mat"]))
+                    a = x.data.attributes.new("matid", "INT", "FACE")
+                    a.data.foreach_set("value", [mats.index(m["mat"]) + 1] * len(x.data.polygons))
+                fx["piece"] += [len(names)] * (len(fx["V"]) - fx_before)
+                names.append(m["name"])
+                piece_item.append(item)
+                mains.append(o)
+                details += det
+                grooves += [G2B(densify(g["pts"])) for g in m.get("grooves", []) if g["inlay"]]
+            hi = join(mains, item)
+            smooth_by_angle(hi, 24)
+            hi_tris = tri_count(hi) + sum(tri_count(x) for x in details)
+            lo = copy_obj(hi, item + "_lo")
+            prot = groove_vertices(lo, grooves, 0.0042)
+            # the module budget covers its channel strips too
+            fx_tris = len(fx["F"]) - fx_f0
+            lo_tris = decimate(lo, int(budget.get(item, hi_tris)) - fx_tris, prot)
+            hi_objs.append(hi)
+            if details:
+                d = join(details, item + "_detail")
+                smooth_by_angle(d, 40)
+                hi_objs.append(d)
+            lo_objs.append(lo)
+            info[item] = {"high_triangles": hi_tris, "triangles": lo_tris,
+                          "protected_vertices": len(prot), "budget": int(budget.get(item, hi_tris))}
+        lo_g = join(lo_objs, group)
+        bpy.ops.object.select_all(action="DESELECT")
+        lo_g.select_set(True)
+        bpy.context.view_layer.objects.active = lo_g
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+        smooth_by_angle(lo_g, 32)
+        size = int(p["texture"].get(group, 2048))
+        unwrap(lo_g, margin=0.002)
+        smp = p["samples"]
+        id_mat = emit_material("_id", lambda nt, dst: matid_chain(nt, dst))
+        mid = dilate_ids(np.rint(bake_s2a(lo_g, hi_objs, id_mat, "EMIT", size, 1, f"{group}_id")[..., 0] * 16).astype(int))
+        fields = bake_s2a(lo_g, hi_objs, fields_material(), "EMIT", size, 1, f"{group}_fields")
+        edges = bake_s2a(lo_g, hi_objs, edges_material(), "EMIT", size, smp, f"{group}_edges")
+        ao = bake_s2a(lo_g, hi_objs, emit_material("_ao", lambda nt, dst: ao_chain(nt, dst)), "EMIT", size, smp, f"{group}_ao")
+        nrm = bake_s2a(lo_g, hi_objs, detail_normal_material(), "NORMAL", size, smp, f"{group}_normal")
+        # emissive mask of the channels (for the distance LODs): inlays glow, plates are black
+        emask = None
+        if fx["V"]:
+            fv = np.asarray(fx["V"], float)
+            fxo_bake = mesh_obj(f"{group}__fxbake", G2B(fv), [tuple(f) for f in fx["F"]])
+            me = fxo_bake.data
+            uvl = me.uv_layers.new(name="UVMap")
+            fuv = np.asarray(fx["UV"], float)
+            for poly in me.polygons:
+                for li in poly.loop_indices:
+                    uvl.data[li].uv = fuv[me.loops[li].vertex_index]
+            fxo_bake.data.materials.append(channel_emit_material())
+            blk = black_material()
+            saved = {o.name: [s_.material for s_ in o.material_slots] for o in hi_objs}
+            for o in hi_objs:
+                for s_ in o.material_slots:
+                    s_.material = blk
+            emask = bake_s2a(lo_g, [fxo_bake] + hi_objs, None, "EMIT", size, 4, f"{group}_emit", extrusion=0.006, ray=0.016)[..., 0]
+            for o in hi_objs:
+                for s_, m0 in zip(o.material_slots, saved[o.name]):
+                    s_.material = m0
+            delete([fxo_bake])
+        base, rough, metal = composite(fields, edges, ao, mid, specs, mats)
+        files = {"basecolor": f"{group}_basecolor.png", "roughness": f"{group}_roughness.png", "metallic": f"{group}_metallic.png", "normal": f"{group}_normal.png"}
+        save_png(out / files["basecolor"], base, srgb=True)
+        save_png(out / files["roughness"], np.repeat(rough[..., None], 3, 2))
+        save_png(out / files["metallic"], np.repeat(metal[..., None], 3, 2))
+        save_png(out / files["normal"], nrm)
+        if emask is not None:
+            em = np.clip(emask, 0, 1)[..., None] * np.array([1.0, 0.0129, 0.0129], np.float32)  # #FF1E1E (linear)
+            files["emissive"] = f"{group}_emissive.png"
+            save_png(out / files["emissive"], em, srgb=True)
+        moved = snap_strips(fx, lo_g)
+        arrays = {it: {} for it in items}
+        lod_tris = {}
+        split = split_by_item(mesh_arrays_t(lo_g), piece_item, items)
+        for it, (P_, N_, UV_, T_, I_, PI_) in split.items():
+            arrays[it].update({"P": P_, "N": N_, "UV": UV_, "T": T_, "I": I_, "piece": PI_})
+            lod_tris[it] = [int(len(I_))]
+        # distance LODs per module (each keeps its share), sharing LOD0's UVs
+        levels = []
+        for it in items:
+            ids = {k for k, pi in enumerate(piece_item) if pi == it}
+            for k, r in enumerate(lods, 1):
+                c = copy_obj(lo_g, f"{it}_lod{k}")
+                bm = bmesh.new()
+                bm.from_mesh(c.data)
+                lay = bm.faces.layers.int.get("piece")
+                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f[lay] not in ids], context="FACES")
+                bm.to_mesh(c.data)
+                bm.free()
+                decimate(c, int(lod_tris[it][0] * r))
+                P_, N_, UV_, T_, I_, PI_ = split_by_item(mesh_arrays_t(c), piece_item, [it])[it]
+                arrays[it].update({f"L{k}_P": P_, f"L{k}_N": N_, f"L{k}_UV": UV_, f"L{k}_T": T_, f"L{k}_I": I_, f"L{k}_piece": PI_})
+                lod_tris[it].append(int(len(I_)))
+                levels.append(("", c))
+        fxv = np.asarray(fx["V"], float) if fx["V"] else None
+        for it in items:
+            if fxv is not None:
+                fp = np.asarray(fx["piece"])
+                fF = np.asarray(fx["F"], int)
+                keep = np.array([piece_item[fp[f[0]]] == it for f in fF])
+                if keep.any():
+                    sel = fF[keep]
+                    used = np.unique(sel)
+                    rm = -np.ones(len(fxv), int)
+                    rm[used] = np.arange(len(used))
+                    fnn = np.asarray(fx["N"], float)[used]
+                    arrays[it].update(FX_P=fxv[used], FX_N=fnn / np.linalg.norm(fnn, axis=1, keepdims=True), FX_UV=np.asarray(fx["UV"], float)[used],
+                                      FX_I=rm[sel], FX_piece=fp[used])
+            np.savez(out / f"{it}.npz", **arrays[it])
+            item_pieces = [n for n, pi in zip(names, piece_item)]  # global piece ids within the group
+            report["sets"][it] = {"pieces": item_pieces, "images": files, "npz": f"{it}.npz", "group": group, "triangles": lod_tris[it][0],
+                                  "lod_triangles": lod_tris[it], "fx_triangles": int(len(arrays[it].get("FX_I", []))), "materials": mats, **info[it]}
+        report["groups"][group] = {"items": items, "texture": size, "images": files, "strips_snapped": moved,
+                                   "triangles": int(sum(lod_tris[it][0] for it in items if it in lod_tris))}
+        for _, o in levels:
+            delete([o])
+        for o in hi_objs:
+            o.hide_render = True
+            o.hide_set(True)
+    delete([occ])
+    blend = p.get("blend_name", "armour_source.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=str(out / blend), compress=True)
+    report["blend"] = blend
+    finish(p, report)
 
 
 if __name__ == "__main__":

@@ -112,7 +112,7 @@ class GlbWriter:
         self.j["materials"].append(m)
         return len(self.j["materials"]) - 1
 
-    def mesh(self, name, positions, indices, *, normals=None, uvs=None, joints=None, weights=None, material=None):
+    def mesh(self, name, positions, indices, *, normals=None, uvs=None, joints=None, weights=None, material=None, tangents=None):
         attrs = {"POSITION": self.accessor(positions, FLOAT, "VEC3", ARRAY_BUFFER, minmax=True)}
         if normals is not None:
             n = np.asarray(normals, np.float32)
@@ -120,6 +120,11 @@ class GlbWriter:
             attrs["NORMAL"] = self.accessor(n, FLOAT, "VEC3", ARRAY_BUFFER)
         if uvs is not None:
             attrs["TEXCOORD_0"] = self.accessor(uvs, FLOAT, "VEC2", ARRAY_BUFFER)
+        if tangents is not None:
+            t = np.asarray(tangents, np.float32).copy()
+            t[:, :3] /= np.maximum(np.linalg.norm(t[:, :3], axis=1, keepdims=True), 1e-12)
+            t[:, 3] = np.where(t[:, 3] < 0, -1.0, 1.0)
+            attrs["TANGENT"] = self.accessor(t, FLOAT, "VEC4", ARRAY_BUFFER)
         if joints is not None:
             attrs["JOINTS_0"] = self.accessor(joints, USHORT if np.max(joints) > 255 else UBYTE, "VEC4", ARRAY_BUFFER)
             w = np.asarray(weights, np.float32)

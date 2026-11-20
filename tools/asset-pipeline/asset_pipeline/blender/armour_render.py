@@ -111,8 +111,9 @@ def boost_channels(strength):
 
 
 def belongs(o, item):
+    """The item's near pieces (LOD0 and its channel strips), not its distance LODs."""
     n = base_name(o)
-    return n == item or n.startswith(item + "__")
+    return (n == item or n.startswith(item + "__")) and "__lod" not in n
 
 
 def op_icons(p):

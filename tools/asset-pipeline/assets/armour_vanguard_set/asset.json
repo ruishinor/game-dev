@@ -1,7 +1,7 @@
 {
  "id": "armour_vanguard_set",
  "kind": "body-fitted-armour",
- "description": "Cinderlock Regalia, the Kinetic Vanguard armour set (Reactor Cuirass, Induction Gauntlets, Impact Greaves, Anchor Boots): segmented black hard-surface plates over a dark undersuit with red emissive channels, after the owner's visual aim (2026-11-19). Fitted to both project bodies, skinned to the shared skeleton, with Cycles-rendered inventory icons. Keyed to the Vanguard class-set item ids of SYS-01 (vanguard_field_set_*).",
+ "description": "Cinderlock Regalia, the Kinetic Vanguard armour set, as six game-ready modules (Reactor Cuirass, deltoid caps and bicep guards, Induction Gauntlets, tactical trousers with belt and thigh plates, Impact Greaves, Anchor Boots): segmented dark gunmetal hard-surface plates over a carbon-weave undersuit with crimson emissive channels, after the owner's concept sheet and production specification (2026-11-19, 2026-11-20). Fitted to both project bodies, skinned to the shared skeleton, built high-detail and baked onto budgeted low meshes (two shared 2K atlases, LOD0-2). Worn by players through the Vanguard class-set items (vanguard_field_set_*) and by the Severance Soldier patrols.",
  "sources": [
   {
    "id": "body_m",
@@ -20,7 +20,7 @@
   {
    "id": "visual_aim",
    "path": "owner reference (not in the repository)",
-   "provenance": "Owner-supplied concept sheet 'Cinderlock Regalia' and cuirass sample, shared in session 2026-11-19. Visual direction only: no image data is used.",
+   "provenance": "Owner-supplied concept sheet 'Cinderlock Regalia', a five-figure turnaround render and a written production specification (modules, budgets, PBR values, emissive colours), shared in session 2026-11-19/20. Visual direction only: no image data is used.",
    "role": "design reference"
   }
  ],
@@ -44,13 +44,17 @@
   "design": {
    "items": [
     "vanguard_field_set_chest",
+    "cinderlock_arms",
     "vanguard_field_set_gloves",
+    "cinderlock_legs",
     "vanguard_field_set_greaves",
     "vanguard_field_set_boots"
    ],
    "design_of": {
     "vanguard_field_set_chest": "cinderlock_chest",
+    "cinderlock_arms": "cinderlock_arms",
     "vanguard_field_set_gloves": "cinderlock_gloves",
+    "cinderlock_legs": "cinderlock_legs",
     "vanguard_field_set_greaves": "cinderlock_greaves",
     "vanguard_field_set_boots": "cinderlock_boots"
    },
@@ -67,138 +71,237 @@
   "materials": {
    "vanguard_field_set_chest": {
     "under": {
-     "base": "#101113",
-     "edge": "#26282b",
-     "roughness": 0.86,
+     "base": "#1c1d20",
+     "edge": "#2b2d31",
+     "roughness": 0.78,
      "metallic": 0.0,
-     "wear": 0.2,
+     "wear": 0.15,
      "tone": 0.12,
-     "scratch": 0.05,
-     "soot": 0.55
+     "scratch": 0.02,
+     "soot": 0.45
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#7c828b",
-     "roughness": 0.4,
-     "metallic": 0.62,
-     "wear": 0.45,
-     "tone": 0.16,
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
      "scratch": 0.25,
-     "soot": 0.85,
+     "soot": 0.7,
      "edge_polish": 0.12
     },
     "trim": {
-     "base": "#1d1f22",
-     "edge": "#565b62",
-     "roughness": 0.44,
-     "metallic": 0.75,
-     "wear": 0.3,
+     "base": "#16171a",
+     "edge": "#3c3f45",
+     "roughness": 0.62,
+     "metallic": 0.25,
+     "wear": 0.25,
      "tone": 0.1,
-     "scratch": 0.2,
-     "soot": 0.9
+     "scratch": 0.08,
+     "soot": 0.55
     },
     "vent": {
-     "base": "#060607",
+     "base": "#08090a",
      "edge": "#1a1b1d",
-     "roughness": 0.6,
+     "roughness": 0.55,
      "metallic": 0.6,
      "wear": 0.1,
      "tone": 0.05,
      "scratch": 0.0,
      "soot": 0.3
+    }
+   },
+   "cinderlock_arms": {
+    "under": {
+     "base": "#1c1d20",
+     "edge": "#2b2d31",
+     "roughness": 0.78,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.12,
+     "scratch": 0.02,
+     "soot": 0.45
+    },
+    "plate": {
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
+     "scratch": 0.25,
+     "soot": 0.7,
+     "edge_polish": 0.12
+    },
+    "trim": {
+     "base": "#16171a",
+     "edge": "#3c3f45",
+     "roughness": 0.62,
+     "metallic": 0.25,
+     "wear": 0.25,
+     "tone": 0.1,
+     "scratch": 0.08,
+     "soot": 0.55
     }
    },
    "vanguard_field_set_gloves": {
     "under": {
-     "base": "#101113",
-     "edge": "#26282b",
-     "roughness": 0.86,
+     "base": "#1c1d20",
+     "edge": "#2b2d31",
+     "roughness": 0.78,
      "metallic": 0.0,
-     "wear": 0.2,
+     "wear": 0.15,
      "tone": 0.12,
-     "scratch": 0.05,
-     "soot": 0.55
+     "scratch": 0.02,
+     "soot": 0.45
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#7c828b",
-     "roughness": 0.4,
-     "metallic": 0.62,
-     "wear": 0.45,
-     "tone": 0.16,
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
      "scratch": 0.25,
-     "soot": 0.85,
+     "soot": 0.7,
      "edge_polish": 0.12
     },
+    "trim": {
+     "base": "#16171a",
+     "edge": "#3c3f45",
+     "roughness": 0.62,
+     "metallic": 0.25,
+     "wear": 0.25,
+     "tone": 0.1,
+     "scratch": 0.08,
+     "soot": 0.55
+    },
     "vent": {
-     "base": "#060607",
+     "base": "#08090a",
      "edge": "#1a1b1d",
-     "roughness": 0.6,
+     "roughness": 0.55,
      "metallic": 0.6,
      "wear": 0.1,
      "tone": 0.05,
      "scratch": 0.0,
      "soot": 0.3
+    },
+    "metal": {
+     "base": "#2a2c2f",
+     "edge": "#62666d",
+     "roughness": 0.5,
+     "metallic": 0.8,
+     "wear": 0.35,
+     "tone": 0.1,
+     "scratch": 0.2,
+     "soot": 0.5,
+     "edge_polish": 0.1
+    }
+   },
+   "cinderlock_legs": {
+    "under": {
+     "base": "#1c1d20",
+     "edge": "#2b2d31",
+     "roughness": 0.78,
+     "metallic": 0.0,
+     "wear": 0.15,
+     "tone": 0.12,
+     "scratch": 0.02,
+     "soot": 0.45
+    },
+    "plate": {
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
+     "scratch": 0.25,
+     "soot": 0.7,
+     "edge_polish": 0.12
+    },
+    "trim": {
+     "base": "#16171a",
+     "edge": "#3c3f45",
+     "roughness": 0.62,
+     "metallic": 0.25,
+     "wear": 0.25,
+     "tone": 0.1,
+     "scratch": 0.08,
+     "soot": 0.55
+    },
+    "metal": {
+     "base": "#2a2c2f",
+     "edge": "#62666d",
+     "roughness": 0.5,
+     "metallic": 0.8,
+     "wear": 0.35,
+     "tone": 0.1,
+     "scratch": 0.2,
+     "soot": 0.5,
+     "edge_polish": 0.1
     }
    },
    "vanguard_field_set_greaves": {
-    "under": {
-     "base": "#101113",
-     "edge": "#26282b",
-     "roughness": 0.86,
-     "metallic": 0.0,
-     "wear": 0.2,
-     "tone": 0.12,
-     "scratch": 0.05,
-     "soot": 0.55
-    },
     "plate": {
-     "base": "#17181b",
-     "edge": "#7c828b",
-     "roughness": 0.4,
-     "metallic": 0.62,
-     "wear": 0.45,
-     "tone": 0.16,
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
      "scratch": 0.25,
-     "soot": 0.85,
+     "soot": 0.7,
      "edge_polish": 0.12
-    },
-    "vent": {
-     "base": "#060607",
-     "edge": "#1a1b1d",
-     "roughness": 0.6,
-     "metallic": 0.6,
-     "wear": 0.1,
-     "tone": 0.05,
-     "scratch": 0.0,
-     "soot": 0.3
     }
    },
    "vanguard_field_set_boots": {
     "under": {
-     "base": "#101113",
-     "edge": "#26282b",
-     "roughness": 0.86,
+     "base": "#1c1d20",
+     "edge": "#2b2d31",
+     "roughness": 0.78,
      "metallic": 0.0,
-     "wear": 0.2,
+     "wear": 0.15,
      "tone": 0.12,
-     "scratch": 0.05,
-     "soot": 0.55
+     "scratch": 0.02,
+     "soot": 0.45
     },
     "plate": {
-     "base": "#17181b",
-     "edge": "#7c828b",
-     "roughness": 0.4,
-     "metallic": 0.62,
-     "wear": 0.45,
-     "tone": 0.16,
+     "base": "#232528",
+     "edge": "#767c85",
+     "roughness": 0.38,
+     "metallic": 0.85,
+     "wear": 0.42,
+     "tone": 0.14,
      "scratch": 0.25,
-     "soot": 0.85,
+     "soot": 0.7,
      "edge_polish": 0.12
     },
+    "trim": {
+     "base": "#16171a",
+     "edge": "#3c3f45",
+     "roughness": 0.62,
+     "metallic": 0.25,
+     "wear": 0.25,
+     "tone": 0.1,
+     "scratch": 0.08,
+     "soot": 0.55
+    },
+    "metal": {
+     "base": "#2a2c2f",
+     "edge": "#62666d",
+     "roughness": 0.5,
+     "metallic": 0.8,
+     "wear": 0.35,
+     "tone": 0.1,
+     "scratch": 0.2,
+     "soot": 0.5,
+     "edge_polish": 0.1
+    },
     "sole": {
-     "base": "#0d0d0f",
-     "edge": "#2b2c30",
+     "base": "#0f1012",
+     "edge": "#26282b",
      "roughness": 0.9,
      "metallic": 0.0,
      "wear": 0.25,
@@ -210,12 +313,34 @@
   },
   "build": {
    "builder": "hardsurface",
-   "texture": {
-    "vanguard_field_set_chest": 2048,
-    "vanguard_field_set_gloves": 1024,
-    "vanguard_field_set_greaves": 1024,
-    "vanguard_field_set_boots": 1024
+   "groups": {
+    "cinderlock_upper": [
+     "vanguard_field_set_chest",
+     "cinderlock_arms",
+     "vanguard_field_set_gloves"
+    ],
+    "cinderlock_lower": [
+     "cinderlock_legs",
+     "vanguard_field_set_greaves",
+     "vanguard_field_set_boots"
+    ]
    },
+   "texture": {
+    "cinderlock_upper": 2048,
+    "cinderlock_lower": 2048
+   },
+   "budget": {
+    "vanguard_field_set_chest": 7500,
+    "cinderlock_arms": 3500,
+    "vanguard_field_set_gloves": 4500,
+    "cinderlock_legs": 5000,
+    "vanguard_field_set_greaves": 4500,
+    "vanguard_field_set_boots": 3000
+   },
+   "lods": [
+    0.5,
+    0.25
+   ],
    "samples": 16
   },
   "rig": {
@@ -330,8 +455,8 @@
    "fx_material": "CL_Channel",
    "fx_emissive": [
     1.0,
-    0.16,
-    0.08
+    0.118,
+    0.118
    ],
    "fx_anchors": true,
    "hides": {
@@ -339,20 +464,29 @@
      "shell_chest",
      "shell_coat",
      "shell_belt",
-     "shell_upperarms",
      "shell_hood"
+    ],
+    "cinderlock_arms": [
+     "shell_upperarms"
     ],
     "vanguard_field_set_gloves": [
      "shell_forearms"
     ],
-    "vanguard_field_set_greaves": [
+    "cinderlock_legs": [
+     "shell_shorts",
      "shell_thighs",
+     "shell_belt"
+    ],
+    "vanguard_field_set_greaves": [
      "shell_shins"
+    ],
+    "vanguard_field_set_boots": [
+     "shell_shoes"
     ]
    }
   },
   "export": {
-   "max_texture": 1024,
+   "max_texture": 2048,
    "quality": 86
   },
   "validate": {
@@ -368,12 +502,11 @@
    "frames": 8,
    "surface_samples": 60000,
    "under_shells": [
-    "shell_shoes",
-    "shell_shorts",
     "hands"
    ],
    "arm_contact_items": [
-    "vanguard_field_set_chest"
+    "vanguard_field_set_chest",
+    "cinderlock_arms"
    ],
    "max_inside_body_fraction": 0.015,
    "max_inside_shell_fraction": 0.03,
@@ -413,7 +546,13 @@
      45,
      0
     ]
-   }
+   },
+   "items": [
+    "vanguard_field_set_chest",
+    "vanguard_field_set_gloves",
+    "vanguard_field_set_greaves",
+    "vanguard_field_set_boots"
+   ]
   },
   "evidence": {
    "samples": 24,
