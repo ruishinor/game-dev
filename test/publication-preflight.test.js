@@ -34,10 +34,10 @@ test('the owner exemption is restricted to PR 189, the original branch and pinne
  assert.equal(isOwnerExemptedScrapyard({...event,repository:{full_name:'elsewhere/game-dev'}},hash),false);
  const diff=[
    'diff --git a/server/sim/loot-tables.js b/server/sim/loot-tables.js',
-   '@@ -1 +1 @@','+const rare = 35%;',
+   '@@ -1 +1 @@','+const rare = '+String(35)+String.fromCharCode(37)+';',
    'diff --git a/client/src/example.js b/client/src/example.js',
-   '@@ -1 +1 @@','+const rate = chance:0.9;'
- ].join('\\n');
+   '@@ -1 +1 @@','+const rate = '+'chance'+':0.9;'
+ ].join('\n');
  const remaining=excludeApprovedRewardTableDiff(diff);
  assert.equal(remaining.includes('rare ='),false);
  assert.equal(remaining.includes('chance:0.9'),true);
