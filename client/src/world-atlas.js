@@ -136,8 +136,15 @@ export class WorldAtlas{
   if(Object.hasOwn(offsets,e.key)){
    e.preventDefault();
    const [dx,dz]=offsets[e.key];
-   this.pan.x=clamp(this.pan.x+dx,-this.region.hw,this.region.hw);
-   this.pan.z=clamp(this.pan.z+dz,-this.region.hd,this.region.hd);
+   const nextX=clamp(this.pan.x+dx,-this.region.hw,this.region.hw);
+   const nextZ=clamp(this.pan.z+dz,-this.region.hd,this.region.hd);
+   // Reach is circular: keyboard navigation must not pan the map center
+   // into an unmapped corner outside its actual playable geography.
+   const length=Math.hypot(nextX,nextZ);
+   const radius=this.region.area?Infinity:Math.max(0,WORLD.radius-0.001);
+   const ratio=length>radius?radius/length:1;
+   this.pan.x=nextX*ratio;
+   this.pan.z=nextZ*ratio;
    this.draw();
   }else if(e.key==='Enter'){
    e.preventDefault();
