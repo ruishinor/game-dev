@@ -9,10 +9,13 @@ import { ARMOUR_ASSETS } from '../../shared/armour-visual.js';
 import { createArmourFx, isChannelMaterial, isGlassMaterial } from './armour-fx.js';
 
 const BODY_KEY = { humanoid_m: 'm', humanoid_f: 'f' };
-export function armourBundle(body, item) {
+/** @param lod use the simplified NPC variant where one exists */
+export function armourBundle(body, item, lod = false) {
   const asset = ARMOUR_ASSETS[item], key = BODY_KEY[body];
-  return asset && key ? `${asset}_${key}` : null;
+  if (!asset || !key) return null;
+  return lod && LOD_ASSETS.has(asset) ? `${asset}_${key}_lod` : `${asset}_${key}`;
 }
+const LOD_ASSETS = new Set(['armour_vanguard_set']);
 // Phase-1 name, kept for callers that only know the chest asset.
 export const ARMOUR_BUNDLES = Object.freeze({ humanoid_m: 'armour_chest_m', humanoid_f: 'armour_chest_f' });
 
@@ -33,8 +36,8 @@ function bodyMesh(inst) {
  * not loaded or the item has no model (the caller retries once loaded).
  */
 /** @param family optional energy family override ('CL'|'VG'|'MY'|'SW') for NPC variants */
-export function wearArmour(assets, inst, body, item, family = null) {
-  const bundle = armourBundle(body, item);
+export function wearArmour(assets, inst, body, item, family = null, lod = false) {
+  const bundle = armourBundle(body, item, lod);
   if (!bundle) return null;
   const src = assets.instance(bundle);
   if (!src) { console.error(`[armour] ${item}: ${bundle} is not loaded`); return null; }
@@ -66,7 +69,7 @@ export function wearArmour(assets, inst, body, item, family = null) {
     host.parent.add(piece);
     piece.bind(new THREE.Skeleton(bones, piece.skeleton.boneInverses.map((m) => m.clone())), host.bindMatrix.clone());
     piece.frustumCulled = false; // bind-pose bounds do not cover every pose
-    piece.castShadow = !piece.name.endsWith('__fx') && !piece.name.endsWith('__glass');
+    piece.castShadow = !lod && !piece.name.endsWith('__fx') && !piece.name.endsWith('__glass');
     piece.userData.armour = item;
     meshes.push(piece);
   }

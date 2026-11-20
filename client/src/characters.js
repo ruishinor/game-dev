@@ -280,13 +280,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     armourSetSignature();
     for (const [slot, item] of Object.entries(want)) {
       if (typeof item !== 'string' || armours.has(slot)) continue;
-      const bundle = armourBundle(body, item);
+      const bundle = armourBundle(body, item, !!opts.armourFamily);
       if (!bundle) continue;
       const entry = { wanted: item, handle: null };
       armours.set(slot, entry);
       const apply = () => {
         if (disposed || armours.get(slot) !== entry || entry.handle) return;
-        entry.handle = wearArmour(assets, inst, body, item, opts.armourFamily);
+        entry.handle = wearArmour(assets, inst, body, item, opts.armourFamily, !!opts.armourFamily);
         armourSetSignature();
       };
       if (assets.get(bundle)) apply();
