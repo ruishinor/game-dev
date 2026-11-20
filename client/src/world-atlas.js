@@ -49,6 +49,14 @@ export class WorldAtlas{
   this.owner=null;this.savedPoints=[];this.activeSavedId=null;this.staticPaints=0;
   this.captureTerrain=typeof captureTerrain==='function'?captureTerrain:null;
   this.terrainCache=new Map();this.terrainCaptureAttempts=0;
+  // Authored Verdigris Reach chart uses the canonical [-radius,+radius] square
+  // with (0,0) at SVG (500,500). All dynamic markers retain project() coordinates.
+  this.reachArtwork=typeof Image==='function'?new Image():null;
+  if(this.reachArtwork){
+   this.reachArtwork.onload=()=>{if(this.region&&!this.el.hidden&&!this.region.area)this.draw();};
+   this.reachArtwork.onerror=()=>console.warn('[atlas] authored Reach chart unavailable; using terrain fallback');
+   this.reachArtwork.src='/client/assets/atlas/reach-handdrawn.svg';
+  }
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
@@ -84,6 +92,18 @@ export class WorldAtlas{
  this.noteInput=el('textarea','atlas-marker-note');this.noteInput.rows=2;this.noteInput.maxLength=MAX_NOTE_LENGTH;this.noteInput.placeholder='Optional note (private to this browser)';this.noteInput.setAttribute('aria-label','Saved marker note');
  this.savePointButton=el('button',null,'Save point and note');this.savePointButton.type='button';this.savePointButton.disabled=true;this.savePointButton.addEventListener('click',()=>this.savePoint());
  this.savedList=el('div','atlas-saved-list');this.savedList.setAttribute('aria-label','Saved map points');
+ this.savedPointPicker=el('select','atlas-saved-picker');this.savedPointPicker.setAttribute('aria-label','Choose saved location');
+ this.savedPointPicker.title='Choose any saved location; no scrolling through the Atlas sidebar';
+ this.savedPointPicker.addEventListener('change',()=>{
+   const point=this.savedPoints.find(p=>p.id===this.savedPointPicker.value);
+   if(!point||!this.region||point.region!==this.region.name||!pointInsideRegion(this.region,point.x,point.z))return;
+   this.setWaypoint(point.x,point.z,point.label);
+   this.activeSavedId=point.id;
+   this.noteInput.value=point.note;
+   this.markerLabel.value=point.label;
+   this.pan={x:clamp(point.x-this.region.x,-this.region.hw,this.region.hw),z:clamp(point.z-this.region.z,-this.region.hd,this.region.hd)};
+   this.refreshSavedList();this.draw();
+ });
  this.noteStatus=el('p','atlas-note-status','Saved points are local to this browser and character.');this.noteStatus.setAttribute('aria-live','polite');
  const legend=el('p','atlas-legend','● Players   ◆ Objects   ◉ Party   ◇ Waypoint');
  legend.title='Player: circle · Visible object: diamond · Party: ring · Personal waypoint: hollow diamond';
@@ -91,7 +111,7 @@ export class WorldAtlas{
  this.waypointDetails.title='Distance is straight-line, not a navigation route.';
  this.noteStatus.title='Saved markers remain private to this browser and character.';
  mapPanel.append(legend,this.details,this.setSelected,this.clearButton,this.waypointDetails);
- savedPanel.append(this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedList);
+ savedPanel.append(this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedPointPicker,this.savedList);
   this.search.after(this.results);this.results.hidden=true;
  this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
@@ -156,11 +176,21 @@ export class WorldAtlas{
   this.savedList.replaceChildren();
   const region=this.region?.name;
   const points=this.savedPoints.filter(p=>p.region===region);
-  if(!points.length){
-   this.savedList.append(el('p','muted','No saved points in this region.'));
+  this.savedPointPicker.replaceChildren();
+  const placeholder=el('option',null,'Choose saved location');placeholder.value='';this.savedPointPicker.append(placeholder);
+  for(const point of points){
+    const option=el('option',null,point.label);option.value=point.id;this.savedPointPicker.append(option);
+  }
+  this.savedPointPicker.hidden=!points.length;
+  const selected=points.find(p=>p.id===this.activeSavedId)||points.at(-1);
+  if(!selected){
+   this.savedList.append(el('p','muted','No saved locations.'));
    return;
   }
-  for(const point of points){
+  this.savedPointPicker.value=selected.id;
+  // Only the selected record is expanded. All other saved records stay
+  // accessible through the native picker without an Atlas scrollbar.
+  for(const point of [selected]){
    const row=el('div','atlas-saved-point');
    const activate=el('button','atlas-saved-select',point.label);
    activate.type='button';activate.title=point.note||'Show saved point';
@@ -305,25 +335,16 @@ export class WorldAtlas{
  const w=Math.round(Math.min(rect.width,1400)),h=Math.round(Math.min(rect.height,1000));if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
  const g=c.getContext('2d'),r=this.region,st=this.state,p=project(r,w,h,this.zoom,this.pan);this.p=p;this.title.textContent=r.name+' · Atlas';this.regionName.textContent='ACTIVE REGION · '+r.name;
  g.fillStyle='#273339';g.fillRect(0,0,w,h);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
- const captured=this.terrainForRegion(r);
- c.dataset.terrainSource=captured?'scene':'fallback';
+ const captured=r.area?this.terrainForRegion(r):null;
+ const authored=!r.area&&!!this.reachArtwork?.naturalWidth;
+ c.dataset.terrainSource=authored?'authored':captured?'scene':'fallback';
  c.dataset.terrainCaptureCount=String(this.terrainCaptureAttempts);
- // Reach map uses the actual shared elevation/biome plate as its
- // cartographic foundation. A separately lit 3D capture supplies texture,
- // vegetation and architecture; soft-light cannot bleach the terrain like
- // the rejected 'screen' blend. Elevation lines are placed on top.
+ // Use authored cartography only for Verdigris Reach. Player markers,
+ // party and waypoints share this exact, aspect-preserving projection.
  if(!r.area){
    const left=p.X(-r.hw),top=p.Z(-r.hd),width=2*r.hw*p.kx,height=2*r.hd*p.kz;
-   g.drawImage(reachTerrain(),left,top,width,height);
-   if(captured){
-     g.save();
-     g.globalCompositeOperation='soft-light';
-     g.globalAlpha=.58;
-     g.filter='contrast(1.16) saturate(.8)';
-     g.drawImage(captured,left,top,width,height);
-     g.restore();
-   }
-   g.drawImage(reachAtlasContours(),left,top,width,height);
+   if(authored)g.drawImage(this.reachArtwork,left,top,width,height);
+   else{g.drawImage(reachTerrain(),left,top,width,height);g.drawImage(reachAtlasContours(),left,top,width,height);}
  }else if(captured){
    g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  }else{
@@ -398,7 +419,7 @@ export class WorldAtlas{
  this.entries=entries;
  if(sig!==this.sig){
   this.sig=sig;this.results.replaceChildren();
-  for(let i=0;i<Math.min(entries.length,200);i++){
+  for(let i=0;i<Math.min(entries.length,6);i++){
    const b=el('button',null,entries[i].name+' · '+entries[i].category);
    b.onclick=()=>{
     const e=this.entries[i];if(!e)return;
@@ -409,6 +430,11 @@ export class WorldAtlas{
     this.draw();
    };
    this.results.append(b);
+  }
+  if(entries.length>6){
+    const hint=el('p','atlas-result-hint','Refine search ('+entries.length+' matches)');
+    hint.title='Search results are limited to six visible entries to keep Atlas controls fitted without scrolling.';
+    this.results.append(hint);
   }
  }
  this.staticPaints++;
