@@ -62,6 +62,14 @@ Object.assign(scenes, {
   phase_transposition: {top:"#24395e",bottom:"#0b142e",glow:"#7fd7ff",bright:"#fff1d8",shapes:"<path d=\"M5 13 21 5 36 15v21L21 49 5 36Z\" fill=\"#325177\" stroke=\"#9acff9\" stroke-width=\"2.5\"/><path d=\"M29 28 44 17 59 25v22L44 58 29 47Z\" fill=\"#755c8a\" stroke=\"#f1dcff\" stroke-width=\"2.5\"/><path d=\"M21 23h25M38 16l9 7-9 7\" fill=\"none\" stroke=\"#fffbdc\" stroke-width=\"4\" stroke-linecap=\"round\"/><circle cx=\"17\" cy=\"30\" r=\"5\" fill=\"#8df1ff\"/><circle cx=\"45\" cy=\"39\" r=\"5\" fill=\"#f5ddff\"/>"}
 });
 
+// supplemental: surveyor
+Object.assign(scenes, {
+  fault_scan: {top:"#1b4553",bottom:"#11232e",glow:"#7bdce3",bright:"#fef3b8",shapes:"<circle cx=\"32\" cy=\"32\" r=\"23\" fill=\"#284752\" stroke=\"#7bd6d5\" stroke-width=\"3\"/><circle cx=\"32\" cy=\"32\" r=\"14\" fill=\"none\" stroke=\"#d0f1dc\" stroke-width=\"2\"/><path d=\"M32 4v19m0 18v19M4 32h19m18 0h19\" stroke=\"#f1da8e\" stroke-width=\"3\"/><path d=\"M20 20 44 44M44 20 20 44\" stroke=\"#7df2eb\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"32\" r=\"5\" fill=\"#fff6c6\"/><path d=\"M8 11h10M46 53h10\" stroke=\"#abf7e4\" stroke-width=\"2\"/>"},
+  core_bore: {top:"#563829",bottom:"#132331",glow:"#ff954f",bright:"#fff0ae",shapes:"<path d=\"M8 54 43 12 54 10 50 23 17 58Z\" fill=\"#8e9b9a\" stroke=\"#ffe0a4\" stroke-width=\"2.5\"/><path d=\"M20 47 47 16M15 38l20 12M28 25l19 11\" stroke=\"#fcce75\" stroke-width=\"4\"/><path d=\"M12 11 22 18M44 48l10 8M51 27l9-5\" stroke=\"#ff7e3c\" stroke-width=\"3\"/><circle cx=\"45\" cy=\"17\" r=\"6\" fill=\"#fff8ce\"/>"},
+  field_rig: {top:"#3f3d2a",bottom:"#142c37",glow:"#e8c96c",bright:"#f6eed4",shapes:"<path d=\"M24 7h16l8 21-16 12-16-12Z\" fill=\"#60787b\" stroke=\"#e9ca84\" stroke-width=\"3\"/><path d=\"M28 14h8v14h-8Z\" fill=\"#d9f3ec\" stroke=\"#f8e2a8\" stroke-width=\"2\"/><path d=\"M22 37 9 60M32 39v23M42 37l13 23\" stroke=\"#b1bdb1\" stroke-width=\"6\"/><path d=\"M22 37 9 60M32 39v23M42 37l13 23\" stroke=\"#282e3a\" stroke-width=\"2\"/><circle cx=\"32\" cy=\"20\" r=\"4\" fill=\"#fff9d2\"/>"},
+  controlled_blast: {top:"#5e3026",bottom:"#1a1529",glow:"#ffbd62",bright:"#fff0b8",shapes:"<circle cx=\"32\" cy=\"32\" r=\"25\" fill=\"#8e4e30\" opacity=\".45\"/><path d=\"M31 2 37 23 56 10 44 27 62 29 43 35 56 52 38 43 33 63 27 43 9 54 20 36 2 29 22 26 9 9 27 22Z\" fill=\"#f59b48\" stroke=\"#fff3be\" stroke-width=\"2\"/><path d=\"M32 11 36 26 47 22 40 34 48 43 34 40 30 53 26 38 16 44 24 32 17 22 29 27Z\" fill=\"#ffefbd\"/><circle cx=\"32\" cy=\"32\" r=\"7\" fill=\"#fefcf1\"/><path d=\"M6 5 13 12M52 6 58 1M7 58l7-6M52 55l8 5\" stroke=\"#ffcb82\" stroke-width=\"3\"/>"}
+});
+
 // The ids are static, authored game content. No dynamic user input or markup.
 export function paintedAbilityArt(id) {
   if (!Object.hasOwn(scenes, id)) return null;
