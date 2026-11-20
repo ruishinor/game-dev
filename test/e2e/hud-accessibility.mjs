@@ -108,6 +108,10 @@ try{
  await page.locator('#view').focus();
  await page.keyboard.press('KeyM');
  await page.locator('.world-atlas').waitFor({state:'visible'});
+ await page.keyboard.press('KeyM');
+ await page.locator('.world-atlas').waitFor({state:'hidden'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyM');
+ await page.locator('.world-atlas').waitFor({state:'visible'});
  await page.keyboard.press('Escape');
  await page.locator('.world-atlas').waitFor({state:'hidden'});
  await page.locator('#view').focus();
