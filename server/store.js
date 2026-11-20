@@ -252,7 +252,12 @@ export class CharacterStore {
         initiationSeen:c.initiationSeen,
         // Only this authenticated account's characters are projected.
         // Use the same allowlisted appearance metadata as the actual world entity.
-        wv:publicWeaponVisual(c), av:publicArmourVisual(c), sv:publicSocialVisual(c),
+        wv:publicWeaponVisual(c),
+        // Match the world entity's cosmetic override precedence.
+        av:publicSocialVisual(c)?null:publicArmourVisual(c),
+        sv:publicSocialVisual(c),
+        er:c.cls==='vanguard'&&c.equipped?.weapon==='electrical_combat_rod'
+          &&c.inventory.includes('electrical_combat_rod')?(c.electricalRodMode==='dual'?2:1):null,
         location:!c.initiationSeen?'Character Initiation':!c.pos||inDisconnectedRegion(c.pos.x,c.pos.z,4)
           ?zoneAt(WORLD.spawn.x,WORLD.spawn.z):zoneAt(c.pos.x,c.pos.z),
       }))
