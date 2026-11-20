@@ -66,6 +66,9 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   });
   // lock: the default player configuration (pointer lock while steering).
   await page.goto(`${base}/?${lock ? QUERY.replace('nolock=1', 'nolock=0') : QUERY}&slot=${slot}`);
+  // The form may render before the client module binds its submit handler.
+  // Check readiness rather than racing an early click during slow software GL.
+  await page.waitForFunction(()=>!!window.__attune,null,{timeout:120000});
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
