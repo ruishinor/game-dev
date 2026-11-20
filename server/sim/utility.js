@@ -3,7 +3,23 @@ import {sanitizeGoods} from '../../shared/goods.js';
 import {conditionOf,sanitizeCondition,CONDITION_MAX} from '../../shared/condition.js';
 import {ITEMS} from '../../shared/content.js';
 const fail=reason=>({ok:false,reason});
+export const RESTORATIVE=Object.freeze({fraction:0.3,ticks:5,recoveryMs:20000});
+function useRestorative(game,p){
+ if(p.dead)return fail('You cannot use that while defeated.');
+ const goods=sanitizeGoods(p.char.goods);
+ if(!goods.field_restorative)return fail('Carry a Field Restorative.');
+ if(game.time<(p.restorativeReadyAt||0))return fail('The last dose is still settling.');
+ if(--goods.field_restorative===0)delete goods.field_restorative;
+ p.char.goods=goods;p.utilityRev++;p.restorativeReadyAt=game.time+RESTORATIVE.recoveryMs;
+ const per=Math.ceil(p.maxHp*RESTORATIVE.fraction/RESTORATIVE.ticks);
+ const i=p.buffs.findIndex(b=>b.k==='restorative'),buff={k:'restorative',until:game.time+RESTORATIVE.ticks*1000+50,next:game.time+1000,per,src:p.id};
+ if(i>=0)p.buffs[i]=buff;else p.buffs.push(buff);
+ game.markDirty(p);
+ game.emitWorldEvent({e:'fx',k:'field_restorative',s:p.id});
+ return {ok:true};
+}
 export function useUtility(game,p,item,weapon,rev){
+ if(item==='field_restorative'&&Number.isSafeInteger(rev)&&rev===p.utilityRev)return useRestorative(game,p);
  if(item!=='field_maintenance_kit'||!Number.isSafeInteger(rev)||rev!==p.utilityRev)return fail('Utility request expired or unavailable.');
  if(p.dead||game.time<p.combatUntil)return fail('Maintenance is unavailable during combat or defeat.');
  if(typeof weapon!=='string'||weapon!==p.char.equipped?.weapon)return fail('Equip the weapon you intend to maintain.');

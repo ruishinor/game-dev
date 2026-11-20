@@ -375,7 +375,7 @@ export function interact(game, p, objectId) {
     if(workshopSite(p)!=='sanctum')return {ok:false,reason:'Approach the Precision Fabricator.'};
     p.outbox.push({e:'workshop_open'});return {ok:true};
   }
-  if (obj.type === 'quartermaster') return openVendor(game,p,obj.id);
+  if (obj.type === 'quartermaster' || obj.type === 'expedition_quartermaster') return openVendor(game,p,obj.id);
   if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='rift_return')return game.travelRift(p,obj);

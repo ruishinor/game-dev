@@ -1384,7 +1384,7 @@ input.onClick = (button, x, y) => {
     if(ent?.meta.k==='e'&&ent.dead){ui.loot.open(ent.id);return;}
     if (ent?.meta.k === 'c') {
       S.inspect = S.inspect?.id === ent.id ? null : { id: ent.id, x: x + 14, y: y - 24 };
-    } else if(ent?.meta.k==='o'&&ent.meta.c==='quartermaster') {net.send({t:'act',id:ent.id});}
+    } else if(ent?.meta.k==='o'&&(ent.meta.c==='quartermaster'||ent.meta.c==='expedition_quartermaster')) {net.send({t:'act',id:ent.id});}
     else if(npcProfile(ent)) {ui.openNpc(ent);}
     else if (ent && ent.meta.k !== 'o') setTarget(ent.id);
     else S.inspect = null;
@@ -1705,7 +1705,7 @@ function updateEntities(dt, t, now) {
     ent.model.update(dt, {
       lookAt,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
-      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster') && !!lookAt,
+      talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster') && !!lookAt,
       t,
       speed: ent.speed,
       travel,

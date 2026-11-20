@@ -15,7 +15,7 @@ import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, inSafeZone, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
@@ -486,7 +486,7 @@ export class Game {
       losTarget: p.target,
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
-      safe: inSanctum(p) ? 1 : 0,
+      safe: inSafeZone(p) ? 1 : 0,
       workshop:workshopSite(p),
       kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),

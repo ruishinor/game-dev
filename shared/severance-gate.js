@@ -152,7 +152,36 @@ const OUTCROPS = [[-26, -110, 3.1], [36, -112, 2.6], [-70, -120, 3.0], [92, -128
   [104, 124, 3.0], [-28, 112, 2.0], [28, 118, 1.8], [126, 82, 3.2], [-132, -10, 2.8], [72, -100, 2.0]];
 export const SEVERANCE_OUTCROPS = Object.freeze(OUTCROPS.map(([du, dv, s], i) => Object.freeze({ type: 'severance_outcrop', ...at(du, dv), r: 0.95 * s, h: 1.7 * s, s, seed: 900 + i })));
 
-export const SEVERANCE_PROPS = Object.freeze([...GATE_COLLIDERS, ...SEVERANCE_MASSIFS, ...SEVERANCE_CRYSTALS.map((c) => Object.freeze({ ...c, r: c.r * 0.85 })), ...RING_FEET, ...SEVERANCE_RUINS, ...SEVERANCE_OUTCROPS]);
+// The Expedition Outpost: a safe camp on the level pad east of the arrival. The
+// shelter opens west toward the arrival terrace; the quartermaster stands behind
+// a waist-high counter under it (low colliders do not block line of sight).
+const O = SEVERANCE_EXPANSE.outpost;
+const ox = (dx, dz) => ({ x: O.x + dx, z: O.z + dz });
+export const EXPEDITION_OUTPOST = Object.freeze({
+  name: 'Expedition Outpost', x: O.x, z: O.z, r: O.r,
+  shelter: Object.freeze({ ...ox(4, 1), hw: 3.6, hd: 6.2, yaw: -Math.PI / 2, eave: 3.1, ridge: 4.4 }),
+  quartermaster: Object.freeze({ ...ox(5.6, 1.6), yaw: -Math.PI / 2 }),
+  counter: Object.freeze({ ...ox(3.7, 1.6), hw: 0.45, hd: 2.1, h: 0.75 }),
+  mast: Object.freeze(ox(-7.5, -8)),
+  lamps: Object.freeze([0, 1, 2, 3, 4, 5, 6, 7].filter((i) => i !== 4).map((i) => Object.freeze(ox(Math.cos(i * Math.PI / 4) * 14.5, Math.sin(i * Math.PI / 4) * 14.5)))),
+});
+const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
+export const OUTPOST_COLLIDERS = Object.freeze([
+  ...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([a, b]) => Object.freeze({ type: 'outpost_post', x: SH.x + a * SH.hw, z: SH.z + b * SH.hd, r: 0.3, h: SH.eave })),
+  Object.freeze({ type: 'outpost_wall', x: SH.x + SH.hw - 0.15, z: SH.z, hw: 0.2, hd: SH.hd, h: SH.eave }),
+  Object.freeze({ type: 'outpost_counter', x: OP.counter.x, z: OP.counter.z, hw: OP.counter.hw, hd: OP.counter.hd, h: OP.counter.h }),
+  Object.freeze({ type: 'outpost_crates', ...ox(-6, 9), hw: 1.3, hd: 1.0, h: 1.9 }),
+  Object.freeze({ type: 'outpost_crates', ...ox(9.5, -8.5), hw: 1.0, hd: 1.4, h: 1.5 }),
+  Object.freeze({ type: 'outpost_generator', ...ox(10, 9), hw: 1.1, hd: 0.8, h: 1.6 }),
+  Object.freeze({ type: 'outpost_mast', x: OP.mast.x, z: OP.mast.z, r: 0.55, h: 9 }),
+  ...OP.lamps.map((l) => Object.freeze({ type: 'outpost_lamp', x: l.x, z: l.z, r: 0.18, h: 2.4 })),
+]);
+/** Inside the outpost's safe perimeter. */
+export function inExpeditionOutpost(p) {
+  return Math.hypot(p.x - OP.x, p.z - OP.z) < OP.r;
+}
+
+export const SEVERANCE_PROPS = Object.freeze([...GATE_COLLIDERS, ...SEVERANCE_MASSIFS, ...SEVERANCE_CRYSTALS.map((c) => Object.freeze({ ...c, r: c.r * 0.85 })), ...RING_FEET, ...SEVERANCE_RUINS, ...SEVERANCE_OUTCROPS, ...OUTPOST_COLLIDERS]);
 
 
 export function inSeverancePocket(x, z, pad = 0) {
@@ -236,7 +265,7 @@ export function pocketArea(x, z) {
   const u = x - P.x, v = z - P.z;
   const { bx, by } = worldToGate(x, z);
   if (Math.abs(bx) < 55 && by > -40 && by < 50) return 'Severance Gate';
-  if (Math.hypot(x - P.outpost.x, z - P.outpost.z) < P.outpost.r + 4) return 'Expedition Outpost';
+  if (Math.hypot(x - P.outpost.x, z - P.outpost.z) < P.outpost.r) return 'Expedition Outpost';
   if (Math.hypot(x - P.arrival.x, z - P.arrival.z) < 16) return 'Arrival Terrace';
   if (Math.abs(u) < 15 && v > -22 && v < 14) return 'Severed Pass';
   if (u < -15) return 'Causeway of Sentinels';

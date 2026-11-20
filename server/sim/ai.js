@@ -2,7 +2,7 @@
 // attacks, telegraphed specials, leashing and respawn.
 
 import { ENEMIES } from '../../shared/content.js';
-import { dist, inSanctum, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
+import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
@@ -158,7 +158,7 @@ export function tickEnemy(game, e, dt) {
   // Passive fauna retaliate normally but never initiate proximity aggro.
   for (const p of game.players.values()) {
     if (def.aggro <= 0) break;
-    if (p.dead || e.threat.has(p.id) || inSanctum(p)) continue;
+    if (p.dead || e.threat.has(p.id) || inSafeZone(p)) continue;
     if (dist(e, p) <= def.aggro && dist(p, e.home) <= def.leash && hasLineOfSight(e,p)) {
       addThreat(e, p.id, 1);
       if (def.social) {
@@ -174,7 +174,7 @@ export function tickEnemy(game, e, dt) {
   // Forget players who died, left, or reached safety.
   for (const id of [...e.threat.keys()]) {
     const p = game.players.get(id);
-    if (!p || p.dead || !sameTravelRegion(e,p) || inSanctum(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
+    if (!p || p.dead || !sameTravelRegion(e,p) || inSafeZone(p) || (e.type==='quarantine_custodian' && !hasLineOfSight(e,p))) e.threat.delete(id);
   }
 
   if (e.threat.size === 0) {

@@ -624,7 +624,7 @@ export function createModel(assets, meta, glb = true) {
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {

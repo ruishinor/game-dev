@@ -70,7 +70,9 @@ try {
   await shot('11-gate-basin-night', gateToWorld(0, -70), N, { yaw: N, pitch: 0.16, dist: 9 }, { tod: 'night' });
   await shot('12-overview-south', at(0, -100), N, { yaw: N, pitch: 0.55, dist: 60 }, { settle: 3500 });
   await shot('13-overview-west', at(-30, 20), Ea, { yaw: Ea, pitch: 0.5, dist: 55 }, { settle: 3500 });
-  await shot('14-outpost-site', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 });
+  await shot('14-outpost-approach', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 });
+  await shot('14b-outpost-quartermaster', { x: E.outpost.x - 1, z: E.outpost.z + 4 }, Ea + 0.4, { yaw: Ea + 0.4, pitch: 0.12, dist: 5 });
+  await shot('14c-outpost-night', { x: E.outpost.x - 22, z: E.outpost.z - 6 }, Ea + 0.25, { yaw: Ea + 0.25, pitch: 0.18, dist: 8 }, { tod: 'night' });
   await shot('15-arrival-live-default-lighting', E.arrival, N, { yaw: N, pitch: 0.14, dist: 7 }, { tod: 'off' });
   await shot('16-gate-live-default-lighting', gateToWorld(0, -70), N, { yaw: N, pitch: 0.16, dist: 9 }, { tod: 'off' });
   await page.evaluate(() => window.__attune.timeOfDay({ mode: 'off' }));

@@ -1379,6 +1379,12 @@ export class UI {
       if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
       if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
     }
+    if (id === 'field_restorative') {
+      const use = h('button', null, 'Use restorative');
+      use.disabled = !!s.dead;
+      use.addEventListener('click', () => { this.closePlayerContext(); this.a.useUtility(id, '', s.utilityRev); });
+      this.playerContext.append(use);
+    }
     if (id === 'field_maintenance_kit') {
       const weapon = s.equipped.weapon;
       const condition = conditionOf(s, weapon);
@@ -1999,7 +2005,7 @@ export class UI {
         head.append(name, actions);
         el.append(head, hp);
       } else el.append(name, hp);
-      if(ent.meta.k==='o'&&ent.meta.c==='quartermaster'){
+      if(ent.meta.k==='o'&&(ent.meta.c==='quartermaster'||ent.meta.c==='expedition_quartermaster')){
         const interact=e=>{e.preventDefault();e.stopPropagation();this.a.interact(ent.id);};
         el.tabIndex=0;el.setAttribute('role','button');el.classList.add('npc-plate');el.dataset.npc='quartermaster';
         el.addEventListener('click',interact);el.addEventListener('contextmenu',interact);
