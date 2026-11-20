@@ -211,11 +211,17 @@ export class WorldAtlas{
  this.real.textContent='Local '+formatMinutes(n.getHours()*60+n.getMinutes(),this.prefs.realFormat.value);
  this.clock.hidden=this.day.hidden&&this.game.hidden&&this.real.hidden;
 }
- clearWaypoint(){this.waypoint=null;this.clearButton.disabled=true;this.refreshWaypoint();this.draw();}
+ clearWaypoint(){
+  this.waypoint=null;this.activeSavedId=null;this.clearButton.disabled=true;
+  this.savePointButton.disabled=true;this.markerLabel.value='';this.noteInput.value='';
+  this.refreshWaypoint();this.draw();
+ }
  setWaypoint(x,z,label='Custom waypoint'){
   if(!this.region||!pointInsideRegion(this.region,x,z))return false;
   this.waypoint={x,z,label,region:this.region.name};
-  this.clearButton.disabled=false;this.refreshWaypoint();this.draw();return true;
+  this.activeSavedId=null;this.markerLabel.value=label;this.noteInput.value='';
+  this.clearButton.disabled=false;this.savePointButton.disabled=!this.owner;
+  this.refreshWaypoint();this.draw();return true;
  }
  waypointFor(pos){
   if(!this.waypoint||!this.region||this.waypoint.region!==regionFor(pos).name)return null;
@@ -231,19 +237,29 @@ export class WorldAtlas{
    this.waypointDetails.textContent='Waypoint: '+wp.label+' · '+rounded+' m straight-line';
   }else this.waypointDetails.textContent='No personal waypoint selected.';
  }
- open(){this.el.hidden=false;this.draw();this.el.querySelector('button')?.focus();}
- close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
+ open(){this.el.hidden=false;this.draw();this.updatePlayerMarker();this.el.querySelector('button')?.focus();}
+ close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.playerMarker.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
  scale(f){this.zoom=clamp(this.zoom*f,1,5);this.draw();}
- update(st){this.state=st;const next=regionFor(st.me.pos);
- if(!this.region||this.region.x!==next.x||this.region.z!==next.z){
-  this.zoom=1;this.pan={x:0,z:0};this.selection=null;this.setSelected.disabled=true;
-  this.details.textContent='Select a place or click the map to set a personal waypoint.';
-  // A private marker never silently follows the player to another region.
-  this.waypoint=null;this.clearButton.disabled=true;
+ update(st){
+  // The atlas background is static; only the player marker moves with
+  // live state. Entity snapshots refresh when the user interacts.
+  this.state=st;const next=regionFor(st.me.pos);
+  const changed=!this.region||this.region.x!==next.x||this.region.z!==next.z;
+  if(changed){
+   this.zoom=1;this.pan={x:0,z:0};this.selection=null;this.setSelected.disabled=true;
+   this.details.textContent='Select a place or click the map to set a personal waypoint.';
+   this.waypoint=null;this.activeSavedId=null;this.clearButton.disabled=true;
+   this.savePointButton.disabled=true;this.markerLabel.value='';this.noteInput.value='';
+  }
+  this.region=next;
+  if(changed)this.refreshSavedList();
+  const now=Date.now();
+  if(changed||!this.lastInfoUpdate||now-this.lastInfoUpdate>500){
+   this.lastInfoUpdate=now;this.clocks();this.refreshWaypoint();
+  }
+  if(changed&&!this.el.hidden)this.draw();
+  else this.updatePlayerMarker();
  }
- this.region=next;this.clocks();this.refreshWaypoint();
- if(!this.el.hidden)this.draw();
-}
  draw(){
  if(this.el.hidden||!this.state||!this.region)return;const c=this.canvas,rect=c.getBoundingClientRect();if(rect.width<40||rect.height<40)return;
  const w=Math.round(Math.min(rect.width,1400)),h=Math.round(Math.min(rect.height,1000));if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;
@@ -297,6 +313,14 @@ export class WorldAtlas{
   if(count>1){g.font='bold 11px sans-serif';g.fillStyle='#eef6f7';g.textAlign='center';g.fillText(String(count),x,y+3.8);}
   g.restore();
  }
+ // Paint saved locations only on map refresh, not on player movement.
+ for(const point of this.savedPoints){
+  if(point.region!==r.name||!pointInsideRegion(r,point.x,point.z))continue;
+  const x=p.X(point.x),y=p.Z(point.z);
+  if(x<2||y<2||x>w-2||y>h-2)continue;
+  g.save();g.translate(x,y);g.fillStyle='#4b9eb6';g.strokeStyle='#eef7f9';g.lineWidth=1.5;
+  g.beginPath();g.arc(0,0,5,0,Math.PI*2);g.fill();g.stroke();g.restore();
+ }
  if(this.waypoint?.region===r.name){
   const x=p.X(this.waypoint.x),y=p.Z(this.waypoint.z),s=9;
   g.save();g.translate(x,y);g.beginPath();g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath();
@@ -304,7 +328,8 @@ export class WorldAtlas{
   g.font='bold 14px sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#131c21';
   g.strokeText(this.waypoint.label,0,-15);g.fillStyle='#e3f0f2';g.fillText(this.waypoint.label,0,-15);g.restore();
  }
- g.save();g.translate(p.X(st.me.pos.x),p.Z(st.me.pos.z));g.rotate(Math.PI-st.yaw);g.fillStyle='#fff';g.beginPath();g.moveTo(0,-8);g.lineTo(5,6);g.lineTo(0,3);g.lineTo(-5,6);g.closePath();g.fill();g.restore();g.fillStyle='#dce8ea';g.font='bold 14px sans-serif';g.textAlign='left';g.fillText('N ↑',12,21);
+ // The player position is a lightweight DOM overlay, not static map paint.
+ g.fillStyle='#dce8ea';g.font='bold 14px sans-serif';g.textAlign='left';g.fillText('N ↑',12,21);
  const sig=JSON.stringify(entries.map(e=>[e.name,e.category,e.x,e.z]));
  this.entries=entries;
  if(sig!==this.sig){
@@ -322,5 +347,7 @@ export class WorldAtlas{
    this.results.append(b);
   }
  }
+ this.staticPaints++;
+ this.updatePlayerMarker();
  }
 }
