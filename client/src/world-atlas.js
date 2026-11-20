@@ -78,9 +78,9 @@ export class WorldAtlas{
  this.search=el('input');this.search.type='search';this.search.placeholder='Search known places and visible non-hostile entities';this.search.setAttribute('aria-label','Search map');this.search.oninput=()=>this.draw();this.regionName=el('div','atlas-region',WORLD.name);mapPanel.append(this.regionName,this.search,el('h3',null,'Map layers'));
  for(const [id,label] of [['places','Places'],['party','Party'],['players','Players'],['objects','Objects (visible)']]){
  const l=el('label'),c=el('input');c.type='checkbox';c.checked=true;c.onchange=()=>{c.checked?this.layers.add(id):this.layers.delete(id);this.draw();};l.append(c,document.createTextNode(' '+label));mapPanel.append(l);}
- this.details=el('p','atlas-details','Select a place or click the map to set a personal waypoint.');
+ this.details=el('p','atlas-details','');this.details.hidden=true;
  this.details.setAttribute('aria-live','polite');
- this.waypointDetails=el('p','atlas-waypoint-details','No waypoint selected.');
+ this.waypointDetails=el('p','atlas-waypoint-details','');this.waypointDetails.hidden=true;
  this.results=el('div','atlas-results');
  this.setSelected=el('button',null,'Mark selected place');this.setSelected.disabled=true;
  this.setSelected.addEventListener('click',()=>{
@@ -104,7 +104,7 @@ export class WorldAtlas{
    this.pan={x:clamp(point.x-this.region.x,-this.region.hw,this.region.hw),z:clamp(point.z-this.region.z,-this.region.hd,this.region.hd)};
    this.refreshSavedList();this.draw();
  });
- this.noteStatus=el('p','atlas-note-status','Saved points are local to this browser and character.');this.noteStatus.setAttribute('aria-live','polite');
+ this.noteStatus=el('p','atlas-note-status','');this.noteStatus.hidden=true;this.noteStatus.setAttribute('aria-live','polite');
  const legend=el('p','atlas-legend','● Players   ◆ Objects   ◉ Party   ◇ Waypoint');
  legend.title='Player: circle · Visible object: diamond · Party: ring · Personal waypoint: hollow diamond';
  this.details.title='Click the map to set a waypoint, or select a search result.';
@@ -113,7 +113,7 @@ export class WorldAtlas{
  mapPanel.append(legend,this.details,this.setSelected,this.clearButton,this.waypointDetails);
  savedPanel.append(this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedPointPicker,this.savedList);
   this.search.after(this.results);this.results.hidden=true;
- this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');const controls=el('div','atlas-controls');
+ this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');this.canvas.title='Click to mark a waypoint; drag to pan; scroll to zoom. Distances are straight-line.';const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
  full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
@@ -208,11 +208,11 @@ export class WorldAtlas{
    remove.addEventListener('click',()=>{
     const rest=this.savedPoints.filter(p=>p.id!==point.id);
     if(!persistSavedPoints(localStorage,this.owner,rest)){
-     this.noteStatus.textContent='Could not delete point from local storage.';return;
+     this.noteStatus.hidden=false;this.noteStatus.textContent='Could not delete point from local storage.';return;
     }
     this.savedPoints=rest;
     if(this.activeSavedId===point.id)this.activeSavedId=null;
-    this.noteStatus.textContent='Saved point deleted.';
+    this.noteStatus.hidden=false;this.noteStatus.textContent='Saved point deleted.';
     this.refreshSavedList();this.draw();
    });
    row.append(activate);
@@ -227,14 +227,14 @@ export class WorldAtlas{
   const id=this.activeSavedId||crypto.randomUUID();
   const point={id,x:this.waypoint.x,z:this.waypoint.z,region:this.waypoint.region,label,note};
   const rest=this.savedPoints.filter(p=>p.id!==id);
-  if(rest.length>=MAX_SAVED_POINTS){this.noteStatus.textContent='Maximum of '+MAX_SAVED_POINTS+' saved points reached.';return false;}
+  if(rest.length>=MAX_SAVED_POINTS){this.noteStatus.hidden=false;this.noteStatus.textContent='Maximum of '+MAX_SAVED_POINTS+' saved points reached.';return false;}
   const next=[...rest,point];
   if(!persistSavedPoints(localStorage,this.owner,next)){
-   this.noteStatus.textContent='Could not save. Local browser storage may be full or disabled.';
+   this.noteStatus.hidden=false;this.noteStatus.textContent='Could not save. Local browser storage may be full or disabled.';
    return false;
   }
   this.savedPoints=next;this.activeSavedId=id;this.waypoint={...this.waypoint,label};
-  this.noteStatus.textContent='Saved for this character on this browser.';
+  this.noteStatus.hidden=false;this.noteStatus.textContent='Saved for this character on this browser.';
   this.refreshSavedList();this.refreshWaypoint();this.selectAtlasTab('saved');this.draw();return true;
  }
  updatePlayerMarker(){
@@ -294,7 +294,8 @@ export class WorldAtlas{
    this.waypointBrief.textContent='◇ '+wp.label+' · '+rounded+' m';
    this.waypointBrief.setAttribute('aria-label',wp.label+', approximately '+rounded+' metres straight line; open world atlas');
    this.waypointDetails.textContent='Waypoint: '+wp.label+' · '+rounded+' m straight-line';
-  }else this.waypointDetails.textContent='No personal waypoint selected.';
+  }else this.waypointDetails.textContent='';
+  this.waypointDetails.hidden=!wp;
  }
  open(){this.el.hidden=false;this.draw();this.updatePlayerMarker();this.el.querySelector('button')?.focus();}
  close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.playerMarker.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
@@ -306,7 +307,7 @@ export class WorldAtlas{
   const changed=!this.region||this.region.x!==next.x||this.region.z!==next.z;
   if(changed){
    this.zoom=1;this.pan={x:0,z:0};this.selection=null;this.setSelected.disabled=true;
-   this.details.textContent='Select a place or click the map to set a personal waypoint.';
+   this.details.textContent='';this.details.hidden=true;
    this.waypoint=null;this.activeSavedId=null;this.clearButton.disabled=true;
    this.savePointButton.disabled=true;this.markerLabel.value='';this.noteInput.value='';
   }
@@ -426,7 +427,7 @@ export class WorldAtlas{
     this.selection=e;this.setSelected.disabled=false;
     this.pan={x:clamp(e.x-r.x,-r.hw,r.hw),z:clamp(e.z-r.z,-r.hd,r.hd)};
     this.zoom=Math.max(2,this.zoom);
-    this.details.textContent=e.name+' · '+e.category+' · Select “Mark selected place” to create a waypoint.';
+    this.details.textContent=e.name+' · '+e.category;this.details.hidden=false;
     this.draw();
    };
    this.results.append(b);
