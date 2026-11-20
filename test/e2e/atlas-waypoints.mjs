@@ -21,6 +21,10 @@ try {
  await page.locator('.map-open').click();
  const atlas=page.locator('.world-atlas');
  await atlas.waitFor({state:'visible'});
+ await page.keyboard.press('KeyM');
+ await atlas.waitFor({state:'hidden'});
+ await page.locator('#view').focus();await page.keyboard.press('KeyM');
+ await atlas.waitFor({state:'visible'});
  await atlas.getByRole('button',{name:'Full screen'}).click();
  assert.equal(await atlas.evaluate(el=>el.classList.contains('atlas-fullscreen')),true);
  const canvas=atlas.locator('.atlas-view canvas');
