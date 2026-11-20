@@ -158,7 +158,12 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     model.group.rotation.y=yaw;
     if(environment)focus.x=center.x;
     if(mode==='face')focus.y+=height*.34;
-    else if(environment&&camera.aspect<.8)focus.y+=height*.08;
+    else if(environment){
+      // The image has its gate base low in frame. Lower the displayed
+      // character without moving its actual physical/world position.
+      focus.y+=height*(root.id==='roster-preview'?.12:.055);
+      if(camera.aspect<.8)focus.y+=height*.035;
+    }
     const framing=mode==='face'?height*.38:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.50:1.2),entry.width*1.22/camera.aspect)));
     const distance=framing/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/zoom;
     camera.position.set(focus.x,focus.y+Math.sin(pitch)*distance,focus.z+Math.cos(pitch)*distance);
