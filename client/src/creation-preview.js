@@ -49,7 +49,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  };
  const reset=()=>{yaw=.36;pitch=.10;setMode('body');root.dataset.yaw=String(yaw);root.dataset.zoom=String(zoom);};
  const rotate=delta=>{yaw+=delta;root.dataset.yaw=String(yaw);dirty=true;};
- const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment?.75:.65,environment?1.9:2.4);root.dataset.zoom=String(zoom);dirty=true;};
+ const magnify=delta=>{zoom=clamp(zoom*Math.exp(delta),environment ? 0.75 : 0.65,environment ? 1.9 : 2.4);root.dataset.zoom=String(zoom);dirty=true;};
  const observer=new IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);if(!visible)release();else dirty=true;},{threshold:0.05});
  observer.observe(canvas);
  const onMotionChange=()=>{dirty=true;};
@@ -93,7 +93,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      const entry={model};
      models.push(entry);
      scene.add(model.group);
-     model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0});
+     model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:choice.er===2?'dual':choice.er===1?'rod':null,reducedMotion:true});
      model.group.updateMatrixWorld(true);
      const bounds=new THREE.Box3().setFromObject(model.group),size=bounds.getSize(new THREE.Vector3());
      if(!Number.isFinite(size.y)||size.y<=0)throw Error('Invalid preview bounds');
@@ -130,7 +130,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     const framing=mode==='face'?height*.31:Math.max(...models.map(entry=>Math.max(entry.height*1.2,entry.width*1.22/camera.aspect)));
     const distance=framing/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/zoom;
     camera.position.copy(focus).add(new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(distance));camera.lookAt(focus);camera.updateProjectionMatrix();
-    if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0});
+    if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:meta?.er===2?'dual':meta?.er===1?'rod':null,reducedMotion:motionPreference.matches});
     renderer.render(scene,camera);
    }
    renderer.setScissorTest(false);
