@@ -149,7 +149,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     // The environment does not orbit with the character. Rotate the model
     // itself and keep the monument, ground and interface in a fixed frame.
     model.group.rotation.y=yaw;
-    if(environment&&mode!=='frames')focus.x=0;
+    if(environment&&mode==='body')focus.x=0;
     if(mode==='face')focus.y+=height*.34;
     else if(environment&&camera.aspect<.8)focus.y+=height*.08;
     const framing=mode==='face'?height*.38:Math.max(...models.map(entry=>Math.max(entry.height*(environment?1.50:1.2),entry.width*1.22/camera.aspect)));
