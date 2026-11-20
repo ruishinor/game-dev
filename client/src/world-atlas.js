@@ -291,7 +291,21 @@ export class WorldAtlas{
  const captured=this.terrainForRegion(r);
  c.dataset.terrainSource=captured?'scene':'fallback';
  c.dataset.terrainCaptureCount=String(this.terrainCaptureAttempts);
- if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+ if(captured&&!r.area){
+   // A real scene capture records props and material identity, but a top-down
+   // view under game lighting is not legible cartography by itself. Show
+   // elevation, existing biome footprints and source-grounded relief first,
+   // then overlay genuine static 3D scenery without darkening the terrain.
+   g.save();
+   g.filter='brightness(1.5) contrast(1.06)';
+   g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+   g.restore();
+   g.save();
+   g.globalCompositeOperation='screen';
+   g.globalAlpha=.82;
+   g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
+   g.restore();
+ }else if(captured)g.drawImage(captured,p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else if(!r.area)g.drawImage(reachTerrain(),p.X(-r.hw),p.Z(-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);
  else{g.fillStyle='#3b4546';g.fillRect(p.X(r.x-r.hw),p.Z(r.z-r.hd),2*r.hw*p.kx,2*r.hd*p.kz);}
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
