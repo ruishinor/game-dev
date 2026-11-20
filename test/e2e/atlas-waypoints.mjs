@@ -51,9 +51,9 @@ try {
  // Keyboard-only map interaction: focus, pan, zoom and mark center.
  await canvas.focus();
  assert.equal(await canvas.evaluate(el=>document.activeElement===el),true);
- const markerBefore=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.transform);
+ const markerBefore=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.left);
  await page.keyboard.press('ArrowRight');
- const markerAfter=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.transform);
+ const markerAfter=await atlas.locator('.atlas-player-marker').evaluate(el=>el.style.left);
  assert.notEqual(markerAfter,markerBefore,'Arrow keys pan the canvas without moving the character');
  await page.keyboard.press('+');
  await page.keyboard.press('Enter');
