@@ -231,10 +231,7 @@ body.character-create-mode #creation-back{
   flex:0 0 185px!important;min-width:185px!important;
   min-height:52px!important;padding:5px 9px!important;
  }
- body.character-selection-mode .roster-cards #roster-capacity,
- body.character-selection-mode .roster-cards [data-preview-inspect]{
-  display:none!important;
- }
+ body.character-selection-mode .roster-cards #roster-capacity{display:none!important;}
  body.character-selection-mode .roster-facts{
   left:12px!important;right:12px!important;
   width:calc(100% - 24px)!important;
@@ -467,5 +464,46 @@ body.character-selection-mode .settings-panel .settings-screen-page>.muted{
  }
  body.character-selection-mode .settings-panel .settings-screen-tabs button{
   padding:7px 4px;font-size:10px;
+ }
+}
+
+/* Guest recovery is separate from the roster, accessed via Settings > More. */
+body.character-selection-mode #roster-import-dialog{
+ width:min(430px,calc(100vw - 28px));max-width:calc(100vw - 28px);
+ max-height:calc(100dvh - 36px);margin:auto;padding:22px;
+ border:1px solid #667b8b;border-radius:2px;background:#0b1520;color:#e5e9ef;
+ box-shadow:0 20px 70px #000d;overflow:hidden;overscroll-behavior:none;
+}
+body.character-selection-mode #roster-import-dialog:not([open]){display:none!important}
+body.character-selection-mode #roster-import-dialog::backdrop{background:rgba(0,2,8,.78)}
+body.character-selection-mode #roster-import-dialog h3{
+ color:#e7e9ed;font:600 19px/1.35 Georgia,serif;letter-spacing:.025em;
+ margin:0 0 12px;text-transform:none;
+}
+body.character-selection-mode #roster-import-dialog .hint{margin:0 0 14px;line-height:1.5}
+body.character-selection-mode #roster-import-dialog label{
+ display:block;margin:12px 0 7px;font:600 11px 'Segoe UI',sans-serif;
+ color:#c3d2db;text-transform:uppercase;letter-spacing:.1em;
+}
+body.character-selection-mode #roster-import-dialog input{
+ width:100%;min-width:0;padding:10px;background:#101f2a;
+ border:1px solid #63788a;color:#edf2f5;
+}
+body.character-selection-mode #roster-import-dialog #roster-import-error{
+ min-height:16px;color:#e3a7a7;font-size:12px;
+}
+body.character-selection-mode .roster-import-actions{
+ display:flex;justify-content:flex-end;gap:9px;margin-top:12px;
+}
+body.character-selection-mode .roster-import-actions button{min-width:0;padding:8px 10px}
+body.character-selection-mode #settings-screen-page-2 #roster-import-trigger{
+ flex:0 0 auto;align-self:flex-start;margin-top:8px;font-size:12px;padding:8px 10px;
+}
+@media(max-width:720px){
+ body.character-selection-mode .roster-cards [data-preview-inspect]:not([hidden]){
+  display:block!important;position:relative!important;
+  top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+  width:max-content!important;margin:5px 0 0 auto!important;
+  padding:4px 7px!important;font-size:10px!important;
  }
 }
