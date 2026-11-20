@@ -116,3 +116,23 @@ test('salvage_camp.glb is versioned, valid, carries every piece, and the client 
   const srv = await startServer({ port: 0, dataFile: null });
   try { assert.equal((await fetch('http://127.0.0.1:' + srv.port + SALVAGE_CAMP_URL)).status, 200); } finally { await srv.close(); }
 });
+
+test('placed kit pieces keep their node transform (quantised GLBs store an offset and scale there)', async () => {
+  const scene = new THREE.Group();
+  for (const name of new Set(SALVAGE_CAMP_PIECES.map((p) => p.piece))) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+    m.name = name; m.position.set(0, 1.9, -0.02); m.scale.setScalar(2.28);
+    scene.add(m);
+  }
+  const group = new THREE.Group();
+  const camp = createSalvageCamp(THREE, { group, ground: () => 5, loader: { loadAsync: async () => ({ scene }) } });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(camp.status, 'ready');
+  const holder = camp.root.getObjectByName('salvage-camp:CK_Gantry');
+  assert.ok(holder, 'placed under a holder');
+  const inner = holder.children[0];
+  assert.equal(inner.position.y, 1.9);
+  assert.equal(inner.scale.x, 2.28);
+  assert.equal(holder.position.y, 5, 'holder sits on the ground');
+  camp.dispose();
+});

@@ -108,9 +108,13 @@ export function createSalvageCamp(T, o) {
       for (const p of SALVAGE_CAMP_PIECES) {
         const proto = protos[p.piece];
         if (!proto) continue;
-        const inst = proto.clone(true);
+        // keep the node's own transform (mesh quantisation stores an offset and
+        // scale there); place a holder instead of overwriting it
+        const inst = new T.Group();
+        inst.name = 'salvage-camp:' + p.piece;
         inst.position.set(p.x, o.ground(p.x, p.z), p.z);
         inst.rotation.set(0, p.yaw, 0);
+        inst.add(proto.clone(true));
         inst.traverse((n) => {
           if (!n.isMesh) return;
           const name = n.material?.name;
