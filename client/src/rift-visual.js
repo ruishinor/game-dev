@@ -81,7 +81,7 @@ function membraneGeometry(T, scale = 1, bow = 0.22) {
 
 // ----------------------------------------------------------------------------- shaders
 const COMMON = /* glsl */`
-uniform float uTime; uniform float uPhase; uniform float uOpen; uniform float uAgit; uniform float uStable; uniform float uFlare; uniform float uMotion;
+uniform float uTime; uniform float uPhase; uniform float uOpen; uniform float uAgit; uniform float uStable; uniform float uFlare; uniform float uMotion; uniform float uLayers;
 uniform sampler2D uNoise;
 float nz(vec2 p){ return texture2D(uNoise, p).r; }
 float nz2(vec2 p){ return texture2D(uNoise, p).g; }
@@ -138,6 +138,7 @@ void main(){
   vec2 par = V.xy / max(0.25, V.z);
   vec3 interior = vec3(0.0);
   for (int k = 0; k < 3; k++) {
+    if (float(k) >= uLayers) break;
     float d = 0.2 + float(k) * 0.35;
     vec2 iu = uv - par * d * 0.35;
     vec2 iq = (iu - c) * vec2(1.55, 1.0);
@@ -426,7 +427,7 @@ export function buildRift(T, site, ground, { returning = false, loader = null, u
   const start = returning ? 'stabilized' : 'dormant';
   const u = {
     uTime: { value: 0 }, uPhase: { value: LEVEL[start] }, uOpen: { value: PHASES[start][1] }, uAgit: { value: PHASES[start][2] }, uStable: { value: returning ? 1 : 0 },
-    uFlare: { value: 0 }, uMotion: { value: 1 }, uRefract: { value: 0.035 },
+    uFlare: { value: 0 }, uMotion: { value: 1 }, uRefract: { value: 0.035 }, uLayers: { value: 3 },
     uNoise: { value: noise(T), shared: true },
     uCalm: { value: new T.Color(0.3, 0.72, 0.8) }, uWild: { value: new T.Color(0.68, 0.4, 0.86) }, uHot: { value: new T.Color(0.72, 0.92, 1.0) }, uVoid: { value: new T.Color(0.012, 0.012, 0.035) },
     uTipL: { value: new T.Vector3(-0.56, 4.53, -0.04) }, uTipR: { value: new T.Vector3(0.28, 4.82, 0.02) },
@@ -513,6 +514,7 @@ export function buildRift(T, site, ground, { returning = false, loader = null, u
       u.uAgit.value = Math.min(1, (st.reducedMotion ? agit : cur.agit) + build * 0.6);
       u.uFlare.value = Math.min(1.2, (st.reducedMotion ? 0 : flare) + build * 0.5);
       u.uStable.value = phase === 'stabilized' ? 1 : 0;
+      u.uLayers.value = q >= 2 ? 3 : q === 1 ? 2 : 1;
       u.uRefract.value = q >= 2 && !(st.cameraDistance > 60) ? 0.035 * (1 + 0.8 * u.uAgit.value) : 0;
       if (ring) ring.visible = phase === 'unstable' && st.riftWarning > 0;
       field.update(time, phase, st, q);
