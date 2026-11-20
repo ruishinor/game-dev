@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {ITEMS,CLASSES} from '../shared/content.js';
+import {ITEMS,CLASSES,AUTO_REFERENCE_MS} from '../shared/content.js';
 import {conditionOf,sanitizeCondition,weaponBonus} from '../shared/condition.js';
 import {dealDamage,tickPlayerCombat} from '../server/sim/combat.js';
 import {equipItem,unequipSlot,craftRecipe} from '../server/sim/progress.js';
@@ -36,7 +36,7 @@ test('starter weapon acquisition, equipment, defeat wear, paid repair and QL upg
 test('base auto-attacks are preserved; equipped weapon adds only its condition-scaled damage',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{inventory:['field_emitter'],equipped:{device:null,implant:null,glyph:null,weapon:'field_emitter'},condition:{field_emitter:50}}));
  const e=enemyOf(g,'skitter');isolate(g,e);place(p,e.x+1,e.z);p.target=e.id;p.autoOn=true;
- const before=e.hp;tickPlayerCombat(g,p,0);assert.equal(before-e.hp,Math.round((CLASSES.vanguard.auto.dmg+1)*p.stats.power*p.stats.dmgMul));
+ const before=e.hp;tickPlayerCombat(g,p,0);assert.equal(before-e.hp,Math.round((CLASSES.vanguard.auto.dmg+1*CLASSES.vanguard.auto.interval/AUTO_REFERENCE_MS)*p.stats.power*p.stats.dmgMul));
 });
 test('save hydration preserves valid weapon and condition, old loadout is unchanged',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attune-weapon-')),file=path.join(dir,'characters.json');

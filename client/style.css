@@ -831,5 +831,339 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .atlas-controls button,.atlas-header button{border-color:#8d7d56;background:#1b262b;}
 .settings-panel{max-height:calc(100vh - 32px);overflow:auto;}
 @media(max-width:650px){.world-atlas{inset:8px;}.atlas-body{grid-template-columns:minmax(120px,36%) minmax(0,1fr);}.atlas-tools{padding:8px;}.atlas-header h2{font-size:16px;}.atlas-controls{right:4px;bottom:4px;}.atlas-controls button{padding:4px;font-size:10px;}.frame.player .unit-portrait{width:42px;height:42px;}#hud .frame.player{padding-left:50px;}}
+
+/* UI legibility correction, following the 2026-11-20 owner screenshots.
+   Explicitly sized labels and targets retain room at 1024p; party/pet rows must
+   not shrink to the older 9px/collapsed presentation. */
+#hud .frame.player{width:min(292px,49vw);min-height:92px;padding:10px 10px 9px 80px;}
+#hud .frame.pet{width:min(260px,47vw);margin-left:12px;min-height:74px;padding:10px 10px 9px 69px;}
+#hud .frame.ally{width:min(260px,48vw);min-height:77px;padding:10px 10px 9px 68px;}
+.unit-portrait{width:56px;height:56px;left:6px;top:7px;border-width:2px;}
+.frame.player .unit-portrait{width:68px;height:68px;top:10px;}
+#hud .frame .name{font-size:15px;line-height:1.25;}
+#hud .frame .sub{font-size:12px;line-height:1.3;margin-bottom:6px;}
+#hud .frame .bar.hp{height:18px;}
+#hud .frame .bar.hp .label{font-size:12px;line-height:16px;}
+#hud .frame .bar.res{height:16px;}
+#hud .frame .bar.res .label{font-size:11px;line-height:14px;}
+#hud .frame .buffs{margin-top:5px;gap:5px;}
+#hud .frame .chip{font-size:11px;padding:2px 6px;line-height:1.3;}
+#hud .frame .chip[data-effect]::before{margin-right:5px;}
+#hud .party{top:220px;gap:8px;max-height:calc(100vh - 340px);}
+#hud .frame.pet .pet-head{min-width:0;}
+#hud .frame.pet .pet-select{font-size:14px;}
+#hud .summon-pet{font-size:12px;padding:6px 10px;}
+#hud .bars{width:min(800px,calc(100vw - 18px));bottom:13px;}
+#hud .actionbar{max-width:min(700px,calc(100vw - 66px));gap:5px;}
+#hud .petbar{gap:5px;margin-bottom:8px;justify-content:center;max-width:100%;flex-wrap:wrap;}
+#hud .slot{width:clamp(48px,5.35vw,60px);height:clamp(48px,5.35vw,60px);}
+#hud .slot.small{width:clamp(41px,4.55vw,51px);height:clamp(41px,4.55vw,51px);}
+#hud .slot .icon{inset:7px;}
+#hud .slot.small .icon{inset:6px;}
+#hud .slot .key{font-size:13px;font-weight:700;top:2px;left:4px;z-index:1;text-shadow:0 1px 3px #000,0 0 2px #000;}
+#hud .slot.small .key{font-size:12px;}
+#hud .slot .cdtext{font-size:19px;}
+#hud .slot.dismiss-ready{border-color:#d4b381;background:linear-gradient(145deg,#5f5141,#26221f);}
+#hud .slot.empty{border-style:dashed;box-shadow:none;background:#1b2930b3;}
+#hud .actionbar[data-empty-mode="transparent"] .slot.empty{opacity:.22;}
+#hud .actionbar[data-empty-mode="hidden"] .slot.empty{visibility:hidden;}
+#hud .side{width:min(280px,39vw);}
+#hud .minimap{width:min(246px,35vw);border-width:4px;image-rendering:auto;}
+#hud .zone-label{font-size:14px;font-weight:600;line-height:1.25;text-shadow:0 1px 3px #000,0 0 2px #000;}
+#hud .map-controls button{min-width:38px;min-height:34px;font-size:14px;padding:5px 9px;}
+#hud .map-clock-row{font-size:13px;gap:6px;justify-content:flex-end;max-width:100%;}
+#hud .map-day,#hud .map-game-clock,#hud .map-real-clock{padding:6px 9px;min-height:30px;display:inline-flex;align-items:center;border-color:#b29b6f;font-weight:600;}
+#hud .map-day{font-size:15px;}
+#hud .map-day[data-status="pending"]{color:#dfcaa3;background:#263038;}
+#hud .tracker .title{font-size:14px;}
+#hud .tracker .text{font-size:13px;}
+#hud .atlas-tools{font-size:14px;}
+#hud .atlas-tools label{font-size:14px;line-height:1.5;}
+#hud .atlas-tools input[type=search]{font-size:14px;min-height:40px;}
+#hud .atlas-results button{font-size:13px;padding:9px;}
+#hud .atlas-details{font-size:13px;}
+#hud .atlas-controls button,#hud .atlas-header button{font-size:14px;min-height:39px;padding:7px 10px;}
+#hud .map-settings{display:grid;gap:10px;padding:9px 0;border-top:1px solid #6b604d;}
+#hud .map-settings label{display:flex;align-items:center;gap:9px;font-size:13px;flex-wrap:wrap;}
+#hud .map-settings select{font-size:13px;min-height:33px;}
+#hud .hotkey-entry{display:grid;gap:8px;border-top:1px solid #69634e;margin-top:12px;padding-top:10px;}
+#hud .hotkey-entry label{display:flex;align-items:center;gap:10px;font-size:13px;}
+#hud .hotkey-entry select{font-size:14px;padding:6px;}
+#hud .keybindings-panel{z-index:41;max-height:min(84vh,850px);overflow:auto;width:min(580px,96vw);}
+#hud .binding-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(130px,1fr);align-items:center;gap:10px;padding:6px;border-bottom:1px solid #53636066;}
+#hud .binding-capture{min-height:39px;font-size:13px;}
+#hud .keybind-error{font-size:13px;color:#efd5a3;min-height:1.3em;}
+@media(max-width:700px){
+ #hud .frame.player{min-height:76px;padding-left:60px;width:min(218px,52vw);}
+ #hud .frame.player .unit-portrait{width:49px;height:49px;top:10px;}
+ #hud .frame.pet,#hud .frame.ally{padding-left:56px;width:min(210px,52vw);}
+ #hud .unit-portrait{width:43px;height:43px;}
+ #hud .frame .name{font-size:13px;}
+ #hud .frame .sub{font-size:11px;}
+ #hud .side{width:min(195px,38vw);}
+ #hud .minimap{width:min(185px,37vw);}
+ #hud .slot{width:clamp(42px,7vw,49px);height:clamp(42px,7vw,49px);}
+ #hud .slot.small{width:clamp(36px,5.95vw,42px);height:clamp(36px,5.95vw,42px);}
+ #hud .map-clock-row{font-size:11px;}
+ #hud .zone-label{font-size:12px;}
+}
+
+/* Explicit party membership. Unseen members have NO invented health/state. */
+#hud .party-frame-stacks{position:absolute;top:220px;left:14px;width:min(286px,50vw);max-height:calc(100vh - 342px);overflow-y:auto;display:flex;flex-direction:column;gap:9px;}
+#hud .party-frame-stacks .party{position:static;left:auto;top:auto;max-height:none;overflow:visible;display:flex;flex-direction:column;gap:7px;width:100%;}
+#hud .party-frame-stacks .nearby-players{display:flex;flex-direction:column;gap:6px;width:100%;}
+#hud .party-frame-stacks .nearby-title{color:#d5c5a5;font-weight:600;font-size:12px;line-height:1.4;letter-spacing:.04em;padding:5px 5px 2px;border-top:1px solid #8b7754;}
+#hud .party-frame-stacks .nearby-players .frame.ally{opacity:.9;}
+#hud .party-frame-stacks .party .frame.ally{border-color:#a38e6b;}
+#hud .party-frame-stacks .frame.ally.party-member-unavailable{position:relative;min-height:72px;padding:10px 8px 8px 69px;border-style:dashed;color:#d1d1c7;opacity:.83;cursor:default;}
+#hud .party-avatar-placeholder{position:absolute;top:7px;left:6px;display:grid;place-items:center;width:54px;height:54px;border:2px solid #8a846e;border-radius:50%;background:#222d31;color:#d8c9ad;font:600 22px Georgia,serif;}
+#hud .buff-chip{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;min-width:29px;min-height:29px;padding:3px;border:1px solid #758d7b;background:#233b37;}
+#hud .buff-chip.bad{border-color:#bd8b76;background:#442e2d;}
+#hud .buff-chip::before{content:none!important;}
+#hud .buff-chip .buff-icon{display:inline-grid;place-items:center;width:23px;height:23px;color:#b0edcc;}
+#hud .buff-chip.bad .buff-icon{color:#ffc0ab;}
+#hud .buff-chip .buff-icon svg{width:100%;height:100%;display:block;}
+#hud .frame.ally .buff-chip .buff-label{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap;}
+#hud .frame.ally .buff-chip{min-width:34px;min-height:34px;}
+#hud .frame.ally .buff-chip .buff-icon{width:25px;height:25px;}
+#hud .frame.ally .buffs{gap:4px;}
+@media(max-width:700px){#hud .party-frame-stacks{top:205px;width:min(210px,52vw);left:7px;max-height:calc(100vh - 290px);}#hud .frame.ally .buff-chip{min-width:30px;min-height:30px;}}
+
+/* Personal cartography waypoints — no authoritative travel or hidden data. */
+#hud .map-waypoint-brief{max-width:100%;width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:13px;font-weight:600;color:#ffdf95;background:#152228ed;border:1px solid #bb9e64;border-radius:3px;min-height:36px;padding:7px 9px;}
+#hud .map-waypoint-brief:hover,#hud .map-waypoint-brief:focus-visible{border-color:#f3cd7a;background:#283839;}
+#hud .atlas-waypoint-details{font-size:13px;line-height:1.5;color:#f3daaa;padding:8px 9px;border:1px solid #6a6349;background:#1a272a;}
+#hud .atlas-legend{font-size:13px;line-height:1.6;color:#e7dac2;border-bottom:1px solid #706248;padding:0 2px 8px;}
+#hud .atlas-tools>button{font-size:13px;padding:8px 10px;min-height:38px;text-align:left;}
+#hud .atlas-tools>button:disabled{opacity:.55;}
+#hud .world-atlas.atlas-fullscreen{inset:0;border-radius:0;max-width:none;max-height:none;z-index:45;}
+#hud .world-atlas.atlas-fullscreen .atlas-body{grid-template-columns:minmax(220px,22%) minmax(0,1fr);}
+@media(max-width:700px){
+  #hud .map-waypoint-brief{font-size:11px;min-height:34px;}
+  #hud .world-atlas.atlas-fullscreen .atlas-body{grid-template-columns:minmax(120px,35%) minmax(0,1fr);}
+  #hud .atlas-tools>button{font-size:12px;}
+}
 .tip-meta.met { color: var(--green); }
 .tip-meta.unmet { opacity: 0.62; }
+
+
+/* Owner blueprint: widescreen interactive atlas — 2026-11-20 */
+/* Adapted from the supplied 2026-11-19 Aion-style map references:
+   dark catalogue/sidebar, full-frame richly shaded terrain, vertical map tools.
+   No source image or third-party map art is copied. */
+#hud .world-atlas{
+  inset:clamp(8px,3vh,30px) clamp(8px,2vw,34px);
+  border:1px solid #41545c;border-radius:8px;
+  background:#101619;color:#e2e9ea;
+  box-shadow:0 16px 54px #000e;
+  font-family:system-ui,sans-serif;
+}
+#hud .atlas-header{
+  min-height:54px;padding:10px 16px;
+  border-bottom:1px solid #374a53;
+  background:linear-gradient(#161e24,#10161b);
+}
+#hud .atlas-header h2{
+  font:650 clamp(17px,1.5vw,22px)/1.15 system-ui,sans-serif;
+  letter-spacing:.01em;color:#edf3f4;
+  text-shadow:none;margin:0;
+}
+#hud .atlas-header>button{
+  background:#202c34;border:1px solid #536b76;border-radius:5px;
+  color:#d8e5e9;font-size:12px;padding:7px 13px;
+}
+#hud .atlas-body{grid-template-columns:minmax(228px,25%) minmax(0,1fr);gap:0}
+#hud .atlas-tools{
+  padding:12px 14px;gap:9px;background:#11181d;
+  border-right:1px solid #36464e;min-width:0;
+  scrollbar-width:thin;scrollbar-color:#4d656f #172127;
+}
+#hud .atlas-region{
+  color:#9db6c1;letter-spacing:.11em;
+  font-weight:750;font-size:10px;line-height:1.4;
+  padding:5px 2px 8px;border-bottom:1px solid #30434c;
+}
+#hud .atlas-tools h3{
+  font-size:10px;font-weight:750;letter-spacing:.095em;
+  color:#8faab7;margin:6px 0 0;
+}
+#hud .atlas-tools input[type="search"]{
+  padding:9px 11px;border-radius:5px;
+  color:#e3ecee;background:#090e12;border:1px solid #3f525a;
+  font-size:12px;min-height:34px;
+}
+#hud .atlas-tools label{
+  display:flex;align-items:center;gap:6px;font-size:12px;
+  color:#cfdbdd;min-height:26px;cursor:pointer;
+}
+#hud .atlas-tools input[type="checkbox"]{accent-color:#5d9eae}
+#hud .atlas-legend{
+  padding:8px 0;border-top:1px solid #34444d;
+  border-bottom:1px solid #34444d;
+  color:#a9bcc2;font-size:10px;line-height:1.7;
+}
+#hud .atlas-details,#hud .atlas-waypoint-details{
+  font-size:12px;line-height:1.45;color:#c8d7da;
+}
+#hud .atlas-tools button{
+  border:1px solid #49616c;border-radius:5px;
+  background:#1a2931;color:#dce6e7;padding:7px 9px;
+}
+#hud .atlas-tools button:hover:not(:disabled),
+#hud .atlas-tools button:focus-visible{background:#293e49;border-color:#86b5c1}
+#hud .atlas-results{max-height:min(34vh,340px);overflow-y:auto;gap:3px}
+#hud .atlas-results button{text-align:left;background:#131f25;font-size:11px;line-height:1.3}
+#hud .atlas-view{background:#1d292d;min-width:0;overflow:hidden}
+#hud .atlas-view canvas{
+  background:#273339;image-rendering:auto;display:block;
+  width:100%;height:100%;
+}
+#hud .atlas-controls{
+  display:flex;flex-direction:column;flex-wrap:nowrap;
+  position:absolute;top:12px;right:12px;bottom:auto;
+  width:38px;gap:4px;align-items:stretch;
+}
+#hud .atlas-controls button{
+  display:grid;place-items:center;width:38px;height:38px;
+  min-width:38px;min-height:38px;padding:0;
+  border:1px solid #506a74;border-radius:5px;
+  background:#172329e8;color:#e6f0f1;
+  font:600 21px/1 system-ui,sans-serif;
+  box-shadow:0 1px 5px #0007;
+}
+#hud .atlas-controls button:hover,
+#hud .atlas-controls button:focus-visible{background:#29404b;border-color:#91bec8}
+#hud .atlas-controls button[aria-pressed="true"]{background:#30505c}
+@media(max-width:720px){
+  #hud .world-atlas{inset:5px;border-radius:3px}
+  #hud .atlas-header{min-height:42px;padding:7px 9px}
+  #hud .atlas-header h2{font-size:15px}
+  #hud .atlas-body{grid-template-columns:minmax(124px,37%) minmax(0,1fr)}
+  #hud .atlas-tools{padding:7px;gap:5px}
+  #hud .atlas-tools label{font-size:10px}
+  #hud .atlas-controls{top:5px;right:5px;width:28px;gap:3px}
+  #hud .atlas-controls button{width:28px;height:28px;min-height:28px;min-width:28px;font-size:17px}
+  #hud .atlas-region{font-size:9px}
+}
+
+/* Atlas saved notes and live player overlay — 2026-11-20 */
+#hud .atlas-player-marker{
+  position:absolute;z-index:3;pointer-events:none;
+  display:grid;place-items:center;
+  width:23px;height:23px;
+  color:#efffff;font:900 19px/1 system-ui,sans-serif;
+  text-shadow:0 0 3px #00131e,0 1px 4px #000,0 0 8px #7bcbe0;
+  transform-origin:center;
+  will-change:transform,left,top;
+}
+#hud .atlas-player-marker[hidden]{display:none}
+#hud .atlas-tools .atlas-marker-title,
+#hud .atlas-tools .atlas-marker-note{
+  width:100%;box-sizing:border-box;
+  border:1px solid #465c66;border-radius:5px;
+  padding:8px 9px;color:#e2eef0;background:#0c161b;
+  font:12px/1.45 system-ui,sans-serif;
+}
+#hud .atlas-tools .atlas-marker-note{resize:vertical;min-height:56px;max-height:125px}
+#hud .atlas-tools .atlas-marker-title:focus-visible,
+#hud .atlas-tools .atlas-marker-note:focus-visible{outline:2px solid #76b5c7;outline-offset:2px}
+#hud .atlas-note-status{font-size:11px;line-height:1.35;color:#abc3cb}
+#hud .atlas-saved-list{display:grid;gap:5px;padding:4px 0 12px}
+#hud .atlas-saved-point{
+  display:grid;grid-template-columns:minmax(0,1fr) 27px;gap:3px;
+  border:1px solid #2f454f;border-radius:5px;
+  padding:4px;background:#15232a;
+}
+#hud .atlas-saved-point .atlas-saved-select{
+  min-width:0;text-align:left;border:0;background:transparent;
+  color:#c4e2eb;font-size:12px;overflow-wrap:anywhere;padding:3px 4px;
+}
+#hud .atlas-saved-point .atlas-saved-note{
+  grid-column:1;grid-row:2;font-size:10px;line-height:1.4;
+  margin:0;padding:2px 4px;color:#a4bbc2;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+#hud .atlas-saved-point .atlas-saved-delete{
+  grid-column:2;grid-row:1;align-self:start;min-width:27px;
+  width:27px;height:27px;padding:1px;font-size:18px;
+  background:#24363d;border-color:#4a626e;
+}
+
+
+/* Search suggestions stay accessible under the search field. */
+#hud .atlas-results[hidden]{display:none!important}
+#hud .atlas-results:not([hidden]){flex:0 0 auto;max-height:min(30vh,245px);overflow-y:auto;min-height:0}
+
+
+/* Atlas owner acceptance: zero sidebar scrolling, viewport-fit controls.
+   Secondary saved locations live in a dedicated tab; help is hover-only. */
+#hud .world-atlas{inset:clamp(4px,1vh,12px) clamp(4px,1vw,16px)}
+#hud .atlas-header{min-height:46px;padding:6px 12px;flex:0 0 auto}
+#hud .atlas-body{min-height:0;overflow:hidden;grid-template-columns:minmax(210px,24%) minmax(0,1fr)}
+#hud .atlas-tools{overflow:hidden!important;min-height:0;gap:0;padding:8px 10px;display:flex;flex-direction:column}
+#hud .atlas-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:0 0 auto;margin-bottom:8px}
+#hud .atlas-tabs button{min-height:31px;padding:4px 7px;font-size:12px;font-weight:650}
+#hud .atlas-tabs button[aria-pressed="true"]{border-color:#80b9c6;background:#294650}
+#hud .atlas-tool-panel{display:flex;flex-direction:column;gap:clamp(3px,.7vh,8px);min-height:0;overflow:hidden}
+#hud .atlas-tool-panel[hidden]{display:none!important}
+#hud .atlas-tool-panel h3{margin:2px 0 0}
+#hud .atlas-map-panel label{min-height:clamp(20px,3.2vh,27px)}
+#hud .atlas-region{padding:3px 0 5px}
+#hud .atlas-legend{padding:3px 0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud .atlas-details{margin:0;font-size:11px;line-height:1.3;max-height:2.7em;overflow:hidden}
+#hud .atlas-waypoint-details{margin:0;padding:5px 7px;font-size:11px;line-height:1.3}
+#hud .atlas-tools button{min-height:30px;padding:5px 7px}
+#hud .atlas-results:not([hidden]){max-height:min(20vh,145px);overflow:auto}
+#hud .atlas-saved-panel .atlas-marker-note{min-height:45px;max-height:70px;resize:none}
+#hud .atlas-saved-list{min-height:0;overflow:hidden;padding:0;gap:3px}
+#hud .atlas-saved-point:nth-child(n+5){display:none}
+#hud .atlas-note-status{margin:0;font-size:10px}
+@media(max-height:650px){
+ #hud .atlas-header{min-height:37px}
+ #hud .atlas-tabs{margin-bottom:4px}
+ #hud .atlas-tool-panel{gap:2px}
+ #hud .atlas-map-panel label{min-height:19px}
+ #hud .atlas-legend{display:none}
+ #hud .atlas-tools input[type="search"]{min-height:29px;padding:4px 7px}
+ #hud .atlas-details{max-height:1.4em;white-space:nowrap;text-overflow:ellipsis}
+}
+@media(max-width:700px){
+ #hud .atlas-body{grid-template-columns:minmax(125px,35%) minmax(0,1fr)}
+ #hud .atlas-tools{padding:5px}
+ #hud .atlas-tabs button{font-size:11px;min-height:28px}
+ #hud .atlas-legend{display:none}
+ #hud .atlas-details{font-size:10px}
+}
+
+/* Authored atlas: all primary controls fit without a scrollable sidebar.
+   Saved records are accessed with a native picker, never clipped at row four. */
+#hud .atlas-tools, #hud .atlas-tool-panel {overflow:hidden!important;overscroll-behavior:contain}
+#hud .atlas-saved-picker {
+  box-sizing:border-box;width:100%;min-height:35px;padding:6px 8px;
+  border:1px solid #536873;border-radius:5px;color:#dce7e9;
+  background:#15272d;font:12px/1.3 system-ui,sans-serif;
+}
+#hud .atlas-saved-picker[hidden]{display:none!important}
+#hud .atlas-results:not([hidden]){
+  overflow:hidden!important;max-height:none;display:grid;
+  grid-template-rows:repeat(auto-fit,minmax(0,auto));gap:2px;
+}
+#hud .atlas-results button {min-height:24px;padding:3px 6px;font-size:11px}
+#hud .atlas-result-hint{
+  margin:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:#a8bec7;
+}
+#hud .atlas-saved-list{overflow:hidden!important}
+#hud .atlas-saved-panel .atlas-saved-note {
+  max-height:4.2em;overflow:hidden;text-overflow:ellipsis;
+}
+@media(max-height:700px){
+  #hud .atlas-tool-panel{gap:3px}
+  #hud .atlas-details{max-height:1.4em;white-space:nowrap;text-overflow:ellipsis}
+  #hud .atlas-legend{display:none}
+  #hud .atlas-map-panel label{min-height:20px}
+}
+
+/* Long-form atlas instructions are available from native hover titles. */
+#hud .atlas-legend {display:none!important}
+#hud .atlas-details[hidden],#hud .atlas-waypoint-details[hidden],#hud .atlas-note-status[hidden]{display:none!important}
+#hud .atlas-tools .atlas-saved-panel .atlas-saved-picker{width:100%;max-width:100%}

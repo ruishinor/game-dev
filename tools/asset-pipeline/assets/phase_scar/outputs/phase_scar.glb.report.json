@@ -1,0 +1,57 @@
+{
+ "file": "assets/phase_scar/outputs/phase_scar.glb",
+ "bytes": 2300148,
+ "inputBytes": 12728384,
+ "triangles": 25480,
+ "meshes": 4,
+ "materials": [
+  "PS_Lens",
+  "PS_Rail",
+  "PS_Seam",
+  "PS_Body"
+ ],
+ "textures": [
+  {
+   "name": "scar_normal",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 499840
+  },
+  {
+   "name": "scar_orm",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 684050
+  },
+  {
+   "name": "scar_albedo",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 318048
+  }
+ ],
+ "skins": [],
+ "animations": [],
+ "nodes": [],
+ "extensionsUsed": [
+  "KHR_materials_emissive_strength",
+  "EXT_texture_webp",
+  "KHR_mesh_quantization",
+  "EXT_meshopt_compression"
+ ],
+ "validator": {
+  "errors": 0,
+  "warnings": 0,
+  "infos": 8,
+  "messages": []
+ }
+}

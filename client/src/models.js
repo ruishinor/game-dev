@@ -6,6 +6,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
+import { buildResonantVein } from './resonant-vein.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { severanceLink } from './severance-gate.js';
 
@@ -853,6 +854,14 @@ function makeKestrelRecorder(){
   return {group,height:2.0,radius:0.8,hover:0,update(){},dispose(){for(const m of [dark,shell,brass,glass])m.dispose();}};
 }
 
+/** Phase Scar rifts: the Blender foundation loads through `loader` when given. */
+export const RIFT_KINDS=new Set(['phase_scar','severance_return','foundry_return']);
+export function riftModel(kind,loader=null){
+  if(kind==='phase_scar')return buildRift(THREE,RIFT_SITE,groundHeight,{loader});
+  const m=buildRift(THREE,null,null,{returning:true,loader});
+  if(kind==='foundry_return')m.group.name='rift:foundry-return';
+  return m;
+}
 export function buildPhaseGate(returning,assets){
  const group=new THREE.Group();group.name=returning?'rift:return-gate':'rift:entry-gate';
  const frame=std(0x475b63,{metal:.65}),light=lit(returning?0x83d5af:0x9cbce5);
@@ -899,7 +908,8 @@ export const MODEL_FACTORIES = {
   sinter_sampler: makeSinterSampler,
   // Existing mineral-bed scene geometry is the visible resource; only the interaction anchor is instanced here.
   sinter_recovery:()=>({group:new THREE.Group(),height:.65,radius:1.2,hover:0,update(){}}),
-  phase_scar:()=>buildRift(THREE,RIFT_SITE,groundHeight),
+  phase_scar:()=>riftModel('phase_scar'),
+  resonant_vein:()=>buildResonantVein(THREE),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
   annex_cache:()=>{
@@ -911,8 +921,8 @@ export const MODEL_FACTORIES = {
     return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
   },
   rift_return:()=>buildPhaseGate(true),
-  severance_return:()=>buildRift(THREE,null,null,{returning:true}),
-  foundry_return:()=>{const m=buildRift(THREE,null,null,{returning:true});m.group.name='rift:foundry-return';return m;},
+  severance_return:()=>riftModel('severance_return'),
+  foundry_return:()=>riftModel('foundry_return'),
   foundry_cache:()=>{
     const group=new THREE.Group();group.name='foundry:recovery-cache';
     const metal=std(0x3a3d3f,{metal:.7}),trim=std(0xb2793a,{metal:.5}),lamp=lit(0x4fd1c5);

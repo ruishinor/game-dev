@@ -32,13 +32,15 @@ export function companionRoster(game, p) {
     const needsLink = false;
     let name = type === 'spindle' ? p.char.spindle.name : p.char.petName;
     if (!name || (type === 'survey_strider' && name === COMPANIONS.mender.name)) name = COMPANIONS[type].name;
-    return { type, name, isDefault: type === selected, active: p.companion?.type === type,
+    const active = type === 'spindle' ? !!p.spindleCompanion : p.companion?.type === type;
+    return { type, name, isDefault: type === selected, active,
+      ...(type === 'spindle' ? { lightOn: !!p.spindleCompanion?.lightOn } : {}),
       available: !needsLink && !p.dead && game.time >= p.combatUntil, needsLink };
   });
 }
 
 export function spawnMender(game, p) {
-  if (p.dead || p.companion || p.char.companionDismissed || CLASSES[p.cls].companion !== 'mender') return;
+  if (p.dead || (p.companion && p.companion.type !== 'spindle') || p.char.companionDismissed || CLASSES[p.cls].companion !== 'mender') return;
   const def = COMPANIONS.mender;
   const mode = p.char.petMode !== 'guard' && Object.hasOwn(def.modes, p.char.petMode) ? p.char.petMode : 'triage';
   const c = {
@@ -53,27 +55,48 @@ export function spawnMender(game, p) {
 
 function removeActive(game, p, {preserveBuffs=false}={}) {
   const c = p.companion;
+  if (!c) return;
+  if (c === p.spindleCompanion) { removeSpindle(game, p); return; }
   if (c.mode === 'guard' && !preserveBuffs) release(game, c, p);
   if (p.surveyKit?.mark?.source === c.id) p.surveyKit.mark = null;
   game.ents.delete(c.id);
   game.companions = game.companions.filter(active => active !== c);
-  p.companion = null;
+  p.companion = p.spindleCompanion ?? null;
+}
+
+function removeSpindle(game, p) {
+  const c = p.spindleCompanion;
+  if (!c) return;
+  game.ents.delete(c.id);
+  game.companions = game.companions.filter(active => active !== c);
+  if (p.companion === c) p.companion = null;
+  p.spindleCompanion = null;
 }
 
 function spawnSelected(game, p, type, point) {
   if (type === 'mender') spawnMender(game, p);
   if (type === 'spindle') spawnSpindle(game, p, point ?? spindleSpawnPoint(game, p));
   if (type === 'survey_strider') syncSurveyStrider(game, p, point);
-  if (p.companion) p.char.activeCompanion = p.companion.type;
-  p.deployRetryAt = !p.companion && !p.char.companionDismissed &&
-    (type === 'spindle' || (type === 'survey_strider' && wantsSurveyStrider(p))) ? game.time + 1000 : null;
+  if (p.companion && p.companion.type !== 'spindle') p.char.activeCompanion = p.companion.type;
+  else if (p.spindleCompanion) p.char.activeCompanion = 'spindle';
+  const missing = type === 'spindle' ? !p.spindleCompanion : !p.companion || p.companion.type === 'spindle';
+  p.deployRetryAt = missing && !p.dead &&
+    (type === 'spindle' ? !p.char.spindleDismissed
+      : type === 'survey_strider' && !p.char.companionDismissed && wantsSurveyStrider(p))
+    ? game.time + 1000 : null;
 }
 
 export function restoreCompanion(game, p) {
-  if(p.char.companionDismissed)return;
   const owned = ownedCompanionTypes(p.char);
-  const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned].find(t => owned.includes(t));
-  spawnSelected(game, p, selected);
+  // Migrate characters that previously had Spindle in their exclusive slot.
+  const legacySpindle = p.char.spindleDismissed === undefined &&
+    p.char.activeCompanion === 'spindle' && !p.char.companionDismissed;
+  const selected = [p.char.activeCompanion, p.char.defaultCompanion, ...owned]
+    .find(t => t !== 'spindle' && owned.includes(t));
+  if (!p.char.companionDismissed && selected &&
+      (!p.companion || p.companion.type === 'spindle')) spawnSelected(game, p, selected);
+  if (owned.includes('spindle') && !p.spindleCompanion &&
+      (p.char.spindleDismissed === false || legacySpindle)) spawnSelected(game, p, 'spindle');
 }
 
 export function syncEquippedCompanion(game, p) {
@@ -95,19 +118,27 @@ export function syncEquippedCompanion(game, p) {
  * system's own rule (combat.js activeBondSource).
  */
 export function dismissForTransit(game, p, reason = 'transit') {
-  const c = p.companion;
-  if (!c) return false;
-  removeActive(game, p, {preserveBuffs:true});
-  p.char.companionDismissed = true;
+  const active = [...new Set([p.companion, p.spindleCompanion].filter(Boolean))];
+  if (!active.length) return false;
+  if (p.companion && p.companion !== p.spindleCompanion) {
+    removeActive(game, p, { preserveBuffs: true });
+    p.char.companionDismissed = true;
+  }
+  if (p.spindleCompanion) {
+    removeSpindle(game, p);
+    p.char.spindleDismissed = true;
+  }
   p.char.activeCompanion = null;
   p.deployRetryAt = null;
   game.markDirty(p);
-  game.message(p, 'info', `${c.name} was dismissed for the ${reason}. Summon it again from your companion sheet.`);
+  game.message(p, 'info', `${active.map(c => c.name).join(' and ')} dismissed for the ${reason}. Summon again from your companion sheet.`);
   return true;
 }
 
 export function redeployGroundCompanion(game, p) {
-  const { type } = p.companion;
+  const c = p.companion;
+  if (!c) return;
+  const { type } = c;
   removeActive(game, p);
   if (type === 'spindle') p.char.spindle.mode = 'follow';
   else p.char.petMode = 'follow';
@@ -122,6 +153,7 @@ export function manageCompanion(game, p, action, type) {
       return { ok: false, reason: 'Commission one Spindle at the Lattice Sanctum while alive and outside combat.' };
     if (!owned.length) p.char.companionDismissed = true;
     p.char.spindle = newSpindleProfile();
+    p.char.spindleDismissed = true;
     game.markDirty(p);
     game.message(p, 'info', 'Spindle commissioned. Open your companion sheet to summon it.');
     return { ok: true };
@@ -136,11 +168,18 @@ export function manageCompanion(game, p, action, type) {
   }
   if (p.dead || game.time < p.combatUntil) return { ok: false, reason: 'Manage active companions outside combat while alive.' };
   if (action === 'dismiss') {
-    const c = p.companion;
-    if (!c) return { ok: false, reason: 'You have no active companion.' };
-    removeActive(game, p);
-    p.char.companionDismissed = true;
-    p.char.activeCompanion = null;
+    const c = type === 'spindle' ? p.spindleCompanion
+      : type ? (p.companion?.type === type ? p.companion : null) : p.companion;
+    if (!c) return { ok: false, reason: 'You have no matching active companion.' };
+    if (c === p.spindleCompanion) {
+      removeSpindle(game, p);
+      p.char.spindleDismissed = true;
+      if (!p.companion) p.char.activeCompanion = null;
+    } else {
+      removeActive(game, p);
+      p.char.companionDismissed = true;
+      p.char.activeCompanion = p.companion?.type ?? null;
+    }
     p.deployRetryAt = null;
     game.markDirty(p);
     return { ok: true };
@@ -148,14 +187,14 @@ export function manageCompanion(game, p, action, type) {
   if (action !== 'summon') return { ok: false, reason: 'Unknown companion action.' };
   const selected = type ?? (owned.includes(p.char.defaultCompanion) ? p.char.defaultCompanion : owned[0]);
   if (!owned.includes(selected)) return { ok: false, reason: 'Choose an acquired companion first.' };
-  if (p.companion && (!type || p.companion.type === selected)) return { ok: false, reason: 'A companion is already active.' };
+  if (selected === 'spindle' ? !!p.spindleCompanion
+    : (p.companion && p.companion.type !== 'spindle'))
+    return { ok: false, reason: 'That companion slot is already active.' };
   if (selected === 'survey_strider' && !wantsSurveyStrider(p)) return { ok: false, reason: 'Learn Survey Strider deployment at a commissioned workshop first.' };
   const point = selected === 'spindle' ? spindleSpawnPoint(game, p) : selected === 'survey_strider' ? striderSpawnPoint(p) : null;
   if (selected !== 'mender' && !point) return { ok: false, reason: 'Move to open ground and try summoning again.' };
-  // All eligibility and clearance checks have succeeded. The old companion can now be removed.
-  if (p.companion) removeActive(game, p);
-  p.char.activeCompanion = selected;
-  p.char.companionDismissed = false;
+  if (selected === 'spindle') p.char.spindleDismissed = false;
+  else p.char.companionDismissed = false;
   spawnSelected(game, p, selected, point);
   game.markDirty(p);
   return { ok: true };
@@ -345,21 +384,24 @@ export function tickCompanion(game, c, dt) {
  * owner's friendly target when valid, otherwise to the owner.
  */
 /** Rename only the owner's companion. Metadata propagates to every client. */
-export function renameCompanion(game, p, name) {
-  if (!p.companion) return { ok: false, reason: 'You have no companion.' };
+export function renameCompanion(game, p, name, type) {
+  const c = type === 'spindle' ? p.spindleCompanion
+    : type ? (p.companion?.type === type ? p.companion : null) : p.companion;
+  if (!c) return { ok: false, reason: 'You have no matching companion.' };
   if (!validCompanionName(name)) return { ok: false, reason: 'Companion names must be 3–18 letters with internal spaces or hyphens.' };
   if (p.dead || game.time < p.combatUntil) return { ok: false, reason: 'Rename your companion outside combat.' };
-  if (p.companion.name === name) return { ok: true };
-  p.companion.name = name;
-  p.companion.metaVer += 1;
-  if (p.companion.type === 'spindle') p.char.spindle.name = name;
+  if (c.name === name) return { ok: true };
+  c.name = name;
+  c.metaVer += 1;
+  if (c.type === 'spindle') p.char.spindle.name = name;
   else p.char.petName = name;
   game.markDirty(p);
   return { ok: true };
 }
 
-export function petCommand(game, p, cmd) {
-  const c = p.companion;
+export function petCommand(game, p, cmd, type) {
+  const c = type === 'spindle' ? p.spindleCompanion
+    : type ? (p.companion?.type === type ? p.companion : null) : p.companion;
   if (!c) return { ok: false, reason: 'You have no companion.' };
   const def = COMPANIONS[c.type];
   if (typeof cmd !== 'string' || !Object.hasOwn(def.modes, cmd)) return { ok: false, reason: 'Unknown command.' };

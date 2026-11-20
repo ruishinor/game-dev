@@ -17,9 +17,9 @@ export const HUMANOID_BASE = {
 // Ability / event id -> clip. `start` skips the wind-up so the visible impact
 // lands close to the moment the server resolved the hit.
 export const HUMANOID_MELEE_SEQUENCE = Object.freeze([
-  {clip:'Punch_Jab',start:.16,timeScale:1.35},
-  {clip:'Punch_Cross',start:.16,timeScale:1.25},
-  {clip:'Melee_Hook',start:.13,timeScale:1.2},
+  {clip:'Punch_Jab',start:.18,timeScale:1.9},
+  {clip:'Punch_Cross',start:.18,timeScale:1.8},
+  {clip:'Melee_Hook',start:.15,timeScale:1.7},
 ]);
 
 export const HUMANOID_ACTIONS = {
@@ -31,8 +31,9 @@ export const HUMANOID_ACTIONS = {
   fault_scan: { clip: 'Interact', fadeOut: 0.3 },
   core_bore: { clip: 'Spell_Simple_Shoot', timeScale: 1.2 },
   field_rig: { clip: 'Interact', fadeOut: 0.3 },
+  gather: { clip: 'Interact', fadeOut: 0.3 },
   controlled_blast: { clip: 'Shield_OneShot', start: 0.1 },
-  auto: { clip: 'Punch_Jab', start: 0.2, timeScale: 1.3 },
+  auto: { clip: 'Punch_Jab', start: 0.2, timeScale: 1.9 },
   rending_arc: { clip: 'Punch_Cross', start: 0.18, timeScale: 1.15 },
   rending_echo: { clip: 'Punch_Cross', start: 0.18, timeScale: 1.15 },
   graviton_tether: { clip: 'Shield_OneShot', start: 0.1, timeScale: 1.1 },

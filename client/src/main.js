@@ -10,13 +10,16 @@ import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { parseTimeOfDay } from './severance-daylight.js';
 import { buildWorld, makeEnvironment } from './scene.js';
+import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
+import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
+import { SPINDLE_LIGHT, activeSpindleLights } from './spindle-light.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
@@ -30,6 +33,7 @@ import { Input } from './input.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
+import {ActionBindings} from './hotkey-bindings.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -64,6 +68,23 @@ const camera = new THREE.PerspectiveCamera(58, 1, 0.3, 900);
 const stoneLight = new THREE.PointLight(0xffffff, 0);
 const stoneUp = new THREE.Vector3(0, 1, 0);
 scene.add(stoneLight);
+// Keep a fixed light count for shader stability: inactive sources have intensity
+// zero, and at most three nearby active Spindles can light the local scene.
+const spindlePointLights = Array.from({ length: SPINDLE_LIGHT.maxSources }, () => {
+  const light = new THREE.PointLight(SPINDLE_LIGHT.color, 0, SPINDLE_LIGHT.range, 2);
+  light.castShadow = false;
+  scene.add(light);
+  return light;
+});
+// Lightweight emissive markers also show which distant companions have their
+// light switched on, including when the limited point-light pool is occupied.
+const spindleBulbGeometry = new THREE.SphereGeometry(0.11, 12, 8);
+const spindleHaloGeometry = new THREE.SphereGeometry(0.28, 12, 8);
+const spindleBulbMaterial = new THREE.MeshBasicMaterial({ color: SPINDLE_LIGHT.color, toneMapped: false });
+const spindleHaloMaterial = new THREE.MeshBasicMaterial({
+  color: SPINDLE_LIGHT.color, transparent: true, opacity: 0.15,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+});
 
 // Models come from GLB bundles, loaded once before anything is drawn. If a
 // bundle is missing, the affected entities use their procedural stand-ins.
@@ -75,6 +96,8 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Three existing licensed compact firearm meshes; Longpoint remains the authored original.
+if(glbOnly!=='none')await loadWeaponModels(assets);
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -89,6 +112,9 @@ scene.environment = environment;
 scene.environmentIntensity = 0.85;
 // ?q=0 (weak or software GPUs) also thins out purely decorative ground cover.
 const world = buildWorld(scene, glbOnly === null ? assets : null, { detail: params.get('q') === '0' ? 0.4 : 1, prototypeArt: glbOnly === null && params.get('q') !== '0' && params.get('prototypeArt') !== '0', reducedMotion: () => motionPreference.matches || params.get('q') === '0' });
+// Keep a reference only to presentation roots constructed by the world
+// loader. Dynamic actors/VFX added later must not appear in a world atlas.
+const atlasStaticRoots=new Set(scene.children);
 const machine=scene.getObjectByName('sanctum-precision-fabricator');
 const kestrelAlarm=createKestrelAlarm(THREE,scene);
 const fx = new Fx(scene);
@@ -342,15 +368,18 @@ document.addEventListener('contextmenu', e=>{
 },true);
 
 const portraits = makePortraits(assets, useGlb);
+const bindings=new ActionBindings(localStorage);
 let hallPreview=null;
 const ui = new UI({
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
+  terrainForAtlas:region=>captureStaticAtlas(renderer,scene,atlasStaticRoots,region,{lowSpec:params.get('q')==='0'}),
+  bindings,
   npcAccess: id => npcAccess(S.ents.get(id), S.ents.get(S.myId), S.you, INTERACT_RANGE),
   focusView: () => canvas.focus({preventScroll:true}),
   useAbility: (id) => net.send({ t: 'use', a: id }),
-  pet: (c) => net.send({ t: 'pet', c }),
-  petRename: (name) => net.send({ t: 'pet_rename', name }),
+  pet: (c, type) => net.send({ t: 'pet', c, ...(type ? { type } : {}) }),
+  petRename: (name, type) => net.send({ t: 'pet_rename', name, ...(type ? { type } : {}) }),
   managePet: (action, type) => net.send({ t: 'pet_manage', action, type }),
   partyInvite: (id) => net.send({ t: 'party_invite', id }),
   followPlayer: (id) => followPlayer(id),
@@ -650,6 +679,10 @@ function buildAccountUI() {
     if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
     else $('recovery-token').value = '';
   });
+  // Controls are disabled in the static HTML until both auth handlers exist.
+  // This prevents first-click loss during slow module initialization.
+  $('account-signin').disabled = false;
+  $('account-register').disabled = false;
 }
 
 function openCharacterMenu() {
@@ -743,8 +776,31 @@ function addEntity(meta) {
     chest: new THREE.Vector3(),
     head: new THREE.Vector3(),
   };
+  if (meta.k === 'c' && meta.c === 'spindle') {
+    const emitter = new THREE.Group();
+    emitter.name = 'spindle:field-light-emitter';
+    emitter.position.y = SPINDLE_LIGHT.height;
+    emitter.add(new THREE.Mesh(spindleHaloGeometry, spindleHaloMaterial));
+    emitter.add(new THREE.Mesh(spindleBulbGeometry, spindleBulbMaterial));
+    emitter.visible = false;
+    holder.add(emitter);
+    ent.spindleEmitter = emitter;
+  }
   S.ents.set(ent.id, ent);
   return ent;
+}
+
+function syncSpindleFieldLights() {
+  for (const ent of S.ents.values()) {
+    if (ent.spindleEmitter) ent.spindleEmitter.visible =
+      ent.placed && ent.row?.li === 1 && ent.row?.a !== 'dormant';
+  }
+  const sources = activeSpindleLights(S.ents.values(), camera.position, SPINDLE_LIGHT, S.you?.spindleId || S.compId);
+  for (let i = 0; i < spindlePointLights.length; i++) {
+    const light = spindlePointLights[i], source = sources[i];
+    light.intensity = source ? SPINDLE_LIGHT.intensity : 0;
+    if (source) light.position.set(source.pos.x, source.pos.y + SPINDLE_LIGHT.height, source.pos.z);
+  }
 }
 
 function removeEntity(ent) {
@@ -779,6 +835,7 @@ function clearWorld() {
   svfx?.clear();
   fx.clearFauna();
   ui.clearPlates();
+  ui.atlas?.setOwner(null);
 }
 
 const chestOf = (ent) => () => ent.chest;
@@ -788,6 +845,8 @@ const chestOf = (ent) => () => ent.chest;
 function onWelcome(m) {
   clearWorld();
   ui.questTracker.useCharacter(m.charId);
+  ui.setAbilityOwner(m.charId);
+  ui.atlas.setOwner(m.charId);
   S.myId = m.id;
   S.compId = m.comp;
   S.timeOffset = null;
@@ -1048,6 +1107,7 @@ function onEvent(e) {
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
       if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
+        S.ents.get(e.s)?.model?.flare?.(e.k);
         if(!handled&&Number.isFinite(e.x)&&Number.isFinite(e.z)){
           const colour=e.k==='rift_pulse'?0xf2a37f:0xb7c5ea;
           fx.ring(e.x,e.z,e.r,colour,850);
@@ -1115,6 +1175,13 @@ function onEvent(e) {
           fx.ring(o.pos.x,o.pos.z,1.5,0xbacb9a,700,o.pos.y);
           if (!motionPreference.matches && quality > 0) fx.beam(() => o.head,chestOf(s),0xbacb9a,850,0.09);
         }
+        break;
+      }
+      if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){
+        const o=S.ents.get(e.o);
+        if(e.k==='vein_extract'){o?.model?.extract?.(e.ms);s?.model?.trigger?.('gather','gather');}
+        else if(e.k==='vein_harvest')o?.model?.harvest?.();
+        else o?.model?.breakOff?.();
         break;
       }
       if(e.k==='field_recovery'){
@@ -1187,7 +1254,9 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
-      if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      // world anomalies show their own build-up; the enemy wind-up dome is for creatures
+      if (ent?.model?.charge) ent.model.charge(e.ms);
+      else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
@@ -1404,18 +1473,28 @@ input.onClick = (button, x, y) => {
 };
 
 input.onAction = (code, e) => {
-  const digit = /^Digit([1-9])$/.exec(code);
-  if (digit && S.sheet) {
-    const i = Number(digit[1]) - 1;
-    const def = CLASSES[S.sheet.cls];
-    if (e.shiftKey) {
-      const pet = S.ents.get(S.compId)?.meta.c;
-      const mode = companionCommandKeys(pet)[i];
-      if (mode && COMPANIONS[pet]?.modes[mode]) net.send({ t: 'pet', c: mode });
-    } else if (def.abilities[i]) net.send({ t: 'use', a: def.abilities[i] });
-    else if(i===def.abilities.length&&!S.compId&&S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
+  const action=bindings.resolve(e);
+  if(action && S.sheet) {
+    const i=Number(action.split(':')[1])-1;
+    const def=CLASSES[S.sheet.cls];
+    if(action.startsWith('companion:')){
+      const pet=S.ents.get(S.compId)?.meta.c;
+      const mode=companionCommandKeys(pet)[i];
+      if(mode && COMPANIONS[pet]?.modes[mode])net.send({t:'pet',c:mode});
+    } else if(ui.hotbarAssignment(i)&&ui.hotbarAssignment(i)!=='@companion'){
+      net.send({t:'use',a:ui.hotbarAssignment(i)});
+    } else if(ui.hotbarAssignment(i)==='@companion'){
+      const eligible=S.ents.get(S.myId);
+      if(eligible&&!eligible.dead&&!(eligible.row?.f&8)){
+        if(S.compId)net.send({t:'pet_manage',action:'dismiss'});
+        else if(S.you?.companions?.some(c=>c.isDefault&&c.available))net.send({t:'pet_manage',action:'summon'});
+      }
+    }
+    e.preventDefault();
     return;
   }
+  // Modified unbound keys must not trigger unrelated built-in actions.
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
   switch (code) {
     case 'NumLock':
       e.preventDefault();
@@ -1432,8 +1511,15 @@ input.onAction = (code, e) => {
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
       break;
     case 'Escape':
+      e.preventDefault();
+      if(ui.cancelHotbarDrag())break;
       stopAutomaticMovement();
-      if (!ui.closePanels() && S.target) setTarget(0);
+      // Dismiss an active window first. Otherwise open/close the corner
+      // menu, preserving the existing escape-to-clear-target behaviour.
+      if (!ui.closePanels()) {
+        if (S.target) setTarget(0);
+        ui.toggleMenu();
+      }
       break;
     case 'F1':
       e.preventDefault();
@@ -1462,13 +1548,15 @@ input.onAction = (code, e) => {
       ui.toggleQuestJournal();
       break;
     case 'KeyP':
-      ui.toggleParty();
+      if(e.shiftKey)ui.toggleParty();
+      else ui.toggleAbilityMatrix();
       break;
     case 'KeyO':
       ui.toggleSettings();
       break;
     case 'KeyM':
-      if(e.shiftKey){e.preventDefault();ui.toggleAtlas();}else ui.toggleMenu();
+      e.preventDefault();
+      ui.toggleAtlas();
       break;
     case 'KeyH':
       ui.toggleHelp();
@@ -1724,6 +1812,7 @@ function updateEntities(dt, t, now) {
       work:row?.work,
       ecology: row?.ec,
       riftPhase:row?.rf,riftWarning:row?.rw??0,gatePhase:row?.gp,
+      veinMs: ent.meta.c==='resonant_vein' ? (S.you?.veins?.depleted?.find((d)=>d.id===ent.id)?.ms ?? 0) : 0,
       grown: !!row?.grown,
       mineral:!!row?.mineral,scar:!!row?.scar,
       combat: !!(row && row.f & 8),
@@ -1915,6 +2004,7 @@ function frame(now) {
     // Pressed against a wall the camera sits in the character's head.
     me.holder.visible = me.inView && cam.dist > 1.3;
   }
+  syncSpindleFieldLights();
   if (!inspectVfx || !S.paused) advanceEffects(dt * vfxTime);
   pressureZone.visible=!!S.you?.brineTrial?.ms;
 

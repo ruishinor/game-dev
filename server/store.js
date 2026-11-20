@@ -2,6 +2,7 @@
 // Characters are owned by whoever holds their secret token; only a hash of
 // the token is stored.
 
+import {sanitizeVeinReady} from './sim/severance-veins.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -81,6 +82,7 @@ function sanitize(raw) {
     recoverySamples:recoverySamples(raw.recoverySamples),
     craftingDisciplines:sanitizeCraftingDisciplines(raw.craftingDisciplines),
     recoveryReadyAt:sanitizeRecoveryReadyAt(raw.recoveryReadyAt),
+    veinReadyAt:sanitizeVeinReady(raw.veinReadyAt),
     brineStage: surveyState(raw.survey)?.endsWith('_done') ? brineStage(raw.brineStage) : 0,
     pos: null,
     hp: typeof raw.hp === 'number' && Number.isFinite(raw.hp) ? raw.hp : 0,
@@ -104,6 +106,11 @@ function sanitize(raw) {
       name: validCompanionName(raw.spindle.name) ? raw.spindle.name : COMPANIONS.spindle.name,
       mode: raw.spindle.mode === 'stay' ? 'stay' : 'follow',
     };
+    // Independent persistent utility slot. Legacy saves stored a summoned
+    // Spindle in the exclusive activeCompanion field.
+    c.spindleDismissed = raw.spindleDismissed === false ? false
+      : raw.spindleDismissed === true ? true
+      : !(raw.activeCompanion === 'spindle' && raw.companionDismissed !== true);
   }
   const owned = ownedCompanionTypes(c);
   c.defaultCompanion = owned.includes(raw.defaultCompanion) ? raw.defaultCompanion : null;
@@ -215,6 +222,7 @@ export class CharacterStore {
       recoverySamples:0,
       craftingDisciplines:sanitizeCraftingDisciplines(null),
       recoveryReadyAt:0,
+      veinReadyAt:{},
       brineStage: 0,
       pos: null,
       hp: 0,

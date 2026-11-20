@@ -4,9 +4,11 @@
 import { ZONES } from './world.js';
 import { GADGET_ITEMS } from './gadgets.js';
 
-export const GCD_MS = 1000;
+export const GCD_MS = 750;
+/** Weapon auto-attack bonuses and per-hit Charge were authored against 2 s swings; faster swings scale them so damage per second is unchanged. */
+export const AUTO_REFERENCE_MS = 2000;
 export const MAX_LEVEL = 15;
-/** XP needed to advance from level L to L+1 (index L). Existing levels 1–5 retain their published pacing. */
+/** Character XP: levels 1–5 preserve the existing curve; the cap-15 extension remains separate from attunement affinity ranks. */
 export const XP_TO_NEXT = [0, 90, 200, 340, 520, 700, 910, 1150, 1420, 1720, 2050, 2410, 2800, 3220, 3670];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
@@ -27,7 +29,7 @@ export const CLASSES = {
     skills: { kinetics: 10, biotech: 4, instrumentation: 4 },
     primary: 'kinetics',
     threatMul: 2.2,
-    auto: { range: 3.6, interval: 2000, dmg: 10, kind: 'melee' },
+    auto: { range: 3.6, interval: 800, dmg: 4, kind: 'melee' },
     abilities: ['rending_arc', 'graviton_tether', 'kinetic_ward', 'discharge'],
     companion: null,
   },
@@ -43,7 +45,7 @@ export const CLASSES = {
     skills: { kinetics: 4, biotech: 10, instrumentation: 4 },
     primary: 'biotech',
     threatMul: 1,
-    auto: { range: 26, interval: 2000, dmg: 5, kind: 'bolt' },
+    auto: { range: 26, interval: 1000, dmg: 2.5, kind: 'bolt' },
     abilities: ['neural_lash', 'mending_graft', 'spore_snare', 'overgrowth_surge'],
     companion: 'mender',
   },
@@ -52,7 +54,7 @@ export const CLASSES = {
     blurb:'Project a Hinge field, redirect stored protection into an offensive reversal, or share a lattice with nearby allies. No Charge conversion or companion.',
     baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
     skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
-    auto:{range:22,interval:2000,dmg:6,kind:'bolt'},
+    auto:{range:22,interval:1000,dmg:3,kind:'bolt'},
     abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition'],companion:null,
   },
   surveyor: {
@@ -61,7 +63,7 @@ export const CLASSES = {
     baseHp: 175, hpPerLevel: 17,
     resource: { id: 'cells', name: 'Power Cells', max: 100, start: 60, regen: 0, decay: 0 },
     skills: { kinetics: 5, biotech: 3, instrumentation: 10 }, primary: 'instrumentation', threatMul: 1,
-    auto: { range: 22, interval: 1800, dmg: 7, kind: 'bolt' },
+    auto: { range: 22, interval: 900, dmg: 3.5, kind: 'bolt' },
     abilities: ['fault_scan', 'core_bore', 'field_rig', 'controlled_blast'], companion: null,
   },
 };
@@ -188,6 +190,7 @@ export const COMPANIONS = {
     name: 'Spindle',
     modes: {
       inspect: { name: 'Inspect equipment', desc: 'Approaches you, gauges your equipped weapon and reports its condition and maintenance needs. Use outside combat.' },
+      light: { name: 'Field light', desc: 'Toggle a 10 m fading light around Spindle. Works in any environment and independently of Follow, Stay or inspection. Off when summoned.' },
       follow: { name: 'Follow', desc: 'Rolls behind you along clear ground.' },
       stay: { name: 'Stay', desc: 'Parks here until recalled or you move beyond its tether.' },
     },

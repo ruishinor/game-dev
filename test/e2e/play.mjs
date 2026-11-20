@@ -66,6 +66,9 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   });
   // lock: the default player configuration (pointer lock while steering).
   await page.goto(`${base}/?${lock ? QUERY.replace('nolock=1', 'nolock=0') : QUERY}&slot=${slot}`);
+  // The form may render before the client module binds its submit handler.
+  // Check readiness rather than racing an early click during slow software GL.
+  await page.waitForFunction(()=>!!window.__attune,null,{timeout:120000});
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
@@ -333,7 +336,7 @@ async function followInventoryPlaytest(){
  await B.page.bringToFront();
  pb.char.materials={mire_fibre:5,sentinel_alloy:2};game.markDirty(pb);
  await B.page.waitForFunction(()=>window.__attune.state().sheet?.materials?.mire_fibre===5,null,{timeout:15000});
- const characterButton=B.page.getByRole('button',{name:'Character [C]',exact:true});
+ const characterButton=B.page.getByRole('button',{name:'Character (C)',exact:true});
  check('material-only acquisition does not light Character',!(await characterButton.getAttribute('class')).split(' ').includes('new'));
  await B.page.keyboard.press('KeyI');
  const inv=B.page.locator('.inventory-window');
@@ -728,7 +731,7 @@ try {
   check('11. player context menu opens from frames and nameplate; native menu suppressed elsewhere',allyMenu&&targetMenu&&plateMenu&&nativeSuppressed&&(await state(B)).target===sa.myId);
   await B.page.locator('.frame.ally').click({ button: 'right' });
   await B.page.getByRole('button', { name: 'Invite to party', exact: true }).click();
-  await A.page.keyboard.press('KeyP');
+  await A.page.keyboard.press('Shift+KeyP');
   await A.page.locator('.party-panel').getByRole('button', { name: 'Accept', exact: true }).click();
   await A.page.keyboard.press('Escape');
   check('11. the minimap identifies visible party members', await until(B,
@@ -1157,7 +1160,7 @@ try {
     return !s.compId && !document.querySelector('.summon-pet').hidden;
   }, null, 5000, 'companion dismissed by the return to the Sanctum');
   check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
-  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  await B.page.locator('.summon-pet').click();
   const recalled = await until(B, () => {
     const s = window.__attune.state();
     return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
@@ -1165,12 +1168,12 @@ try {
   check('8. the companion can be summoned again after recovery', recalled);
   const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
-  await B.page.getByRole('button', { name: 'Dismiss companion', exact: true }).click();
+  await B.page.locator('.player-context').getByRole('button', { name: 'Dismiss companion', exact: true }).click();
   const dismissed = await until(B, () => {
     const s = window.__attune.state();
     return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
   }, null, 5000, 'companion dismissed and summon available');
-  await B.page.getByRole('button', { name: 'Summon companion', exact: true }).click();
+  await B.page.locator('.summon-pet').click();
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;

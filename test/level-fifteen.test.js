@@ -70,3 +70,9 @@ test('legacy level-five saves retain progression and newly earned level fifteen 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('level fifteen is a character cap, not a fabricated attunement rank ladder', () => {
+  // Distinguish XP level and discovered affinities until explicit rank mechanics exist.
+  assert.equal(MAX_LEVEL, 15);
+  assert.ok(XP_TO_NEXT[14] > XP_TO_NEXT[5]);
+});

@@ -84,11 +84,29 @@ Branch `feat/severance-expanse-landscape`, PR #139. This is the broad-strokes pa
 5. **Live world clock.**
    - `shared/world-clock.js` defines a 48-minute cycle (12 minutes per phase). It is server-owned and based on the wall clock, so it survives restarts, and its phase is sent in each player's private state.
    - The Expanse follows it by default. `?tod=` previews and the capture controls still override it.
-6. **Sanctum upgrade: the Lattice Crown.**
-   - `client/src/sanctum-crown.js`: verdigris ribs rise from the existing pylon heads to a floating 38 m lattice spire, with a reconstitution core, armillary rings, resonance filaments and spiralling motes.
-   - It adds no colliders, and every service is unchanged.
+6. **Sanctum Lattice Crown: rejected and removed (2026-11-20).**
+   - The owner rejected the floating crown. `client/src/sanctum-crown.js` and its test were deleted; nothing may be stacked on the Sanctum roof. The Sanctum's own architecture, materials and lighting are to be upgraded instead.
 
 Capture tools: `tools/severance-expanse-capture.mjs` covers views 01–25, including patrol variants (17) and Overseer attacks (25); `tools/sanctum-capture.mjs` covers the Sanctum. Output stays out of Git.
+
+## Phase Scar rift rebuild (2026-11-20)
+
+- **Foundation.** `tools/asset-pipeline/asset_pipeline/blender/phase_scar.py` builds `phase_scar.glb` (24k triangles, one 2048 atlas, served at `/client/assets/phase_scar.glb`). It shows a sculpted rupture: Voronoi basalt slabs heaved and tilted away from a lens-shaped slit, plus rubble and shards. Two interference vanes stand over it, each a swept spine with armour shingles, collars, recessed rails, cables, braces and emitter claws. Emissive inserts `PS_Seam`, `PS_Rail` and `PS_Lens` follow the phase.
+  - Rebuild with `PYTHONPATH=. python -m asset_pipeline.blender.phase_scar '{"work":...,"result":...,"bake":2048,"normal":2048}'`, then `node js/optimize.mjs <raw> assets/phase_scar/outputs/phase_scar.glb 2048 86 keep`, then update `PHASE_SCAR_URL`.
+- **Membrane.** `client/src/rift-visual.js` builds the membrane in layers:
+  - screen-space refraction through the shared grab in `client/src/vfx/scene-color.js` (quality 2 only);
+  - a parallax interior of 3, 2 or 1 layers, depending on quality;
+  - an inward log-spiral flow;
+  - an eroded edge with a thin hot rim;
+  - opening, agitation, flare and warning build-up driven by the phase;
+  - GPU ribbon filaments, soft motes, a ground light pool and a corona.
+- **Event behaviour.** Discharge warnings now charge the rift itself instead of drawing the enemy wind-up dome. Rift event recipes use shock rings, implosion streaks, or a shard spray with scorch.
+- **Captures.** Run `node tools/rift-capture.mjs <dir> [prefixes]` to capture both ends.
+- **Measured cost (software GL only, not a GPU figure).** At 960×540, the rift adds about 250–340 ms to a frame of about 1.75 s, and the refraction copy itself is negligible. Real-GPU cost has not been measured.
+- **Known gaps.**
+  - Seen in profile, the membrane is a thin sliver, with no volumetric throat behind it.
+  - At night the vanes read as dark silhouettes.
+  - The orange hazard telegraph is the shared hostile language and is unchanged.
 
 ## Still open
 

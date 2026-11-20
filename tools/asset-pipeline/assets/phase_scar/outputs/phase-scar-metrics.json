@@ -1,0 +1,10 @@
+{
+ "tris": 24324,
+ "rail_tris": 924,
+ "lens_tris": 88,
+ "seam_tris": 144,
+ "slabs": 60,
+ "radius": 2.42,
+ "height": 5.15,
+ "slit_half": 1.32
+}

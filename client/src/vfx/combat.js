@@ -29,7 +29,7 @@ export const AREA_KINDS = new Set([
   'survey_blast', 'arc_pulse', 'turret_drone_barrage', 'seismic_slam', 'fault_shear', 'containment_sweep', 'carapace_echo', 'deep_record', 'sinter_sample', 'carapace_imprint',
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
-  'rift_open','rift_pulse','rift_stabilize','rift_collapse','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
+  'rift_open','rift_pulse','rift_stabilize','rift_collapse','vein_extract','vein_harvest','vein_break','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -305,9 +305,18 @@ export class CombatVfx {
       if(!Number.isFinite(e.x)||!Number.isFinite(e.z)||!Number.isFinite(e.r))return;
       const f=[e.x,groundHeightOr(e,s),e.z],pulse=e.k==='rift_pulse',closing=e.k==='rift_stabilize'||e.k==='rift_collapse';
       const colour=pulse?0xd98e75:closing?0x8fc5b8:0xada7d3;
+      // The rift model flares its own membrane; the engine adds the spatial
+      // response: a ground shock, and either an implosion of streaks drawn
+      // into the throat (open/close) or a shard spray and scorch (discharge).
+      const core=[f[0],f[1]+2.45,f[2]];
       v.shock({at:f,radius:e.r,color:colour,life:pulse?.7:1.2,width:pulse?.14:.08});
-      v.shell({at:f,radius:pulse?e.r:2.15,height:pulse?1.15:4.1,kind:'wall',color:colour,life:pulse?.65:1.1,from:closing?1:.26,to:closing?.22:1,alpha:.45,streak:1.2});
-      v.burst({at:[f[0],f[1]+1.9,f[2]],shape:'sphere',radius:1.2,count:pulse?26:18,cell:[CELL.shard,CELL.streak],color:hot(colour,.36),color2:colour,size:[.06,.18],sizeEnd:.025,life:[.55,1.2],speed:[.9,2.7],gravity:pulse?2:0,spin:[-3,3]});
+      if(!pulse)v.shock({at:f,radius:2.6,color:hot(colour,.3),life:.8,width:.05});
+      if(pulse){
+        v.burst({at:core,shape:'sphere',radius:.6,count:30,cell:[CELL.shard,CELL.streak],color:hot(colour,.4),color2:colour,size:[.05,.16],sizeEnd:.02,life:[.45,1.0],speed:[3.5,7.5],gravity:3.2,drag:.8,spin:[-4,4],stretch:.05});
+        v.scorch({at:f,radius:Math.min(e.r*.55,3.2),color:colour,life:2.4});
+      }else{
+        v.burst({at:core,shape:'sphere',radius:closing?2.6:3.4,count:closing?22:30,cell:[CELL.streak,CELL.glow],color:hot(colour,.5),color2:colour,size:[.04,.11],sizeEnd:.015,life:[.5,.95],speed:.2,attract:core,pull:closing?14:10,stretch:.06});
+      }
       if(pulse)v.flash({at:[f[0],f[1]+1.2,f[2]],color:colour,intensity:7,life:.25});
       return;
     }
@@ -341,6 +350,27 @@ export class CombatVfx {
       v.sigil({ at: this.feet(o), radius: 1.5, style: 'survey', color: 0xbacb9a, life: 1.2, spin: 0.8 });
       if (s?.placed) v.beam({ from: () => o.head, to: s.chest, color: 0xbacb9a, width: 0.08, life: 0.85, grow: 0.3, flow: -3, hold: true });
       v.burst({ at: () => o.head, count: 10, cell: CELL.diamond, color: 0xe8f0d8, color2: 0xbacb9a, size: [0.05, 0.09], life: [0.6, 1], speed: [0.2, 0.8], drag: 1.5 });
+      return;
+    }
+    if(e.k==='vein_extract'||e.k==='vein_harvest'||e.k==='vein_break'){
+      // resonance drawn from the crystals into the gatherer: a held tether and
+      // inbound motes for the channel, a shard rush on success, a fizzle on a break
+      if(!s?.placed||!o?.placed)return false;
+      const tip=()=>[o.pos.x,o.pos.y+1.6,o.pos.z];
+      if(e.k==='vein_extract'){
+        const life=Math.min(6,Math.max(.5,(e.ms||3000)/1000));
+        v.sigil({at:this.feet(o),radius:1.5,style:'survey',color:0x7fd6ff,life,spin:.6,grow:.2,alpha:.5});
+        v.beam({from:tip,to:s.chest,color:0x9fe2ff,width:.05,life,grow:.25,flow:3.5,jitter:.04,hold:true,alpha:.85});
+        let acc=0;
+        v.emitter({life,tick:(k,t,it,dt)=>{acc+=dt||0;if(acc<.12)return;acc=0;
+          v.burst({at:tip,shape:'sphere',radius:.35,count:2+Math.round(k*3),cell:[CELL.glow,CELL.shard],color:0xc8f0ff,color2:0x5fc4ee,size:[.03,.07],life:[.45,.7],speed:.3,attract:s.chest,pull:6+8*k,stretch:.03});}});
+      }else if(e.k==='vein_harvest'){
+        v.burst({at:tip,shape:'sphere',radius:.4,count:18,cell:[CELL.shard,CELL.streak],color:0xe4f8ff,color2:0x6cc9f2,size:[.04,.1],sizeEnd:.02,life:[.35,.7],speed:[1.2,2.4],attract:s.chest,pull:9,stretch:.05});
+        v.shock({at:this.feet(o),radius:2.2,color:0x8fdcff,life:.6,width:.06});
+        v.flash({at:tip(),color:0x9fe2ff,intensity:6,life:.3});
+      }else{
+        v.burst({at:tip,shape:'sphere',radius:.3,count:6,cell:CELL.ember,color:0x9fb6c4,color2:0x4d6b80,size:[.03,.06],life:[.3,.5],speed:[.3,.8],gravity:1.5});
+      }
       return;
     }
     if(e.k==='field_recovery'){
