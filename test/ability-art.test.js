@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { paintedAbilityArt } from '../client/src/ability-art.js';
 
-const ids=['rending_arc','graviton_tether','kinetic_ward','discharge','neural_lash','mending_graft','spore_snare','overgrowth_surge','phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition','fault_scan','core_bore','field_rig','controlled_blast'];
+const ids=['rending_arc','graviton_tether','kinetic_ward','discharge','neural_lash','mending_graft','spore_snare','overgrowth_surge','phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition','fault_scan','core_bore','field_rig','controlled_blast','triage','guard','assist','follow','stay','screen','recover','inspect'];
 
-test('All class action illustrations are distinct original, layered SVGs',()=>{
+test('All class and companion action illustrations are distinct original, layered SVGs',()=>{
   const arts=ids.map(id=>paintedAbilityArt(id));
   assert.equal(new Set(arts).size,ids.length);
   for(const [i,art] of arts.entries()){
@@ -18,5 +18,5 @@ test('All class action illustrations are distinct original, layered SVGs',()=>{
 test('Non-illustrated abilities preserve their existing vector icon fallback',()=>{
   assert.equal(paintedAbilityArt('not_a_spell'),null);
   assert.equal(paintedAbilityArt('__proto__'),null);
-  assert.equal(paintedAbilityArt('triage'),null);
+  assert.equal(paintedAbilityArt('unimplemented_companion_mode'),null);
 });
