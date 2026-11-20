@@ -114,6 +114,86 @@ export class WorldAtlas{
  settings.append(section);this.clocks();
  }
  save(k,v){try{localStorage.setItem('attunement.map.'+k,v);}catch{}}
+
+ setOwner(id){
+  this.owner=typeof id==='string'?id:null;
+  this.savedPoints=loadSavedPoints(typeof localStorage==='undefined'?null:localStorage,this.owner);
+  this.activeSavedId=null;this.waypoint=null;this.clearButton.disabled=true;
+  this.markerLabel.value='';this.noteInput.value='';
+  this.savePointButton.disabled=true;this.refreshSavedList();this.refreshWaypoint();
+  if(!this.el.hidden)this.draw();
+ }
+ refreshSavedList(){
+  this.savedList.replaceChildren();
+  const region=this.region?.name;
+  const points=this.savedPoints.filter(p=>p.region===region);
+  if(!points.length){
+   this.savedList.append(el('p','muted','No saved points in this region.'));
+   return;
+  }
+  for(const point of points){
+   const row=el('div','atlas-saved-point');
+   const activate=el('button','atlas-saved-select',point.label);
+   activate.type='button';activate.title=point.note||'Show saved point';
+   activate.addEventListener('click',()=>{
+    if(!this.region||!pointInsideRegion(this.region,point.x,point.z))return;
+    this.setWaypoint(point.x,point.z,point.label);
+    this.activeSavedId=point.id;
+    this.noteInput.value=point.note;
+    this.markerLabel.value=point.label;
+    this.pan={x:clamp(point.x-this.region.x,-this.region.hw,this.region.hw),z:clamp(point.z-this.region.z,-this.region.hd,this.region.hd)};
+    this.draw();
+   });
+   const remove=el('button','atlas-saved-delete','×');
+   remove.type='button';remove.title='Delete '+point.label;remove.setAttribute('aria-label','Delete saved point '+point.label);
+   remove.addEventListener('click',()=>{
+    const rest=this.savedPoints.filter(p=>p.id!==point.id);
+    if(!persistSavedPoints(localStorage,this.owner,rest)){
+     this.noteStatus.textContent='Could not delete point from local storage.';return;
+    }
+    this.savedPoints=rest;
+    if(this.activeSavedId===point.id)this.activeSavedId=null;
+    this.noteStatus.textContent='Saved point deleted.';
+    this.refreshSavedList();this.draw();
+   });
+   row.append(activate);
+   if(point.note)row.append(el('p','atlas-saved-note',point.note));
+   row.append(remove);this.savedList.append(row);
+  }
+ }
+ savePoint(){
+  if(!this.waypoint||!this.owner)return false;
+  const label=this.markerLabel.value.trim().slice(0,52)||this.waypoint.label;
+  const note=this.noteInput.value.trim().slice(0,MAX_NOTE_LENGTH);
+  const id=this.activeSavedId||crypto.randomUUID();
+  const point={id,x:this.waypoint.x,z:this.waypoint.z,region:this.waypoint.region,label,note};
+  const rest=this.savedPoints.filter(p=>p.id!==id);
+  if(rest.length>=MAX_SAVED_POINTS){this.noteStatus.textContent='Maximum of '+MAX_SAVED_POINTS+' saved points reached.';return false;}
+  const next=[...rest,point];
+  if(!persistSavedPoints(localStorage,this.owner,next)){
+   this.noteStatus.textContent='Could not save. Local browser storage may be full or disabled.';
+   return false;
+  }
+  this.savedPoints=next;this.activeSavedId=id;this.waypoint={...this.waypoint,label};
+  this.noteStatus.textContent='Saved for this character on this browser.';
+  this.refreshSavedList();this.refreshWaypoint();this.draw();return true;
+ }
+ updatePlayerMarker(){
+  if(!this.playerMarker||this.el.hidden||!this.state?.me||!this.p){
+   if(this.playerMarker)this.playerMarker.hidden=true;
+   return;
+  }
+  const rect=this.canvas.getBoundingClientRect();
+  if(!rect.width||!rect.height)return;
+  const x=this.p.X(this.state.me.pos.x)/this.canvas.width*rect.width;
+  const y=this.p.Z(this.state.me.pos.z)/this.canvas.height*rect.height;
+  const visible=Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&y>=0&&x<=rect.width&&y<=rect.height;
+  this.playerMarker.hidden=!visible;
+  if(!visible)return;
+  this.playerMarker.style.left=x+'px';this.playerMarker.style.top=y+'px';
+  this.playerMarker.style.transform='translate(-50%,-50%) rotate('+(Math.PI-(this.state.yaw||0))+'rad)';
+ }
+
  clocks(){
  const s=this.state?.daylight;
  const inExpanse=this.region?.area===SEVERANCE_POCKET;
