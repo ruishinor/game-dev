@@ -23,12 +23,21 @@ try{
  assert.ok(frames.main.width>=39&&frames.main.width<=52,'Primary hotbar should remain compact without becoming unreadable');
  assert.ok(frames.pet.width>=32&&frames.pet.width<=40,'Companion hotbar must be compact but usable');
  assert.ok(frames.pet.width/frames.main.width>=.78&&frames.pet.width/frames.main.width<=.90,'Companion bar must remain subordinate to the primary bar');
- assert.ok(frames.map.width>=175&&frames.map.width<=238,'Minimap should be bounded without becoming illegible');
+ assert.ok(frames.map.width>=95&&frames.map.width<=146,'Reference minimap should be compact on desktop');
  assert.equal(frames.day.hidden,false,'The day/night indicator must remain visible when the preview is not active');
  assert.ok(frames.portrait.width>=46&&frames.portrait.width<=58,'Character portrait must be legible and compact');
  assert.ok(parseFloat(frames.name.fontSize)>=12,'Status names must remain readable without dominating the world');
  assert.ok(frames.empty.width>0,'Logical empty slots must be present');
- const presentation=await page.evaluate(()=>{
+ const neutralTrims=await page.evaluate(()=>['.frame.player','.frame.pet','.minimap'].map(selector=>{
+   const node=document.querySelector(selector);
+   if(!node||node.hidden)return null;
+   return getComputedStyle(node).borderTopColor.match(/[\\d.]+/g)?.slice(0,3).map(Number);
+  }));
+  for(const rgb of neutralTrims.filter(Boolean)){
+   const [red,green,blue]=rgb;
+   assert.ok(red<=green&&green<=blue,'Portrait/minimap trim must be cool neutral, not gold or beige');
+  }
+  const presentation=await page.evaluate(()=>{
    const el=selector=>document.querySelector(selector);
    const bar=el('.actionbar'),player=el('.frame.player'),map=el('.minimap');
    const frame=player?.getBoundingClientRect(),m=map?.getBoundingClientRect();
@@ -101,6 +110,8 @@ try{
    assert.ok(layout.playerRight<layout.mapLeft,'Unit strip and minimap must not overlap at '+viewport.width);
    assert.ok(layout.portraitLeft>=-2,'Portrait must remain visible at '+viewport.width);
    assert.ok(layout.mapRight<=layout.width+2,'Minimap must not clip at '+viewport.width);
+   const mapSize=await page.locator('.minimap').boundingBox();
+   assert.ok(mapSize.width<=(viewport.width<=700?104:viewport.width>=1600?146:120),'Minimap must remain blueprint-scale at '+viewport.width);
    assert.ok(layout.actionLeft>=-2&&layout.actionRight<=layout.width+2,'Main hotbar must fit at '+viewport.width);
    await page.screenshot({path:'test/e2e/out/hud-'+viewport.width+'x'+viewport.height+'.png'});
  }
