@@ -2,6 +2,23 @@
 
 Owner brief: 2026-11-20. Feature branch: `feat/cinematic-character-selection-world-entry`.
 
+## Owner-directed viewport and background correction — 2026-11-20, latest
+
+The owner explicitly required (a) **true middle alignment** of the selected character; (b) the supplied original wide night Gate image **as the static background**; and (c) **no scrolling anywhere** during Character Selection or Character Creation. Prior paragraphs describing a live Gate GLB backdrop are superseded by this explicit direction.
+
+Implementation on this branch:
+
+- `client/assets/character-selection-gate.webp` is an optimized 768×432 WebP derivative of the owner-provided `wide-night(1).png` Gate screenshot, used directly as the background on both screens. This is no longer an approximation of the Gate made from new geometry. Source compression affects detail; full-resolution art can be swapped without modifying persistence.
+- `client/src/selection-blueprint-environment.js` now provides a static, ready-only environment handle. The background is provided by CSS; the actual persisted character continues rendering through the existing `createModel` Three.js factory on an alpha-transparent canvas. Character rotation cannot move the scenery. The original Gate GLB and related Expanse assets remain unchanged.
+- Removed the intentional `-0.55 m` lateral avatar offset and recentered the camera target on actual model bounds. Actor, environment, and primary entry are aligned to the viewport's middle axis.
+- `client/src/creation-sections.js` reuses existing creation inputs and handlers but divides the page into three accessible, mutually exclusive sections: **Identity** (name/calling), **Body** (frame/origin/skin), **Details** (hair/colour). Selection state persists while switching; invalid name focus returns to Identity. No duplicate forms, data models or session calls.
+- `client/selection-viewport.css` is loaded last and explicitly bounds the roster, creation UI, actions and model to `100dvh` with no page/panel scrolling, including compact/mobile section sizes and the real six-character capacity.
+- Focused browser validation checks WebP HTTP delivery/decoding, live model count, section switching, no scroll/overflow on desktop and 390 px mobile, and the full authoritative create → world → return → delete lifecycle. No visual acceptance is claimed before actual screenshots of this commit.
+
+**Acceptance pending:** CI and real rendered visual comparison, especially 320 px narrow screens, full model centre, six populated roster entries and any face/armour fidelity gaps tracked in #185. PR #180 remains draft/unmerged.
+
+---
+
 ## Reference-lock implementation pivot — 20 November 2026 (supersedes invented scene)
 
 The owner supplied the original cinematic MMORPG selection screenshot **again**, plus multiple real Attunement **Severance Gate** images at different daylight/activation states and a 35-second local walkthrough. These are **binding art and composition references**, not inspiration for another generic vestibule. The owner rejected all previous partial blue/cyan procedural gate adjustments. Earlier roadmap paragraphs describing the invented resonance vestibule are historical, not current design approval.
