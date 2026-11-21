@@ -847,8 +847,6 @@ def design_boots(body, base, m):
         rm[used] = np.arange(len(used))
         pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body"]}
         F = rm[Fs]
-        # liner: the shoe shell lifted and smoothed hard (its laces and folds read as crumples)
-        P.append(sheet_piece(it, f"boot_{s}", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.004, F, 10, 0.5), F, 0.0025, weights=pol))
         cloud = ms["V"][side_v]
         origin = body.L["calf_" + s]
         zc = cloud[:, 2]
@@ -858,6 +856,10 @@ def design_boots(body, base, m):
         BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.02, rmax=0.13, facets=12, tsmooth=0.06))
         bax = list(map(float, (toe - heel) / np.linalg.norm(toe - heel)))
         pb = {**pol, "joints": ["foot", "ball"]}
+        # boot body: a smooth closed loft over the shoe's convex sections (the
+        # shoe shell itself has laces and folds that decimate into holes)
+        P.append(Plate(it, f"boot_{s}", m["under"], BM, D([(-179.5, -0.12), (179.5, -0.12), (179.5, 1.09), (-179.5, 1.09)]), 0.004, thickness=0.0025,
+                       bevel=0.0, segs=0, res=0.012, weights=pb).export())
         # forefoot and midfoot shell; the heel and ankle have their own pieces,
         # so nothing folds over the shoe's ankle opening
         pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-116, 0.26), (116, 0.26), (120, 0.86), (92, 1.04), (-92, 1.04), (-120, 0.86)]), 0.007,
