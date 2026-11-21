@@ -10,7 +10,7 @@
  "bodies": {
   "m": {
    "pieces": 141,
-   "min_clearance_m": -0.04,
+   "min_clearance_m": -0.0288,
    "clearance": {
     "vanguard_field_set_chest__vest": {
      "min_m": 0.0027,
@@ -161,16 +161,16 @@
      "p05_m": 0.0497
     },
     "vanguard_field_set_chest__collar_0": {
-     "min_m": 0.0025,
-     "p05_m": 0.0035
+     "min_m": -0.0288,
+     "p05_m": -0.0267
     },
     "vanguard_field_set_chest__collar_1": {
-     "min_m": 0.0056,
-     "p05_m": 0.0093
+     "min_m": 0.0026,
+     "p05_m": 0.0042
     },
     "vanguard_field_set_chest__nape": {
-     "min_m": 0.0361,
-     "p05_m": 0.0415
+     "min_m": 0.0311,
+     "p05_m": 0.0336
     },
     "cinderlock_arms__sleeve_l": {
      "min_m": -0.0091,
@@ -513,56 +513,56 @@
      "p05_m": 0.0099
     },
     "vanguard_field_set_boots__boot_l": {
-     "min_m": -0.0072,
-     "p05_m": -0.0032
+     "min_m": 0.0029,
+     "p05_m": 0.0037
     },
     "vanguard_field_set_boots__upper_l": {
-     "min_m": 0.0018,
-     "p05_m": 0.0034
+     "min_m": -0.0264,
+     "p05_m": 0.001
     },
     "vanguard_field_set_boots__instep_l": {
-     "min_m": 0.0061,
-     "p05_m": 0.0095
+     "min_m": 0.0046,
+     "p05_m": 0.0084
     },
     "vanguard_field_set_boots__instep_buckle_l": {
-     "min_m": 0.0157,
-     "p05_m": 0.0162
+     "min_m": 0.0137,
+     "p05_m": 0.0142
     },
     "vanguard_field_set_boots__toe_cap_l": {
      "min_m": 0.0073,
      "p05_m": 0.0098
     },
     "vanguard_field_set_boots__heel_l": {
-     "min_m": -0.0389,
-     "p05_m": -0.0227
+     "min_m": 0.0026,
+     "p05_m": 0.0054
     },
     "vanguard_field_set_boots__cuff_l": {
      "min_m": 0.0067,
      "p05_m": 0.0076
     },
     "vanguard_field_set_boots__boot_r": {
-     "min_m": -0.0052,
-     "p05_m": -0.0032
+     "min_m": 0.0026,
+     "p05_m": 0.0036
     },
     "vanguard_field_set_boots__upper_r": {
-     "min_m": 0.0018,
-     "p05_m": 0.003
+     "min_m": -0.0273,
+     "p05_m": 0.0025
     },
     "vanguard_field_set_boots__instep_r": {
-     "min_m": 0.0056,
-     "p05_m": 0.0075
+     "min_m": 0.0055,
+     "p05_m": 0.0062
     },
     "vanguard_field_set_boots__instep_buckle_r": {
-     "min_m": 0.0155,
-     "p05_m": 0.0159
+     "min_m": 0.0137,
+     "p05_m": 0.0142
     },
     "vanguard_field_set_boots__toe_cap_r": {
      "min_m": 0.0073,
      "p05_m": 0.0099
     },
     "vanguard_field_set_boots__heel_r": {
-     "min_m": -0.04,
-     "p05_m": -0.0218
+     "min_m": 0.0036,
+     "p05_m": 0.0046
     },
     "vanguard_field_set_boots__cuff_r": {
      "min_m": 0.0069,
@@ -572,7 +572,7 @@
   },
   "f": {
    "pieces": 141,
-   "min_clearance_m": -0.0366,
+   "min_clearance_m": -0.0212,
    "clearance": {
     "vanguard_field_set_chest__vest": {
      "min_m": 0.0025,
@@ -723,16 +723,16 @@
      "p05_m": 0.0384
     },
     "vanguard_field_set_chest__collar_0": {
-     "min_m": -0.0018,
-     "p05_m": 0.0011
+     "min_m": -0.0031,
+     "p05_m": -0.0001
     },
     "vanguard_field_set_chest__collar_1": {
-     "min_m": 0.0116,
-     "p05_m": 0.0166
+     "min_m": 0.0122,
+     "p05_m": 0.0123
     },
     "vanguard_field_set_chest__nape": {
-     "min_m": 0.0309,
-     "p05_m": 0.0365
+     "min_m": 0.0247,
+     "p05_m": 0.0281
     },
     "cinderlock_arms__sleeve_l": {
      "min_m": -0.0208,
@@ -1075,56 +1075,56 @@
      "p05_m": 0.0105
     },
     "vanguard_field_set_boots__boot_l": {
-     "min_m": -0.0057,
-     "p05_m": -0.0033
+     "min_m": -0.0018,
+     "p05_m": 0.0036
     },
     "vanguard_field_set_boots__upper_l": {
-     "min_m": -0.0362,
-     "p05_m": -0.0102
+     "min_m": -0.0129,
+     "p05_m": 0.0028
     },
     "vanguard_field_set_boots__instep_l": {
-     "min_m": 0.0089,
-     "p05_m": 0.0097
+     "min_m": 0.0087,
+     "p05_m": 0.0093
     },
     "vanguard_field_set_boots__instep_buckle_l": {
-     "min_m": 0.0152,
-     "p05_m": 0.0156
+     "min_m": 0.0137,
+     "p05_m": 0.014
     },
     "vanguard_field_set_boots__toe_cap_l": {
      "min_m": 0.0052,
      "p05_m": 0.0085
     },
     "vanguard_field_set_boots__heel_l": {
-     "min_m": -0.0341,
-     "p05_m": -0.0207
+     "min_m": 0.0063,
+     "p05_m": 0.0074
     },
     "vanguard_field_set_boots__cuff_l": {
      "min_m": 0.0059,
      "p05_m": 0.0071
     },
     "vanguard_field_set_boots__boot_r": {
-     "min_m": -0.0061,
-     "p05_m": -0.0034
+     "min_m": -0.0028,
+     "p05_m": 0.0029
     },
     "vanguard_field_set_boots__upper_r": {
-     "min_m": -0.0366,
-     "p05_m": -0.0103
+     "min_m": -0.0129,
+     "p05_m": 0.0023
     },
     "vanguard_field_set_boots__instep_r": {
-     "min_m": 0.0057,
-     "p05_m": 0.0102
+     "min_m": 0.0068,
+     "p05_m": 0.0088
     },
     "vanguard_field_set_boots__instep_buckle_r": {
-     "min_m": 0.0144,
-     "p05_m": 0.0149
+     "min_m": 0.0126,
+     "p05_m": 0.0129
     },
     "vanguard_field_set_boots__toe_cap_r": {
      "min_m": 0.0057,
      "p05_m": 0.0086
     },
     "vanguard_field_set_boots__heel_r": {
-     "min_m": -0.0329,
-     "p05_m": -0.0209
+     "min_m": 0.0059,
+     "p05_m": 0.0073
     },
     "vanguard_field_set_boots__cuff_r": {
      "min_m": -0.0195,

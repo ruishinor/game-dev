@@ -4,10 +4,10 @@ const ICONS = Object.freeze({
   field_chest: '/client/assets/icons/armour/field_chest.webp?v=b56cc93b21c3',
   reinforced_chest: '/client/assets/icons/armour/reinforced_chest.webp?v=ee2f9bfaae3f',
   resonant_chest: '/client/assets/icons/armour/resonant_chest.webp?v=f1662ca942c2',
-  vanguard_field_set_boots: '/client/assets/icons/armour/vanguard_field_set_boots.webp?v=32f4950b3ca0',
-  vanguard_field_set_chest: '/client/assets/icons/armour/vanguard_field_set_chest.webp?v=2081c6dffd79',
-  vanguard_field_set_gloves: '/client/assets/icons/armour/vanguard_field_set_gloves.webp?v=ffd27c16dda6',
-  vanguard_field_set_greaves: '/client/assets/icons/armour/vanguard_field_set_greaves.webp?v=96ba7cf39cd2',
+  vanguard_field_set_boots: '/client/assets/icons/armour/vanguard_field_set_boots.webp?v=e4ab8746571c',
+  vanguard_field_set_chest: '/client/assets/icons/armour/vanguard_field_set_chest.webp?v=3b2cf494b9d3',
+  vanguard_field_set_gloves: '/client/assets/icons/armour/vanguard_field_set_gloves.webp?v=51e5b53534f1',
+  vanguard_field_set_greaves: '/client/assets/icons/armour/vanguard_field_set_greaves.webp?v=a7cd06dad4f3',
 });
 export const RENDERED_ICON_IDS = Object.freeze(Object.keys(ICONS));
 export function renderedItemIcon(id) { return typeof id === 'string' && Object.hasOwn(ICONS, id) ? ICONS[id] : null; }

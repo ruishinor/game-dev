@@ -38,12 +38,12 @@
   "armour_vanguard_set_f": {
    "kind": "skinned",
    "url": "armour_vanguard_set_f.glb",
-   "bytes": 5746356,
-   "rawBytes": 22888508,
-   "hash": "60945afda279",
-   "tris": 46063,
+   "bytes": 5371408,
+   "rawBytes": 22310128,
+   "hash": "eb4e680ff7e6",
+   "tris": 42705,
    "textures": 8,
-   "meshes": 24,
+   "meshes": 30,
    "clips": {},
    "sources": [
     "ual2",
@@ -54,12 +54,12 @@
   "armour_vanguard_set_m": {
    "kind": "skinned",
    "url": "armour_vanguard_set_m.glb",
-   "bytes": 5675044,
-   "rawBytes": 22694436,
-   "hash": "07dbd7499665",
-   "tris": 45941,
+   "bytes": 5390188,
+   "rawBytes": 22453328,
+   "hash": "93c284612df1",
+   "tris": 42587,
    "textures": 8,
-   "meshes": 24,
+   "meshes": 30,
    "clips": {},
    "sources": [
     "ual2",
@@ -1356,8 +1356,8 @@
   },
   "vanguard_field_set_boots": {
    "url": "icons/armour/vanguard_field_set_boots.webp",
-   "bytes": 8454,
-   "hash": "32f4950b3ca0",
+   "bytes": 8092,
+   "hash": "e4ab8746571c",
    "sources": [
     "ual2",
     "ual1",
@@ -1367,8 +1367,8 @@
   },
   "vanguard_field_set_chest": {
    "url": "icons/armour/vanguard_field_set_chest.webp",
-   "bytes": 7824,
-   "hash": "2081c6dffd79",
+   "bytes": 7916,
+   "hash": "3b2cf494b9d3",
    "sources": [
     "ual2",
     "ual1",
@@ -1378,8 +1378,8 @@
   },
   "vanguard_field_set_gloves": {
    "url": "icons/armour/vanguard_field_set_gloves.webp",
-   "bytes": 4264,
-   "hash": "ffd27c16dda6",
+   "bytes": 4262,
+   "hash": "51e5b53534f1",
    "sources": [
     "ual2",
     "ual1",
@@ -1389,8 +1389,8 @@
   },
   "vanguard_field_set_greaves": {
    "url": "icons/armour/vanguard_field_set_greaves.webp",
-   "bytes": 9272,
-   "hash": "96ba7cf39cd2",
+   "bytes": 9252,
+   "hash": "a7cd06dad4f3",
    "sources": [
     "ual2",
     "ual1",

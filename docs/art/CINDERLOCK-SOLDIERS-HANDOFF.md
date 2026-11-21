@@ -13,7 +13,7 @@ Branch `charlie/festive-thompson-a5h4f5` (Claude's reserved Severance track, AGE
 | Validation over seven clips | Run; strain passes everywhere, body penetration fails on five modules (below). Not accepted |
 | Severance Soldier enemy, server-only squads with formation following | Done, tested |
 | Soldier presentation: humanoid + six modules, distance LODs, channel FX, Kinetic Discharge VFX | Done; unit-tested and captured in game (software GL) |
-| Published runtime GLBs, icons, manifest | Done; full suite 554/554 |
+| Published runtime GLBs, icons, manifest | Done (second pass: glow ribbons, boots, collar) |
 | Owner art review | Outstanding |
 
 ## Modules
@@ -41,40 +41,50 @@ The two new modules are not items and never appear in `av`: `shared/armour-visua
 * **Booleans:** Blender's Manifold solver, with Exact as fallback. Exact deleted whole plates for some cutters (measured on the lower collar ring, flank, scapula, heat-sink housing and thigh plates, which kept under 1 % of their area). Closed grooves are now ring cutters. Each build reports `damaged_pieces` (empty in the published build).
 * **Rig/GLB:** one material per atlas, a `_far` material with the emissive map for LOD1/LOD2, and nodes `<module>`, `<module>__lod1`, `<module>__lod2`, `<module>__fx`.
 
-## Measured — full quality (2048² atlases, 16-sample bakes)
+## Measured — full quality (2048² atlases, 16-sample bakes), 2026-11-21 second pass
 
-| Body | LOD0 (incl. channel strips) | LOD1 | LOD2 | GLB | Validator | Damaged pieces |
-|---|---|---|---|---|---|---|
-| m | 27,887 / 28,000 | 12,038 | 6,016 | 5.7 MB | 0 errors, 0 warnings | none |
-| f | 27,923 / 28,000 | 12,095 | 6,045 | 5.7 MB | 0 errors, 0 warnings | none |
+What is drawn at each distance (LOD0 includes the animated channel strips; every level includes the glow ribbons):
 
-Per module (LOD0 incl. strips, both bodies): cuirass ≤ 7,500, arms ≤ 3,500, gauntlets ≤ 4,500, legs ≤ 5,000, greaves ≤ 4,500, boots ≤ 3,000. The previous published set was about 120,000 triangles with no LODs.
+| Body | LOD0 | LOD1 + glow | LOD2 + glow | Glow ribbons | GLB | Validator | Damaged pieces |
+|---|---|---|---|---|---|---|---|
+| m | 27,868 / 28,000 | 11,646 / 14,000 | 5,981 / 7,000 | 1,454 | 5.3 MB | 0 errors, 0 warnings | none |
+| f | 27,880 / 28,000 | 11,647 / 14,000 | 5,942 / 7,000 | 1,382 | 5.3 MB | 0 errors, 0 warnings | none |
+
+Per module, LOD0 including strips and glow, both bodies: cuirass ≤ 7,500, arms ≤ 3,500, gauntlets ≤ 4,500, legs ≤ 5,000, greaves ≤ 4,500, boots ≤ 3,000. The test `test/armour-3d.test.js` enforces these budgets, the module and glow nodes, and tangents on the published GLBs.
+
+**Art pass (owner feedback, 2026-11-21):**
+* **Collar:** lowered and brought closer to the neck: two short rings and a smaller nape guard.
+* **Boots:**
+  * The shoe-derived liner decimated into holes (about 150 triangles per foot) and read as crumpled, see-through flaps. It is replaced by a smooth, closed lofted boot body.
+  * The upper covers only the forefoot.
+  * A slimmer angled instep strap.
+  * A heel counter on the vertical ankle map, so nothing folds over the shoe's ankle opening.
 
 **Validation** (seven clips × 8 frames; limits unchanged, `strict: false`, so this reports and does not gate):
 
 | Body | Module | Deepest 0.5 % | Inside body (worst frame) | Inside kept shells | Edge strain (limit) | Pass |
 |---|---|---|---|---|---|---|
-| m | cuirass | −14.5 mm | 2.99 % | 0 % | 0.38 (0.84) | no |
-| m | arms | −38.5 mm | 6.75 % | 0 % | 0.44 | no |
-| m | gauntlets | −6.7 mm | 0.62 % | 3.94 % | 0.67 | no |
-| m | legs | −32.3 mm | 4.23 % | 0.5 % | 0.63 | no |
-| m | greaves | −8.7 mm | 1.06 % | 0 % | 0.48 | **yes** |
-| m | boots | −161 mm\* | 1.47 % | 0 % | 0.30 | no |
-| f | cuirass | −12.7 mm | 2.18 % | 0 % | 0.45 (0.89) | no |
-| f | arms | −48.4 mm | 3.90 % | 0 % | 0.42 | no |
-| f | gauntlets | −6.2 mm | 0.48 % | 3.24 % | 0.59 | no |
-| f | legs | −24.0 mm | 5.08 % | 1.55 % | 0.56 | no |
-| f | greaves | −12.8 mm | 1.43 % | 0 % | 0.48 | **yes** |
-| f | boots | −148 mm\* | 3.89 % | 0 % | 0.19 | no |
+| m | cuirass | −16.3 mm | 4.56 % | 0 % | 0.37 (0.84) | no |
+| m | arms | −38.5 mm | 6.62 % | 0 % | 0.46 | no |
+| m | gauntlets | −6.7 mm | 0.65 % | 4.13 % | 0.69 | no |
+| m | legs | −32.6 mm | 4.14 % | 0.52 % | 0.61 | no |
+| m | greaves | −8.9 mm | 1.03 % | 0 % | 0.48 | **yes** |
+| m | boots | −181 mm\* | 2.04 % | 0 % | 0.22 | no |
+| f | cuirass | −13.4 mm | 2.38 % | 0 % | 0.43 (0.89) | no |
+| f | arms | −48.5 mm | 3.91 % | 0 % | 0.41 | no |
+| f | gauntlets | −6.2 mm | 0.48 % | 3.17 % | 0.58 | no |
+| f | legs | −23.8 mm | 4.97 % | 1.6 % | 0.53 | no |
+| f | greaves | −13.4 mm | 1.44 % | 0 % | 0.48 | **yes** |
+| f | boots | −157 mm\* | 4.93 % | 0 % | 0.12 | no |
 
-\* Measurement artefact: the body skin ends about 5 cm above the ankle joint (y −0.639 vs −0.687); the feet exist only as the shoe shell, which the boots now hide. The boot numbers below the ankle measure against that stump.
+\* Measurement artefact: the body skin ends about 5 cm above the ankle joint (y −0.639 vs −0.687); the feet exist only as the shoe shell, which the boots hide. Boot numbers below the ankle measure against that stump.
 
-Compared with the previous build, edge strain now passes everywhere (the old gauntlets exceeded it: 1.15 vs 0.83) and the greaves pass outright. Penetration still fails mostly where thin undersuit layers (sleeves 4.5 mm off the skin, trouser legs 9 mm) sit over joints that bulge in sprint and punch frames, and where rigid deltoid caps meet a deforming shoulder.
+Edge strain passes everywhere, and the greaves pass outright. The lowered collar raised the male cuirass from 2.99 % to 4.56 % of vertices inside the body: it now sits close enough that the neck meets it in some frames. Penetration still fails mostly where thin undersuit layers (sleeves, trouser legs) sit over joints that bulge in sprint and punch frames, and where the rigid deltoid caps meet a deforming shoulder.
 
 ## Severance Soldiers
 
 * **Server** (`server/sim/severance-patrols.js`, `ai.js`):
-  * **Five squads roam long loops** through the Expanse: Far West, Causeway, Severed Pass, Amber Flats and Gate Basin, each loop 340–694 m. The loops were path-planned on a 1 m grid with a 3 m formation corridor clear of colliders, the outpost and the arrival.
+  * **Five squads roam long loops** through the Expanse: Far West, Causeway, Severed Pass, Amber Flats and Gate Basin, each loop 340–754 m. The loops were path-planned on a 1 m grid with a 3 m formation corridor clear of colliders, the outpost and the arrival, and they stay more than 10 m from every resonant-vein harvest site (`test/severance-veins.test.js`).
   * Each squad is three strong. A soldier walks point on the route; a second soldier and the **sergeant follow, the sergeant at the rear** (formation slots in the point's heading frame). Followers walk the route themselves when the point is engaged, down or more than 40 m away.
   * The whole squad engages when any member is attacked (`social`).
   * **The sergeant hangs back** about 4 m from the fight while any squadmate is still fighting, then closes in.
@@ -95,24 +105,25 @@ Compared with the previous build, edge strain now passes everywhere (the old gau
 
 * New: `test/severance-soldiers.test.js` (composition, formation, shared aggro and leash, metadata carries no route/slot/link) and `test/cinderlock-modules.test.js` (module map, prototype-key safety, forged `av`, LOD switching and hysteresis).
 * Extended: `test/armour-3d.test.js` checks the module nodes, the 28k/14k/7k budgets on the published GLBs, and tangents.
-* Full suite on the publishing commit: 554/554.
+* Full suite: see the publishing commit message.
 
 ## Open items (owner review)
 
-1. **Art pass, by priority:**
-   * The **boots** read crumpled at 3,000 triangles: the upper and instep strap need a cleaner design rather than more triangles.
-   * The **collar and nape guard** are too tall and boxy from the front.
-   * Decimation leaves jagged edges on some lower ab plates.
+1. **Art:**
+   * Boots and collar are reworked (above) and need your review.
+   * Decimation still leaves jagged edges on some lower ab plates.
+   * Owner art acceptance of the set is outstanding.
 2. **Clearance:**
-   * Raise the sleeve and trouser offsets, and consider band (rather than rigid) weights for the bicep guard if the owner accepts slight plate flex.
-   * Add a foot surface to the validation body so boot numbers mean something.
+   * Raise the sleeve and trouser offsets, and pull the collar back about 3 mm on the masculine body.
+   * Consider band (rather than rigid) weights for the bicep guard if you accept slight plate flex.
+   * Add a foot surface to the validation body so the boot numbers mean something.
 3. **Not in the specification's form:**
    * No extra bones: the shared 67-joint skeleton has no twist or socket bones, so caps and knee cops are rigid islands on a fixed two-joint blend.
    * No mirrored UVs: unique texels per side for asymmetric wear and AO.
-   * One GLB per body, not six files; no `.fbx`.
+   * One GLB per body rather than six files; no `.fbx`.
    * No groin-gusset piping.
-4. **Rewards:** soldiers have an explicitly empty item-drop entry. The publication preflight flags any change to `server/sim/loot-tables.js` by path. This change adds no reward data; loot for soldiers is an owner decision and is not described here.
-5. Real-GPU frame cost with three squads on screen is unmeasured (software GL only here).
+4. **Readability:** a renderer-wide bloom pass would further strengthen the channels at range (a cross-game performance decision).
+5. **Performance:** real-GPU frame cost with five squads on screen is unmeasured; software GL only here.
 
 ## Review gate (AGENTS.md)
 

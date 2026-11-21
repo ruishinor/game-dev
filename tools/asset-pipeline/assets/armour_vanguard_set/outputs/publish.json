@@ -2,35 +2,35 @@
  "runtime": {
   "m": {
    "file": "client/assets/armour_vanguard_set_m.glb",
-   "sha256": "07dbd7499665dd0f67d3f934668489751f4e510f72ce4efc36411cf69e81b160",
-   "bytes": 5675044
+   "sha256": "93c284612df1276322604fd427f78fe71641b14edd6a688d20c21bd794371fed",
+   "bytes": 5390188
   },
   "f": {
    "file": "client/assets/armour_vanguard_set_f.glb",
-   "sha256": "60945afda2792a0fc5d3135c1710a872e8c114e4fe5c099194ff1b6ebb3e6fdc",
-   "bytes": 5746356
+   "sha256": "eb4e680ff7e63dea28b7b0d8d792dc097901c06440081628d4a2e9e154687c43",
+   "bytes": 5371408
   }
  },
  "icons": {
   "vanguard_field_set_boots": {
    "file": "client/assets/icons/armour/vanguard_field_set_boots.webp",
-   "sha256": "32f4950b3ca0569aa68bad0f95599aac2e1ca5381d3a93c93a99c9a217e6705a",
-   "bytes": 8454
+   "sha256": "e4ab8746571c959ea58f46e34c41cb51df9c829613c2fb1e6a014e82c402cc35",
+   "bytes": 8092
   },
   "vanguard_field_set_chest": {
    "file": "client/assets/icons/armour/vanguard_field_set_chest.webp",
-   "sha256": "2081c6dffd799cb6ea32693d12fdbf8af965b7164fb65e644e96d760a9bfb142",
-   "bytes": 7824
+   "sha256": "3b2cf494b9d308b520ac776d3ad70ffce6c18641b61511a8fa3d04b28b5acd95",
+   "bytes": 7916
   },
   "vanguard_field_set_gloves": {
    "file": "client/assets/icons/armour/vanguard_field_set_gloves.webp",
-   "sha256": "ffd27c16dda66a8d61791cf3e1c71272a2a0afe2a5fa70a895ba31c2bdc6295a",
-   "bytes": 4264
+   "sha256": "51e5b53534f1d7ac428234143fb8b3fc390da85b1e964f69906aae60a76c07fa",
+   "bytes": 4262
   },
   "vanguard_field_set_greaves": {
    "file": "client/assets/icons/armour/vanguard_field_set_greaves.webp",
-   "sha256": "96ba7cf39cd28cf1e9e3ddf53a65b56726f5aa16ff4493b6a1c95f6a282b01bb",
-   "bytes": 9272
+   "sha256": "a7cd06dad4f33f11cb75adfd12f140713b0732bcb5cf171192b03ed01531910b",
+   "bytes": 9252
   }
  }
 }

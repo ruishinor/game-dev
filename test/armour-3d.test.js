@@ -84,24 +84,29 @@ test('published armour GLBs: one skinned mesh per item on the shared 67-joint sk
   }
 });
 
-test('Cinderlock modules meet the production budget: LOD0 <= 28k triangles with channel strips, LOD1/LOD2 halve it', () => {
+test('Cinderlock modules meet the production budget: what is drawn at each distance stays within 28k / 14k / 7k triangles', () => {
   const manifest = JSON.parse(fs.readFileSync('client/assets/manifest.json', 'utf8'));
   for (const bundle of ['armour_vanguard_set_m', 'armour_vanguard_set_f']) {
     const g = glbJson(`client/assets/${manifest.assets[bundle].url}`);
     const tris = (n) => g.accessors[g.meshes[n.mesh].primitives[0].indices].count / 3;
+    // LOD0 draws the module, its channel strips and its glow; the distance
+    // levels draw the reduced module and the glow (strips are near-only)
     const level = { 0: 0, 1: 0, 2: 0 };
-    const modules = new Set();
+    let glow = 0;
+    const modules = new Set(), glowing = new Set();
     for (const n of g.nodes.filter((x) => x.mesh !== undefined)) {
       const m = /__lod(\d)$/.exec(n.name);
+      if (n.name.endsWith('__glow')) { glow += tris(n); glowing.add(n.name.split('__')[0]); continue; }
       level[m ? Number(m[1]) : 0] += tris(n);
       if (m) modules.add(n.name.split('__')[0]);
-      else assert.ok(!/__(?!fx$)/.test(n.name), `${n.name}: near pieces are the module and its channel strips`);
+      else assert.ok(!/__(?!fx$)/.test(n.name), `${n.name}: near pieces are the module, its channel strips and its glow`);
     }
     assert.equal(modules.size, 6, `${bundle}: six modules carry distance LODs`);
-    assert.ok(level[0] <= 28000, `${bundle} LOD0 ${level[0]}`);
-    assert.ok(level[1] <= 14000 && level[1] >= level[0] * 0.35, `${bundle} LOD1 ${level[1]}`);
-    assert.ok(level[2] <= 7000 && level[2] >= level[0] * 0.15, `${bundle} LOD2 ${level[2]}`);
-    for (const n of g.nodes.filter((x) => x.mesh !== undefined && !x.name.endsWith('__fx'))) {
+    assert.equal(glowing.size, 6, `${bundle}: every module has a channel glow`);
+    assert.ok(level[0] + glow <= 28000, `${bundle} LOD0 ${level[0]} + glow ${glow}`);
+    assert.ok(level[1] + glow <= 14000 && level[1] >= level[0] * 0.3, `${bundle} LOD1 ${level[1]} + glow ${glow}`);
+    assert.ok(level[2] + glow <= 7000 && level[2] >= level[0] * 0.12, `${bundle} LOD2 ${level[2]} + glow ${glow}`);
+    for (const n of g.nodes.filter((x) => x.mesh !== undefined && !x.name.endsWith('__fx') && !x.name.endsWith('__glow'))) {
       assert.ok(g.meshes[n.mesh].primitives[0].attributes.TANGENT !== undefined, `${n.name} exports tangents for its normal map`);
     }
   }
