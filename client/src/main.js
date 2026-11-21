@@ -478,7 +478,7 @@ function showCharacterCreation(){
   $('enter').textContent='Create character';
   $('enter').disabled=false;
   $('login-error').textContent='';
-  document.body.classList.remove('character-selection-mode','gate-mode');
+  document.body.classList.remove('character-selection-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
   $('name').focus({preventScroll:true});
@@ -593,6 +593,7 @@ function showAccountLogin(message = '') {
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
   document.body.classList.add('gate-mode');
+  document.body.classList.remove('gate-guest-open');
   setAccountMode('signin');
   setPasswordShown(false);
   $('creation-back').hidden=true;
@@ -630,7 +631,7 @@ function showRoster(m) {
   $('roster-error').textContent='';
   $('login-error').textContent='';
   $('link-legacy').hidden=!net.token;
-  document.body.classList.remove('character-create-mode','gate-mode');
+  document.body.classList.remove('character-create-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
@@ -675,11 +676,15 @@ function buildAccountUI() {
     $('account-help').hidden = !open;
     $('account-help-toggle').setAttribute('aria-expanded', String(open));
   });
-  // In-page links to guest access scroll the login view without touching the URL.
+  // Guest access stays distinct from the cinematic sign-in viewport.
   for (const a of document.querySelectorAll('#account-auth a[href="#guest-note"]')) a.addEventListener('click', (e) => {
     e.preventDefault();
-    $('guest-note').scrollIntoView({ block: 'start' });
-    ($('resume-saved-guest').offsetParent ? $('resume-saved-guest') : $('login-form').hidden ? $('guest-resume-key') : $('name')).focus({ preventScroll: true });
+    document.body.classList.add('gate-guest-open');
+    ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+  });
+  $('gate-back-to-login').addEventListener('click', () => {
+    document.body.classList.remove('gate-guest-open');
+    $('gate-guest-link').focus({ preventScroll: true });
   });
   $('account-signout').addEventListener('click', () => net.signOut());
   $('resume-saved-guest').addEventListener('click', () => {
@@ -901,7 +906,7 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   creationPreview.release();
   selectionView.release();
-  document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.remove('character-selection-mode','character-create-mode','gate-mode','gate-guest-open');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
