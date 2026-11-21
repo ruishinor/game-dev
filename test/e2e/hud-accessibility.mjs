@@ -155,6 +155,17 @@ try{
  const ctrlDrag=async(from,to)=>{
    const origin=await slot(from).boundingBox();
    assert.ok(origin,'Source ability must have a visible slot');
+   const source=await page.evaluate(({x,y,from})=>{
+     const node=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
+     const style=getComputedStyle(node);
+     const elements=document.elementsFromPoint(x,y).slice(0,8).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className:null,slot:el.dataset?.slotIndex??null}));
+     const rect=node.getBoundingClientRect();
+     return {from,cls:node.className,hidden:node.hidden,disabled:node.disabled,
+       ability:node.dataset.ability??null,barMode:node.parentElement?.dataset.emptyMode??null,
+       style:{display:style.display,visibility:style.visibility,opacity:style.opacity,pointerEvents:style.pointerEvents},
+       rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},elements};
+   },{x:origin.x+origin.width/2,y:origin.y+origin.height/2,from});
+   assert.equal(source.elements[0]?.slot,String(from),'Ctrl-drag source must be hit-testable: '+JSON.stringify(source));
    await page.keyboard.down('Control');
    await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
    await page.mouse.down();
