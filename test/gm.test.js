@@ -5,7 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
 import { makeGame, makeChar, place } from './helpers.js';
-import { MAX_LEVEL } from '../shared/content.js';
+import { ITEMS, MAX_LEVEL } from '../shared/content.js';
+import { MATERIALS, MATERIAL_CAP } from '../shared/crafting.js';
+import { CREDIT_CAP } from '../server/sim/wallet.js';
 import { WORLD, RIFT_ANNEX, travelRegionAt, inSafeZone } from '../shared/world.js';
 import { gmIds, gmAuthorized, executeGm, GM_HELP } from '../server/gm.js';
 import { CharacterStore } from '../server/store.js';
@@ -71,6 +73,73 @@ test('real outside-safe-zone damage baseline proves session-only invulnerability
   assert.equal(p.char.gmInvulnerable, undefined);
   assert.equal(executeGm(g, p, 'god off').ok, true);
   assert.ok(dealDamage(g, null, p, 10, 'gm_probe') > 0);
+});
+
+
+test('GM catalogue grants each existing item once, marks inventory and preserves the other player', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), other = g.addPlayer(makeChar('keeper'));
+  const categories = [
+    ['glyphs', ['glyph']], ['device', ['device']], ['implants', ['implant']],
+    ['gear', ['chest', 'gloves', 'greaves', 'boots']], ['weapons', ['weapon']],
+    ['social clothing', ['social_torso']],
+  ];
+  for (const [command, slots] of categories) {
+    const expected = Object.keys(ITEMS).filter(id => slots.includes(ITEMS[id].slot));
+    const previousRev = p.inventoryRev;
+    assert.equal(executeGm(g, p, command).ok, true, command);
+    assert.ok(expected.length > 0, command);
+    assert.ok(expected.every(id => p.char.inventory.includes(id)), command);
+    assert.ok(expected.every(id => p.char.unseenItems.includes(id)), 'new items marked unseen');
+    assert.ok(p.inventoryRev > previousRev, 'inventory revision advanced');
+    const count = p.char.inventory.length;
+    assert.equal(executeGm(g, p, command).ok, true, 'repeated grants succeed without duplicates');
+    assert.equal(p.char.inventory.length, count);
+  }
+  assert.equal(p.char.inventory.length, Object.keys(ITEMS)
+    .filter(id => ['glyph', 'device', 'implant', 'chest', 'gloves', 'greaves', 'boots', 'weapon', 'social_torso'].includes(ITEMS[id].slot)).length);
+  assert.equal(other.char.inventory.length, 0);
+  assert.deepEqual(p.char.equipped, { device: null, implant: null, glyph: null });
+});
+
+test('GM credits and materials are additive, validated and capped', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('surveyor'));
+  assert.equal(executeGm(g, p, 'credits 999').ok, true);
+  assert.equal(p.char.credits, 999);
+  assert.equal(executeGm(g, p, 'credits 1').ok, true);
+  assert.equal(p.char.credits, 1000);
+  for (const invalid of ['credits 0', 'credits -1', 'credits 1.5', 'credits 0x1', 'credits 1000001',
+    'credits NaN', 'credits 01', 'mats 0', 'mats -2', 'mats 100', 'mats 1.5', 'mats NaN']) {
+    assert.equal(executeGm(g, p, invalid).ok, false, invalid);
+  }
+  assert.equal(executeGm(g, p, 'mats 10').ok, true);
+  for (const id of Object.keys(MATERIALS)) assert.equal(p.char.materials[id], 10, id);
+  assert.equal(executeGm(g, p, 'mats 10').ok, true);
+  for (const id of Object.keys(MATERIALS)) assert.equal(p.char.materials[id], 20, id);
+  assert.equal(executeGm(g, p, 'mats 99').ok, true);
+  assert.equal(executeGm(g, p, 'mats 99').ok, true);
+  for (const id of Object.keys(MATERIALS)) assert.equal(p.char.materials[id], MATERIAL_CAP, id);
+  p.char.credits = CREDIT_CAP;
+  assert.equal(executeGm(g, p, 'credits 1').ok, false, 'wallet overflow rejected');
+  assert.equal(p.char.credits, CREDIT_CAP);
+});
+
+test('GM speed 200 means +200% (3x), session only, with server movement authority', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('keeper')), other = g.addPlayer(makeChar('keeper'));
+  assert.equal(executeGm(g, p, 'speed 200').ok, true);
+  assert.equal(g.moveSpeedMul(p), 3);
+  assert.equal(g.moveSpeedMul(other), 1);
+  assert.equal(p.char.gmSpeedBonus, undefined, 'bonus never written to character save');
+  for (const invalid of ['speed -1', 'speed 301', 'speed 1.5', 'speed NaN', 'speed 020']) {
+    assert.equal(executeGm(g, p, invalid).ok, false, invalid);
+  }
+  assert.equal(g.moveSpeedMul(p), 3);
+  assert.equal(executeGm(g, p, 'speed 0').ok, true);
+  assert.equal(g.moveSpeedMul(p), 1);
+  assert.equal(executeGm(g, p, 'speed 200').ok, true);
+  const char = p.char;
+  g.removePlayer(p.id);
+  const resumed = g.addPlayer(char);
+  assert.equal(g.moveSpeedMul(resumed), 1, 'reconnect clears GM speed');
 });
 
 async function connect(port) {
