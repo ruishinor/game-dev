@@ -445,7 +445,7 @@ export class UI {
     // Bars
     const bars = h('div', 'bars');
     this.petBar = h('div', 'petbar');
-    this.spindleBar = h('div', 'petbar spindlebar');
+    this.spindleBar = h('div', 'spindlebar');
     this.spindleBar.hidden = true;
     this.spindleBar.setAttribute('role','group');
     this.spindleBar.setAttribute('aria-label','Independent Spindle controls');
