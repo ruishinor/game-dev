@@ -162,7 +162,11 @@ try {
     server.game.markDirty(p);
     await page.bringToFront();
     const got = await wornBoth(fwant);
-    for (const slot of ARMOUR_SLOTS) assert.equal(got.worn.armourFx?.[slot]?.family, code, `${cls} ${slot}: ${code} family FX`);
+    // a piece with emissive parts runs its family's FX; some pieces have none
+    // by design (Strataweave greaves: no unnecessary glowing surfaces)
+    const fams = ARMOUR_SLOTS.map((slot) => got.worn.armourFx?.[slot]?.family ?? null);
+    assert.ok(fams.some((f) => f === code), `${cls}: ${code} family FX on the set`);
+    for (const [i, f] of fams.entries()) assert.ok(f === null || f === code, `${cls} ${ARMOUR_SLOTS[i]}: ${f} is not ${code}`);
     await page.bringToFront();
     await capture(page, `${OUT}/${cls}-worn.png`);
     report.families[cls] = { worn: got.worn.armourWornAll, observerSees: got.seen.armourWornAll, fx: got.worn.armourFx };
