@@ -21,7 +21,7 @@ test('sanctum_arch.glb is versioned by content, valid glTF, carries every piece 
   await MeshoptDecoder.ready;
   const doc = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).readBinary(new Uint8Array(bytes));
   const top = doc.getRoot().listScenes()[0].listChildren().map((n) => n.getName());
-  for (const p of ['SA_Deck', 'SA_Pylon', 'SA_Arch', 'SA_Beacon', 'SA_Span']) assert.ok(top.includes(p), p);
+  for (const p of ['SA_Deck', 'SA_Pylon', 'SA_Arch', 'SA_Beacon', 'SA_Span', 'SA_HallWall', 'SA_HallPillar', 'SA_HallLintel', 'SA_HallCanopy']) assert.ok(top.includes(p), p);
   const mats = new Set(doc.getRoot().listMaterials().map((m) => m.getName()));
   assert.ok(mats.has('SA_Channel') && mats.has('SA_Lamp'));
 });

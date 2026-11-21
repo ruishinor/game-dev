@@ -38,7 +38,7 @@ SPAL = {  # sRGB, roughness, metallic, stone flag
     "stone": (0x6e6a63, 0.9, 0.0, 1), "dark": (0x4a4844, 0.92, 0.0, 1), "pale": (0x8d877c, 0.88, 0.0, 1),
     "bronze": (0x8a6a3e, 0.38, 0.88, 0), "iron": (0x2c2f31, 0.6, 0.6, 0), "teal": (0x1f4a4c, 0.4, 0.5, 0),
 }
-PIECES = ["SA_Deck", "SA_Pylon", "SA_Arch", "SA_Beacon", "SA_Span"]
+PIECES = ["SA_Deck", "SA_Pylon", "SA_Arch", "SA_Beacon", "SA_Span", "SA_HallWall", "SA_HallPillar", "SA_HallLintel", "SA_HallCanopy"]
 TOP = 0.47
 rng = np.random.default_rng(1306)
 I3 = (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
@@ -214,6 +214,62 @@ def span(b, glow):
         b.tube((-0.14, y0, 0.14), (0.14, y0, 0.14), 0.014, "iron", 4)
 
 
+# ----------------------------------------------------------------------------- arrival hall
+def hall_wall(b, glow):
+    """Side enclosure along Blender y (three z): 4.24 m long, 3.35 m high, 0.36 m thick."""
+    L, H, T = 4.24, 3.35, 0.36
+    stone_block(b, (0, 0, 0.16), I3, (T / 2 + 0.06, L / 2 + 0.06, 0.16), "dark")
+    courses = [(0.32, 0.9), (1.22, 0.86), (2.08, 0.72)]
+    for ci, (z0, hh) in enumerate(courses):
+        n = 4 if ci % 2 == 0 else 5
+        for k in range(n):
+            w = L / n
+            y = -L / 2 + (k + 0.5) * w + (0.0 if ci % 2 == 0 else 0.0)
+            stone_block(b, (0, y, z0 + hh / 2), I3, (T / 2, w / 2 - 0.015, hh / 2 - 0.012), "pale" if (k + ci) % 5 == 0 else "stone")
+    stone_block(b, (0, 0, 2.95), I3, (T / 2 + 0.05, L / 2 + 0.04, 0.15), "stone")      # coping
+    b.ob((0, 0, 3.2), I3, (T / 2 + 0.02, L / 2, 0.1), "bronze", 0.02)                  # bronze crest
+    for s_ in (-1, 1):
+        for x in (-T / 2 - 0.03, T / 2 + 0.03):
+            b.ob((x, s_ * (L / 2 - 0.25), 1.6), I3, (0.03, 0.07, 1.45), "bronze", 0.008)  # pilasters
+    glow.append(("wallslit", T / 2 + 0.035, L))
+
+
+def hall_pillar(b, glow):
+    b.cyl((0, 0, 0), 0.48, 0.22, "dark", 12)
+    b.cyl((0, 0, 0.22), 0.4, 0.12, "bronze", 16)
+    b.cyl((0, 0, 0.34), 0.34, 3.0, "stone", 16, 0.3)
+    for k in range(8):  # shallow flutes as bronze ribs
+        a = k / 8 * 2 * math.pi
+        d = Vector((math.cos(a), math.sin(a), 0))
+        b.tube(tuple(d * 0.335 + Vector((0, 0, 0.5))), tuple(d * 0.3 + Vector((0, 0, 3.2))), 0.018, "bronze", 4)
+    b.cyl((0, 0, 3.34), 0.3, 0.14, "bronze", 16, 0.42)
+    b.cyl((0, 0, 3.48), 0.46, 0.32, "pale", 8)
+    glow.append(("pillarband", 1.9))
+
+
+def hall_lintel(b, glow):
+    """Threshold architrave across x (8.25 m) resting on the columns (top ~3.9 m)."""
+    for i in range(11):
+        x = -3.75 + i * 0.75
+        stone_block(b, (x, 0, 3.72), I3, (0.37, 0.34, 0.17), "pale" if i == 5 else "stone")
+    b.ob((0, 0, 3.5), I3, (3.7, 0.36, 0.05), "bronze", 0.012)
+    for x in (-3.38, 3.38):
+        stone_block(b, (x, 0, 3.39), I3, (0.36, 0.27, 0.22), "stone")
+    glow.append(("lintel_strip",))
+
+
+def hall_canopy(b, glow):
+    """Bronze lattice canopy over the hall (x +-4, z 5.8..10 -> local +-2.1), at 4.24 m."""
+    for y in (-2.1, 2.1):
+        b.ob((0, y, 4.24), I3, (4.0, 0.16, 0.13), "bronze", 0.02)
+    for x in (-3.8, 3.8):
+        b.ob((x, 0, 4.24), I3, (0.14, 2.3, 0.14), "bronze", 0.02)
+    for i in range(-3, 4):
+        b.ob((i * 1.0, 0, 4.4), I3, (0.05, 2.25, 0.05), "iron", 0.008)
+    for x in np.linspace(-3.6, 3.6, 13):  # diagonal lattice ties
+        b.tube((x, -2.05, 4.32), (x + 0.3, 2.05, 4.32), 0.012, "bronze", 4)
+
+
 def palette_attrs(o, names):
     me = o.data
     pid = np.zeros(len(me.polygons), np.int32)
@@ -268,6 +324,22 @@ def glow_objects(glows):
                 box(lp, (0, 0, z), I3, (0.22, 0.22, 0.05))
             elif kind == "lintel":
                 box(lp, (0, -0.06, 4.44), I3, (1.55, 0.02, 0.012))
+            elif kind == "wallslit":
+                _, x, L = it
+                for sx in (-1, 1):
+                    box(ch, (sx * x, 0, 2.84), I3, (0.006, L / 2 - 0.3, 0.02))
+            elif kind == "pillarband":
+                _, z = it
+                n = 24
+                vs = []
+                for k in range(n):
+                    t = k / n * 2 * math.pi
+                    vs.append((ch.verts.new((math.cos(t) * 0.337, math.sin(t) * 0.337, z - 0.03)), ch.verts.new((math.cos(t) * 0.337, math.sin(t) * 0.337, z + 0.03))))
+                for k in range(n):
+                    a_, b2 = vs[k], vs[(k + 1) % n]
+                    ch.faces.new((a_[0], b2[0], b2[1], a_[1]))
+            elif kind == "lintel_strip":
+                box(lp, (0, -0.37, 3.5), I3, (3.4, 0.008, 0.02))
         out[piece] = (sg.bm_to_obj(f"_ch{piece}", ch) if ch.faces else None, sg.bm_to_obj(f"_lp{piece}", lp) if lp.faces else None)
     return out
 
@@ -288,7 +360,7 @@ def main():
     sc.world = bpy.data.worlds.new("w")
     b = SB()
     glows = {}
-    for i, fn in enumerate([deck, pylon, arch, beacon, span]):
+    for i, fn in enumerate([deck, pylon, arch, beacon, span, hall_wall, hall_pillar, hall_lintel, hall_canopy]):
         b.begin(i)
         g = []
         fn(b, g)

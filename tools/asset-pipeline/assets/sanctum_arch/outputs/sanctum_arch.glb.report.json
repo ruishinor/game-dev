@@ -1,9 +1,9 @@
 {
  "file": "assets/sanctum_arch/outputs/sanctum_arch.glb",
- "bytes": 2477496,
- "inputBytes": 16123232,
- "triangles": 15544,
- "meshes": 10,
+ "bytes": 2562816,
+ "inputBytes": 16275400,
+ "triangles": 18124,
+ "meshes": 17,
  "materials": [
   "SA_Lamp",
   "SA_Body",
@@ -17,7 +17,7 @@
     2048,
     2048
    ],
-   "bytes": 609050
+   "bytes": 543374
   },
   {
    "name": "sarch_orm",
@@ -26,7 +26,7 @@
     2048,
     2048
    ],
-   "bytes": 865272
+   "bytes": 890974
   },
   {
    "name": "sarch_albedo",
@@ -35,7 +35,7 @@
     2048,
     2048
    ],
-   "bytes": 369020
+   "bytes": 380222
   }
  ],
  "skins": [],
@@ -50,7 +50,7 @@
  "validator": {
   "errors": 0,
   "warnings": 0,
-  "infos": 16,
+  "infos": 26,
   "messages": []
  }
 }

@@ -34,7 +34,7 @@ try {
     console.log(name, 'calls', s.calls, 'tris', s.triangles);
   };
   await shot('01-approach-west-road', { x: -30, z: 4 }, Math.PI / 2, { yaw: Math.PI / 2, pitch: 0.02, dist: 7 }, 4000);
-  await shot('02-sanctum-centre', { x: 0, z: 9 }, Math.PI, { yaw: Math.PI, pitch: -0.55, dist: 3 });
+  await shot('02-sanctum-centre', { x: 0, z: -6 }, 0, { yaw: 0, pitch: 0.12, dist: 5 });
   await shot('03-wide-from-the-west-road-low', { x: -38, z: 2 }, Math.PI / 2, { yaw: Math.PI / 2, pitch: -0.25, dist: 6 });
   await shot('04-arrival-hall-view', { x: 0, z: 8 }, Math.PI, { yaw: Math.PI, pitch: -0.2, dist: 6 });
   if (errors.length) console.log('page errors', errors);

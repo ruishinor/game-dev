@@ -774,7 +774,7 @@ const E = new THREE.Euler();
 const SC = new THREE.Vector3();
 /** Matrix for a prop standing on the terrain at (x, z). */
 /** Sanctum architecture kit (Blender; tools/asset-pipeline/.../sanctum_arch.py). */
-export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=52efe6142372';
+export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=85d561df4ade';
 
 /** A Sanctum kit piece placed under a holder, keeping the node's own (quantised)
  * transform; null when the kit is unavailable (the generic kit is used). */
@@ -1023,6 +1023,8 @@ function buildSanctum(c) {
   for(const x of [-3.8,3.8])arrival.add(mesh(new THREE.BoxGeometry(.27,.28,4.6),mat(0x52615d,{metal:.6}),x,4.24,7.9));
   // Slatted overhead frame keeps the sky and exit visible with the game camera.
   for(let i=-3;i<=3;i++)arrival.add(mesh(new THREE.BoxGeometry(.18,.14,4.6),mat(0x7b816c,{metal:.48}),i,4.42,7.9));
+  // With the kit, a bronze lattice canopy replaces the plain frame and slats.
+  if (archInstance(c, 'SA_HallCanopy', at(0, 7.9, { y: 0, ground: false }))) arrival.children.splice(0, arrival.children.length);
   for(const x of [-2.8,2.8])arrival.add(mesh(new THREE.BoxGeometry(.08,.025,4.3),glow(0x6db3b0),x,.51,7.9,false));
   for(let i=-2;i<=2;i++)arrival.add(mesh(new THREE.BoxGeometry(.26,.025,.7),mat(0xc9ad73,{rough:.8}),i*.65,.515,5.4,false));
   scene.add(arrival);
@@ -1412,6 +1414,9 @@ export function buildWorld(scene, assets = null, opts = {}) {
       };
       continue;
     }
+    // Arrival hall in the Sanctum's carved stone and bronze (colliders unchanged)
+    const hallPiece = { arrival_wall: 'SA_HallWall', arrival_pillar: 'SA_HallPillar', arrival_arch: 'SA_HallLintel' }[p.type];
+    if (hallPiece && archInstance(c, hallPiece, at(p.x, p.z))) continue;
     let obj;
     if (kits && kit[p.type]) {
       try {

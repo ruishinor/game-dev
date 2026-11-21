@@ -45,7 +45,11 @@ Useful to the parallel effort:
 
   The emissive inserts are `SA_Channel` and `SA_Lamp`.
 - **Integrated (2026-11-21).** Steps 1–3 below are done: the route, the preload with fallback, and the scene swaps for the deck, pylons, spans, road arches with zone-tinted lamps, and the beacon spire, with a slow pulse on the channels. `test/sanctum-arch.test.js` covers the asset hash and validity, the pieces, the fallback contract and the route. In-game captures were taken.
-- **Next increment.** Restyle the arrival hall (blue panel walls, slatted canopy) in the same stone and bronze language; it now clashes. Then tune the night lighting.
+- **Arrival hall (2026-11-21), done.** It now uses the same language: `SA_HallWall`, `SA_HallPillar`, `SA_HallLintel` and `SA_HallCanopy` replace the procedural walls, columns, lintels and canopy when the kit loads. Colliders are unchanged.
+- **Next increment.**
+  - Restyle the service props (terminals, crates, cables, fabricator) in the same language.
+  - Give the deck stronger material contrast; it reads pale under the bright ambient light.
+  - Tune the night lighting.
 - **Original plan:**
   1. Add a server route for `/client/assets/sanctum_arch.glb`, pointing at the pipeline output. Use the same pattern as `phase_scar.glb`; do not add a manifest entry, because the asset tests require files under `client/assets/`.
   2. In `client/src/main.js`, after the preload, set `assets.sanctumArch = await assets.loader.loadAsync(URL).catch(() => null)`, the same way the Mender prototype is preloaded.
