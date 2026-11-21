@@ -7,6 +7,7 @@ import { SEVERANCE_POCKET, SEVERANCE_RUINS, SEVERANCE_GATE, SEVERANCE_MASSIFS, i
 import { createSeveranceGateLandmark, noiseTexture } from './severance-gate.js';
 import { createExpanseKit } from './severance-expanse-kit.js';
 import { createExpeditionOutpost } from './severance-outpost.js';
+import { createSalvageCamp } from './salvage-camp.js';
 import { createTimeOfDay } from './severance-daylight.js';
 
 const smooth = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
@@ -163,6 +164,7 @@ export function buildSeverancePocket(T, scene, o) {
   // ring, spires, hoodoos, talus, outcrops and crystals (severance_kit.glb)
   const kit = createExpanseKit(T, { group, loader: o.assets?.loader, ground: (x, z) => ridgeHeight(x, z, o.ground), url: o.kitUrl });
   const outpost = createExpeditionOutpost(T, { group, ground: o.ground, loader: o.assets?.loader });
+  const camp = createSalvageCamp(T, { group, ground: o.ground, loader: o.assets?.loader });
   // ruin fallbacks (replaced by the gate GLB's Ruins meshes once it loads)
   const fallbackRuins = new T.Group();
   fallbackRuins.name = 'severance-pocket:ruin-fallbacks';
@@ -221,10 +223,11 @@ export function buildSeverancePocket(T, scene, o) {
         const night = tod.active ? tod.sample(tod.state.t).stars : 0;
         kit.update(dt, kitTime, eye, { night, deterministic: manual });
         outpost.update(dt, kitTime, eye, { night, deterministic: manual });
+        camp.update(dt, kitTime, eye, { night: night > 0.2 });
       }
   }
   return {
-    group, landmark, kit, outpost, timeOfDay: tod,
+    group, landmark, kit, outpost, camp, timeOfDay: tod,
     get ruinsPlaced() { return ruinsPlaced; },
     get manualClock() { return manual; },
     update(dt, t, eye) {

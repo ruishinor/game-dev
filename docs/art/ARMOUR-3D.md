@@ -134,7 +134,21 @@ Four class sets, 16 pieces, 16 blueprints, 16 recipes, 12 cumulative effects. Ow
 
 **Acquisition.** Each piece has a personal, non-consumed blueprint and a class-locked fabrication recipe. Rewards, eligibility and rarity are server-authoritative; exact unrevealed source-to-outcome rules and probabilities are intentionally omitted from public documentation. Some blueprint acquisition sources are not yet implemented and those items are not currently obtainable through their intended gameplay route. Avoid implying complete availability until a tested end-to-end source is shipped.
 
-**Status.** Mechanics, blueprints, recipes and drops: integrated and tested (`test/rare-class-sets.test.js`, `test/class-armour-acquisition.test.js`). 3D: Cinderlock rendered and worn; Mycelial, Vesperglass and Strataweave in production on the same route. Inventory art: rendered from the 3D models where they exist, otherwise the vector portrait; blueprint art: a schematic of the piece's own portrait until the 3D blueprint render replaces it.
+**Status.** Mechanics, blueprints, recipes and drops: integrated and tested (`test/rare-class-sets.test.js`, `test/class-armour-acquisition.test.js`). 3D: all four families are built, fitted to both bodies, skinned, published and worn in game (`client/assets/armour_{vanguard,keeper,surveyor,symbiotech}_set_{m,f}.glb`; mapping in `shared/armour-visual.js`). Inventory art: Cycles renders of each real piece; blueprint art: a Freestyle schematic render of the same piece on a gridded holographic sheet (`blueprint_<item>`), so every icon depicts implemented geometry.
+
+### The other three families (same route as Cinderlock)
+
+Designs live in `tools/asset-pipeline/asset_pipeline/armour_families.py` on the Cinderlock maps, with the shared part kit in `armour_parts.py` (swept tubes, surface straps, oriented boxes, faceted gems, lens rings, authored FX strips). The hard-surface build adds a translucent layer (`<item>__glass`, family `XX_Glass` material, alpha blend) and pattern bakes (textile weave, organic cells, hazard bands).
+
+| Family | Construction (what makes it readable without colour) | Energy language (runtime, `client/src/armour-fx.js`) |
+|---|---|---|
+| **Vesperglass Array** (Keeper) | Porcelain shells on titanium frames; a protected hexagonal optical core in the cuirass; diamond prism windows in slim thigh and shin shells; diamond knee cops with gems; vambrace prism panel and wrist projection lens; porcelain finger plates | ice-blue lines in phase, iridescent prism glass; Harmonic Shield / Hinge Field / Lattice Relay casts hold a sustained resonance |
+| **Strataweave Fieldkit** (Surveyor) | Abrasion textile vest and trousers (weave bake) under bolted ochre plates; cross harness, belt with pouches, flaps, buckles and a survey canister; sternum instrument housing with a recessed amber readout; articulated thigh plates, hazard-banded knee guards, strapped shin plates; treaded boots | instrument readouts, scan bar and beacon blink; Fault Scan / Field Rig / Core Bore / Controlled Blast answer as calibration pulses |
+| **Mycelial Accord** (Symbiotech) | Cultivated ivory carapace (cell bake) over jade tissue, deliberately asymmetric (leaf-shell pauldron with a membrane fin on the left, cupped shell on the right); rib ridges and flank membrane; vertebral spine plates; seed-node vessel; tendrils spiralling round chest, forearms and legs; culture vessel on each forearm; leaf-scale thigh plates; grown boot cuffs | peristaltic circulation along branching capillaries, breathing membranes and spores; Mending Graft / Neural Lash / Shared Pulse / Overgrowth Surge answer with a brief bloom |
+
+All four families share the engine rules of the combat VFX (budget, intensity setting, reduced motion); a four-piece set of one family lights a restrained set signature. Nothing raises global bloom or particle counts.
+
+**Cinderlock reconciliation** against the original concept sheet (supplied after the build): kept the graphite plates with crimson conduits, hexagonal reactor frame, raised collar, heavy pauldrons, articulated finger plates, chevron greaves and treaded anchor soles; restored the conduit down each middle phalanx that the sheet shows. Nothing else regressed.
 
 ## Roadmap to complete
 

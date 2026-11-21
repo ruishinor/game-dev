@@ -1,0 +1,56 @@
+{
+ "file": "assets/salvage_camp/outputs/salvage_camp.glb",
+ "bytes": 1523196,
+ "inputBytes": 13564508,
+ "triangles": 8368,
+ "meshes": 10,
+ "materials": [
+  "CK_Body",
+  "CK_Coals",
+  "CK_Lamp"
+ ],
+ "textures": [
+  {
+   "name": "camp_normal",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 379058
+  },
+  {
+   "name": "camp_orm",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 570058
+  },
+  {
+   "name": "camp_albedo",
+   "mime": "image/webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "bytes": 200446
+  }
+ ],
+ "skins": [],
+ "animations": [],
+ "nodes": [],
+ "extensionsUsed": [
+  "KHR_materials_emissive_strength",
+  "EXT_texture_webp",
+  "KHR_mesh_quantization",
+  "EXT_meshopt_compression"
+ ],
+ "validator": {
+  "errors": 0,
+  "warnings": 0,
+  "infos": 14,
+  "messages": []
+ }
+}

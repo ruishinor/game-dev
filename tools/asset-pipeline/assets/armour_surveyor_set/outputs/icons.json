@@ -1,0 +1,30 @@
+{
+ "icons": {
+  "surveyor_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/surveyor_field_set_chest_hero.png",
+  "blueprint_surveyor_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/blueprint_surveyor_field_set_chest_hero.png",
+  "surveyor_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/surveyor_field_set_gloves_hero.png",
+  "blueprint_surveyor_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/blueprint_surveyor_field_set_gloves_hero.png",
+  "surveyor_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/surveyor_field_set_greaves_hero.png",
+  "blueprint_surveyor_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/blueprint_surveyor_field_set_greaves_hero.png",
+  "surveyor_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/surveyor_field_set_boots_hero.png",
+  "blueprint_surveyor_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_surveyor_set/icons/blueprint_surveyor_field_set_boots_hero.png"
+ },
+ "bytes": {
+  "surveyor_field_set_chest_256.webp": 7886,
+  "surveyor_field_set_chest_128.webp": 3452,
+  "blueprint_surveyor_field_set_chest_256.webp": 9424,
+  "blueprint_surveyor_field_set_chest_128.webp": 3432,
+  "surveyor_field_set_gloves_256.webp": 3832,
+  "surveyor_field_set_gloves_128.webp": 1704,
+  "blueprint_surveyor_field_set_gloves_256.webp": 5250,
+  "blueprint_surveyor_field_set_gloves_128.webp": 2072,
+  "surveyor_field_set_greaves_256.webp": 8612,
+  "surveyor_field_set_greaves_128.webp": 3708,
+  "blueprint_surveyor_field_set_greaves_256.webp": 8588,
+  "blueprint_surveyor_field_set_greaves_128.webp": 3158,
+  "surveyor_field_set_boots_256.webp": 8450,
+  "surveyor_field_set_boots_128.webp": 3584,
+  "blueprint_surveyor_field_set_boots_256.webp": 9562,
+  "blueprint_surveyor_field_set_boots_128.webp": 3550
+ }
+}

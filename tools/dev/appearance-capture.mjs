@@ -13,12 +13,14 @@ const only = process.argv[3] || '';
 fs.mkdirSync(OUT, { recursive: true });
 // [label, class, look, frame, race, skin, hair, colour]
 const COMBOS = [
-  ['colonist-m-crop', 'vanguard', 'vanguard_plate', 'm', 'human', 3, 'crop', 1],
-  ['colonist-f-swept', 'symbiotech', 'conductor', 'f', 'human', 6, 'swept', 0],
-  ['colonist-m-buzz-deep', 'surveyor', 'brine_surveyor', 'm', 'human', 8, 'buzz', 0],
-  ['colonist-f-crop-light', 'keeper', 'aegis_keeper', 'f', 'human', 0, 'crop', 4],
-  ['mirekin-m', 'symbiotech', 'conductor', 'm', 'mirekin', 1, 'buzz', 7],
-  ['mirekin-f', 'surveyor', 'brine_surveyor', 'f', 'mirekin', 2, 'crop', 2],
+  ['human-m-crop', 'vanguard', 'vanguard_plate', 'm', 'human', 3, 'crop', 1],
+  ['human-f-swept', 'symbiotech', 'conductor', 'f', 'human', 6, 'swept', 0],
+  ['human-m-buzz-deep', 'surveyor', 'brine_surveyor', 'm', 'human', 8, 'buzz', 0],
+  ['human-f-crop-light', 'keeper', 'aegis_keeper', 'f', 'human', 0, 'crop', 4],
+  ['velari-m', 'symbiotech', 'conductor', 'm', 'velari', 1, 'buzz', 7],
+  ['augmented-f', 'surveyor', 'brine_surveyor', 'f', 'augmented', 2, 'crop', 2],
+  ['velari-f-pale', 'keeper', 'aegis_keeper', 'f', 'velari', 0, 'none', 0],
+  ['augmented-m-deep', 'symbiotech', 'conductor', 'm', 'augmented', 7, 'buzz', 1],
 ];
 const srv = await startServer({ port: 0, dataFile: null });
 const browser = await launchBrowser();

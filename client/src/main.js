@@ -11,7 +11,7 @@ import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance,
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { parseTimeOfDay } from './severance-daylight.js';
-import { buildWorld, makeEnvironment } from './scene.js';
+import { buildWorld, makeEnvironment, SANCTUM_ARCH_URL } from './scene.js';
 import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
@@ -100,6 +100,10 @@ await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets
 });
 // Three existing licensed compact firearm meshes; Longpoint remains the authored original.
 if(glbOnly!=='none')await loadWeaponModels(assets);
+// The Sanctum's carved architecture kit; the generic kit remains the fallback.
+// Low quality (q=0) keeps the lighter generic kit, as with the other optional
+// art: the kit adds three 2048 px maps and a material program at first draw.
+if(glbOnly===null&&params.get('q')!=='0')assets.sanctumArch=await assets.loader.loadAsync(SANCTUM_ARCH_URL).catch((err)=>{console.warn('[sanctum] architecture kit unavailable; using the generic kit:',err?.message||err);return null;});
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){

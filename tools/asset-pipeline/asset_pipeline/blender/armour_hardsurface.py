@@ -97,6 +97,8 @@ def strip_prism(name, pts, nrm, width, depth):
     `depth` below it), extended past both ends by half the width."""
     P = np.asarray(pts, float)
     N = np.asarray(nrm, float)
+    if len(P) > 3 and np.linalg.norm(P[0] - P[-1]) < 1e-6:
+        return loop_prism(name, P[:-1], N[:-1], width, depth)
     T = np.gradient(P, axis=0)
     T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
     P = P.copy()
@@ -118,6 +120,45 @@ def strip_prism(name, pts, nrm, width, depth):
     o = mesh_obj(name, G2B(verts), faces)
     fix_normals(o)
     return o
+
+
+def loop_prism(name, P, N, width, depth):
+    """Closed groove cutter: a swept box around a loop with no ends (an
+    open strip that overlaps itself where it closes breaks EXACT booleans)."""
+    T = np.roll(P, -1, 0) - np.roll(P, 1, 0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+    S = np.cross(N, T)
+    S /= np.maximum(np.linalg.norm(S, axis=1, keepdims=True), 1e-9)
+    h = width / 2
+    rings = [P - S * h + N * 0.004, P + S * h + N * 0.004, P + S * h - N * depth, P - S * h - N * depth]
+    n = len(P)
+    faces = []
+    for r in range(4):
+        r2 = (r + 1) % 4
+        for i in range(n):
+            j = (i + 1) % n
+            faces.append((r * n + i, r * n + j, r2 * n + j, r2 * n + i))
+    o = mesh_obj(name, G2B(np.concatenate(rings)), faces)
+    fix_normals(o)
+    return o
+
+
+def safe_boolean(target, cutter, label=""):
+    """EXACT difference, kept only if it leaves the piece intact (a failed
+    boolean can empty a plate); otherwise the cut is skipped and logged."""
+    before = len(target.data.vertices)
+    m = target.modifiers.new("bool", "BOOLEAN")
+    m.operation, m.solver, m.object = "DIFFERENCE", "EXACT", cutter
+    m.use_self, m.use_hole_tolerant = False, True
+    dg = bpy.context.evaluated_depsgraph_get()
+    n = len(target.evaluated_get(dg).data.vertices)
+    if n < max(8, before * 0.5):
+        target.modifiers.remove(m)
+        print(f"[armour_hardsurface] skipped a failed cut on {target.name} {label} ({before} -> {n} vertices)")
+        return False
+    bpy.context.view_layer.objects.active = target
+    bpy.ops.object.modifier_apply(modifier=m.name)
+    return True
 
 
 def hole_prism(name, pts, nrm, depth=0.03):
@@ -187,7 +228,7 @@ def build_piece(meta, arr, fx):
     """One designed piece -> a finished solid object (or None)."""
     name = meta["name"]
     if meta.get("sole"):
-        o = sole_obj(name, meta["sole"], 7)
+        o = sole_obj(name, meta["sole"], meta["sole"].get("treads", 7))
         # the anchor channel around the sole's side, mid-height
         out = np.asarray(meta["sole"]["outline"], float)
         ym = (meta["sole"]["y0"] + meta["sole"]["y1"]) / 2
@@ -201,7 +242,8 @@ def build_piece(meta, arr, fx):
         boolean(o, cut)
         delete([cut])
         L = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
-        inlay(P, N, list(0.45 + 0.5 * L / L[-1]), 0.005, 0.003, fx)
+        if meta["sole"].get("channel", True):  # an emissive welt (Cinderlock, Vesperglass), or just the groove
+            inlay(P, N, list(0.45 + 0.5 * L / L[-1]), 0.005, 0.003, fx)
         bevel(o, meta["bevel"], meta["bevel_segments"])
         return o
     if meta.get("multi") or isinstance(arr, list):
@@ -220,17 +262,18 @@ def build_piece(meta, arr, fx):
         solidify(o, meta["thickness"])
     for k, h in enumerate(meta.get("holes", [])):
         c = hole_prism(f"_h{k}", h["pts"], h["nrm"], meta["thickness"] + 0.02)
-        boolean(o, c)
+        safe_boolean(o, c, f"hole {k}")
         delete([c])
     for k, g in enumerate(meta.get("grooves", [])):
         c = strip_prism(f"_g{k}", g["pts"], g["nrm"], g["width"], g["depth"])
-        boolean(o, c)
+        safe_boolean(o, c, f"groove {k}")
         delete([c])
         if g["inlay"]:
             inlay(g["pts"], g["nrm"], g["flow"], g["width"], g["depth"], fx)
     # dissolve first: decimating after the bevel scrambles its hardened custom
     # normals (the crumpled shading on small curved plates)
-    planar(o, 1.5)
+    if meta.get("planar", 1.5) > 0:  # faceted plates only; smooth curved plates would crumple
+        planar(o, meta.get("planar", 1.5))
     bevel(o, meta.get("bevel", 0.0), meta.get("bevel_segments", 1))
     parts = [o]
     for k, b in enumerate(meta.get("bolts", [])):
@@ -263,6 +306,34 @@ def fields_material():
             nt.links.new(n_.outputs["Fac"], comb.inputs[k])
         nt.links.new(comb.outputs[0], dst)
     return emit_material("_fields", build)
+
+
+def pattern_material():
+    """R: textile weave, G: organic cell edges, B: diagonal hazard bands (object space)."""
+    def build(nt, dst):
+        tc = node(nt, "ShaderNodeTexCoord", (-900, 0))
+        comb = node(nt, "ShaderNodeCombineColor", (500, 0))
+        wx = node(nt, "ShaderNodeTexWave", (-500, 300), Scale=260.0, Distortion=0.0)
+        wx.wave_type, wx.bands_direction = "BANDS", "X"
+        wy = node(nt, "ShaderNodeTexWave", (-500, 150), Scale=260.0, Distortion=0.0)
+        wy.wave_type, wy.bands_direction = "BANDS", "Z"
+        for w_ in (wx, wy):
+            nt.links.new(tc.outputs["Object"], w_.inputs["Vector"])
+        mul = node(nt, "ShaderNodeMath", (-250, 250))
+        mul.operation = "MAXIMUM"
+        nt.links.new(wx.outputs["Fac"], mul.inputs[0])
+        nt.links.new(wy.outputs["Fac"], mul.inputs[1])
+        cells = node(nt, "ShaderNodeTexVoronoi", (-500, -50), Scale=55.0)
+        cells.feature = "DISTANCE_TO_EDGE"
+        nt.links.new(tc.outputs["Object"], cells.inputs["Vector"])
+        st = node(nt, "ShaderNodeTexWave", (-500, -250), Scale=4.5, Distortion=0.0)
+        st.wave_type, st.bands_direction = "BANDS", "DIAGONAL"
+        nt.links.new(tc.outputs["Object"], st.inputs["Vector"])
+        nt.links.new(mul.outputs[0], comb.inputs[0])
+        nt.links.new(cells.outputs["Distance"], comb.inputs[1])
+        nt.links.new(st.outputs["Fac"], comb.inputs[2])
+        nt.links.new(comb.outputs[0], dst)
+    return emit_material("_pattern", build)
 
 
 def edges_material():
@@ -366,7 +437,7 @@ def bake(obj, mat, kind, size, samples, name, colorspace="Non-Color"):
     return arr
 
 
-def composite(fields, edges, ao, mid, specs, mats):
+def composite(fields, edges, ao, mid, specs, mats, pattern=None):
     """Per-material base colour / roughness / metallic from the baked fields:
     near-black gunmetal plates with polished steel on worn convex edges,
     soot in cavities and against the body, faint brushed tonal variation."""
@@ -387,13 +458,28 @@ def composite(fields, edges, ao, mid, specs, mats):
         wear = smoothstep(0.08, 0.6, convex[sel]) * (0.55 + 0.45 * smoothstep(0.35, 0.7, fine[sel])) * s.get("wear", 0.6)
         tone = 1 + s.get("tone", 0.12) * ((big[sel] - 0.5) * 1.2 + (midn[sel] - 0.5) * 0.6)
         c = col[None] * tone[:, None]
+        pat = s.get("pattern")
+        rough_pat = 0.0
+        if pat and pattern is not None:
+            k = s.get("pattern_k", 0.5)
+            if pat == "weave":  # textile: thread relief darkens the gaps
+                wv = pattern[..., 0][sel]
+                c = c * (1 - k * 0.35 * (1 - wv))[:, None]
+                rough_pat = 0.06 * (1 - wv)
+            elif pat == "cells":  # cultivated tissue: veins along cell edges
+                vein = 1 - smoothstep(0.0, 0.07, pattern[..., 1][sel])
+                c = c + (np.asarray(s.get("pattern_rgb", s["base"]), np.float32)[None] - c) * (vein * k)[:, None]
+                rough_pat = -0.12 * vein * k
+            elif pat == "stripes":  # hazard bands
+                band = smoothstep(0.45, 0.55, pattern[..., 2][sel])
+                c = c + (np.asarray(s.get("pattern_rgb", (0.6, 0.4, 0.05)), np.float32)[None] - c) * (band * k)[:, None]
         c = c * (1 - wear[:, None]) + edge[None] * wear[:, None]
         scratch = (1 - smoothstep(0.0, 0.025, scr[sel])) * s.get("scratch", 0.25) * smoothstep(0.45, 0.65, midn[sel])
         c = c + (edge[None] - c) * scratch[:, None] * 0.6
         soot = np.clip((1 - cav[sel]) * 0.8 + (1 - occl[sel]) * 0.55, 0, 0.75) * s.get("soot", 1.0)
         c = c * (1 - soot[:, None])
         base[sel] = c
-        r = s["roughness"] + 0.08 * (fine[sel] - 0.5) + 0.06 * (midn[sel] - 0.5) - s.get("edge_polish", 0.16) * wear + 0.14 * soot
+        r = s["roughness"] + rough_pat + 0.08 * (fine[sel] - 0.5) + 0.06 * (midn[sel] - 0.5) - s.get("edge_polish", 0.16) * wear + 0.14 * soot
         rough[sel] = np.clip(r - 0.08 * scratch, 0.12, 0.98)
         metal[sel] = np.clip(s.get("metallic", 0.0) * (1 - 0.6 * soot) + 0.15 * wear * (s.get("metallic", 0) > 0), 0, 1)
     return np.clip(base, 0, 1), rough, metal
@@ -451,7 +537,7 @@ def main():
         sets.setdefault(m["set"], []).append(m)
     for item, pieces in sets.items():
         fx = {"V": [], "N": [], "UV": [], "F": []}
-        objs, names, mats = [], [], []
+        objs, names, mats, glass = [], [], [], []
         for k, m in enumerate(pieces):
             V, F = npz[m["name"] + "_V"], npz[m["name"] + "_F"]
             arr = (V, F)
@@ -459,7 +545,24 @@ def main():
                 arr = split_parts(V, F)
             fx_before = len(fx["V"])
             o = build_piece(m, arr, fx)
+            for st in m.get("fx_strips", []):  # emissive tubes authored in the design (capillaries, conduits)
+                i0 = len(fx["V"])
+                fx["V"] += [tuple(v) for v in st["V"]]
+                fx["N"] += [tuple(v) for v in st["N"]]
+                fx["UV"] += [tuple(v) for v in st["UV"]]
+                fx["F"] += [tuple(i0 + q for q in f) for f in st["F"]]
             if o is None:
+                if len(fx["V"]) > fx_before:  # an FX-only piece keeps its own weight policy
+                    fx.setdefault("piece", [])
+                    fx["piece"] += [len(names)] * (len(fx["V"]) - fx_before)
+                    names.append(m["name"])
+                continue
+            if m.get("layer") == "glass":  # translucent layer: its own mesh, no bakes
+                set_piece_attr(o, len(names))
+                glass.append(o)
+                fx.setdefault("piece", [])
+                fx["piece"] += [len(names)] * (len(fx["V"]) - fx_before)
+                names.append(m["name"])
                 continue
             set_piece_attr(o, len(names))
             if m["mat"] not in mats:
@@ -489,7 +592,8 @@ def main():
         aomat = emit_material("_ao", lambda nt, dst: ao_chain(nt, dst))
         ao = bake(main_o, aomat, "EMIT", size, p["samples"], f"{item}_ao")
         nrm = bake(main_o, detail_normal_material(), "NORMAL", size, p["samples"], f"{item}_normal")
-        base, rough, metal = composite(fields, edges, ao, mid, specs, mats)
+        pattern = bake(main_o, pattern_material(), "EMIT", size, 1, f"{item}_pattern") if any(specs[m_].get("pattern") for m_ in mats) else None
+        base, rough, metal = composite(fields, edges, ao, mid, specs, mats, pattern)
         files = {"basecolor": f"{item}_basecolor.png", "roughness": f"{item}_roughness.png", "metallic": f"{item}_metallic.png", "normal": f"{item}_normal.png"}
         save_png(out / files["basecolor"], base, srgb=True)
         save_png(out / files["roughness"], np.repeat(rough[..., None], 3, 2))
@@ -506,9 +610,15 @@ def main():
             fxo = mesh_obj(f"{item}__fx", G2B(fv), [tuple(f) for f in fx["F"]])
             ch = bpy.data.materials.get("CL_Channel") or bpy.data.materials.new("CL_Channel")
             fxo.data.materials.append(ch)
+        if glass:
+            go = join(glass, f"{item}__glass")
+            smooth_by_angle(go, 24)
+            unwrap(go)
+            GP, GN, GUV, GI, GPI = mesh_arrays(go)
+            arrays.update(GL_P=GP, GL_N=GN, GL_UV=GUV, GL_I=GI, GL_piece=GPI)
         np.savez(out / f"{item}.npz", **arrays)
         report["sets"][item] = {"pieces": names, "images": files, "npz": f"{item}.npz", "triangles": int(len(I_)),
-                                "fx_triangles": int(len(fx["F"])), "materials": mats}
+                                "fx_triangles": int(len(fx["F"])), "glass_triangles": int(len(arrays["GL_I"])) if glass else 0, "materials": mats}
     delete([occ])
     blend = p.get("blend_name", "armour_source.blend")
     bpy.ops.wm.save_as_mainfile(filepath=str(out / blend), compress=True)
