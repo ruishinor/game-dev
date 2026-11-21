@@ -86,6 +86,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   const actor = actorPlayer(game, src);
   if (actor && !opts.flat) amt *= actor.stats.power * actor.stats.dmgMul;
   if (src && src.kind === 'enemy') {
+    if (src.elite?.dmg) amt *= src.elite.dmg;
     const sap = getBuff(src, 'sap');
     if (sap) amt *= sap.mul;
   }
@@ -360,7 +361,7 @@ export function useAbility(game, p, abilityId) {
     if (target.state === 'evade') return fail('Your target is retreating.');
     if (dist(p, target) - target.radius > ab.range) return fail('Out of range.');
     if (!hasLineOfSight(p,target)) return fail('Line of sight blocked.');
-    if (ab.root && ENEMIES[target.type].elite) return fail(`${target.name} is too massive to root.`);
+    if (ab.root && (ENEMIES[target.type].elite || target.elite)) return fail(`${target.name} is too massive to root.`);
   } else if (ab.type === 'friendly') {
     const t = game.ents.get(p.target);
     target = t && t.kind === 'player' && !t.dead ? t : p;
@@ -485,7 +486,7 @@ export function useAbility(game, p, abilityId) {
       break;
     }
     case 'graviton_tether': {
-      if (!ENEMIES[target.type].elite) {
+      if (!ENEMIES[target.type].elite && !target.elite) {
         const d = dist(p, target);
         const want = ab.pullTo + target.radius;
         if (d > want) {

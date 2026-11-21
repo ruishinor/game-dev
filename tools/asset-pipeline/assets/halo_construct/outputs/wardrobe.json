@@ -31,16 +31,13 @@
   },
   "vendor": {
    "pieces": [
-    "sash_wrap",
     "sash_shoulder",
     "sash_knot",
     "sash_tail0",
     "sash_tail1",
-    "shoulder_plate0",
-    "shoulder_plate1",
     "sash_buckle"
    ],
-   "triangles": 19732,
+   "triangles": 7884,
    "images": {
     "basecolor": "vendor_basecolor.png",
     "roughness": "vendor_roughness.png",

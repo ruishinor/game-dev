@@ -7,9 +7,9 @@ import { GADGET_ITEMS } from './gadgets.js';
 export const GCD_MS = 750;
 /** Weapon auto-attack bonuses and per-hit Charge were authored against 2 s swings; faster swings scale them so damage per second is unchanged. */
 export const AUTO_REFERENCE_MS = 2000;
-export const MAX_LEVEL = 5;
-/** XP needed to advance from level L to L+1 (index L). */
-export const XP_TO_NEXT = [0, 90, 200, 340, 520];
+export const MAX_LEVEL = 15;
+/** Character XP needed to advance L to L+1 (index L). Attunement affinities are separate. */
+export const XP_TO_NEXT = [0, 90, 200, 340, 520, 700, 910, 1150, 1420, 1720, 2050, 2410, 2800, 3220, 3670];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
@@ -464,6 +464,36 @@ export const ITEMS = {
     req: { skills: { kinetics: 13 } },
     mods: { chargeMul: 1.5, dischargeRadius: 2 },
     desc: 'Sub-dermal capacitor bank. Charge generation +50%. Discharge reaches 2m further.',
+  },
+  // Severance Expanse elite rewards (Uncommon; chance and pool are server-side)
+  overseer_ember_core: {rarity:'Uncommon',
+    summary: "+2 Kinetics · +12 maximum health",
+    name: 'Overseer Ember Core',
+    slot: 'device',
+    skills: { kinetics: 2 },
+    mods: { hpAdd: 12 },
+    desc: 'The banked heart of a scrapyard forge-overseer, still warm. +2 Kinetics, +12 maximum health.',
+  },
+  severance_signet: {rarity:'Uncommon',
+    summary: "+8% damage · +8 maximum health",
+    name: 'Severance Signet',
+    slot: 'implant',
+    mods: { dmgMul: 1.08, hpAdd: 8 },
+    desc: 'A command signet worn by Severance Overseers. +8% damage dealt, +8 maximum health.',
+  },
+  resonant_survey_lens: {rarity:'Uncommon',
+    summary: "+2 Instrumentation · +1 Biotech",
+    name: 'Resonant Survey Lens',
+    slot: 'device',
+    skills: { instrumentation: 2, biotech: 1 },
+    desc: 'A field lens ground from a resonant shard. +2 Instrumentation, +1 Biotech.',
+  },
+  cinder_mend_lattice: {rarity:'Uncommon',
+    summary: "+12% healing · +10 maximum health",
+    name: 'Cinder Mend Lattice',
+    slot: 'implant',
+    mods: { healMul: 1.12, hpAdd: 10 },
+    desc: 'A field-medic lattice salvaged from Cinderlock harness linings. Healing you and your symbiote do +12%, +10 maximum health.',
   },
   adrenal_shunt: {rarity:'Uncommon',
     summary: "+20% damage · −15% maximum health",

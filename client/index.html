@@ -9,6 +9,9 @@
     <link rel="preload" href="/client/login/gate-2560.webp" as="image" type="image/webp" />
     <link rel="stylesheet" href="/client/style.css" />
     <link rel="stylesheet" href="/client/hud-reference.css" />
+    <link rel="stylesheet" href="/client/character-selection.css" />
+    <link rel="stylesheet" href="/client/selection-blueprint.css" />
+    <link rel="stylesheet" href="/client/selection-viewport.css" />
     <link rel="stylesheet" href="/client/login/gate-responsive.css" />
   </head>
   <body class="gate-mode">
@@ -59,13 +62,20 @@
         <p class="tagline">The Verdigris Reach — where old machines, living things and stranger forces share one valley.</p>
         <p id="resuming" hidden>Returning to your character…</p>
         <section id="character-roster" hidden aria-label="Your characters">
-          <div class="roster-head"><h2 id="roster-title">Character selection</h2><button id="account-signout" type="button">Sign out</button></div>
+          <div class="roster-head">
+            <div class="roster-head-copy">
+              <h2 id="roster-title">Character Selection</h2>
+              <p id="roster-realm">The Verdigris Reach <span aria-hidden="true">/</span> <span id="roster-account"></span></p>
+            </div>
+            <button id="account-signout" type="button">Return to Login</button>
+          </div>
           <div class="roster-stage">
             <aside class="roster-facts" aria-label="Selected character information"><div id="roster-details"></div></aside>
             <section id="roster-preview" aria-label="Selected character in 3D">
               <canvas tabindex="0" aria-label="Selected character 3D preview. Drag or use arrow keys to rotate."></canvas>
               <div data-preview-frames hidden><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
-              <div class="preview-controls roster-preview-controls">
+              <button type="button" class="preview-inspect-toggle" data-preview-inspect aria-expanded="false" aria-controls="roster-camera-controls">Inspect character</button>
+              <div class="preview-controls roster-preview-controls" id="roster-camera-controls" hidden>
                 <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button>
                 <button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
                 <button type="button" data-preview-mode="frames" aria-pressed="false" hidden>Frames</button>
@@ -87,7 +97,9 @@
             <button id="roster-enter" class="primary" type="button" disabled>Enter World</button>
             <button id="roster-create" type="button">Create character</button>
             <button id="roster-delete" class="danger" type="button" disabled>Delete selected</button>
+            <button id="roster-settings" type="button">Settings</button>
           </div>
+          <div id="roster-world-transition" role="status" aria-live="polite" hidden><span>Establishing your world session…</span></div>
           <div id="roster-delete-confirm" class="roster-delete-confirm" hidden>
             <p>Deletion is permanent. Type the selected character's exact name to confirm.</p>
             <label for="roster-delete-name">Character name</label>
@@ -96,16 +108,20 @@
             <button id="roster-cancel-delete" type="button">Cancel</button>
           </div>
           <p id="roster-error" role="alert"></p>
-          <details class="legacy-link">
-            <summary>Import a previous guest character</summary>
+
+          <dialog id="roster-import-dialog" aria-labelledby="roster-import-title">
+            <h3 id="roster-import-title">Import a previous guest character</h3>
+            <p class="hint">Linking transfers ownership to this account. The previous guest recovery key will no longer work.</p>
             <button type="button" id="link-legacy" hidden>Link this browser's existing character</button>
             <label for="recovery-token">Guest recovery key</label>
-            <div class="account-buttons">
-              <input id="recovery-token" type="password" autocomplete="off" placeholder="64-character recovery key" maxlength="64" />
-              <button type="button" id="import-legacy">Import</button>
+            <input id="recovery-token" type="password" autocomplete="off" placeholder="64-character recovery key" maxlength="64" />
+            <p id="roster-import-error" role="alert"></p>
+            <div class="roster-import-actions">
+              <button id="roster-import-close" type="button">Cancel</button>
+              <button id="import-legacy" type="button" class="primary">Import character</button>
             </div>
-            <p class="hint">Linking transfers ownership to this account. The previous guest recovery key will no longer work.</p>
-          </details>
+          </dialog>
+
         </section>
         <div id="guest-note">
           <h2>Guest access</h2>
@@ -127,31 +143,45 @@
           <p id="guest-error" role="alert"></p>
         </div>
         <form id="login-form" autocomplete="off">
-          <button id="creation-back" type="button" hidden>← Back to character selection</button>
-          <label for="name">Character name</label>
-          <input id="name" name="name" maxlength="16" required spellcheck="false" placeholder="3–16 letters" />
-          <div class="label">Calling</div>
-          <div id="classes"></div>
-          <div id="look-row" hidden>
-            <div class="label">Outfit</div>
-            <div id="looks"></div>
+
+          <div id="creation-fields" aria-label="Character creation choices">
+            <div class="creation-section-heading"><span>CHARACTER CREATION</span><strong>Define your arrival</strong><small>Choose a calling and appearance. Your character is shown at full scale in the vestibule.</small></div>
+            <button id="creation-back" type="button" hidden>← Back to character selection</button>
+            <nav class="creation-screen-tabs" role="tablist" aria-label="Character creation sections">
+              <button id="creation-tab-identity" class="creation-screen-tab" type="button" role="tab" data-creation-tab="identity" aria-selected="true" aria-controls="creation-step-identity">1. Identity</button>
+              <button id="creation-tab-body" class="creation-screen-tab" type="button" role="tab" data-creation-tab="body" aria-selected="false" aria-controls="creation-step-body" tabindex="-1">2. Body</button>
+              <button id="creation-tab-details" class="creation-screen-tab" type="button" role="tab" data-creation-tab="details" aria-selected="false" aria-controls="creation-step-details" tabindex="-1">3. Details</button>
+            </nav>
+            <section id="creation-step-identity" class="creation-screen-step" role="tabpanel" aria-labelledby="creation-tab-identity">
+              <label for="name">Character name</label><input id="name" name="name" maxlength="16" required spellcheck="false" placeholder="3–16 letters" />
+              <div class="label">Calling</div><div id="classes"></div>
+              <div id="look-row" hidden><div class="label">Outfit</div><div id="looks"></div></div>
+            </section>
+            <section id="creation-step-body" class="creation-screen-step" role="tabpanel" aria-labelledby="creation-tab-body" hidden>
+              <fieldset id="appearance" class="appearance">
+                <legend class="label">Character</legend>
+                <div class="ap-row" role="group" aria-label="Body frame"><span class="ap-name">Frame</span><div id="ap-frame" class="ap-choices"></div></div>
+                <div class="ap-row" role="group" aria-label="Origin"><span class="ap-name">Origin</span><div id="ap-race" class="ap-choices ap-races"></div></div>
+                <p id="ap-race-blurb" class="ap-blurb"></p>
+                <div class="ap-row" role="group" aria-label="Skin"><span class="ap-name">Skin</span><div id="ap-skin" class="ap-choices ap-swatches"></div></div>
+              </fieldset>
+            </section>
+            <section id="creation-step-details" class="creation-screen-step" role="tabpanel" aria-labelledby="creation-tab-details" hidden>
+              <fieldset class="appearance creation-details">
+                <legend class="label">Hair and colour</legend>
+                <div class="ap-row" role="group" aria-label="Hair"><span class="ap-name">Hair</span><div id="ap-hair" class="ap-choices"></div></div>
+                <div class="ap-row" role="group" aria-label="Hair colour"><span class="ap-name">Colour</span><div id="ap-colour" class="ap-choices ap-swatches"></div></div>
+              </fieldset>
+            </section>
           </div>
-          <fieldset id="appearance" class="appearance">
-            <legend class="label">Character</legend>
-            <div class="ap-row" role="group" aria-label="Body frame"><span class="ap-name">Frame</span><div id="ap-frame" class="ap-choices"></div></div>
-            <div class="ap-row" role="group" aria-label="Origin"><span class="ap-name">Origin</span><div id="ap-race" class="ap-choices ap-races"></div></div>
-            <p id="ap-race-blurb" class="ap-blurb"></p>
-            <div class="ap-row" role="group" aria-label="Skin"><span class="ap-name">Skin</span><div id="ap-skin" class="ap-choices ap-swatches"></div></div>
-            <div class="ap-row" role="group" aria-label="Hair"><span class="ap-name">Hair</span><div id="ap-hair" class="ap-choices"></div></div>
-            <div class="ap-row" role="group" aria-label="Hair colour"><span class="ap-name">Colour</span><div id="ap-colour" class="ap-choices ap-swatches"></div></div>
-          </fieldset>
           <section id="creation-preview" aria-label="Live character preview">
             <h2>Inspect your character</h2>
             <canvas tabindex="0" aria-label="Live 3D character. Drag to rotate, arrow keys to rotate or zoom, Home to reset."></canvas>
             <div class="preview-frame-labels" data-preview-frames hidden role="group" aria-label="Select body frame"><button type="button" data-frame="m">Masculine</button><button type="button" data-frame="f">Feminine</button></div>
-            <div class="preview-controls" role="group" aria-label="Preview camera">
+            <button type="button" class="preview-inspect-toggle" data-preview-inspect aria-expanded="false" aria-controls="creation-camera-controls">Inspect character</button>
+            <div class="preview-controls" id="creation-camera-controls" role="group" aria-label="Preview camera" hidden>
               <button type="button" data-preview-mode="body" aria-pressed="true">Full body</button><button type="button" data-preview-mode="face" aria-pressed="false">Face</button>
-              <button type="button" data-preview-mode="frames" aria-pressed="false">Compare frames</button>
+              
               <button type="button" data-preview-left aria-label="Rotate left">←</button><button type="button" data-preview-right aria-label="Rotate right">→</button>
               <button type="button" data-preview-out aria-label="Zoom out">−</button><button type="button" data-preview-in aria-label="Zoom in">+</button><button type="button" data-preview-reset>Reset camera</button>
             </div>
@@ -159,11 +189,14 @@
           </section>
           <p id="login-error" role="alert"></p>
           <button id="enter" class="primary" type="submit" disabled>Loading the Reach…</button>
-          <p class="hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>
+          <p class="hint" id="creation-guest-hint">Two players on one computer: open this page a second time with <code>?slot=2</code> on the address.</p>
         </form>
       </div>
     </main>
     <div id="status" role="status" hidden></div>
+    <div id="world-entry-curtain" role="status" aria-live="polite" hidden>
+      <span>Entering the Reach</span>
+    </div>
     <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three-addons/"}}</script>
     <script type="module" src="/client/src/main.js"></script>
   </body>

@@ -32,12 +32,17 @@ const INSCRIPTION_MS = 1800;
 
 export function grantXp(game, p, amount) {
   const c = p.char;
-  if (amount <= 0 || c.level >= MAX_LEVEL) return 0;
-  // Only XP actually applied toward progression is credited, including at the cap.
-  const remaining = XP_TO_NEXT.slice(c.level, MAX_LEVEL).reduce((sum,need)=>sum+need,0)-c.xp;
-  const credited = Math.max(0,Math.min(amount,remaining));
-  c.xp += amount;
-  if(credited>0)p.outbox.push({ e: 'xp', a: credited });
+  // All rewards originate on the server. Invalid awards or corrupted live
+  // records cannot introduce fractional XP, NaN, or an unearned level.
+  if (!Number.isSafeInteger(amount) || amount <= 0 ||
+      !Number.isInteger(c.level) || c.level < 1 || c.level >= MAX_LEVEL ||
+      !Number.isSafeInteger(c.xp) || c.xp < 0 || c.xp >= XP_TO_NEXT[c.level]) return 0;
+  // Credit only what fits before the actual cap, including a partial final award.
+  const remaining = XP_TO_NEXT.slice(c.level, MAX_LEVEL).reduce((sum, need) => sum + need, 0) - c.xp;
+  const credited = Math.min(amount, remaining);
+  if (credited <= 0) return 0;
+  c.xp += credited;
+  p.outbox.push({ e: 'xp', a: credited });
   while (c.level < MAX_LEVEL && c.xp >= XP_TO_NEXT[c.level]) {
     c.xp -= XP_TO_NEXT[c.level];
     c.level += 1;
@@ -110,7 +115,13 @@ export function checkDirective(game, p) {
 /** Reward everyone who fought the enemy. Small groups are never split. */
 export function onEnemyKilled(game, enemy, creditedIds) {
   const def = ENEMIES[enemy.type];
+  // Corpse generation changes only once per death, even when a reward
+  // delivery is retried. Share that existing guard with XP and directives.
+  const generation = enemy.lootGeneration || 0;
   distributeCorpseLoot(game,enemy,creditedIds);
+  // In production the death transition owns this callback. Existing simulation
+  // fixtures may call it directly without a dead corpse to record quest credit.
+  if (enemy.state === 'dead' && enemy.lootGeneration === generation) return;
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;

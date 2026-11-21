@@ -73,7 +73,11 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   if(appearance){
-    for(const [group,value] of Object.entries(appearance))await page.click(`#ap-${group} [data-value="${value}"]`);
+    // The creator exposes appearance through user-facing Body / Details tabs.
+    for(const [group,value] of Object.entries(appearance)){
+      await page.getByRole('tab',{name:group==='hair'||group==='colour'?'3. Details':'2. Body'}).click();
+      await page.click(`#ap-${group} [data-value="${value}"]`);
+    }
   }
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
@@ -320,9 +324,12 @@ async function workshopPlaytest(){
 
 async function followInventoryPlaytest(){
  const A=await openPlayer('follow-leader','FollowLeader','vanguard');
- const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3}});
+ // Suspend A's software-GL draws while B enters: two concurrently rendering
+ // contexts starve B's client of CPU, delaying its sheet past the entry gate.
+ await A.page.evaluate(()=>window.__attune.pause(true));
+ const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3}});
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
- await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
+ await B.page.evaluate(()=>window.__attune.pause(true));
  const portraitImages=[];
  for(const session of [A,B]){
   await session.page.bringToFront();await session.page.locator('#view').focus();await session.page.keyboard.press('KeyC');
@@ -330,7 +337,7 @@ async function followInventoryPlaytest(){
   portraitImages.push(await portrait.getAttribute('src'));
   await session.page.locator('#view').focus();await session.page.keyboard.press('Escape');
  }
- check('same outfit, different selected appearance produces distinct character portraits',pb.char.appearance==='f.mirekin.2.crop.3'&&portraitImages.every(src=>src?.startsWith('data:image/png'))&&portraitImages[0]!==portraitImages[1]);
+ check('same outfit, different selected appearance produces distinct character portraits',pb.char.appearance==='f.velari.2.crop.3'&&portraitImages.every(src=>src?.startsWith('data:image/png'))&&portraitImages[0]!==portraitImages[1]);
  await teleport(A,0,7.5);await teleport(B,0,11);
  await settle(A,0,7.5);await settle(B,0,11);
  await B.page.bringToFront();
@@ -601,6 +608,9 @@ try {
     await teleport(B, b.x,b.z);
     await settle(A,a.x,a.z);
     await settle(B,b.x,b.z);
+    // World focus is required for gameplay Tab; buttons keep native Tab.
+    await A.page.locator('#view').focus();
+    await B.page.locator('#view').focus();
   };
   let sk = skitters[0];
   await fightAt(sk);
@@ -797,16 +807,38 @@ try {
   await shot(B, '03-symbiote-bonded.png');
   await shot(A, '03b-bonded-as-seen-by-ally.png');
 
-  // Kill three skitters together.
+  // Kill three skitters together using real browser combat controls.
+  const selectSkitter=async(session,enemy)=>{
+    await session.page.locator('#view').focus();
+    let selected=(await state(session)).target;
+    for(let i=0;i<32&&selected!==enemy.id;i++){
+      await session.page.keyboard.press('Tab');
+      selected=(await state(session)).target;
+    }
+    if(selected!==enemy.id)throw Error('Required skitter not selected '+JSON.stringify({
+      player:session.name,expected:enemy.id,target:selected,
+      enemyState:enemy.state,hp:Math.ceil(enemy.hp),serverTarget:serverPlayer(session.name)?.target
+    }));
+  };
   const killCurrent = async (enemy) => {
+    if(enemy.state!=='dead')for(const session of [A,B])await selectSkitter(session,enemy);
     // Each actual browser must contribute; selecting the enemy alone is not kill credit.
     if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
       for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id);i++){
         await B.page.keyboard.press('Digit1');await sleep(400);
       }
       if(!enemy.threat.has(serverPlayer('Lumen').id)){
-        note('Lumen contribution missing for '+enemy.id+'; state '+JSON.stringify({hp:enemy.hp,target:serverPlayer('Lumen').target,threat:[...enemy.threat.keys()]}));
+        throw Error('Cannot establish Lumen contribution before kill '+JSON.stringify({
+          enemy:enemy.id,state:enemy.state,hp:enemy.hp,
+          target:serverPlayer('Lumen').target,
+          threat:[...enemy.threat.keys()]
+        }));
       }
+    }
+    // Kill-credit assertions require real server-recorded contributions, not
+    // merely selected targets. Never turn a missing hit into a false XP failure.
+    if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
+      throw Error('Lumen has no recorded contribution for living enemy '+enemy.id);
     }
     for (let i = 0; i < 40 && enemy.state !== 'dead'; i++) {
       await A.page.keyboard.press('Digit1');
@@ -816,12 +848,6 @@ try {
     }
     return enemy.state === 'dead';
   };
-  for (const p of [A, B]) {
-    for (let i = 0; i < 8 && (await state(p)).target !== sk.id; i++) {
-      await p.page.keyboard.press('Tab');
-      await sleep(150);
-    }
-  }
   let killed = await killCurrent(sk);
   check('6/11. the two players defeat the enemy together', killed);
   let xpA = (await state(A)).sheet.xp;
@@ -829,6 +855,11 @@ try {
   check('11. both players are credited for the shared kill', xpA > 0 && xpB > 0, `A ${xpA} xp, B ${xpB} xp`);
 
   for (const next of [skitters[2], skitters[3]]) {
+    // A corpse cannot be selected by the real Tab targeting path. Report a
+    // fixture lifecycle failure before attempting inputs against a dead ID.
+    if(next.state==='dead')throw Error('Directive fixture enemy already dead before targeting '+JSON.stringify({
+      id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time
+    }));
     await fightAt(next);
     await A.page.keyboard.press('Escape');
     await B.page.keyboard.press('Escape');
@@ -836,14 +867,13 @@ try {
     await A.page.keyboard.press('Tab');
     await B.page.keyboard.press('Tab');
     await sleep(300);
-    // Tab picks the nearest; make sure both are on the intended enemy.
-    for (const p of [A, B]) {
-      for (let i = 0; i < 6 && (await state(p)).target !== next.id; i++) {
-        await p.page.keyboard.press('Tab');
-        await sleep(150);
-      }
-    }
+    // killCurrent requires each browser to select the intended skitter.
     killed = await killCurrent(next);
+    if(!killed)note('Live skitter kill failed '+JSON.stringify({
+      id:next.id,state:next.state,hp:Math.ceil(next.hp),
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      alive:[serverPlayer('Brakka')?.hp>0,serverPlayer('Lumen')?.hp>0]
+    }));
     if (!killed) break;
   }
   await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);
@@ -1157,10 +1187,13 @@ try {
   // return to the Sanctum, dismisses the active companion; buffs are kept.
   const dismissedOnRecovery = await until(B, () => {
     const s = window.__attune.state();
-    return !s.compId && !document.querySelector('.summon-pet').hidden;
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    // Check server-authorized dismissal and the real enabled HUD control.
+    return !s.compId && !!summon && !summon.hidden && !summon.disabled;
   }, null, 5000, 'companion dismissed by the return to the Sanctum');
   check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
-  await B.page.locator('.summon-pet').click();
+  if(!dismissedOnRecovery)throw Error('Class companion was not dismissed or re-summon UI is unavailable');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const recalled = await until(B, () => {
     const s = window.__attune.state();
     return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
@@ -1169,11 +1202,14 @@ try {
   const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
   await B.page.locator('.player-context').getByRole('button', { name: 'Dismiss companion', exact: true }).click();
-  const dismissed = await until(B, () => {
+  const dismissed = await until(B, oldId => {
     const s = window.__attune.state();
-    return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
-  }, null, 5000, 'companion dismissed and summon available');
-  await B.page.locator('.summon-pet').click();
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    return !s.compId && !s.ents.some(e => e.id === oldId) &&
+      !!summon && !summon.hidden && !summon.disabled;
+  }, recalledId, 5000, 'companion dismissed and summon available');
+  if(!dismissed)throw Error('Class companion remained active or was not removed from client state');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
@@ -1183,15 +1219,15 @@ try {
   // --------------------------------------------- 15. appearance independent of class
   // This session uses the default input configuration (pointer lock while
   // steering), which every other session here disables with ?nolock=1.
-  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3} });
+  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3} });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
     return e && e.a === 'vanguard_plate' && e.model === 'glb';
   }, sc.myId, 6000, 'B to see the second Vanguard model');
   const retiredOptions=await C.page.locator('.lookcard[data-look="red_rucker"], #ap-race [data-value="veyran"]').count();
-  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.mirekin.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
-  await shot(C, '08-mirekin-vanguard.png');
+  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.velari.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
+  await shot(C, '08-velari-vanguard.png');
   // Synthetic absolute moves cannot express relative motion under pointer
   // lock (Chromium turns them into cancelling warp pairs), so the drag only
   // engages the lock; the steering deltas are then delivered as locked

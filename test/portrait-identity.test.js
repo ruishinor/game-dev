@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {characterPortraitMeta,portraitCacheKey,createPortraitCache,PORTRAIT_CACHE_LIMIT} from '../client/src/portrait-identity.js';
 
 test('paperdoll passes the exact private character appearance and identity to the live model factory',()=>{
- const sheet={name:'Test Player',cls:'vanguard',look:'vanguard_plate',appearance:'f.mirekin.2.crop.3',credits:99};
+ const sheet={name:'Test Player',cls:'vanguard',look:'vanguard_plate',appearance:'f.velari.2.crop.3',credits:99};
  const meta=characterPortraitMeta(sheet);
- assert.deepEqual(meta,{k:'p',c:'vanguard',a:'vanguard_plate',n:'Test Player',ap:'f.mirekin.2.crop.3'});
+ assert.deepEqual(meta,{k:'p',c:'vanguard',a:'vanguard_plate',n:'Test Player',ap:'f.velari.2.crop.3'});
  const key=portraitCacheKey(meta,'portrait',true);
  for(const alternate of [{n:'Other'},{ap:'m.human.3.crop.1'},{a:'red_rucker'}])
   assert.notEqual(portraitCacheKey({...meta,...alternate},'portrait',true),key);

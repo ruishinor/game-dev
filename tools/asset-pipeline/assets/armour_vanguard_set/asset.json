@@ -413,7 +413,8 @@
      45,
      0
     ]
-   }
+   },
+   "blueprints": true
   },
   "evidence": {
    "samples": 24,

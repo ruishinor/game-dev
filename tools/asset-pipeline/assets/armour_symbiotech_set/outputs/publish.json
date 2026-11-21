@@ -1,0 +1,56 @@
+{
+ "runtime": {
+  "m": {
+   "file": "client/assets/armour_symbiotech_set_m.glb",
+   "sha256": "c2fcbbbdbf5460dbaedc2946d1f920266abfe4e736cc20ad76053ab14b2d7859",
+   "bytes": 4972888
+  },
+  "f": {
+   "file": "client/assets/armour_symbiotech_set_f.glb",
+   "sha256": "3a48898a9b26d38cc0075421ac16f86f67765930b6f152156fc674ed4a3716c9",
+   "bytes": 4977884
+  }
+ },
+ "icons": {
+  "blueprint_symbiotech_field_set_boots": {
+   "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_boots.webp",
+   "sha256": "a1d6547008a680e7f7349e587735f70f8538d7bbbbdd4d3718b3c938583c1f33",
+   "bytes": 9446
+  },
+  "blueprint_symbiotech_field_set_chest": {
+   "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_chest.webp",
+   "sha256": "6ea84cf2ceda64b1a932aaf2d1d491a01cd8d577c3d4ca47647e1c2ee9606256",
+   "bytes": 8670
+  },
+  "blueprint_symbiotech_field_set_gloves": {
+   "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_gloves.webp",
+   "sha256": "1f16b8371dd7df3197880348385bdc2b9e3b9ea53cbf5b4b96074999fbbe8dd3",
+   "bytes": 5480
+  },
+  "blueprint_symbiotech_field_set_greaves": {
+   "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_greaves.webp",
+   "sha256": "bfe8136b811b94d85ecd421ce3a43f14ffe4954756ff863e37f8bba5ba82e148",
+   "bytes": 8558
+  },
+  "symbiotech_field_set_boots": {
+   "file": "client/assets/icons/armour/symbiotech_field_set_boots.webp",
+   "sha256": "26dde5ec76cc8a64998fd4ed21867908adcdd691847397a1df4e201054c0b8a9",
+   "bytes": 9932
+  },
+  "symbiotech_field_set_chest": {
+   "file": "client/assets/icons/armour/symbiotech_field_set_chest.webp",
+   "sha256": "49118c382eaf680a3376e3e3f8e567c193cb28da559200bb2f490989842a6141",
+   "bytes": 8056
+  },
+  "symbiotech_field_set_gloves": {
+   "file": "client/assets/icons/armour/symbiotech_field_set_gloves.webp",
+   "sha256": "7a65d408baacb72a5bd6ed9bda1dae8806912eab12cbae5df688d40a7e67ea1c",
+   "bytes": 4452
+  },
+  "symbiotech_field_set_greaves": {
+   "file": "client/assets/icons/armour/symbiotech_field_set_greaves.webp",
+   "sha256": "c3379b4474bdd1e0bf5b80898f98faf1aaa07b89d0a06f15f274d28554793055",
+   "bytes": 8994
+  }
+ }
+}
