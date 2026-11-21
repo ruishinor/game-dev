@@ -1,16 +1,18 @@
-# Handoff — 2026-11-20 (Claude, Severance / Sanctum track)
+# Handoff — 2026-11-21 (Claude, Severance / Sanctum track)
 
-The session stopped at the owner's usage cap. This file records the exact state of the work so the next session can continue without repeating anything.
+This file records the exact state of the work so the next session can continue without repeating anything.
 
 ## Branches and PRs
 
 | Branch | PR | State |
 |---|---|---|
 | `charlie/bold-noether-f8gbb9` | #170, #177, #179 | **Merged.** Combat cadence and crown removal (#170), Phase Scar rift rebuild (#177), resonant veins (#179). |
-| `claude/expanse-scrapyard` | #189 | **Open.** Head `f88037f`; all CI checks were queued when the session stopped. `npm test` passed 550/550 locally. Merge only when every check is green. |
+| `claude/expanse-scrapyard` | #189 | **Merged** (2026-11-21). |
+| `claude/vfx-lab` | #205 | **Merged.** The VFX inspection lab (`client/vfx-lab.html`) and `tools/vfx-lab-capture.mjs`. |
+| `claude/rift-polish` | #208 | **Merged.** Rift profile core and night-readable vanes. |
+| `claude/sanctum-architecture` | #203 | **Merged.** The kit is integrated: deck, pylons, arches, spire, spans, arrival hall and service console. At q=0 the generic kit is kept. |
+| `claude/races-foundation` | #209 | **Merged.** Human, Velari and Augmented replace Colonist and Mirekin (foundation). |
 | `claude/severance-soldiers` | none | **Handed off.** The owner moved the Severance Soldiers to a parallel effort. This branch is a reference only: do not merge it or continue it without owner direction. |
-| `claude/sanctum-architecture` | #203 | **Open.** Kit integrated (deck, pylons, arches, spire, spans, arrival hall, service console). This file is on this branch. |
-| `claude/vfx-lab` | #205 | **Open.** The VFX inspection lab (`client/vfx-lab.html`) and `tools/vfx-lab-capture.mjs`. |
 
 ## #189 Scrapyard: what it contains
 
@@ -51,7 +53,8 @@ Useful to the parallel effort:
 - **Capture tool.** `tools/sanctum-capture.mjs` now pauses the software client while the server moves the fixture (as the e2e fixtures do), restores health each shot, and takes the Sanctum shots before the road shots, so every position is confirmed. Shot 05 frames the service console.
 - **CI notes (2026-11-21).**
   - The playable preview e2e looks up `arrival:threshold-arch`. The hall kit holders keep the procedural names, and a test pins this.
-  - `npm run e2e -- --follow-inventory` also fails on `main` (0a5c169): the first player finishes entering just after the 20 s limit under software GL, with no page errors. It is not caused by this branch.
+  - The focused e2e (`--follow-inventory`, q=0) enters within 20 s. The kit's three 2048 px maps and material program pushed entry over that limit under software GL, so q=0 keeps the generic kit. Afterwards, dispatched runs passed 3/3, against 1/2 before.
+  - The vendor heartbeat eviction and the rift poll that misses the brief "opening" phase are known environmental flakes. Re-run once; investigate if they repeat.
 - **Next increment.**
   - Give the deck stronger material contrast; it reads pale under the bright ambient light.
   - Tune the night lighting.
@@ -74,7 +77,21 @@ Useful to the parallel effort:
 
 ## Character and race overhaul
 
-Not started. The owner's decision is three races, Human, Velari and Augmented, which retire Colonist and Mirekin. Existing `race: 'mirekin'` saves need an explicit migration in `shared/appearance.js` `normalizeAppearance`. PR #180 changes `client/src/looks.js`, so coordinate with it.
+**Foundation merged (#209).**
+- `RACES` are now Human (the Colonist race, renamed; the id `human` is unchanged), Velari and Augmented.
+- `RETIRED_RACES` migrates Mirekin saves to Velari. `server/store.js` normalises appearances on load.
+- The skin shader in `client/src/face.js` carries the race features:
+  - **Velari:** faceted crystal with glowing seams, cool subsurface scatter and an iridescent crystal crest.
+  - **Augmented:** an alloy temple and cheek plate with status nodes and an ocular ring. These are placed relative to each character's baked nose tip, because identity morphs move the face several centimetres.
+- Captures: `node tools/dev/appearance-capture.mjs <dir> velari|augmented`. Each combination takes about 5 minutes under software GL.
+
+**Next, toward the owner's target quality:**
+- modelled race geometry (Velari crystal growths, physical Augmented implant meshes);
+- hair cards;
+- facial detail and new animation;
+- a calmer Velari facet pattern, which still reads busy.
+
+The race lookbook PDF was not available in the session container. PR #180 (selection) changes `client/src/looks.js` and does not reference the retired races.
 
 ## Verification commands
 
