@@ -44,7 +44,9 @@ Useful to the parallel effort:
   - `SA_Span`: a 4 m girder along local +y.
 
   The emissive inserts are `SA_Channel` and `SA_Lamp`.
-- **Remaining:**
+- **Integrated (2026-11-21).** Steps 1–3 below are done: the route, the preload with fallback, and the scene swaps for the deck, pylons, spans, road arches with zone-tinted lamps, and the beacon spire, with a slow pulse on the channels. `test/sanctum-arch.test.js` covers the asset hash and validity, the pieces, the fallback contract and the route. In-game captures were taken.
+- **Next increment.** Restyle the arrival hall (blue panel walls, slatted canopy) in the same stone and bronze language; it now clashes. Then tune the night lighting.
+- **Original plan:**
   1. Add a server route for `/client/assets/sanctum_arch.glb`, pointing at the pipeline output. Use the same pattern as `phase_scar.glb`; do not add a manifest entry, because the asset tests require files under `client/assets/`.
   2. In `client/src/main.js`, after the preload, set `assets.sanctumArch = await assets.loader.loadAsync(URL).catch(() => null)`, the same way the Mender prototype is preloaded.
   3. In `client/src/scene.js`, when `assets.sanctumArch` exists, swap each generic piece for its kit piece:
