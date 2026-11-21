@@ -1,6 +1,7 @@
 // Enemy behaviour: idle wander, aggro, threat-based targeting, chase,
 // attacks, telegraphed specials, leashing and respawn.
 
+import { levelHpMul } from './enemy-levels.js';
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
@@ -10,9 +11,9 @@ import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sint
 // post), not to the route's start; static enemies and short circuits use home.
 const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
 
-/** Max HP at no encounter scaling: the type's, times a per-instance elite multiplier. */
+/** Max HP at no encounter scaling: the type's, scaled by levels above its base and a per-instance elite multiplier. */
 export function baseHp(e) {
-  return Math.round(ENEMIES[e.type].hp * (e.elite?.hp ?? 1));
+  return Math.round(ENEMIES[e.type].hp * levelHpMul(e) * (e.elite?.hp ?? 1));
 }
 
 export function resetEnemy(game, e) {

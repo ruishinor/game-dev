@@ -479,3 +479,13 @@ Main after this run: `15d48c9` (plus this docs commit).
 **Active elsewhere (do not collide):** #197 GM preview and #178 weapon switching, both receiving commits from another agent on 2026-11-21. #178's `focused` failure is the main defect fixed by #212; merge main into #178 to clear it.
 
 **Next smallest actions:** merge #197 once green. Merge main into #178 and re-gate it. PROG-15 content (XP sources and encounters for levels 6–15) is outstanding: #196 is infrastructure only. Decide #165 against merged #196 before retiring it.
+
+### 13.1 PROG-15 regional progression — [#217](https://github.com/ruishinor/game-dev/pull/217)
+
+Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar and Expanse entry at level 5, with Expanse content at levels 5–12 and the Scrapyard elite at 12. Silent Foundry entry at level 8, with content at 8–11: 8 of 14 guards elite, plus the Overseer boss. Enemy HP, damage and XP scale only above each type's base level, so levels 1–5 are unchanged. Server-only rules live in `server/sim/enemy-levels.js`.
+
+**Remaining gaps:**
+- No dedicated level 12–15 content (Foundry repeats only).
+- The Severance Soldiers squads on `charlie/festive-thompson-a5h4f5` still need levels 7–11, with each sergeant elite at the squad's level +1 (max 12), when they merge.
+- No naturally played 5→12 browser journey yet.
+- #165 can be retired once #217 merges: the cap, thresholds and validation are equivalent (merged in #196), and the regional work is superseded here.
