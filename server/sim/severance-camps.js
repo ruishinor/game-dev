@@ -8,12 +8,13 @@ import { resetEnemy } from './ai.js';
 
 // [type, name, level offset or absolute level, post (u, v from the camp centre), elite]
 const GARRISON = [
-  ['sentinel', 'Scrapyard Sentinel', { dl: 2 }, [4, -1.5]],
-  ['sentinel', 'Scrapyard Sentinel', { dl: 2 }, [1.5, 3.2]],
-  ['turret_drone', 'Yard Drone', { dl: 1 }, [-4.8, -4.4]],
-  ['turret_drone', 'Yard Drone', { dl: 1 }, [3.6, 4.2]],
+  // Levels follow the Expanse band (5-12): the garrison is upper-band content.
+  ['sentinel', 'Scrapyard Sentinel', { level: 9 }, [4, -1.5]],
+  ['sentinel', 'Scrapyard Sentinel', { level: 9 }, [1.5, 3.2]],
+  ['turret_drone', 'Yard Drone', { level: 9 }, [-4.8, -4.4]],
+  ['turret_drone', 'Yard Drone', { level: 10 }, [3.6, 4.2]],
   // the elite holds the forge: heavier, harder-hitting, root-immune, holds its post
-  ['sentinel', 'Forge Overseer', { level: 5 }, [-2.6, 0.5], { hp: 3.4, dmg: 1.55, size: 1.35 }],
+  ['sentinel', 'Forge Overseer', { level: 12 }, [-2.6, 0.5], { hp: 3.4, dmg: 1.55, size: 1.35 }],
 ];
 
 export const SALVAGE_GARRISON = Object.freeze(GARRISON.map(([type, name, lv, [u, v], elite]) => Object.freeze({

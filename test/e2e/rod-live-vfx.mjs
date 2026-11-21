@@ -15,7 +15,7 @@ try{
  page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1&vfxcapture=1&vfxt=.3'+(SOFTWARE_GL?'&rfps=1':''));
- await page.fill('#name','Rod VFX Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Rod VFX Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2});
  const p=await liveFixturePlayer(page,server,'Rod VFX Tester');
  p.char.inventory.push('electrical_combat_rod');assert.ok(equipItem(server.game,p,'electrical_combat_rod').ok);

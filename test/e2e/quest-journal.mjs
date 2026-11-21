@@ -11,7 +11,7 @@ try{
  const page=await browser.newPage({viewport:{width:1100,height:750}});page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
- await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard';});
  const p=await liveFixturePlayer(page,server,'Journal Tester');
  // Exercise the authoritative completion transition with the prerequisite fixture.

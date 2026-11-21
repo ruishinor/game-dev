@@ -25,7 +25,10 @@ try{
  // Do not wait on an internal client hook; the actual control readiness gates first use.
  await page.fill('#account-handle','roster_validator');
  await page.fill('#account-password','TemporaryUniqueRosterTestPassphrase2026!');
+ // The footer switch puts the gate in account-creation mode; the plate submits.
  await page.click('#account-register',{timeout:120000});
+ assert.equal(await page.locator('#account-signin').textContent(),'Create account');
+ await page.click('#account-signin');
  await page.locator('#character-roster').waitFor({state:'visible'});
  const rosterConn=[...server.net.conns].find(conn=>conn.account?.handle==='roster_validator');
  assert.ok(rosterConn,'authenticated account connection exists before entering world');

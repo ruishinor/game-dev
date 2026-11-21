@@ -855,11 +855,12 @@ function makeKestrelRecorder(){
 }
 
 /** Phase Scar rifts: the Blender foundation loads through `loader` when given. */
-export const RIFT_KINDS=new Set(['phase_scar','severance_return','foundry_return']);
+export const RIFT_KINDS=new Set(['phase_scar','severance_return','foundry_return','null_breach']);
 export function riftModel(kind,loader=null){
   if(kind==='phase_scar')return buildRift(THREE,RIFT_SITE,groundHeight,{loader});
   const m=buildRift(THREE,null,null,{returning:true,loader});
   if(kind==='foundry_return')m.group.name='rift:foundry-return';
+  if(kind==='null_breach')m.group.name='rift:null-breach';
   return m;
 }
 export function buildPhaseGate(returning,assets){
@@ -923,6 +924,7 @@ export const MODEL_FACTORIES = {
   rift_return:()=>buildPhaseGate(true),
   severance_return:()=>riftModel('severance_return'),
   foundry_return:()=>riftModel('foundry_return'),
+  null_breach:()=>riftModel('null_breach'),
   foundry_cache:()=>{
     const group=new THREE.Group();group.name='foundry:recovery-cache';
     const metal=std(0x3a3d3f,{metal:.7}),trim=std(0xb2793a,{metal:.5}),lamp=lit(0x4fd1c5);

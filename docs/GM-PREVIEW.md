@@ -24,7 +24,7 @@ Hosted deployment: set this key only in private server configuration, do not com
 ## Supported commands on current main
 
 - /gm help and /gm status
-- /gm level N, where N is a decimal integer from 1 through the current server MAX_LEVEL (currently 5 on the starting main); resets XP and refreshes derived stats
+- /gm level N, where N is a decimal integer from 1 through the current server MAX_LEVEL (currently 15); resets XP and refreshes derived stats
 - /gm tp reach|scar|sporefield|relay|sinter|annex; validated named main-branch locations, no arbitrary coordinates
 - /gm heal; restores health of a living character
 - /gm god on|off; incoming damage immunity on the *live player entity only*, never stored
@@ -45,7 +45,7 @@ Level, credits, materials, inventory and unlock are **persisted** and bypass nor
 
 ## Deferred from stacked PR #194
 
-Level 6–15 commands remain unsupported until separately merged authoritative progression. No Expanse, Outpost, Scrapyard, Gate, Foundry or Depths teleport is registered in this independent increment. No shared encounter is opened merely to inspect a scene; future environment-specific GM features require separate integration and tests. Do not merge #194's historical parent tree to obtain these commands.
+The level command follows the integrated server cap. No Expanse, Outpost, Scrapyard, Gate, Foundry or Depths teleport is registered in this independent increment. No shared encounter is opened merely to inspect a scene; future environment-specific GM features require separate integration and tests. Do not merge #194's historical parent tree to obtain these commands.
 
 ## Authorization, auditing and limitations
 

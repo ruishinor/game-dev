@@ -501,7 +501,7 @@ function showCharacterCreation(){
   $('enter').textContent='Create character';
   $('enter').disabled=false;
   $('login-error').textContent='';
-  document.body.classList.remove('character-selection-mode');
+  document.body.classList.remove('character-selection-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
   creationPreview.resetView();
@@ -618,6 +618,11 @@ function showAccountLogin(message = '') {
   $('world-entry-curtain').hidden=true;
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.add('gate-mode');
+  document.body.classList.remove('gate-guest-open');
+  setAccountMode('signin');
+  setPasswordShown(false);
+  openGuestFromHash();
   $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
@@ -634,6 +639,7 @@ function showAccountLogin(message = '') {
   $('login-error').textContent = '';
   $('enter').textContent = 'Enter as guest';
   $('enter').disabled = false;
+  $('gate-guest-link').textContent = net.token ? 'Return to your saved guest' : 'Play as a guest';
 }
 
 function showRoster(m) {
@@ -655,11 +661,37 @@ function showRoster(m) {
   $('roster-error').textContent='';
   $('login-error').textContent='';
   $('link-legacy').hidden=!net.token;
-  document.body.classList.remove('character-create-mode');
+  document.body.classList.remove('character-create-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
   ui.toggleSettings(false);
+}
+
+// The gate form signs in or creates an account; the footer switch flips the mode.
+function setAccountMode(mode) {
+  const register = mode === 'register';
+  $('account-form').dataset.mode = register ? 'register' : 'signin';
+  $('account-signin').textContent = register ? 'Create account' : 'Sign in';
+  $('account-password').autocomplete = register ? 'new-password' : 'current-password';
+  $('account-mode-prompt').textContent = register ? 'Already have an account?' : 'Don’t have an account yet?';
+  $('account-register').textContent = register ? 'Sign in' : 'Sign up';
+  $('account-register-hint').hidden = !register;
+  $('account-help').hidden = true;
+  $('account-help-toggle').setAttribute('aria-expanded', 'false');
+}
+function openGuestView(focus) {
+  if (!document.body.classList.contains('gate-mode')) return;
+  document.body.classList.add('gate-guest-open');
+  if (focus) ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+}
+function openGuestFromHash() {
+  if (location.hash === '#guest-note') openGuestView(false);
+}
+function setPasswordShown(shown) {
+  $('account-password').type = shown ? 'text' : 'password';
+  $('account-reveal').setAttribute('aria-pressed', String(shown));
+  $('account-reveal').setAttribute('aria-label', shown ? 'Hide password' : 'Show password');
 }
 
 function buildAccountUI() {
@@ -667,11 +699,35 @@ function buildAccountUI() {
   $('account-form').addEventListener('submit', (e) => {
     e.preventDefault();
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, false);
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, $('account-form').dataset.mode === 'register');
   });
   $('account-register').addEventListener('click', () => {
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
+    setAccountMode($('account-form').dataset.mode === 'register' ? 'signin' : 'register');
+    $('account-handle').focus({ preventScroll: true });
+  });
+  $('account-reveal').addEventListener('click', () => {
+    setPasswordShown($('account-password').type === 'password');
+    $('account-password').focus({ preventScroll: true });
+  });
+  $('account-help-toggle').addEventListener('click', () => {
+    const open = $('account-help').hidden;
+    $('account-help').hidden = !open;
+    $('account-help-toggle').setAttribute('aria-expanded', String(open));
+  });
+  // Guest access stays distinct from the cinematic sign-in viewport.
+  for (const a of document.querySelectorAll('#account-auth a[href="#guest-note"]')) a.addEventListener('click', (e) => {
+    e.preventDefault();
+    openGuestView(true);
+  });
+  // A guest link followed before this module bound its handler only set the
+  // URL hash; honour it now and on later hash changes.
+  window.addEventListener('hashchange', () => openGuestFromHash());
+  openGuestFromHash();
+  $('gate-back-to-login').addEventListener('click', () => {
+    if (location.hash === '#guest-note') history.replaceState(null, '', location.pathname + location.search);
+    document.body.classList.remove('gate-guest-open');
+    $('gate-guest-link').focus({ preventScroll: true });
   });
   $('account-signout').addEventListener('click', () => net.signOut());
   $('roster-settings').addEventListener('click', () => {
@@ -773,6 +829,7 @@ function openCharacterMenu() {
     $('character-roster').hidden = true;
     $('resuming').hidden = false;
     $('resuming').textContent = 'Loading your characters…';
+    document.body.classList.remove('gate-mode');
   } else showAccountLogin('Your guest is saved. Return to it below, or create an account and link it.');
 }
 
@@ -941,7 +998,7 @@ function onWelcome(m) {
   worldEntryPending=true;
   $('world-entry-curtain').classList.remove('dismissed');
   $('world-entry-curtain').hidden=false;
-  document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.remove('character-selection-mode','character-create-mode','gate-mode','gate-guest-open');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -2058,6 +2115,8 @@ function frame(now) {
     // Dedicated cinematic scenes own both character screens.
     if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
+    // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
+    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;

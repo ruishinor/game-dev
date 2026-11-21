@@ -9,9 +9,9 @@ try{
  const page=await browser.newPage({viewport:{width:1100,height:750}});page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
- await page.fill('#name','Rift Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Rift Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2;});
- const p=await liveFixturePlayer(page,server,'Rift Tester'),f=server.game.rift;assert.ok(f);
+ let p=await liveFixturePlayer(page,server,'Rift Tester');const f=server.game.rift;assert.ok(f);
  // Verify the actual runtime GLB, not the static asset preview or fallback.
  await page.waitForFunction(()=>{
    const root=window.__attune.gfx.scene.getObjectByName('stillpoint:live');
@@ -32,8 +32,8 @@ try{
    if(enemy.annexEncounter)continue;
    enemy.state='dead';enemy.deadAt=-1e9;enemy.respawnAt=Infinity;enemy.threat.clear();
  }
- p.char.level=3;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
- async function move(o,z=1.7){p.x=o.x;p.z=o.z+z;await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1;},[p.x,p.z]);}
+ p.char.level=8;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
+ async function move(o,z=1.7){const live=await liveFixturePlayer(page,server,'Rift Tester');assert.equal(live.char.id,p.char.id,'Movement fixture retains the same authenticated character');p=live;p.x=o.x;p.z=o.z+z;await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1;},[p.x,p.z]);}
  await move(f.indexer);
  await page.evaluate(software=>{
    window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:10,face:Math.PI/2});
@@ -60,20 +60,31 @@ try{
  await page.evaluate(()=>window.__attune.pause(false));
  // Keep the fixture outside the hazard and use normal F interaction to stabilize.
  await page.screenshot({path:'rift-evidence/01-open.png'});
- await move(f.regulator);
- // The regulator accepts the counterphase only between releases. On a slow
- // (software-rendered) client the press can arrive after the next warning has
- // begun; the server correctly refuses it, so press again in the next window,
- // as a player would. Stabilization must still happen through the real F path.
- await page.locator('#view').focus();
- for(let attempt=0;;attempt++){
-   await page.waitForFunction(()=>{const a=window.__attune.state().ents.find(e=>e.c==='phase_scar');return a?.row.rf==='unstable'&&a.row.rw===0;});
-   await page.keyboard.press('KeyF');
-   const done=await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='stabilized',null,{timeout:6000}).then(()=>true,()=>false);
-   if(done)break;
-   assert.ok(attempt<3,'regulator never accepted the counterphase between releases');
-   assert.equal(f.phase,'unstable','a refused press leaves the field unstable');
- }
+ // Screenshot encoding and software rendering can consume an entire
+ // 22-second live cycle. Keep networking/inputs active, pause only drawing
+ // during the timing-sensitive interaction, and restart the real indexer
+ // if the photographed cycle expired. No phase or clock mutation.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ try{
+   for(let cycle=0;cycle<3&&f.phase!=='stabilized';cycle++){
+     if(f.phase!=='opening'&&f.phase!=='unstable'){
+       await move(f.indexer);
+       await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='dormant',null,{timeout:45000,polling:100});
+       await page.locator('#view').focus();await page.keyboard.press('KeyF');
+       await page.waitForFunction(()=>['opening','unstable'].includes(window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf),null,{timeout:10000,polling:100});
+     }
+     await move(f.regulator);
+     await page.locator('#view').focus();
+     for(let attempt=0;attempt<4&&['opening','unstable'].includes(f.phase);attempt++){
+       const windowSeen=await page.waitForFunction(()=>{const a=window.__attune.state().ents.find(e=>e.c==='phase_scar');return a?.row.rf==='unstable'&&a.row.rw===0;},null,{timeout:8000,polling:100}).then(()=>true,()=>false);
+       if(!windowSeen)continue;
+       await page.keyboard.press('KeyF');
+       const done=await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='stabilized',null,{timeout:6000,polling:100}).then(()=>true,()=>false);
+       if(done)break;
+     }
+   }
+   assert.equal(f.phase,'stabilized','regulator must accept a real counterphase interaction');
+ }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
  // the server holds the stabilized phase (asserted before the slow software screenshot,
  // which can outlast the 15 s stable window on a ~2 s/frame client)
  assert.equal(f.phase,'stabilized');

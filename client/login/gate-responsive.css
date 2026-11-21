@@ -1,0 +1,83 @@
+/* Preserve original cinematic artwork, form and typographic treatment.
+   Correct only the footer/viewport interaction and reveal the existing guest
+   workflow on a separate screen rather than below the sign-in page. */
+body.gate-mode { height:100dvh; overflow:hidden; }
+body.gate-mode:not(.gate-guest-open) #login {
+  position:fixed;inset:0;min-height:0;padding:0;overflow:hidden;
+}
+body.gate-mode:not(.gate-guest-open) #login .login-card {display:none}
+body.gate-mode #account-auth.gate{height:100dvh;min-height:0}
+/* The cover-sized 16:9 stage overhangs short wide viewports by design; clip
+   it here so it cannot extend the login panel's scrollable area. */
+body.gate-mode:not(.gate-guest-open) #account-auth.gate{position:relative;overflow:clip}
+body.gate-mode #account-auth .gate-note:not([hidden]){z-index:6}
+body.gate-mode .gate-foot{z-index:4}
+body.gate-mode.gate-guest-open #account-auth.gate{display:none}
+body.gate-mode.gate-guest-open #login {
+  position:fixed;inset:0;display:block;padding:0 12px 18px;min-height:0;
+  overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;
+}
+body.gate-mode.gate-guest-open #login .login-card{
+  display:block;position:relative;width:min(720px,100%);margin:12px auto;
+  box-sizing:border-box;
+}
+#gate-back-to-login{display:none}
+body.gate-mode.gate-guest-open #gate-back-to-login{
+  display:inline-block;padding:8px 12px;margin-bottom:12px;
+  border:1px solid #c9a466;color:#f1d49e;background:#161819;
+}
+body.gate-mode.gate-guest-open #gate-back-to-login:focus-visible{
+  outline:2px solid #ffe7b0;outline-offset:3px;
+}
+body.gate-mode.gate-guest-open #login .login-card>h1,
+body.gate-mode.gate-guest-open #login .login-card>.tagline{display:none}
+/* At 844x390 the original 500px minimum height and 9vh footer padding
+   forced a scroll. Smaller controls and a grounded footer retain access. */
+@media(max-height:540px) and (min-aspect-ratio:13/9){
+ body.gate-mode #account-form.gate-form{
+   top:26%;width:min(460px,calc(100vw - 24px));gap:4px;
+   --h:clamp(34px,9.5cqh,42px);--fs:clamp(13px,3.5cqh,16px);
+ }
+ body.gate-mode #account-form .gate-field,
+ body.gate-mode #account-form .gate-field-wide{width:100%}
+ body.gate-mode #account-auth #account-signin{
+   height:clamp(38px,9.5cqh,46px);font-size:clamp(15px,4.2cqh,19px);
+ }
+ body.gate-mode .gate-link{margin-top:0;font-size:13px}
+ body.gate-mode #account-auth .gate-note{
+   box-sizing:border-box;width:100%;padding:5px 9px;font-size:11.5px;line-height:1.28;
+ }
+ body.gate-mode .gate-foot{
+   top:auto;bottom:max(5px,env(safe-area-inset-bottom));
+   transform:translateX(-50%);width:min(460px,calc(100vw - 20px));
+   gap:0;padding:0;
+ }
+ body.gate-mode .gate-switch-line{padding:0;font-size:clamp(12px,3.4cqh,14px);line-height:1.2}
+ body.gate-mode .gate-switch-line::before,
+ body.gate-mode .gate-switch-line::after{display:none}
+ body.gate-mode .gate-rule{height:7px}
+ body.gate-mode .gate-guest{margin:0;font-size:12px}
+}
+@media(max-width:520px) and (orientation:portrait){
+ body.gate-mode #account-form.gate-form{top:31%;width:calc(100vw - 28px)}
+ body.gate-mode #account-form .gate-field,
+ body.gate-mode #account-form .gate-field-wide{width:100%}
+ body.gate-mode .gate-foot{
+   top:auto;bottom:max(12px,env(safe-area-inset-bottom));
+   transform:translateX(-50%);width:calc(100vw - 18px);gap:3px;
+ }
+ body.gate-mode #account-auth .gate-note{
+   box-sizing:border-box;padding:7px 9px;font-size:12px;line-height:1.3;
+ }
+}
+/* On-screen keyboard may leave genuinely insufficient height: keep every
+   action reachable rather than using overflow:hidden to conceal controls. */
+@media(max-height:320px){
+ body.gate-mode:not(.gate-guest-open) #login{overflow-y:auto}
+ body.gate-mode #account-auth.gate{height:350px;min-height:350px}
+ body.gate-mode #account-form.gate-form{top:12%}
+}
+@media(prefers-reduced-motion:reduce){
+ body.gate-mode .gate-field,body.gate-mode .gate-frame,
+ body.gate-mode #account-signin{transition:none}
+}

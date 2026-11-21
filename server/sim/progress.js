@@ -1,3 +1,4 @@
+import { killXp } from './enemy-levels.js';
 import {appearanceString} from '../../shared/appearance.js';
 // Character progression: experience, loot, directives, loadout changes and
 // world interactions. All mutations of persistent character state go
@@ -7,7 +8,7 @@ import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVE
 import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
 import { travelSeverance, gateFront } from './severance-gate.js';
-import { recordFoundryKill, claimFoundryCache, leaveFoundry } from './silent-foundry.js';
+import { recordFoundryKill, claimFoundryCache, leaveFoundry, enterNullBreach } from './silent-foundry.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
 
@@ -114,7 +115,6 @@ export function checkDirective(game, p) {
 
 /** Reward everyone who fought the enemy. Small groups are never split. */
 export function onEnemyKilled(game, enemy, creditedIds) {
-  const def = ENEMIES[enemy.type];
   // Corpse generation changes only once per death, even when a reward
   // delivery is retried. Share that existing guard with XP and directives.
   const generation = enemy.lootGeneration || 0;
@@ -125,7 +125,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
-    grantXp(game, p, def.xp);
+    grantXp(game, p, killXp(enemy, p.char.level));
     if(recordFoundryKill(game,p,enemy))continue; // Foundry archetypes do not complete Reach directives
     if(enemy.annexEncounter){
       const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;
@@ -403,14 +403,17 @@ export function interact(game, p, objectId) {
   if(obj.type==='rift_return')return game.travelRift(p,obj);
   if(obj.type==='severance_gate'||obj.type==='severance_return')return travelSeverance(game,p,obj);
   if(obj.type==='foundry_return')return leaveFoundry(game,p,obj,gateFront);
+  if(obj.type==='null_breach')return enterNullBreach(game,p,obj);
   if(obj.type==='foundry_cache')return claimFoundryCache(game,p,obj,{grantSalvage,inCombat});
   if(obj.type==='annex_cache'){
     if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
     if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};
     if(p.char.annexProgress!==3)return {ok:false,reason:'Participate in an Annex encounter and defeat the Null Chamber Warden first.'};
+    // The level 13-15 Null Annex (behind the Null Breach) yields a larger cache.
+    const count=game.severance?6:3,words=count===6?'six':'three';
     p.char.annexClaimed=true;
-    if(!grantSalvage(game,p,'resonance_fragment',3)){p.char.annexClaimed=false;return {ok:false,reason:'Clear space for three Resonance fragments.'};}
-    game.markDirty(p);game.message(p,'gain','Null Chamber recovery cache claimed: 3 Resonance fragments.');return {ok:true};
+    if(!grantSalvage(game,p,'resonance_fragment',count)){p.char.annexClaimed=false;return {ok:false,reason:`Clear space for ${words} Resonance fragments.`};}
+    game.markDirty(p);game.message(p,'gain',`Null Chamber recovery cache claimed: ${count} Resonance fragments.`);return {ok:true};
   }
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {

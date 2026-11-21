@@ -24,7 +24,7 @@ try {
     page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /\[assets\]|\[armour\]/.test(m.text()))) report.consoleErrors.push(m.text()); });
     await page.bringToFront();
     await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
-    await page.fill('#name', name);
+    await page.click('#gate-guest-link');await page.fill('#name', name);
     // A second WebGL page under software GL can starve layout and rAF long
     // enough that Playwright never sees the class card as visible/stable; the
     // join only needs the DOM clicks, so dispatch them directly.
