@@ -6,35 +6,56 @@
     <title>Attunement</title>
     <!-- Prevent an unsolicited /favicon.ico request; a branded icon can follow later. -->
     <link rel="icon" href="data:," />
+    <link rel="preload" href="/client/login/gate-2560.webp" as="image" type="image/webp" />
     <link rel="stylesheet" href="/client/style.css" />
     <link rel="stylesheet" href="/client/hud-reference.css" />
   </head>
-  <body>
+  <body class="gate-mode">
     <canvas id="view" tabindex="0" aria-label="Game world"></canvas>
     <div id="overlay" aria-hidden="true"></div>
     <div id="hud" hidden></div>
 
     <main id="login">
+      <div class="gate-art" aria-hidden="true"></div>
+      <section id="account-auth" class="gate" aria-labelledby="gate-title">
+        <div class="gate-stage">
+          <h2 id="gate-title" class="visually-hidden">Sign in to Attunement</h2>
+          <form id="account-form" class="gate-form" autocomplete="on" data-mode="signin">
+            <div class="gate-field">
+              <span class="gate-frame" aria-hidden="true"></span>
+              <svg class="gate-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+              <span class="gate-sep" aria-hidden="true"></span>
+              <label for="account-handle" class="visually-hidden">Account name</label>
+              <input id="account-handle" name="username" maxlength="24" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Account name" />
+            </div>
+            <div class="gate-field gate-field-wide">
+              <span class="gate-frame" aria-hidden="true"></span>
+              <svg class="gate-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10.5" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2.5"/></svg>
+              <span class="gate-sep" aria-hidden="true"></span>
+              <label for="account-password" class="visually-hidden">Password</label>
+              <input id="account-password" name="password" type="password" minlength="12" maxlength="128" autocomplete="current-password" placeholder="Password" />
+              <button id="account-reveal" class="gate-reveal" type="button" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+            </div>
+            <button id="account-signin" type="submit" class="primary" disabled>Sign in</button>
+            <button id="account-help-toggle" class="gate-link" type="button" aria-expanded="false" aria-controls="account-help">Can’t sign in?</button>
+            <p id="account-register-hint" class="gate-note" hidden>Account names are 3–24 letters or digits and separate from character names. Use a unique password of at least 12 characters and keep a secure backup: this prototype cannot recover passwords by email.</p>
+            <p id="account-error" role="alert"></p>
+            <div id="account-help" class="gate-note" hidden>
+              <p>Passwords cannot be reset by email in this prototype. Account names are 3–24 letters or digits, and passwords are case-sensitive.</p>
+              <p>Guest characters have no password. Return to one with its recovery key under <a href="#guest-note">guest access</a>, or create an account and link it from character selection.</p>
+            </div>
+          </form>
+        </div>
+        <footer class="gate-foot">
+          <p class="gate-switch-line"><span id="account-mode-prompt">Don’t have an account yet?</span> <button class="gate-switch" id="account-register" type="button" disabled>Sign up</button></p>
+          <span class="gate-rule" aria-hidden="true"></span>
+          <a id="gate-guest-link" class="gate-guest" href="#guest-note">Play as a guest</a>
+        </footer>
+      </section>
       <div class="login-card">
         <h1>Attunement</h1>
         <p class="tagline">The Verdigris Reach — where old machines, living things and stranger forces share one valley.</p>
         <p id="resuming" hidden>Returning to your character…</p>
-        <section id="account-auth" aria-label="Account access">
-          <h2>Account access</h2>
-          <p class="hint">Account names and passwords are separate from character names. Guest characters do not have passwords. Create an account with a new password, then link your existing guest.</p>
-          <form id="account-form" autocomplete="on">
-            <label for="account-handle">Account name</label>
-            <input id="account-handle" name="username" maxlength="24" autocomplete="username" placeholder="3–24 letters or digits" />
-            <label for="account-password">Password</label>
-            <input id="account-password" name="password" type="password" minlength="12" maxlength="128" autocomplete="current-password" />
-            <div class="account-buttons">
-              <button id="account-signin" type="submit" class="primary" disabled>Sign in</button>
-              <button id="account-register" type="button" disabled>Create account</button>
-            </div>
-          </form>
-          <p id="account-error" role="alert"></p>
-          <p class="hint">Passwords are not recoverable by email in this prototype. Use a unique password and keep a secure backup.</p>
-        </section>
         <section id="character-roster" hidden aria-label="Your characters">
           <div class="roster-head"><h2 id="roster-title">Character selection</h2><button id="account-signout" type="button">Sign out</button></div>
           <div class="roster-stage">

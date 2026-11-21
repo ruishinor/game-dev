@@ -24,6 +24,7 @@ const MIME = {
   '.glb': 'model/gltf-binary',
   '.json': 'application/json; charset=utf-8',
   '.mp3': 'audio/mpeg',
+  '.woff2': 'font/woff2',
 };
 
 // URL prefix -> directory. Nothing outside these is ever served.
