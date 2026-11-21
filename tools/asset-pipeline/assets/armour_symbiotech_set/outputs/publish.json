@@ -14,23 +14,23 @@
  "icons": {
   "blueprint_symbiotech_field_set_boots": {
    "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_boots.webp",
-   "sha256": "973ab8e8f664f6f6471e8a01b0ac28f3a5de2f75066177e39a6ddba1e53fc426",
-   "bytes": 9214
+   "sha256": "a1d6547008a680e7f7349e587735f70f8538d7bbbbdd4d3718b3c938583c1f33",
+   "bytes": 9446
   },
   "blueprint_symbiotech_field_set_chest": {
    "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_chest.webp",
-   "sha256": "3d951fd420996af3bbb6b5824d6a26a48ccbe9f08ec88934eb60e70fa9a47efa",
-   "bytes": 9576
+   "sha256": "6ea84cf2ceda64b1a932aaf2d1d491a01cd8d577c3d4ca47647e1c2ee9606256",
+   "bytes": 8670
   },
   "blueprint_symbiotech_field_set_gloves": {
    "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_gloves.webp",
-   "sha256": "0407d6ee9b420b5d7008401bf0272578a07b58497b0cd4d794ccb68c132be40f",
-   "bytes": 5418
+   "sha256": "1f16b8371dd7df3197880348385bdc2b9e3b9ea53cbf5b4b96074999fbbe8dd3",
+   "bytes": 5480
   },
   "blueprint_symbiotech_field_set_greaves": {
    "file": "client/assets/icons/armour/blueprint_symbiotech_field_set_greaves.webp",
-   "sha256": "f519e11161520677ab688903df7b2373566038f1765003b0e282d30848ceeff0",
-   "bytes": 8386
+   "sha256": "bfe8136b811b94d85ecd421ce3a43f14ffe4954756ff863e37f8bba5ba82e148",
+   "bytes": 8558
   },
   "symbiotech_field_set_boots": {
    "file": "client/assets/icons/armour/symbiotech_field_set_boots.webp",

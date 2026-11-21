@@ -12,19 +12,19 @@
  "bytes": {
   "keeper_field_set_chest_256.webp": 7310,
   "keeper_field_set_chest_128.webp": 3222,
-  "blueprint_keeper_field_set_chest_256.webp": 8764,
-  "blueprint_keeper_field_set_chest_128.webp": 3212,
+  "blueprint_keeper_field_set_chest_256.webp": 8828,
+  "blueprint_keeper_field_set_chest_128.webp": 3252,
   "keeper_field_set_gloves_256.webp": 4480,
   "keeper_field_set_gloves_128.webp": 1900,
-  "blueprint_keeper_field_set_gloves_256.webp": 5736,
-  "blueprint_keeper_field_set_gloves_128.webp": 2120,
+  "blueprint_keeper_field_set_gloves_256.webp": 5672,
+  "blueprint_keeper_field_set_gloves_128.webp": 2170,
   "keeper_field_set_greaves_256.webp": 7984,
   "keeper_field_set_greaves_128.webp": 3330,
-  "blueprint_keeper_field_set_greaves_256.webp": 8568,
-  "blueprint_keeper_field_set_greaves_128.webp": 3074,
+  "blueprint_keeper_field_set_greaves_256.webp": 9110,
+  "blueprint_keeper_field_set_greaves_128.webp": 3368,
   "keeper_field_set_boots_256.webp": 8686,
   "keeper_field_set_boots_128.webp": 3686,
   "blueprint_keeper_field_set_boots_256.webp": 9000,
-  "blueprint_keeper_field_set_boots_128.webp": 3256
+  "blueprint_keeper_field_set_boots_128.webp": 3406
  }
 }

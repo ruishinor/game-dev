@@ -7,7 +7,7 @@
  ],
  "bodies": {
   "m": {
-   "pieces": 114,
+   "pieces": 115,
    "min_clearance_m": -0.0345,
    "clearance": {
     "vanguard_field_set_chest__vest": {
@@ -131,12 +131,16 @@
      "p05_m": 0.0247
     },
     "vanguard_field_set_chest__collar_0": {
-     "min_m": 0.0025,
-     "p05_m": 0.0035
+     "min_m": -0.0286,
+     "p05_m": -0.025
     },
     "vanguard_field_set_chest__collar_1": {
-     "min_m": 0.0056,
-     "p05_m": 0.0093
+     "min_m": 0.0124,
+     "p05_m": 0.0136
+    },
+    "vanguard_field_set_chest__collar_2": {
+     "min_m": 0.0237,
+     "p05_m": 0.0272
     },
     "vanguard_field_set_chest__pauldron_l": {
      "min_m": -0.0342,
@@ -461,7 +465,7 @@
    }
   },
   "f": {
-   "pieces": 114,
+   "pieces": 115,
    "min_clearance_m": -0.0366,
    "clearance": {
     "vanguard_field_set_chest__vest": {
@@ -585,12 +589,16 @@
      "p05_m": 0.028
     },
     "vanguard_field_set_chest__collar_0": {
-     "min_m": -0.0018,
-     "p05_m": 0.0011
+     "min_m": 0.004,
+     "p05_m": 0.0062
     },
     "vanguard_field_set_chest__collar_1": {
-     "min_m": 0.0116,
-     "p05_m": 0.0166
+     "min_m": 0.014,
+     "p05_m": 0.0151
+    },
+    "vanguard_field_set_chest__collar_2": {
+     "min_m": 0.0286,
+     "p05_m": 0.0302
     },
     "vanguard_field_set_chest__pauldron_l": {
      "min_m": -0.0248,
