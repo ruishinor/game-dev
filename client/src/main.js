@@ -696,9 +696,18 @@ function buildAccountUI() {
   // Settings can also close itself via its own X and Escape handlers.
   // Once it is closed, never leave an otherwise hidden gameplay HUD in front
   // of the account roster.
+  let rosterSettingsWasOpen=false;
   new MutationObserver(()=>{
-    if(document.body.classList.contains('character-selection-mode')
-       &&ui.settingsPanel.hidden)$('hud').hidden=true;
+    const open=!ui.settingsPanel.hidden;
+    const closed=rosterSettingsWasOpen&&!open;
+    rosterSettingsWasOpen=open;
+    if(document.body.classList.contains('character-selection-mode')&&!open){
+      $('hud').hidden=true;
+      // The existing Settings Escape handler focuses the gameplay canvas.
+      // On the account roster, the opener is the correct return destination.
+      if(closed&&!$('character-roster').hidden&&!$('roster-import-dialog').open)
+        $('roster-settings').focus({preventScroll:true});
+    }
   }).observe(ui.settingsPanel,{attributes:true,attributeFilter:['hidden']});
   $('resume-saved-guest').addEventListener('click', () => {
     if (net.token) net.resumeGuest(net.token);

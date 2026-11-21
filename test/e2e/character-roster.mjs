@@ -60,6 +60,7 @@ try{
  assert.equal(await page.locator('#recovery-token').inputValue(),'');
  await page.click('#roster-settings');
  await page.locator('.settings-panel button.close').click();
+ await page.waitForFunction(()=>document.activeElement?.id==='roster-settings');
  // The exact owner-supplied source image (optimized WebP) must actually be
  // served and visible behind a transparent, centered gameplay-model canvas.
  const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/art-assets/character-selection-gate.webp');
@@ -110,7 +111,9 @@ try{
   console.log('VIEWPORT_MEASURE '+JSON.stringify(data));
   if(data.pageOverflowX>2||data.pageOverflowY>2||data.panelOverflowY>2||data.clipped.length)
    layoutDefects.push({stage,section,viewport:data.viewport,pageOverflowX:data.pageOverflowX,pageOverflowY:data.pageOverflowY,panelOverflowY:data.panelOverflowY,clipped:data.clipped});
-  if(evidence)await page.screenshot({path:join(evidence,stage+'-'+section.replace(/[^a-z0-9]/gi,'-')+'-'+data.viewport.join('x')+'.png')});
+  // Screenshot one representative view per stage/viewport; measure every tab.
+  if(evidence&&(stage==='roster'||stage==='creation'&&section==='1. Identity'||stage==='settings'&&section==='Graphics'))
+   await page.screenshot({path:join(evidence,stage+'-'+section.replace(/[^a-z0-9]/gi,'-')+'-'+data.viewport.join('x')+'.png')});
  };
 
  await page.waitForFunction(
@@ -254,6 +257,16 @@ try{
  await page.locator('#character-roster').waitFor({state:'visible'});
  assert.equal(await page.locator('#roster-preview').getAttribute('data-yaw'),'0',
    'returning to an existing character restores forward orientation after manual rotation');
+ // Real sign-out and password sign-in must restore the same account-owned character.
+ await page.click('#account-signout');
+ await page.locator('#account-auth').waitFor({state:'visible'});
+ await page.fill('#account-handle','roster_validator');
+ await page.fill('#account-password','TemporaryUniqueRosterTestPassphrase2026!');
+ await page.click('#account-signin');
+ await page.locator('#character-roster').waitFor({state:'visible'});
+ assert.equal(await page.locator('#roster-list .roster-select').count(),1);
+ assert.match(await page.locator('#roster-details').textContent(),/Roster Tester/);
+ assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  if(evidence)await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
  await page.setViewportSize({width:390,height:844});
  assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
