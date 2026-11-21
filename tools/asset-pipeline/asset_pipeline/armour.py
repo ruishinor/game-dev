@@ -316,6 +316,25 @@ def _policy_tree(body, surfaces):
     return cache[key]
 
 
+def _band_smooth(c, Wd, sigma, bins=512):
+    """Gaussian blend of weights along one coordinate (the "band" mode):
+    sum_u g(c_v - c_u) W_u / sum_u g(c_v - c_u), with the sources binned so
+    large plates do not need an N x N matrix (the dense form ran out of
+    memory on a 25k-vertex greave)."""
+    c = np.asarray(c, float)
+    lo, hi = float(c.min()), float(c.max())
+    if hi - lo < 1e-9:
+        return np.repeat(Wd.mean(0, keepdims=True), len(Wd), 0)
+    nb = int(min(bins, max(8, len(c))))
+    b = np.minimum(((c - lo) / (hi - lo) * nb).astype(int), nb - 1)
+    centres = lo + (np.arange(nb) + 0.5) * (hi - lo) / nb
+    S = np.zeros((nb, Wd.shape[1]))
+    np.add.at(S, b, Wd)
+    n = np.bincount(b, minlength=nb).astype(float)
+    G = np.exp(-((c[:, None] - centres[None, :]) / sigma) ** 2)
+    return (G @ S) / np.maximum(G @ n, 1e-12)[:, None]
+
+
 def limb_weights(body, P, joint_names, policy, k=10, smooth=0.0, mode=None):
     """Weights for limb armour (gauntlets, greaves, boots): follow the limb's
     own joints on one side only, sampled from the named fit surfaces."""
@@ -333,8 +352,7 @@ def limb_weights(body, P, joint_names, policy, k=10, smooth=0.0, mode=None):
         Wd[:] = Wd.mean(0, keepdims=True)
     elif mode and mode[0] == "band":
         c = P @ np.asarray(mode[1], float) if isinstance(mode[1], list) else P[:, {"x": 0, "y": 1, "z": 2}[mode[1]]]
-        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
-        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+        Wd = _band_smooth(c, Wd, mode[2])
     s = Wd.sum(1, keepdims=True)
     fallback = s[:, 0] < 1e-6
     if fallback.any():  # no allowed joint nearby: the policy's first joint
@@ -378,8 +396,7 @@ def piece_weights(body, P, joint_names, k=10, smooth=0.0, arm_cap=0.0, mode=None
     elif mode and mode[0] == "band":
         ax = {"x": 0, "y": 1, "z": 2}[mode[1]]
         c = np.abs(P[:, ax]) if ax == 0 else P[:, ax]
-        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
-        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+        Wd = _band_smooth(c, Wd, mode[2])
     J, W = pack_weights({n: Wd[:, j] for j, n in enumerate(joint_names) if Wd[:, j].max() > 0}, joint_names, max_influences=4, prune=0.02)
     if J.shape[1] < 4:  # a piece influenced by fewer joints packs narrower
         pad = 4 - J.shape[1]
@@ -792,7 +809,7 @@ STAGES = [
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
     ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py",
                                                  HERE / "armour_families.py", HERE / "armour_parts.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
-    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py", HERE / "blender" / "armour_hardsurface.py", HERE / "armour.py"],
+    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py", HERE / "blender" / "armour_hardsurface.py"],
      lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"], **({"preview": True} if os.environ.get("ARMOUR_PREVIEW") else {})}),
     ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),
