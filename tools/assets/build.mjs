@@ -207,7 +207,7 @@ async function main() {
       sources: ['halo_construct_owner', 'ual1', 'ual2'], note: 'Produced by tools/asset-pipeline (imported-mechanical-humanoid); see docs/art/HALO-CONSTRUCT-NPC.md' }, buildPipelineAsset],
     ...['m', 'f'].map((k) => [{ id: `armour_vanguard_set_${k}`, out: `armour_vanguard_set_${k}.glb`, kind: 'skinned', report: 'tools/asset-pipeline/assets/armour_vanguard_set/outputs/export.json', reportKey: k,
       sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
-      note: `Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),
+      note: `Cinderlock Regalia (Kinetic Vanguard set), six original hard-surface modules with distance LODs for humanoid_${k}, worn by Vanguard players and the Severance Soldiers; produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),
     ...['m', 'f'].map((k) => [{ id: `armour_chest_${k}`, out: `armour_chest_${k}.glb`, kind: 'skinned', report: 'tools/asset-pipeline/assets/armour_chest/outputs/export.json', reportKey: k,
       sources: k === 'm' ? ['ual2', 'ual1', 'makehuman'] : ['ual2', 'makehuman'],
       note: `Original body-fitted chest armour for humanoid_${k}, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md` }, buildPipelineAsset]),

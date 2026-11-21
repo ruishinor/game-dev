@@ -117,6 +117,15 @@ Body penetration concentrates where rigid plates cross deforming joints in sprin
 
 **Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
 
+### Cinderlock Regalia v2 — six game-ready modules (2026-11-21)
+
+Owner request (2026-11-20): Cinderlock as the armour of the **Severance Soldier patrol groups**, to the owner's concept sheet, five-figure turnaround and written production specification. The previous four-piece build above is superseded; the item ids, the `av` contract and the hard-surface route are unchanged. Full record, measurements and open items: [Cinderlock Regalia and the Severance Soldiers](CINDERLOCK-SOLDIERS-HANDOFF.md).
+
+* **Six modules** in one GLB per body: Reactor Cuirass, deltoid caps and bicep guards (`cinderlock_arms`), Induction Gauntlets, tactical trousers with belt and thigh plates (`cinderlock_legs`), Impact Greaves, Anchor Boots. The two new modules are not items: the cuirass item wears the arms module and the greaves item wears the legs module (`shared/armour-visual.js` `ARMOUR_MODULES`), so players and soldiers look the same.
+* **Budget:** LOD0 ≤ 28,000 triangles per set including the animated channel strips (per-module budgets from the specification), LOD1 about half, LOD2 about a quarter. Distance LODs switch at runtime with hysteresis; the far levels carry the channels as an HDR emissive map.
+* **Method added to the route:** strip unseen inner faces, unwrap each piece, share the module budget over its pieces, decimate with the channel grooves protected, pack two shared 2048² atlases (upper, lower) and bake every map from the high-detail build; MikkTSpace tangents exported; Manifold boolean solver; a damaged-piece report.
+* **Palette and channels:** plates `#232528` (metallic 0.85, roughness 0.38), straps/trim `#16171A` (0.25, 0.62), undersuit `#1C1D20` (0, 0.78); channels crimson `#FF1E1E` falling to about `#990000` at the edges.
+
 ## Rare class armour collection (owner specification, 2026-11-20)
 
 Four class sets, 16 pieces, 16 blueprints, 16 recipes, 12 cumulative effects. Owner references: four armour sheets (Cinderlock Regalia, Mycelial Accord, Vesperglass Array, Strataweave Fieldkit) and four VFX family sheets (Kinetic Vanguard, Symbiotech Conductor, Aegis Keeper, Brine Surveyor). They are owner material, kept out of the repository; the sheet borders and UI frames are not armour colours.
