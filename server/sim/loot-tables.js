@@ -17,6 +17,8 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
     { item: 'conductive_membrane', chance: 0.42 },
   ]),
   warden: freezeDrops([{ item: 'wardstone_shard', chance: 0.12 }]),
+  // Owner decision (2026-11-21): the Severance squads drop no items.
+  severance_soldier: freezeDrops([]),
 });
 export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',turret_drone:'sentinel_alloy',warden:'resonance_fragment'});
 // Generic playtest salvage; deliberately independent of equipment RNG.
@@ -78,7 +80,8 @@ export function eliteUncommonPool() {
   return Object.keys(ITEMS).filter((id) => ITEMS[id].rarity === 'Uncommon').sort();
 }
 export function eliteUncommonDrop(e, char, rng) {
-  if (!isEliteEnemy(e)) return null;
+  // Owner decision (2026-11-21): the Severance squads, sergeants included, drop no items.
+  if (!isEliteEnemy(e) || e.type === 'severance_soldier') return null;
   const n = rng();
   if (!Number.isFinite(n) || n < 0 || n >= 1 || n >= ELITE_UNCOMMON_CHANCE) return null;
   const owned = new Set(Array.isArray(char?.inventory) ? char.inventory : []);
