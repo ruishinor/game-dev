@@ -102,7 +102,7 @@ test('GM catalogue grants each existing item once, marks inventory and preserves
 });
 
 test('GM credits and materials are additive, validated and capped', () => {
-  const g = makeGame(), p = g.addPlayer(makeChar('surveyor'));
+  const g = makeGame(), p = g.addPlayer(makeChar('surveyor', { credits: 0 }));
   assert.equal(executeGm(g, p, 'credits 999').ok, true);
   assert.equal(p.char.credits, 999);
   assert.equal(executeGm(g, p, 'credits 1').ok, true);
