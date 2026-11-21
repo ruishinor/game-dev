@@ -118,3 +118,29 @@ test('Atlas labels avoid object clusters, preserve priority and remain within th
       Math.abs(a.y-b.y)>=18,'place names must not overlap each other');
   }
 });
+
+
+test('waypoint caption takes priority over a colocated site without obscuring either marker',()=>{
+  const anchor={x:360,y:220};
+  const labels=[
+    {name:'Sanctum staging point',...anchor,kind:'waypoint'},
+    {name:'Lattice Sanctum',...anchor}
+  ];
+  const markers=[{...anchor,r:16},{x:anchor.x,y:anchor.y-15,r:16}];
+  const positioned=placeAtlasLabels(labels,markers,800,500,name=>name.length*7);
+  assert.equal(positioned.length,2,'both nearby captions should fit on a desktop Atlas');
+  assert.equal(positioned[0].kind,'waypoint','personal navigation caption must be placed first');
+  const [personal,place]=positioned;
+  const bounds=item=>{
+    const half=(item.name.length*7+10)/2;
+    return {left:item.x-half,right:item.x+half,top:item.y-14,bottom:item.y+4};
+  };
+  const a=bounds(personal),b=bounds(place);
+  assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,
+    'waypoint and authored place captions must not overlap');
+  for(const box of [a,b])for(const m of markers){
+    const cx=Math.max(box.left,Math.min(m.x,box.right)),cy=Math.max(box.top,Math.min(m.y,box.bottom));
+    assert.ok((cx-m.x)**2+(cy-m.y)**2>=(m.r+3)**2,
+      'captions must not cover the waypoint marker');
+  }
+});
