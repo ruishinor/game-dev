@@ -32,7 +32,7 @@ try{
    if(enemy.annexEncounter)continue;
    enemy.state='dead';enemy.deadAt=-1e9;enemy.respawnAt=Infinity;enemy.threat.clear();
  }
- p.char.level=3;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
+ p.char.level=8;p.char.attunements=['resonance'];server.game.refreshStats(p);server.game.markDirty(p);
  async function move(o,z=1.7){p.x=o.x;p.z=o.z+z;await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.you.x-x,s.you.z-z)<.5&&Math.hypot(s.pos.x-x,s.pos.z-z)<1;},[p.x,p.z]);}
  await move(f.indexer);
  await page.evaluate(software=>{

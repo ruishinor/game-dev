@@ -1,3 +1,4 @@
+import { killXp } from './enemy-levels.js';
 import {appearanceString} from '../../shared/appearance.js';
 // Character progression: experience, loot, directives, loadout changes and
 // world interactions. All mutations of persistent character state go
@@ -114,7 +115,6 @@ export function checkDirective(game, p) {
 
 /** Reward everyone who fought the enemy. Small groups are never split. */
 export function onEnemyKilled(game, enemy, creditedIds) {
-  const def = ENEMIES[enemy.type];
   // Corpse generation changes only once per death, even when a reward
   // delivery is retried. Share that existing guard with XP and directives.
   const generation = enemy.lootGeneration || 0;
@@ -125,7 +125,7 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
-    grantXp(game, p, def.xp);
+    grantXp(game, p, killXp(enemy, p.char.level));
     if(recordFoundryKill(game,p,enemy))continue; // Foundry archetypes do not complete Reach directives
     if(enemy.annexEncounter){
       const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;

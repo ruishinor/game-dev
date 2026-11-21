@@ -10,6 +10,7 @@ import { makeGame, makeChar, place } from './helpers.js';
 import { dealDamage, useAbility } from '../server/sim/combat.js';
 import { SALVAGE_GARRISON } from '../server/sim/severance-camps.js';
 import { SEVERANCE_PATROLS } from '../server/sim/severance-patrols.js';
+import { levelHpMul } from '../server/sim/enemy-levels.js';
 import { SALVAGE_CAMP_URL, createSalvageCamp } from '../client/src/salvage-camp.js';
 
 function opened() {
@@ -50,7 +51,7 @@ test('the garrison spawns once with the Expanse, holds posts and is led by a ser
   assert.equal(g.enemies.filter((e) => e.severanceCamp).length, SALVAGE_GARRISON.length, 'no duplicate spawn');
   const elite = camp.find((e) => e.elite);
   assert.ok(elite && elite.name === 'Forge Overseer');
-  assert.equal(elite.maxHp, Math.round(ENEMIES.sentinel.hp * elite.elite.hp));
+  assert.equal(elite.maxHp, Math.round(ENEMIES.sentinel.hp * levelHpMul(elite) * elite.elite.hp));
   assert.equal(elite.hp, elite.maxHp);
   for (const e of camp) assert.ok(Math.hypot(e.x - C.x, e.z - C.z) < C.wall - 1, e.name + ' inside the palisade');
   // the snapshot marks it elite and tags its look; multipliers stay server-side

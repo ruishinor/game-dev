@@ -1,3 +1,4 @@
+import { regionEntryDenial, RIFT_LEVEL } from './enemy-levels.js';
 import {migrateSurveyStrider} from './survey-strider.js';
 // Authoritative world simulation. No I/O here: the network layer feeds
 // validated commands in and reads snapshots/events out, and tests drive the
@@ -297,8 +298,11 @@ export class Game {
     if(!entering&&!exiting)return {ok:false,reason:'Unknown phase gate.'};
     if(p.dead||dist(p,obj)>5||!hasLineOfSight(p,obj))return {ok:false,reason:'Approach the gate while alive.'};
     if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
-    if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
+    if(entering&&!(p.char.level>=RIFT_LEVEL))return {ok:false,reason:`The Phase Scar requires character level ${RIFT_LEVEL}.`};
+    if(entering&&(inRiftAnnex(p.x,p.z)||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
+    const regionDenial=entering&&this.severance?regionEntryDenial('severance_expanse',p.char):null;
+    if(regionDenial)return {ok:false,reason:regionDenial};
     if(entering&&!this.severance)this.openAnnex();
     if(entering&&this.severance)this.openExpanse();
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.

@@ -220,7 +220,7 @@ test('pocket is a bounded, disconnected travel region with its own zone labels',
 
 function gameWith(over = {}) {
   const g = makeGame();
-  const p = g.addPlayer(makeChar('keeper', { level: 3, attunements: ['resonance'], riftCalibration: 'completed', ...over }));
+  const p = g.addPlayer(makeChar('keeper', { level: 8, attunements: ['resonance'], riftCalibration: 'completed', ...over }));
   return { g, p };
 }
 const tick = (g, ms) => { g.time += ms; tickSeveranceGate(g); };
@@ -290,7 +290,7 @@ test('gate travel: only through the passage, active, calibrated, alive, out of c
   assert.equal(ev[0].m, 0);
   assert.equal(g.eventRegions.get(ev[0]), 'severance_expanse', 'cue delivered to the gate region');
   // a second traveller within the window gets the minor response only
-  const q = g.addPlayer(makeChar('vanguard', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
+  const q = g.addPlayer(makeChar('vanguard', { level: 8, attunements: ['resonance'], riftCalibration: 'completed' }));
   place(q, stand.x, stand.z);
   g.time += 1000;
   assert.ok(interact(g, q, s.gate.id).ok);
@@ -389,7 +389,7 @@ test('companions summon and follow in the Severance Expanse and the Silent Found
   const { tickSpindle } = await import('../server/sim/spindle.js');
   for (const [where, at] of [['expanse arrival', SEVERANCE_POCKET.arrival], ['gate front', GATE_FRONT], ['foundry arrival', SILENT_FOUNDRY.arrival]]) {
     const g = makeGame();
-    const p = g.addPlayer(makeChar('vanguard', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
+    const p = g.addPlayer(makeChar('vanguard', { level: 8, attunements: ['resonance'], riftCalibration: 'completed' }));
     assert.ok(manageCompanion(g, p, 'commission', 'spindle').ok);
     place(p, at.x, at.z);
     const r = manageCompanion(g, p, 'summon', 'spindle');

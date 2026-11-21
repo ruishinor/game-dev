@@ -1,5 +1,6 @@
 // World-owned anomaly lifecycle. Only its current phase and warning are
 // replicated. Timings, damage and transition validation stay server-side.
+import { RIFT_LEVEL } from './enemy-levels.js';
 import { RIFT_SITE,dist,hasLineOfSight } from '../../shared/world.js';
 import { dealDamage } from './combat.js';
 import {sanitizeRiftCalibration} from './rift-journal.js';
@@ -25,7 +26,7 @@ export function interactRift(game,p,obj,{grantSalvage}={}){
  if(obj===f.core){
   const state=sanitizeRiftCalibration(p.char.riftCalibration);
   if(state==='recorded'){
-   if(!p.char.attunements.includes('resonance')||p.char.level<3)return deny('Calibration recovery requires level 3 and Resonance.');
+   if(!p.char.attunements.includes('resonance')||p.char.level<RIFT_LEVEL)return deny(`Calibration recovery requires level ${RIFT_LEVEL} and Resonance.`);
    if(f.phase==='opening'||f.phase==='unstable')return deny('Wait for a safe phase before recovering your sample.');
    if(game.time<p.combatUntil||p.autoOn)return deny('Disengage before recovering your sample.');
    // Synchronous grant and completion enter the same persisted record. If
@@ -41,7 +42,7 @@ export function interactRift(game,p,obj,{grantSalvage}={}){
   game.message(p,'info','Phase Scar: '+f.phase+'. Stabilize the field at the regulator to record a calibration. Withdraw from marked ground.');return ok;
  }
  if(!p.char.attunements.includes('resonance'))return deny('Requires Resonance attunement.');
- if(p.char.level<3)return deny('The field instruments require level 3.');
+ if(!(p.char.level>=RIFT_LEVEL))return deny(`The field instruments require level ${RIFT_LEVEL}.`);
  if(obj===f.indexer){
   if(f.phase!=='dormant')return deny('The phase cycle is already running or cooling.');
   if(game.time<p.combatUntil)return deny('Disengage before energizing the indexer.');

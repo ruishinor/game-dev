@@ -14,7 +14,7 @@ import path from 'node:path';
 import {buildRift,buildRiftControl} from '../client/src/rift-visual.js';
 import {createVfx} from '../client/src/vfx/engine.js';
 import {CombatVfx} from '../client/src/vfx/combat.js';
-const eligible=()=>makeChar('vanguard',{level:3,attunements:['resonance']});
+const eligible=()=>makeChar('vanguard',{level:5,attunements:['resonance']});
 const at=(p,o)=>place(p,o.x,o.z+1.7);
 test('phase scar is additive, outside named sites, supported and accessible from both regulators',()=>{
  assert.ok(RIFT_SITE);const {x,z}=RIFT_SITE;assert.equal(zoneAt(x,z),'The Phase Scar');
@@ -61,7 +61,7 @@ test('Phase Scar calibration is personal, persisted and recoverable exactly once
  try{
   const filename=path.join(dir,'characters.json'),store=new CharacterStore(filename);
   const {char,token}=store.create('Rift Calibrator','vanguard');
-  Object.assign(char,{level:3,attunements:['resonance'],materials:{resonance_fragment:99}});
+  Object.assign(char,{level:5,attunements:['resonance'],materials:{resonance_fragment:99}});
   const g=makeGame(),p=g.addPlayer(char),visitor=g.addPlayer(eligible()),f=g.rift;
   const entry=actor=>questLog(g.sheet(actor)).find(q=>q.id==='field:rift_calibration');
   assert.equal(entry(p),undefined);assert.equal(entry(visitor),undefined);

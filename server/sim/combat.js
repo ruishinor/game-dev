@@ -1,6 +1,7 @@
 // Combat rules: damage, healing, threat, buffs and player abilities.
 // Every outcome a client sees originates here.
 
+import { levelDmgMul } from './enemy-levels.js';
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR, AUTO_REFERENCE_MS } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
@@ -87,6 +88,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if (actor && !opts.flat) amt *= actor.stats.power * actor.stats.dmgMul;
   if (src && src.kind === 'enemy') {
     if (src.elite?.dmg) amt *= src.elite.dmg;
+    amt *= levelDmgMul(src);
     const sap = getBuff(src, 'sap');
     if (sap) amt *= sap.mul;
   }
