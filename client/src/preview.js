@@ -19,7 +19,7 @@ const items = (q.get('items') || 'look:vanguard_plate,look:aegis_keeper,look:con
 // Invalid/negative/huge values otherwise produce zero-sized or enormous canvases.
 const requestedCols = Number(q.get('cols'));
 const cols = q.has('cols') && Number.isFinite(requestedCols) && requestedCols >= 1
-  ? Math.min(items.length || 1, Math.floor(requestedCols))
+  ? Math.min(8, items.length || 1, Math.floor(requestedCols))
   : Math.min(4, items.length || 1);
 const requestedCell = Number(q.get('cell'));
 const cell = q.has('cell') && Number.isFinite(requestedCell) && requestedCell >= 64
