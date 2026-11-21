@@ -197,6 +197,19 @@ def blueprint_render(sc, objs, path, p):
         saved[o.name] = [s_.material for s_ in o.material_slots]
         for s_ in o.material_slots:
             s_.material = fill
+    # Freestyle's view map grows with every small bevel and tread edge (a
+    # 60k-triangle greave ran the render out of memory): schematic linework
+    # needs the shape, not the micro-detail, so heavy pieces are simplified
+    # for this pass only
+    budget = int(bp.get("tri_budget", 22000))
+    reduce = []
+    for o in objs:
+        if o.type == "MESH":
+            n = sum(len(f.vertices) - 2 for f in o.data.polygons)
+            if n > budget:
+                md = o.modifiers.new("_bp_decimate", "DECIMATE")
+                md.ratio = budget / n
+                reduce.append((o, md))
     sc.render.use_freestyle = True
     sc.render.line_thickness_mode = "ABSOLUTE"
     sc.render.line_thickness = bp.get("line", 1.1)
@@ -204,6 +217,7 @@ def blueprint_render(sc, objs, path, p):
     vl.use_freestyle = True
     fs = vl.freestyle_settings
     fs.crease_angle = math.radians(bp.get("crease", 150))
+    fs.use_culling = True
     ls = fs.linesets[0] if len(fs.linesets) else fs.linesets.new("bp")
     ls.select_by_visibility = True
     ls.visibility = "VISIBLE"
@@ -218,6 +232,8 @@ def blueprint_render(sc, objs, path, p):
     sc.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
     sc.render.use_freestyle = False
+    for o, md in reduce:
+        o.modifiers.remove(md)
     for o in objs:
         for s_, m0 in zip(o.material_slots, saved[o.name]):
             s_.material = m0
