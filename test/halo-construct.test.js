@@ -104,7 +104,7 @@ test('halo: the runtime bundle has every mesh and clip the client roles use', ()
   const meshes = new Set(j.meshes.map((m) => m.name));
   const clips = new Set(j.animations.map((a) => a.name));
   const src = read('client/src/halo-construct.js').toString();
-  const named = [...src.matchAll(/'((?:body|ring_[a-z]+|security|vendor|stave|equip_[a-z]+))'/g)].map((m) => m[1]);
+  const named = [...src.matchAll(/'((?:body(?:_paint)?|ring_[a-z_]+|security|vendor|stave|equip_[a-z]+))'/g)].map((m) => m[1]);
   assert.ok(named.length >= 8);
   for (const n of named) assert.ok(meshes.has(n), `mesh ${n}`);
   for (const c of ['Guard_Watch_Loop', 'Idle_Loop', 'Idle_Talking_Loop', 'Interact']) assert.ok(clips.has(c), `clip ${c}`);

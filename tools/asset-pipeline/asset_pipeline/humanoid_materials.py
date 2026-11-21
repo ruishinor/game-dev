@@ -301,6 +301,29 @@ def synthesize(paths, cfg, kit_points, landmarks=None):
     flat = np.array([0.5, 0.5, 1.0], np.float32)
     nrm = nrm * (1 - 0.7 * textile_w[..., None]) + flat * 0.7 * textile_w[..., None]
     out[~covered] = 0.5
+    # optional painted livery (owner direction 2026-11-21, vendor): the shell
+    # repainted a clean white and everything that is not shell (base garments,
+    # mechanism) ebony, keeping only the gentle shading of each class; optics
+    # keep their colour. Same UVs, ORM and normal map as the base body.
+    paint = None
+    pc = cfg.get("paint")
+    if pc:
+        lum_o = out @ np.array([0.3, 0.59, 0.11], np.float32)
+        # a texel is ebony once it is even partly garment or mechanism: the
+        # garment masks feather into the shell, and a soft split left white
+        # notches along the crop-top hem
+        other = np.maximum(textile_w, (mech_w if landmarks is not None and cfg.get("mechanism") else dark_mech.astype(np.float32)))
+        shell_w = 1 - smoothstep(*pc.get("ebony_edge", [0.18, 0.4]), cv2.GaussianBlur(other.astype(np.float32), (0, 0), 1.0))
+        sm = max(float(np.median(lum_o[(shell_w > 0.9) & covered])), 1e-3)
+        rel_s = np.clip(cv2.GaussianBlur(lum_o, (0, 0), 2) / sm, *pc.get("shell_range", [0.78, 1.08]))
+        dk = (shell_w < 0.1) & covered & ~optics
+        dm = max(float(np.median(lum_o[dk])), 1e-3) if dk.any() else 0.2
+        rel_d = np.clip(cv2.GaussianBlur(lum_o, (0, 0), 2) / dm, 0.8, 1.3)
+        white = np.asarray(pc["shell"], np.float32)[None, None] * rel_s[..., None]
+        ebony = np.asarray(pc["ebony"], np.float32)[None, None] * rel_d[..., None]
+        paint = white * shell_w[..., None] + ebony * (1 - shell_w[..., None])
+        paint = np.where(optics[..., None], out, paint)
+        paint[~covered] = 0.5
     report = {
         "covered_fraction": float(covered.mean()),
         "bake_misses_filled": int(miss.sum()),
@@ -317,4 +340,8 @@ def synthesize(paths, cfg, kit_points, landmarks=None):
             "emissive": "optics mask x source colour x %.2f" % cfg.get("optics_emission", 0.8),
         },
     }
-    return {"basecolor": out, "orm": orm, "normal": nrm, "emissive": emis, "masks": np.stack([top_w, sh_w, use_donor], -1)}, report
+    maps = {"basecolor": out, "orm": orm, "normal": nrm, "emissive": emis, "masks": np.stack([top_w, sh_w, use_donor], -1)}
+    if paint is not None:
+        maps["basecolor_paint"] = np.clip(paint, 0, 1)
+        report["paint"] = {"shell": list(pc["shell"]), "ebony": list(pc["ebony"]), "method": "shell recoloured with its own relative shading; garments and mechanism ebony; optics kept"}
+    return maps, report

@@ -426,29 +426,22 @@ def design_vendor(body):
     L = body.L
     deg = np.radians
     pieces = []
-    # waist wrap: folded band around the waist
-    V, F = param_panel(body, 6, 72, lambda s, q: (2 * np.pi * q - np.pi, 1.035 + 0.085 * s + 0.008 * np.sin(6 * np.pi * q),
-                                                   0.016 + 0.006 * np.sin(14 * np.pi * q + 3 * s) * np.sin(np.pi * s)), closed=True)
-    pieces.append({"name": "sash_wrap", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004, "subdivide": True})
-    # shoulder sash: back right hip -> over the left shoulder -> down the front to the wrap
+    # Owner direction 2026-11-21: the vendor wears a blue sash only (no waist
+    # wrap, no shoulder plate), on the guard body with the vertical ring.
+    # shoulder sash: back right hip -> over the left shoulder -> down the front to the knot
     c = lambda y: body.torso_centre(y)
     path = [c(1.10) + [-0.10, 0, -0.16], c(1.28) + [-0.02, 0, -0.16], c(1.44) + [0.08, 0, -0.10], c(1.50) + [0.115, 0.0, -0.02],
             c(1.45) + [0.10, 0, 0.11], c(1.33) + [0.065, 0, 0.15], c(1.20) + [0.06, 0, 0.12], c(1.10) + [0.11, 0, 0.14]]
     V, F = ribbon(body, path, lambda t: 0.105 - 0.03 * np.exp(-((t - 0.45) / 0.12) ** 2), 0.017, n=48)
-    pieces.append({"name": "sash_shoulder", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.004, "subdivide": True})
+    pieces.append({"name": "sash_shoulder", "set": "vendor", "core": True, "mat": "sash_blue", "skin": "transfer", "V": V, "F": F, "thickness": 0.004, "subdivide": True})
     th = deg(68)
     r = body.torso_radius(1.075, np.array([th]))[0] + 0.035
     k = c(1.075) + [r * np.sin(th), 0, r * np.cos(th)]
     V, F = blob(k, np.array([0.042, 0.038, 0.034]), seed=4)
-    pieces.append({"name": "sash_knot", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "rigid:pelvis", "V": V, "F": F})
+    pieces.append({"name": "sash_knot", "set": "vendor", "core": True, "mat": "sash_blue", "skin": "rigid:pelvis", "V": V, "F": F})
     for i, (length, width, sway, ph) in enumerate(((0.44, 0.085, [0.03, 0, 0.02], 0.0), (0.35, 0.07, [0.045, 0, -0.025], 1.3))):
         V, F = hanging_ribbon(k + [0.012 * i, -0.025, 0.01 - 0.02 * i], length, width, np.array(sway), phase=ph)
-        pieces.append({"name": f"sash_tail{i}", "set": "vendor", "core": True, "mat": "navy_cloth", "skin": "transfer", "V": V, "F": F, "thickness": 0.003, "subdivide": True})
-    # olive shoulder plate on the right shoulder, two lames
-    for kk, (t0, t1, half, off) in enumerate(((-0.45, 0.38, 1.8, 0.02), (-0.45, 0.05, 1.5, 0.034))):
-        V, F = pauldron(body, "r", t0, t1, half, off)
-        pieces.append({"name": f"shoulder_plate{kk}", "set": "vendor", "core": True, "mat": "olive_plate", "skin": "rigid:upperarm_r",
-                       "V": V, "F": F, "thickness": 0.005, "bevel": 0.002})
+        pieces.append({"name": f"sash_tail{i}", "set": "vendor", "core": True, "mat": "sash_blue", "skin": "transfer", "V": V, "F": F, "thickness": 0.003, "subdivide": True})
     # brass buckle holding the sash at the left shoulder front
     i = 4
     S, N = ribbon(body, path, 0.1, 0.02, n=48)[0].reshape(48, 3, 3)[int(0.62 * 47), 1], None
