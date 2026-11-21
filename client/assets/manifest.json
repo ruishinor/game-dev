@@ -817,6 +817,16 @@
     "scifi_megakit"
    ]
   },
+  "reach_atlas": {
+   "kind": "chart",
+   "url": "atlas/reach-handdrawn.svg",
+   "bytes": 10775,
+   "hash": "db2d2decb815",
+   "sources": [
+    "original"
+   ],
+   "note": "Original hand-authored Verdigris Reach chart (PR #187); coordinate projection defined in world-atlas.js."
+  },
   "sanctum": {
    "kind": "kit",
    "url": "sanctum.glb",
