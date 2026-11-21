@@ -207,7 +207,8 @@ void main() {`,
 	if ( uRace > 3.5 ) {
 		// Relative to the nose tip: the eye centre is near (0.032, 0.029, -0.067).
 		vec3 q = vSkP - uNose;
-		implant = smoothstep( 0.040, 0.050, q.x ) * smoothstep( -0.026, -0.016, q.y ) * ( 1.0 - smoothstep( 0.082, 0.092, q.y ) ) * smoothstep( -0.162, -0.152, q.z ) * ( 1.0 - smoothstep( -0.047, -0.037, q.z ) );
+		implant = smoothstep( 0.036, 0.044, q.x ) * smoothstep( -0.026, -0.016, q.y ) * ( 1.0 - smoothstep( 0.082, 0.092, q.y ) ) * smoothstep( -0.162, -0.152, q.z ) * ( 1.0 - smoothstep( -0.03, -0.022, q.z ) );
+		implant *= 1.0 - ( 1.0 - smoothstep( 0.024, 0.03, length( vec2( q.x - 0.032, q.y - 0.029 ) ) ) ); // keep the eye itself clear
 		implant *= 1.0 - scalpA;
 		vec2 cell = vec2( q.y, q.z ) * 110.0;
 		vec2 cf = abs( fract( cell + vec2( 0.0, floor( cell.x ) * 0.5 ) ) - 0.5 );
@@ -215,7 +216,7 @@ void main() {`,
 		node = implant * step( 0.82, skinHash( floor( cell + vec2( 0.0, floor( cell.x ) * 0.5 ) ) ) ) * ( 1.0 - smoothstep( 0.12, 0.2, length( cf ) ) );
 		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.32, 0.34, 0.36 ) * ( 0.55 + 0.45 * panelLine ), implant );
 		float er = length( vec2( q.x - 0.032, q.y - 0.029 ) );
-		ocular = ( 1.0 - smoothstep( 0.0015, 0.003, abs( er - 0.021 ) ) ) * step( -0.08, q.z );
+		ocular = ( 1.0 - smoothstep( 0.001, 0.0022, abs( er - 0.02 ) ) ) * step( -0.08, q.z );
 		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.27, 0.29 ), ocular );
 	}`,
       )
@@ -236,7 +237,7 @@ void main() {`,
         `#include <emissivemap_fragment>
 	// Velari seams breathe slowly; Augmented nodes and ocular ring hold steady.
 	totalEmissiveRadiance += seamTint * seam * ( 0.24 + 0.1 * sin( uTime * 1.1 + vSkP.y * 40.0 ) );
-	totalEmissiveRadiance += vec3( 0.35, 0.9, 1.0 ) * ( node * 0.9 + ocular * 0.55 );`,
+	totalEmissiveRadiance += vec3( 0.35, 0.9, 1.0 ) * ( node * 0.9 + ocular * 0.28 );`,
       );
   };
   m.customProgramCacheKey = () => 'attune-skin-v4';
