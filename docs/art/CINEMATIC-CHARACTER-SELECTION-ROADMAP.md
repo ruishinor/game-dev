@@ -1,3 +1,11 @@
+## Asset relocation and legacy preview fixture correction — 21 November 2026
+
+- Preserved the exact owner-approved 58,760-byte Gate WebP blob and relocated it from the generated build-only `client/assets/` tree to the existing served `client/art-assets/` path, without recompression or invented art. CSS and browser delivery assertions use the new path. The generated asset manifest and producer remain unchanged; no hand-edited registration will be lost during a build.
+- Updated legacy guest/browser fixture interactions to navigate the actual Body/Details tabs and explicitly expand camera controls before interacting. No ownership, creation/deletion persistence, or game character models are changed by this fixture correction.
+- This is not visual acceptance or a resolution of remaining integrated gameplay failures.
+
+---
+
 ## Owner-proven defects — follow-up corrective batch, 20 November 2026
 
 **Runtime evidence:** owner's three screenshots show (1) visibly blurred Gate backdrop, (2) expanded Inspect tools colliding with Delete/Create actions, (3) Settings as an overflowing, scrolling modal, and (4) roster New Character entry not responding. The selected character also appears too high in the frame. These are accepted defects, not aesthetic disagreement.

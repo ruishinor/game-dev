@@ -73,7 +73,11 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   if(appearance){
-    for(const [group,value] of Object.entries(appearance))await page.click(`#ap-${group} [data-value="${value}"]`);
+    // The creator exposes appearance through user-facing Body / Details tabs.
+    for(const [group,value] of Object.entries(appearance)){
+      await page.getByRole('tab',{name:group==='hair'||group==='colour'?'3. Details':'2. Body'}).click();
+      await page.click(`#ap-${group} [data-value="${value}"]`);
+    }
   }
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
