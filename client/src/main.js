@@ -457,6 +457,7 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
+  gm: line => net.send({ t: 'gm', line }),
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),

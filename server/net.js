@@ -13,6 +13,7 @@ import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
 import { useUtility } from './sim/utility.js';
 import { sameTravelRegion, travelRegionAt } from '../shared/world.js';
+import { gmIds, gmAuthorized, executeGm } from './gm.js';
 import { MAX_ACCOUNT_CHARACTERS } from './store.js';
 
 export const PROTOCOL_VERSION = 1;
@@ -52,6 +53,7 @@ export class NetServer {
     this.wss = wss;
     this.game = game;
     this.store = store;
+    this.gmAccounts = gmIds(process.env.ATTUNEMENT_GM_ACCOUNT_IDS || '');
     this.conns = new Set();
     /** character id -> connection currently controlling it */
     this.sessions = new Map();
@@ -333,6 +335,18 @@ export class NetServer {
       if (res && !res.ok && res.reason) game.message(p, 'err', res.reason);
     };
     switch (msg.t) {
+      case 'gm': {
+        if (Object.keys(msg).length !== 2 || typeof msg.line !== 'string' || msg.line.length > 120)
+          return this.strike(conn);
+        if (!gmAuthorized(conn, this.gmAccounts, this.store, this.sessions, game))
+          return reply({ ok: false, reason: 'GM access denied.' });
+        const result = executeGm(game, p, msg.line);
+        reply(result);
+        if (result.ok && !['help', 'status'].includes(result.action))
+          console.info('[gm]', JSON.stringify({ account: conn.account.id.slice(0, 8),
+            character: conn.char.id.slice(0, 8), action: result.action, target: result.target || null }));
+        break;
+      }
       case 'in': {
         if (!Array.isArray(msg.s) || msg.s.length > MAX_INPUTS_PER_MSG) return this.strike(conn);
         const inputs = [];

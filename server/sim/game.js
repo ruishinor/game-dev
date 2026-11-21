@@ -236,7 +236,9 @@ export class Game {
   // --- movement ----------------------------------------------------------
 
   moveSpeedMul(p) {
-    return p.dead ? 0 : 1;
+    // Owner GM preview bonus is session-only, bounded and server-authoritative.
+    // The regular snapshot `sp` also updates the client's existing predictor.
+    return p.dead ? 0 : 1 + Math.min(300, Math.max(0, p.gmSpeedBonus || 0)) / 100;
   }
 
   /**
