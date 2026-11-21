@@ -76,6 +76,43 @@ try{
  assert.match(backdrop,/character-selection-gate\.webp/);
  const fitsViewport=()=>document.documentElement.scrollHeight<=innerHeight+2
    &&document.body.scrollHeight<=innerHeight+2;
+ const viewportCases=[[320,568],[390,844],[844,390],[1280,720],[1366,768],[1920,1080],[2560,1440]];
+ const layoutDefects=[];
+ const measureLayout=async(stage,section)=>{
+  const data=await page.evaluate(({stage,section})=>{
+   const get=(s)=>document.querySelector(s);
+   const targets=stage==='creation'
+    ? ['#creation-fields','#enter','#creation-back','.creation-screen-tabs',...(
+       section==='1. Identity'?['#name','#classes .classcard']:section==='2. Body'?['#appearance','#ap-frame button']:['.creation-details','#ap-hair button'])]
+    :stage==='roster'
+     ? ['.roster-cards','#roster-list .roster-select','#roster-list .roster-slot-vacant','.roster-cards [data-preview-inspect]','#roster-enter','#roster-create','#roster-delete','#roster-settings']
+     :['.settings-panel','.settings-screen-tabs','.settings-screen-page:not([hidden])','.settings-panel button.close'];
+   const geometry=targets.map(selector=>{
+    const el=get(selector);
+    if(!el||!el.getClientRects().length)return null;
+    const r=el.getBoundingClientRect();
+    let clipped=r.left<-.5||r.top<-.5||r.right>innerWidth+.5||r.bottom>innerHeight+.5;
+    for(let p=el.parentElement;p;p=p.parentElement){
+     const st=getComputedStyle(p),overflow=st.overflow+st.overflowX+st.overflowY;
+     if(!/(hidden|clip|auto|scroll)/.test(overflow))continue;
+     const box=p.getBoundingClientRect();
+     if(r.left<box.left-.5||r.top<box.top-.5||r.right>box.right+.5||r.bottom>box.bottom+.5){clipped=true;break;}
+    }
+    return {selector,x:Math.round(r.left),y:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),clipped};
+   }).filter(Boolean);
+   const panel=get(stage==='creation'?'#creation-fields':stage==='settings'?'.settings-screen-page:not([hidden])':'#roster-list');
+   return {stage,section,viewport:[innerWidth,innerHeight],
+    pageOverflowX:Math.max(0,document.documentElement.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth),
+    pageOverflowY:Math.max(0,document.documentElement.scrollHeight-innerHeight,document.body.scrollHeight-innerHeight),
+    panelOverflowY:panel?Math.max(0,panel.scrollHeight-panel.clientHeight):0,
+    clipped:geometry.filter(g=>g.clipped).map(g=>g.selector),geometry};
+  },{stage,section});
+  console.log('VIEWPORT_MEASURE '+JSON.stringify(data));
+  if(data.pageOverflowX>2||data.pageOverflowY>2||data.panelOverflowY>2||data.clipped.length)
+   layoutDefects.push({stage,section,viewport:data.viewport,pageOverflowX:data.pageOverflowX,pageOverflowY:data.pageOverflowY,panelOverflowY:data.panelOverflowY,clipped:data.clipped});
+  if(evidence)await page.screenshot({path:join(evidence,stage+'-'+section.replace(/[^a-z0-9]/gi,'-')+'-'+data.viewport.join('x')+'.png')});
+ };
+
  await page.waitForFunction(
   ()=>document.querySelector('#roster-preview')?.dataset.sceneAsset==='reference-image',
   null,{timeout:90000}
@@ -124,6 +161,13 @@ try{
   await singlePage('mobile '+tab);
  }
  if(evidence)await page.screenshot({path:join(evidence,'character-creation-mobile.png')});
+ for(const [width,height] of viewportCases){
+  await page.setViewportSize({width,height});
+  for(const label of ['1. Identity','2. Body','3. Details']){
+   await page.getByRole('tab',{name:label}).click();
+   await measureLayout('creation',label);
+  }
+ }
  await page.setViewportSize({width:1360,height:850});
  await page.getByRole('tab',{name:'1. Identity'}).click();
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('character-create-mode')),true);
@@ -218,6 +262,17 @@ try{
  assert.equal(await page.locator('#roster-list .roster-slot-vacant').isVisible(),true,
    'New Character must stay accessible on narrow viewports');
  if(evidence)await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
+ for(const [width,height] of viewportCases){
+  await page.setViewportSize({width,height});
+  await measureLayout('roster','selected');
+  await page.click('#roster-settings');
+  await page.locator('.settings-panel').waitFor({state:'visible'});
+  for(const section of ['Graphics','Interface','More']){
+   await page.locator('.settings-screen-tabs').getByRole('tab',{name:section}).click();
+   await measureLayout('settings',section);
+  }
+  await page.locator('.settings-panel button.close').click();
+ }
  await page.setViewportSize({width:1360,height:850});
  await page.click('#roster-enter');
  await liveFixturePlayer(page,server,'Roster Tester',60000);
@@ -234,5 +289,6 @@ try{
  await page.waitForFunction(()=>document.querySelector('#roster-capacity')?.textContent?.includes('0 / 6'));
  assert.equal(await page.locator('#roster-enter').isDisabled(),true);
  assert.deepEqual(errors,[]);
- console.log('PASS account roster > creation > game > preview > world reentry > typed deletion');
+ assert.deepEqual(layoutDefects,[], 'interactive elements must fit every requested viewport without clipping or internal scroll');
+ console.log('PASS account roster > creation > game > preview > world reentry > typed deletion; all requested viewport measurements');
 }finally{await browser?.close();await server.close();await rm(temp,{recursive:true,force:true});}
