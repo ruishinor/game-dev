@@ -17,7 +17,7 @@ try{
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   await page.bringToFront();
   await page.goto('http://127.0.0.1:'+server.port+'/?q=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
-  await page.fill('#name',name);
+  await page.click('#gate-guest-link');await page.fill('#name',name);
   await page.click('.classcard[data-cls="surveyor"]');
   await page.click('#enter');
   await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.sheet?.cls==='surveyor'&&s.drawn>0&&s.draw.triangles>10000;});

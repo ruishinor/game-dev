@@ -14,7 +14,7 @@ try{
  page.setDefaultTimeout(60000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
- await page.fill('#name','Hud Tester');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Hud Tester');await page.click('#enter');
  await liveFixturePlayer(page,server,'Hud Tester',60000);
  const frames=await page.evaluate(()=>{
   const read=sel=>{const n=document.querySelector(sel),css=n&&getComputedStyle(n);return {width:n?.getBoundingClientRect().width||0,height:n?.getBoundingClientRect().height||0,hidden:n?.hidden,visibility:css?.visibility,fontSize:css?.fontSize}};
