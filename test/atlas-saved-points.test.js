@@ -30,3 +30,25 @@ test('malformed local storage is handled without rendering injected text',()=>{
   assert.match(safe.label,/script/);
   assert.equal(safe.note,'<img src=x onerror=1>');
 });
+
+
+test('loading fills the marker quota with valid unique records after corrupted entries',()=>{
+  const storage=store();
+  const valid=Array.from({length:MAX_SAVED_POINTS},(_,i)=>({
+    ...point,id:(i+100).toString(16).padStart(8,'0')+'-aaaa-4bbb-8ccc-111111111111'
+  }));
+  storage.setItem('attunement.atlas.saved.v1.'+a,JSON.stringify([
+    ...Array(MAX_SAVED_POINTS).fill(null),point,point,...valid
+  ]));
+  const loaded=loadSavedPoints(storage,a);
+  assert.equal(loaded.length,MAX_SAVED_POINTS);
+  assert.deepEqual(loaded[0],point);
+  assert.deepEqual(loaded[1],valid[0]);
+  assert.deepEqual(loaded[MAX_SAVED_POINTS-1],valid[MAX_SAVED_POINTS-2]);
+});
+test('duplicate marker IDs are rejected without overwriting earlier saved points',()=>{
+  const storage=store();
+  assert.equal(persistSavedPoints(storage,a,[point]),true);
+  assert.equal(persistSavedPoints(storage,a,[point,{...point,label:'Conflicting marker'}]),false);
+  assert.deepEqual(loadSavedPoints(storage,a),[point]);
+});

@@ -470,8 +470,8 @@ def export_pieces(pieces, npz_path, json_path):
             Vs.append(np.asarray(v, float))
             Fs.append(np.asarray(f, int) + off)
             off += len(v)
-        arrays[pc["name"] + "_V"] = np.concatenate(Vs)
-        arrays[pc["name"] + "_F"] = np.concatenate(Fs)
+        arrays[pc["name"] + "_V"] = np.concatenate(Vs) if Vs else np.zeros((0, 3))
+        arrays[pc["name"] + "_F"] = np.concatenate(Fs) if Fs else np.zeros((0, 3), int)
         meta.append({k: v for k, v in pc.items() if k not in ("V", "F")})
     np.savez(npz_path, **arrays)
     with open(json_path, "w") as f:

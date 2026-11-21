@@ -97,17 +97,17 @@ def add_glare(sc, threshold=0.85, size=0.78, strength=0.9):
     sc.render.use_compositing = True
 
 
-def boost_channels(strength):
+def boost_channels(strength, rgb=(1.0, 0.13, 0.05)):
     """The GLB carries the channels as a plain emissive factor; give them the
-    brightness the runtime shader reaches (white-hot core, red falloff)."""
+    brightness the runtime shader reaches (each family's own colour)."""
     for m in bpy.data.materials:
-        if not m.name.startswith("CL_Channel") or not m.use_nodes:
+        if not m.name.split(".")[0].endswith("_Channel") or not m.use_nodes:
             continue
         for n in m.node_tree.nodes:
             if n.type == "BSDF_PRINCIPLED":
-                n.inputs["Emission Color"].default_value = (1.0, 0.13, 0.05, 1)
+                n.inputs["Emission Color"].default_value = (*rgb, 1)
                 n.inputs["Emission Strength"].default_value = strength
-                n.inputs["Base Color"].default_value = (0.3, 0.02, 0.01, 1)
+                n.inputs["Base Color"].default_value = (rgb[0] * 0.3, rgb[1] * 0.3, rgb[2] * 0.3, 1)
 
 
 def belongs(o, item):
@@ -149,7 +149,7 @@ def op_icons(p):
         rig = p.get("rig", "soft")
         studio(sc, centre, max(size, 0.6) * (1.0 if rig == "hard" else 1.4), 0.9, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
-            boost_channels(p["channel_strength"])
+            boost_channels(p["channel_strength"], tuple(p.get("channel_rgb", (1.0, 0.13, 0.05))))
         glare_from(sc, p)
         v = {**p["view"], **p.get("views", {}).get(item, {})}
         # frame the silhouette: distance from the bounding radius and lens
@@ -161,7 +161,69 @@ def op_icons(p):
         sc.render.filepath = str(f)
         bpy.ops.render.render(write_still=True)
         icons[item] = str(f)
+        if p.get("blueprints"):
+            icons[f"blueprint_{item}"] = blueprint_render(sc, keep, out / f"blueprint_{item}_hero.png", p)
     finish(p, {"icons": icons})
+
+
+def blueprint_render(sc, objs, path, p):
+    """Technical schematic of the real piece: Freestyle linework (silhouette,
+    creases, borders) over a faint holographic fill; the gridded sheet is
+    composited afterwards (stage_icons)."""
+    bp = p.get("blueprint_style", {})
+    fill = bpy.data.materials.new("_bp_fill")
+    fill.use_nodes = True
+    nt = fill.node_tree
+    for n_ in list(nt.nodes):
+        nt.nodes.remove(n_)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    em = nt.nodes.new("ShaderNodeEmission")
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.35
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0.02, 0.12, 0.18, 1)
+    ramp.color_ramp.elements[1].color = tuple(bp.get("rim", (0.25, 0.75, 1.0))) + (1,)
+    nt.links.new(lw.outputs["Facing"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], em.inputs["Color"])
+    em.inputs["Strength"].default_value = 1.0
+    mix.inputs["Fac"].default_value = bp.get("opacity", 0.55)
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(em.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    saved = {}
+    for o in objs:
+        saved[o.name] = [s_.material for s_ in o.material_slots]
+        for s_ in o.material_slots:
+            s_.material = fill
+    if bp.get("edges", "normals") == "normals":
+        return _blueprint_normals(sc, objs, path, bp, fill, saved)
+    sc.render.use_freestyle = True
+    sc.render.line_thickness_mode = "ABSOLUTE"
+    sc.render.line_thickness = bp.get("line", 1.1)
+    vl = sc.view_layers[0]
+    vl.use_freestyle = True
+    fs = vl.freestyle_settings
+    fs.crease_angle = math.radians(bp.get("crease", 150))
+    ls = fs.linesets[0] if len(fs.linesets) else fs.linesets.new("bp")
+    ls.select_by_visibility = True
+    ls.visibility = "VISIBLE"
+    for k in ("select_silhouette", "select_border", "select_crease", "select_external_contour"):
+        setattr(ls, k, True)
+    if ls.linestyle is None:
+        ls.linestyle = bpy.data.linestyles.new("bp")
+    ls.linestyle.color = tuple(bp.get("line_rgb", (0.62, 0.93, 1.0)))
+    ls.linestyle.thickness = bp.get("line", 1.1)
+    sc.view_settings.view_transform = "Standard"
+    sc.view_settings.look = "None"
+    sc.render.filepath = str(path)
+    bpy.ops.render.render(write_still=True)
+    sc.render.use_freestyle = False
+    for o in objs:
+        for s_, m0 in zip(o.material_slots, saved[o.name]):
+            s_.material = m0
+    return str(path)
 
 
 def mannequin_material(rgb=(0.42, 0.43, 0.44), roughness=0.7):
@@ -264,7 +326,7 @@ def op_worn(p):
         rig = p.get("rig", "soft")
         studio(sc, centre, max(size, 2.0) * (0.55 if rig == "hard" else 1.0), 0.55, rig=rig, scale=p.get("light_scale", 1.0))
         if p.get("channel_strength"):
-            boost_channels(p["channel_strength"])
+            boost_channels(p["channel_strength"], tuple(p.get("channel_rgb", (1.0, 0.13, 0.05))))
         glare_from(sc, p)
         g = ground(sc, float(lo[2]), max(size, 2.0))
         if p.get("ground_rgb"):
@@ -289,6 +351,76 @@ def op_worn(p):
     finish(p, {"renders": written})
 
 
+
+def _blueprint_normals(sc, objs, path, bp, fill, saved):
+    """Schematic linework from image-space edges instead of Freestyle: the
+    holographic fill is rendered once, the camera-space normals once, and
+    creases (normal discontinuities) and the silhouette (alpha) are traced
+    in the image. Memory stays flat with geometry (Freestyle's view map ran
+    the heaviest pieces out of memory)."""
+    import cv2
+
+    fill_path = Path(str(path).replace(".png", "_fill.png"))
+    nrm_path = Path(str(path).replace(".png", "_nrm.png"))
+    sc.view_settings.view_transform = "Standard"
+    sc.view_settings.look = "None"
+    sc.render.filepath = str(fill_path)
+    bpy.ops.render.render(write_still=True)
+    nm = bpy.data.materials.new("_bp_normals")
+    nm.use_nodes = True
+    nt = nm.node_tree
+    for n_ in list(nt.nodes):
+        nt.nodes.remove(n_)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    vt = nt.nodes.new("ShaderNodeVectorTransform")
+    vt.vector_type, vt.convert_from, vt.convert_to = "NORMAL", "WORLD", "CAMERA"
+    ma = nt.nodes.new("ShaderNodeVectorMath")
+    ma.operation = "MULTIPLY_ADD"
+    ma.inputs[1].default_value = (0.5, 0.5, 0.5)
+    ma.inputs[2].default_value = (0.5, 0.5, 0.5)
+    em = nt.nodes.new("ShaderNodeEmission")
+    nt.links.new(geo.outputs["Normal"], vt.inputs["Vector"])
+    nt.links.new(vt.outputs["Vector"], ma.inputs[0])
+    nt.links.new(ma.outputs["Vector"], em.inputs["Color"])
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    for o in objs:
+        for s_ in o.material_slots:
+            s_.material = nm
+    samples = sc.cycles.samples
+    sc.cycles.samples = 4
+    sc.render.filepath = str(nrm_path)
+    bpy.ops.render.render(write_still=True)
+    sc.cycles.samples = samples
+    for o in objs:
+        for s_, m0 in zip(o.material_slots, saved[o.name]):
+            s_.material = m0
+    F = cv2.imread(str(fill_path), cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+    Nn = cv2.imread(str(nrm_path), cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+    a = Nn[..., 3]
+    n = Nn[..., :3] * 2 - 1
+    mag = np.zeros(a.shape, np.float32)
+    for c in range(3):
+        gx = cv2.Sobel(n[..., c] * a, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(n[..., c] * a, cv2.CV_32F, 0, 1, ksize=3)
+        mag += gx * gx + gy * gy
+    crease = np.clip((np.sqrt(mag) - bp.get("crease_lo", 0.9)) / (bp.get("crease_hi", 1.8) - bp.get("crease_lo", 0.9)), 0, 1)
+    ga = cv2.Sobel(a, cv2.CV_32F, 1, 0, ksize=3) ** 2 + cv2.Sobel(a, cv2.CV_32F, 0, 1, ksize=3) ** 2
+    sil = np.clip(np.sqrt(ga) * 1.5, 0, 1)
+    lines = np.maximum(crease * (a > 0.5), sil)
+    w = max(1, int(round(bp.get("line", 1.1) * F.shape[0] / 768)))
+    if w > 1:
+        lines = cv2.dilate(lines, np.ones((w, w), np.uint8))
+    lines = cv2.GaussianBlur(lines, (0, 0), 0.6)
+    lc = np.array(bp.get("line_rgb", (0.62, 0.93, 1.0)), np.float32)[::-1]  # BGR
+    rgb = F[..., :3] * (1 - lines[..., None]) + lc[None, None] * lines[..., None]
+    alpha = np.maximum(F[..., 3], lines)
+    cv2.imwrite(str(path), (np.dstack([rgb, alpha]).clip(0, 1) * 255).astype(np.uint8))
+    for f in (fill_path, nrm_path):
+        f.unlink(missing_ok=True)
+    return str(path)
+
+
 def main():
     p = payload()
     {"icons": op_icons, "worn": op_worn}[p["op"]](p)
@@ -296,3 +428,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

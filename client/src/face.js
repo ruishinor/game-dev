@@ -133,21 +133,40 @@ export function skinMaterial(assets, ap) {
     uBrow: { value: new THREE.Vector2(0.62 - ap.brow * 0.4, 0.9 - ap.brow * 0.35) },
     uStubble: { value: ap.stubble },
     uScalp: { value: ap.hairStyle === 'shaved' || ap.hairStyle === 'none' ? 0 : ap.hairStyle === 'buzz' ? 0.9 : 0.75 },
-    uRace: { value: ap.race === 'mirekin' ? 2 : 0 },
+    uRace: { value: ap.race === 'velari' ? 3 : ap.race === 'augmented' ? 4 : 0 },
+    // Nose tip of this character's baked head (set after the identity bake);
+    // implant features are placed relative to it, so identity morphs that move
+    // the face also move the implants.
+    uNose: { value: new THREE.Vector3(0, 0.818, 0.117) },
     uTime: { value: 0 },
     uLip: { value: ap.lip },
     uAge: { value: ap.morph?.age || 0 },
-    uSkinScatter: { value: new THREE.Color(deep ? 0x8a3a24 : 0xc4523a).multiplyScalar(0.55) },
+    // Velari crystal scatters cool light; other skin scatters warm.
+    uSkinScatter: { value: new THREE.Color(ap.race === 'velari' ? 0x4a78c8 : deep ? 0x8a3a24 : 0xc4523a).multiplyScalar(0.55) },
   };
   m.userData.face = uniforms;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms);
     sh.defines = { ...(sh.defines || {}), SKIN_SSS: 1 };
+    // Bind-pose object position: race features are placed on the head in
+    // object space (head y 0.68..0.95, +z forward, eyes near y 0.847).
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying vec3 vSkP;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSkP = position;');
     if (SSS_CHUNK) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>', 'uniform vec3 uSkinScatter;\n' + SSS_CHUNK);
     sh.fragmentShader = sh.fragmentShader
       .replace(
         'void main() {',
         `uniform sampler2D uSkinMasks; uniform vec3 uHairColor; uniform vec2 uBrow; uniform float uStubble, uScalp, uLip, uAge, uRace, uTime;
+uniform vec3 uNose;
+varying vec3 vSkP;
+vec3 skinHash3(vec3 p){ p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6))); return fract(sin(p) * 43758.5453); }
+// Facets: distance to the nearest and second-nearest cell point (3D Voronoi).
+vec3 skinFacets(vec3 x){ vec3 i = floor(x), f = fract(x); float d1 = 8.0, d2 = 8.0; vec3 id = vec3(0.0);
+  for (int a = -1; a <= 1; a++) for (int b = -1; b <= 1; b++) for (int c = -1; c <= 1; c++) {
+    vec3 g = vec3(float(a), float(b), float(c)); vec3 o = skinHash3(i + g); vec3 r = g + o - f; float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; id = i + g; } else if (d < d2) d2 = d; }
+  return vec3(sqrt(d2) - sqrt(d1), skinHash3(id).x, skinHash3(id + 7.0).y); }
 float skinHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float skinNoise(vec2 x){ vec2 i = floor(x); vec2 f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(skinHash(i), skinHash(i + vec2(1.0, 0.0)), f.x), mix(skinHash(i + vec2(0.0, 1.0)), skinHash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -169,38 +188,59 @@ void main() {`,
 	diffuseColor.rgb = mix( diffuseColor.rgb, hairTone * 0.9 + diffuseColor.rgb * 0.1, clamp( beardA * 0.85, 0.0, 1.0 ) );
 	diffuseColor.rgb = mix( diffuseColor.rgb, hairTone, clamp( scalpA * 0.88, 0.0, 1.0 ) );
 	float hairCover = max( browA, max( beardA, scalpA ) );
-	// Mirekin: bloom-altered skin, mottled in two scales with darker plates.
-	float mire = 0.0;
-	if ( uRace > 1.5 ) {
-		vec2 q = vMapUv * 48.0;
-		float m1 = skinHash( floor( q ) ) * 0.5 + skinHash( floor( q * 0.37 + 3.1 ) ) * 0.5;
-		float plates = smoothstep( 0.55, 0.8, m1 );
-		diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 0.72, 0.8, 0.74 ), plates * ( 1.0 - hairCover ) );
-		// Vein network: contour lines of domain-warped noise wind and fork like
-		// vessels; a second, finer octave adds capillaries. Lit from within.
-		vec2 u = vMapUv * 22.0;
-		vec2 warp = vec2( skinNoise( u * 0.7 + 4.1 ), skinNoise( u * 0.7 + 9.3 ) ) * 1.6;
-		float n1 = skinNoise( u + warp );
-		float n2 = skinNoise( u * 2.7 + warp * 1.8 + 17.0 );
-		float vein = ( 1.0 - smoothstep( 0.0, 0.035, abs( n1 - 0.5 ) ) ) * smoothstep( 0.35, 0.6, skinNoise( u * 0.45 + 2.0 ) );
-		vein += ( 1.0 - smoothstep( 0.0, 0.025, abs( n2 - 0.5 ) ) ) * 0.35;
-		mire = min( vein, 1.0 ) * ( 1.0 - hairCover ) * ( 1.0 - skMask.a );
-		diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * vec3( 0.6, 0.85, 0.85 ), mire * 0.6 );
+	// Velari: crystalline facets with resonance seams, lit from within.
+	float facet = 0.0, seam = 0.0, implant = 0.0, node = 0.0, ocular = 0.0;
+	vec3 seamTint = vec3( 0.55, 0.85, 1.0 );
+	if ( uRace > 2.5 && uRace < 3.5 ) {
+		vec3 fv = skinFacets( vSkP * 48.0 );
+		facet = 1.0 - hairCover;
+		seam = ( 1.0 - smoothstep( 0.0, 0.035, fv.x ) ) * facet * ( 1.0 - skMask.a );
+		// Each facet is a plane catching light differently: a value step and an
+		// opal hue shift per cell, so the skin reads as cut crystal, not glaze.
+		vec3 opal = mix( vec3( 0.92, 0.98, 1.08 ), vec3( 1.06, 0.94, 1.1 ), fv.y );
+		diffuseColor.rgb *= mix( vec3( 1.0 ), opal * ( 0.84 + 0.3 * fv.z ), facet );
+		diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.55, seam * 0.7 );
+		seamTint = mix( vec3( 0.35, 0.8, 1.0 ), vec3( 0.7, 0.45, 1.0 ), fv.y );
+	}
+	// Augmented: an alloy implant plate set into one temple and cheek, with
+	// panel seams and status nodes, and a ring round that eye.
+	if ( uRace > 3.5 ) {
+		// Relative to the nose tip: the eye centre is near (0.032, 0.029, -0.067).
+		vec3 q = vSkP - uNose;
+		implant = smoothstep( 0.036, 0.044, q.x ) * smoothstep( -0.026, -0.016, q.y ) * ( 1.0 - smoothstep( 0.082, 0.092, q.y ) ) * smoothstep( -0.162, -0.152, q.z ) * ( 1.0 - smoothstep( -0.03, -0.022, q.z ) );
+		implant *= 1.0 - ( 1.0 - smoothstep( 0.024, 0.03, length( vec2( q.x - 0.032, q.y - 0.029 ) ) ) ); // keep the eye itself clear
+		implant *= 1.0 - scalpA;
+		vec2 cell = vec2( q.y, q.z ) * 110.0;
+		vec2 cf = abs( fract( cell + vec2( 0.0, floor( cell.x ) * 0.5 ) ) - 0.5 );
+		float panelLine = 1.0 - smoothstep( 0.42, 0.48, max( cf.x, cf.y ) );
+		node = implant * step( 0.82, skinHash( floor( cell + vec2( 0.0, floor( cell.x ) * 0.5 ) ) ) ) * ( 1.0 - smoothstep( 0.12, 0.2, length( cf ) ) );
+		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.32, 0.34, 0.36 ) * ( 0.55 + 0.45 * panelLine ), implant );
+		float er = length( vec2( q.x - 0.032, q.y - 0.029 ) );
+		ocular = ( 1.0 - smoothstep( 0.001, 0.0022, abs( er - 0.02 ) ) ) * step( -0.08, q.z );
+		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.27, 0.29 ), ocular );
 	}`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
-	roughnessFactor = mix( roughnessFactor, 0.78, hairCover ) + uAge * 0.06;`,
+	roughnessFactor = mix( roughnessFactor, 0.78, hairCover ) + uAge * 0.06;
+	roughnessFactor = mix( roughnessFactor, 0.22 + 0.16 * seam, facet * 0.85 );
+	roughnessFactor = mix( roughnessFactor, 0.34, max( implant, ocular ) );`,
+      )
+      .replace(
+        '#include <metalnessmap_fragment>',
+        `#include <metalnessmap_fragment>
+	metalnessFactor = mix( metalnessFactor, 0.85, max( implant, ocular ) );`,
       )
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-	// Bioluminescent veins breathe slowly (Mirekin only).
-	totalEmissiveRadiance += vec3( 0.12, 0.85, 0.7 ) * mire * ( 0.35 + 0.15 * sin( uTime * 1.3 ) );`,
+	// Velari seams breathe slowly; Augmented nodes and ocular ring hold steady.
+	totalEmissiveRadiance += seamTint * seam * ( 0.24 + 0.1 * sin( uTime * 1.1 + vSkP.y * 40.0 ) );
+	totalEmissiveRadiance += vec3( 0.35, 0.9, 1.0 ) * ( node * 0.9 + ocular * 0.28 );`,
       );
   };
-  m.customProgramCacheKey = () => 'attune-skin-v3';
+  m.customProgramCacheKey = () => 'attune-skin-v4';
   return m;
 }
 
@@ -334,25 +374,30 @@ void main() {`,
   return m;
 }
 
-/** Mirekin chitin crest: glossy segmented plates along the skull midline. */
-export function chitinMaterial() {
-  const m = new THREE.MeshPhysicalMaterial({ color: 0x2d3a33, roughness: 0.35, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.25 });
-  m.name = 'chitin';
+/** Velari crystal crest: clear, iridescent plates along the skull midline with a faint inner light. */
+export function crystalCrestMaterial(ap) {
+  const tone = new THREE.Color(ap.tone);
+  const m = new THREE.MeshPhysicalMaterial({
+    color: tone.clone().multiplyScalar(0.8).lerp(new THREE.Color(0x9fc4ff), 0.2), roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08,
+    iridescence: 0.8, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 520],
+    emissive: new THREE.Color(0x6fb6ff).lerp(tone, 0.3), emissiveIntensity: 0.32,
+  });
+  m.name = 'crystal-crest';
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
-      .replace('void main() {', 'varying vec3 vChP;\nvoid main() {')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvChP = position;');
+      .replace('void main() {', 'varying vec3 vCrP;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvCrP = position;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('void main() {', 'varying vec3 vChP;\nvoid main() {')
+      .replace('void main() {', 'varying vec3 vCrP;\nvoid main() {')
       .replace(
-        '#include <map_fragment>',
-        `#include <map_fragment>
-	// Overlapping plates: darker seams every ~1.6 cm along the crest.
-	float seg = fract( ( vChP.y * 0.7 - vChP.z ) * 62.0 );
-	diffuseColor.rgb *= mix( 0.55, 1.12, smoothstep( 0.0, 0.18, seg ) );`,
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+	// Growth bands: each crystal plate is brighter at its leading edge.
+	float band = fract( ( vCrP.y * 0.7 - vCrP.z ) * 48.0 );
+	totalEmissiveRadiance *= 0.45 + 1.3 * smoothstep( 0.55, 1.0, band );`,
       );
   };
-  m.customProgramCacheKey = () => 'attune-chitin-v1';
+  m.customProgramCacheKey = () => 'attune-crystal-crest-v1';
   return m;
 }
 
@@ -438,9 +483,9 @@ const FWD = new THREE.Vector3(0, 0, 1);
  */
 export function setupFace(inst, ap, assets, { faceless = false, hideHead = false, suitMaterial = null, hood = false, gloveMaterial = null } = {}) {
   // Under a hood the shell layers would push through the cloth; the painted
-  // scalp carries the hairline instead. The Mirekin crest is not hair.
+  // scalp carries the hairline instead. The Velari crystal crest is not hair.
   const hairStyle = hood ? 'none' : ap.hairStyle;
-  const crest = ap.race === 'mirekin' && !hood && !hideHead && !faceless;
+  const crest = ap.race === 'velari' && !hood && !hideHead && !faceless;
   const nodes = {};
   inst.traverse((o) => {
     if (o.isMesh && o.userData.facePart) (nodes[o.userData.facePart] ||= []).push(o);
@@ -486,7 +531,7 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
       o.material = hairMat;
       o.visible = !faceless && !hideHead && (part === `hair_${hairStyle}` || (crest && part === 'hair_crest'));
       if (part === 'hair_crest') {
-        if (!crestMaterial) mats.push((crestMaterial = chitinMaterial()));
+        if (!crestMaterial) mats.push((crestMaterial = crystalCrestMaterial(ap)));
         o.material = crestMaterial;
         o.castShadow = o.visible;
       }
@@ -518,6 +563,14 @@ export function setupFace(inst, ap, assets, { faceless = false, hideHead = false
   }
   const isExpression = (name) => !ID_MORPHS.includes(name) && name !== 'age';
   for (const o of morphMeshes) bakeIdentity(o, idWeights, (name) => isExpression(name) && !o.userData.hairLayers);
+  // Landmark for race features: the baked head's nose tip (frontmost midline vertex).
+  const headPos = nodes.head[0]?.geometry.attributes.position;
+  if (headPos) {
+    let best = -Infinity;
+    for (let i = 0; i < headPos.count; i++) {
+      if (Math.abs(headPos.getX(i)) < 0.004 && headPos.getZ(i) > best) { best = headPos.getZ(i); skin.userData.face.uNose.value.set(0, headPos.getY(i), best); }
+    }
+  }
   // Lower presets draw only the inner hair layers (layers are stored in order).
   for (const [part, list] of Object.entries(nodes)) {
     if (!part.startsWith('hair_') || part === 'hair_crest') continue;

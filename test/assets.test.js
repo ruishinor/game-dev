@@ -19,6 +19,18 @@ const ledger = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'sources.jso
 const assets = manifest.assets;
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+test('asset preview preloads every GLB bundle but never the Reach chart', () => {
+  const preview = read('client/src/preview.js');
+  assert.ok(preview.includes("await assets.preload(Object.keys(assets.manifest.assets).filter((id) => assets.entry(id).url.endsWith('.glb')));"));
+  const glbs = Object.entries(assets).filter(([, entry]) => entry.url.endsWith('.glb')).map(([id]) => id);
+  const models = Object.entries(assets).filter(([, entry]) => entry.kind !== 'texture' && entry.kind !== 'chart').map(([id]) => id);
+  assert.deepEqual(glbs.sort(), models.sort(), 'all existing 3D bundles remain eligible');
+  assert.ok(glbs.includes('humanoid_m'));
+  assert.equal(assets.reach_atlas.kind, 'chart');
+  assert.ok(assets.reach_atlas.url.endsWith('.svg'));
+  assert.ok(!glbs.includes('reach_atlas'));
+});
+
 test('assets: every manifest entry is on disk with the recorded size and hash, and nothing unlisted is shipped', () => {
   const listed = new Set(['manifest.json']);
   for (const [id, a] of Object.entries(assets)) {

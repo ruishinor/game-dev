@@ -117,6 +117,7 @@ def stage_inspect(asset, params):
 
 def stage_design(asset, params):
     from . import armour_cinderlock  # noqa: F401  (registers the Cinderlock designs)
+    from . import armour_families  # noqa: F401  (Vesperglass, Strataweave, Mycelial)
     from . import armour_design as ad
     from .humanoid_wardrobe import export_pieces
 
@@ -182,8 +183,8 @@ def stage_design(asset, params):
         cl = {}
         for pc in pieces:
             parts = pc["V"] if pc["F"] is None else [(pc["V"], pc["F"])]
-            V = np.concatenate([np.asarray(v, float) for v, _ in parts])
-            if len(V) == 0:  # generated in Blender (e.g. the anchor soles)
+            V = np.concatenate([np.asarray(v, float) for v, _ in parts]) if len(parts) else np.zeros((0, 3))
+            if len(V) == 0:  # generated in Blender (anchor soles) or FX-only (capillaries, lamps)
                 continue
             d = ad.clearance(body, V)
             cl[pc["name"]] = {"min_m": round(float(d.min()), 4), "p05_m": round(float(np.percentile(d, 5)), 4)}
@@ -264,6 +265,8 @@ def hs_material_specs(asset):
             spec = {k: v for k, v in m.items() if k not in ("base", "edge", "worn", "emission")}
             spec["base"] = srgb_to_linear(m["base"]).tolist()
             spec["edge"] = srgb_to_linear(m.get("edge", m.get("worn", m["base"]))).tolist()
+            if isinstance(m.get("pattern_rgb"), str):
+                spec["pattern_rgb"] = srgb_to_linear(m["pattern_rgb"]).tolist()
             out[f"{item}_{slot}"] = spec
     return out
 
@@ -313,6 +316,25 @@ def _policy_tree(body, surfaces):
     return cache[key]
 
 
+def _band_smooth(c, Wd, sigma, bins=512):
+    """Gaussian blend of weights along one coordinate (the "band" mode):
+    sum_u g(c_v - c_u) W_u / sum_u g(c_v - c_u), with the sources binned so
+    large plates do not need an N x N matrix (the dense form ran out of
+    memory on a 25k-vertex greave)."""
+    c = np.asarray(c, float)
+    lo, hi = float(c.min()), float(c.max())
+    if hi - lo < 1e-9:
+        return np.repeat(Wd.mean(0, keepdims=True), len(Wd), 0)
+    nb = int(min(bins, max(8, len(c))))
+    b = np.minimum(((c - lo) / (hi - lo) * nb).astype(int), nb - 1)
+    centres = lo + (np.arange(nb) + 0.5) * (hi - lo) / nb
+    S = np.zeros((nb, Wd.shape[1]))
+    np.add.at(S, b, Wd)
+    n = np.bincount(b, minlength=nb).astype(float)
+    G = np.exp(-((c[:, None] - centres[None, :]) / sigma) ** 2)
+    return (G @ S) / np.maximum(G @ n, 1e-12)[:, None]
+
+
 def limb_weights(body, P, joint_names, policy, k=10, smooth=0.0, mode=None):
     """Weights for limb armour (gauntlets, greaves, boots): follow the limb's
     own joints on one side only, sampled from the named fit surfaces."""
@@ -330,8 +352,7 @@ def limb_weights(body, P, joint_names, policy, k=10, smooth=0.0, mode=None):
         Wd[:] = Wd.mean(0, keepdims=True)
     elif mode and mode[0] == "band":
         c = P @ np.asarray(mode[1], float) if isinstance(mode[1], list) else P[:, {"x": 0, "y": 1, "z": 2}[mode[1]]]
-        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
-        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+        Wd = _band_smooth(c, Wd, mode[2])
     s = Wd.sum(1, keepdims=True)
     fallback = s[:, 0] < 1e-6
     if fallback.any():  # no allowed joint nearby: the policy's first joint
@@ -375,8 +396,7 @@ def piece_weights(body, P, joint_names, k=10, smooth=0.0, arm_cap=0.0, mode=None
     elif mode and mode[0] == "band":
         ax = {"x": 0, "y": 1, "z": 2}[mode[1]]
         c = np.abs(P[:, ax]) if ax == 0 else P[:, ax]
-        g = np.exp(-((c[:, None] - c[None, :]) / mode[2]) ** 2)
-        Wd = (g @ Wd) / g.sum(1, keepdims=True)
+        Wd = _band_smooth(c, Wd, mode[2])
     J, W = pack_weights({n: Wd[:, j] for j, n in enumerate(joint_names) if Wd[:, j].max() > 0}, joint_names, max_influences=4, prune=0.02)
     if J.shape[1] < 4:  # a piece influenced by fewer joints packs narrower
         pad = 4 - J.shape[1]
@@ -478,6 +498,15 @@ def stage_rig(asset, params):
                     fi = w.mesh(f"{item}__fx", arr["FX_P"], arr["FX_I"], normals=arr["FX_N"], uvs=arr["FX_UV"], joints=FJ, weights=FW, material=fxmat)
                     w.node(f"{item}__fx", mesh=fi, skin=skin)
                     tri[item + "__fx"] = int(len(arr["FX_I"]))
+                if "GL_P" in arr.files:  # translucent layer (prisms, membranes, lenses)
+                    g = params.get("glass", {})
+                    glmat = w.material(g.get("material", "Armour_Glass"), base_factor=tuple(g.get("rgba", (0.6, 0.85, 1.0, 0.35))),
+                                       metallic=g.get("metallic", 0.0), roughness=g.get("roughness", 0.08),
+                                       emissive_factor=tuple(g.get("emissive", (0.0, 0.0, 0.0))), alpha_mode="BLEND", double_sided=True)
+                    GJ, GW = by_piece(arr["GL_P"], arr["GL_piece"])
+                    gi_ = w.mesh(f"{item}__glass", arr["GL_P"], arr["GL_I"], normals=arr["GL_N"], uvs=arr["GL_UV"], joints=GJ, weights=GW, material=glmat)
+                    w.node(f"{item}__glass", mesh=gi_, skin=skin)
+                    tri[item + "__glass"] = int(len(arr["GL_I"]))
                 continue
             Ps, Ns, UVs, Is, Js, Ws = [], [], [], [], [], []
             off = 0
@@ -645,17 +674,52 @@ def _decoded(asset, key):
     return dec
 
 
+def blueprint_sheet(rgba):
+    """Holographic schematic card: navy sheet, fine and major grid, a soft
+    projection glow under the linework, corner ticks (BGRA in, BGRA out)."""
+    import cv2
+
+    h, w = rgba.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    bg = np.zeros((h, w, 3), np.float32)
+    g = 0.65 + 0.35 * (1 - np.hypot(xx / w - 0.5, yy / h - 0.42) * 1.4)
+    bg[...] = np.array([0.15, 0.10, 0.03], np.float32)[None, None] * g[..., None]  # BGR navy
+    fine, major = max(8, w // 32), max(32, w // 8)
+    for step, col, a in ((fine, (0.34, 0.24, 0.08), 0.5), (major, (0.55, 0.40, 0.12), 0.85)):
+        grid = ((xx % step) < 1) | ((yy % step) < 1)
+        bg[grid] = bg[grid] * (1 - a) + np.array(col, np.float32) * a
+    al = rgba[..., 3:4].astype(np.float32) / 255
+    glow = cv2.GaussianBlur(al[..., 0], (0, 0), w / 60)[..., None]
+    bg = bg + np.array([1.0, 0.75, 0.25], np.float32) * glow * 0.25
+    fg = rgba[..., :3].astype(np.float32) / 255
+    out = bg * (1 - al) + fg * al
+    o8 = np.ascontiguousarray((np.clip(out, 0, 1) * 255).astype(np.uint8))
+    t, L, m = max(1, w // 128), w // 10, max(3, w // 40)
+    col = (255, 230, 140)
+    for (x0, y0, dx, dy) in ((m, m, 1, 1), (w - 1 - m, m, -1, 1), (m, h - 1 - m, 1, -1), (w - 1 - m, h - 1 - m, -1, -1)):
+        cv2.line(o8, (x0, y0), (x0 + dx * L, y0), col, t)
+        cv2.line(o8, (x0, y0), (x0, y0 + dy * L), col, t)
+    return np.dstack([o8, np.full((h, w), 255, np.uint8)])
+
+
 def stage_icons(asset, params):
     import cv2
 
     dec = _decoded(asset, params["body"])
     out = asset.dir("icons")
-    res = run_blender("asset_pipeline.blender.armour_render", {"op": "icons", "work": str(asset.work), "glb": str(dec), "out": str(out),
-                                                              "items": asset.config["armour"]["design"]["items"], **params}, timeout=7200)
+    # one Blender process per item: a whole set's renders in one process
+    # accumulated past the memory limit on the heaviest family
+    res = {"icons": {}}
+    for item in asset.config["armour"]["design"]["items"]:
+        r = run_blender("asset_pipeline.blender.armour_render", {"op": "icons", "work": str(asset.work), "glb": str(dec), "out": str(out),
+                                                                "items": [item], **params}, timeout=7200)
+        res["icons"].update(r["icons"])
     files = []
     sizes = {}
     for item, png in res["icons"].items():
         im = cv2.imread(png, cv2.IMREAD_UNCHANGED)
+        if item.startswith("blueprint_"):
+            im = blueprint_sheet(im)
         for s in params["export_sizes"]:
             sm = cv2.resize(im, (s, s), interpolation=cv2.INTER_AREA)
             f = out / f"{item}_{s}.webp"
@@ -748,8 +812,9 @@ def stage_publish(asset, params):
 STAGES = [
     ("inspect", stage_inspect, lambda a: [a.config_path, PIPELINE_DIR / "js" / "dequantize.mjs", PIPELINE_DIR / "js" / "extract-rig.mjs"]
      + [a.source(_source(a, s)["path"]) for s in _bodies(a).values()], lambda a: _cfg(a, "inspect")),
-    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
-    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py"],
+    ("design", stage_design, lambda a: [a.path("inspect"), HERE / "armour_design.py", HERE / "armour_cinderlock.py",
+                                                 HERE / "armour_families.py", HERE / "armour_parts.py", HERE / "humanoid_wardrobe.py"], lambda a: _cfg(a, "design")),
+    ("build", stage_build, lambda a: [a.path("design"), HERE / "blender" / "humanoid_build.py", HERE / "blender" / "armour_hardsurface.py"],
      lambda a: {**_cfg(a, "build"), "materials": a.config["armour"]["materials"], **({"preview": True} if os.environ.get("ARMOUR_PREVIEW") else {})}),
     ("rig", stage_rig, lambda a: [a.path("build"), a.path("inspect"), a.path("design"), HERE / "armour.py", HERE / "armour_fx_anchors.py", HERE / "gltf_io.py", HERE / "humanoid_rig.py"], lambda a: _cfg(a, "rig")),
     ("export", stage_export, lambda a: [a.path("rig"), PIPELINE_DIR / "js" / "optimize.mjs"], lambda a: _cfg(a, "export")),

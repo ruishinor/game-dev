@@ -1,18 +1,30 @@
 {
  "icons": {
   "vanguard_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/vanguard_field_set_chest_hero.png",
+  "blueprint_vanguard_field_set_chest": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/blueprint_vanguard_field_set_chest_hero.png",
   "vanguard_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/vanguard_field_set_gloves_hero.png",
+  "blueprint_vanguard_field_set_gloves": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/blueprint_vanguard_field_set_gloves_hero.png",
   "vanguard_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/vanguard_field_set_greaves_hero.png",
-  "vanguard_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/vanguard_field_set_boots_hero.png"
+  "blueprint_vanguard_field_set_greaves": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/blueprint_vanguard_field_set_greaves_hero.png",
+  "vanguard_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/vanguard_field_set_boots_hero.png",
+  "blueprint_vanguard_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_vanguard_set/icons/blueprint_vanguard_field_set_boots_hero.png"
  },
  "bytes": {
-  "vanguard_field_set_chest_256.webp": 7920,
-  "vanguard_field_set_chest_128.webp": 3334,
-  "vanguard_field_set_gloves_256.webp": 4442,
-  "vanguard_field_set_gloves_128.webp": 1820,
-  "vanguard_field_set_greaves_256.webp": 8146,
-  "vanguard_field_set_greaves_128.webp": 3320,
-  "vanguard_field_set_boots_256.webp": 9060,
-  "vanguard_field_set_boots_128.webp": 3692
+  "vanguard_field_set_chest_256.webp": 7846,
+  "vanguard_field_set_chest_128.webp": 3172,
+  "blueprint_vanguard_field_set_chest_256.webp": 8886,
+  "blueprint_vanguard_field_set_chest_128.webp": 3368,
+  "vanguard_field_set_gloves_256.webp": 4508,
+  "vanguard_field_set_gloves_128.webp": 1828,
+  "blueprint_vanguard_field_set_gloves_256.webp": 5718,
+  "blueprint_vanguard_field_set_gloves_128.webp": 2206,
+  "vanguard_field_set_greaves_256.webp": 8744,
+  "vanguard_field_set_greaves_128.webp": 3540,
+  "blueprint_vanguard_field_set_greaves_256.webp": 8562,
+  "blueprint_vanguard_field_set_greaves_128.webp": 3134,
+  "vanguard_field_set_boots_256.webp": 9358,
+  "vanguard_field_set_boots_128.webp": 3774,
+  "blueprint_vanguard_field_set_boots_256.webp": 9604,
+  "blueprint_vanguard_field_set_boots_128.webp": 3548
  }
 }

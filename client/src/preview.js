@@ -34,7 +34,7 @@ renderer.setScissorTest(true);
 renderer.autoClear = false;
 
 const assets = await new Assets().init();
-await assets.preload(Object.keys(assets.manifest.assets).filter((id) => assets.entry(id).kind !== 'texture'));
+await assets.preload(Object.keys(assets.manifest.assets).filter((id) => assets.entry(id).url.endsWith('.glb')));
 const environment = makeEnvironment(renderer);
 const info = [];
 

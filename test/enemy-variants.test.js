@@ -16,7 +16,7 @@ function rig() {
 }
 
 test('regional variants: cloned materials with an ember vein layer, crystal growths on the spine, disposable', () => {
-  assert.deepEqual([...ENEMY_VARIANTS].sort(), ['ash', 'foundry']);
+  assert.deepEqual([...ENEMY_VARIANTS].sort(), ['ash', 'foundry', 'salvage', 'salvage_elite']);
   for (const vx of ENEMY_VARIANTS) {
     const { base, model } = rig();
     const m = applyEnemyVariant(THREE, model, vx);
@@ -34,6 +34,10 @@ test('regional variants: cloned materials with an ember vein layer, crystal grow
     m.dispose();
     assert.equal(m.group.getObjectByName('enemy-variant:' + vx), undefined);
   }
+  // the elite reads larger than its base rig; regular variants keep the rig scale
+  const elite = applyEnemyVariant(THREE, rig().model, 'salvage_elite');
+  assert.ok(elite.group.scale.x > 1.3);
+  assert.equal(applyEnemyVariant(THREE, rig().model, 'salvage').group.scale.x, 1);
   const { model } = rig();
   assert.equal(applyEnemyVariant(THREE, model, 'bogus'), model);
   assert.equal(model.group.getObjectByName('enemy-variant:bogus'), undefined);
