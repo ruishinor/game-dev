@@ -7,7 +7,7 @@
  ],
  "bodies": {
   "m": {
-   "pieces": 100,
+   "pieces": 104,
    "min_clearance_m": -0.0431,
    "clearance": {
     "surveyor_field_set_chest__vest": {
@@ -19,12 +19,12 @@
      "p05_m": 0.0238
     },
     "surveyor_field_set_chest__harness": {
-     "min_m": -0.0341,
-     "p05_m": 0.0027
+     "min_m": -0.0348,
+     "p05_m": 0.0019
     },
     "surveyor_field_set_chest__belt": {
-     "min_m": 0.0199,
-     "p05_m": 0.0236
+     "min_m": 0.0203,
+     "p05_m": 0.0242
     },
     "surveyor_field_set_chest__pouches": {
      "min_m": 0.027,
@@ -123,8 +123,8 @@
      "p05_m": 0.0061
     },
     "surveyor_field_set_gloves__cuff_straps_l": {
-     "min_m": 0.0101,
-     "p05_m": 0.0108
+     "min_m": 0.0104,
+     "p05_m": 0.0112
     },
     "surveyor_field_set_gloves__forearm_guard_l": {
      "min_m": 0.0083,
@@ -191,8 +191,8 @@
      "p05_m": 0.0053
     },
     "surveyor_field_set_gloves__cuff_straps_r": {
-     "min_m": 0.0099,
-     "p05_m": 0.0108
+     "min_m": 0.0104,
+     "p05_m": 0.0112
     },
     "surveyor_field_set_gloves__forearm_guard_r": {
      "min_m": 0.0081,
@@ -258,21 +258,29 @@
      "min_m": -0.0295,
      "p05_m": 0.0042
     },
-    "surveyor_field_set_greaves__thigh_plate_l": {
-     "min_m": -0.0134,
-     "p05_m": 0.0008
+    "surveyor_field_set_greaves__thigh_plate0_l": {
+     "min_m": -0.0133,
+     "p05_m": 0.0032
+    },
+    "surveyor_field_set_greaves__thigh_plate1_l": {
+     "min_m": -0.006,
+     "p05_m": 0.0073
+    },
+    "surveyor_field_set_greaves__thigh_pad_l": {
+     "min_m": -0.0094,
+     "p05_m": 0.0021
     },
     "surveyor_field_set_greaves__thigh_side_l": {
      "min_m": 0.0125,
      "p05_m": 0.013
     },
     "surveyor_field_set_greaves__thigh_straps_l": {
-     "min_m": -0.0265,
-     "p05_m": -0.0064
+     "min_m": -0.0293,
+     "p05_m": -0.007
     },
     "surveyor_field_set_greaves__thigh_buckles_l": {
-     "min_m": 0.0229,
-     "p05_m": 0.0231
+     "min_m": 0.0231,
+     "p05_m": 0.0235
     },
     "surveyor_field_set_greaves__knee_l": {
      "min_m": 0.0106,
@@ -287,8 +295,8 @@
      "p05_m": 0.0117
     },
     "surveyor_field_set_greaves__shin_straps_l": {
-     "min_m": 0.0169,
-     "p05_m": 0.0185
+     "min_m": 0.017,
+     "p05_m": 0.0189
     },
     "surveyor_field_set_greaves__trouser_thigh_r": {
      "min_m": -0.0119,
@@ -298,21 +306,29 @@
      "min_m": -0.0218,
      "p05_m": 0.0048
     },
-    "surveyor_field_set_greaves__thigh_plate_r": {
-     "min_m": -0.0134,
-     "p05_m": 0.0012
+    "surveyor_field_set_greaves__thigh_plate0_r": {
+     "min_m": -0.0133,
+     "p05_m": 0.003
+    },
+    "surveyor_field_set_greaves__thigh_plate1_r": {
+     "min_m": -0.0057,
+     "p05_m": 0.0071
+    },
+    "surveyor_field_set_greaves__thigh_pad_r": {
+     "min_m": -0.0099,
+     "p05_m": 0.0023
     },
     "surveyor_field_set_greaves__thigh_side_r": {
      "min_m": 0.0125,
      "p05_m": 0.013
     },
     "surveyor_field_set_greaves__thigh_straps_r": {
-     "min_m": -0.0265,
-     "p05_m": -0.0063
+     "min_m": -0.0292,
+     "p05_m": -0.0074
     },
     "surveyor_field_set_greaves__thigh_buckles_r": {
-     "min_m": 0.0224,
-     "p05_m": 0.0227
+     "min_m": 0.0231,
+     "p05_m": 0.0238
     },
     "surveyor_field_set_greaves__knee_r": {
      "min_m": 0.0105,
@@ -327,8 +343,8 @@
      "p05_m": 0.0123
     },
     "surveyor_field_set_greaves__shin_straps_r": {
-     "min_m": 0.017,
-     "p05_m": 0.0184
+     "min_m": 0.0171,
+     "p05_m": 0.0189
     },
     "surveyor_field_set_boots__boot_l": {
      "min_m": -0.0072,
@@ -351,8 +367,8 @@
      "p05_m": -0.0156
     },
     "surveyor_field_set_boots__straps_l": {
-     "min_m": -0.023,
-     "p05_m": 0.0106
+     "min_m": -0.021,
+     "p05_m": 0.0108
     },
     "surveyor_field_set_boots__buckles_l": {
      "min_m": 0.001,
@@ -383,8 +399,8 @@
      "p05_m": -0.015
     },
     "surveyor_field_set_boots__straps_r": {
-     "min_m": -0.0224,
-     "p05_m": 0.0111
+     "min_m": -0.0219,
+     "p05_m": 0.0113
     },
     "surveyor_field_set_boots__buckles_r": {
      "min_m": 0.002,
@@ -397,8 +413,8 @@
    }
   },
   "f": {
-   "pieces": 100,
-   "min_clearance_m": -0.0391,
+   "pieces": 104,
+   "min_clearance_m": -0.0363,
    "clearance": {
     "surveyor_field_set_chest__vest": {
      "min_m": -0.0047,
@@ -409,12 +425,12 @@
      "p05_m": 0.0194
     },
     "surveyor_field_set_chest__harness": {
-     "min_m": -0.0391,
-     "p05_m": 0.0066
+     "min_m": -0.0353,
+     "p05_m": 0.0067
     },
     "surveyor_field_set_chest__belt": {
-     "min_m": 0.0188,
-     "p05_m": 0.0227
+     "min_m": 0.0179,
+     "p05_m": 0.0223
     },
     "surveyor_field_set_chest__pouches": {
      "min_m": 0.0271,
@@ -513,8 +529,8 @@
      "p05_m": 0.0065
     },
     "surveyor_field_set_gloves__cuff_straps_l": {
-     "min_m": 0.0101,
-     "p05_m": 0.0107
+     "min_m": 0.0103,
+     "p05_m": 0.0111
     },
     "surveyor_field_set_gloves__forearm_guard_l": {
      "min_m": 0.0084,
@@ -581,8 +597,8 @@
      "p05_m": 0.0059
     },
     "surveyor_field_set_gloves__cuff_straps_r": {
-     "min_m": 0.0099,
-     "p05_m": 0.0106
+     "min_m": 0.0104,
+     "p05_m": 0.0111
     },
     "surveyor_field_set_gloves__forearm_guard_r": {
      "min_m": 0.0084,
@@ -648,21 +664,29 @@
      "min_m": -0.0199,
      "p05_m": -0.0094
     },
-    "surveyor_field_set_greaves__thigh_plate_l": {
-     "min_m": -0.0065,
-     "p05_m": 0.0058
+    "surveyor_field_set_greaves__thigh_plate0_l": {
+     "min_m": -0.0061,
+     "p05_m": 0.0093
+    },
+    "surveyor_field_set_greaves__thigh_plate1_l": {
+     "min_m": 0.0054,
+     "p05_m": 0.0137
+    },
+    "surveyor_field_set_greaves__thigh_pad_l": {
+     "min_m": -0.0061,
+     "p05_m": 0.006
     },
     "surveyor_field_set_greaves__thigh_side_l": {
      "min_m": 0.0126,
      "p05_m": 0.0136
     },
     "surveyor_field_set_greaves__thigh_straps_l": {
-     "min_m": -0.0272,
-     "p05_m": -0.0094
+     "min_m": -0.0291,
+     "p05_m": -0.0134
     },
     "surveyor_field_set_greaves__thigh_buckles_l": {
-     "min_m": 0.0224,
-     "p05_m": 0.0227
+     "min_m": 0.0231,
+     "p05_m": 0.0236
     },
     "surveyor_field_set_greaves__knee_l": {
      "min_m": 0.0063,
@@ -677,8 +701,8 @@
      "p05_m": 0.0125
     },
     "surveyor_field_set_greaves__shin_straps_l": {
-     "min_m": 0.0174,
-     "p05_m": 0.0187
+     "min_m": 0.0183,
+     "p05_m": 0.0193
     },
     "surveyor_field_set_greaves__trouser_thigh_r": {
      "min_m": -0.0052,
@@ -688,21 +712,29 @@
      "min_m": -0.0179,
      "p05_m": -0.0102
     },
-    "surveyor_field_set_greaves__thigh_plate_r": {
-     "min_m": -0.0061,
-     "p05_m": 0.0054
+    "surveyor_field_set_greaves__thigh_plate0_r": {
+     "min_m": -0.0066,
+     "p05_m": 0.0095
+    },
+    "surveyor_field_set_greaves__thigh_plate1_r": {
+     "min_m": 0.0047,
+     "p05_m": 0.0134
+    },
+    "surveyor_field_set_greaves__thigh_pad_r": {
+     "min_m": -0.0063,
+     "p05_m": 0.0058
     },
     "surveyor_field_set_greaves__thigh_side_r": {
      "min_m": 0.0125,
      "p05_m": 0.0137
     },
     "surveyor_field_set_greaves__thigh_straps_r": {
-     "min_m": -0.028,
-     "p05_m": -0.01
+     "min_m": -0.0268,
+     "p05_m": -0.0134
     },
     "surveyor_field_set_greaves__thigh_buckles_r": {
-     "min_m": 0.0224,
-     "p05_m": 0.0231
+     "min_m": 0.0239,
+     "p05_m": 0.024
     },
     "surveyor_field_set_greaves__knee_r": {
      "min_m": 0.0058,
@@ -717,8 +749,8 @@
      "p05_m": 0.0127
     },
     "surveyor_field_set_greaves__shin_straps_r": {
-     "min_m": 0.0173,
-     "p05_m": 0.0187
+     "min_m": 0.0182,
+     "p05_m": 0.0192
     },
     "surveyor_field_set_boots__boot_l": {
      "min_m": -0.0057,
@@ -741,8 +773,8 @@
      "p05_m": -0.0194
     },
     "surveyor_field_set_boots__straps_l": {
-     "min_m": 0.0101,
-     "p05_m": 0.0131
+     "min_m": 0.0092,
+     "p05_m": 0.0132
     },
     "surveyor_field_set_boots__buckles_l": {
      "min_m": 0.0064,
@@ -773,7 +805,7 @@
      "p05_m": -0.0194
     },
     "surveyor_field_set_boots__straps_r": {
-     "min_m": 0.0069,
+     "min_m": 0.0064,
      "p05_m": 0.012
     },
     "surveyor_field_set_boots__buckles_r": {

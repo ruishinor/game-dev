@@ -1,28 +1,28 @@
 {
  "m": {
   "triangles": {
-   "surveyor_field_set_chest": 41366,
+   "surveyor_field_set_chest": 44638,
    "surveyor_field_set_chest__fx": 24,
-   "surveyor_field_set_gloves": 37834,
+   "surveyor_field_set_gloves": 41610,
    "surveyor_field_set_gloves__fx": 48,
-   "surveyor_field_set_greaves": 44508,
-   "surveyor_field_set_boots": 46012,
-   "surveyor_field_set_boots__fx": 456
+   "surveyor_field_set_greaves": 60628,
+   "surveyor_field_set_boots": 55534,
+   "surveyor_field_set_boots__fx": 24
   },
-  "bytes": 16133548,
+  "bytes": 35546164,
   "joints": 67
  },
  "f": {
   "triangles": {
-   "surveyor_field_set_chest": 40242,
+   "surveyor_field_set_chest": 43456,
    "surveyor_field_set_chest__fx": 24,
-   "surveyor_field_set_gloves": 37182,
+   "surveyor_field_set_gloves": 41560,
    "surveyor_field_set_gloves__fx": 48,
-   "surveyor_field_set_greaves": 44764,
-   "surveyor_field_set_boots": 45244,
-   "surveyor_field_set_boots__fx": 336
+   "surveyor_field_set_greaves": 60208,
+   "surveyor_field_set_boots": 54176,
+   "surveyor_field_set_boots__fx": 24
   },
-  "bytes": 16029212,
+  "bytes": 36417672,
   "joints": 67
  }
 }

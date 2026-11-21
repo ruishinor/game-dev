@@ -1,14 +1,14 @@
 {
  "m": {
-  "surveyor_field_set_chest": 41366,
-  "surveyor_field_set_gloves": 37834,
-  "surveyor_field_set_greaves": 44508,
-  "surveyor_field_set_boots": 46012
+  "surveyor_field_set_chest": 44638,
+  "surveyor_field_set_gloves": 41610,
+  "surveyor_field_set_greaves": 60628,
+  "surveyor_field_set_boots": 55534
  },
  "f": {
-  "surveyor_field_set_chest": 40242,
-  "surveyor_field_set_gloves": 37182,
-  "surveyor_field_set_greaves": 44764,
-  "surveyor_field_set_boots": 45244
+  "surveyor_field_set_chest": 43456,
+  "surveyor_field_set_gloves": 41560,
+  "surveyor_field_set_greaves": 60208,
+  "surveyor_field_set_boots": 54176
  }
 }

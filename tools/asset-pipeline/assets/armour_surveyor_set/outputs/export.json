@@ -1,9 +1,9 @@
 {
  "m": {
   "file": "client/assets/armour_surveyor_set_m.glb",
-  "bytes": 4058952,
-  "inputBytes": 16133548,
-  "triangles": 170248,
+  "bytes": 6710020,
+  "inputBytes": 35546164,
+  "triangles": 202506,
   "meshes": 7,
   "materials": [
    "armour_surveyor_field_set_chest",
@@ -17,109 +17,109 @@
     "name": "surveyor_field_set_chest_basecolor",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 60962
+    "bytes": 193646
    },
    {
     "name": "surveyor_field_set_chest_orm",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 67550
+    "bytes": 354262
    },
    {
     "name": "surveyor_field_set_chest_normal",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 138346
+    "bytes": 309040
    },
    {
     "name": "surveyor_field_set_gloves_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 9382
+    "bytes": 100448
    },
    {
     "name": "surveyor_field_set_gloves_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 10696
+    "bytes": 84168
    },
    {
     "name": "surveyor_field_set_gloves_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 45406
+    "bytes": 473438
    },
    {
     "name": "surveyor_field_set_greaves_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 10396
+    "bytes": 114782
    },
    {
     "name": "surveyor_field_set_greaves_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 11298
+    "bytes": 82536
    },
    {
     "name": "surveyor_field_set_greaves_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 45574
+    "bytes": 444354
    },
    {
     "name": "surveyor_field_set_boots_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 11622
+    "bytes": 109740
    },
    {
     "name": "surveyor_field_set_boots_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 15798
+    "bytes": 98478
    },
    {
     "name": "surveyor_field_set_boots_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 45160
+    "bytes": 460192
    }
   ],
   "skins": [
@@ -639,13 +639,13 @@
     "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/5/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
    ]
   },
-  "sha256": "ce8855a9bb57da70c2563988038b91dcbf6e59da45277e664731a4adff9dee26"
+  "sha256": "eaf9a43ef42412f7ff3a2cbe1ee24927b5ec0d9fa6104cb92d3c3ef7acb9a2cd"
  },
  "f": {
   "file": "client/assets/armour_surveyor_set_f.glb",
-  "bytes": 4059704,
-  "inputBytes": 16029212,
-  "triangles": 167840,
+  "bytes": 6678480,
+  "inputBytes": 36417672,
+  "triangles": 199496,
   "meshes": 7,
   "materials": [
    "armour_surveyor_field_set_chest",
@@ -659,109 +659,109 @@
     "name": "surveyor_field_set_chest_basecolor",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 56950
+    "bytes": 176146
    },
    {
     "name": "surveyor_field_set_chest_orm",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 63718
+    "bytes": 302576
    },
    {
     "name": "surveyor_field_set_chest_normal",
     "mime": "image/webp",
     "size": [
-     512,
-     512
+     1024,
+     1024
     ],
-    "bytes": 137220
+    "bytes": 308222
    },
    {
     "name": "surveyor_field_set_gloves_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 9810
+    "bytes": 105680
    },
    {
     "name": "surveyor_field_set_gloves_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 11106
+    "bytes": 83778
    },
    {
     "name": "surveyor_field_set_gloves_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 44792
+    "bytes": 499956
    },
    {
     "name": "surveyor_field_set_greaves_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 11068
+    "bytes": 116856
    },
    {
     "name": "surveyor_field_set_greaves_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 11730
+    "bytes": 88092
    },
    {
     "name": "surveyor_field_set_greaves_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 44944
+    "bytes": 435664
    },
    {
     "name": "surveyor_field_set_boots_basecolor",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 12216
+    "bytes": 111446
    },
    {
     "name": "surveyor_field_set_boots_orm",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 17218
+    "bytes": 108034
    },
    {
     "name": "surveyor_field_set_boots_normal",
     "mime": "image/webp",
     "size": [
-     256,
-     256
+     1024,
+     1024
     ],
-    "bytes": 45798
+    "bytes": 455474
    }
   ],
   "skins": [
@@ -1281,6 +1281,6 @@
     "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/5/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
    ]
   },
-  "sha256": "817f91dd6ff68e970aaf4e3e4c7b6adfe086ce6b6c496972b76b442cf8d415ad"
+  "sha256": "1ee4bb34aee289f9873a1e3913ac205f18426f28903203fbcadad41fd3a9b703"
  }
 }
