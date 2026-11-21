@@ -123,12 +123,22 @@ test('clients learn only what they see: no route, slot or squad link; sergeants 
 });
 
 test('squad sergeants are elites that drop no items; XP scales with squad level', async () => {
-  const { eliteUncommonDrop } = await import('../server/sim/loot-tables.js');
+  const { makeGame, makeChar, place } = await import('./helpers.js');
+  const { dealDamage } = await import('../server/sim/combat.js');
+  const { openLoot, lootState } = await import('../server/sim/loot.js');
   const { killXp } = await import('../server/sim/enemy-levels.js');
-  const sergeant = SEVERANCE_PATROLS.find((p) => p.name === 'Severance Sergeant');
-  const e = { type: 'severance_soldier', level: sergeant.level, elite: { hp: ELITE.hp, dmg: ELITE.dmg } };
-  for (const n of [0, 0.001, 0.01]) assert.equal(eliteUncommonDrop(e, { inventory: [] }, () => n), null);
+  const g = makeGame();
+  const p = g.addPlayer(makeChar('vanguard', { level: 12 }));
+  g.openExpanse();
+  const sergeant = g.enemies.find((e) => e.name === 'Severance Sergeant');
+  g.rng = () => 0; g.eliteRng = () => 0; // every item roll would succeed
+  place(p, sergeant.x + 1, sergeant.z);
+  dealDamage(g, p, sergeant, 1e7, 'test');
+  assert.equal(sergeant.state, 'dead');
+  const opened = openLoot(g, p, sergeant.id, sergeant.lootGeneration);
+  const entries = opened.ok ? lootState(g, p).loot?.entries || [] : [];
+  assert.equal(entries.filter((x) => x.kind === 'item').length, 0, 'no items from a squad sergeant');
   const soldier = { type: 'severance_soldier', level: sergeant.level - 1 };
-  assert.ok(killXp(e, sergeant.level) > killXp(soldier, sergeant.level) * 2, 'the elite sergeant pays more');
+  assert.ok(killXp(sergeant, sergeant.level) > killXp(soldier, sergeant.level) * 2, 'the elite sergeant pays more');
   assert.ok(killXp(soldier, 7) > ENEMIES.severance_soldier.xp, 'level-scaled above the type base');
 });

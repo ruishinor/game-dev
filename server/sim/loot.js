@@ -34,7 +34,8 @@ export function distributeCorpseLoot(game,e,credited){
    const r=ELITE_RESOURCE,have=p.char.materials?.[r.id]||0,same=entries.find(x=>x.kind==='material'&&x.id===r.id);
    const q=Math.min(r.quantity,MATERIAL_CAP-have-(same?.quantity||0));
    if(q>0){if(same)same.quantity+=q;else entries.push({id:r.id,kind:'material',quantity:q});}
-   const uncommon=eliteUncommonDrop(e,p.char,game.eliteRng);
+   // Owner decision (2026-11-21): the Severance squads, sergeants included, drop no items.
+   const uncommon=e.type==='severance_soldier'?null:eliteUncommonDrop(e,p.char,game.eliteRng);
    if(uncommon&&Object.hasOwn(ITEMS,uncommon)&&!entries.some(x=>x.id===uncommon))entries.push({id:uncommon,kind:'item',quantity:1});
   }
   const armourPrint=classArmourBlueprintDrop(e.type,p.char,game.classArmourRng);

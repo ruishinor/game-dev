@@ -80,8 +80,7 @@ export function eliteUncommonPool() {
   return Object.keys(ITEMS).filter((id) => ITEMS[id].rarity === 'Uncommon').sort();
 }
 export function eliteUncommonDrop(e, char, rng) {
-  // Owner decision (2026-11-21): the Severance squads, sergeants included, drop no items.
-  if (!isEliteEnemy(e) || e.type === 'severance_soldier') return null;
+  if (!isEliteEnemy(e)) return null;
   const n = rng();
   if (!Number.isFinite(n) || n < 0 || n >= 1 || n >= ELITE_UNCOMMON_CHANCE) return null;
   const owned = new Set(Array.isArray(char?.inventory) ? char.inventory : []);
