@@ -14,7 +14,7 @@ The session stopped at the owner's usage cap. This file records the exact state 
 ## #189 Scrapyard: what it contains
 
 - The camp, its kit (`salvage_camp.glb`), the server-only garrison with the Forge Overseer elite, and per-instance elite multipliers.
-- Elite rewards: 2 Resonance fragments, plus a 35% roll for an Uncommon item on its own RNG stream, and four new Uncommon items. The owner lifted the publication block for this.
+- Elite rewards: 2 Resonance fragments, plus an independent chance of an Uncommon item on its own RNG stream (the rate lives in the server loot table), and four new Uncommon items. The owner lifted the publication block for this.
 - Camp VFX layers in `client/src/salvage-camp-fx.js`: scene-colour heat refraction, forge flame, slag channel, scorched ground, sparks, arcs and the floodlight.
 - A fix that keeps kit node transforms when placing pieces.
 - `tools/dev/` probe scripts.
