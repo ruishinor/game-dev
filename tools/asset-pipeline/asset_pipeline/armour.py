@@ -707,8 +707,13 @@ def stage_icons(asset, params):
 
     dec = _decoded(asset, params["body"])
     out = asset.dir("icons")
-    res = run_blender("asset_pipeline.blender.armour_render", {"op": "icons", "work": str(asset.work), "glb": str(dec), "out": str(out),
-                                                              "items": asset.config["armour"]["design"]["items"], **params}, timeout=7200)
+    # one Blender process per item: a whole set's renders in one process
+    # accumulated past the memory limit on the heaviest family
+    res = {"icons": {}}
+    for item in asset.config["armour"]["design"]["items"]:
+        r = run_blender("asset_pipeline.blender.armour_render", {"op": "icons", "work": str(asset.work), "glb": str(dec), "out": str(out),
+                                                                "items": [item], **params}, timeout=7200)
+        res["icons"].update(r["icons"])
     files = []
     sizes = {}
     for item, png in res["icons"].items():
