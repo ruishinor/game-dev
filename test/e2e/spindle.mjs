@@ -12,7 +12,7 @@ let browser, owner, observer;
 const errors=[];
 try {
   browser=await launchBrowser();
-  async function join(name,width,height,slot,quality=1) {
+  async function join(name,width,height,slot,quality=1,cls='vanguard') {
     const ctx=await browser.newContext({viewport:{width,height},deviceScaleFactor:1});
     const page=await ctx.newPage();
     page.setDefaultTimeout(90000);
@@ -20,9 +20,9 @@ try {
     page.on('console',msg=>{if(msg.type()==='error') errors.push(msg.text());});
     await page.goto('http://127.0.0.1:'+server.port+'/?q='+quality+'&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=1':''));
     await page.click('#gate-guest-link');await page.fill('#name',name);
-    await page.click('.classcard[data-cls="vanguard"]');
+    await page.click('.classcard[data-cls="'+cls+'"]');
     await page.click('#enter');
-    await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>0;},null,{polling:100});
+    await page.waitForFunction(expected=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls===expected&&s.drawn>0;},cls,{polling:100});
     return page;
   }
   async function openSheet(page) {
@@ -154,6 +154,31 @@ try {
   await owner.locator('.player-context').getByRole('button',{name:'Dismiss companion',exact:true}).click();
   await observer.waitForFunction(id=>!window.__attune.state().ents.some(e=>e.id===id),id);
   assert.equal(p.companion,null);
+  // Verify the previously inaccessible dual-companion HUD on a fresh Conductor.
+  await observer.context().close();
+  await owner.context().close();
+  owner=await join('Dual Companion',1280,800,'spindle-dual-owner',1,'symbiotech');
+  const dual=await liveFixturePlayer(owner,server,'Dual Companion');
+  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.c==='mender');});
+  const dualSheet=await openSheet(owner);
+  await dualSheet.getByRole('button',{name:'Commission Spindle'}).click();
+  await dualSheet.locator('[data-companion-action="summon-spindle"]').click();
+  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.you.spindleId&&s.you.spindleId!==s.compId&&s.ents.some(e=>e.id===s.you.spindleId);});
+  await dualSheet.getByRole('button',{name:'Close Companion Sheet'}).click();
+  const spindleBar=owner.getByRole('group',{name:'Independent Spindle controls'});
+  await spindleBar.waitFor({state:'visible'});
+  await spindleBar.getByRole('button',{name:'Spindle: Field light',exact:true}).click();
+  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.you.spindleId&&e.row.li===1);});
+  assert.equal(dual.spindleCompanion.lightOn,true);
+  assert.equal(dual.companion.type,'mender');
+  await spindleBar.getByRole('button',{name:'Spindle: Stay',exact:true}).click();
+  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.you.spindleId&&e.row.md==='stay');});
+  const primary=owner.locator('.petbar:not(.spindlebar)');
+  await primary.getByRole('button',{name:'Follow',exact:true}).click();
+  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.row.md==='follow');});
+  assert.equal(dual.spindleCompanion.mode,'stay');
+  assert.equal(dual.spindleCompanion.lightOn,true);
+  await owner.screenshot({path:path.join(out,'dual-companion-hotbars.png')});
   assert.deepEqual(errors,[]);
   console.log('PASS Spindle commission, keyboard operation, summoning, portrait, stay/follow, signed travel on observer, inspection, owner-only report and remote dismissal');
 } catch(error) {
