@@ -29,7 +29,7 @@ import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas } from './world-atlas.js';
 import { reachMinimapArt } from './minimap-art.js';
 import { paintedAbilityArt } from './ability-art.js';
-import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS} from './hotkey-bindings.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,SPINDLE_SLOTS} from './hotkey-bindings.js';
 import {COMPANION_ACTION,defaultHotbar,loadHotbar,storeHotbar,editHotbar,normalizeHotbar} from './hotbar-layout.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
@@ -101,6 +101,7 @@ const PET_KEYS = ['triage', 'guard', 'assist', 'follow', 'stay'];
 const SPINDLE_KEYS = ['inspect', 'light', null, 'follow', 'stay'];
 const STRIDER_KEYS=['screen','recover','assist','follow','stay'];
 export const companionCommandKeys = type => type === 'spindle' ? SPINDLE_KEYS : type==='survey_strider'?STRIDER_KEYS:PET_KEYS;
+export const SPINDLE_UTILITY_COMMANDS=Object.freeze(SPINDLE_KEYS.filter(Boolean));
 const SKILL_INFO = {
   instrumentation: 'Surveyor primary skill: improves Power by 2 percentage points per point above 10 and meets instrument requirements.',
   kinetics: 'Vanguard primary skill: increases Power by 2 percentage points per point above 10 and meets Kinetics equipment requirements. Does not change movement speed.',
@@ -444,6 +445,24 @@ export class UI {
     // Bars
     const bars = h('div', 'bars');
     this.petBar = h('div', 'petbar');
+    this.spindleBar = h('div', 'petbar spindlebar');
+    this.spindleBar.hidden = true;
+    this.spindleBar.setAttribute('role','group');
+    this.spindleBar.setAttribute('aria-label','Independent Spindle controls');
+    this.spindleBar.append(h('span','spindle-bar-label','Spindle'));
+    this.spindleButtons=SPINDLE_UTILITY_COMMANDS.map((mode,index)=>{
+      const name=COMPANIONS.spindle.modes[mode].name;
+      const art=paintedAbilityArt(mode);
+      const b=this.slotButton(art??ICONS[mode],'','Spindle: '+name);
+      b.el.classList.add('small');b.el.dataset.ability=mode;
+      if(art)b.el.dataset.art='painted';
+      b.el.title='Spindle: '+name;
+      b.el.setAttribute('aria-pressed','false');
+      b.el.addEventListener('click',()=>this.a.pet(mode,'spindle'));
+      this.hover(b.el,()=>this.petTip(mode,'spindle'));
+      this.spindleBar.append(b.el);
+      return {...b,mode,bindingIndex:index};
+    });
     this.autoButton = h('button', 'auto-toggle');
     this.autoButton.type = 'button';
     this.autoButton.setAttribute('aria-label', 'Auto-attack');
@@ -484,7 +503,7 @@ export class UI {
     cancelProduction.type = 'button';
     cancelProduction.addEventListener('click', () => this.a.cancelProduction());
     this.productionStatus.append(this.productionName, cancelProduction, this.productionProgress);
-    bars.append(this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
+    bars.append(this.spindleBar, this.petBar, this.moveStatus, this.surveyStatus, this.rescueStatus, this.inscription, this.productionStatus, actions, this.xp.wrap);
     root.append(bars);
     this.abilityButtons = [];
     this.petButtons = [];
@@ -1016,6 +1035,10 @@ export class UI {
       this.a.bindings?.label('ability:'+(b.slotIndex+1))??String(b.slotIndex+1);
     for(const b of this.petButtons)b.el.querySelector('.key').textContent=
       this.a.bindings?.label('companion:'+(b.bindingIndex+1))??'⇧'+(b.bindingIndex+1);
+    for(const b of this.spindleButtons){
+      const action='spindle:'+(b.bindingIndex+1);
+      b.el.querySelector('.key').textContent=this.a.bindings?.get(action)?this.a.bindings.label(action):'';
+    }
     if(this.summonSlot)this.summonSlot.el.querySelector('.key').textContent=
       this.a.bindings?.label('ability:'+(this.summonSlot.slotIndex+1))??String(this.summonSlot.slotIndex+1);
     for(const b of this.emptySlots)b.el.querySelector('.key').textContent=
@@ -1047,7 +1070,7 @@ export class UI {
     const addRows=(title,prefix,total)=>{
       panel.append(h('h3',null,title));
       for(let i=1;i<=total;i++){
-        const action=prefix+':'+i,row=h('div','binding-row'),name=h('span',null,title==='Primary bar'?'Slot '+i:'Command '+i),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
+        const action=prefix+':'+i,row=h('div','binding-row'),name=h('span',null,title==='Primary bar'?'Slot '+i:prefix==='spindle'?COMPANIONS.spindle.modes[SPINDLE_UTILITY_COMMANDS[i-1]].name:'Command '+i),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
         button.type='button';button.setAttribute('aria-label','Change '+title+' '+i);
         button.addEventListener('click',()=>{this.capturing=action;this.keyError.textContent='Press a key for '+title+' '+i+'…';button.textContent='Press key…';button.focus();});
         button.addEventListener('blur',()=>{if(this.capturing===action)this.capturing=null;button.textContent=this.a.bindings?.label(action)??'Unbound';});
@@ -1067,6 +1090,7 @@ export class UI {
     };
     addRows('Primary bar','ability',PRIMARY_SLOTS);
     addRows('Companion bar','companion',COMPANION_SLOTS);
+    addRows('Spindle utility bar','spindle',SPINDLE_SLOTS);
     const reset=h('button',null,'Restore default hotkeys');
     reset.addEventListener('click',()=>{this.a.bindings?.reset();this.refreshHotkeys();this.keyError.textContent='Default shortcuts restored.';});
     panel.append(reset);this.keyPanel=panel;root.append(panel);
@@ -1136,8 +1160,8 @@ export class UI {
     return out;
   }
 
-  petTip(mode) {
-    const cdef = COMPANIONS[this.companionType];
+  petTip(mode,type=this.companionType) {
+    const cdef = COMPANIONS[type];
     if(!cdef?.modes[mode])return [];
     const out = [h('div', 'tip-title', `${cdef.name}: ${cdef.modes[mode].name}`), h('div', 'tip-body', cdef.modes[mode].desc)];
     const note = this.sheet && GLYPH_NOTES[this.sheet.equipped.glyph];
@@ -2207,6 +2231,20 @@ export class UI {
       }
     }
 
+    // The class companion keeps its own hotbar. A separately active Spindle
+    // receives explicit typed commands via the same server-authorized protocol.
+    const spindle=this.spindleCompanionId?st.ents.get(this.spindleCompanionId):null;
+    const independent=!!spindle&&spindle.meta.c==='spindle'&&spindle.id!==this.companionId;
+    set(this.spindleBar,'hidden',!independent);
+    if(independent){
+      for(const b of this.spindleButtons){
+        const active=b.mode==='light'?spindle.row.li===1:spindle.row.md===b.mode;
+        b.el.classList.toggle('active',active);
+        b.el.setAttribute('aria-pressed',String(active));
+        b.el.disabled=!!me.dead||(b.mode==='inspect'&&!!this.buildLock);
+      }
+    }
+
     // Auto-attack state is server-authoritative: it does not chase enemies or
     // ignore range. Hostile abilities and right-click can also engage it.
     const autoTarget = target?.meta.k === 'e' && !target.dead;
@@ -2423,6 +2461,8 @@ export class UI {
     this.selectedCompanionId = 0;
     this.currentCompanion = null;
     this.companionId = 0;
+    this.spindleCompanionId=0;
+    set(this.spindleBar,'hidden',true);
     this.closePlayerContext();
     this.liveEntities=null;
     this.dragItem=null;
