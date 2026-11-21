@@ -163,6 +163,27 @@ try{
          ctrl:e.ctrlKey,button:e.button,disabled:!!e.target.closest?.('button')?.disabled};
      },{capture:true,once:true});
    });
+   // The last pointerup reconstructs the slots. Under software Chromium the
+   // new button can have a bounding box before it enters the pointer hit tree.
+   // This bounded wait does not simulate input or bypass the drag operation.
+   const ready=await page.waitForFunction(({from})=>{
+     const el=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
+     if(!el)return false;
+     const r=el.getBoundingClientRect();
+     return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)
+       ?.closest('.actionbar [data-slot-index]')===el;
+   },{from},{timeout:4000,polling:50}).then(()=>true,()=>false);
+   if(!ready){
+     const details=await page.evaluate(from=>{
+       const el=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
+       const css=el&&getComputedStyle(el);
+       return el?{className:el.className,hidden:el.hidden,disabled:el.disabled,
+         ability:el.dataset.ability,visibility:css.visibility,display:css.display,
+         pointerEvents:css.pointerEvents,mode:el.parentElement?.dataset.emptyMode}:null;
+     },from);
+     console.error('HUD_SOURCE_NOT_HIT_TESTABLE '+JSON.stringify({from,to,details}));
+   }
+   assert.equal(ready,true,'reconstructed hotbar source must become pointer-hit-testable');
    await page.keyboard.down('Control');
    await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
    const hit=await page.evaluate(({x,y})=>{
