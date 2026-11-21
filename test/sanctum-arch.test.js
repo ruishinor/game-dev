@@ -44,3 +44,11 @@ test('the server serves the kit as an immutable asset', async () => {
     assert.match(res.headers.get('cache-control'), /immutable/);
   } finally { await srv.close(); }
 });
+
+test('arrival hall kit pieces keep the procedural object names used by tools and e2e checks', () => {
+  for (const [piece, name] of [['SA_HallWall', 'arrival:side-enclosure'], ['SA_HallPillar', 'arrival:column'], ['SA_HallLintel', 'arrival:threshold-arch']]) {
+    assert.ok(scene.includes(`['${piece}', '${name}']`), `${piece} -> ${name}`);
+    assert.ok(scene.includes(`g.name='${name}'`), `procedural ${name} still exists`);
+  }
+  assert.match(scene, /hallHolder\.name = hall\[1\]/);
+});

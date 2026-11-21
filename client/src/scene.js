@@ -1415,8 +1415,11 @@ export function buildWorld(scene, assets = null, opts = {}) {
       continue;
     }
     // Arrival hall in the Sanctum's carved stone and bronze (colliders unchanged)
-    const hallPiece = { arrival_wall: 'SA_HallWall', arrival_pillar: 'SA_HallPillar', arrival_arch: 'SA_HallLintel' }[p.type];
-    if (hallPiece && archInstance(c, hallPiece, at(p.x, p.z))) continue;
+    // Hall pieces keep the procedural prop's object name: tools and e2e checks
+    // look the arrival hall up by these names whichever art is loaded.
+    const hall = { arrival_wall: ['SA_HallWall', 'arrival:side-enclosure'], arrival_pillar: ['SA_HallPillar', 'arrival:column'], arrival_arch: ['SA_HallLintel', 'arrival:threshold-arch'] }[p.type];
+    const hallHolder = hall && archInstance(c, hall[0], at(p.x, p.z));
+    if (hallHolder) { hallHolder.name = hall[1]; hallHolder.userData.archPiece = hall[0]; continue; }
     let obj;
     if (kits && kit[p.type]) {
       try {
