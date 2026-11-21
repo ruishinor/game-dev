@@ -320,9 +320,12 @@ async function workshopPlaytest(){
 
 async function followInventoryPlaytest(){
  const A=await openPlayer('follow-leader','FollowLeader','vanguard');
+ // Suspend A's software-GL draws while B enters: two concurrently rendering
+ // contexts starve B's client of CPU, delaying its sheet past the entry gate.
+ await A.page.evaluate(()=>window.__attune.pause(true));
  const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3}});
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
- await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
+ await B.page.evaluate(()=>window.__attune.pause(true));
  const portraitImages=[];
  for(const session of [A,B]){
   await session.page.bringToFront();await session.page.locator('#view').focus();await session.page.keyboard.press('KeyC');
