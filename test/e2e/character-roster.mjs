@@ -63,12 +63,12 @@ try{
  await page.waitForFunction(()=>document.activeElement?.id==='roster-settings');
  // The exact owner-supplied source image (optimized WebP) must actually be
  // served and visible behind a transparent, centered gameplay-model canvas.
- const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/art-assets/character-selection-gate.webp');
+ const bgResponse=await page.request.get('http://127.0.0.1:'+server.port+'/client/selection-art/character-selection-gate.webp');
  assert.equal(bgResponse.status(),200);
  assert.match(bgResponse.headers()['content-type'],/image\/webp/);
  assert.ok((await bgResponse.body()).length>=58000,'background image must not regress to compressed low-resolution exports');
  const imageDecoded=await page.evaluate(async()=>{
-  const img=new Image();img.src='/client/art-assets/character-selection-gate.webp';
+  const img=new Image();img.src='/client/selection-art/character-selection-gate.webp';
   try{await img.decode();return img.naturalWidth>=1920&&img.naturalHeight>=1080;}
   catch{return false;}
  });

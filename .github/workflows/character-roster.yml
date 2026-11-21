@@ -10,7 +10,7 @@ on:
       - 'client/selection-viewport.css'
       - 'client/src/creation-sections.js'
       - 'client/src/menu-settings-pager.js'
-      - 'client/art-assets/character-selection-gate.webp'
+      - 'client/selection-art/character-selection-gate.webp'
       - 'client/src/selection-blueprint-environment.js'
       - 'client/src/looks.js'
       - 'client/src/selection-environment.js'

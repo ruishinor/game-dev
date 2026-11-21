@@ -1,3 +1,9 @@
+## Asset inventory correction — 21 November 2026
+
+The original-art check on PR #180 identified that the previous Gate relocation placed `character-selection-gate.webp` inside `client/art-assets/`, which is strictly inventoried by `npm run assets:originals:check`. This commit relocates the exact 58,760-byte Git blob, **unchanged**, to the independent served presentation path `client/selection-art/character-selection-gate.webp`. The runtime CSS, browser image-decoding test and CI path trigger point there. Neither `client/assets/manifest.json` nor `client/art-assets/manifest.json` or their generators are modified. The HTTP server already serves `/client/` files; this adds no new static mount. The latest CI and browser evidence are still required.
+
+---
+
 ## Owner acceptance scope — desktop and large screens, 21 November 2026
 
 The owner has clarified that **the target platform is desktop computers and large-screen displays/TVs, not phones**. For PR #180, the functional, accessibility and visual acceptance matrix is therefore 1280×720, 1366×768, 1920×1080, 2560×1440 and 3440×1440. At these sizes, the existing approved composition must keep the actual character centered and facing forward, permit New Character/Create Character, full-screen Inspect/Return/Escape, Settings, deletion and Enter World, and avoid clipped actions or unnecessary internal/page scrolling. The account lifecycle, keyboard/reduced-motion support, server authorization, gameplay and cross-feature regressions remain mandatory.
