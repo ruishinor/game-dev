@@ -2,55 +2,55 @@
  "runtime": {
   "m": {
    "file": "client/assets/armour_keeper_set_m.glb",
-   "sha256": "32eb78d5cf1cc44b3786ff08921eae74453537897aa1885a9985f13eb001dbf7",
-   "bytes": 2436464
+   "sha256": "01e48a70c9933bb23ef9d4e45a8482d13ff9c471215fe73c0836d3bf0c78f620",
+   "bytes": 4854312
   },
   "f": {
    "file": "client/assets/armour_keeper_set_f.glb",
-   "sha256": "e041bbdf6b0061219c9c4eb87bc8da164928b31ca155e378b33b4b9e42646486",
-   "bytes": 2435428
+   "sha256": "faec0927157f0cc5b27dc348beae1fe822eeaa773f2ba30a7a21f10931a7e602",
+   "bytes": 4895932
   }
  },
  "icons": {
   "blueprint_keeper_field_set_boots": {
    "file": "client/assets/icons/armour/blueprint_keeper_field_set_boots.webp",
-   "sha256": "86081c597b5610f2649649792d69dea652544ac98bdaf6e62750fefb59dab2f8",
-   "bytes": 8792
+   "sha256": "5a51b30085522dc38b16b17ceb18d27d9366706d735f473574eccf30c9ab206a",
+   "bytes": 9000
   },
   "blueprint_keeper_field_set_chest": {
    "file": "client/assets/icons/armour/blueprint_keeper_field_set_chest.webp",
-   "sha256": "1e53a59188bf385a9d61d3ed4bd42a124f3792c15863cfb82b1c3dcd59902830",
-   "bytes": 8852
+   "sha256": "91764a6c91e5d8dc33d25ef72fac3e487585e006889d557a02dcef12a9fa50e1",
+   "bytes": 8764
   },
   "blueprint_keeper_field_set_gloves": {
    "file": "client/assets/icons/armour/blueprint_keeper_field_set_gloves.webp",
-   "sha256": "35ebaa1123baadf0364344238a6d5194eab905af95d82638f5a1edf365b206fd",
-   "bytes": 5806
+   "sha256": "a6ad7fbaf58a139b11f4bdf5e70310e3b754185ba69f2b9cf0164bd004e9990e",
+   "bytes": 5736
   },
   "blueprint_keeper_field_set_greaves": {
    "file": "client/assets/icons/armour/blueprint_keeper_field_set_greaves.webp",
-   "sha256": "d6d9e6ebcaa626ebf9ad0b5e9dd5585890cc4f13ca265b8cca86c6e45a907cca",
-   "bytes": 8186
+   "sha256": "390096b7f787e60376f140b26d50d2f39f857f62435c796e103b6ca060f03ba7",
+   "bytes": 8568
   },
   "keeper_field_set_boots": {
    "file": "client/assets/icons/armour/keeper_field_set_boots.webp",
-   "sha256": "15133452c322506724193337eddcbe2f5fff48ca9edf4ae696141b4e7724fbb3",
-   "bytes": 8484
+   "sha256": "aea36c4565632db8bed74a4c7873543a4436a770f556aaa6da58c740d06eb419",
+   "bytes": 8686
   },
   "keeper_field_set_chest": {
    "file": "client/assets/icons/armour/keeper_field_set_chest.webp",
-   "sha256": "d742bb5efe463de6e5ee600f475c0a62bb5b5aa17f2ea50af67d5e052e3b5cf1",
-   "bytes": 7344
+   "sha256": "5ed7a6663d625297853a47dd0bf7cb6ba6c20cc82a4fcd66ce51523c3efb77c5",
+   "bytes": 7310
   },
   "keeper_field_set_gloves": {
    "file": "client/assets/icons/armour/keeper_field_set_gloves.webp",
-   "sha256": "cb3011f4faa2b94e5311e07e9a6ed678f897f83a893557e850f4fd13cbc6916f",
-   "bytes": 5104
+   "sha256": "cbe2ad09d3197fb939c093e2f9458d629c880540f62b4d462723efcf5f119411",
+   "bytes": 4480
   },
   "keeper_field_set_greaves": {
    "file": "client/assets/icons/armour/keeper_field_set_greaves.webp",
-   "sha256": "520ffd0eca55f689916a67739d6f8c363ba1da941bd056b64910887e0415e0bf",
-   "bytes": 8960
+   "sha256": "53e142da5e11a8e849bfcb00f93840cd001e5325b699a420fbff877037a1dda6",
+   "bytes": 7984
   }
  }
 }

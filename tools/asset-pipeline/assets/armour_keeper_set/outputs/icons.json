@@ -10,21 +10,21 @@
   "blueprint_keeper_field_set_boots": "/home/claude/game-dev/.asset-cache/pipeline/armour_keeper_set/icons/blueprint_keeper_field_set_boots_hero.png"
  },
  "bytes": {
-  "keeper_field_set_chest_256.webp": 7344,
-  "keeper_field_set_chest_128.webp": 3136,
-  "blueprint_keeper_field_set_chest_256.webp": 8852,
-  "blueprint_keeper_field_set_chest_128.webp": 3112,
-  "keeper_field_set_gloves_256.webp": 5104,
-  "keeper_field_set_gloves_128.webp": 2114,
-  "blueprint_keeper_field_set_gloves_256.webp": 5806,
-  "blueprint_keeper_field_set_gloves_128.webp": 2152,
-  "keeper_field_set_greaves_256.webp": 8960,
-  "keeper_field_set_greaves_128.webp": 3566,
-  "blueprint_keeper_field_set_greaves_256.webp": 8186,
-  "blueprint_keeper_field_set_greaves_128.webp": 2914,
-  "keeper_field_set_boots_256.webp": 8484,
-  "keeper_field_set_boots_128.webp": 3630,
-  "blueprint_keeper_field_set_boots_256.webp": 8792,
-  "blueprint_keeper_field_set_boots_128.webp": 3112
+  "keeper_field_set_chest_256.webp": 7310,
+  "keeper_field_set_chest_128.webp": 3222,
+  "blueprint_keeper_field_set_chest_256.webp": 8764,
+  "blueprint_keeper_field_set_chest_128.webp": 3212,
+  "keeper_field_set_gloves_256.webp": 4480,
+  "keeper_field_set_gloves_128.webp": 1900,
+  "blueprint_keeper_field_set_gloves_256.webp": 5736,
+  "blueprint_keeper_field_set_gloves_128.webp": 2120,
+  "keeper_field_set_greaves_256.webp": 7984,
+  "keeper_field_set_greaves_128.webp": 3330,
+  "blueprint_keeper_field_set_greaves_256.webp": 8568,
+  "blueprint_keeper_field_set_greaves_128.webp": 3074,
+  "keeper_field_set_boots_256.webp": 8686,
+  "keeper_field_set_boots_128.webp": 3686,
+  "blueprint_keeper_field_set_boots_256.webp": 9000,
+  "blueprint_keeper_field_set_boots_128.webp": 3256
  }
 }

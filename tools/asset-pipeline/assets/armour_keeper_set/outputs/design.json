@@ -15,12 +15,12 @@
      "p05_m": 0.0051
     },
     "keeper_field_set_chest__flank_prism_l": {
-     "min_m": 0.0045,
-     "p05_m": 0.0069
+     "min_m": 0.0058,
+     "p05_m": 0.0081
     },
     "keeper_field_set_chest__flank_prism_r": {
-     "min_m": 0.0041,
-     "p05_m": 0.0071
+     "min_m": 0.0049,
+     "p05_m": 0.0088
     },
     "keeper_field_set_chest__optic_well": {
      "min_m": 0.0145,
@@ -39,68 +39,68 @@
      "p05_m": 0.0526
     },
     "keeper_field_set_chest__chest_shell_l": {
-     "min_m": 0.0041,
-     "p05_m": 0.0125
+     "min_m": 0.0088,
+     "p05_m": 0.0165
     },
     "keeper_field_set_chest__rib_frame_l": {
-     "min_m": -0.0041,
-     "p05_m": 0.0045
+     "min_m": -0.0029,
+     "p05_m": 0.006
     },
     "keeper_field_set_chest__abdomen_l0": {
-     "min_m": 0.0099,
-     "p05_m": 0.0116
+     "min_m": 0.0149,
+     "p05_m": 0.0165
     },
     "keeper_field_set_chest__abdomen_l1": {
-     "min_m": 0.0127,
-     "p05_m": 0.0138
+     "min_m": 0.0176,
+     "p05_m": 0.0188
     },
     "keeper_field_set_chest__abdomen_l2": {
-     "min_m": 0.0162,
-     "p05_m": 0.0166
+     "min_m": 0.0208,
+     "p05_m": 0.0211
     },
     "keeper_field_set_chest__back_shell_l": {
-     "min_m": 0.0104,
-     "p05_m": 0.0133
+     "min_m": 0.0131,
+     "p05_m": 0.0157
     },
     "keeper_field_set_chest__back_low_l": {
-     "min_m": 0.0132,
-     "p05_m": 0.0155
+     "min_m": 0.0146,
+     "p05_m": 0.0166
     },
     "keeper_field_set_chest__hip_l": {
-     "min_m": 0.0128,
-     "p05_m": 0.0156
+     "min_m": 0.0167,
+     "p05_m": 0.0193
     },
     "keeper_field_set_chest__chest_shell_r": {
-     "min_m": 0.0034,
-     "p05_m": 0.0122
+     "min_m": 0.0071,
+     "p05_m": 0.0158
     },
     "keeper_field_set_chest__rib_frame_r": {
-     "min_m": 0.0006,
-     "p05_m": 0.0043
+     "min_m": 0.0021,
+     "p05_m": 0.0061
     },
     "keeper_field_set_chest__abdomen_r0": {
-     "min_m": 0.0103,
-     "p05_m": 0.0115
-    },
-    "keeper_field_set_chest__abdomen_r1": {
-     "min_m": 0.013,
-     "p05_m": 0.0139
-    },
-    "keeper_field_set_chest__abdomen_r2": {
-     "min_m": 0.016,
+     "min_m": 0.0152,
      "p05_m": 0.0164
     },
+    "keeper_field_set_chest__abdomen_r1": {
+     "min_m": 0.0179,
+     "p05_m": 0.0189
+    },
+    "keeper_field_set_chest__abdomen_r2": {
+     "min_m": 0.0204,
+     "p05_m": 0.0208
+    },
     "keeper_field_set_chest__back_shell_r": {
-     "min_m": 0.0106,
-     "p05_m": 0.0132
+     "min_m": 0.0129,
+     "p05_m": 0.0155
     },
     "keeper_field_set_chest__back_low_r": {
-     "min_m": 0.013,
-     "p05_m": 0.0154
+     "min_m": 0.0142,
+     "p05_m": 0.0163
     },
     "keeper_field_set_chest__hip_r": {
-     "min_m": 0.0118,
-     "p05_m": 0.0158
+     "min_m": 0.0157,
+     "p05_m": 0.0195
     },
     "keeper_field_set_chest__optic_frame": {
      "min_m": 0.0221,
@@ -335,16 +335,16 @@
      "p05_m": 0.0036
     },
     "keeper_field_set_greaves__thigh_shell_l": {
-     "min_m": -0.0156,
-     "p05_m": 0.0024
+     "min_m": -0.0094,
+     "p05_m": 0.0061
     },
     "keeper_field_set_greaves__thigh_prism_l": {
-     "min_m": 0.0084,
-     "p05_m": 0.0112
+     "min_m": 0.0053,
+     "p05_m": 0.0083
     },
     "keeper_field_set_greaves__thigh_frame_l": {
-     "min_m": 0.0076,
-     "p05_m": 0.0084
+     "min_m": 0.0053,
+     "p05_m": 0.0063
     },
     "keeper_field_set_greaves__knee_l": {
      "min_m": 0.0218,
@@ -375,16 +375,16 @@
      "p05_m": 0.0039
     },
     "keeper_field_set_greaves__thigh_shell_r": {
-     "min_m": -0.0156,
-     "p05_m": 0.002
+     "min_m": -0.0092,
+     "p05_m": 0.0062
     },
     "keeper_field_set_greaves__thigh_prism_r": {
-     "min_m": 0.0085,
-     "p05_m": 0.0113
+     "min_m": 0.0049,
+     "p05_m": 0.0081
     },
     "keeper_field_set_greaves__thigh_frame_r": {
-     "min_m": 0.0076,
-     "p05_m": 0.0085
+     "min_m": 0.005,
+     "p05_m": 0.0065
     },
     "keeper_field_set_greaves__knee_r": {
      "min_m": 0.0216,
@@ -481,12 +481,12 @@
      "p05_m": 0.0052
     },
     "keeper_field_set_chest__flank_prism_l": {
-     "min_m": 0.0015,
-     "p05_m": 0.0063
+     "min_m": 0.0041,
+     "p05_m": 0.0083
     },
     "keeper_field_set_chest__flank_prism_r": {
-     "min_m": 0.0061,
-     "p05_m": 0.0081
+     "min_m": 0.0083,
+     "p05_m": 0.0112
     },
     "keeper_field_set_chest__optic_well": {
      "min_m": 0.016,
@@ -505,68 +505,68 @@
      "p05_m": 0.0524
     },
     "keeper_field_set_chest__chest_shell_l": {
-     "min_m": 0.0048,
-     "p05_m": 0.0151
+     "min_m": 0.0089,
+     "p05_m": 0.02
     },
     "keeper_field_set_chest__rib_frame_l": {
-     "min_m": 0.0028,
-     "p05_m": 0.0057
+     "min_m": 0.0026,
+     "p05_m": 0.0083
     },
     "keeper_field_set_chest__abdomen_l0": {
-     "min_m": 0.0104,
-     "p05_m": 0.0113
-    },
-    "keeper_field_set_chest__abdomen_l1": {
-     "min_m": 0.0103,
-     "p05_m": 0.0121
-    },
-    "keeper_field_set_chest__abdomen_l2": {
-     "min_m": 0.0131,
+     "min_m": 0.0154,
      "p05_m": 0.0162
     },
+    "keeper_field_set_chest__abdomen_l1": {
+     "min_m": 0.0151,
+     "p05_m": 0.017
+    },
+    "keeper_field_set_chest__abdomen_l2": {
+     "min_m": 0.0178,
+     "p05_m": 0.0196
+    },
     "keeper_field_set_chest__back_shell_l": {
-     "min_m": 0.0075,
-     "p05_m": 0.0147
+     "min_m": 0.0093,
+     "p05_m": 0.0178
     },
     "keeper_field_set_chest__back_low_l": {
-     "min_m": 0.0108,
-     "p05_m": 0.0139
+     "min_m": 0.0111,
+     "p05_m": 0.0135
     },
     "keeper_field_set_chest__hip_l": {
-     "min_m": 0.0164,
-     "p05_m": 0.0173
+     "min_m": 0.0201,
+     "p05_m": 0.021
     },
     "keeper_field_set_chest__chest_shell_r": {
-     "min_m": 0.0072,
-     "p05_m": 0.0149
+     "min_m": 0.0117,
+     "p05_m": 0.0197
     },
     "keeper_field_set_chest__rib_frame_r": {
-     "min_m": 0.0024,
-     "p05_m": 0.006
+     "min_m": 0.0019,
+     "p05_m": 0.0082
     },
     "keeper_field_set_chest__abdomen_r0": {
-     "min_m": 0.0107,
-     "p05_m": 0.0113
+     "min_m": 0.0156,
+     "p05_m": 0.0161
     },
     "keeper_field_set_chest__abdomen_r1": {
-     "min_m": 0.0106,
-     "p05_m": 0.012
+     "min_m": 0.0155,
+     "p05_m": 0.017
     },
     "keeper_field_set_chest__abdomen_r2": {
-     "min_m": 0.0136,
-     "p05_m": 0.0163
+     "min_m": 0.0183,
+     "p05_m": 0.0207
     },
     "keeper_field_set_chest__back_shell_r": {
-     "min_m": 0.0084,
-     "p05_m": 0.0148
+     "min_m": 0.0095,
+     "p05_m": 0.0182
     },
     "keeper_field_set_chest__back_low_r": {
-     "min_m": 0.0109,
-     "p05_m": 0.0125
+     "min_m": 0.0111,
+     "p05_m": 0.0128
     },
     "keeper_field_set_chest__hip_r": {
-     "min_m": 0.0166,
-     "p05_m": 0.0176
+     "min_m": 0.0205,
+     "p05_m": 0.0212
     },
     "keeper_field_set_chest__optic_frame": {
      "min_m": 0.023,
@@ -801,16 +801,16 @@
      "p05_m": -0.0098
     },
     "keeper_field_set_greaves__thigh_shell_l": {
-     "min_m": -0.0133,
-     "p05_m": -0.0009
+     "min_m": -0.0056,
+     "p05_m": 0.0077
     },
     "keeper_field_set_greaves__thigh_prism_l": {
-     "min_m": 0.0099,
-     "p05_m": 0.0116
+     "min_m": 0.0068,
+     "p05_m": 0.0082
     },
     "keeper_field_set_greaves__thigh_frame_l": {
-     "min_m": 0.0071,
-     "p05_m": 0.008
+     "min_m": 0.0055,
+     "p05_m": 0.0062
     },
     "keeper_field_set_greaves__knee_l": {
      "min_m": 0.0225,
@@ -841,16 +841,16 @@
      "p05_m": -0.0098
     },
     "keeper_field_set_greaves__thigh_shell_r": {
-     "min_m": -0.0133,
-     "p05_m": -0.0015
+     "min_m": -0.0056,
+     "p05_m": 0.0074
     },
     "keeper_field_set_greaves__thigh_prism_r": {
-     "min_m": 0.0101,
-     "p05_m": 0.0118
+     "min_m": 0.0063,
+     "p05_m": 0.008
     },
     "keeper_field_set_greaves__thigh_frame_r": {
-     "min_m": 0.0074,
-     "p05_m": 0.008
+     "min_m": 0.0055,
+     "p05_m": 0.0062
     },
     "keeper_field_set_greaves__knee_r": {
      "min_m": 0.0254,
