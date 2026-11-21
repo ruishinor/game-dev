@@ -836,14 +836,24 @@ try {
     await A.page.keyboard.press('Tab');
     await B.page.keyboard.press('Tab');
     await sleep(300);
-    // Tab picks the nearest; make sure both are on the intended enemy.
-    for (const p of [A, B]) {
-      for (let i = 0; i < 6 && (await state(p)).target !== next.id; i++) {
-        await p.page.keyboard.press('Tab');
-        await sleep(150);
+    // The enlarged world and nearby creatures can require more than six
+    // Tab cycles. Do not mistake damaging another target for directive credit.
+    // Both players must really target this skitter before using combat inputs.
+    for (const session of [A, B]) {
+      let selected=(await state(session)).target;
+      for (let i=0;i<24&&selected!==next.id;i++){
+        await session.page.keyboard.press('Tab');
+        selected=(await state(session)).target;
       }
+      if(selected!==next.id)throw Error('Cannot select directive skitter '+next.id+
+        ' in '+session.name+' (target '+selected+', enemy '+next.state+')');
     }
     killed = await killCurrent(next);
+    if(!killed)note('Failed live shared skitter kill '+JSON.stringify({
+      id:next.id,state:next.state,hp:next.hp,maxHp:next.maxHp,
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      auto:[serverPlayer('Brakka')?.autoOn,serverPlayer('Lumen')?.autoOn],
+      threat:[...next.threat.keys()]}));
     if (!killed) break;
   }
   await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);
@@ -1157,10 +1167,13 @@ try {
   // return to the Sanctum, dismisses the active companion; buffs are kept.
   const dismissedOnRecovery = await until(B, () => {
     const s = window.__attune.state();
-    return !s.compId && !document.querySelector('.summon-pet').hidden;
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    // Check server-authorized dismissal and the real enabled HUD control.
+    return !s.compId && !!summon && !summon.hidden && !summon.disabled;
   }, null, 5000, 'companion dismissed by the return to the Sanctum');
   check('8. recovery dismisses the companion and offers a re-summon', dismissedOnRecovery);
-  await B.page.locator('.summon-pet').click();
+  if(!dismissedOnRecovery)throw Error('Class companion was not dismissed or re-summon UI is unavailable');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const recalled = await until(B, () => {
     const s = window.__attune.state();
     return s.compId > 0 && s.ents.some((e) => e.id === s.compId) && !document.querySelector('.petbar').hidden;
@@ -1169,11 +1182,14 @@ try {
   const recalledId = (await state(B)).compId;
   await B.page.locator('.frame.pet .pet-select').click({ button: 'right' });
   await B.page.locator('.player-context').getByRole('button', { name: 'Dismiss companion', exact: true }).click();
-  const dismissed = await until(B, () => {
+  const dismissed = await until(B, oldId => {
     const s = window.__attune.state();
-    return !s.compId && document.querySelector('.petbar').hidden && !document.querySelector('.summon-pet').hidden;
-  }, null, 5000, 'companion dismissed and summon available');
-  await B.page.locator('.summon-pet').click();
+    const summon = document.querySelector('.actionbar [aria-label^="Summon "]');
+    return !s.compId && !s.ents.some(e => e.id === oldId) &&
+      !!summon && !summon.hidden && !summon.disabled;
+  }, recalledId, 5000, 'companion dismissed and summon available');
+  if(!dismissed)throw Error('Class companion remained active or was not removed from client state');
+  await B.page.locator('.actionbar [aria-label^="Summon "]').click();
   const resummoned = await until(B, oldId => {
     const s = window.__attune.state();
     return s.compId > 0 && s.compId !== oldId && !document.querySelector('.petbar').hidden;
