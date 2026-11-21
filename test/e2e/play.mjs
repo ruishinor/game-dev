@@ -320,9 +320,13 @@ async function workshopPlaytest(){
 
 async function followInventoryPlaytest(){
  const A=await openPlayer('follow-leader','FollowLeader','vanguard');
+ // Hold the leader's draws while the follower creates a character. Under
+ // software WebGL an unpaused first client starves the second one's entry
+ // past openPlayer's 20 s wait; both are paused here before any check anyway.
+ await A.page.evaluate(()=>window.__attune.pause(true));
  const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3}});
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
- await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
+ await B.page.evaluate(()=>window.__attune.pause(true));
  const portraitImages=[];
  for(const session of [A,B]){
   await session.page.bringToFront();await session.page.locator('#view').focus();await session.page.keyboard.press('KeyC');
