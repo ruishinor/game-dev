@@ -20,7 +20,7 @@ const COMBOS = [
   ['velari-m', 'symbiotech', 'conductor', 'm', 'velari', 1, 'buzz', 7],
   ['augmented-f', 'surveyor', 'brine_surveyor', 'f', 'augmented', 2, 'crop', 2],
   ['velari-f-pale', 'keeper', 'aegis_keeper', 'f', 'velari', 0, 'none', 0],
-  ['augmented-m-deep', 'vanguard', 'vanguard_plate', 'm', 'augmented', 7, 'buzz', 1],
+  ['augmented-m-deep', 'symbiotech', 'conductor', 'm', 'augmented', 7, 'buzz', 1],
 ];
 const srv = await startServer({ port: 0, dataFile: null });
 const browser = await launchBrowser();
