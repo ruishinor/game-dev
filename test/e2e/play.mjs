@@ -320,7 +320,7 @@ async function workshopPlaytest(){
 
 async function followInventoryPlaytest(){
  const A=await openPlayer('follow-leader','FollowLeader','vanguard');
- const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3}});
+ const B=await openPlayer('follow-follower','FollowFollower','vanguard',undefined,undefined,{appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3}});
  const pa=serverPlayer('FollowLeader'),pb=serverPlayer('FollowFollower');
  await Promise.all([A.page.evaluate(()=>window.__attune.pause(true)),B.page.evaluate(()=>window.__attune.pause(true))]);
  const portraitImages=[];
@@ -330,7 +330,7 @@ async function followInventoryPlaytest(){
   portraitImages.push(await portrait.getAttribute('src'));
   await session.page.locator('#view').focus();await session.page.keyboard.press('Escape');
  }
- check('same outfit, different selected appearance produces distinct character portraits',pb.char.appearance==='f.mirekin.2.crop.3'&&portraitImages.every(src=>src?.startsWith('data:image/png'))&&portraitImages[0]!==portraitImages[1]);
+ check('same outfit, different selected appearance produces distinct character portraits',pb.char.appearance==='f.velari.2.crop.3'&&portraitImages.every(src=>src?.startsWith('data:image/png'))&&portraitImages[0]!==portraitImages[1]);
  await teleport(A,0,7.5);await teleport(B,0,11);
  await settle(A,0,7.5);await settle(B,0,11);
  await B.page.bringToFront();
@@ -1199,15 +1199,15 @@ try {
   // --------------------------------------------- 15. appearance independent of class
   // This session uses the default input configuration (pointer lock while
   // steering), which every other session here disables with ?nolock=1.
-  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'mirekin',skin:2,hair:'crop',colour:3} });
+  const C = await openPlayer('c', 'MireGuard', 'vanguard', undefined, undefined, { lock: true, appearance:{frame:'f',race:'velari',skin:2,hair:'crop',colour:3} });
   const sc = await state(C);
   const cByB = await until(B, (id) => {
     const e = window.__attune.state().ents.find((x) => x.id === id);
     return e && e.a === 'vanguard_plate' && e.model === 'glb';
   }, sc.myId, 6000, 'B to see the second Vanguard model');
   const retiredOptions=await C.page.locator('.lookcard[data-look="red_rucker"], #ap-race [data-value="veyran"]').count();
-  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.mirekin.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
-  await shot(C, '08-mirekin-vanguard.png');
+  check('15. alternate active appearance retains Vanguard class; retired identity is not selectable', cByB && retiredOptions===0 && sc.sheet.cls === 'vanguard' && sc.sheet.look === 'vanguard_plate' && sc.sheet.appearance==='f.velari.2.crop.3' && serverPlayer('MireGuard').cls === 'vanguard', `class ${sc.sheet.cls}, look ${sc.sheet.look}, appearance ${sc.sheet.appearance}`);
+  await shot(C, '08-velari-vanguard.png');
   // Synthetic absolute moves cannot express relative motion under pointer
   // lock (Chromium turns them into cancelling warp pairs), so the drag only
   // engages the lock; the steering deltas are then delivered as locked
