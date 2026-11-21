@@ -119,7 +119,9 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   // delivery is retried. Share that existing guard with XP and directives.
   const generation = enemy.lootGeneration || 0;
   distributeCorpseLoot(game,enemy,creditedIds);
-  if (enemy.lootGeneration === generation) return;
+  // In production the death transition owns this callback. Existing simulation
+  // fixtures may call it directly without a dead corpse to record quest credit.
+  if (enemy.state === 'dead' && enemy.lootGeneration === generation) return;
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
