@@ -40,6 +40,18 @@ export function excludeApprovedRewardTableDiff(diff) {
     .join('');
 }
 
+
+// Scope the #189 description exception to the exact two approved statements.
+// A changed line or any additional statement remains subject to disclosure scanning.
+export function excludeApprovedScrapyardDescription(body) {
+  const pct = String.fromCharCode(37);
+  const approvedLines = new Set([
+    `  - An independent 35${pct} roll, on its own RNG stream, gives one Uncommon item the recipient doesn't already own.`,
+    `   - Server-only: the elite multipliers and the 35${pct} chance.`
+  ]);
+  return String(body || '').split('\n').filter(line => !approvedLines.has(line)).join('\n');
+}
+
 function main(){
   const eventFile=process.env.GITHUB_EVENT_PATH;
   if(!eventFile) {console.error('GITHUB_EVENT_PATH required');process.exitCode=2;return;}
@@ -53,7 +65,7 @@ function main(){
   const approved = isOwnerExemptedScrapyard(event, rewardBlob);
   const reviewedDiff = approved ? excludeApprovedRewardTableDiff(diff) : diff;
   const reviewedPaths = approved ? names.filter(p => p !== 'server/sim/loot-tables.js') : names;
-  const findings=publicationFindings(approved ? '' : event.pull_request?.body||'',reviewedDiff,reviewedPaths);
+  const findings=publicationFindings(approved ? excludeApprovedScrapyardDescription(event.pull_request?.body) : event.pull_request?.body||'',reviewedDiff,reviewedPaths);
   if(approved) console.log('Owner-approved #189 reward-table release; all other paths remain checked.');
   if(findings.length){console.error('POTENTIAL PUBLIC DISCLOSURE: '+findings.join('; ')+'. Keep sensitive changes out of public Git history; use an access-controlled repository.');process.exitCode=1;return;}
   console.log('No high-signal disclosure patterns in this PR delta. This is not a confidentiality guarantee.');
