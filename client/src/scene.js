@@ -773,6 +773,29 @@ const Q = new THREE.Quaternion();
 const E = new THREE.Euler();
 const SC = new THREE.Vector3();
 /** Matrix for a prop standing on the terrain at (x, z). */
+/** Sanctum architecture kit (Blender; tools/asset-pipeline/.../sanctum_arch.py). */
+export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=d79184f83fc0';
+
+/** A Sanctum kit piece placed under a holder, keeping the node's own (quantised)
+ * transform; null when the kit is unavailable (the generic kit is used). */
+function archInstance(c, name, matrix) {
+  const src = c.arch?.get(name);
+  if (!src) return null;
+  const holder = new THREE.Group();
+  holder.name = 'sanctum-arch:' + name;
+  holder.applyMatrix4(matrix);
+  const inst = src.clone(true);
+  inst.traverse((o) => {
+    if (!o.isMesh) return;
+    const n = o.material?.name;
+    if (n === 'SA_Channel' || n === 'SA_Lamp') { o.material = c.archGlow(n); o.castShadow = false; }
+    else { o.castShadow = true; o.receiveShadow = true; }
+  });
+  holder.add(inst);
+  c.scene.add(holder);
+  return holder;
+}
+
 function at(x, z, { y = 0, ry = 0, rx = 0, rz = 0, s = 1, ground = true } = {}) {
   P.set(x, (ground ? groundHeight(x, z) : 0) + y, z);
   Q.setFromEuler(E.set(rx, ry, rz, 'YXZ'));
@@ -859,8 +882,10 @@ const kit = {
     return crystals;
   },
   beacon(p, c) {
-    c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.07 }));
-    c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { y: 0.1, s: [1.25, 1, 1.05] }));
+    if (!archInstance(c, 'SA_Beacon', at(p.x, p.z, { y: 0.47, ground: false }))) {
+      c.solid.add(c.piece('sanctum', 'Platform_Round1'), at(p.x, p.z, { y: 0.07 }));
+      c.solid.add(c.piece('sanctum', 'Column_Large_Straight'), at(p.x, p.z, { y: 0.1, s: [1.25, 1, 1.05] }));
+    }
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
       c.solid.add(c.piece('sanctum', 'Prop_Light_Floor'), at(p.x + Math.sin(a) * 3.6, p.z + Math.cos(a) * 3.6, { y: 0.1, ry: a + Math.PI / 2 }));
@@ -891,14 +916,32 @@ const kit = {
     return g;
   },
   pylon(p, c) {
-    const obj = c.single('sanctum', 'Column_Hollow', at(p.x, p.z, { y: 0.05, ry: p.rot, s: [1.15, 1.04, 1.15] }));
     const y = groundHeight(p.x, p.z);
+    const carved = archInstance(c, 'SA_Pylon', at(p.x, p.z, { y: 0, ry: p.rot }));
+    if (carved) { c.occluders.add(carved, p.x, p.z, 1.0, y, y + 5.4); return; }
+    const obj = c.single('sanctum', 'Column_Hollow', at(p.x, p.z, { y: 0.05, ry: p.rot, s: [1.15, 1.04, 1.15] }));
     c.occluders.add(obj, p.x, p.z, 1.0, y, y + 5.4);
     const cap = scaled(G.box, glow(0x6fe6ff), 0.9, 0.08, 0.9, p.x, y + 5.32, p.z, false);
     c.scene.add(cap);
   },
   gatepost() {},
   console(p, c) {
+    // Sanctum service console in the architecture kit's stone and bronze; its
+    // panels face the beacon (kit -y front is three +z).
+    const carved = archInstance(c, 'SA_Console', at(p.x, p.z, { y: 0, ry: Math.atan2(-p.x, -p.z) }));
+    if (carved) {
+      carved.name = 'sanctum:service-console';
+      // Broad panels use a tone-mapped, dimmer copy of the channel glow: the
+      // channel's unmapped strip intensity would read as flat white here.
+      const panel = c.archGlow('SA_Channel').clone();
+      panel.name = 'SA_Panel';
+      panel.toneMapped = true;
+      panel.emissiveIntensity = 0.32;
+      panel.color?.setHex(0x071416);
+      panel.emissive?.setHex(0x3fd6e0);
+      carved.traverse((o) => { if (o.isMesh && o.material?.name === 'SA_Channel') o.material = panel; });
+      return;
+    }
     for (const dx of [-0.55, 0.55]) c.solid.add(c.piece('sanctum', 'Prop_Computer'), at(p.x + dx, p.z, { y: 0.07, ry: dx * 0.25, s: 1.05 }));
     c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(p.x - 1.6, p.z + 0.9, { y: 0.09, ry: 0.6 }));
   },
@@ -996,10 +1039,16 @@ function buildSanctum(c) {
   for(const x of [-3.8,3.8])arrival.add(mesh(new THREE.BoxGeometry(.27,.28,4.6),mat(0x52615d,{metal:.6}),x,4.24,7.9));
   // Slatted overhead frame keeps the sky and exit visible with the game camera.
   for(let i=-3;i<=3;i++)arrival.add(mesh(new THREE.BoxGeometry(.18,.14,4.6),mat(0x7b816c,{metal:.48}),i,4.42,7.9));
+  // With the kit, a bronze lattice canopy replaces the plain frame and slats.
+  if (archInstance(c, 'SA_HallCanopy', at(0, 7.9, { y: 0, ground: false }))) arrival.children.splice(0, arrival.children.length);
   for(const x of [-2.8,2.8])arrival.add(mesh(new THREE.BoxGeometry(.08,.025,4.3),glow(0x6db3b0),x,.51,7.9,false));
   for(let i=-2;i<=2;i++)arrival.add(mesh(new THREE.BoxGeometry(.26,.025,.7),mat(0xc9ad73,{rough:.8}),i*.65,.515,5.4,false));
   scene.add(arrival);
-  // Foundation: a dark machined disc under the deck tiles.
+  // Foundation. With the architecture kit: one carved stone deck (curb, flag
+  // courses, rosette, inlay ring and spokes) replaces the disc, tiles and rings.
+  if (archInstance(c, 'SA_Deck', at(0, 0, { y: 0, ground: false }))) {
+    /* deck placed */
+  } else {
   const base = mesh(new THREE.CylinderGeometry(13.6, 14.3, 0.7, 48), mat(0x23292f, { rough: 0.55, metal: 0.7 }), 0, top - 0.35, 0);
   base.material = base.material.clone();
   base.material.flatShading = false;
@@ -1021,6 +1070,7 @@ function buildSanctum(c) {
   const rim = mesh(new THREE.RingGeometry(13.35, 13.46, 72), glow(0x426f77, 0.5), 0, top + 0.03, 0, false);
   rim.rotation.x = -Math.PI / 2;
   scene.add(rim);
+  }
 
   // Overhead lattice: a hexagon of trusses between the pylon heads, and
   // stays running up to the beacon. This is what gives the place its name.
@@ -1037,6 +1087,7 @@ function buildSanctum(c) {
       P.set(ax + dx * f, ay + dy * f, az + dz * f);
       Q.setFromEuler(E.set(rx, ry, 0, 'YXZ'));
       SC.set(0.8, 1, len / n / 4);
+      if (c.arch) { if (k === 0) { P.set(ax + dx / 2, ay + dy / 2, az + dz / 2); SC.set(1, 1, len / 4); archInstance(c, 'SA_Span', new THREE.Matrix4().compose(P, Q, SC)); } continue; }
       c.cover.add(c.piece('sanctum', 'Column_MetalSupport'), new THREE.Matrix4().compose(P, Q, SC));
     }
   };
@@ -1055,8 +1106,17 @@ function buildSanctum(c) {
     const x = (zn.x / d) * 14.6;
     const z = (zn.z / d) * 14.6;
     // Single objects, not instanced: a gate fades when the camera is behind it.
-    const gate = c.single('sanctum', 'Door_Frame_Square', at(x, z, { y: -0.05, ry: Math.atan2(zn.x, zn.z) }));
     const colour = key === 'sporefield' ? 0xffa6f2 : key === 'relay' ? 0xffb45c : 0xb48cff;
+    const archGate = archInstance(c, 'SA_Arch', at(x, z, { y: 0, ry: Math.atan2(zn.x, zn.z) }));
+    if (archGate) {
+      // the lintel lamp carries the road's colour (wayfinding)
+      archGate.traverse((o) => { if (o.isMesh && o.material?.name === 'SA_Lamp') { o.material = o.material.clone(); o.material.emissive.setHex(colour); } });
+      const ground = groundHeight(x, z), sx = -zn.z / d, sz = zn.x / d;
+      for (const side of [-1, 1]) c.occluders.add(archGate, x + sx * side * 2.05, z + sz * side * 2.05, 0.62, ground, ground + 4.25);
+      c.occluders.add(archGate, x, z, 2.7, ground + 4.15, ground + 5.2);
+      continue;
+    }
+    const gate = c.single('sanctum', 'Door_Frame_Square', at(x, z, { y: -0.05, ry: Math.atan2(zn.x, zn.z) }));
     // The lintel lamp is part of the gate so that it fades with it.
     const lamp = new THREE.Mesh(G.box, new THREE.MeshBasicMaterial({ color: colour }));
     lamp.scale.set(1.6, 0.1, 0.1);
@@ -1278,6 +1338,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   const anim = [];
   const occluders = new Occluders();
   const animators = [];
+  // Sanctum kit emissives (channels pulse slowly; lamps stay steady)
+  const archGlowMats = [];
   const c = {
     scene,
     detail,
@@ -1288,6 +1350,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
     far: new Batcher(60), // backdrop: no shadows at all
     beads: [], // [x, y, z, radius, colour] small glowing spheres
     pieceMeta: (bundle,name) => assets?.pieceMeta(bundle,name),
+    arch: assets?.sanctumArch ? new Map(assets.sanctumArch.scene.children.map((o) => [o.name, o])) : null,
+    archGlow: (() => { const mats = {}; return (name) => { if (!mats[name]) { let m = null; assets.sanctumArch.scene.traverse((o) => { if (!m && o.isMesh && o.material?.name === name) m = o.material; }); mats[name] = (m || new THREE.MeshStandardMaterial()).clone(); mats[name].toneMapped = false; archGlowMats.push(mats[name]); } return mats[name]; }; })(),
     piece: (bundle, name) => {
       const p = assets.get(bundle).pieces.get(name);
       if (!p) throw new Error(`piece ${bundle}:${name} is not in the bundle`);
@@ -1321,6 +1385,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   };
 
   if (kits) buildSanctum(c);
+  if (archGlowMats.length) anim.push((dt, t) => { for (const m of archGlowMats) if (m.name === 'SA_Channel') m.emissiveIntensity = 2.6 + 0.9 * Math.sin(t * 0.8); });
   if (!kits) {
     // Sanctum floor: a level dais with an inlaid ring of light.
     const dais = mesh(new THREE.CylinderGeometry(13, 13.6, 0.5, 40), mat(0x56666e, { rough: 0.7, metal: 0.2 }), 0, 0.2, 0);
@@ -1365,6 +1430,12 @@ export function buildWorld(scene, assets = null, opts = {}) {
       };
       continue;
     }
+    // Arrival hall in the Sanctum's carved stone and bronze (colliders unchanged)
+    // Hall pieces keep the procedural prop's object name: tools and e2e checks
+    // look the arrival hall up by these names whichever art is loaded.
+    const hall = { arrival_wall: ['SA_HallWall', 'arrival:side-enclosure'], arrival_pillar: ['SA_HallPillar', 'arrival:column'], arrival_arch: ['SA_HallLintel', 'arrival:threshold-arch'] }[p.type];
+    const hallHolder = hall && archInstance(c, hall[0], at(p.x, p.z));
+    if (hallHolder) { hallHolder.name = hall[1]; hallHolder.userData.archPiece = hall[0]; continue; }
     let obj;
     if (kits && kit[p.type]) {
       try {
