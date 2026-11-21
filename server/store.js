@@ -1,14 +1,18 @@
 // Character persistence: a single JSON file written atomically.
+import {sanitizeVeinReady} from './sim/severance-veins.js';
 // Characters are owned by whoever holds their secret token; only a hash of
 // the token is stored.
 
-import {sanitizeVeinReady} from './sim/severance-veins.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, XP_TO_NEXT, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { resolveLoadout } from '../shared/build.js';
+import { publicWeaponVisual } from '../shared/weapon-visual.js';
+import { publicArmourVisual } from '../shared/armour-visual.js';
+import { publicSocialVisual } from '../shared/social-visual.js';
+import { WORLD, zoneAt, inDisconnectedRegion } from '../shared/world.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../shared/crafting-disciplines.js';
@@ -253,7 +257,21 @@ export class CharacterStore {
 
   listCharacters(account) {
     return [...this.chars.values()].filter((c) => c.accountId === account.id)
-      .map((c) => ({ id: c.id, name: c.name, cls: c.cls, look: c.look, appearance: c.appearance, level: c.level, lastSeen: c.lastSeen }))
+      .map((c) => ({
+        id:c.id, name:c.name, cls:c.cls, look:c.look, appearance:c.appearance,
+        level:c.level, xp:c.xp, credits:c.credits, lastSeen:c.lastSeen,
+        initiationSeen:c.initiationSeen,
+        // Only this authenticated account's characters are projected.
+        // Use the same allowlisted appearance metadata as the actual world entity.
+        wv:publicWeaponVisual(c),
+        // Match the world entity's cosmetic override precedence.
+        av:publicSocialVisual(c)?null:publicArmourVisual(c),
+        sv:publicSocialVisual(c),
+        er:c.cls==='vanguard'&&c.equipped?.weapon==='electrical_combat_rod'
+          &&c.inventory.includes('electrical_combat_rod')?(c.electricalRodMode==='dual'?2:1):null,
+        location:!c.initiationSeen?'Character Initiation':!c.pos||inDisconnectedRegion(c.pos.x,c.pos.z,4)
+          ?zoneAt(WORLD.spawn.x,WORLD.spawn.z):zoneAt(c.pos.x,c.pos.z),
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 

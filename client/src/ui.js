@@ -739,7 +739,7 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
-    const resetWindows=h('button',null,'Reset all window layouts');
+    const resetWindows=h('button','reset-window-layouts','Reset all window layouts');
     resetWindows.type='button';resetWindows.addEventListener('click',()=>{for(const layout of this.windowLayouts)layout.reset();});
     this.settingsPanel.append(resetWindows);
     const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;

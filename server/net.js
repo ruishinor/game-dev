@@ -13,6 +13,7 @@ import { openLoot, takeLoot, clearLoot } from './sim/loot.js';
 import { tradeVendor,closeVendor } from './sim/vendor.js';
 import { useUtility } from './sim/utility.js';
 import { sameTravelRegion, travelRegionAt } from '../shared/world.js';
+import { MAX_ACCOUNT_CHARACTERS } from './store.js';
 
 export const PROTOCOL_VERSION = 1;
 const MAX_CONNECTIONS = 64;
@@ -208,7 +209,7 @@ export class NetServer {
   }
 
   sendRoster(conn, token) {
-    const msg = { t: 'account_ready', handle: conn.account.handle, chars: this.store.listCharacters(conn.account) };
+    const msg = { t: 'account_ready', handle: conn.account.handle, chars: this.store.listCharacters(conn.account), maxSlots: MAX_ACCOUNT_CHARACTERS };
     if (token) msg.token = token;
     send(conn.ws, msg);
   }

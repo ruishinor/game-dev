@@ -1,5 +1,10 @@
 # ATTUNEMENT — Development roadmap and delivery register
 
+## Cinematic Character Selection and World Entry — 2026-11-20
+
+See [the complete owner-directed cinematic selection delivery roadmap](art/CINEMATIC-CHARACTER-SELECTION-ROADMAP.md) and [the original composition blueprint](art/concepts/cinematic-character-selection.svg). An isolated branch replaces the rejected beige/gray selection treatment with full-viewport cold material architecture and a live **persisted** gameplay model. Reuses authoritative account/character ownership, six-slot limit, character creation/initiation, deletion and world-entry contracts. Account-only projection now includes supported equipment visuals and true character-owned metadata. Focused validation is added; runtime screenshots, GPU profiling, full race/equipment visual acceptance, and PR checks must be verified before production promotion. Keep Expanse/Silent Foundry owner-isolated.
+
+
 Owner direction, 2026-11-18. Baseline: main after audit PR #68. Read [Implementation audit](IMPLEMENTATION-AUDIT-2026-11-18.md), [Game concept](Attunement-Game-Concept.md), [AGENTS.md](../AGENTS.md), and [playtest validation](PLAYTEST-VALIDATION.md). This is the public, high-level execution register explicitly requested by the owner; private encounter scripts, undiscovered triggers, exact loot odds, unreleased assets and other sensitive production information are excluded. Status is evidence-based: **present** means source implementation exists, **partial** means unfinished/limited, **outstanding** means not complete, **branch only** means not integrated, **deferred** specifies sequencing, and **verify** requires current integrated evidence.
 
 ## 1. Objective and authority
