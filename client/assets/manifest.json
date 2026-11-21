@@ -38,35 +38,35 @@
   "armour_vanguard_set_f": {
    "kind": "skinned",
    "url": "armour_vanguard_set_f.glb",
-   "bytes": 3939248,
-   "rawBytes": 26034432,
-   "hash": "a8b388769e25",
-   "tris": 115070,
-   "textures": 12,
-   "meshes": 8,
+   "bytes": 5746356,
+   "rawBytes": 22888508,
+   "hash": "60945afda279",
+   "tris": 46063,
+   "textures": 8,
+   "meshes": 24,
    "clips": {},
    "sources": [
     "ual2",
     "makehuman"
    ],
-   "note": "Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_f, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+   "note": "Cinderlock Regalia (Kinetic Vanguard set), six original hard-surface modules with distance LODs for humanoid_f, worn by Vanguard players and the Severance Soldiers; produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
   },
   "armour_vanguard_set_m": {
    "kind": "skinned",
    "url": "armour_vanguard_set_m.glb",
-   "bytes": 4021356,
-   "rawBytes": 26148124,
-   "hash": "97cdfedf3d8a",
-   "tris": 120708,
-   "textures": 12,
-   "meshes": 8,
+   "bytes": 5675044,
+   "rawBytes": 22694436,
+   "hash": "07dbd7499665",
+   "tris": 45941,
+   "textures": 8,
+   "meshes": 24,
    "clips": {},
    "sources": [
     "ual2",
     "ual1",
     "makehuman"
    ],
-   "note": "Cinderlock Regalia (Kinetic Vanguard set), original hard-surface armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+   "note": "Cinderlock Regalia (Kinetic Vanguard set), six original hard-surface modules with distance LODs for humanoid_m, worn by Vanguard players and the Severance Soldiers; produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
   },
   "creatures": {
    "kind": "kit",
@@ -1356,8 +1356,8 @@
   },
   "vanguard_field_set_boots": {
    "url": "icons/armour/vanguard_field_set_boots.webp",
-   "bytes": 9060,
-   "hash": "14eca508e816",
+   "bytes": 8454,
+   "hash": "32f4950b3ca0",
    "sources": [
     "ual2",
     "ual1",
@@ -1367,8 +1367,8 @@
   },
   "vanguard_field_set_chest": {
    "url": "icons/armour/vanguard_field_set_chest.webp",
-   "bytes": 7920,
-   "hash": "e63f9241f49b",
+   "bytes": 7824,
+   "hash": "2081c6dffd79",
    "sources": [
     "ual2",
     "ual1",
@@ -1378,8 +1378,8 @@
   },
   "vanguard_field_set_gloves": {
    "url": "icons/armour/vanguard_field_set_gloves.webp",
-   "bytes": 4442,
-   "hash": "72808f0ce871",
+   "bytes": 4264,
+   "hash": "ffd27c16dda6",
    "sources": [
     "ual2",
     "ual1",
@@ -1389,8 +1389,8 @@
   },
   "vanguard_field_set_greaves": {
    "url": "icons/armour/vanguard_field_set_greaves.webp",
-   "bytes": 8146,
-   "hash": "62f4e18c64cc",
+   "bytes": 9272,
+   "hash": "96ba7cf39cd2",
    "sources": [
     "ual2",
     "ual1",

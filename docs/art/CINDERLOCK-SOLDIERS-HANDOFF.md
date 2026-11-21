@@ -12,7 +12,8 @@ Branch `charlie/festive-thompson-a5h4f5` (Claude's reserved Severance track, AGE
 | Budgeted high→low build, two shared 2K atlases, LOD1/LOD2, tangents | Done, full quality, both bodies |
 | Validation over seven clips | Run; strain passes everywhere, body penetration fails on five modules (below). Not accepted |
 | Severance Soldier enemy, server-only squads with formation following | Done, tested |
-| Soldier presentation: humanoid + six modules, distance LODs, channel FX, Kinetic Discharge VFX | Done, unit-tested; in-game capture pending in this handoff |
+| Soldier presentation: humanoid + six modules, distance LODs, channel FX, Kinetic Discharge VFX | Done; unit-tested and captured in game (software GL) |
+| Published runtime GLBs, icons, manifest | Done; full suite 554/554 |
 | Owner art review | Outstanding |
 
 ## Modules
@@ -83,13 +84,20 @@ Compared with the previous build, edge strain now passes everywhere (the old gau
   * Distance LODs switch at 14 m and 32 m with hysteresis. Channel strips show on LOD0 only; the far levels use the HDR emissive map.
   * The armour channels charge through the wind-up, and the release plays the Vanguard Discharge animation plus a crimson recipe in the shared combat VFX engine (`vfx/combat.js` `kinetic_discharge`).
   * The Codex has a soldier entry.
-* **Captures:** `node tools/severance-expanse-capture.mjs <dir> 18` covers squad close, mid and far, night, and the discharge (wind-up and burst).
+* **Captures:** `node tools/severance-expanse-capture.mjs <dir> 18` covers squad close, mid and far, night, and the discharge (wind-up and burst). Review material stays out of Git.
+* **In game (software GL, 1280×720, 2026-11-21):**
+  * The squads hold their wedge, each soldier has its own face, and the full set is worn on both frames.
+  * The discharge reads clearly: the shared wind-up dome and ground telegraph, the crimson burst, and the Discharge animation.
+  * No console or page errors.
+  * The first close shot was taken before the 5.5 MB bundle had loaded, so it shows the undersuit fallback; the later shots show the armour.
+  * **Finding: the channels barely read at gameplay distance.** Only the reactor and the anchor halos show at 8–10 m. The strips are about 3 mm wide, under a pixel at that range, and the renderer has no bloom pass. Options: a wider additive glow ribbon per channel built by the pipeline and driven by the armour FX shader, distance-scaled halos, or a renderer-wide bloom pass (a cross-game performance decision).
+  * Frame cost in that view: 550–640 draw calls, 0.83–0.96 M triangles. Not a GPU figure.
 
 ## Tests
 
 * New: `test/severance-soldiers.test.js` (composition, formation, shared aggro and leash, metadata carries no route/slot/link) and `test/cinderlock-modules.test.js` (module map, prototype-key safety, forged `av`, LOD switching and hysteresis).
 * Extended: `test/armour-3d.test.js` checks the module nodes, the 28k/14k/7k budgets on the published GLBs, and tangents.
-* Full suite: see the commit that publishes the set.
+* Full suite on the publishing commit: 554/554.
 
 ## Open items (owner review)
 

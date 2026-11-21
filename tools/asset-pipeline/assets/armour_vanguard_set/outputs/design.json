@@ -1,134 +1,164 @@
 {
  "items": [
   "vanguard_field_set_chest",
+  "cinderlock_arms",
   "vanguard_field_set_gloves",
+  "cinderlock_legs",
   "vanguard_field_set_greaves",
   "vanguard_field_set_boots"
  ],
  "bodies": {
   "m": {
-   "pieces": 114,
-   "min_clearance_m": -0.0345,
+   "pieces": 141,
+   "min_clearance_m": -0.04,
    "clearance": {
     "vanguard_field_set_chest__vest": {
-     "min_m": 0.0028,
-     "p05_m": 0.0051
+     "min_m": 0.0027,
+     "p05_m": 0.0052
     },
     "vanguard_field_set_chest__flank_vent_l": {
      "min_m": 0.0015,
      "p05_m": 0.0036
     },
-    "vanguard_field_set_chest__flank_slats_l": {
-     "min_m": -0.0277,
-     "p05_m": -0.0253
+    "vanguard_field_set_chest__flank_fins_l": {
+     "min_m": 0.0049,
+     "p05_m": 0.0069
+    },
+    "vanguard_field_set_chest__sink_vent_l": {
+     "min_m": 0.0172,
+     "p05_m": 0.0178
+    },
+    "vanguard_field_set_chest__sink_fins_l": {
+     "min_m": 0.0215,
+     "p05_m": 0.0225
     },
     "vanguard_field_set_chest__flank_vent_r": {
      "min_m": 0.0015,
      "p05_m": 0.0047
     },
-    "vanguard_field_set_chest__flank_slats_r": {
-     "min_m": -0.0172,
-     "p05_m": -0.0144
+    "vanguard_field_set_chest__flank_fins_r": {
+     "min_m": 0.0042,
+     "p05_m": 0.0068
+    },
+    "vanguard_field_set_chest__sink_vent_r": {
+     "min_m": 0.0172,
+     "p05_m": 0.018
+    },
+    "vanguard_field_set_chest__sink_fins_r": {
+     "min_m": 0.0216,
+     "p05_m": 0.0226
     },
     "vanguard_field_set_chest__reactor_back": {
      "min_m": 0.0135,
      "p05_m": 0.0145
     },
-    "vanguard_field_set_chest__reactor_slats": {
-     "min_m": 0.0189,
-     "p05_m": 0.0195
+    "vanguard_field_set_chest__reactor_fins": {
+     "min_m": 0.021,
+     "p05_m": 0.0212
     },
     "vanguard_field_set_chest__pec_l": {
      "min_m": 0.0105,
      "p05_m": 0.0143
     },
     "vanguard_field_set_chest__ab_l0": {
-     "min_m": 0.0091,
-     "p05_m": 0.0112
+     "min_m": 0.0098,
+     "p05_m": 0.0113
     },
     "vanguard_field_set_chest__ab_l1": {
-     "min_m": 0.011,
-     "p05_m": 0.0126
+     "min_m": 0.0111,
+     "p05_m": 0.0124
     },
     "vanguard_field_set_chest__ab_l2": {
      "min_m": 0.013,
-     "p05_m": 0.014
+     "p05_m": 0.0146
     },
     "vanguard_field_set_chest__flank_l": {
      "min_m": 0.0029,
      "p05_m": 0.0067
     },
     "vanguard_field_set_chest__scapula_l": {
-     "min_m": 0.0123,
-     "p05_m": 0.0157
+     "min_m": 0.012,
+     "p05_m": 0.0144
     },
     "vanguard_field_set_chest__back_l0": {
-     "min_m": 0.0127,
-     "p05_m": 0.013
+     "min_m": 0.0096,
+     "p05_m": 0.0101
     },
     "vanguard_field_set_chest__back_l1": {
-     "min_m": 0.0141,
-     "p05_m": 0.016
+     "min_m": 0.0127,
+     "p05_m": 0.0135
     },
     "vanguard_field_set_chest__back_l2": {
-     "min_m": 0.0126,
-     "p05_m": 0.0138
+     "min_m": 0.0123,
+     "p05_m": 0.0134
     },
-    "vanguard_field_set_chest__fauld_l": {
-     "min_m": 0.0131,
-     "p05_m": 0.0139
+    "vanguard_field_set_chest__sink_l": {
+     "min_m": 0.0218,
+     "p05_m": 0.024
     },
     "vanguard_field_set_chest__pec_r": {
      "min_m": 0.0102,
      "p05_m": 0.0142
     },
     "vanguard_field_set_chest__ab_r0": {
-     "min_m": 0.0091,
-     "p05_m": 0.011
+     "min_m": 0.0099,
+     "p05_m": 0.0112
     },
     "vanguard_field_set_chest__ab_r1": {
-     "min_m": 0.0111,
-     "p05_m": 0.0124
+     "min_m": 0.0113,
+     "p05_m": 0.0122
     },
     "vanguard_field_set_chest__ab_r2": {
-     "min_m": 0.0127,
-     "p05_m": 0.0139
+     "min_m": 0.0132,
+     "p05_m": 0.0143
     },
     "vanguard_field_set_chest__flank_r": {
      "min_m": 0.0031,
      "p05_m": 0.0066
     },
     "vanguard_field_set_chest__scapula_r": {
-     "min_m": 0.0125,
-     "p05_m": 0.015
+     "min_m": 0.0131,
+     "p05_m": 0.0142
     },
     "vanguard_field_set_chest__back_r0": {
-     "min_m": 0.0127,
-     "p05_m": 0.013
+     "min_m": 0.0097,
+     "p05_m": 0.01
     },
     "vanguard_field_set_chest__back_r1": {
-     "min_m": 0.0142,
-     "p05_m": 0.016
+     "min_m": 0.0127,
+     "p05_m": 0.0139
     },
     "vanguard_field_set_chest__back_r2": {
      "min_m": 0.0126,
      "p05_m": 0.0133
     },
-    "vanguard_field_set_chest__fauld_r": {
-     "min_m": 0.013,
-     "p05_m": 0.0151
+    "vanguard_field_set_chest__sink_r": {
+     "min_m": 0.0217,
+     "p05_m": 0.0241
     },
     "vanguard_field_set_chest__sternum": {
      "min_m": 0.0208,
      "p05_m": 0.0213
     },
-    "vanguard_field_set_chest__fauld_c": {
-     "min_m": 0.0166,
-     "p05_m": 0.0176
+    "vanguard_field_set_chest__linea": {
+     "min_m": 0.0196,
+     "p05_m": 0.0199
     },
-    "vanguard_field_set_chest__spine": {
-     "min_m": 0.0206,
-     "p05_m": 0.0247
+    "vanguard_field_set_chest__spine_0": {
+     "min_m": 0.0236,
+     "p05_m": 0.0236
+    },
+    "vanguard_field_set_chest__spine_1": {
+     "min_m": 0.0256,
+     "p05_m": 0.026
+    },
+    "vanguard_field_set_chest__spine_2": {
+     "min_m": 0.0331,
+     "p05_m": 0.0338
+    },
+    "vanguard_field_set_chest__spine_3": {
+     "min_m": 0.0478,
+     "p05_m": 0.0497
     },
     "vanguard_field_set_chest__collar_0": {
      "min_m": 0.0025,
@@ -138,41 +168,97 @@
      "min_m": 0.0056,
      "p05_m": 0.0093
     },
-    "vanguard_field_set_chest__pauldron_l": {
-     "min_m": -0.0342,
-     "p05_m": 0.008
+    "vanguard_field_set_chest__nape": {
+     "min_m": 0.0361,
+     "p05_m": 0.0415
     },
-    "vanguard_field_set_chest__pauldron_lame_l": {
-     "min_m": 0.037,
-     "p05_m": 0.0378
+    "cinderlock_arms__sleeve_l": {
+     "min_m": -0.0091,
+     "p05_m": -0.0023
     },
-    "vanguard_field_set_chest__pauldron_r": {
-     "min_m": -0.0345,
-     "p05_m": 0.0082
+    "cinderlock_arms__deltoid_l": {
+     "min_m": -0.0066,
+     "p05_m": 0.0207
     },
-    "vanguard_field_set_chest__pauldron_lame_r": {
-     "min_m": 0.0372,
-     "p05_m": 0.0379
+    "cinderlock_arms__bicep_l": {
+     "min_m": 0.0111,
+     "p05_m": 0.0122
+    },
+    "cinderlock_arms__strap_0_l": {
+     "min_m": 0.0069,
+     "p05_m": 0.0071
+    },
+    "cinderlock_arms__tab_0_l": {
+     "min_m": 0.0217,
+     "p05_m": 0.0217
+    },
+    "cinderlock_arms__strap_1_l": {
+     "min_m": 0.0057,
+     "p05_m": 0.0059
+    },
+    "cinderlock_arms__tab_1_l": {
+     "min_m": 0.0203,
+     "p05_m": 0.0206
+    },
+    "cinderlock_arms__sleeve_r": {
+     "min_m": -0.0087,
+     "p05_m": -0.0019
+    },
+    "cinderlock_arms__deltoid_r": {
+     "min_m": -0.0066,
+     "p05_m": 0.0211
+    },
+    "cinderlock_arms__bicep_r": {
+     "min_m": 0.0112,
+     "p05_m": 0.0121
+    },
+    "cinderlock_arms__strap_0_r": {
+     "min_m": 0.0067,
+     "p05_m": 0.0071
+    },
+    "cinderlock_arms__tab_0_r": {
+     "min_m": 0.0219,
+     "p05_m": 0.0219
+    },
+    "cinderlock_arms__strap_1_r": {
+     "min_m": 0.0057,
+     "p05_m": 0.0062
+    },
+    "cinderlock_arms__tab_1_r": {
+     "min_m": 0.0204,
+     "p05_m": 0.0206
     },
     "vanguard_field_set_gloves__glove_l": {
      "min_m": -0.006,
      "p05_m": 0.0017
     },
+    "vanguard_field_set_gloves__cuff_liner_l": {
+     "min_m": -0.0037,
+     "p05_m": 0.003
+    },
     "vanguard_field_set_gloves__vambrace_0_l": {
-     "min_m": 0.0046,
-     "p05_m": 0.0054
+     "min_m": 0.0065,
+     "p05_m": 0.0074
     },
     "vanguard_field_set_gloves__vambrace_1_l": {
-     "min_m": 0.0066,
-     "p05_m": 0.0068
+     "min_m": 0.0088,
+     "p05_m": 0.0089
     },
-    "vanguard_field_set_gloves__vambrace_plate_l": {
-     "min_m": 0.0132,
-     "p05_m": 0.0141
+    "vanguard_field_set_gloves__ulna_l": {
+     "min_m": 0.0148,
+     "p05_m": 0.0161
     },
-    "vanguard_field_set_gloves__vambrace_core_l": {
-     "min_m": 0.0096,
-     "p05_m": 0.0097
+    "vanguard_field_set_gloves__ulna_core_l": {
+     "min_m": 0.0116,
+     "p05_m": 0.0117
+    },
+    "vanguard_field_set_gloves__wrist_strap_l": {
+     "min_m": 0.0169,
+     "p05_m": 0.017
+    },
+    "vanguard_field_set_gloves__buckle_l": {
+     "min_m": 0.0211,
+     "p05_m": 0.0212
     },
     "vanguard_field_set_gloves__hand_plate_l": {
      "min_m": 0.0034,
@@ -238,21 +324,33 @@
      "min_m": -0.0052,
      "p05_m": 0.0018
     },
+    "vanguard_field_set_gloves__cuff_liner_r": {
+     "min_m": -0.0066,
+     "p05_m": 0.0023
+    },
     "vanguard_field_set_gloves__vambrace_0_r": {
-     "min_m": 0.005,
-     "p05_m": 0.0054
+     "min_m": 0.007,
+     "p05_m": 0.0074
     },
     "vanguard_field_set_gloves__vambrace_1_r": {
-     "min_m": 0.0063,
-     "p05_m": 0.0069
+     "min_m": 0.0087,
+     "p05_m": 0.0089
     },
-    "vanguard_field_set_gloves__vambrace_plate_r": {
-     "min_m": 0.0131,
-     "p05_m": 0.0142
+    "vanguard_field_set_gloves__ulna_r": {
+     "min_m": 0.015,
+     "p05_m": 0.0161
     },
-    "vanguard_field_set_gloves__vambrace_core_r": {
-     "min_m": 0.0095,
-     "p05_m": 0.0096
+    "vanguard_field_set_gloves__ulna_core_r": {
+     "min_m": 0.0115,
+     "p05_m": 0.0116
+    },
+    "vanguard_field_set_gloves__wrist_strap_r": {
+     "min_m": 0.0155,
+     "p05_m": 0.0165
+    },
+    "vanguard_field_set_gloves__buckle_r": {
+     "min_m": 0.0206,
+     "p05_m": 0.0208
     },
     "vanguard_field_set_gloves__hand_plate_r": {
      "min_m": 0.0035,
@@ -314,85 +412,105 @@
      "min_m": 0.0019,
      "p05_m": 0.0022
     },
-    "vanguard_field_set_greaves__legging_thigh_l": {
-     "min_m": -0.0139,
-     "p05_m": -0.0018
+    "cinderlock_legs__seat": {
+     "min_m": 0.0022,
+     "p05_m": 0.0026
     },
-    "vanguard_field_set_greaves__legging_calf_l": {
-     "min_m": -0.0293,
-     "p05_m": 0.0036
+    "cinderlock_legs__belt": {
+     "min_m": 0.0082,
+     "p05_m": 0.0084
     },
-    "vanguard_field_set_greaves__thigh_0_l": {
-     "min_m": -0.0163,
-     "p05_m": 0.0019
+    "cinderlock_legs__buckle": {
+     "min_m": 0.0196,
+     "p05_m": 0.02
     },
-    "vanguard_field_set_greaves__thigh_1_l": {
-     "min_m": -0.011,
-     "p05_m": -0.0032
+    "cinderlock_legs__pouch_l": {
+     "min_m": 0.0162,
+     "p05_m": 0.0168
     },
-    "vanguard_field_set_greaves__thigh_side_l": {
-     "min_m": 0.0111,
-     "p05_m": 0.012
+    "cinderlock_legs__pouch_flap_l": {
+     "min_m": 0.039,
+     "p05_m": 0.0402
     },
-    "vanguard_field_set_greaves__thigh_vent_l": {
-     "min_m": 0.0056,
+    "cinderlock_legs__pouch_r": {
+     "min_m": 0.0154,
+     "p05_m": 0.0166
+    },
+    "cinderlock_legs__pouch_flap_r": {
+     "min_m": 0.0395,
+     "p05_m": 0.04
+    },
+    "cinderlock_legs__leg_thigh_l": {
+     "min_m": -0.0061,
+     "p05_m": -0.0042
+    },
+    "cinderlock_legs__leg_calf_l": {
+     "min_m": 0.0052,
      "p05_m": 0.0057
     },
-    "vanguard_field_set_greaves__knee_l": {
-     "min_m": 0.0185,
-     "p05_m": 0.021
-    },
-    "vanguard_field_set_greaves__shin_0_l": {
-     "min_m": 0.0109,
-     "p05_m": 0.0124
-    },
-    "vanguard_field_set_greaves__shin_1_l": {
-     "min_m": -0.0144,
-     "p05_m": -0.0144
-    },
-    "vanguard_field_set_greaves__calf_guard_l": {
-     "min_m": 0.0072,
-     "p05_m": 0.0088
-    },
-    "vanguard_field_set_greaves__legging_thigh_r": {
-     "min_m": -0.0128,
-     "p05_m": -0.0043
-    },
-    "vanguard_field_set_greaves__legging_calf_r": {
-     "min_m": -0.0178,
-     "p05_m": 0.0039
-    },
-    "vanguard_field_set_greaves__thigh_0_r": {
-     "min_m": -0.0142,
+    "cinderlock_legs__seam_l": {
+     "min_m": -0.0024,
      "p05_m": 0.0004
     },
-    "vanguard_field_set_greaves__thigh_1_r": {
-     "min_m": -0.0108,
-     "p05_m": 0.0012
+    "cinderlock_legs__thigh_l": {
+     "min_m": 0.0067,
+     "p05_m": 0.0077
     },
-    "vanguard_field_set_greaves__thigh_side_r": {
-     "min_m": 0.0112,
-     "p05_m": 0.0118
+    "cinderlock_legs__hip_l": {
+     "min_m": 0.0206,
+     "p05_m": 0.0221
     },
-    "vanguard_field_set_greaves__thigh_vent_r": {
+    "cinderlock_legs__leg_thigh_r": {
+     "min_m": -0.0111,
+     "p05_m": -0.0048
+    },
+    "cinderlock_legs__leg_calf_r": {
      "min_m": 0.0053,
-     "p05_m": 0.0057
+     "p05_m": 0.0058
     },
-    "vanguard_field_set_greaves__knee_r": {
-     "min_m": 0.0183,
-     "p05_m": 0.0207
+    "cinderlock_legs__seam_r": {
+     "min_m": -0.006,
+     "p05_m": -0.0019
     },
-    "vanguard_field_set_greaves__shin_0_r": {
-     "min_m": 0.0105,
-     "p05_m": 0.0124
+    "cinderlock_legs__thigh_r": {
+     "min_m": 0.0062,
+     "p05_m": 0.0077
     },
-    "vanguard_field_set_greaves__shin_1_r": {
-     "min_m": 0.011,
+    "cinderlock_legs__hip_r": {
+     "min_m": 0.02,
+     "p05_m": 0.0221
+    },
+    "vanguard_field_set_greaves__knee_l": {
+     "min_m": 0.0081,
      "p05_m": 0.011
     },
-    "vanguard_field_set_greaves__calf_guard_r": {
-     "min_m": 0.0078,
-     "p05_m": 0.0088
+    "vanguard_field_set_greaves__shin_0_l": {
+     "min_m": 0.0125,
+     "p05_m": 0.0136
+    },
+    "vanguard_field_set_greaves__shin_1_l": {
+     "min_m": 0.011,
+     "p05_m": 0.0137
+    },
+    "vanguard_field_set_greaves__calf_l": {
+     "min_m": 0.008,
+     "p05_m": 0.01
+    },
+    "vanguard_field_set_greaves__knee_r": {
+     "min_m": 0.0082,
+     "p05_m": 0.0107
+    },
+    "vanguard_field_set_greaves__shin_0_r": {
+     "min_m": 0.0127,
+     "p05_m": 0.0138
+    },
+    "vanguard_field_set_greaves__shin_1_r": {
+     "min_m": 0.0107,
+     "p05_m": 0.0135
+    },
+    "vanguard_field_set_greaves__calf_r": {
+     "min_m": 0.0076,
+     "p05_m": 0.0099
     },
     "vanguard_field_set_boots__boot_l": {
      "min_m": -0.0072,
@@ -403,28 +521,24 @@
      "p05_m": 0.0034
     },
     "vanguard_field_set_boots__instep_l": {
-     "min_m": -0.0225,
-     "p05_m": 0.0096
+     "min_m": 0.0061,
+     "p05_m": 0.0095
+    },
+    "vanguard_field_set_boots__instep_buckle_l": {
+     "min_m": 0.0157,
+     "p05_m": 0.0162
     },
     "vanguard_field_set_boots__toe_cap_l": {
-     "min_m": 0.008,
-     "p05_m": 0.0099
+     "min_m": 0.0073,
+     "p05_m": 0.0098
     },
     "vanguard_field_set_boots__heel_l": {
-     "min_m": -0.0264,
-     "p05_m": -0.0177
+     "min_m": -0.0389,
+     "p05_m": -0.0227
     },
     "vanguard_field_set_boots__cuff_l": {
      "min_m": 0.0067,
      "p05_m": 0.0076
-    },
-    "vanguard_field_set_boots__ankle_0_l": {
-     "min_m": 0.0241,
-     "p05_m": 0.0242
-    },
-    "vanguard_field_set_boots__ankle_1_l": {
-     "min_m": 0.0211,
-     "p05_m": 0.0222
     },
     "vanguard_field_set_boots__boot_r": {
      "min_m": -0.0052,
@@ -435,118 +549,130 @@
      "p05_m": 0.003
     },
     "vanguard_field_set_boots__instep_r": {
-     "min_m": -0.0231,
-     "p05_m": 0.0096
+     "min_m": 0.0056,
+     "p05_m": 0.0075
+    },
+    "vanguard_field_set_boots__instep_buckle_r": {
+     "min_m": 0.0155,
+     "p05_m": 0.0159
     },
     "vanguard_field_set_boots__toe_cap_r": {
-     "min_m": 0.0078,
-     "p05_m": 0.01
+     "min_m": 0.0073,
+     "p05_m": 0.0099
     },
     "vanguard_field_set_boots__heel_r": {
-     "min_m": -0.0269,
-     "p05_m": -0.0168
+     "min_m": -0.04,
+     "p05_m": -0.0218
     },
     "vanguard_field_set_boots__cuff_r": {
-     "min_m": 0.0067,
-     "p05_m": 0.0069
-    },
-    "vanguard_field_set_boots__ankle_0_r": {
-     "min_m": 0.0201,
-     "p05_m": 0.0215
-    },
-    "vanguard_field_set_boots__ankle_1_r": {
-     "min_m": 0.024,
-     "p05_m": 0.0246
+     "min_m": 0.0069,
+     "p05_m": 0.0071
     }
    }
   },
   "f": {
-   "pieces": 114,
+   "pieces": 141,
    "min_clearance_m": -0.0366,
    "clearance": {
     "vanguard_field_set_chest__vest": {
-     "min_m": 0.0023,
-     "p05_m": 0.0052
+     "min_m": 0.0025,
+     "p05_m": 0.0054
     },
     "vanguard_field_set_chest__flank_vent_l": {
      "min_m": 0.0017,
      "p05_m": 0.0059
     },
-    "vanguard_field_set_chest__flank_slats_l": {
-     "min_m": -0.0025,
-     "p05_m": 0.0017
+    "vanguard_field_set_chest__flank_fins_l": {
+     "min_m": 0.0036,
+     "p05_m": 0.0063
+    },
+    "vanguard_field_set_chest__sink_vent_l": {
+     "min_m": 0.0187,
+     "p05_m": 0.0193
+    },
+    "vanguard_field_set_chest__sink_fins_l": {
+     "min_m": 0.0227,
+     "p05_m": 0.0246
     },
     "vanguard_field_set_chest__flank_vent_r": {
      "min_m": 0.0021,
      "p05_m": 0.0058
     },
-    "vanguard_field_set_chest__flank_slats_r": {
-     "min_m": -0.002,
-     "p05_m": 0.0016
+    "vanguard_field_set_chest__flank_fins_r": {
+     "min_m": 0.0031,
+     "p05_m": 0.0055
+    },
+    "vanguard_field_set_chest__sink_vent_r": {
+     "min_m": 0.0189,
+     "p05_m": 0.0195
+    },
+    "vanguard_field_set_chest__sink_fins_r": {
+     "min_m": 0.0229,
+     "p05_m": 0.0248
     },
     "vanguard_field_set_chest__reactor_back": {
      "min_m": 0.0184,
      "p05_m": 0.0186
     },
-    "vanguard_field_set_chest__reactor_slats": {
-     "min_m": 0.0178,
-     "p05_m": 0.0209
+    "vanguard_field_set_chest__reactor_fins": {
+     "min_m": 0.0234,
+     "p05_m": 0.0238
     },
     "vanguard_field_set_chest__pec_l": {
      "min_m": 0.0069,
      "p05_m": 0.0143
     },
     "vanguard_field_set_chest__ab_l0": {
-     "min_m": 0.0105,
-     "p05_m": 0.0116
+     "min_m": 0.0101,
+     "p05_m": 0.0111
     },
     "vanguard_field_set_chest__ab_l1": {
-     "min_m": 0.0108,
-     "p05_m": 0.0118
+     "min_m": 0.0111,
+     "p05_m": 0.0116
     },
     "vanguard_field_set_chest__ab_l2": {
-     "min_m": 0.0125,
-     "p05_m": 0.0146
+     "min_m": 0.0126,
+     "p05_m": 0.0142
     },
     "vanguard_field_set_chest__flank_l": {
      "min_m": 0.0011,
      "p05_m": 0.0073
     },
     "vanguard_field_set_chest__scapula_l": {
-     "min_m": 0.0115,
-     "p05_m": 0.015
+     "min_m": 0.0109,
+     "p05_m": 0.0143
     },
     "vanguard_field_set_chest__back_l0": {
-     "min_m": 0.0143,
-     "p05_m": 0.0146
+     "min_m": 0.0106,
+     "p05_m": 0.0108
     },
     "vanguard_field_set_chest__back_l1": {
-     "min_m": 0.0429,
-     "p05_m": 0.0458
+     "min_m": 0.039,
+     "p05_m": 0.0418
     },
     "vanguard_field_set_chest__back_l2": {
-     "min_m": 0.0129,
-     "p05_m": 0.0151
+     "min_m": 0.0121,
+     "p05_m": 0.0134
     },
-    "vanguard_field_set_chest__fauld_l": {
-     "min_m": 0.0157,
-     "p05_m": 0.0172
+    "vanguard_field_set_chest__sink_l": {
+     "min_m": 0.0221,
+     "p05_m": 0.0242
     },
     "vanguard_field_set_chest__pec_r": {
      "min_m": 0.0075,
      "p05_m": 0.0141
     },
     "vanguard_field_set_chest__ab_r0": {
-     "min_m": 0.0105,
-     "p05_m": 0.0115
+     "min_m": 0.0103,
+     "p05_m": 0.0112
     },
     "vanguard_field_set_chest__ab_r1": {
-     "min_m": 0.0112,
-     "p05_m": 0.0117
+     "min_m": 0.0111,
+     "p05_m": 0.012
     },
     "vanguard_field_set_chest__ab_r2": {
-     "min_m": 0.0124,
-     "p05_m": 0.0141
+     "min_m": 0.0128,
+     "p05_m": 0.0137
     },
     "vanguard_field_set_chest__flank_r": {
      "min_m": 0.0045,
@@ -554,35 +680,47 @@
     },
     "vanguard_field_set_chest__scapula_r": {
      "min_m": 0.0113,
-     "p05_m": 0.0152
+     "p05_m": 0.0141
     },
     "vanguard_field_set_chest__back_r0": {
-     "min_m": 0.0142,
-     "p05_m": 0.0149
+     "min_m": 0.0109,
+     "p05_m": 0.0111
     },
     "vanguard_field_set_chest__back_r1": {
-     "min_m": 0.0429,
-     "p05_m": 0.0456
+     "min_m": 0.0391,
+     "p05_m": 0.0416
     },
     "vanguard_field_set_chest__back_r2": {
-     "min_m": 0.0129,
-     "p05_m": 0.0142
+     "min_m": 0.0122,
+     "p05_m": 0.0131
     },
-    "vanguard_field_set_chest__fauld_r": {
-     "min_m": 0.015,
-     "p05_m": 0.017
+    "vanguard_field_set_chest__sink_r": {
+     "min_m": 0.0224,
+     "p05_m": 0.0236
     },
     "vanguard_field_set_chest__sternum": {
      "min_m": 0.023,
      "p05_m": 0.0244
     },
-    "vanguard_field_set_chest__fauld_c": {
-     "min_m": 0.0165,
-     "p05_m": 0.0177
+    "vanguard_field_set_chest__linea": {
+     "min_m": 0.0182,
+     "p05_m": 0.0193
     },
-    "vanguard_field_set_chest__spine": {
-     "min_m": 0.0264,
-     "p05_m": 0.028
+    "vanguard_field_set_chest__spine_0": {
+     "min_m": 0.0276,
+     "p05_m": 0.0301
+    },
+    "vanguard_field_set_chest__spine_1": {
+     "min_m": 0.0277,
+     "p05_m": 0.0283
+    },
+    "vanguard_field_set_chest__spine_2": {
+     "min_m": 0.0322,
+     "p05_m": 0.0328
+    },
+    "vanguard_field_set_chest__spine_3": {
+     "min_m": 0.0379,
+     "p05_m": 0.0384
     },
     "vanguard_field_set_chest__collar_0": {
      "min_m": -0.0018,
@@ -592,41 +730,97 @@
      "min_m": 0.0116,
      "p05_m": 0.0166
     },
-    "vanguard_field_set_chest__pauldron_l": {
-     "min_m": -0.0248,
-     "p05_m": 0.0121
+    "vanguard_field_set_chest__nape": {
+     "min_m": 0.0309,
+     "p05_m": 0.0365
     },
-    "vanguard_field_set_chest__pauldron_lame_l": {
-     "min_m": 0.0369,
-     "p05_m": 0.038
+    "cinderlock_arms__sleeve_l": {
+     "min_m": -0.0208,
+     "p05_m": -0.0041
     },
-    "vanguard_field_set_chest__pauldron_r": {
-     "min_m": -0.0245,
-     "p05_m": 0.0122
+    "cinderlock_arms__deltoid_l": {
+     "min_m": -0.0086,
+     "p05_m": 0.0138
     },
-    "vanguard_field_set_chest__pauldron_lame_r": {
-     "min_m": 0.0366,
-     "p05_m": 0.038
+    "cinderlock_arms__bicep_l": {
+     "min_m": 0.0115,
+     "p05_m": 0.0124
+    },
+    "cinderlock_arms__strap_0_l": {
+     "min_m": 0.0052,
+     "p05_m": 0.0061
+    },
+    "cinderlock_arms__tab_0_l": {
+     "min_m": 0.0215,
+     "p05_m": 0.0218
+    },
+    "cinderlock_arms__strap_1_l": {
+     "min_m": 0.0059,
+     "p05_m": 0.0062
+    },
+    "cinderlock_arms__tab_1_l": {
+     "min_m": 0.021,
+     "p05_m": 0.021
+    },
+    "cinderlock_arms__sleeve_r": {
+     "min_m": -0.0212,
+     "p05_m": -0.0027
+    },
+    "cinderlock_arms__deltoid_r": {
+     "min_m": -0.0084,
+     "p05_m": 0.0154
+    },
+    "cinderlock_arms__bicep_r": {
+     "min_m": 0.0118,
+     "p05_m": 0.0124
+    },
+    "cinderlock_arms__strap_0_r": {
+     "min_m": 0.0058,
+     "p05_m": 0.0063
+    },
+    "cinderlock_arms__tab_0_r": {
+     "min_m": 0.0213,
+     "p05_m": 0.0218
+    },
+    "cinderlock_arms__strap_1_r": {
+     "min_m": 0.0055,
+     "p05_m": 0.0062
+    },
+    "cinderlock_arms__tab_1_r": {
+     "min_m": 0.0209,
+     "p05_m": 0.0211
     },
     "vanguard_field_set_gloves__glove_l": {
      "min_m": -0.0052,
      "p05_m": 0.0022
     },
+    "vanguard_field_set_gloves__cuff_liner_l": {
+     "min_m": 0.0017,
+     "p05_m": 0.0031
+    },
     "vanguard_field_set_gloves__vambrace_0_l": {
-     "min_m": 0.005,
-     "p05_m": 0.0053
+     "min_m": 0.0069,
+     "p05_m": 0.0073
     },
     "vanguard_field_set_gloves__vambrace_1_l": {
-     "min_m": 0.0061,
-     "p05_m": 0.007
+     "min_m": 0.0088,
+     "p05_m": 0.0089
     },
-    "vanguard_field_set_gloves__vambrace_plate_l": {
-     "min_m": 0.0134,
-     "p05_m": 0.0138
+    "vanguard_field_set_gloves__ulna_l": {
+     "min_m": 0.0151,
+     "p05_m": 0.0158
     },
-    "vanguard_field_set_gloves__vambrace_core_l": {
-     "min_m": 0.0093,
-     "p05_m": 0.0093
+    "vanguard_field_set_gloves__ulna_core_l": {
+     "min_m": 0.0113,
+     "p05_m": 0.0113
+    },
+    "vanguard_field_set_gloves__wrist_strap_l": {
+     "min_m": 0.0158,
+     "p05_m": 0.0167
+    },
+    "vanguard_field_set_gloves__buckle_l": {
+     "min_m": 0.0208,
+     "p05_m": 0.0211
     },
     "vanguard_field_set_gloves__hand_plate_l": {
      "min_m": 0.0036,
@@ -692,21 +886,33 @@
      "min_m": -0.0063,
      "p05_m": 0.0022
     },
+    "vanguard_field_set_gloves__cuff_liner_r": {
+     "min_m": -0.0029,
+     "p05_m": 0.003
+    },
     "vanguard_field_set_gloves__vambrace_0_r": {
-     "min_m": 0.0047,
-     "p05_m": 0.0054
+     "min_m": 0.0067,
+     "p05_m": 0.0074
     },
     "vanguard_field_set_gloves__vambrace_1_r": {
-     "min_m": 0.0065,
-     "p05_m": 0.0067
+     "min_m": 0.0086,
+     "p05_m": 0.0087
     },
-    "vanguard_field_set_gloves__vambrace_plate_r": {
-     "min_m": 0.0131,
-     "p05_m": 0.0138
+    "vanguard_field_set_gloves__ulna_r": {
+     "min_m": 0.015,
+     "p05_m": 0.0157
     },
-    "vanguard_field_set_gloves__vambrace_core_r": {
-     "min_m": 0.0094,
-     "p05_m": 0.0094
+    "vanguard_field_set_gloves__ulna_core_r": {
+     "min_m": 0.0112,
+     "p05_m": 0.0114
+    },
+    "vanguard_field_set_gloves__wrist_strap_r": {
+     "min_m": 0.0159,
+     "p05_m": 0.0166
+    },
+    "vanguard_field_set_gloves__buckle_r": {
+     "min_m": 0.0208,
+     "p05_m": 0.0209
     },
     "vanguard_field_set_gloves__hand_plate_r": {
      "min_m": 0.0035,
@@ -768,85 +974,105 @@
      "min_m": 0.0023,
      "p05_m": 0.0026
     },
-    "vanguard_field_set_greaves__legging_thigh_l": {
-     "min_m": -0.0128,
-     "p05_m": -0.0035
+    "cinderlock_legs__seat": {
+     "min_m": 0.0035,
+     "p05_m": 0.0041
     },
-    "vanguard_field_set_greaves__legging_calf_l": {
-     "min_m": -0.0217,
-     "p05_m": -0.0098
+    "cinderlock_legs__belt": {
+     "min_m": 0.0095,
+     "p05_m": 0.0098
     },
-    "vanguard_field_set_greaves__thigh_0_l": {
-     "min_m": -0.0126,
-     "p05_m": 0.0029
+    "cinderlock_legs__buckle": {
+     "min_m": 0.0189,
+     "p05_m": 0.0192
     },
-    "vanguard_field_set_greaves__thigh_1_l": {
-     "min_m": -0.0061,
-     "p05_m": 0.0067
+    "cinderlock_legs__pouch_l": {
+     "min_m": 0.0162,
+     "p05_m": 0.0172
     },
-    "vanguard_field_set_greaves__thigh_side_l": {
-     "min_m": 0.0101,
-     "p05_m": 0.0117
+    "cinderlock_legs__pouch_flap_l": {
+     "min_m": 0.0403,
+     "p05_m": 0.0406
     },
-    "vanguard_field_set_greaves__thigh_vent_l": {
-     "min_m": 0.0063,
-     "p05_m": 0.0063
+    "cinderlock_legs__pouch_r": {
+     "min_m": 0.0159,
+     "p05_m": 0.0171
+    },
+    "cinderlock_legs__pouch_flap_r": {
+     "min_m": 0.0403,
+     "p05_m": 0.0409
+    },
+    "cinderlock_legs__leg_thigh_l": {
+     "min_m": -0.0097,
+     "p05_m": -0.0053
+    },
+    "cinderlock_legs__leg_calf_l": {
+     "min_m": -0.0099,
+     "p05_m": 0.0049
+    },
+    "cinderlock_legs__seam_l": {
+     "min_m": 0.0011,
+     "p05_m": 0.0014
+    },
+    "cinderlock_legs__thigh_l": {
+     "min_m": 0.0062,
+     "p05_m": 0.0083
+    },
+    "cinderlock_legs__hip_l": {
+     "min_m": 0.0214,
+     "p05_m": 0.0235
+    },
+    "cinderlock_legs__leg_thigh_r": {
+     "min_m": -0.0101,
+     "p05_m": -0.0044
+    },
+    "cinderlock_legs__leg_calf_r": {
+     "min_m": -0.0111,
+     "p05_m": 0.0051
+    },
+    "cinderlock_legs__seam_r": {
+     "min_m": 0.0009,
+     "p05_m": 0.0014
+    },
+    "cinderlock_legs__thigh_r": {
+     "min_m": 0.0062,
+     "p05_m": 0.0083
+    },
+    "cinderlock_legs__hip_r": {
+     "min_m": 0.0217,
+     "p05_m": 0.0237
     },
     "vanguard_field_set_greaves__knee_l": {
-     "min_m": 0.0179,
-     "p05_m": 0.0196
+     "min_m": 0.0078,
+     "p05_m": 0.0104
     },
     "vanguard_field_set_greaves__shin_0_l": {
-     "min_m": 0.0122,
-     "p05_m": 0.013
+     "min_m": 0.012,
+     "p05_m": 0.0139
     },
     "vanguard_field_set_greaves__shin_1_l": {
-     "min_m": 0.0078,
-     "p05_m": 0.0078
+     "min_m": 0.0121,
+     "p05_m": 0.0139
     },
-    "vanguard_field_set_greaves__calf_guard_l": {
-     "min_m": 0.0083,
-     "p05_m": 0.0095
-    },
-    "vanguard_field_set_greaves__legging_thigh_r": {
-     "min_m": -0.0126,
-     "p05_m": -0.0042
-    },
-    "vanguard_field_set_greaves__legging_calf_r": {
-     "min_m": -0.0214,
-     "p05_m": -0.0098
-    },
-    "vanguard_field_set_greaves__thigh_0_r": {
-     "min_m": -0.0088,
-     "p05_m": 0.0046
-    },
-    "vanguard_field_set_greaves__thigh_1_r": {
-     "min_m": -0.0058,
-     "p05_m": 0.0067
-    },
-    "vanguard_field_set_greaves__thigh_side_r": {
-     "min_m": 0.0107,
-     "p05_m": 0.0118
-    },
-    "vanguard_field_set_greaves__thigh_vent_r": {
-     "min_m": 0.0061,
-     "p05_m": 0.0062
+    "vanguard_field_set_greaves__calf_l": {
+     "min_m": 0.0081,
+     "p05_m": 0.0106
     },
     "vanguard_field_set_greaves__knee_r": {
-     "min_m": 0.0177,
-     "p05_m": 0.0196
+     "min_m": 0.0082,
+     "p05_m": 0.0107
     },
     "vanguard_field_set_greaves__shin_0_r": {
-     "min_m": 0.0119,
-     "p05_m": 0.0128
+     "min_m": 0.0116,
+     "p05_m": 0.0139
     },
     "vanguard_field_set_greaves__shin_1_r": {
-     "min_m": 0.0096,
-     "p05_m": 0.0096
+     "min_m": 0.0122,
+     "p05_m": 0.0139
     },
-    "vanguard_field_set_greaves__calf_guard_r": {
-     "min_m": 0.0086,
-     "p05_m": 0.0095
+    "vanguard_field_set_greaves__calf_r": {
+     "min_m": 0.0079,
+     "p05_m": 0.0105
     },
     "vanguard_field_set_boots__boot_l": {
      "min_m": -0.0057,
@@ -857,28 +1083,24 @@
      "p05_m": -0.0102
     },
     "vanguard_field_set_boots__instep_l": {
-     "min_m": 0.0092,
-     "p05_m": 0.0112
+     "min_m": 0.0089,
+     "p05_m": 0.0097
+    },
+    "vanguard_field_set_boots__instep_buckle_l": {
+     "min_m": 0.0152,
+     "p05_m": 0.0156
     },
     "vanguard_field_set_boots__toe_cap_l": {
-     "min_m": 0.0045,
-     "p05_m": 0.009
+     "min_m": 0.0052,
+     "p05_m": 0.0085
     },
     "vanguard_field_set_boots__heel_l": {
-     "min_m": -0.0344,
-     "p05_m": -0.0209
+     "min_m": -0.0341,
+     "p05_m": -0.0207
     },
     "vanguard_field_set_boots__cuff_l": {
-     "min_m": 0.0058,
-     "p05_m": 0.0072
-    },
-    "vanguard_field_set_boots__ankle_0_l": {
-     "min_m": 0.0207,
-     "p05_m": 0.0231
-    },
-    "vanguard_field_set_boots__ankle_1_l": {
-     "min_m": 0.0246,
-     "p05_m": 0.0255
+     "min_m": 0.0059,
+     "p05_m": 0.0071
     },
     "vanguard_field_set_boots__boot_r": {
      "min_m": -0.0061,
@@ -889,28 +1111,24 @@
      "p05_m": -0.0103
     },
     "vanguard_field_set_boots__instep_r": {
-     "min_m": 0.009,
-     "p05_m": 0.0108
+     "min_m": 0.0057,
+     "p05_m": 0.0102
+    },
+    "vanguard_field_set_boots__instep_buckle_r": {
+     "min_m": 0.0144,
+     "p05_m": 0.0149
     },
     "vanguard_field_set_boots__toe_cap_r": {
-     "min_m": 0.0044,
-     "p05_m": 0.009
+     "min_m": 0.0057,
+     "p05_m": 0.0086
     },
     "vanguard_field_set_boots__heel_r": {
-     "min_m": -0.0337,
-     "p05_m": -0.0217
+     "min_m": -0.0329,
+     "p05_m": -0.0209
     },
     "vanguard_field_set_boots__cuff_r": {
-     "min_m": -0.0185,
-     "p05_m": 0.0055
-    },
-    "vanguard_field_set_boots__ankle_0_r": {
-     "min_m": 0.0244,
-     "p05_m": 0.0248
-    },
-    "vanguard_field_set_boots__ankle_1_r": {
-     "min_m": 0.0198,
-     "p05_m": 0.0226
+     "min_m": -0.0195,
+     "p05_m": 0.0052
     }
    }
   }

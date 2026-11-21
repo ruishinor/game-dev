@@ -1,14 +1,18 @@
 {
  "m": {
-  "vanguard_field_set_chest": 38626,
-  "vanguard_field_set_gloves": 33584,
-  "vanguard_field_set_greaves": 24080,
-  "vanguard_field_set_boots": 22294
+  "vanguard_field_set_chest": 6177,
+  "cinderlock_arms": 2936,
+  "vanguard_field_set_gloves": 3871,
+  "cinderlock_legs": 4575,
+  "vanguard_field_set_greaves": 4157,
+  "vanguard_field_set_boots": 2371
  },
  "f": {
-  "vanguard_field_set_chest": 35970,
-  "vanguard_field_set_gloves": 32856,
-  "vanguard_field_set_greaves": 21470,
-  "vanguard_field_set_boots": 22770
+  "vanguard_field_set_chest": 6212,
+  "cinderlock_arms": 2938,
+  "vanguard_field_set_gloves": 3870,
+  "cinderlock_legs": 4578,
+  "vanguard_field_set_greaves": 4153,
+  "vanguard_field_set_boots": 2448
  }
 }

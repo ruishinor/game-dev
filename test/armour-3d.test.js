@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import WebSocket from 'ws';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ARMOUR_ASSETS, ARMOUR_VISUALS, publicArmourVisual } from '../shared/armour-visual.js';
+import { ARMOUR_ASSETS, ARMOUR_MODULE_ASSETS, ARMOUR_VISUALS, publicArmourVisual } from '../shared/armour-visual.js';
 import { ITEMS } from '../shared/content.js';
 import { RENDERED_ICON_IDS, renderedItemIcon } from '../client/src/item-renders.js';
 
@@ -63,7 +63,8 @@ test('published armour GLBs: one skinned mesh per item on the shared 67-joint sk
   assert.ok(published.includes('armour_chest'));
   for (const [asset, body, bundle] of published.flatMap((a) => [['humanoid_m', `${a}_m`], ['humanoid_f', `${a}_f`]].map(([b, n]) => [a, b, n]))) {
     const report = JSON.parse(fs.readFileSync(`tools/asset-pipeline/assets/${asset}/outputs/export.json`, 'utf8'));
-    const items = Object.entries(ARMOUR_ASSETS).filter(([, a]) => a === asset).map(([id]) => id);
+    // item pieces plus the modules worn with them (Cinderlock arms and legs)
+    const items = Object.entries({ ...ARMOUR_ASSETS, ...ARMOUR_MODULE_ASSETS }).filter(([, a]) => a === asset).map(([id]) => id);
     const entry = manifest.assets[bundle];
     assert.ok(entry, `${bundle} in manifest`);
     assert.equal(entry.kind, 'skinned');
@@ -80,6 +81,29 @@ test('published armour GLBs: one skinned mesh per item on the shared 67-joint sk
     for (const m of meshes) assert.notEqual(m.skin, undefined, `${m.name} is skinned`);
     assert.ok(entry.bytes < 9_000_000, `${bundle} stays a bounded download (${entry.bytes} B)`);
     assert.ok(!/cc0/i.test(entry.note || ''), 'derived armour is not described as CC0');
+  }
+});
+
+test('Cinderlock modules meet the production budget: LOD0 <= 28k triangles with channel strips, LOD1/LOD2 halve it', () => {
+  const manifest = JSON.parse(fs.readFileSync('client/assets/manifest.json', 'utf8'));
+  for (const bundle of ['armour_vanguard_set_m', 'armour_vanguard_set_f']) {
+    const g = glbJson(`client/assets/${manifest.assets[bundle].url}`);
+    const tris = (n) => g.accessors[g.meshes[n.mesh].primitives[0].indices].count / 3;
+    const level = { 0: 0, 1: 0, 2: 0 };
+    const modules = new Set();
+    for (const n of g.nodes.filter((x) => x.mesh !== undefined)) {
+      const m = /__lod(\d)$/.exec(n.name);
+      level[m ? Number(m[1]) : 0] += tris(n);
+      if (m) modules.add(n.name.split('__')[0]);
+      else assert.ok(!/__(?!fx$)/.test(n.name), `${n.name}: near pieces are the module and its channel strips`);
+    }
+    assert.equal(modules.size, 6, `${bundle}: six modules carry distance LODs`);
+    assert.ok(level[0] <= 28000, `${bundle} LOD0 ${level[0]}`);
+    assert.ok(level[1] <= 14000 && level[1] >= level[0] * 0.35, `${bundle} LOD1 ${level[1]}`);
+    assert.ok(level[2] <= 7000 && level[2] >= level[0] * 0.15, `${bundle} LOD2 ${level[2]}`);
+    for (const n of g.nodes.filter((x) => x.mesh !== undefined && !x.name.endsWith('__fx'))) {
+      assert.ok(g.meshes[n.mesh].primitives[0].attributes.TANGENT !== undefined, `${n.name} exports tangents for its normal map`);
+    }
   }
 });
 
