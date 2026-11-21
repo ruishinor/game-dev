@@ -350,6 +350,12 @@ function createRiftField(T, group, site, ground, u, returning) {
   veil.name = 'rift:depth-veil'; veil.position.z = -0.32; veil.renderOrder = 5;
   group.add(veil);
 
+  // Edge-on, the membrane and veil are planes and vanish; a narrow additive
+  // corona turned 90 degrees keeps a glowing lens of depth in profile views.
+  const core = new T.Mesh(membraneGeometry(T, 1.05, 0), veil.material);
+  core.name = 'rift:profile-core'; core.rotation.y = Math.PI / 2; core.scale.set(1, 1, 1); core.renderOrder = 5;
+  group.add(core);
+
   const halo = new T.Mesh(groundDisc(T, 3.3, site, ground), new T.ShaderMaterial({ uniforms: { ...u, uRadius: { value: 3.3 } }, vertexShader: CORONA_VS, fragmentShader: POOL_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 }));
   halo.name = 'rift:footprint-halo'; halo.renderOrder = 4;
   group.add(halo);
@@ -368,14 +374,14 @@ function createRiftField(T, group, site, ground, u, returning) {
   const dummy = new T.Object3D();
 
   const light = new T.PointLight(0x86acdb, 0, 13, 2);
-  light.name = 'rift:ambient-light'; light.position.set(0, 2.4, 0.6); light.castShadow = false;
+  light.name = 'rift:ambient-light'; light.position.set(0, 2.9, 1.3); light.castShadow = false;
   group.add(light);
   const calm = new T.Color(), wild = new T.Color();
 
   function update(t, phase, st, q) {
     const [level, , agit] = PHASES[phase] ?? PHASES.dormant;
     const motion = st.reducedMotion ? 0 : 1;
-    veil.visible = halo.visible = filaments.visible = q > 0;
+    veil.visible = halo.visible = filaments.visible = core.visible = q > 0;
     const count = q === 0 ? 0 : q === 1 ? 14 : RIFT_FIELD_LIMITS.motes;
     motes.count = count;
     // motes are drawn into the throat on a tightening spiral; agitation ejects some
@@ -396,7 +402,7 @@ function createRiftField(T, group, site, ground, u, returning) {
     moteMat.uniforms.uK.value = 0.35 + level * 0.9;
     calm.copy(u.uCalm.value); wild.copy(u.uWild.value);
     light.color.copy(calm).lerp(wild, agit);
-    light.intensity = q >= 2 && st.cameraDistance < 24 && !st.reducedMotion ? level * (9 + 14 * u.uFlare.value) : 0;
+    light.intensity = q >= 2 && st.cameraDistance < 24 && !st.reducedMotion ? level * (14 + 18 * u.uFlare.value) : 0;
   }
   return { update, surface, skin };
 }
@@ -523,7 +529,7 @@ export function buildRift(T, site, ground, { returning = false, loader = null, u
         seamCol.copy(u.uCalm.value).lerp(u.uWild.value, u.uAgit.value);
         fx.seam.emissive.copy(seamCol); fx.seam.emissiveIntensity = glow;
         tmp.copy(seamCol).lerp(u.uHot.value, 0.5);
-        fx.rail.emissive.copy(tmp); fx.rail.emissiveIntensity = 0.25 + cur.phase * 2.2 + build * 3;
+        fx.rail.emissive.copy(tmp); fx.rail.emissiveIntensity = 0.7 + cur.phase * 3.2 + build * 3;   // the rails outline the vanes after dark
         fx.lens.emissive.copy(u.uHot.value); fx.lens.emissiveIntensity = 0.6 + cur.phase * 3 + (u.uAgit.value > 0.5 ? 2 * (0.5 + 0.5 * Math.sin(time * 23)) : 0) + build * 5;
       }
     },
