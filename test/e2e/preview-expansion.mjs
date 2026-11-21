@@ -24,7 +24,7 @@ try {
   page.on('response', r => { if (r.status() >= 400) errors.push(r.status() + ' ' + r.url()); });
   const url = 'http://127.0.0.1:' + server.port + '/?q=1&qlock=1&nolock=1' + (SOFTWARE_GL ? '&rfps=1' : '');
   await page.goto(url);
-  await page.fill('#name', 'Brine Tester');
+  await page.click('#gate-guest-link');await page.fill('#name', 'Brine Tester');
   await page.click('.classcard[data-cls="surveyor"]');
   const creation=page.locator('#creation-preview');await creation.scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.model==='glb');
@@ -564,7 +564,7 @@ try {
   bio.setDefaultTimeout(90000);const bioErrors=[];
   bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
   await bio.goto(url+'&menderArt=1');
-  await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
+  await bio.click('#gate-guest-link');await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
   await bio.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.compId&&s.drawn>=2&&!!window.__attune.gfx.scene.getObjectByName('mender:original-carapace-preview')});
   await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
   {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
@@ -611,7 +611,7 @@ try {
   keeper.on('pageerror', e => keeperErrors.push(e.message));
   keeper.on('console', m => { if(m.type()==='error')keeperErrors.push(m.text()); });
   await keeper.goto(url);
-  await keeper.fill('#name','Aegis Keeper');
+  await keeper.click('#gate-guest-link');await keeper.fill('#name','Aegis Keeper');
   await keeper.click('.classcard[data-cls="keeper"]');
   await keeper.click('#enter');
   await keeper.waitForFunction(() => {

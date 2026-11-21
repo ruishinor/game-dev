@@ -18,7 +18,7 @@ try {
    const page=await ctx.newPage();page.setDefaultTimeout(65000);
    page.on('pageerror',e=>errors.push(name+': '+e.message));
    await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=0.25':''));
-   await page.fill('#name',name);await page.click('#enter');
+   await page.click('#gate-guest-link');await page.fill('#name',name);await page.click('#enter');
    const player=await liveFixturePlayer(page,server,name,65000);
    return {page,player,ctx};
  }

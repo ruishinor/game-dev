@@ -15,7 +15,7 @@ try{
  page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
- await page.goto(url);await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.goto(url);await page.click('#gate-guest-link');await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb'&&e.halo?.role==='vendor');});
  const p=await liveFixturePlayer(page,server,'Vendor Tester');
  const vendor=server.game.objects.find(o=>o.type==='quartermaster');

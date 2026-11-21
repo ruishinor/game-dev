@@ -19,7 +19,7 @@ try {
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',msg=>{if(msg.type()==='error') errors.push(msg.text());});
     await page.goto('http://127.0.0.1:'+server.port+'/?q='+quality+'&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=1':''));
-    await page.fill('#name',name);
+    await page.click('#gate-guest-link');await page.fill('#name',name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
     await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>0;},null,{polling:100});

@@ -9,7 +9,7 @@ try{
  const page=await browser.newPage({viewport:{width:1100,height:750}});page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
  await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
- await page.fill('#name','Rift Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Rift Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2;});
  const p=await liveFixturePlayer(page,server,'Rift Tester'),f=server.game.rift;assert.ok(f);
  // Verify the actual runtime GLB, not the static asset preview or fallback.
