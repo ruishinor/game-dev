@@ -355,6 +355,7 @@ export class WorldAtlas{
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
  const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelCandidates=[],markerObstacles=[],clusterCandidates=[];
+ let waypointLabel=null;
   this.results.hidden=!term;
  const mark=(name,x,z,category,color,shape='dot')=>{
   if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
@@ -406,16 +407,22 @@ export class WorldAtlas{
   markerObstacles.push({x,y,r:16},{x,y:y-15,r:16});
   g.save();g.translate(x,y);g.beginPath();g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath();
   g.fillStyle='#7acbdf';g.strokeStyle='#17252a';g.lineWidth=3;g.fill();g.stroke();
-  g.font='bold 14px sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#131c21';
-  g.strokeText(this.waypoint.label,0,-15);g.fillStyle='#e3f0f2';g.fillText(this.waypoint.label,0,-15);g.restore();
+  g.restore();
+  // Personal waypoints participate in the same collision layout as place
+  // names. Drawing this caption immediately overlaps the nearby site label.
+  waypointLabel={name:this.waypoint.label,x,y,kind:'waypoint'};
  }
  // Reserve the live player position as well as all visible marker clusters.
  markerObstacles.push({x:p.X(st.me.pos.x),y:p.Z(st.me.pos.z),r:19});
- g.save();g.font='600 13px sans-serif';g.textAlign='center';
- for(const label of placeAtlasLabels(labelCandidates,markerObstacles,w,h,name=>g.measureText(name).width)){
+ g.save();g.font='bold 13px sans-serif';g.textAlign='center';
+ // Place the waypoint first, then shift or suppress lower-priority site labels
+ // when their captions would collide. All markers and search entries stay put.
+ const labels=waypointLabel?[waypointLabel,...labelCandidates]:labelCandidates;
+ for(const label of placeAtlasLabels(labels,markerObstacles,w,h,name=>g.measureText(name).width)){
+  g.font=label.kind==='waypoint'?'bold 13px sans-serif':'600 13px sans-serif';
   g.lineJoin='round';g.strokeStyle='#10171b';g.lineWidth=4;
   g.strokeText(label.name,label.x,label.y);
-  g.fillStyle='#e7eceb';g.fillText(label.name,label.x,label.y);
+  g.fillStyle=label.kind==='waypoint'?'#e3f0f2':'#e7eceb';g.fillText(label.name,label.x,label.y);
  }
  g.restore();
  // The player position is a lightweight DOM overlay, not static map paint.
