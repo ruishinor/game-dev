@@ -32,6 +32,7 @@ import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
+import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
@@ -1559,28 +1560,12 @@ function nearestObject() {
   return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
-function nextEnemy() {
+function nextEnemy(reverse = false) {
   const me = S.ents.get(S.myId);
   if (!me) return;
-  const fx_ = Math.sin(cam.yaw);
-  const fz_ = Math.cos(cam.yaw);
-  const list = [];
-  for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
-    const dx = ent.pos.x - me.pos.x;
-    const dz = ent.pos.z - me.pos.z;
-    const d = Math.hypot(dx, dz);
-    if (d > 50) continue;
-    const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
-    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
-  }
-  if (!list.length) {
-    ui.error('No enemies nearby.');
-    return;
-  }
-  list.sort((a, b) => a.score - b.score);
-  const i = list.findIndex((e) => e.id === S.target);
-  setTarget(list[(i + 1) % list.length].id);
+  const id = cycleHostileTarget(S.ents.values(), me.pos, S.target, reverse);
+  if (!id) { ui.error('No enemies nearby.'); return; }
+  setTarget(id);
 }
 
 input.onClick = (button, x, y) => {
@@ -1643,7 +1628,7 @@ input.onAction = (code, e) => {
       break;
     case 'Tab':
       e.preventDefault();
-      nextEnemy();
+      nextEnemy(e.shiftKey);
       break;
     case 'KeyR':
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
