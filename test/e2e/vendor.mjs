@@ -17,7 +17,7 @@ try{
  const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
  await page.goto(url);await page.click('#gate-guest-link');await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb'&&e.halo?.role==='vendor');});
- const p=await liveFixturePlayer(page,server,'Vendor Tester');
+ let p=await liveFixturePlayer(page,server,'Vendor Tester');
  const vendor=server.game.objects.find(o=>o.type==='quartermaster');
  assert.ok(p&&vendor);
  p.char.goods={spent_contact:4,mire_husk:3};p.char.credits=0;
@@ -188,7 +188,13 @@ try{
   const context=page.locator('.player-context');
   await context.waitFor({state:'visible'});
   assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  assert.ok((await liveFixturePlayer(page,server,'Vendor Tester'))===p,'Configuration must use the original authenticated player');
+  // A software-renderer stall may terminate and resume the WebSocket.
+  // Reconnect creates a fresh live entity; require the same character and
+  // active authenticated session rather than obsolete entity identity.
+  const configured=await liveFixturePlayer(page,server,'Vendor Tester');
+  assert.equal(configured.char.id,p.char.id,'Rod configuration must preserve the authenticated character');
+  assert.equal(configured.char.equipped.weapon,'electrical_combat_rod','Rod equipment survives reconnect');
+  p=configured;
   async function configure(label,mode,code){
    const action=context.getByRole('button',{name:label,exact:true});
    await action.focus();
@@ -235,7 +241,9 @@ try{
  await social.locator('.social-preview').waitFor({state:'visible'});
  await social.getByRole('button',{name:'Buy 1',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('social_service_coat')&&window.__attune.state().sheet.credits===8);
- assert.ok((await liveFixturePlayer(page,server,'Vendor Tester'))===p);
+ const wearing=await liveFixturePlayer(page,server,'Vendor Tester');
+ assert.equal(wearing.char.id,p.char.id,'Wardrobe purchase remains on the same character');
+ p=wearing;
  await panel.getByRole('button',{name:'Close vendor'}).click();
  await page.waitForFunction(()=>!window.__attune.state().you.vendor);
  await page.locator('#view').focus();await page.keyboard.press('KeyC');

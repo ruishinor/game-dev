@@ -858,11 +858,23 @@ try {
   check('11. both players are credited for the shared kill', xpA > 0 && xpB > 0, `A ${xpA} xp, B ${xpB} xp`);
 
   for (const next of [skitters[2], skitters[3]]) {
-    // A corpse cannot be selected by the real Tab targeting path. Report a
-    // fixture lifecycle failure before attempting inputs against a dead ID.
-    if(next.state==='dead')throw Error('Directive fixture enemy already dead before targeting '+JSON.stringify({
-      id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time
-    }));
+    // A preceding real AoE/auto-attack may already have defeated this
+    // skitter. Let its normal server respawn finish before selecting it;
+    // don't fabricate a live enemy or bypass the directive/credit assertions.
+    for(const session of [A,B]){
+      await session.page.locator('#view').focus();
+      if((await state(session)).you.auto){
+        await session.page.keyboard.press('KeyR');
+        if(!await until(session,()=>window.__attune.state().you.auto===0,null,5000,'disengage before next target'))throw Error('Auto-attack did not disengage');
+      }
+      await session.page.keyboard.press('Escape');
+    }
+    if(next.state==='dead'){
+      await teleport(A,0,7.5);await teleport(B,0,7.5);
+      const deadline=Date.now()+45000;
+      while(next.state==='dead'&&Date.now()<deadline)await sleep(200);
+      if(next.state==='dead')throw Error('Directive fixture did not naturally respawn '+JSON.stringify({id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time}));
+    }
     await fightAt(next);
     await A.page.keyboard.press('Escape');
     await B.page.keyboard.press('Escape');

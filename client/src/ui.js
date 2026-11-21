@@ -419,6 +419,7 @@ export class UI {
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
         const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
         if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/gm(?:\s|$)/i.test(text)){this.a.gm(text.slice(3).trim());this.resetChatTarget();return;}
         if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
@@ -504,7 +505,7 @@ export class UI {
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
-    this.partyBtn = h('button', 'menubtn', 'Party [P]');
+    this.partyBtn = h('button', 'menubtn', 'Party [Shift+P]');
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
