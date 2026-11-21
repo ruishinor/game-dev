@@ -75,6 +75,19 @@ function moveToward(e, tx, tz, step, radius, steer) {
   return s;
 }
 
+function tickFollower(game, e, def, dt) {
+  const lead = game.ents.get(e.lead);
+  if (!lead || lead.state !== 'idle' || lead.threat?.size) return false;
+  const s = Math.sin(lead.yaw || 0), c = Math.cos(lead.yaw || 0);
+  const tx = lead.x + e.slot.side * c + e.slot.back * s, tz = lead.z - e.slot.side * s + e.slot.back * c;
+  const d = Math.hypot(tx - e.x, tz - e.z);
+  if (d > 40) return false;
+  if (d > 0.25) moveToward(e, tx, tz, def.speed * Math.min(0.95, 0.5 + 0.15 * d) * dt, def.radius, 0);
+  else e.yaw = lead.yaw;
+  if (e.patrol) e.post = { x: e.x, z: e.z };
+  return true;
+}
+
 function startEvade(game, e) {
   e.state = 'evade';
   e.threat.clear();
@@ -216,6 +229,9 @@ export function tickEnemy(game, e, dt) {
       if (Math.hypot(tx-6,tz-58)<14.5) moveToward(e,tx,tz,def.speed*0.85*dt,def.radius,0);
       return;
     }
+    // Squad followers hold their wedge slot behind a sergeant who is on its
+    // route; with the sergeant down, engaged or far away they walk the route.
+    if (e.lead && tickFollower(game, e, def, dt)) return;
     // Authored migration circuits run in real simulation time.
     if (e.route) {
       if (game.time < e.wanderAt) {

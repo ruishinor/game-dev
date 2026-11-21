@@ -53,6 +53,6 @@ def compute(body, items, base):
             mc = body.P[joint_weight(body, ["calf", "foot"], s) > 0.45]
             CM = LimbAdapter(LimbMap(ca, ft, [0, 0, 1.0], mc, t_range=(0.5, 1.15)))
             for ph in (90, -90):
-                a.append(("spark", CM.point(deg(ph), 0.92, 0.038), "calf_" + s))
+                a.append(("spark", CM.point(deg(ph), 0.9, 0.022), "calf_" + s))
         out["vanguard_field_set_boots"] = a
     return out

@@ -283,6 +283,8 @@ def _build_hardsurface(asset, params):
         res["hardsurface"] = True
         write_json(out / "build.json", res)
         rep[key] = {k: v["triangles"] for k, v in res["sets"].items()}
+        if res.get("damaged_pieces"):
+            rep[key]["damaged_pieces"] = [d["piece"] for d in res["damaged_pieces"]]
         files += [out / "build.json", out / res["blend"]]
         for sset in res["sets"].values():
             files += [out / sset["npz"]] + [out / f for f in sset["images"].values()]

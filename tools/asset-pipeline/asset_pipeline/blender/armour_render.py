@@ -202,7 +202,8 @@ def op_worn(p):
             arm_b = next(o for o in body if o.type == "ARMATURE")
             for o in body:
                 if o.type == "MESH":
-                    if base_name(o) in MANNEQUIN_KEEP:
+                    # shells the worn pieces hide in game (extras.hides) are hidden here too
+                    if base_name(o) in MANNEQUIN_KEEP and base_name(o) not in p.get("hide_shells", ()):
                         o.data.materials.clear()
                         o.data.materials.append(mm)
                         for slot in o.material_slots:

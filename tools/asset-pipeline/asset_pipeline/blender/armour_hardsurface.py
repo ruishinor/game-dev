@@ -32,8 +32,9 @@ import numpy as np
 from mathutils import Vector
 
 from asset_pipeline.blender.common import finish, payload, reset_scene
-from asset_pipeline.blender.severance_gate import (blur, boolean, delete, fix_normals, join, mesh_obj, node, prism, save_png, smoothstep,
+from asset_pipeline.blender.severance_gate import (blur, delete, fix_normals, join, mesh_obj, node, prism, save_png, smoothstep,
                                                     srgb_to_lin)
+from asset_pipeline.blender.severance_gate import boolean as boolean_exact
 
 G2B = lambda P: np.c_[P[:, 0], -P[:, 2], P[:, 1]]  # glTF (y up) -> Blender (z up)
 B2G = lambda P: np.c_[P[:, 0], P[:, 2], -P[:, 1]]
@@ -42,6 +43,26 @@ B2G = lambda P: np.c_[P[:, 0], P[:, 2], -P[:, 1]]
 def v3(p):
     p = np.asarray(p, float)
     return Vector((p[0], -p[2], p[1]))
+
+
+def boolean(target, cutter, op="DIFFERENCE"):
+    """Carve with Blender's Manifold solver. The Exact solver deletes whole
+    plates for some thin solids and groove cutters (measured: the collar ring,
+    flank and back plates kept under 1 % of their area); Manifold carves them
+    correctly and matches Exact where both work. Exact stays the fallback."""
+    before = len(target.data.polygons)
+    m = target.modifiers.new("bool", "BOOLEAN")
+    m.operation = op
+    m.solver = "MANIFOLD"
+    m.object = cutter
+    bpy.context.view_layer.objects.active = target
+    try:
+        bpy.ops.object.modifier_apply(modifier=m.name)
+    except RuntimeError:
+        target.modifiers.remove(m)
+        return boolean_exact(target, cutter, op)
+    if before and not target.data.polygons:
+        raise RuntimeError(f"boolean emptied {target.name}")
 
 
 def weld(o, dist=2e-5):
@@ -108,11 +129,20 @@ def strip_prism(name, pts, nrm, width, depth):
     `depth` below it), extended past both ends by half the width."""
     P = np.asarray(pts, float)
     N = np.asarray(nrm, float)
-    T = np.gradient(P, axis=0)
+    # a closed loop (last point repeats the first) becomes a ring with no end
+    # caps: an open strip around a loop would overlap itself at the seam, and
+    # the exact boolean then deletes the plate it should only engrave
+    closed = len(P) > 3 and np.linalg.norm(P[0] - P[-1]) < 1e-6
+    if closed:
+        P, N = P[:-1], N[:-1]
+        T = np.roll(P, -1, axis=0) - np.roll(P, 1, axis=0)
+    else:
+        T = np.gradient(P, axis=0)
     T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
     P = P.copy()
-    P[0] -= T[0] * width * 0.5
-    P[-1] += T[-1] * width * 0.5
+    if not closed:
+        P[0] -= T[0] * width * 0.5
+        P[-1] += T[-1] * width * 0.5
     S = np.cross(N, T)
     S /= np.maximum(np.linalg.norm(S, axis=1, keepdims=True), 1e-9)
     h = width / 2
@@ -122,10 +152,12 @@ def strip_prism(name, pts, nrm, width, depth):
     faces = []
     for r in range(4):
         r2 = (r + 1) % 4
-        for i in range(n - 1):
-            faces.append((r * n + i, r * n + i + 1, r2 * n + i + 1, r2 * n + i))
-    faces.append(tuple(r * n for r in range(4))[::-1])
-    faces.append(tuple(r * n + n - 1 for r in range(4)))
+        for i in range(n if closed else n - 1):
+            j = (i + 1) % n
+            faces.append((r * n + i, r * n + j, r2 * n + j, r2 * n + i))
+    if not closed:
+        faces.append(tuple(r * n for r in range(4))[::-1])
+        faces.append(tuple(r * n + n - 1 for r in range(4)))
     o = mesh_obj(name, G2B(verts), faces)
     fix_normals(o)
     return o
@@ -600,7 +632,7 @@ def dilate_ids(mid, iters=4):
     return out
 
 
-def unwrap(o, margin=0.003):
+def unwrap(o, margin=0.003, angle=70, pack=True):
     bpy.ops.object.select_all(action="DESELECT")
     o.select_set(True)
     bpy.context.view_layer.objects.active = o
@@ -611,8 +643,9 @@ def unwrap(o, margin=0.003):
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     # plates are gently curved: a wide angle keeps each face of a plate one island
-    bpy.ops.uv.smart_project(angle_limit=math.radians(70), island_margin=margin, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
-    bpy.ops.uv.pack_islands(margin=margin, rotate=True, shape_method="CONCAVE")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=margin, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
+    if pack:
+        bpy.ops.uv.pack_islands(margin=margin, rotate=True, shape_method="CONCAVE")
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
@@ -629,6 +662,65 @@ def unwrap(o, margin=0.003):
 # lines the low no longer has, and an emissive mask of the channels for the
 # distance LODs. LOD1 and LOD2 are decimated from LOD0 and share its UVs and
 # textures. Tangents (MikkTSpace, as baked) are exported with every LOD.
+
+
+def strip_inner(o, bvh, cos_limit=-0.55):
+    """Delete the faces that face the body (plate undersides, inner shells of
+    liners): never seen, they only cost triangles and confuse the bakes."""
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.normal_update()
+    gone = []
+    for f in bm.faces:
+        c = f.calc_center_median()
+        loc, _, _, d = bvh.find_nearest(c)
+        if loc is None or d > 0.08:
+            continue
+        v = c - loc
+        if v.length < 1e-6:
+            continue
+        # facing the body *and* looking straight at it a short way off (the
+        # body is hollow under its shells, so the nearest point alone can lie
+        # on the far side and would condemn outer faces)
+        if f.normal.dot(v.normalized()) < cos_limit and bvh.ray_cast(c + f.normal * 1e-4, f.normal, 0.12)[0] is not None:
+            gone.append(f)
+    bmesh.ops.delete(bm, geom=gone, context="FACES")
+    bm.to_mesh(o.data)
+    bm.free()
+    o.data.update()
+
+
+def allocate(have, total, floor=16):
+    """Share a triangle budget over pieces (water-filling on have^0.7): small
+    pieces keep what they have, large ones share the rest."""
+    n = len(have)
+    out = [0] * n
+    left, todo = total, list(range(n))
+    while todo:
+        w = {i: max(1.0, have[i]) ** 0.7 for i in todo}
+        W = sum(w.values())
+        done = [i for i in todo if have[i] <= max(floor, left * w[i] / W)]
+        if not done:
+            for i in todo:
+                out[i] = max(min(have[i], floor), int(left * w[i] / W))
+            break
+        for i in done:
+            out[i] = have[i]
+            left -= have[i]
+        todo = [i for i in todo if i not in done]
+    return out
+
+
+def pack(o, margin=0.003):
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    bpy.ops.uv.pack_islands(margin=margin, rotate=True, shape_method="CONCAVE")
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def tri_count(o):
@@ -707,7 +799,7 @@ def set_ray_visibility(o, on):
         setattr(o, k, on)
 
 
-def bake_s2a(target, sources, mat, kind, size, samples, name, extrusion=0.006, ray=0.014):
+def bake_s2a(target, sources, mat, kind, size, samples, name, extrusion=0.005, ray=0.012):
     """Bake `mat` evaluated on `sources` onto `target`'s UVs (selected to active)."""
     img = bpy.data.images.new(name, size, size, alpha=False, float_buffer=True)
     img.colorspace_settings.name = "Non-Color"
@@ -784,7 +876,9 @@ def channel_emit_material():
 
 
 def black_material():
-    return emit_material("_black", lambda nt, dst: None)
+    def build(nt, dst):
+        dst.default_value = (0.0, 0.0, 0.0, 1.0)
+    return emit_material("_black", build)
 
 
 def mesh_arrays_t(o):
@@ -873,7 +967,11 @@ def main_groups(p):
     lods = p.get("lods", [0.5, 0.25])
     body = np.load(p["body_npz"])
     occ = mesh_obj("_body", G2B(body["V"]), [tuple(f) for f in body["F"]])
+    from mathutils.bvhtree import BVHTree
+    body_bvh = BVHTree.FromPolygons([Vector(v) for v in G2B(body["V"])], [tuple(map(int, f)) for f in body["F"]])
     report = {"sets": {}, "groups": {}}
+    damaged = []
+    report["damaged_pieces"] = damaged
     by_item = {}
     for m in meta:
         by_item.setdefault(m["set"], []).append(m)
@@ -883,7 +981,7 @@ def main_groups(p):
         names, mats, piece_item = [], [], []
         hi_objs, lo_objs, info = [], [], {}
         for item in items:
-            mains, details, grooves = [], [], []
+            mains, details, lows, lgro = [], [], [], []
             fx_f0 = len(fx["F"])
             for m in by_item[item]:
                 V, F = npz[m["name"] + "_V"], npz[m["name"] + "_F"]
@@ -893,6 +991,14 @@ def main_groups(p):
                 o = build_piece(m, arr, fx, det)
                 if o is None:
                     continue
+                if not m.get("multi") and len(V):
+                    # a solidified sheet has at least twice its design area; much
+                    # less means a boolean ate the plate
+                    tri = np.asarray(V, float)[np.asarray(F)]
+                    a0 = float(np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1).sum() / 2)
+                    a1 = sum(pp.area for pp in o.data.polygons)
+                    if a1 < 1.5 * a0:
+                        damaged.append({"piece": m["name"], "design_area_cm2": round(a0 * 1e4, 1), "built_area_cm2": round(a1 * 1e4, 1)})
                 if m["mat"] not in mats:
                     mats.append(m["mat"])
                 for x in [o] + det:
@@ -904,33 +1010,52 @@ def main_groups(p):
                 fx["piece"] += [len(names)] * (len(fx["V"]) - fx_before)
                 names.append(m["name"])
                 piece_item.append(item)
+                # the low piece: the faces nobody sees (against the body) go,
+                # each piece gets its own clean UV islands before decimation
+                lo = copy_obj(o, m["name"] + "_lo")
+                strip_inner(lo, body_bvh)
+                if not lo.data.polygons:
+                    delete([lo])
+                else:
+                    unwrap(lo, margin=0.004, angle=60, pack=False)
+                    lows.append(lo)
+                    lgro.append([G2B(densify(g["pts"])) for g in m.get("grooves", []) if g["inlay"]])
                 mains.append(o)
                 details += det
-                grooves += [G2B(densify(g["pts"])) for g in m.get("grooves", []) if g["inlay"]]
             hi = join(mains, item)
             smooth_by_angle(hi, 24)
             hi_tris = tri_count(hi) + sum(tri_count(x) for x in details)
-            lo = copy_obj(hi, item + "_lo")
-            prot = groove_vertices(lo, grooves, 0.0042)
-            # the module budget covers its channel strips too
+            # the module budget covers its channel strips too, shared over its pieces
             fx_tris = len(fx["F"]) - fx_f0
-            lo_tris = decimate(lo, int(budget.get(item, hi_tris)) - fx_tris, prot)
+            have = [tri_count(x) for x in lows]
+            alloc = allocate(have, int(budget.get(item, hi_tris)) - fx_tris)
+            for x, want, gro in zip(lows, alloc, lgro):
+                decimate(x, want, groove_vertices(x, gro, 0.0042) if gro else None)
+            lo = join(lows, item + "_lo")
+            target = int(budget.get(item, hi_tris)) - fx_tris
+            if tri_count(lo) > target:  # per-piece floors can overshoot slightly: trim the module as a whole
+                decimate(lo, target)
+            lo_tris = tri_count(lo)
             hi_objs.append(hi)
             if details:
                 d = join(details, item + "_detail")
                 smooth_by_angle(d, 40)
                 hi_objs.append(d)
             lo_objs.append(lo)
-            info[item] = {"high_triangles": hi_tris, "triangles": lo_tris,
-                          "protected_vertices": len(prot), "budget": int(budget.get(item, hi_tris))}
+            info[item] = {"high_triangles": hi_tris, "triangles": lo_tris, "budget": int(budget.get(item, hi_tris))}
         lo_g = join(lo_objs, group)
         bpy.ops.object.select_all(action="DESELECT")
         lo_g.select_set(True)
         bpy.context.view_layer.objects.active = lo_g
+        # the bakes and the exported tangents use the same triangles
+        tm_ = lo_g.modifiers.new("tri", "TRIANGULATE")
+        tm_.quad_method = "BEAUTY"
+        tm_.ngon_method = "BEAUTY"
+        bpy.ops.object.modifier_apply(modifier=tm_.name)
         bpy.ops.mesh.customdata_custom_splitnormals_clear()
         smooth_by_angle(lo_g, 32)
         size = int(p["texture"].get(group, 2048))
-        unwrap(lo_g, margin=0.002)
+        pack(lo_g, margin=0.003)
         smp = p["samples"]
         id_mat = emit_material("_id", lambda nt, dst: matid_chain(nt, dst))
         mid = dilate_ids(np.rint(bake_s2a(lo_g, hi_objs, id_mat, "EMIT", size, 1, f"{group}_id")[..., 0] * 16).astype(int))

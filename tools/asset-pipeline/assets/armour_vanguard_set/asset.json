@@ -537,7 +537,7 @@
     "size": 0.7,
     "strength": 0.55
    },
-   "channel_strength": 28,
+   "channel_strength": 12,
    "light_scale": 0.4,
    "exposure": -0.2,
    "turn": {
@@ -575,7 +575,7 @@
     "size": 0.75,
     "strength": 0.6
    },
-   "channel_strength": 28,
+   "channel_strength": 12,
    "together": true,
    "light_scale": 0.12,
    "exposure": -0.3,
@@ -589,6 +589,10 @@
     0.03,
     0.031,
     0.034
+   ],
+   "hide_shells": [
+    "shell_shorts",
+    "shell_shoes"
    ]
   },
   "publish": {

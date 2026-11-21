@@ -699,35 +699,29 @@ def design_gauntlets(body, base, m):
 
 def design_legs(body, base, m):
     it = "cinderlock_legs"
-    T = TorsoMap(body, facets=26)
     P = []
     fwd = [0, 0, 1.0]
-    # trousers seat: the shorts shell lifted 4.5 mm, from under the belt down
-    # past the crotch; the legs below are lofted tubes (they follow the shorts'
-    # outer surface where it is looser than the thigh and taper to the knee)
-    ms = body.meshes["shell_shorts"]
-    belt_top = float(body.y(0.075))
-    crotch_y = float(ms["V"][np.abs(ms["V"][:, 0]) < 0.025][:, 1].min())
-    cy = ms["V"][ms["F"]].mean(1)[:, 1]
-    keep = (cy < belt_top - 0.004) & (cy > crotch_y - 0.035)
-    Fs = ms["F"][keep]
-    used = np.unique(Fs)
-    rm = -np.ones(len(ms["V"]), int)
-    rm[used] = np.arange(len(used))
-    F = rm[Fs]
-    P.append(sheet_piece(it, "trousers", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.0045, F, 2, 0.3), F, 0.0024,
-                         weights={"joints": ["pelvis", "spine_01", "thigh", "calf"], "surfaces": ["shell_shorts", "body"]}))
-    # 5 cm webbing belt, matte metal buckle, two side pouches, on a waist map
-    # built from the hips and the trousers (the torso map stops at the pelvis)
+    skin = surfaces_mask(body, ["body"])
+    # the crotch, from the skin's pelvis-weighted centre line (the shorts
+    # shell is skirt-shaped down to the knee and is hidden under the trousers)
+    bm_ = body.meshes["body"]
+    wp = ((bm_["J"] == body.joints.index("pelvis")) * bm_["W"]).sum(1)
+    crotch_y = float(bm_["V"][(wp > 0.3) & (np.abs(bm_["V"][:, 0]) < 0.02)][:, 1].min()) - 0.03
+    u_crotch = float((crotch_y - body.y_p) / (body.y_n - body.y_p))
+    # waist map over the hips and seat (the torso map stops at the pelvis)
     ya, yb = float(body.y(-0.25)), float(body.y(0.2))
     zc = float(body.centre(body.y(0.03))[2])
-    wsel = ~body.head & ~body.arm & (body.P[:, 1] > ya - 0.03) & (body.P[:, 1] < yb + 0.03) & (np.abs(body.P[:, 0]) < 0.3)
+    wsel = ~body.head & ~body.arm & (body.P[:, 1] > crotch_y - 0.005) & (body.P[:, 1] < yb + 0.03) & (np.abs(body.P[:, 0]) < 0.3)
     WM = LimbAdapter(LimbMap(np.array([0.0, ya, zc]), np.array([0.0, yb, zc]), [0, 0, 1.0], body.P[wsel], t_range=(-0.1, 1.1), half=0.01, rmax=0.3,
                              facets=26, tsmooth=0.03))
     tw = lambda u: (float(body.y(u)) - ya) / (yb - ya)
     W = lambda poly: [(a, tw(u)) for a, u in poly]
     flow0 = WM.point(0.0, tw(0.03), 0.02)
     band = ["band", "y", 0.05]
+    # trouser seat: from under the belt down to the crotch, bridging the legs like a gusset
+    P.append(Plate(it, "seat", m["under"], WM, D(W([(-179.5, u_crotch), (179.5, u_crotch), (179.5, 0.065), (-179.5, 0.065)])), 0.006, thickness=0.0024,
+                   bevel=0.0, segs=0, res=0.011, weights={"joints": ["pelvis", "spine_01", "thigh"], "surfaces": ["body", "shell_shorts"]}).export())
+    # 5 cm webbing belt, matte metal buckle, two side pouches
     pl = Plate(it, "belt", m["trim"], WM, D(W([(-179.5, -0.015), (179.5, -0.015), (179.5, 0.075), (-179.5, 0.075)])), 0.012, thickness=0.005,
                bevel=0.0015, res=0.01, weight_mode=band)
     pl.groove(D(W([(-178, 0.005), (178, 0.005)])), inlay=False, width=0.0018, depth=0.001, n_per=80)
@@ -747,13 +741,12 @@ def design_legs(body, base, m):
         fl.bolt(deg(sg * 65), tw(0.012), r=0.0035)
         P.append(fl.export())
     # legs
-    surf = ["body", "shell_shorts"]
-    ins = surfaces_mask(body, surf)
+    surf = ["body"]
     for s, sg in SIDES:
         th, ca, ft = body.L["thigh_" + s], body.L["calf_" + s], body.L["foot_" + s]
-        mt = body.P[ins & ~body.arm & (np.sign(body.P[:, 0]) == sg) & (body.P[:, 1] < crotch_y + 0.02) & (body.P[:, 1] > ca[1] - 0.06)]
-        mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & ins]
-        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.15, 1.15), rmax=0.16, tsmooth=0.08))
+        mt = body.P[skin & (np.sign(body.P[:, 0]) == sg) & (body.P[:, 1] < crotch_y + 0.05) & (body.P[:, 1] > ca[1] - 0.06)]
+        mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & skin]
+        TM = LimbAdapter(LimbMap(th, ca, fwd, mt, t_range=(-0.15, 1.15), rmax=0.14, tsmooth=0.05))
         CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(-0.25, 1.1), tsmooth=0.04))
         tax = list(map(float, (ca - th) / np.linalg.norm(ca - th)))
         t_crotch = float((th[1] - crotch_y) / (th[1] - ca[1]))
@@ -761,23 +754,23 @@ def design_legs(body, base, m):
         pc = {"joints": ["calf", "thigh", "foot"], "side": s, "surfaces": surf}
         o = -sg  # outer side: +phi points to -x on a downward bone with a forward ref
         sidep = lambda poly: poly if o > 0 else mirror_poly(poly)
-        # trouser legs below the shorts shell, tucked under the greaves and boots
-        P.append(Plate(it, f"leg_thigh_{s}", m["under"], TM, D([(-179.5, t_crotch - 0.02), (179.5, t_crotch - 0.02), (179.5, 1.06), (-179.5, 1.06)]), 0.0075, thickness=0.0024,
-                       bevel=0.0, segs=0, res=0.011, weights=pt).export())
-        P.append(Plate(it, f"leg_calf_{s}", m["under"], CM, D([(-179.5, -0.08), (179.5, -0.08), (179.5, 0.84), (-179.5, 0.84)]), 0.0042, thickness=0.0024,
+        # trouser legs: crotch to knee, knee to the boot collar (under the greaves)
+        P.append(Plate(it, f"leg_thigh_{s}", m["under"], TM, D([(-179.5, t_crotch - 0.07), (179.5, t_crotch - 0.07), (179.5, 1.06), (-179.5, 1.06)]), 0.009,
+                       thickness=0.0024, bevel=0.0, segs=0, res=0.011, weights=pt).export())
+        P.append(Plate(it, f"leg_calf_{s}", m["under"], CM, D([(-179.5, -0.08), (179.5, -0.08), (179.5, 0.84), (-179.5, 0.84)]), 0.0055, thickness=0.0024,
                        bevel=0.0, segs=0, res=0.011, weights=pc).export())
+        t0 = t_crotch + 0.05
         # hip seam piping down the outer thigh
-        sm = Plate(it, f"seam_{s}", m["trim"], TM, D(sidep([(121, t_crotch), (129, t_crotch), (129, 0.92), (121, 0.92)])), 0.0105, thickness=0.0026, bevel=0.0008,
-                   res=0.01, weights=pt, weight_mode=["band", tax, 0.08], flow_origin=flow0, flow_scale=1.0)
-        sm.groove(D([(o * 125, t_crotch + 0.02), (o * 125, 0.9)]), width=0.0026, depth=0.0018, n_per=12)
+        sm = Plate(it, f"seam_{s}", m["trim"], TM, D(sidep([(116, t_crotch - 0.04), (124, t_crotch - 0.04), (124, 0.92), (116, 0.92)])), 0.0125, thickness=0.0026,
+                   bevel=0.0008, res=0.01, weights=pt, weight_mode=["band", tax, 0.08], flow_origin=flow0, flow_scale=1.0)
+        sm.groove(D([(o * 120, t_crotch - 0.02), (o * 120, 0.9)]), width=0.0026, depth=0.0018, n_per=12)
         P.append(sm.export())
         # angled outer-quadriceps guard, tapering toward the knee, outlined
-        t0 = t_crotch + 0.03
-        qd = [(4, t0 + 0.04), (106, t0), (110, t0 + 0.24), (84, 0.76), (34, 0.8), (10, t0 + 0.42)]
-        pl = Plate(it, f"thigh_{s}", m["plate"], TM, D(sidep(qd)), 0.016, dome=0.0035, keel=0.005, thickness=0.009, bevel=0.003,
+        qd = [(4, t0 + 0.04), (100, t0), (106, t0 + 0.26), (82, 0.76), (30, 0.8), (8, t0 + 0.42)]
+        pl = Plate(it, f"thigh_{s}", m["plate"], TM, D(sidep(qd)), 0.02, dome=0.0035, keel=0.005, thickness=0.009, bevel=0.003,
                    weights={"joints": ["thigh"], "side": s, "surfaces": surf}, weight_mode=["rigid"], flow_origin=flow0, flow_scale=1.0)
         pl.trace(0.0075, width=0.0044, n_per=10)
-        pl.bolt(deg(o * 14), t0 + 0.08).bolt(deg(o * 98), t0 + 0.05)
+        pl.bolt(deg(o * 14), t0 + 0.08).bolt(deg(o * 92), t0 + 0.05)
         P.append(pl.export())
         # hip plate (tasset) hung from the belt, blended between pelvis and thigh
         side = lambda poly: poly if sg > 0 else mirror_poly(poly)
@@ -799,7 +792,7 @@ def design_greaves(body, base, m):
     fwd = [0, 0, 1.0]
     for s, sg in SIDES:
         th, ca, ft = body.L["thigh_" + s], body.L["calf_" + s], body.L["foot_" + s]
-        surf = ["body", "shell_shorts"]
+        surf = ["body"]
         ins = surfaces_mask(body, surf)
         mt = body.P[(joint_weight(body, ["thigh"], s) > 0.45) & ins]
         mc = body.P[(joint_weight(body, ["calf"], s) > 0.45) & ins]
@@ -897,11 +890,6 @@ def design_boots(body, base, m):
                    weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["band", cax, 0.04], flow_origin=origin, flow_scale=0.6)
         pl.groove(D([(-150, 0.82), (150, 0.82)]), width=0.0032, inlay=False, n_per=40)
         P.append(pl.export())
-        for k, (p0, p1) in enumerate(((60, 120), (-120, -60))):
-            pl = Plate(it, f"ankle_{k}_{s}", m["plate"], CM, D([(p0, 0.84), (p1, 0.84), (p1 - 6, 1.0), (p0 + 6, 1.0)]), 0.026, dome=0.006, thickness=0.008,
-                       bevel=0.0026, weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-            pl.bolt(deg((p0 + p1) / 2), 0.92, r=0.0035)
-            P.append(pl.export())
         # 4 cm deeply lugged outsole with a recessed heel block (built in Blender)
         hp = cloud[cloud[:, 1] < y0 + 0.02][:, [0, 2]]
         hull = hp[ConvexHull(hp).vertices]

@@ -12,6 +12,7 @@ import { launchBrowser, SOFTWARE_GL } from './browser.mjs';
 import { SEVERANCE_EXPANSE as E, SEVERANCE_RING as R, SEVERANCE_CRYSTALS, gateToWorld } from '../shared/severance-gate.js';
 import { liveFixturePlayer } from '../test/e2e/live-fixture.mjs';
 import { SILENT_FOUNDRY as SF } from '../shared/silent-foundry.js';
+import { ENEMIES } from '../shared/content.js';
 
 const out = process.argv[2];
 if (!out) { console.error('usage: node tools/severance-expanse-capture.mjs <outDir> [prefixes]'); process.exit(2); }
@@ -88,6 +89,40 @@ try {
     await shot('17-expanse-patrol-variants', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { settle: 3500 });
     await shot('17b-expanse-patrol-variants-night', stand, N, { yaw: N, pitch: 0.05, dist: 3.5 }, { tod: 'night', settle: 2500 });
     for (const e of lineup) { e.state = 'dead'; e.deadAt = -1e9; e.respawnAt = Infinity; }
+    game.aiHold = false;
+  }
+  // Severance Soldier squad in Cinderlock armour: close, mid and far (the far
+  // views exercise the distance LODs), night, and a Kinetic Discharge mid-burst
+  if (!only.length || only.some((o) => o.startsWith('18'))) {
+    game.openExpanse();
+    game.aiHold = true;
+    const stand = { x: E.x - 70, z: E.z - 60 };
+    const lead = game.enemies.find((e) => e.severancePatrol && e.type === 'severance_soldier' && !e.lead);
+    const squad = [lead, ...game.enemies.filter((e) => e.lead === lead.id)];
+    const wedge = (d) => squad.forEach((e, i) => {
+      e.x = stand.x + [0, 1.9, -1.9][i]; e.z = stand.z + d + [0, 2.1, 2.1][i];
+      e.home = { x: e.x, z: e.z }; e.post = { ...e.home }; e.wanderAt = Infinity; e.state = 'idle'; e.threat.clear(); e.yaw = Math.PI; e.hp = e.maxHp;
+    });
+    wedge(6);
+    await shot('18-severance-squad-close', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { settle: 5000 });
+    await shot('18b-severance-squad-close-night', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { tod: 'night', settle: 3000 });
+    wedge(16);
+    await shot('18c-severance-squad-mid', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { settle: 3000 });
+    wedge(44);
+    await shot('18d-severance-squad-far', stand, N, { yaw: N, pitch: 0.06, dist: 3.2 }, { settle: 3000 });
+    if (!only.length || only.some((o) => '18e-severance-kinetic-discharge'.startsWith(o))) {
+      wedge(7);
+      await shot('18e-severance-squad-discharge-setup', stand, N, { yaw: N, pitch: 0.12, dist: 3.6 }, { settle: 2500 });
+      const sp = ENEMIES.severance_soldier.specials[0];
+      game.emitWorldEvent({ e: 'tele', id: lead.id, k: sp.id, n: sp.name, x: lead.x, z: lead.z, r: sp.radius, ms: sp.windup, g: 1 });
+      await page.waitForTimeout(sp.windup - 150);
+      await page.screenshot({ path: path.join(out, '18e-severance-kinetic-discharge-windup.png') });
+      game.emitWorldEvent({ e: 'fx', k: sp.id, s: lead.id, x: lead.x, z: lead.z, r: sp.radius });
+      await page.waitForTimeout(140);
+      await page.screenshot({ path: path.join(out, '18e-severance-kinetic-discharge.png') });
+      log.push({ name: '18e-severance-kinetic-discharge', at: stand });
+    }
+    for (const e of squad) { e.state = 'dead'; e.deadAt = -1e9; e.respawnAt = Infinity; }
     game.aiHold = false;
   }
   await page.evaluate(() => window.__attune.timeOfDay({ mode: 'off' }));

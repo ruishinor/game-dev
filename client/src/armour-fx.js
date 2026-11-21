@@ -42,8 +42,10 @@ export const familyOf = (name) => (typeof name === 'string' && /^(CL|VG|MY|SW)_/
 
 // mode: 0 flow, 1 standing (in-phase), 2 peristaltic, 3 instrument
 export const FAMILIES = Object.freeze({
-  CL: { mode: 0, base: [1.0, 0.09, 0.03], hot: [1.0, 0.72, 0.5], gain: 2.6, halo: 0xff3a1c, particles: 'ember', particle: [1.0, 0.36, 0.12],
-    react: { cell: 'ember', color: 0xffb070, color2: 0xff3a1c } },
+  // crimson per the Cinderlock specification: core #FF1E1E (linear 1, .013, .013),
+  // falling to about #990000 at the channel edges; pulses run hot, not orange
+  CL: { mode: 0, base: [1.0, 0.0129, 0.0129], hot: [1.0, 0.34, 0.3], gain: 2.6, halo: 0xff1e1e, particles: 'ember', particle: [1.0, 0.16, 0.1],
+    react: { cell: 'ember', color: 0xff9a80, color2: 0xff1e1e } },
   VG: { mode: 1, base: [0.18, 0.62, 1.0], hot: [0.85, 0.95, 1.0], gain: 2.2, halo: 0x7fd6ff, particles: 'mote', particle: [0.55, 0.85, 1.0],
     glass: { a: [0.45, 0.8, 1.0], b: [0.75, 0.55, 1.0] }, react: { cell: 'hex', color: 0xc5edff, color2: 0x7f9cff } },
   MY: { mode: 2, base: [0.12, 0.95, 0.45], hot: [0.75, 1.0, 0.7], gain: 1.9, halo: 0x52f0a0, particles: 'spore', particle: [0.55, 1.0, 0.6],
@@ -58,6 +60,8 @@ const ABILITY_SUSTAIN = Object.freeze({
   hinge_field: 8, lattice_relay: 8, resonant_reversal: 0.8, phase_needle: 0.3, phase_transposition: 1.2, aegis: 2,
   mending_graft: 6, neural_lash: 0.4, overgrowth_surge: 4, spore_snare: 1, shared_pulse: 1.5, surge: 2,
   fault_scan: 9, core_bore: 1.2, field_rig: 12, controlled_blast: 1,
+  // Severance Soldiers: the reactor charges through the wind-up
+  kinetic_discharge: 1.6,
 });
 
 const HALO = { core: { size: 0.2, k: 0.95 }, core_s: { size: 0.075, k: 0.75 }, vent: { size: 0.09, k: 0.6 }, spark: { size: 0.05, k: 0.55 },
