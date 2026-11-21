@@ -77,7 +77,7 @@ try{
  assert.match(backdrop,/character-selection-gate\.webp/);
  const fitsViewport=()=>document.documentElement.scrollHeight<=innerHeight+2
    &&document.body.scrollHeight<=innerHeight+2;
- const viewportCases=[[320,568],[390,844],[844,390],[1280,720],[1366,768],[1920,1080],[2560,1440]];
+ const viewportCases=[[1280,720],[1366,768],[1920,1080],[2560,1440],[3440,1440]];
  const layoutDefects=[];
  const measureLayout=async(stage,section)=>{
   const data=await page.evaluate(({stage,section})=>{
@@ -158,12 +158,6 @@ try{
   assert.ok(dims.fields<=dims.visibleFields+2,label+': controls must fit without clipping or scrolling');
  };
  await singlePage('desktop identity');
- await page.setViewportSize({width:390,height:844});
- for(const tab of ['1. Identity','2. Body','3. Details']){
-  await page.getByRole('tab',{name:tab}).click();
-  await singlePage('mobile '+tab);
- }
- if(evidence)await page.screenshot({path:join(evidence,'character-creation-mobile.png')});
  for(const [width,height] of viewportCases){
   await page.setViewportSize({width,height});
   for(const label of ['1. Identity','2. Body','3. Details']){
@@ -268,13 +262,6 @@ try{
  assert.match(await page.locator('#roster-details').textContent(),/Roster Tester/);
  assert.equal(await page.locator('#roster-enter').isEnabled(),true);
  if(evidence)await page.screenshot({path:join(evidence,'selected-character-desktop.png')});
- await page.setViewportSize({width:390,height:844});
- assert.equal(await page.evaluate(fitsViewport),true,'mobile roster cannot scroll');
- assert.equal(await page.locator('.roster-cards [data-preview-inspect]').isVisible(),true,
-   'Inspect must not disappear on narrow viewports');
- assert.equal(await page.locator('#roster-list .roster-slot-vacant').isVisible(),true,
-   'New Character must stay accessible on narrow viewports');
- if(evidence)await page.screenshot({path:join(evidence,'selected-character-mobile.png')});
  for(const [width,height] of viewportCases){
   await page.setViewportSize({width,height});
   await measureLayout('roster','selected');
@@ -302,6 +289,6 @@ try{
  await page.waitForFunction(()=>document.querySelector('#roster-capacity')?.textContent?.includes('0 / 6'));
  assert.equal(await page.locator('#roster-enter').isDisabled(),true);
  assert.deepEqual(errors,[]);
- assert.deepEqual(layoutDefects,[], 'interactive elements must fit every requested viewport without clipping or internal scroll');
- console.log('PASS account roster > creation > game > preview > world reentry > typed deletion; all requested viewport measurements');
+ assert.deepEqual(layoutDefects,[], 'desktop and large-screen selection controls must fit tested viewport sizes without clipping or internal scroll');
+ console.log('PASS desktop account roster > creation > game > preview > world reentry > typed deletion; desktop and large-screen viewport measurements');
 }finally{await browser?.close();await server.close();await rm(temp,{recursive:true,force:true});}

@@ -1,3 +1,11 @@
+## Owner acceptance scope — desktop and large screens, 21 November 2026
+
+The owner has clarified that **the target platform is desktop computers and large-screen displays/TVs, not phones**. For PR #180, the functional, accessibility and visual acceptance matrix is therefore 1280×720, 1366×768, 1920×1080, 2560×1440 and 3440×1440. At these sizes, the existing approved composition must keep the actual character centered and facing forward, permit New Character/Create Character, full-screen Inspect/Return/Escape, Settings, deletion and Enter World, and avoid clipped actions or unnecessary internal/page scrolling. The account lifecycle, keyboard/reduced-motion support, server authorization, gameplay and cross-feature regressions remain mandatory.
+
+Remove 320×568, 390×844 and 844×390 from **release-blocking selection test coverage only**. Do not delete existing narrow-screen CSS, actively break smaller screens, or substitute CSS assumptions for measured desktop viewport captures. This scope change does not waive independent HUD, inventory, companion, combat, disclosure or persistence failures. The 3440×1440 ultrawide case extends desktop coverage; 4K/real-GPU fidelity and equipment visuals still require human review. Legacy roadmap references to mandatory mobile acceptance are superseded by this section.
+
+---
+
 ## Asset relocation and legacy preview fixture correction — 21 November 2026
 
 - Preserved the exact owner-approved 58,760-byte Gate WebP blob and relocated it from the generated build-only `client/assets/` tree to the existing served `client/art-assets/` path, without recompression or invented art. CSS and browser delivery assertions use the new path. The generated asset manifest and producer remain unchanged; no hand-edited registration will be lost during a build.
