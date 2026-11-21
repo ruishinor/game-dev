@@ -166,7 +166,7 @@ test('Spindle coexists with Survey Strider, preserving its scan mark and saved m
 
 test('inspection requires uninterrupted proximity and gives one private, read-only loadout report', () => {
   const game = makeGame(), p = game.addPlayer(makeChar('vanguard', {
-    inventory: ['field_emitter'], condition: { field_emitter: 45 }, equipped: { weapon: 'field_emitter' },
+    inventory: ['field_emitter'], condition: { field_emitter: 45 }, equipped: { ranged: 'field_emitter' },
   }));
   const other = game.addPlayer(makeChar('keeper'));
   commission(game, p);

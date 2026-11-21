@@ -10,7 +10,7 @@ import {CharacterStore} from '../server/store.js';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 const id='field_maintenance_kit';
 function setup(){
- const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{credits:60,goods:{[id]:1,mire_husk:2},materials:{mire_fibre:2,sentinel_alloy:2},inventory:['field_emitter'],equipped:{weapon:'field_emitter',device:null,implant:null,glyph:null},condition:{field_emitter:55}}));
+ const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{credits:60,goods:{[id]:1,mire_husk:2},materials:{mire_fibre:2,sentinel_alloy:2},inventory:['field_emitter'],equipped:{ranged:'field_emitter',device:null,implant:null,glyph:null},condition:{field_emitter:55}}));
  return {g,p};
 }
 test('field maintenance is atomic, owner-scoped, capped and replay-resistant',()=>{

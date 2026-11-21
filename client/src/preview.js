@@ -93,7 +93,17 @@ items.forEach((item, i) => {
   scene.add(sun, model.group);
   if (model.update) model.update(1 / 60, { t: 1, speed: 0, dead: false, hit: 0, cast: 0, attack: 0, fwd: 1, interval: 0, mode: 'triage', act: 'idle' });
   let shown = spec;
-  if (clip && model.animator && model.animator.clips.get(clip)) {
+  // "<model>@sit@<view>": the procedural cross-legged seated pose (sit/stand
+  // emote), viewed front | side | back | three | top, grid on the ground plane.
+  const SIT_VIEWS = { front: [0, 0.2], side: [Math.PI / 2, 0.12], back: [Math.PI, 0.2], three: [0.75, 0.3], top: [0.0001, 1.45] };
+  let itemYaw = yaw, itemPitch = pitch, groundGrid = false;
+  if (clip === 'sit') {
+    for (let i = 0; i < 3; i++) model.update?.(1 / 60, { t: 1 + i / 60, speed: 0, dead: false, hit: 0, cast: 0, attack: 0, fwd: 1, interval: 0, mode: 'triage', act: 'idle', sitting: true, reducedMotion: true });
+    if (!(model.sitState?.().available && model.sitState().blend === 1)) problem = problem || 'seated pose unavailable for this rig';
+    [itemYaw, itemPitch] = SIT_VIEWS[fraction] ?? SIT_VIEWS.three;
+    groundGrid = true;
+    shown = `${spec} · seated (${fraction || 'three'})`;
+  } else if (clip && model.animator && model.animator.clips.get(clip)) {
     const c = model.animator.clips.get(clip);
     model.animator.mixer.stopAllAction();
     model.animator.mixer.clipAction(c).play();
@@ -119,10 +129,10 @@ items.forEach((item, i) => {
   const r = Math.max(size.x, size.y, size.z) * 0.5 || 1;
   const cam = new THREE.PerspectiveCamera(35, 1, r * 0.05, r * 60);
   const d = (r / Math.tan((35 * Math.PI) / 360)) * 1.2;
-  cam.position.set(c.x + Math.sin(yaw) * Math.cos(pitch) * d, c.y + Math.sin(pitch) * d, c.z + Math.cos(yaw) * Math.cos(pitch) * d);
+  cam.position.set(c.x + Math.sin(itemYaw) * Math.cos(itemPitch) * d, c.y + Math.sin(itemPitch) * d, c.z + Math.cos(itemYaw) * Math.cos(itemPitch) * d);
   cam.lookAt(c);
   const grid = new THREE.GridHelper(Math.ceil(r * 4), Math.ceil(r * 4), 0x666a72, 0x3c3f46);
-  grid.position.y = box.min.y;
+  grid.position.y = groundGrid ? model.group.position.y : box.min.y;
   scene.add(grid);
   renderer.setViewport(cx, H - cy - cell, cell, cell);
   renderer.setScissor(cx, H - cy - cell, cell, cell);
