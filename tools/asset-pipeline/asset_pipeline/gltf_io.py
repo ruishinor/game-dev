@@ -93,7 +93,7 @@ class GlbWriter:
         return len(self.j["textures"]) - 1
 
     def material(self, name, *, base=None, orm=None, normal=None, emissive=None, emissive_factor=(0, 0, 0),
-                 base_factor=(1, 1, 1, 1), metallic=1.0, roughness=1.0, double_sided=False):
+                 base_factor=(1, 1, 1, 1), metallic=1.0, roughness=1.0, double_sided=False, alpha_mode=None):
         pbr = {"baseColorFactor": list(base_factor), "metallicFactor": metallic, "roughnessFactor": roughness}
         if base is not None:
             pbr["baseColorTexture"] = {"index": base}
@@ -106,7 +106,10 @@ class GlbWriter:
             m["normalTexture"] = {"index": normal}
         if emissive is not None:
             m["emissiveTexture"] = {"index": emissive}
+        if emissive is not None or any(emissive_factor):
             m["emissiveFactor"] = list(emissive_factor)
+        if alpha_mode:
+            m["alphaMode"] = alpha_mode
         if double_sided:
             m["doubleSided"] = True
         self.j["materials"].append(m)

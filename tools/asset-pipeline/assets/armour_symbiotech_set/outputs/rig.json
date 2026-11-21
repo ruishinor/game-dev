@@ -1,0 +1,38 @@
+{
+ "m": {
+  "triangles": {
+   "symbiotech_field_set_chest": 40220,
+   "symbiotech_field_set_chest__fx": 3924,
+   "symbiotech_field_set_chest__glass": 2460,
+   "symbiotech_field_set_gloves": 34588,
+   "symbiotech_field_set_gloves__fx": 992,
+   "symbiotech_field_set_gloves__glass": 112,
+   "symbiotech_field_set_greaves": 27920,
+   "symbiotech_field_set_greaves__fx": 1104,
+   "symbiotech_field_set_greaves__glass": 2032,
+   "symbiotech_field_set_boots": 28244,
+   "symbiotech_field_set_boots__fx": 400,
+   "symbiotech_field_set_boots__glass": 2720
+  },
+  "bytes": 29105200,
+  "joints": 67
+ },
+ "f": {
+  "triangles": {
+   "symbiotech_field_set_chest": 38546,
+   "symbiotech_field_set_chest__fx": 3924,
+   "symbiotech_field_set_chest__glass": 2248,
+   "symbiotech_field_set_gloves": 33824,
+   "symbiotech_field_set_gloves__fx": 992,
+   "symbiotech_field_set_gloves__glass": 112,
+   "symbiotech_field_set_greaves": 27956,
+   "symbiotech_field_set_greaves__fx": 1104,
+   "symbiotech_field_set_greaves__glass": 2032,
+   "symbiotech_field_set_boots": 29426,
+   "symbiotech_field_set_boots__fx": 400,
+   "symbiotech_field_set_boots__glass": 2232
+  },
+  "bytes": 29408408,
+  "joints": 67
+ }
+}

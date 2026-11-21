@@ -1,0 +1,838 @@
+{
+ "items": [
+  "symbiotech_field_set_chest",
+  "symbiotech_field_set_gloves",
+  "symbiotech_field_set_greaves",
+  "symbiotech_field_set_boots"
+ ],
+ "bodies": {
+  "m": {
+   "pieces": 113,
+   "min_clearance_m": -0.0537,
+   "clearance": {
+    "symbiotech_field_set_chest__vest": {
+     "min_m": 0.0029,
+     "p05_m": 0.0051
+    },
+    "symbiotech_field_set_chest__ribs": {
+     "min_m": 0.0072,
+     "p05_m": 0.0122
+    },
+    "symbiotech_field_set_chest__flank_membrane": {
+     "min_m": 0.0035,
+     "p05_m": 0.0107
+    },
+    "symbiotech_field_set_chest__back_membrane": {
+     "min_m": 0.0148,
+     "p05_m": 0.0153
+    },
+    "symbiotech_field_set_chest__seed_socket": {
+     "min_m": 0.0218,
+     "p05_m": 0.022
+    },
+    "symbiotech_field_set_chest__seed": {
+     "min_m": 0.0259,
+     "p05_m": 0.026
+    },
+    "symbiotech_field_set_chest__tendrils": {
+     "min_m": 0.0098,
+     "p05_m": 0.0165
+    },
+    "symbiotech_field_set_chest__shoulder_fin_l": {
+     "min_m": 0.03,
+     "p05_m": 0.0484
+    },
+    "symbiotech_field_set_chest__carapace_l": {
+     "min_m": 0.01,
+     "p05_m": 0.0178
+    },
+    "symbiotech_field_set_chest__carapace_r": {
+     "min_m": 0.0157,
+     "p05_m": 0.0164
+    },
+    "symbiotech_field_set_chest__cell_plate_r0": {
+     "min_m": 0.0159,
+     "p05_m": 0.0159
+    },
+    "symbiotech_field_set_chest__cell_plate_r1": {
+     "min_m": 0.0152,
+     "p05_m": 0.0157
+    },
+    "symbiotech_field_set_chest__spine_0": {
+     "min_m": 0.0172,
+     "p05_m": 0.0197
+    },
+    "symbiotech_field_set_chest__spine_1": {
+     "min_m": 0.0225,
+     "p05_m": 0.023
+    },
+    "symbiotech_field_set_chest__spine_2": {
+     "min_m": 0.0249,
+     "p05_m": 0.0252
+    },
+    "symbiotech_field_set_chest__spine_3": {
+     "min_m": 0.0267,
+     "p05_m": 0.0268
+    },
+    "symbiotech_field_set_chest__spine_4": {
+     "min_m": 0.0321,
+     "p05_m": 0.0322
+    },
+    "symbiotech_field_set_chest__spine_5": {
+     "min_m": 0.0413,
+     "p05_m": 0.0417
+    },
+    "symbiotech_field_set_chest__spine_6": {
+     "min_m": 0.0516,
+     "p05_m": 0.0518
+    },
+    "symbiotech_field_set_chest__back_shell_l": {
+     "min_m": 0.0141,
+     "p05_m": 0.0158
+    },
+    "symbiotech_field_set_chest__back_shell_r": {
+     "min_m": 0.0131,
+     "p05_m": 0.0159
+    },
+    "symbiotech_field_set_chest__collar_0": {
+     "min_m": -0.037,
+     "p05_m": -0.0199
+    },
+    "symbiotech_field_set_chest__collar_1": {
+     "min_m": -0.017,
+     "p05_m": 0.0017
+    },
+    "symbiotech_field_set_chest__collar_2": {
+     "min_m": -0.0382,
+     "p05_m": -0.0215
+    },
+    "symbiotech_field_set_chest__pauldron_l": {
+     "min_m": -0.0537,
+     "p05_m": -0.0378
+    },
+    "symbiotech_field_set_chest__pauldron_r": {
+     "min_m": -0.0019,
+     "p05_m": 0.0259
+    },
+    "symbiotech_field_set_gloves__glove_l": {
+     "min_m": -0.006,
+     "p05_m": 0.0017
+    },
+    "symbiotech_field_set_gloves__bracer_l": {
+     "min_m": 0.0072,
+     "p05_m": 0.0077
+    },
+    "symbiotech_field_set_gloves__vessel_l": {
+     "min_m": 0.0146,
+     "p05_m": 0.0153
+    },
+    "symbiotech_field_set_gloves__vessel_rings_l": {
+     "min_m": 0.0107,
+     "p05_m": 0.0115
+    },
+    "symbiotech_field_set_gloves__tendrils_l": {
+     "min_m": 0.0093,
+     "p05_m": 0.0103
+    },
+    "symbiotech_field_set_gloves__hand_shell_l": {
+     "min_m": 0.0051,
+     "p05_m": 0.0059
+    },
+    "symbiotech_field_set_gloves__finger_index01_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_index02_l": {
+     "min_m": 0.0028,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_index03_l": {
+     "min_m": 0.003,
+     "p05_m": 0.0034
+    },
+    "symbiotech_field_set_gloves__finger_middle01_l": {
+     "min_m": 0.0029,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_middle02_l": {
+     "min_m": 0.0033,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_middle03_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_ring01_l": {
+     "min_m": 0.0027,
+     "p05_m": 0.003
+    },
+    "symbiotech_field_set_gloves__finger_ring02_l": {
+     "min_m": 0.0031,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_gloves__finger_ring03_l": {
+     "min_m": 0.0034,
+     "p05_m": 0.0037
+    },
+    "symbiotech_field_set_gloves__finger_pinky01_l": {
+     "min_m": 0.0022,
+     "p05_m": 0.0034
+    },
+    "symbiotech_field_set_gloves__finger_pinky02_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_pinky03_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_thumb02_l": {
+     "min_m": -0.0027,
+     "p05_m": 0.0027
+    },
+    "symbiotech_field_set_gloves__finger_thumb03_l": {
+     "min_m": 0.0029,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__glove_r": {
+     "min_m": -0.0052,
+     "p05_m": 0.0018
+    },
+    "symbiotech_field_set_gloves__bracer_r": {
+     "min_m": 0.0072,
+     "p05_m": 0.0078
+    },
+    "symbiotech_field_set_gloves__vessel_r": {
+     "min_m": 0.0153,
+     "p05_m": 0.0155
+    },
+    "symbiotech_field_set_gloves__vessel_rings_r": {
+     "min_m": 0.0107,
+     "p05_m": 0.0115
+    },
+    "symbiotech_field_set_gloves__tendrils_r": {
+     "min_m": 0.0089,
+     "p05_m": 0.0104
+    },
+    "symbiotech_field_set_gloves__hand_shell_r": {
+     "min_m": 0.0052,
+     "p05_m": 0.0062
+    },
+    "symbiotech_field_set_gloves__finger_index01_r": {
+     "min_m": 0.0024,
+     "p05_m": 0.0028
+    },
+    "symbiotech_field_set_gloves__finger_index02_r": {
+     "min_m": 0.0034,
+     "p05_m": 0.0036
+    },
+    "symbiotech_field_set_gloves__finger_index03_r": {
+     "min_m": 0.0033,
+     "p05_m": 0.0034
+    },
+    "symbiotech_field_set_gloves__finger_middle01_r": {
+     "min_m": 0.0029,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_middle02_r": {
+     "min_m": 0.0027,
+     "p05_m": 0.003
+    },
+    "symbiotech_field_set_gloves__finger_middle03_r": {
+     "min_m": 0.0034,
+     "p05_m": 0.0037
+    },
+    "symbiotech_field_set_gloves__finger_ring01_r": {
+     "min_m": 0.0032,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_ring02_r": {
+     "min_m": 0.0031,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_gloves__finger_ring03_r": {
+     "min_m": 0.0037,
+     "p05_m": 0.0038
+    },
+    "symbiotech_field_set_gloves__finger_pinky01_r": {
+     "min_m": 0.0028,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_pinky02_r": {
+     "min_m": 0.0031,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_pinky03_r": {
+     "min_m": 0.0031,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_thumb02_r": {
+     "min_m": 0.002,
+     "p05_m": 0.0025
+    },
+    "symbiotech_field_set_gloves__finger_thumb03_r": {
+     "min_m": 0.003,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_greaves__tissue_thigh_l": {
+     "min_m": -0.0138,
+     "p05_m": -0.0023
+    },
+    "symbiotech_field_set_greaves__tissue_calf_l": {
+     "min_m": -0.0302,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_greaves__thigh_leaf0_l": {
+     "min_m": 0.0115,
+     "p05_m": 0.0129
+    },
+    "symbiotech_field_set_greaves__thigh_leaf1_l": {
+     "min_m": -0.0059,
+     "p05_m": 0.0043
+    },
+    "symbiotech_field_set_greaves__thigh_leaf2_l": {
+     "min_m": 0.016,
+     "p05_m": 0.0171
+    },
+    "symbiotech_field_set_greaves__thigh_membrane_l": {
+     "min_m": 0.0031,
+     "p05_m": 0.0078
+    },
+    "symbiotech_field_set_greaves__knee_l": {
+     "min_m": 0.0192,
+     "p05_m": 0.0206
+    },
+    "symbiotech_field_set_greaves__shin_blade0_l": {
+     "min_m": -0.0321,
+     "p05_m": -0.0279
+    },
+    "symbiotech_field_set_greaves__shin_blade1_l": {
+     "min_m": -0.0253,
+     "p05_m": -0.0222
+    },
+    "symbiotech_field_set_greaves__shin_membrane_l": {
+     "min_m": -0.0108,
+     "p05_m": 0.0069
+    },
+    "symbiotech_field_set_greaves__tendrils_l": {
+     "min_m": -0.0248,
+     "p05_m": -0.0026
+    },
+    "symbiotech_field_set_greaves__tissue_thigh_r": {
+     "min_m": -0.0127,
+     "p05_m": -0.0032
+    },
+    "symbiotech_field_set_greaves__tissue_calf_r": {
+     "min_m": -0.0222,
+     "p05_m": 0.0038
+    },
+    "symbiotech_field_set_greaves__thigh_leaf0_r": {
+     "min_m": 0.0113,
+     "p05_m": 0.013
+    },
+    "symbiotech_field_set_greaves__thigh_leaf1_r": {
+     "min_m": -0.0058,
+     "p05_m": 0.002
+    },
+    "symbiotech_field_set_greaves__thigh_leaf2_r": {
+     "min_m": 0.0161,
+     "p05_m": 0.017
+    },
+    "symbiotech_field_set_greaves__thigh_membrane_r": {
+     "min_m": 0.0036,
+     "p05_m": 0.0077
+    },
+    "symbiotech_field_set_greaves__knee_r": {
+     "min_m": 0.0192,
+     "p05_m": 0.0205
+    },
+    "symbiotech_field_set_greaves__shin_blade0_r": {
+     "min_m": -0.0116,
+     "p05_m": 0.0056
+    },
+    "symbiotech_field_set_greaves__shin_blade1_r": {
+     "min_m": -0.0161,
+     "p05_m": -0.0044
+    },
+    "symbiotech_field_set_greaves__shin_membrane_r": {
+     "min_m": 0.0081,
+     "p05_m": 0.0085
+    },
+    "symbiotech_field_set_greaves__tendrils_r": {
+     "min_m": -0.0203,
+     "p05_m": 0.0073
+    },
+    "symbiotech_field_set_boots__boot_l": {
+     "min_m": -0.0072,
+     "p05_m": -0.0032
+    },
+    "symbiotech_field_set_boots__upper_l": {
+     "min_m": 0.0026,
+     "p05_m": 0.005
+    },
+    "symbiotech_field_set_boots__instep_membrane_l": {
+     "min_m": -0.0345,
+     "p05_m": -0.0164
+    },
+    "symbiotech_field_set_boots__cuff_l": {
+     "min_m": -0.0191,
+     "p05_m": 0.0074
+    },
+    "symbiotech_field_set_boots__node_socket_l": {
+     "min_m": 0.017,
+     "p05_m": 0.0177
+    },
+    "symbiotech_field_set_boots__node_l": {
+     "min_m": 0.0198,
+     "p05_m": 0.0206
+    },
+    "symbiotech_field_set_boots__roots_l": {
+     "min_m": -0.0022,
+     "p05_m": 0.005
+    },
+    "symbiotech_field_set_boots__boot_r": {
+     "min_m": -0.0052,
+     "p05_m": -0.0032
+    },
+    "symbiotech_field_set_boots__upper_r": {
+     "min_m": 0.0027,
+     "p05_m": 0.0047
+    },
+    "symbiotech_field_set_boots__instep_membrane_r": {
+     "min_m": -0.0338,
+     "p05_m": -0.0166
+    },
+    "symbiotech_field_set_boots__cuff_r": {
+     "min_m": -0.0204,
+     "p05_m": 0.007
+    },
+    "symbiotech_field_set_boots__node_socket_r": {
+     "min_m": 0.0174,
+     "p05_m": 0.0179
+    },
+    "symbiotech_field_set_boots__node_r": {
+     "min_m": 0.02,
+     "p05_m": 0.0207
+    },
+    "symbiotech_field_set_boots__roots_r": {
+     "min_m": 0.0011,
+     "p05_m": 0.0051
+    }
+   }
+  },
+  "f": {
+   "pieces": 113,
+   "min_clearance_m": -0.0382,
+   "clearance": {
+    "symbiotech_field_set_chest__vest": {
+     "min_m": 0.0019,
+     "p05_m": 0.0052
+    },
+    "symbiotech_field_set_chest__ribs": {
+     "min_m": 0.0115,
+     "p05_m": 0.0149
+    },
+    "symbiotech_field_set_chest__flank_membrane": {
+     "min_m": 0.0049,
+     "p05_m": 0.0118
+    },
+    "symbiotech_field_set_chest__back_membrane": {
+     "min_m": 0.017,
+     "p05_m": 0.0174
+    },
+    "symbiotech_field_set_chest__seed_socket": {
+     "min_m": 0.0243,
+     "p05_m": 0.0256
+    },
+    "symbiotech_field_set_chest__seed": {
+     "min_m": 0.0297,
+     "p05_m": 0.0297
+    },
+    "symbiotech_field_set_chest__tendrils": {
+     "min_m": 0.0066,
+     "p05_m": 0.0182
+    },
+    "symbiotech_field_set_chest__shoulder_fin_l": {
+     "min_m": 0.0291,
+     "p05_m": 0.0452
+    },
+    "symbiotech_field_set_chest__carapace_l": {
+     "min_m": 0.012,
+     "p05_m": 0.0171
+    },
+    "symbiotech_field_set_chest__carapace_r": {
+     "min_m": 0.0177,
+     "p05_m": 0.0177
+    },
+    "symbiotech_field_set_chest__cell_plate_r0": {
+     "min_m": 0.0153,
+     "p05_m": 0.0153
+    },
+    "symbiotech_field_set_chest__cell_plate_r1": {
+     "min_m": 0.0153,
+     "p05_m": 0.0153
+    },
+    "symbiotech_field_set_chest__spine_0": {
+     "min_m": 0.0138,
+     "p05_m": 0.0156
+    },
+    "symbiotech_field_set_chest__spine_1": {
+     "min_m": 0.056,
+     "p05_m": 0.0574
+    },
+    "symbiotech_field_set_chest__spine_2": {
+     "min_m": 0.0256,
+     "p05_m": 0.0261
+    },
+    "symbiotech_field_set_chest__spine_3": {
+     "min_m": 0.0295,
+     "p05_m": 0.0297
+    },
+    "symbiotech_field_set_chest__spine_4": {
+     "min_m": 0.031,
+     "p05_m": 0.0311
+    },
+    "symbiotech_field_set_chest__spine_5": {
+     "min_m": 0.0324,
+     "p05_m": 0.0327
+    },
+    "symbiotech_field_set_chest__spine_6": {
+     "min_m": 0.0393,
+     "p05_m": 0.0396
+    },
+    "symbiotech_field_set_chest__back_shell_l": {
+     "min_m": 0.0154,
+     "p05_m": 0.0172
+    },
+    "symbiotech_field_set_chest__back_shell_r": {
+     "min_m": 0.0159,
+     "p05_m": 0.0177
+    },
+    "symbiotech_field_set_chest__collar_0": {
+     "min_m": -0.0378,
+     "p05_m": -0.0189
+    },
+    "symbiotech_field_set_chest__collar_1": {
+     "min_m": -0.0218,
+     "p05_m": -0.0045
+    },
+    "symbiotech_field_set_chest__collar_2": {
+     "min_m": -0.0382,
+     "p05_m": -0.0202
+    },
+    "symbiotech_field_set_chest__pauldron_l": {
+     "min_m": -0.0367,
+     "p05_m": -0.0155
+    },
+    "symbiotech_field_set_chest__pauldron_r": {
+     "min_m": 0.0073,
+     "p05_m": 0.0193
+    },
+    "symbiotech_field_set_gloves__glove_l": {
+     "min_m": -0.0052,
+     "p05_m": 0.0022
+    },
+    "symbiotech_field_set_gloves__bracer_l": {
+     "min_m": 0.0069,
+     "p05_m": 0.007
+    },
+    "symbiotech_field_set_gloves__vessel_l": {
+     "min_m": 0.0147,
+     "p05_m": 0.0149
+    },
+    "symbiotech_field_set_gloves__vessel_rings_l": {
+     "min_m": 0.0111,
+     "p05_m": 0.0112
+    },
+    "symbiotech_field_set_gloves__tendrils_l": {
+     "min_m": 0.0084,
+     "p05_m": 0.0099
+    },
+    "symbiotech_field_set_gloves__hand_shell_l": {
+     "min_m": 0.005,
+     "p05_m": 0.0058
+    },
+    "symbiotech_field_set_gloves__finger_index01_l": {
+     "min_m": 0.003,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_index02_l": {
+     "min_m": 0.0029,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_gloves__finger_index03_l": {
+     "min_m": 0.0033,
+     "p05_m": 0.0036
+    },
+    "symbiotech_field_set_gloves__finger_middle01_l": {
+     "min_m": 0.0023,
+     "p05_m": 0.0029
+    },
+    "symbiotech_field_set_gloves__finger_middle02_l": {
+     "min_m": 0.0027,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_gloves__finger_middle03_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_ring01_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0036
+    },
+    "symbiotech_field_set_gloves__finger_ring02_l": {
+     "min_m": 0.003,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_ring03_l": {
+     "min_m": 0.0034,
+     "p05_m": 0.0034
+    },
+    "symbiotech_field_set_gloves__finger_pinky01_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_pinky02_l": {
+     "min_m": 0.0033,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_pinky03_l": {
+     "min_m": 0.0032,
+     "p05_m": 0.0036
+    },
+    "symbiotech_field_set_gloves__finger_thumb02_l": {
+     "min_m": 0.0022,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_thumb03_l": {
+     "min_m": 0.0026,
+     "p05_m": 0.0034
+    },
+    "symbiotech_field_set_gloves__glove_r": {
+     "min_m": -0.0063,
+     "p05_m": 0.0022
+    },
+    "symbiotech_field_set_gloves__bracer_r": {
+     "min_m": 0.0074,
+     "p05_m": 0.0078
+    },
+    "symbiotech_field_set_gloves__vessel_r": {
+     "min_m": 0.0147,
+     "p05_m": 0.0152
+    },
+    "symbiotech_field_set_gloves__vessel_rings_r": {
+     "min_m": 0.0109,
+     "p05_m": 0.0113
+    },
+    "symbiotech_field_set_gloves__tendrils_r": {
+     "min_m": 0.0088,
+     "p05_m": 0.0101
+    },
+    "symbiotech_field_set_gloves__hand_shell_r": {
+     "min_m": 0.0049,
+     "p05_m": 0.0057
+    },
+    "symbiotech_field_set_gloves__finger_index01_r": {
+     "min_m": 0.0029,
+     "p05_m": 0.003
+    },
+    "symbiotech_field_set_gloves__finger_index02_r": {
+     "min_m": 0.0028,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_index03_r": {
+     "min_m": 0.0032,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_middle01_r": {
+     "min_m": 0.0027,
+     "p05_m": 0.0028
+    },
+    "symbiotech_field_set_gloves__finger_middle02_r": {
+     "min_m": 0.0026,
+     "p05_m": 0.0033
+    },
+    "symbiotech_field_set_gloves__finger_middle03_r": {
+     "min_m": 0.0032,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_ring01_r": {
+     "min_m": 0.0027,
+     "p05_m": 0.003
+    },
+    "symbiotech_field_set_gloves__finger_ring02_r": {
+     "min_m": 0.003,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_ring03_r": {
+     "min_m": 0.0032,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_pinky01_r": {
+     "min_m": 0.0027,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_gloves__finger_pinky02_r": {
+     "min_m": 0.003,
+     "p05_m": 0.0035
+    },
+    "symbiotech_field_set_gloves__finger_pinky03_r": {
+     "min_m": -0.0063,
+     "p05_m": -0.0008
+    },
+    "symbiotech_field_set_gloves__finger_thumb02_r": {
+     "min_m": 0.0016,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_gloves__finger_thumb03_r": {
+     "min_m": 0.0026,
+     "p05_m": 0.0032
+    },
+    "symbiotech_field_set_greaves__tissue_thigh_l": {
+     "min_m": -0.0131,
+     "p05_m": -0.0033
+    },
+    "symbiotech_field_set_greaves__tissue_calf_l": {
+     "min_m": -0.0207,
+     "p05_m": -0.0103
+    },
+    "symbiotech_field_set_greaves__thigh_leaf0_l": {
+     "min_m": 0.012,
+     "p05_m": 0.013
+    },
+    "symbiotech_field_set_greaves__thigh_leaf1_l": {
+     "min_m": 0.003,
+     "p05_m": 0.0121
+    },
+    "symbiotech_field_set_greaves__thigh_leaf2_l": {
+     "min_m": 0.0166,
+     "p05_m": 0.0169
+    },
+    "symbiotech_field_set_greaves__thigh_membrane_l": {
+     "min_m": 0.0061,
+     "p05_m": 0.008
+    },
+    "symbiotech_field_set_greaves__knee_l": {
+     "min_m": 0.0201,
+     "p05_m": 0.0206
+    },
+    "symbiotech_field_set_greaves__shin_blade0_l": {
+     "min_m": -0.0111,
+     "p05_m": -0.0081
+    },
+    "symbiotech_field_set_greaves__shin_blade1_l": {
+     "min_m": -0.0113,
+     "p05_m": -0.0077
+    },
+    "symbiotech_field_set_greaves__shin_membrane_l": {
+     "min_m": 0.0083,
+     "p05_m": 0.0087
+    },
+    "symbiotech_field_set_greaves__tendrils_l": {
+     "min_m": -0.0157,
+     "p05_m": -0.0036
+    },
+    "symbiotech_field_set_greaves__tissue_thigh_r": {
+     "min_m": -0.0047,
+     "p05_m": -0.0033
+    },
+    "symbiotech_field_set_greaves__tissue_calf_r": {
+     "min_m": -0.0186,
+     "p05_m": -0.0112
+    },
+    "symbiotech_field_set_greaves__thigh_leaf0_r": {
+     "min_m": 0.0122,
+     "p05_m": 0.0125
+    },
+    "symbiotech_field_set_greaves__thigh_leaf1_r": {
+     "min_m": 0.0029,
+     "p05_m": 0.0123
+    },
+    "symbiotech_field_set_greaves__thigh_leaf2_r": {
+     "min_m": 0.0166,
+     "p05_m": 0.017
+    },
+    "symbiotech_field_set_greaves__thigh_membrane_r": {
+     "min_m": 0.0057,
+     "p05_m": 0.008
+    },
+    "symbiotech_field_set_greaves__knee_r": {
+     "min_m": 0.0198,
+     "p05_m": 0.0207
+    },
+    "symbiotech_field_set_greaves__shin_blade0_r": {
+     "min_m": -0.0121,
+     "p05_m": -0.0105
+    },
+    "symbiotech_field_set_greaves__shin_blade1_r": {
+     "min_m": -0.0094,
+     "p05_m": -0.0067
+    },
+    "symbiotech_field_set_greaves__shin_membrane_r": {
+     "min_m": 0.0083,
+     "p05_m": 0.0086
+    },
+    "symbiotech_field_set_greaves__tendrils_r": {
+     "min_m": -0.022,
+     "p05_m": -0.0033
+    },
+    "symbiotech_field_set_boots__boot_l": {
+     "min_m": -0.0057,
+     "p05_m": -0.0033
+    },
+    "symbiotech_field_set_boots__upper_l": {
+     "min_m": -0.0375,
+     "p05_m": -0.0075
+    },
+    "symbiotech_field_set_boots__instep_membrane_l": {
+     "min_m": -0.0104,
+     "p05_m": 0.0031
+    },
+    "symbiotech_field_set_boots__cuff_l": {
+     "min_m": -0.0192,
+     "p05_m": 0.0063
+    },
+    "symbiotech_field_set_boots__node_socket_l": {
+     "min_m": 0.0171,
+     "p05_m": 0.0175
+    },
+    "symbiotech_field_set_boots__node_l": {
+     "min_m": 0.0192,
+     "p05_m": 0.0202
+    },
+    "symbiotech_field_set_boots__roots_l": {
+     "min_m": -0.0163,
+     "p05_m": 0.0047
+    },
+    "symbiotech_field_set_boots__boot_r": {
+     "min_m": -0.0061,
+     "p05_m": -0.0034
+    },
+    "symbiotech_field_set_boots__upper_r": {
+     "min_m": -0.0381,
+     "p05_m": -0.0095
+    },
+    "symbiotech_field_set_boots__instep_membrane_r": {
+     "min_m": -0.0105,
+     "p05_m": 0.0026
+    },
+    "symbiotech_field_set_boots__cuff_r": {
+     "min_m": -0.0195,
+     "p05_m": 0.0049
+    },
+    "symbiotech_field_set_boots__node_socket_r": {
+     "min_m": 0.0174,
+     "p05_m": 0.0175
+    },
+    "symbiotech_field_set_boots__node_r": {
+     "min_m": 0.0191,
+     "p05_m": 0.0205
+    },
+    "symbiotech_field_set_boots__roots_r": {
+     "min_m": -0.016,
+     "p05_m": 0.0053
+    }
+   }
+  }
+ }
+}
