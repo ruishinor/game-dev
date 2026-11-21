@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
+import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, XP_TO_NEXT, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { resolveLoadout } from '../shared/build.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
@@ -49,6 +49,8 @@ function sanitize(raw) {
   if (!accountId && typeof raw.tokenHash !== 'string') return null;
   if (!validName(raw.name) || !Object.hasOwn(CLASSES, raw.cls)) return null;
   const int = (v, lo, hi, d) => (Number.isInteger(v) && v >= lo && v <= hi ? v : d);
+  const level = int(raw.level, 1, MAX_LEVEL, 1);
+  const maxSavedXp = level === MAX_LEVEL ? 0 : XP_TO_NEXT[level] - 1;
   const c = {
     id: raw.id,
     tokenHash: accountId ? null : raw.tokenHash,
@@ -60,8 +62,9 @@ function sanitize(raw) {
     // Cosmetic body/race/hair; saves made before it existed keep their look's body.
     appearance: appearanceString(raw.appearance, validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls)),
     initiationSeen:raw.initiationSeen===true,
-    level: int(raw.level, 1, MAX_LEVEL, 1),
-    xp: int(raw.xp, 0, 1e6, 0),
+    level,
+    // Preserve valid legacy XP; fail closed on impossible progress and capped XP.
+    xp: int(raw.xp, 0, maxSavedXp, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
     materials: sanitizeMaterials(raw.materials),
     goods: sanitizeGoods(raw.goods),
