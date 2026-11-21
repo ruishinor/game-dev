@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {regionFor,project,daylightDisplay,formatMinutes,pointInsideRegion,waypointRelative,pixelToWorld} from '../client/src/world-atlas.js';
+import {regionFor,project,daylightDisplay,atlasClockDisplay,formatMinutes,pointInsideRegion,waypointRelative,pixelToWorld} from '../client/src/world-atlas.js';
 import {WORLD,RIFT_ANNEX,SEVERANCE_POCKET} from '../shared/world.js';
 test('region projection centers existing independent travel regions',()=>{
  for(const pos of [{x:0,z:0},RIFT_ANNEX,SEVERANCE_POCKET]){
@@ -24,6 +24,16 @@ test('preview clock reports no invented time outside applied preview',()=>{
 test('live Expanse world clock is authoritative and not labelled a preview',()=>{
  assert.deepEqual(daylightDisplay({applied:true,t:.25,mode:'live'}),{minutes:1080,phase:'night',preview:false});
  assert.deepEqual(daylightDisplay({applied:true,t:.25,mode:'hold'}),{minutes:1080,phase:'night',preview:true});
+});
+test('world clock uses authoritative snapshots in every region, not static environment lighting',()=>{
+ for(const inExpanse of [false,true]){
+  assert.deepEqual(atlasClockDisplay({worldClock:5000},inExpanse),{minutes:0,phase:'night',preview:false});
+  for(const worldClock of [undefined,null,NaN,-1,10001])assert.equal(atlasClockDisplay({worldClock},inExpanse),null);
+ }
+ assert.deepEqual(atlasClockDisplay({worldClock:10000},false),{minutes:720,phase:'day',preview:false});
+ const snapshot={worldClock:0,daylight:{applied:true,t:.5,mode:'hold'}};
+ assert.deepEqual(atlasClockDisplay(snapshot,true),{minutes:0,phase:'night',preview:true});
+ assert.deepEqual(atlasClockDisplay(snapshot,false),{minutes:720,phase:'day',preview:false});
 });
 test('digital clock formatting distinguishes midnight and noon',()=>{
  assert.equal(formatMinutes(0,'12'),'12:00 AM');assert.equal(formatMinutes(720,'12'),'12:00 PM');
