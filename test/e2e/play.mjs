@@ -605,6 +605,9 @@ try {
     await teleport(B, b.x,b.z);
     await settle(A,a.x,a.z);
     await settle(B,b.x,b.z);
+    // World focus is required for gameplay Tab; buttons keep native Tab.
+    await A.page.locator('#view').focus();
+    await B.page.locator('#view').focus();
   };
   let sk = skitters[0];
   await fightAt(sk);
@@ -801,8 +804,21 @@ try {
   await shot(B, '03-symbiote-bonded.png');
   await shot(A, '03b-bonded-as-seen-by-ally.png');
 
-  // Kill three skitters together.
+  // Kill three skitters together using real browser combat controls.
+  const selectSkitter=async(session,enemy)=>{
+    await session.page.locator('#view').focus();
+    let selected=(await state(session)).target;
+    for(let i=0;i<32&&selected!==enemy.id;i++){
+      await session.page.keyboard.press('Tab');
+      selected=(await state(session)).target;
+    }
+    if(selected!==enemy.id)throw Error('Required skitter not selected '+JSON.stringify({
+      player:session.name,expected:enemy.id,target:selected,
+      enemyState:enemy.state,hp:Math.ceil(enemy.hp),serverTarget:serverPlayer(session.name)?.target
+    }));
+  };
   const killCurrent = async (enemy) => {
+    if(enemy.state!=='dead')for(const session of [A,B])await selectSkitter(session,enemy);
     // Each actual browser must contribute; selecting the enemy alone is not kill credit.
     if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
       for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id);i++){
@@ -820,12 +836,6 @@ try {
     }
     return enemy.state === 'dead';
   };
-  for (const p of [A, B]) {
-    for (let i = 0; i < 8 && (await state(p)).target !== sk.id; i++) {
-      await p.page.keyboard.press('Tab');
-      await sleep(150);
-    }
-  }
   let killed = await killCurrent(sk);
   check('6/11. the two players defeat the enemy together', killed);
   let xpA = (await state(A)).sheet.xp;
@@ -840,14 +850,13 @@ try {
     await A.page.keyboard.press('Tab');
     await B.page.keyboard.press('Tab');
     await sleep(300);
-    // Tab picks the nearest; make sure both are on the intended enemy.
-    for (const p of [A, B]) {
-      for (let i = 0; i < 6 && (await state(p)).target !== next.id; i++) {
-        await p.page.keyboard.press('Tab');
-        await sleep(150);
-      }
-    }
+    // killCurrent requires each browser to select the intended skitter.
     killed = await killCurrent(next);
+    if(!killed)note('Live skitter kill failed '+JSON.stringify({
+      id:next.id,state:next.state,hp:Math.ceil(next.hp),
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      alive:[serverPlayer('Brakka')?.hp>0,serverPlayer('Lumen')?.hp>0]
+    }));
     if (!killed) break;
   }
   await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);

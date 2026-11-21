@@ -155,10 +155,26 @@ try{
  const ctrlDrag=async(from,to)=>{
    const origin=await slot(from).boundingBox();
    assert.ok(origin,'Source ability must have a visible slot');
+   // Capture the real browser target after the action bar re-renders.
+   await page.evaluate(()=>{
+     window.__hudPointerDown=null;
+     document.addEventListener('pointerdown',e=>{
+       window.__hudPointerDown={target:e.target.closest?.('.actionbar [data-slot-index]')?.dataset.slotIndex??null,
+         ctrl:e.ctrlKey,button:e.button,disabled:!!e.target.closest?.('button')?.disabled};
+     },{capture:true,once:true});
+   });
    await page.keyboard.down('Control');
    await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
+   const hit=await page.evaluate(({x,y})=>{
+     const node=document.elementFromPoint(x,y)?.closest?.('.actionbar [data-slot-index]');
+     return {slot:node?.dataset.slotIndex??null,disabled:!!node?.disabled,ability:node?.dataset.ability??null};
+   },{x:origin.x+origin.width/2,y:origin.y+origin.height/2});
    await page.mouse.down();
-   assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true');
+   const state=await page.locator('.actionbar').getAttribute('data-rearranging');
+   if(state!=='true')console.error('HUD_CTRL_DRAG_DIAGNOSTIC '+JSON.stringify({
+     from,to,hit,pointer:await page.evaluate(()=>window.__hudPointerDown),state
+   }));
+   assert.equal(state,'true','Ctrl-drag must initiate from the rebuilt ability slot');
    const dest=to===null?{x:Math.floor(page.viewportSize().width/2),y:Math.floor(page.viewportSize().height/2)}:await slot(to).boundingBox();
    assert.ok(dest,'Drop target must be reachable');
    await page.mouse.move(to===null?dest.x:dest.x+dest.width/2,to===null?dest.y:dest.y+dest.height/2,{steps:8});
