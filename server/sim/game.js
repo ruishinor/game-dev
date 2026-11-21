@@ -1,4 +1,4 @@
-import { regionEntryDenial, RIFT_LEVEL } from './enemy-levels.js';
+import { regionEntryDenial, RIFT_LEVEL, ELITE } from './enemy-levels.js';
 import {migrateSurveyStrider} from './survey-strider.js';
 // Authoritative world simulation. No I/O here: the network layer feeds
 // validated commands in and reads snapshots/events out, and tests drive the
@@ -322,12 +322,17 @@ export class Game {
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
   openAnnex() {
     if(!this.annexOpened){
-      for(const [type,dx,z,name] of [
-        ['skitter',-9,17,'Threshold Skitter'],['skitter',9,16,'Gallery Skitter'],['skitter',-3,14,'Gallery Burrower'],
-        ['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',10,5,'Null Relay Stalker'],['skitter',-8,-5,'Relay Burrower'],
-        ['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden'],['faultstalker',8,-14,'Null Stalker'],['skitter',-8,-17,'Null Burrower']
+      // With the Severance Expanse present, the Annex is the Null Annex behind
+      // the Foundry's Null Breach: level 13-15 content (REGION_LEVELS.null_annex),
+      // six of its ten guards elite, and the Null Chamber Warden at 15.
+      const heroic=!!this.severance;
+      for(const [type,dx,z,name,lvl,elite] of [
+        ['skitter',-9,17,'Threshold Skitter',13],['skitter',9,16,'Gallery Skitter',13],['skitter',-3,14,'Gallery Burrower',13,true],
+        ['sentinel',-6,2,'Displaced Sentinel',14,true],['skitter',6,-3,'Phase Skitter',14],['faultstalker',10,5,'Null Relay Stalker',14,true],['skitter',-8,-5,'Relay Burrower',14],
+        ['sentinel',7,-24,'Null Chamber Sentinel',15,true],['warden',-7,-25,'Null Chamber Warden',15],['faultstalker',8,-14,'Null Stalker',15,true],['skitter',-8,-17,'Null Burrower',15,true]
       ]){
-        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true};
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:heroic?lvl:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true,
+          ...(heroic?{nullAnnex:true}:{}),...(heroic&&elite?{elite:{hp:ELITE.hp,dmg:ELITE.dmg}}:{})};
         resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
       }
       this.annexOpened=true;

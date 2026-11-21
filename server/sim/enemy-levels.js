@@ -11,6 +11,8 @@ import { ENEMIES, MAX_LEVEL } from '../../shared/content.js';
 export const REGION_LEVELS = Object.freeze({
   severance_expanse: Object.freeze({ entry: 5, min: 5, max: 12 }),
   silent_foundry: Object.freeze({ entry: 8, min: 8, max: 11 }),
+  // behind the Foundry's Null Breach; also requires the Foundry Overseer defeated
+  null_annex: Object.freeze({ entry: 12, min: 13, max: 15 }),
 });
 
 /** Character level required for the Phase Scar: calibration, recovery and travel. */
@@ -52,6 +54,6 @@ export function killXp(e, playerLevel) {
 export function regionEntryDenial(region, char) {
   const band = REGION_LEVELS[region];
   if (!band || (Number.isInteger(char?.level) && char.level >= band.entry)) return null;
-  const name = region === 'silent_foundry' ? 'The Silent Foundry' : 'The Severance Expanse';
+  const name = { silent_foundry: 'The Silent Foundry', null_annex: 'The Null Breach' }[region] ?? 'The Severance Expanse';
   return `${name} requires character level ${band.entry}.`;
 }

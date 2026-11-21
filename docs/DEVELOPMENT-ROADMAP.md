@@ -489,3 +489,12 @@ Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar a
 - The Severance Soldiers squads on `charlie/festive-thompson-a5h4f5` still need levels 7–11, with each sergeant elite at the squad's level +1 (max 12), when they merge.
 - No naturally played 5→12 browser journey yet.
 - #165 can be retired once #217 merges: the cap, thresholds and validation are equivalent (merged in #196), and the regional work is superseded here.
+
+### 13.2 Level 13–15 band: the Null Annex — branch `feat/prog15-null-annex`
+
+- **Way in:** a Null Breach in the Foundry's Excavation Depths at (-9, -99). It requires level 12 and the Foundry Overseer defeated by that character.
+- **Where it leads:** the existing Phase Annex deck (x=220), which was unreachable since the Foundry replaced it. With the Expanse present, it is now level 13–15 content: 6 of 10 guards are elite, and the Null Chamber Warden is the level-15 boss.
+- **Reward:** the cache gives 6 Resonance fragments once.
+- **Return:** the Annex gate returns to the Severance Gate.
+- **Pacing:** one clear gives about 4,000 XP, so levels 12→15 take about 2.4 clears.
+- **Art:** the breach reuses the return-rift model, and no new art was made. A distinct breach visual is optional polish.
