@@ -156,12 +156,13 @@ test('real WebSocket: signed-in owner, guest, wrong owner, revoked session and r
     await until(() => messages(guest, m => m.t === 's' && m.pv?.some(e => /GM access denied/.test(e.m))), 'guest GM denial');
     assert.equal(srv.store.byName.get('plainvisitor').level, 1);
 
+    const priorPlayer = ownerConn.player;
     a.send({ t: 'account_leave' });
     await until(() => a.msgs.filter(m => m.t === 'account_ready').length > 1, 'owner leaves character');
     a.send({ t: 'account_select', id: ownChar.id });
     await until(() => a.msgs.filter(m => m.t === 'welcome').length > 1, 'owner reconnects character');
     const resumed = [...srv.net.conns].find(c => c.char?.id === ownChar.id);
-    assert.notEqual(resumed.player, ownerConn.player, 'fresh entity on character reselection');
+    assert.notEqual(resumed.player, priorPlayer, 'fresh entity on character reselection');
     assert.notEqual(resumed.player.gmInvulnerable, true, 'god mode cannot leak across sessions');
     assert.equal(resumed.char.level, MAX_LEVEL);
     assert.equal(travelRegionAt(resumed.player.x, resumed.player.z), 'reach', 'annex does not persist on reconnect');
