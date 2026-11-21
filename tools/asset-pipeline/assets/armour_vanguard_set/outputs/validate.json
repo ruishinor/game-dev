@@ -12,39 +12,39 @@
   "m": {
    "items": {
     "vanguard_field_set_boots": {
-     "min_clearance_m": -0.016768581505538786,
-     "inside_fraction_max": 0.08475345718675793,
-     "inside_body_fraction_max": 0.0011873166643385949,
-     "inside_shell_fraction_max": 0.08426456208967732,
+     "min_clearance_m": -0.015823650021195807,
+     "inside_fraction_max": 0.06770466012043617,
+     "inside_body_fraction_max": 0.0010307600499104867,
+     "inside_shell_fraction_max": 0.0673520316823089,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 0.3910719043383923,
+     "max_edge_strain": 0.32649491005189785,
      "pass": false
     },
     "vanguard_field_set_chest": {
-     "min_clearance_m": -0.026831428015994356,
-     "inside_fraction_max": 0.03298777050707056,
-     "inside_body_fraction_max": 0.028527314168075878,
-     "inside_shell_fraction_max": 0.006225032473102468,
-     "arm_contact_fraction_max": 0.032497610469818396,
-     "max_edge_strain": 0.5626919612065931,
+     "min_clearance_m": -0.025275177764074154,
+     "inside_fraction_max": 0.031417151022457374,
+     "inside_body_fraction_max": 0.02769034699828142,
+     "inside_shell_fraction_max": 0.004885395948790237,
+     "arm_contact_fraction_max": 0.028173093633537375,
+     "max_edge_strain": 0.5242230535255018,
      "pass": false
     },
     "vanguard_field_set_gloves": {
-     "min_clearance_m": -0.005276593656604455,
-     "inside_fraction_max": 0.047129517806120944,
-     "inside_body_fraction_max": 0.006362484903826328,
-     "inside_shell_fraction_max": 0.040767032902294616,
+     "min_clearance_m": -0.0052299537932392285,
+     "inside_fraction_max": 0.045110017534928444,
+     "inside_body_fraction_max": 0.006108942813507551,
+     "inside_shell_fraction_max": 0.03900107472142089,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 1.1460154449065354,
+     "max_edge_strain": 1.0928846003500423,
      "pass": false
     },
     "vanguard_field_set_greaves": {
-     "min_clearance_m": -0.03522370043978082,
-     "inside_fraction_max": 0.05465314228968648,
-     "inside_body_fraction_max": 0.04096325719960278,
-     "inside_shell_fraction_max": 0.019967371258334515,
+     "min_clearance_m": -0.03474371435116888,
+     "inside_fraction_max": 0.05082271762208068,
+     "inside_body_fraction_max": 0.03815021231422505,
+     "inside_shell_fraction_max": 0.01864384288747346,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 0.4496446786388431,
+     "max_edge_strain": 0.42449045402639757,
      "pass": false
     }
    },
@@ -54,39 +54,39 @@
   "f": {
    "items": {
     "vanguard_field_set_boots": {
-     "min_clearance_m": -0.023258614027305224,
-     "inside_fraction_max": 0.10233177881412392,
-     "inside_body_fraction_max": 0.009093937375083279,
-     "inside_shell_fraction_max": 0.09477015323117921,
+     "min_clearance_m": -0.02351526281139705,
+     "inside_fraction_max": 0.08619255562487003,
+     "inside_body_fraction_max": 0.007304013308380121,
+     "inside_shell_fraction_max": 0.08060407569141194,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 0.33554969795492895,
+     "max_edge_strain": 0.2948943583893761,
      "pass": false
     },
     "vanguard_field_set_chest": {
-     "min_clearance_m": -0.023373795101198667,
-     "inside_fraction_max": 0.042759782122464014,
-     "inside_body_fraction_max": 0.037339157434939346,
-     "inside_shell_fraction_max": 0.007630976501855117,
-     "arm_contact_fraction_max": 0.013709443991263847,
-     "max_edge_strain": 0.6443125270594503,
+     "min_clearance_m": -0.02294518417742138,
+     "inside_fraction_max": 0.0385761488719061,
+     "inside_body_fraction_max": 0.03440027568871501,
+     "inside_shell_fraction_max": 0.005716486590581987,
+     "arm_contact_fraction_max": 0.013743893292250309,
+     "max_edge_strain": 0.6086326443505372,
      "pass": false
     },
     "vanguard_field_set_gloves": {
-     "min_clearance_m": -0.0051223411083617925,
-     "inside_fraction_max": 0.0322405361347582,
-     "inside_body_fraction_max": 0.004045160900802995,
-     "inside_shell_fraction_max": 0.030761335506852623,
+     "min_clearance_m": -0.005128875471184844,
+     "inside_fraction_max": 0.03147932440302854,
+     "inside_body_fraction_max": 0.0039021549213744903,
+     "inside_shell_fraction_max": 0.030110658124635994,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 0.7185668165273021,
+     "max_edge_strain": 0.7087981430622601,
      "pass": false
     },
     "vanguard_field_set_greaves": {
-     "min_clearance_m": -0.029727863559029594,
-     "inside_fraction_max": 0.04176713074589718,
-     "inside_body_fraction_max": 0.030800342226024735,
-     "inside_shell_fraction_max": 0.01960021778019756,
+     "min_clearance_m": -0.029199663161105373,
+     "inside_fraction_max": 0.03598597605344976,
+     "inside_body_fraction_max": 0.02662565323807634,
+     "inside_shell_fraction_max": 0.016669974201230404,
      "arm_contact_fraction_max": 0.0,
-     "max_edge_strain": 0.3932153627204835,
+     "max_edge_strain": 0.3773840150069638,
      "pass": false
     }
    },

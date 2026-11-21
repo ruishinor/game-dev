@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FRAMES, RACES, ARCHIVED_RACES, HAIR_STYLES, HAIR_COLOURS, normalizeAppearance, appearanceString, defaultAppearance, encodeAppearance } from '../shared/appearance.js';
+import { FRAMES, RACES, ARCHIVED_RACES, RETIRED_RACES, HAIR_STYLES, HAIR_COLOURS, normalizeAppearance, appearanceString, defaultAppearance, encodeAppearance } from '../shared/appearance.js';
 import { LOOKS, validLook } from '../shared/content.js';
 
 test('appearance: valid strings round-trip unchanged', () => {
@@ -32,7 +32,7 @@ test('appearance: hostile or malformed input falls back field by field', () => {
     assert.ok(Number.isInteger(a.hairColour) && a.hairColour < HAIR_COLOURS.length);
   }
   // One bad field never discards the good ones.
-  assert.deepEqual(normalizeAppearance('f.mirekin.99.crop.3', 'vanguard_plate'), { frame: 'f', race: 'mirekin', skin: 0, hair: 'crop', hairColour: 3 });
+  assert.deepEqual(normalizeAppearance('f.velari.99.crop.3', 'vanguard_plate'), { frame: 'f', race: 'velari', skin: 0, hair: 'crop', hairColour: 3 });
 });
 
 test('appearance: retired Veyran is excluded from gameplay and retained only in the archive', () => {
@@ -41,12 +41,30 @@ test('appearance: retired Veyran is excluded from gameplay and retained only in 
   assert.equal(validLook('vanguard','red_rucker'),false);
   assert.equal(appearanceString('f.veyran.1.swept.2','vanguard_plate'),'f.human.3.crop.1');
   assert.equal(normalizeAppearance('m.veyran.1.swept.2', 'red_rucker').hair, 'none');
-  assert.ok(RACES.mirekin.hair.includes(normalizeAppearance('f.mirekin.1.swept.2', 'conductor').hair));
+  assert.ok(RACES.velari.hair.includes(normalizeAppearance('f.velari.1.swept.2', 'conductor').hair));
   for (const R of Object.values(RACES)) for (const h of R.hair) assert.ok(Object.hasOwn(HAIR_STYLES, h));
 });
 
 test('appearance: race-bound outfits keep their race', () => {
   assert.equal(normalizeAppearance('m.human.2.crop.1', 'red_rucker').race, 'veyran');
   assert.equal(normalizeAppearance('m.human.2.crop.1', 'red_rucker').hair, 'none');
-  assert.equal(normalizeAppearance('f.mirekin.1.crop.1', 'conductor').race, 'mirekin');
+  assert.equal(normalizeAppearance('f.velari.1.crop.1', 'conductor').race, 'velari');
+});
+
+test('appearance: the playable races are Human, Velari and Augmented', () => {
+  assert.deepEqual(Object.keys(RACES), ['human', 'velari', 'augmented']);
+  assert.deepEqual(Object.values(RACES).map((r) => r.name), ['Human', 'Velari', 'Augmented']);
+  for (const R of Object.values(RACES)) assert.ok(R.skins.length >= 4 && R.blurb.length > 20, R.id);
+});
+
+test('appearance: retired races migrate explicitly and keep every compatible choice', () => {
+  assert.deepEqual(RETIRED_RACES, { mirekin: 'velari' });
+  // Every Mirekin skin and hair choice carries over to Velari unchanged.
+  for (let skin = 0; skin < 4; skin++) for (const hair of ['none', 'buzz', 'crop']) {
+    assert.equal(appearanceString(`f.mirekin.${skin}.${hair}.3`, 'vanguard_plate'), `f.velari.${skin}.${hair}.3`);
+  }
+  // Colonist was renamed Human: the stored id is unchanged.
+  assert.equal(appearanceString('m.human.5.swept.2', 'vanguard_plate'), 'm.human.5.swept.2');
+  // Race-bound outfits still win over a migrated race.
+  assert.equal(normalizeAppearance('f.mirekin.1.crop.1', 'red_rucker').race, 'veyran');
 });

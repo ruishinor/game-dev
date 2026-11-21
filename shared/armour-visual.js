@@ -13,6 +13,10 @@ export const ARMOUR_ASSETS = Object.freeze({
   vanguard_field_set_gloves: 'armour_vanguard_set',
   vanguard_field_set_greaves: 'armour_vanguard_set',
   vanguard_field_set_boots: 'armour_vanguard_set',
+  // Vesperglass Array (Aegis Keeper), Strataweave Fieldkit (Brine Surveyor)
+  // and Mycelial Accord (Symbiotech Conductor)
+  ...Object.fromEntries(['keeper', 'surveyor', 'symbiotech'].flatMap((fam) =>
+    ['chest', 'gloves', 'greaves', 'boots'].map((slot) => [`${fam}_field_set_${slot}`, `armour_${fam}_set`]))),
 });
 export const ARMOUR_VISUALS = Object.freeze(Object.keys(ARMOUR_ASSETS));
 export const ARMOUR_SLOTS = Object.freeze(['chest', 'gloves', 'greaves', 'boots']);

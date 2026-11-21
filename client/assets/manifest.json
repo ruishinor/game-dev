@@ -35,13 +35,112 @@
    ],
    "note": "Original body-fitted chest armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour); see docs/art/ARMOUR-3D.md"
   },
+  "armour_keeper_set_f": {
+   "kind": "skinned",
+   "url": "armour_keeper_set_f.glb",
+   "bytes": 4895932,
+   "rawBytes": 28124296,
+   "hash": "faec0927157f",
+   "tris": 169506,
+   "textures": 12,
+   "meshes": 12,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "makehuman"
+   ],
+   "note": "Vesperglass Array (Aegis Keeper set), original porcelain-and-titanium resonance armour for humanoid_f, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_keeper_set_m": {
+   "kind": "skinned",
+   "url": "armour_keeper_set_m.glb",
+   "bytes": 4854312,
+   "rawBytes": 28603332,
+   "hash": "01e48a70c993",
+   "tris": 171840,
+   "textures": 12,
+   "meshes": 12,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Vesperglass Array (Aegis Keeper set), original porcelain-and-titanium resonance armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_surveyor_set_f": {
+   "kind": "skinned",
+   "url": "armour_surveyor_set_f.glb",
+   "bytes": 6678480,
+   "rawBytes": 36417672,
+   "hash": "1ee4bb34aee2",
+   "tris": 199496,
+   "textures": 12,
+   "meshes": 7,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "makehuman"
+   ],
+   "note": "Strataweave Fieldkit (Brine Surveyor set), original industrial field-engineering armour for humanoid_f, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_surveyor_set_m": {
+   "kind": "skinned",
+   "url": "armour_surveyor_set_m.glb",
+   "bytes": 6710020,
+   "rawBytes": 35546164,
+   "hash": "eaf9a43ef424",
+   "tris": 202506,
+   "textures": 12,
+   "meshes": 7,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Strataweave Fieldkit (Brine Surveyor set), original industrial field-engineering armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_symbiotech_set_f": {
+   "kind": "skinned",
+   "url": "armour_symbiotech_set_f.glb",
+   "bytes": 4977884,
+   "rawBytes": 29408408,
+   "hash": "3a48898a9b26",
+   "tris": 142796,
+   "textures": 12,
+   "meshes": 12,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "makehuman"
+   ],
+   "note": "Mycelial Accord (Symbiotech Conductor set), original cultivated bio-armour for humanoid_f, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
+  "armour_symbiotech_set_m": {
+   "kind": "skinned",
+   "url": "armour_symbiotech_set_m.glb",
+   "bytes": 4972888,
+   "rawBytes": 29105200,
+   "hash": "c2fcbbbdbf54",
+   "tris": 144716,
+   "textures": 12,
+   "meshes": 12,
+   "clips": {},
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Mycelial Accord (Symbiotech Conductor set), original cultivated bio-armour for humanoid_m, produced by tools/asset-pipeline (body-fitted-armour, hard-surface builder); see docs/art/ARMOUR-3D.md"
+  },
   "armour_vanguard_set_f": {
    "kind": "skinned",
    "url": "armour_vanguard_set_f.glb",
-   "bytes": 3939248,
-   "rawBytes": 26034432,
-   "hash": "a8b388769e25",
-   "tris": 115070,
+   "bytes": 4359212,
+   "rawBytes": 27325832,
+   "hash": "8f0f2f4a3a58",
+   "tris": 137406,
    "textures": 12,
    "meshes": 8,
    "clips": {},
@@ -54,10 +153,10 @@
   "armour_vanguard_set_m": {
    "kind": "skinned",
    "url": "armour_vanguard_set_m.glb",
-   "bytes": 4021356,
-   "rawBytes": 26148124,
-   "hash": "97cdfedf3d8a",
-   "tris": 120708,
+   "bytes": 4375360,
+   "rawBytes": 27216520,
+   "hash": "a96e95c75b2f",
+   "tris": 141998,
    "textures": 12,
    "meshes": 8,
    "clips": {},
@@ -1354,10 +1453,318 @@
    ],
    "note": "Inventory icon rendered in Cycles from the armour_chest pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
   },
+  "blueprint_keeper_field_set_boots": {
+   "url": "icons/armour/blueprint_keeper_field_set_boots.webp",
+   "bytes": 9000,
+   "hash": "d9afe4c157fb",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_keeper_field_set_chest": {
+   "url": "icons/armour/blueprint_keeper_field_set_chest.webp",
+   "bytes": 8828,
+   "hash": "ddfb68924a86",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_keeper_field_set_gloves": {
+   "url": "icons/armour/blueprint_keeper_field_set_gloves.webp",
+   "bytes": 5672,
+   "hash": "f6027091c7e7",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_keeper_field_set_greaves": {
+   "url": "icons/armour/blueprint_keeper_field_set_greaves.webp",
+   "bytes": 9110,
+   "hash": "6300b8d036f4",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "keeper_field_set_boots": {
+   "url": "icons/armour/keeper_field_set_boots.webp",
+   "bytes": 8686,
+   "hash": "aea36c456563",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "keeper_field_set_chest": {
+   "url": "icons/armour/keeper_field_set_chest.webp",
+   "bytes": 7310,
+   "hash": "5ed7a6663d62",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "keeper_field_set_gloves": {
+   "url": "icons/armour/keeper_field_set_gloves.webp",
+   "bytes": 4480,
+   "hash": "cbe2ad09d319",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "keeper_field_set_greaves": {
+   "url": "icons/armour/keeper_field_set_greaves.webp",
+   "bytes": 7984,
+   "hash": "53e142da5e11",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_keeper_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_surveyor_field_set_boots": {
+   "url": "icons/armour/blueprint_surveyor_field_set_boots.webp",
+   "bytes": 9562,
+   "hash": "b8907ce38d2b",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_surveyor_field_set_chest": {
+   "url": "icons/armour/blueprint_surveyor_field_set_chest.webp",
+   "bytes": 9424,
+   "hash": "24392aea8fba",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_surveyor_field_set_gloves": {
+   "url": "icons/armour/blueprint_surveyor_field_set_gloves.webp",
+   "bytes": 5250,
+   "hash": "d158bce8c99b",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_surveyor_field_set_greaves": {
+   "url": "icons/armour/blueprint_surveyor_field_set_greaves.webp",
+   "bytes": 8588,
+   "hash": "bac10096e80d",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "surveyor_field_set_boots": {
+   "url": "icons/armour/surveyor_field_set_boots.webp",
+   "bytes": 8450,
+   "hash": "3c03e051cfae",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "surveyor_field_set_chest": {
+   "url": "icons/armour/surveyor_field_set_chest.webp",
+   "bytes": 7886,
+   "hash": "f11f41cadac5",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "surveyor_field_set_gloves": {
+   "url": "icons/armour/surveyor_field_set_gloves.webp",
+   "bytes": 3832,
+   "hash": "ed8cc1dfffb6",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "surveyor_field_set_greaves": {
+   "url": "icons/armour/surveyor_field_set_greaves.webp",
+   "bytes": 8612,
+   "hash": "793abda429ab",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_surveyor_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_symbiotech_field_set_boots": {
+   "url": "icons/armour/blueprint_symbiotech_field_set_boots.webp",
+   "bytes": 9446,
+   "hash": "a1d6547008a6",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_symbiotech_field_set_chest": {
+   "url": "icons/armour/blueprint_symbiotech_field_set_chest.webp",
+   "bytes": 8670,
+   "hash": "6ea84cf2ceda",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_symbiotech_field_set_gloves": {
+   "url": "icons/armour/blueprint_symbiotech_field_set_gloves.webp",
+   "bytes": 5480,
+   "hash": "1f16b8371dd7",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_symbiotech_field_set_greaves": {
+   "url": "icons/armour/blueprint_symbiotech_field_set_greaves.webp",
+   "bytes": 8558,
+   "hash": "bfe8136b811b",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "symbiotech_field_set_boots": {
+   "url": "icons/armour/symbiotech_field_set_boots.webp",
+   "bytes": 9932,
+   "hash": "26dde5ec76cc",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "symbiotech_field_set_chest": {
+   "url": "icons/armour/symbiotech_field_set_chest.webp",
+   "bytes": 8056,
+   "hash": "49118c382eaf",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "symbiotech_field_set_gloves": {
+   "url": "icons/armour/symbiotech_field_set_gloves.webp",
+   "bytes": 4452,
+   "hash": "7a65d408baac",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "symbiotech_field_set_greaves": {
+   "url": "icons/armour/symbiotech_field_set_greaves.webp",
+   "bytes": 8994,
+   "hash": "c3379b4474bd",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_symbiotech_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_vanguard_field_set_boots": {
+   "url": "icons/armour/blueprint_vanguard_field_set_boots.webp",
+   "bytes": 9604,
+   "hash": "c4bf56e50d72",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_vanguard_field_set_chest": {
+   "url": "icons/armour/blueprint_vanguard_field_set_chest.webp",
+   "bytes": 8886,
+   "hash": "09bbb1ab67f5",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_vanguard_field_set_gloves": {
+   "url": "icons/armour/blueprint_vanguard_field_set_gloves.webp",
+   "bytes": 5718,
+   "hash": "094e962266f2",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
+  "blueprint_vanguard_field_set_greaves": {
+   "url": "icons/armour/blueprint_vanguard_field_set_greaves.webp",
+   "bytes": 8562,
+   "hash": "07c65ba3f0a7",
+   "sources": [
+    "ual2",
+    "ual1",
+    "makehuman"
+   ],
+   "note": "Inventory icon rendered in Cycles from the armour_vanguard_set pipeline asset (original project work); see docs/art/ARMOUR-3D.md"
+  },
   "vanguard_field_set_boots": {
    "url": "icons/armour/vanguard_field_set_boots.webp",
-   "bytes": 9060,
-   "hash": "14eca508e816",
+   "bytes": 9358,
+   "hash": "3067e4c0d63b",
    "sources": [
     "ual2",
     "ual1",
@@ -1367,8 +1774,8 @@
   },
   "vanguard_field_set_chest": {
    "url": "icons/armour/vanguard_field_set_chest.webp",
-   "bytes": 7920,
-   "hash": "e63f9241f49b",
+   "bytes": 7846,
+   "hash": "9283db461bae",
    "sources": [
     "ual2",
     "ual1",
@@ -1378,8 +1785,8 @@
   },
   "vanguard_field_set_gloves": {
    "url": "icons/armour/vanguard_field_set_gloves.webp",
-   "bytes": 4442,
-   "hash": "72808f0ce871",
+   "bytes": 4508,
+   "hash": "90746d446e01",
    "sources": [
     "ual2",
     "ual1",
@@ -1389,8 +1796,8 @@
   },
   "vanguard_field_set_greaves": {
    "url": "icons/armour/vanguard_field_set_greaves.webp",
-   "bytes": 8146,
-   "hash": "62f4e18c64cc",
+   "bytes": 8744,
+   "hash": "f09b17d19d65",
    "sources": [
     "ual2",
     "ual1",

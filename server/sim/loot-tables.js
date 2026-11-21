@@ -1,3 +1,4 @@
+import { ITEMS, ENEMIES } from '../../shared/content.js';
 // Server-only reward definitions. Equipment is never a guaranteed corpse award.
 // Do not import this module from browser-served code.
 const freezeDrops = drops => Object.freeze(drops.map(d => Object.freeze(d)));
@@ -64,4 +65,24 @@ export function classArmourBlueprintDrop(type, char, rng) {
   if ((char.goods?.[id] || 0) >= 1) return null;
   const n = rng();
   return Number.isFinite(n) && n >= 0 && n < CLASS_ARMOUR_BLUEPRINT_CHANCE ? id : null;
+}
+
+// Elites (type elites such as the Vault Warden, and per-instance elites such as
+// the Forge Overseer and the Severance Overseers) yield extra resources and an
+// independent chance of one Uncommon item the recipient does not already own.
+// One roll per eligible recipient and corpse, on its own RNG stream.
+export const ELITE_RESOURCE = Object.freeze({ id: 'resonance_fragment', quantity: 2 });
+export const ELITE_UNCOMMON_CHANCE = 0.35;
+export const isEliteEnemy = (e) => !!(e && (ENEMIES[e.type]?.elite || e.elite));
+export function eliteUncommonPool() {
+  return Object.keys(ITEMS).filter((id) => ITEMS[id].rarity === 'Uncommon').sort();
+}
+export function eliteUncommonDrop(e, char, rng) {
+  if (!isEliteEnemy(e)) return null;
+  const n = rng();
+  if (!Number.isFinite(n) || n < 0 || n >= 1 || n >= ELITE_UNCOMMON_CHANCE) return null;
+  const owned = new Set(Array.isArray(char?.inventory) ? char.inventory : []);
+  const pool = eliteUncommonPool().filter((id) => !owned.has(id));
+  if (!pool.length) return null;
+  return pool[Math.min(pool.length - 1, Math.floor((n / ELITE_UNCOMMON_CHANCE) * pool.length))];
 }

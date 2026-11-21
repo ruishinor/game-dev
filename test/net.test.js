@@ -827,20 +827,20 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
     const b = new Client(srv.port);
     const c = new Client(srv.port);
     const d = new Client(srv.port);
-    const wa = await a.create('Mirelle', 'vanguard', 'vanguard_plate', 'f.mirekin.2.crop.7');
+    const wa = await a.create('Mirelle', 'vanguard', 'vanguard_plate', 'f.velari.2.crop.7');
     const wb = await b.create('Default', 'vanguard'); // no appearance: the look's body
     const wc = await c.create('Hostile', 'vanguard', 'vanguard_plate', { frame: '__proto__', race: 'constructor', skin: 1e9 });
     const wd = await d.create('Hairless', 'keeper', 'aegis_keeper', 'f.veyran.1.swept.3'); // retired origin must fall back
     token = wa.token;
     await b.until(() => [wa, wc, wd].every((w) => b.meta.has(w.id)), 3000, 'meta for the others');
-    assert.equal(b.meta.get(wa.id).ap, 'f.mirekin.2.crop.7', 'another player is told the appearance');
+    assert.equal(b.meta.get(wa.id).ap, 'f.velari.2.crop.7', 'another player is told the appearance');
     assert.equal(b.meta.get(wa.id).c, 'vanguard', 'appearance does not replace the class');
     await a.until(() => a.meta.has(wb.id), 3000, 'meta for b');
     assert.equal(a.meta.get(wb.id).ap, 'm.human.3.crop.1', 'no choice keeps the look default');
     assert.equal(b.meta.get(wc.id).ap, 'm.human.3.crop.1', 'hostile input falls back');
     assert.equal(b.meta.get(wd.id).ap, 'f.human.6.none.0', 'retired origin is rejected by the server');
     await a.until(() => a.sheet && b.sheet, 3000, 'sheets');
-    assert.equal(a.sheet.appearance, 'f.mirekin.2.crop.7');
+    assert.equal(a.sheet.appearance, 'f.velari.2.crop.7');
     assert.deepEqual(a.sheet.stats, b.sheet.stats, 'appearance never changes stats');
     for (const x of [a, b, c, d]) x.close();
   } finally {
@@ -848,7 +848,7 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
   }
   // Survives a restart; a tampered or missing value on disk is corrected on load.
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.equal(saved.characters.find((ch) => ch.name === 'Mirelle').appearance, 'f.mirekin.2.crop.7');
+  assert.equal(saved.characters.find((ch) => ch.name === 'Mirelle').appearance, 'f.velari.2.crop.7');
   saved.characters.find((ch) => ch.name === 'Default').appearance = 'x.<img>.9.9.9';
   delete saved.characters.find((ch) => ch.name === 'Hairless').appearance; // a save from before appearance existed
   fs.writeFileSync(file, JSON.stringify(saved));
@@ -857,7 +857,7 @@ test('appearance: frame, race and hair are stored, relayed, validated and never 
     const a = new Client(srv.port);
     await a.resume(token);
     await a.until(() => a.sheet, 3000, 'sheet');
-    assert.equal(a.sheet.appearance, 'f.mirekin.2.crop.7');
+    assert.equal(a.sheet.appearance, 'f.velari.2.crop.7');
     const byName = (n) => [...srv.store.chars.values()].find((ch) => ch.name === n);
     assert.equal(byName('Default').appearance, 'm.human.3.crop.1');
     assert.equal(byName('Hairless').appearance, 'f.human.6.none.0', 'legacy Keeper keeps the body its look always had');
