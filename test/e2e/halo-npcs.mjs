@@ -86,7 +86,7 @@ try {
   const vendor = await (await page.waitForFunction(() => window.__attune.state().ents.find((e) => e.c === 'quartermaster' && e.halo) || null)).jsonValue();
   assert.equal(vendor.model, 'glb');
   assert.equal(vendor.halo.role, 'vendor');
-  assert.ok(vendor.halo.meshes.includes('vendor') && vendor.halo.meshes.includes('ring_horizontal'));
+  assert.ok(vendor.halo.meshes.includes('vendor') && vendor.halo.meshes.includes('ring_vertical_paint') && vendor.halo.meshes.includes('body_paint'));
   assert.ok(Math.hypot(vendor.x - qm.x, vendor.z - qm.z) < 0.05, 'vendor at the established quartermaster position');
   await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.16, dist: 4.2, face: Math.PI }));
   d0 = await page.evaluate(() => window.__attune.state().drawn);
