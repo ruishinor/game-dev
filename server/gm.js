@@ -153,7 +153,7 @@ export function executeGm(game, p, line) {
     return { ok: true, action: 'heal' };
   }
   if (parts[0] === 'credits' && parts.length === 2) {
-    if (!/^[1-9]\\d*$/.test(parts[1])) return deny('Credits must be a positive integer.');
+    if (!/^[1-9]\d*$/.test(parts[1])) return deny('Credits must be a positive integer.');
     const amount = Number(parts[1]);
     if (!Number.isSafeInteger(amount) || amount > 1_000_000) return deny('Maximum credit grant is 1,000,000.');
     const next = walletAfter(p.char.credits, amount);
@@ -164,7 +164,7 @@ export function executeGm(game, p, line) {
     return { ok: true, action: 'credits', target: String(amount) };
   }
   if (parts[0] === 'mats' && parts.length === 2) {
-    if (!/^[1-9]\\d*$/.test(parts[1])) return deny('Materials must be a positive integer.');
+    if (!/^[1-9]\d*$/.test(parts[1])) return deny('Materials must be a positive integer.');
     const amount = Number(parts[1]);
     if (!Number.isSafeInteger(amount) || amount > MATERIAL_CAP)
       return deny('Material grant must be between 1 and ' + MATERIAL_CAP + '.');
@@ -173,7 +173,7 @@ export function executeGm(game, p, line) {
   const category = parts.join(' ');
   if (Object.hasOwn(itemCategories, category)) return grantCatalogue(game, p, category);
   if (parts[0] === 'speed' && parts.length === 2) {
-    if (!/^(0|[1-9]\\d*)$/.test(parts[1])) return deny('Speed bonus must be an integer from 0 to 300 percent.');
+    if (!/^(0|[1-9]\d*)$/.test(parts[1])) return deny('Speed bonus must be an integer from 0 to 300 percent.');
     const bonus = Number(parts[1]);
     if (!Number.isSafeInteger(bonus) || bonus > 300) return deny('Speed bonus must be 0–300 percent.');
     p.gmSpeedBonus = bonus;
