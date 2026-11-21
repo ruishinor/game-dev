@@ -198,7 +198,12 @@ export function selectWeapon(game,p,slot) {
   if(p.dead)return {ok:false,reason:'You are defeated.'};
   if(p.inscription)return {ok:false,reason:'Finish or cancel the current inscription.'};
   if(p.production)return {ok:false,reason:'Finish or cancel production before switching weapons.'};
-  if(activeWeaponSlot(p.char)===slot){p.char.activeWeapon=slot;return {ok:true};}
+  if(activeWeaponSlot(p.char)===slot){
+    // An explicit selection of the currently inferred mode still needs to
+    // survive later equipment changes and a save/reconnect.
+    if(p.char.activeWeapon!==slot){p.char.activeWeapon=slot;game.markDirty(p);}
+    return {ok:true};
+  }
   if(game.time<(p.weaponSwitchReady||0))return {ok:false,reason:'Weapon switch not ready yet.'};
   p.char.activeWeapon=slot;
   p.weaponSwitchReady=game.time+WEAPON_SWITCH.cooldownMs;
@@ -257,14 +262,18 @@ function applyLoadout(game, p, equipped, itemName, playEquip = true) {
     return;
   }
   const before = equipmentAttributes(p.char, p.stats);
-  const wasActive = activeWeaponSlot(p.char), wasArmed = !!equippedWeapon(p.char, wasActive);
+  const wasActive = activeWeaponSlot(p.char);
+  const beforeMelee = equippedWeapon(p.char, 'weapon');
+  const beforeRanged = equippedWeapon(p.char, 'ranged');
   p.char.equipped = equipped;
-  // A weapon in use stays in use: a new weapon in the other slot is carried
-  // stowed until the player switches. While on an innate attack (no weapon in
-  // the active slot), the selection is released so a single equipped weapon
-  // is picked up; removing the weapon in use falls back the same way.
-  if (wasArmed && equippedWeapon(p.char, wasActive)) p.char.activeWeapon = wasActive;
-  else delete p.char.activeWeapon;
+  const afterMelee = equippedWeapon(p.char, 'weapon');
+  const afterRanged = equippedWeapon(p.char, 'ranged');
+  // Keep the selected mode when its weapon stays equipped or when a new
+  // weapon fills the selected innate slot. An unrelated gear change must not
+  // reset an explicitly chosen innate mode. Only a weapon-slot change that
+  // leaves the selected slot empty releases selection for legacy fallback.
+  if (equippedWeapon(p.char, wasActive)) p.char.activeWeapon = wasActive;
+  else if (beforeMelee !== afterMelee || beforeRanged !== afterRanged) delete p.char.activeWeapon;
   game.refreshStats(p);
   const changes = attributeChanges(before, equipmentAttributes(p.char, p.stats));
   if (changes.length) p.outbox.push({ e: 'attributes', item: itemName, changes });

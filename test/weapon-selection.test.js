@@ -180,6 +180,39 @@ test('only the active weapon wears on defeat', () => {
   assert.equal(conditionOf(p.char, ROD), 100);
 });
 
+test('explicit innate mode survives unrelated equipment and picks up a weapon equipped into that mode', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard', {
+    inventory: [ROD, EMITTER, 'field_chest'],
+  }));
+  assert.ok(equipItem(g, p, ROD).ok);
+  assert.ok(selectWeapon(g, p, 'ranged').ok);
+  assert.equal(effectiveAuto(p.char).weapon, null, 'the empty ranged slot uses innate ranged');
+  assert.ok(equipItem(g, p, 'field_chest').ok);
+  assert.equal(activeWeaponSlot(p.char), 'ranged', 'armour cannot discard the selected innate mode');
+  assert.equal(p.char.activeWeapon, 'ranged');
+  assert.ok(equipItem(g, p, EMITTER).ok);
+  assert.equal(activeWeaponSlot(p.char), 'ranged', 'new weapon in the chosen mode is drawn');
+  assert.equal(effectiveAuto(p.char).weapon, EMITTER);
+  assert.ok(unequipSlot(g, p, 'chest').ok);
+  assert.equal(activeWeaponSlot(p.char), 'ranged', 'removing unrelated armour cannot reset selection');
+  assert.ok(unequipSlot(g, p, 'ranged').ok);
+  assert.equal(activeWeaponSlot(p.char), 'weapon', 'removing the active weapon falls back to the rod');
+});
+
+test('same-mode selection persists the explicit choice without rearming switch recovery', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard'));
+  const oldMarkDirty = g.markDirty.bind(g);
+  let writes = 0;
+  g.markDirty = entity => { writes++; return oldMarkDirty(entity); };
+  assert.equal(p.char.activeWeapon, undefined);
+  assert.ok(selectWeapon(g, p, 'weapon').ok);
+  assert.equal(p.char.activeWeapon, 'weapon');
+  assert.equal(writes, 1, 'inferred mode becomes a persisted explicit selection');
+  assert.ok(selectWeapon(g, p, 'weapon').ok);
+  assert.equal(writes, 1, 'idempotent replay does not create another write');
+  assert.equal(p.weaponSwitchReady || 0, 0);
+});
+
 test('legacy single-slot saves migrate deterministically; selection and configuration persist', () => {
   assert.deepEqual(migrateWeaponSlots({ weapon: EMITTER }), { weapon: null, ranged: EMITTER });
   assert.deepEqual(migrateWeaponSlots({ weapon: ROD }), { weapon: ROD });
