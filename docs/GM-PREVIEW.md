@@ -1,6 +1,6 @@
 # Owner-only GM preview — independent main-branch increment
 
-GM preview modifies **only the authenticated owner's active character**. There is no separate admin login, default privilege, client flag, script execution, account administration, inventory manipulation or other-player control. Privilege is disabled unless the server process has an explicit account UUID allowlist. Keep this setting private. Browser-delivered code contains only the ordinary command entry point; privileged logic is server-only.
+GM preview modifies **only the authenticated owner's active character**. There is no separate admin login, default privilege, client flag, script execution, account administration, other-player control or arbitrary inventory editing. Bounded catalogue grants affect only the authenticated owner's active character. Privilege is disabled unless the server process has an explicit account UUID allowlist. Keep this setting private. Browser-delivered code contains only the ordinary command entry point; privileged logic is server-only.
 
 ## Local PowerShell setup
 
@@ -29,8 +29,19 @@ Hosted deployment: set this key only in private server configuration, do not com
 - /gm heal; restores health of a living character
 - /gm god on|off; incoming damage immunity on the *live player entity only*, never stored
 - /gm unlock; sets existing Resonance attunement and Phase Scar calibration to completed on that character (idempotent)
+- /gm credits 999; **adds** 999 credits to the owner character's wallet (bounded by the normal credit cap)
+- /gm mats 10; **adds** 10 units of every defined fabrication material, up to 99 per material
+- /gm glyphs; one of every defined glyph to Inventory
+- /gm device; one of every defined device to Inventory
+- /gm implants; one of every defined implant to Inventory
+- /gm gear; one of every chest, gloves, greaves and boots item to Inventory
+- /gm weapons; one of every defined weapon to Inventory
+- /gm social clothing; one of every defined social-torso clothing item to Inventory
+- /gm speed 200; **+200%** movement speed (3× base), reset with /gm speed 0, accepted range 0–300%
 
-Level and unlock are **persisted** and bypass normal progression; use a dedicated preview character. Teleport uses the existing authoritative transfer and collision code. Annex teleport is for isolated scene inspection and does **not** initiate its shared encounter. Reconnect from the disconnected Annex region returns to the Reach under the existing save contract. Other supported Reach teleports do not open world content.
+Inventory items are unique IDs: granting a category twice retains the existing one rather than duplicating it. These commands grant **all catalogue items**, including items for other classes; they do not bypass normal equip requirements. All inventory and material changes persist; speed and invulnerability are session-only. The existing item-revision/unseen indicators update normally.
+
+Level, credits, materials, inventory and unlock are **persisted** and bypass normal progression; use a dedicated preview character. Teleport uses the existing authoritative transfer and collision code. Annex teleport is for isolated scene inspection and does **not** initiate its shared encounter. Reconnect from the disconnected Annex region returns to the Reach under the existing save contract. Other supported Reach teleports do not open world content.
 
 ## Deferred from stacked PR #194
 
