@@ -9,6 +9,7 @@ import WebSocket from 'ws';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ARMOUR_ASSETS, ARMOUR_VISUALS, publicArmourVisual } from '../shared/armour-visual.js';
 import { ITEMS } from '../shared/content.js';
+import { GOODS } from '../shared/goods.js';
 import { RENDERED_ICON_IDS, renderedItemIcon } from '../client/src/item-renders.js';
 
 import { equipItem, unequipSlot } from '../server/sim/progress.js';
@@ -84,7 +85,10 @@ test('published armour GLBs: one skinned mesh per item on the shared 67-joint sk
 });
 
 test('rendered inventory icons: every armour item, content-hashed, present on disk', () => {
-  for (const id of RENDERED_ICON_IDS) assert.ok(ARMOUR_VISUALS.includes(id), id);
+  // inventory renders of armour pieces, and schematic renders of their blueprints
+  const piece = (id) => (id.startsWith('blueprint_') ? id.slice('blueprint_'.length) : id);
+  for (const id of RENDERED_ICON_IDS) assert.ok(ARMOUR_VISUALS.includes(piece(id)), id);
+  for (const id of RENDERED_ICON_IDS.filter((x) => x.startsWith('blueprint_'))) assert.equal(GOODS[id]?.category, 'blueprint', `${id} is a real blueprint`);
   for (const [id, asset] of Object.entries(ARMOUR_ASSETS)) {
     if (fs.existsSync(`tools/asset-pipeline/assets/${asset}/outputs/publish.json`)) assert.ok(RENDERED_ICON_IDS.includes(id), `${id} has a rendered icon`);
   }

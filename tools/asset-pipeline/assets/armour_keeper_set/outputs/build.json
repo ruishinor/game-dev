@@ -1,0 +1,14 @@
+{
+ "m": {
+  "keeper_field_set_chest": 60784,
+  "keeper_field_set_gloves": 40482,
+  "keeper_field_set_greaves": 32010,
+  "keeper_field_set_boots": 29194
+ },
+ "f": {
+  "keeper_field_set_chest": 58636,
+  "keeper_field_set_gloves": 39202,
+  "keeper_field_set_greaves": 34046,
+  "keeper_field_set_boots": 28836
+ }
+}

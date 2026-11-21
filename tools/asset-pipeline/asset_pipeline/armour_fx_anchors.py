@@ -48,4 +48,41 @@ def compute(body, items, base):
             for ph in (90, -90):
                 a.append(("spark", CM.point(deg(ph), 0.92, 0.038), "calf_" + s))
         out["vanguard_field_set_boots"] = a
+    out.update(_families(body, items, base))
+    return out
+
+
+def _families(body, items, base):
+    """Anchors for the other class families: the optical prism and lenses
+    (Vesperglass), the instrument displays and beacons (Strataweave), the seed
+    node, culture vessels and ankle nodes (Mycelial)."""
+    from .armour_families import Kit
+
+    kit = Kit(body)
+    T = kit.torso()
+    out = {}
+    sides = (("l", 1.0), ("r", -1.0))
+    if "keeper_field_set_chest" in items:
+        a = [("core", T.point(0.0, 0.69, base + 0.04), "spine_03")]
+        for s, sg in sides:
+            a.append(("spark", kit.shoulder(s, facets=0).point(0.0, -0.02, base + 0.05), "upperarm_" + s))
+        out["keeper_field_set_chest"] = a
+    if "keeper_field_set_gloves" in items:
+        out["keeper_field_set_gloves"] = [("core_s", kit.forearm(s).point(0.0, 1.0, 0.02), "hand_" + s) for s, _ in sides]
+    if "keeper_field_set_greaves" in items:
+        out["keeper_field_set_greaves"] = [("spark", kit.knee(s).point(0.0, 0.5, 0.045), "calf_" + s) for s, _ in sides]
+    if "keeper_field_set_boots" in items:
+        out["keeper_field_set_boots"] = [("spark", kit.foot(s)[0].point(0.0, 0.66, 0.016), "foot_" + s) for s, _ in sides]
+    if "surveyor_field_set_chest" in items:
+        out["surveyor_field_set_chest"] = [("display", T.point(0.0, 0.585, base + 0.046), "spine_03")]
+    if "surveyor_field_set_gloves" in items:
+        out["surveyor_field_set_gloves"] = [("display", kit.forearm(s, facets=0).point(0.0, 0.745, 0.033), "lowerarm_" + s) for s, _ in sides]
+    if "surveyor_field_set_boots" in items:
+        out["surveyor_field_set_boots"] = [("beacon", kit.foot(s)[1].point(deg(-sg * 90), 0.86, 0.047), "calf_" + s) for s, sg in sides]
+    if "symbiotech_field_set_chest" in items:
+        out["symbiotech_field_set_chest"] = [("core", T.point(deg(-10), 0.7, base + 0.03), "spine_03")]
+    if "symbiotech_field_set_gloves" in items:
+        out["symbiotech_field_set_gloves"] = [("core_s", kit.forearm(s, facets=0).point(0.0, 0.5, 0.026), "lowerarm_" + s) for s, _ in sides]
+    if "symbiotech_field_set_boots" in items:
+        out["symbiotech_field_set_boots"] = [("core_s", kit.foot(s)[1].point(deg(-sg * 90), 0.82, 0.03), "calf_" + s) for s, sg in sides]
     return out

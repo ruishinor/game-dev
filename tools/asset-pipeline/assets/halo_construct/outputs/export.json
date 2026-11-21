@@ -1,11 +1,12 @@
 {
  "file": "client/assets/halo_construct.glb",
- "bytes": 2108856,
- "inputBytes": 18948940,
- "triangles": 72074,
- "meshes": 9,
+ "bytes": 2113936,
+ "inputBytes": 22329060,
+ "triangles": 83950,
+ "meshes": 10,
  "materials": [
   "halo_body",
+  "halo_body_paint",
   "halo_security",
   "halo_vendor"
  ],
@@ -47,13 +48,22 @@
    "bytes": 1434
   },
   {
+   "name": "body_basecolor_paint",
+   "mime": "image/webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "bytes": 155800
+  },
+  {
    "name": "security_basecolor",
    "mime": "image/webp",
    "size": [
     1024,
     1024
    ],
-   "bytes": 132644
+   "bytes": 127762
   },
   {
    "name": "security_orm",
@@ -80,7 +90,7 @@
     1024,
     1024
    ],
-   "bytes": 88476
+   "bytes": 66138
   },
   {
    "name": "vendor_orm",
@@ -89,7 +99,7 @@
     1024,
     1024
    ],
-   "bytes": 98360
+   "bytes": 61438
   },
   {
    "name": "vendor_normal",
@@ -98,81 +108,10 @@
     1024,
     1024
    ],
-   "bytes": 162694
+   "bytes": 222824
   }
  ],
  "skins": [
-  {
-   "joints": [
-    "root",
-    "pelvis",
-    "spine_01",
-    "spine_02",
-    "spine_03",
-    "neck_01",
-    "Head",
-    "clavicle_l",
-    "upperarm_l",
-    "lowerarm_l",
-    "hand_l",
-    "index_01_l",
-    "index_02_l",
-    "index_03_l",
-    "index_04_leaf_l",
-    "middle_01_l",
-    "middle_02_l",
-    "middle_03_l",
-    "middle_04_leaf_l",
-    "pinky_01_l",
-    "pinky_02_l",
-    "pinky_03_l",
-    "pinky_04_leaf_l",
-    "ring_01_l",
-    "ring_02_l",
-    "ring_03_l",
-    "ring_04_leaf_l",
-    "thumb_01_l",
-    "thumb_02_l",
-    "thumb_03_l",
-    "thumb_04_leaf_l",
-    "clavicle_r",
-    "upperarm_r",
-    "lowerarm_r",
-    "hand_r",
-    "index_01_r",
-    "index_02_r",
-    "index_03_r",
-    "index_04_leaf_r",
-    "middle_01_r",
-    "middle_02_r",
-    "middle_03_r",
-    "middle_04_leaf_r",
-    "pinky_01_r",
-    "pinky_02_r",
-    "pinky_03_r",
-    "pinky_04_leaf_r",
-    "ring_01_r",
-    "ring_02_r",
-    "ring_03_r",
-    "ring_04_leaf_r",
-    "thumb_01_r",
-    "thumb_02_r",
-    "thumb_03_r",
-    "thumb_04_leaf_r",
-    "thigh_l",
-    "calf_l",
-    "foot_l",
-    "ball_l",
-    "ball_leaf_l",
-    "thigh_r",
-    "calf_r",
-    "foot_r",
-    "ball_r",
-    "ball_leaf_r",
-    "eye_l",
-    "eye_r"
-   ]
-  },
   {
    "joints": [
     "root",
@@ -787,8 +726,8 @@
  ],
  "validator": {
   "errors": 0,
-  "warnings": 9,
-  "infos": 1,
+  "warnings": 10,
+  "infos": 3,
   "messages": [
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/0/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/1/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
@@ -798,8 +737,9 @@
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/5/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/6/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/7/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
-   "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/8/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
+   "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/8/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+   "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/9/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
   ]
  },
- "sha256": "b4185e3b466260d9778afd9c0817085f13cc91403f196a6290a7aad7f87d984a"
+ "sha256": "f3afd21e6f0a4de788382fcce4526213259f1d68b749cdc9ef846ab3336ae51b"
 }

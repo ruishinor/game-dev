@@ -167,6 +167,22 @@
      0.14,
      0.13
     ]
+   },
+   "paint": {
+    "shell": [
+     0.93,
+     0.925,
+     0.91
+    ],
+    "ebony": [
+     0.075,
+     0.07,
+     0.068
+    ],
+    "shell_range": [
+     0.8,
+     1.06
+    ]
    }
   },
   "wardrobe": {
@@ -395,8 +411,8 @@
     {
      "name": "vendor_front",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -419,8 +435,8 @@
     {
      "name": "vendor_side",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -443,8 +459,8 @@
     {
      "name": "vendor_rear",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -467,8 +483,8 @@
     {
      "name": "vendor_three_quarter",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -612,8 +628,8 @@
     {
      "name": "together_vendor",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -637,8 +653,8 @@
     {
      "name": "pose_Idle_Talking_Loop",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -662,8 +678,8 @@
     {
      "name": "pose_Interact",
      "variant": [
-      "body",
-      "ring_horizontal",
+      "body_paint",
+      "ring_vertical_paint",
       "vendor"
      ],
      "pose": {
@@ -812,10 +828,10 @@
      "mode": "lit"
     },
     {
-     "name": "head_horizontal",
+     "name": "head_vendor",
      "variant": [
-      "body",
-      "ring_horizontal"
+      "body_paint",
+      "ring_vertical_paint"
      ],
      "pose": {
       "action": "Bind_Pose",
@@ -856,7 +872,7 @@
     "evidence/clay_base.png",
     "evidence/wire_base.png",
     "evidence/head_vertical.png",
-    "evidence/head_horizontal.png",
+    "evidence/head_vendor.png",
     "evidence/source/lit_front.png",
     "evidence/source/clay_front.png",
     "evidence/source/wire_front.png",

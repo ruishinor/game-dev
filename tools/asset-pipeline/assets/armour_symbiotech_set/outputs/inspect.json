@@ -1,0 +1,130 @@
+{
+ "bodies": {
+  "m": {
+   "source": "client/assets/humanoid_m.glb",
+   "sha256": "4d861bca31984d675354aa1400a9ca33329934f9490455829192f7466e6e48ec",
+   "joints": 67,
+   "body_vertices": 1883,
+   "height_m": 1.3207190036773682,
+   "landmarks": {
+    "pelvis": [
+     0.0,
+     0.0987,
+     -0.0852
+    ],
+    "spine_02": [
+     0.0,
+     0.347,
+     -0.0371
+    ],
+    "spine_03": [
+     0.0,
+     0.4835,
+     -0.0415
+    ],
+    "neck_01": [
+     0.0,
+     0.6505,
+     -0.0469
+    ],
+    "clavicle_l": [
+     0.0182,
+     0.6218,
+     0.0323
+    ],
+    "upperarm_l": [
+     0.1855,
+     0.6053,
+     -0.1
+    ]
+   },
+   "meshes": [
+    "body",
+    "eyes",
+    "hair_buzz",
+    "hair_crest",
+    "hair_crop",
+    "hair_swept",
+    "hands",
+    "head",
+    "lashes",
+    "shell_belt",
+    "shell_chest",
+    "shell_coat",
+    "shell_forearms",
+    "shell_helmet",
+    "shell_hood",
+    "shell_mannequin_head",
+    "shell_shins",
+    "shell_shoes",
+    "shell_shorts",
+    "shell_thighs",
+    "shell_upperarms",
+    "teeth"
+   ]
+  },
+  "f": {
+   "source": "client/assets/humanoid_f.glb",
+   "sha256": "d19d78a6bf04f6ab81f9ec6341ea345b9081e39fee28444d0e03c527ff3bf90f",
+   "joints": 67,
+   "body_vertices": 1971,
+   "height_m": 1.338663935661316,
+   "landmarks": {
+    "pelvis": [
+     0.0,
+     0.1071,
+     -0.0664
+    ],
+    "spine_02": [
+     0.0,
+     0.3588,
+     -0.0177
+    ],
+    "spine_03": [
+     0.0,
+     0.4971,
+     -0.0221
+    ],
+    "neck_01": [
+     0.0,
+     0.6664,
+     -0.0276
+    ],
+    "clavicle_l": [
+     0.0184,
+     0.6373,
+     0.0526
+    ],
+    "upperarm_l": [
+     0.1484,
+     0.6205,
+     -0.0814
+    ]
+   },
+   "meshes": [
+    "body",
+    "eyes",
+    "hair_buzz",
+    "hair_crest",
+    "hair_crop",
+    "hair_swept",
+    "hands",
+    "head",
+    "lashes",
+    "shell_belt",
+    "shell_chest",
+    "shell_coat",
+    "shell_forearms",
+    "shell_helmet",
+    "shell_hood",
+    "shell_mannequin_head",
+    "shell_shins",
+    "shell_shoes",
+    "shell_shorts",
+    "shell_thighs",
+    "shell_upperarms",
+    "teeth"
+   ]
+  }
+ }
+}
