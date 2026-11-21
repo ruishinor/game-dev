@@ -309,7 +309,11 @@ def synthesize(paths, cfg, kit_points, landmarks=None):
     pc = cfg.get("paint")
     if pc:
         lum_o = out @ np.array([0.3, 0.59, 0.11], np.float32)
-        shell_w = np.clip(1 - np.maximum(textile_w, (mech_w if landmarks is not None and cfg.get("mechanism") else dark_mech.astype(np.float32))), 0, 1)
+        # a texel is ebony once it is even partly garment or mechanism: the
+        # garment masks feather into the shell, and a soft split left white
+        # notches along the crop-top hem
+        other = np.maximum(textile_w, (mech_w if landmarks is not None and cfg.get("mechanism") else dark_mech.astype(np.float32)))
+        shell_w = 1 - smoothstep(*pc.get("ebony_edge", [0.18, 0.4]), cv2.GaussianBlur(other.astype(np.float32), (0, 0), 1.0))
         sm = max(float(np.median(lum_o[(shell_w > 0.9) & covered])), 1e-3)
         rel_s = np.clip(cv2.GaussianBlur(lum_o, (0, 0), 2) / sm, *pc.get("shell_range", [0.78, 1.08]))
         dk = (shell_w < 0.1) & covered & ~optics
