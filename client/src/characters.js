@@ -146,7 +146,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // Name-derived identity (face shape, age, stubble) under the chosen
   // appearance; NPC looks pin a full preset when no appearance is stored.
   const chosen = opts.appearance || !def.face
-    ? { tone: RENDER_RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race !== 'human' && { stubble: 0 }) }
+    ? { tone: RENDER_RACES[app.race].skins[app.skin], hair: HAIR_COLOURS[app.hairColour].hex, hairStyle: app.hair, race: app.race, ...(app.race === 'velari' && { stubble: 0 }) }
     : def.face;
   const ap = appearanceFor(opts.appearanceKey ?? lookId, female, chosen);
   const helmet = !!def.shells.helmet;
