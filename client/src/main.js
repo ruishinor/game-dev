@@ -34,6 +34,7 @@ import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
+import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
@@ -374,7 +375,36 @@ document.addEventListener('contextmenu', e=>{
 const portraits = makePortraits(assets, useGlb);
 const bindings=new ActionBindings(localStorage);
 let hallPreview=null;
+// Weapon commands are intent only; the server applies cooldowns, state and ownership.
+function switchWeapon() {
+  const s = S.sheet;
+  if (!s) return;
+  if (!canSwitchWeapons(s)) return;
+  net.send({ t: 'weapon_select', slot: activeWeaponSlot(s) === 'ranged' ? 'weapon' : 'ranged' });
+}
+function cycleRodConfig() {
+  const s = S.sheet;
+  if (!s) return;
+  if (s.equipped?.weapon !== 'electrical_combat_rod') return ui.error('Equip the Electrical Combat Rod first.');
+  if (!electricalRodActive(s)) return ui.error(`Select melee to draw the rod first (${bindings.label('weapon:switch')}).`);
+  net.send({ t: 'rod_mode', mode: s.electricalRodMode === 'dual' ? 'rod' : 'dual' });
+}
+// Sit / stand: the server owns posture; the request is the desired state.
+function toggleSit() {
+  const me = S.ents.get(S.myId);
+  if (!me || me.dead) return;
+  net.send({ t: 'posture', sit: !(me.row?.f & 16) });
+}
+// Combat shortcuts never fire from a focused dialog, menu or form (the
+// keybindings panel and text entry are already filtered by Input).
+function combatKeysBlocked() {
+  const el = document.activeElement;
+  return !!el && el !== document.body && el !== canvas && !!el.closest?.('[role="dialog"],[role="menu"],[role="listbox"],[role="alertdialog"],.panel');
+}
 const ui = new UI({
+  selectWeapon: slot => net.send({ t: 'weapon_select', slot }),
+  switchWeapon: () => switchWeapon(),
+  cycleRodConfig: () => cycleRodConfig(),
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
   portrait: portraits,
   terrainForAtlas:region=>captureStaticAtlas(renderer,scene,atlasStaticRoots,region,{lowSpec:params.get('q')==='0'}),
@@ -983,7 +1013,7 @@ function onEvent(e) {
       const mine = e.s === S.myId || e.s === S.compId;
       // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
       // do not multiply weapon discharges; existing ability effects and damage are unchanged.
-      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
+      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -1068,7 +1098,7 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
-      if(s.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&['rending_arc','kinetic_ward','discharge'].includes(e.ab))s.model.rodCharge?.();
+      if(s.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&e.ab&&e.ab!=='auto')s.model.rodCharge?.(); // any class's ability surges a held rod
       if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
       if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
       else if (e.ab === 'phase_transposition' && d) {
@@ -1478,6 +1508,15 @@ input.onClick = (button, x, y) => {
 
 input.onAction = (code, e) => {
   const action=bindings.resolve(e);
+  // Weapon actions: never from a focused dialog, menu, form or key capture.
+  if (action === 'weapon:switch' || action === 'weapon:config' || action === 'emote:sit') {
+    e.preventDefault();
+    if (!S.sheet || combatKeysBlocked()) return;
+    if (action === 'weapon:switch') switchWeapon();
+    else if (action === 'weapon:config') cycleRodConfig();
+    else toggleSit();
+    return;
+  }
   if(action && S.sheet) {
     const i=Number(action.split(':')[1])-1;
     const def=CLASSES[S.sheet.cls];
@@ -1810,7 +1849,9 @@ function updateEntities(dt, t, now) {
       casting,
       reducedMotion: motionPreference.matches || quality===0,
       effectsQuality: quality,
-      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':null):null,
+      rodClass: ent.meta.k==='p'?ent.meta.c:null,
+      sitting: ent.meta.k==='p'&&!!(row?.f&16),
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):null,
       electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
       work:row?.work,

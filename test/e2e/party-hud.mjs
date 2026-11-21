@@ -25,10 +25,11 @@ try {
  const first=await join('Party Vanguard','party-a'),second=await join('Party Healer','party-b');
  const A=first.page,B=second.page;
  // Both start in the Reach; no player or party data is directly forged.
- await A.locator('#view').focus();await A.keyboard.press('KeyP');
+ // P opens the ability matrix; Shift+P is the Party shortcut.
+ await A.locator('#view').focus();await A.keyboard.press('Shift+KeyP');
  await A.locator('.party-panel').waitFor({state:'visible'});
  await A.locator('.party-panel .party-member').filter({hasText:'Party Healer'}).getByRole('button',{name:'Invite'}).click();
- await B.locator('#view').focus();await B.keyboard.press('KeyP');
+ await B.locator('#view').focus();await B.keyboard.press('Shift+KeyP');
  await B.locator('.party-panel').waitFor({state:'visible'});
  await B.locator('.party-panel').getByRole('button',{name:'Accept'}).click();
  await A.waitForFunction(()=>window.__attune?.state()?.you?.party?.members?.length===2);

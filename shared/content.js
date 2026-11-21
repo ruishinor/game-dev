@@ -13,8 +13,8 @@ export const XP_TO_NEXT = [0, 90, 200, 340, 520];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };
-export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots', social_torso:'Social torso' };
-export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'chest', 'gloves', 'greaves', 'boots', 'social_torso'];
+export const SLOT_NAMES = { device: 'Device', implant: 'Implant', glyph: 'Glyph', weapon: 'Weapon', ranged: 'Ranged weapon', chest:'Chest', gloves:'Gloves', greaves:'Greaves', boots:'Boots', social_torso:'Social torso' };
+export const SLOTS = ['device', 'implant', 'glyph', 'weapon', 'ranged', 'chest', 'gloves', 'greaves', 'boots', 'social_torso'];
 
 export const CLASSES = {
   vanguard: {
@@ -30,6 +30,10 @@ export const CLASSES = {
     primary: 'kinetics',
     threatMul: 2.2,
     auto: { range: 3.6, interval: 800, dmg: 4, kind: 'melee' },
+    // Off-mode profile (ranged). Every class has a melee and a ranged attack at
+    // the same damage per second (DPS parity), so unconventional loadouts are
+    // not penalised; mode trade-offs are reach, risk and weapon. Provisional.
+    rangedAuto: { range: 20, interval: 1000, dmg: 5, kind: 'bolt' },
     abilities: ['rending_arc', 'graviton_tether', 'kinetic_ward', 'discharge'],
     companion: null,
   },
@@ -46,6 +50,8 @@ export const CLASSES = {
     primary: 'biotech',
     threatMul: 1,
     auto: { range: 26, interval: 1000, dmg: 2.5, kind: 'bolt' },
+    // Off-mode profile (melee): same DPS as the class's own attack. Provisional.
+    meleeAuto: { range: 3.6, interval: 800, dmg: 2, kind: 'melee' },
     abilities: ['neural_lash', 'mending_graft', 'spore_snare', 'overgrowth_surge'],
     companion: 'mender',
   },
@@ -55,6 +61,8 @@ export const CLASSES = {
     baseHp:185,hpPerLevel:18,resource:{id:'coherence',name:'Coherence',max:100,start:80,regen:4,decay:0},
     skills:{kinetics:6,biotech:4,instrumentation:10},primary:'instrumentation',threatMul:1.25,
     auto:{range:22,interval:1000,dmg:3,kind:'bolt'},
+    // Off-mode profile (melee): same DPS as the class's own attack. Provisional.
+    meleeAuto:{range:3.6,interval:800,dmg:2.4,kind:'melee'},
     abilities:['phase_needle','hinge_field','resonant_reversal','lattice_relay','phase_transposition'],companion:null,
   },
   surveyor: {
@@ -64,6 +72,8 @@ export const CLASSES = {
     resource: { id: 'cells', name: 'Power Cells', max: 100, start: 60, regen: 0, decay: 0 },
     skills: { kinetics: 5, biotech: 3, instrumentation: 10 }, primary: 'instrumentation', threatMul: 1,
     auto: { range: 22, interval: 900, dmg: 3.5, kind: 'bolt' },
+    // Off-mode profile (melee): same DPS as the class's own attack. Provisional.
+    meleeAuto: { range: 3.6, interval: 800, dmg: 3.5*800/900, kind: 'melee' },
     abilities: ['fault_scan', 'core_bore', 'field_rig', 'controlled_blast'], companion: null,
   },
 };
@@ -398,11 +408,11 @@ export const ITEMS = {
   field_chest:{name:'Field Composite Vest',slot:'chest',rarity:'Common',mods:{hpAdd:10},summary:'+10 maximum health',desc:'A fitted composite chest layer for field operations. Adds 10 maximum health; independent of your device and implant.'},
   reinforced_chest:{name:'Reinforced Relay Vest',slot:'chest',rarity:'Rare',mods:{hpAdd:18},summary:'+18 maximum health',desc:'A reinforced composite layer assembled from a field vest using recovered engineering knowledge.'},
   resonant_chest:{name:'Resonance-Lined Vest',slot:'chest',rarity:'Very rare',mods:{hpAdd:24},req:{attune:'resonance'},summary:'+24 maximum health',desc:'A resonance-lined composite layer. Requires Resonance; no active shield or damage immunity.'},
-  electrical_combat_rod:{name:'Electrical Combat Rod',slot:'weapon',cls:'vanguard',ql:2,repairable:true,autoBonus:3,rarity:'Common',summary:'QL 2 · +3 base melee auto-attack damage at full condition',desc:'A matched pair of insulated shock batons locked into a conductive combat rod. Vanguard field weapon, sold by the Sanctum quartermaster. Uses existing melee attacks; no additional stun or reach effect.'},
-  field_emitter:{name:'Field Pulse Emitter',slot:'weapon',ql:1,repairable:true,autoBonus:2,summary:'QL 1 · +2 base auto-attack damage at full condition',desc:'A modest pulse-channeling weapon core for existing class attacks. Defeat wears its bonus; the quartermaster can restore it. At zero condition, your class still attacks normally.'},
-  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'weapon',ql:3,repairable:true,autoBonus:4,summary:'QL 3 · +4 base auto-attack damage at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales only its added auto-attack damage.'},
-  dense_pulse_core:{name:'Dense Pulse Core',slot:'weapon',ql:5,repairable:true,autoBonus:6,req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · +6 base auto-attack damage at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into higher damage without changing the class attack or its reach. Requires Resonance and Kinetics 13.'},
-  longpoint_emitter:{name:'Longpoint Emitter',slot:'weapon',ql:5,repairable:true,autoBonus:2,autoReachBonus:4,req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · +2 base auto-attack damage · +4m ranged auto-attack reach at full condition',desc:'An instrument-grade phase lens trades damage for precision at distance. Adds up to 4m reach to ranged auto-attacks only, scaled by condition; melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
+  electrical_combat_rod:{name:'Electrical Combat Rod',slot:'weapon',ql:2,repairable:true,auto:{range:3.6,interval:800,dmg:4.8},rarity:'Common',summary:'QL 2 · Melee auto-attack 4.8 every 0.8 s (6/s) · 3.6 m at full condition',desc:'A matched pair of insulated shock batons locked into a conductive combat rod. Field weapon usable by every class, sold by the Sanctum quartermaster. Defines a fast melee auto-attack, the same for every class; no additional stun or reach effect.'},
+  field_emitter:{name:'Field Pulse Emitter',slot:'ranged',ql:1,repairable:true,auto:{range:22,interval:1000,dmg:5.5},summary:'QL 1 · Ranged auto-attack 5.5 every 1 s (5.5/s) · 22 m at full condition',desc:'A modest pulse-channeling ranged weapon. Defines your ranged auto-attack, the same for every class. Defeat wears it toward your innate attack; the quartermaster can restore it.'},
+  tuned_emitter:{name:'Tuned Pulse Emitter',slot:'ranged',ql:3,repairable:true,auto:{range:22,interval:1000,dmg:6.5},summary:'QL 3 · Ranged auto-attack 6.5 every 1 s (6.5/s) · 22 m at full condition',desc:'A reinforced field emitter rebuilt from a carried, unequipped Field Pulse Emitter and fabrication materials. Condition scales its damage between full and your innate attack.'},
+  dense_pulse_core:{name:'Dense Pulse Core',slot:'ranged',ql:5,repairable:true,auto:{range:22,interval:1100,dmg:8.25},req:{attune:'resonance',skills:{kinetics:13}},summary:'QL 5 · Ranged auto-attack 8.25 every 1.1 s (7.5/s) · 22 m at full condition',desc:'A reinforced kinetic pulse core built from a tuned emitter and machined couplers. Concentrates energy into slower, heavier ranged auto-attacks at standard reach. Requires Resonance and Kinetics 13.'},
+  longpoint_emitter:{name:'Longpoint Emitter',slot:'ranged',ql:5,repairable:true,auto:{range:26,interval:1400,dmg:7.7},req:{attune:'resonance',skills:{instrumentation:13}},summary:'QL 5 · Ranged auto-attack 7.7 every 1.4 s (5.5/s) · 26 m reach at full condition',desc:'An instrument-grade phase lens trades rate of fire for precision at distance: slower, harder ranged auto-attacks with 26m reach. Melee and ability ranges are unchanged. Requires Resonance and Instrumentation 13.'},
   keeper_prism:{name:'Hinge Projection Prism',slot:'device',cls:'keeper',skills:{instrumentation:3},summary:'+3 Instrumentation',desc:'A tuned field prism stabilizes the projection array.'},
   keeper_resonator:{name:'Lattice Resonator',slot:'implant',cls:'keeper',req:{skills:{instrumentation:13}},summary:'Hinge Glyph: enables Shared Pulse harmonic restoration',desc:'With the Hinge glyph installed, a Conductor’s Shared Pulse can refill your Hinge barriers to their original capacity.'},
   glyph_hinge:{name:'Glyph of Hinge',slot:'glyph',cls:'keeper',req:{attune:'resonance'},summary:'Hinge and Lattice Relay interact with Shared Pulse when Lattice Resonator is installed',desc:'The hinge receives compatible restorative resonance rather than rejecting it. Requires the Lattice Resonator for the harmonic effect.'},

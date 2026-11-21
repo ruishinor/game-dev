@@ -7,6 +7,8 @@ import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
+import { activeWeaponSlot, electricalRodActive } from '../../shared/weapons.js';
+import { tickPosture } from './posture.js';
 import { publicArmourVisual, sameArmourVisual } from '../../shared/armour-visual.js';
 import { publicSocialVisual } from '../../shared/social-visual.js';
 import { sanitizeMaterials } from '../../shared/crafting.js';
@@ -391,6 +393,7 @@ export class Game {
       this.tickFollow(p,dt);
       expireBuffs(this, p);
       tickPlayerCombat(this, p, dt);
+      tickPosture(this, p);
       tickBrineTrial(this,p);
       tickLoot(this,p);
       tickVendor(this,p);
@@ -432,9 +435,11 @@ export class Game {
         r: r2(p.yaw),
         h: Math.max(0, Math.ceil(p.hp)),
         m: p.maxHp,
-        f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
+        // 16: seated (sit/stand emote), public presentation only.
+        f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0) | (p.sitting ? 16 : 0),
         t: p.target,
-        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:p.char.electricalRodMode==='dual'?2:1}:{}),
+        // Rod appearance: 1 joined / 2 dual in hand, 3 stowed while the ranged weapon is active.
+        ...(p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:!electricalRodActive(p.char)?3:p.char.electricalRodMode==='dual'?2:1}:{}),
         ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: blastRadiusFor(p) } } : {}),
@@ -512,6 +517,7 @@ export class Game {
       losTarget: p.target,
       los: p.target && this.ents.has(p.target) ? Number(hasLineOfSight(p,this.ents.get(p.target))) : 1,
       autoCd: Math.max(0, Math.round(p.nextAuto - this.time)),
+      weaponSwitchMs: Math.max(0, Math.round((p.weaponSwitchReady || 0) - this.time)),
       safe: inSafeZone(p) ? 1 : 0,
       wc: Math.round(this.worldClock() * 10000),
       workshop:workshopSite(p),
@@ -556,6 +562,7 @@ export class Game {
       condition:sanitizeCondition(c.condition,c.inventory),
       equipped: { ...c.equipped },
       ...(c.equipped.weapon==='electrical_combat_rod'&&c.inventory.includes('electrical_combat_rod')?{electricalRodMode:c.electricalRodMode==='dual'?'dual':'rod'}:{}),
+      activeWeapon: activeWeaponSlot(c),
       attunements: [...c.attunements],
       quest: { step: c.quest.step, progress: c.quest.progress },
       directiveReceipts:sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step),

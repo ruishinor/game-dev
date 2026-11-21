@@ -125,7 +125,7 @@ try {
   // Supply a worn, owned weapon on the authoritative test character. The
   // inspection request and its result still cross real gameplay sockets.
   if (!p.char.inventory.includes('field_emitter')) p.char.inventory.push('field_emitter');
-  p.char.equipped.weapon='field_emitter';
+  p.char.equipped.ranged='field_emitter';
   p.char.condition={...p.char.condition,field_emitter:63};
   server.game.refreshStats(p);
   server.game.markDirty(p);

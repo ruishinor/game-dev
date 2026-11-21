@@ -33,7 +33,7 @@ try{
  }
  const owner=await join('Longpoint Tester'),p=await liveFixturePlayer(owner,server,'Longpoint Tester'),observer=await join('Longpoint Witness');
  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id),p.id);
- p.char.inventory.push('longpoint_emitter');p.char.equipped.weapon='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
+ p.char.inventory.push('longpoint_emitter');p.char.equipped.ranged='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
  const mounted=id=>window.__attune.state().ents.some(e=>e.id===id&&e.weaponVisual==='longpoint'&&e.weaponVisible);
  for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(mounted,p.id);}
  await owner.bringToFront();await owner.evaluate(()=>window.__attune.view({yaw:2.2,pitch:.21,dist:4.5}));
@@ -63,7 +63,7 @@ try{
  // Return to the observer's region before checking replicated removal.
  p.x=-2.25;p.z=8.2;
  await owner.waitForFunction(()=>Math.hypot(window.__attune.state().you.x+2.25,window.__attune.state().you.z-8.2)<.5);
- p.char.equipped.weapon=null;server.game.refreshStats(p);server.game.markDirty(p);
+ p.char.equipped.ranged=null;server.game.refreshStats(p);server.game.markDirty(p);
  for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&!e.weaponVisual&&!e.weaponVisible),p.id);}
  assert.deepEqual(errors,[]);console.log('PASS: two real clients receive and remove the equipped Longpoint presentation.');
 }finally{await browser?.close();await server.close();}

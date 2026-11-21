@@ -181,9 +181,18 @@ try{
    const settled=await slot(from).boundingBox();
    console.log('[hud] Ctrl-drag source '+from+' hit-tested after '+(Date.now()-start)+'ms');
    await page.keyboard.down('Control');
-   await page.mouse.move(settled.x+settled.width/2,settled.y+settled.height/2);
+   const point={x:settled.x+settled.width/2,y:settled.y+settled.height/2};
+   await page.mouse.move(point.x,point.y);
+   const hit=await page.evaluate(({x,y})=>{
+     const node=document.elementFromPoint(x,y),slot=node?.closest('.actionbar [data-slot-index]');
+     return {slot:slot?.dataset.slotIndex??null,element:node?.tagName??null,
+       className:typeof node?.className==='string'?node.className:null,
+       active:document.activeElement?.tagName??null};
+   },point);
+   assert.equal(hit.slot,String(from),'Ctrl-drag source must be hit-testable: '+JSON.stringify({from,hit}));
    await page.mouse.down();
-   assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true');
+   assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true',
+     'Ctrl-drag start must survive the pointerdown: '+JSON.stringify({from,hit}));
    const dest=to===null?{x:Math.floor(page.viewportSize().width/2),y:Math.floor(page.viewportSize().height/2)}:await slot(to).boundingBox();
    assert.ok(dest,'Drop target must be reachable');
    await page.mouse.move(to===null?dest.x:dest.x+dest.width/2,to===null?dest.y:dest.y+dest.height/2,{steps:8});
