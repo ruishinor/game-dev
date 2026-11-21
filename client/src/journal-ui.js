@@ -47,6 +47,10 @@ const art={
 
   sporeglass_focus:'<path d="M12 2 20 9 15 21 5 14zM12 2v14l8-7M5 14l7 2 3 5"/>',
   servo_harness:'<path d="M4 5h5v8h6V5h5v14h-5v-3H9v3H4z"/><path d="M9 9h6"/>',
+  overseer_ember_core:'<path d="M12 2l8 5v10l-8 5-8-5V7zM12 7l4 3v5l-4 3-4-3v-5z"/>',
+  severance_signet:'<circle cx="12" cy="12" r="9"/><path d="M12 6.5l4.5 5.5-4.5 5.5-4.5-5.5z"/>',
+  resonant_survey_lens:'<circle cx="10" cy="10" r="7"/><path d="M15 15l6 6M8 7l3 1"/>',
+  cinder_mend_lattice:'<path d="M4 4h16v16H4zM10.5 6h3v4.5H18v3h-4.5V18h-3v-4.5H6v-3h4.5z"/>',
   wardstone_shard:'<path d="m12 2 8 6-3 12-10 2-4-9zM12 2l-1 14 6 4M3 13l8 3 9-8"/>',
   myelin_lattice:'<path d="M4 4 20 20M4 20 20 4M4 12h16M12 4v16"/><circle cx="12" cy="12" r="5"/>',
   kinetic_capacitor:'<rect x="6" y="4" width="12" height="17" rx="3"/><path d="M9 4V2m6 2V2m-4 6-3 5h6l-2 5"/>',
