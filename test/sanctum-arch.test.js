@@ -28,6 +28,8 @@ test('sanctum_arch.glb is versioned by content, valid glTF, carries every piece 
 
 test('the kit is optional: a failed load falls back to the generic Sanctum kit', () => {
   assert.match(main, /assets\.sanctumArch=await assets\.loader\.loadAsync\(SANCTUM_ARCH_URL\)\.catch\(/);
+  // Low quality keeps the lighter generic kit (no extra maps or program at first draw).
+  assert.match(main, /if\(glbOnly===null&&params\.get\('q'\)!=='0'\)assets\.sanctumArch=/);
   // every swap keeps the generic piece as its fallback path
   for (const generic of ['Door_Frame_Square', 'Column_Hollow', 'Column_Large_Straight', 'Column_MetalSupport', 'Platform_X']) assert.ok(scene.includes(generic), generic);
   for (const piece of ['SA_Deck', 'SA_Pylon', 'SA_Arch', 'SA_Beacon', 'SA_Span']) assert.ok(scene.includes(`'${piece}'`), piece);
