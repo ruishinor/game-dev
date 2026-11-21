@@ -107,14 +107,24 @@ function cultureTank(ctx) {
   ctx.attach('pelvis', place(buildUtilityPouch(THREE,'conductor'), 0.19, 0.93, 0.0));
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), teal);
   ctx.attach('pelvis', place(lamp, 0.24, 0.95, 0.01));
-  // A small industrial lower-face respirator breaks up the exposed
-  // mannequin silhouette without hiding the eyes or adding fantasy trim.
-  const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
-  const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
-  ctx.attach('Head', place(mask, 0, 1.612, 0.152, -0.12));
-  for (const side of [-1, 1]) {
-    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
-    ctx.attach('Head', place(port, side * 0.082, 1.61, 0.158, Math.PI / 2));
+  // Keep the actual face readable in both gameplay and close-up account
+  // previews. The former box covered the mouth and projected out like a
+  // floating block. Use a narrow, chamfered chin receiver with inset vents
+  // instead of masking the face or introducing a menu-only head model.
+  const filter = std({ color: 0x253c39, metalness: 0.36, roughness: 0.68 });
+  const outline = new THREE.Shape();
+  outline.moveTo(-0.053,-0.008);outline.lineTo(-0.040,0.008);
+  outline.lineTo(0.040,0.008);outline.lineTo(0.053,-0.008);
+  outline.lineTo(0.034,-0.020);outline.lineTo(-0.034,-0.020);
+  outline.closePath();
+  const receiver = new THREE.Mesh(new THREE.ExtrudeGeometry(outline,{
+    depth:0.012,bevelEnabled:true,bevelThickness:0.003,
+    bevelSize:0.003,bevelSegments:2,steps:1,curveSegments:4
+  }),filter);
+  ctx.attach('Head',place(receiver,0,1.567,0.153,-.15));
+  for (const side of [-1,1]) {
+    const port=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.014,12),casing);
+    ctx.attach('Head',place(port,side*.064,1.579,.146,Math.PI/2));
   }
 }
 

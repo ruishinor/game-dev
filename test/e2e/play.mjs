@@ -73,7 +73,11 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   if(appearance){
-    for(const [group,value] of Object.entries(appearance))await page.click(`#ap-${group} [data-value="${value}"]`);
+    // The creator exposes appearance through user-facing Body / Details tabs.
+    for(const [group,value] of Object.entries(appearance)){
+      await page.getByRole('tab',{name:group==='hair'||group==='colour'?'3. Details':'2. Body'}).click();
+      await page.click(`#ap-${group} [data-value="${value}"]`);
+    }
   }
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
@@ -604,6 +608,9 @@ try {
     await teleport(B, b.x,b.z);
     await settle(A,a.x,a.z);
     await settle(B,b.x,b.z);
+    // World focus is required for gameplay Tab; buttons keep native Tab.
+    await A.page.locator('#view').focus();
+    await B.page.locator('#view').focus();
   };
   let sk = skitters[0];
   await fightAt(sk);
@@ -800,8 +807,21 @@ try {
   await shot(B, '03-symbiote-bonded.png');
   await shot(A, '03b-bonded-as-seen-by-ally.png');
 
-  // Kill three skitters together.
+  // Kill three skitters together using real browser combat controls.
+  const selectSkitter=async(session,enemy)=>{
+    await session.page.locator('#view').focus();
+    let selected=(await state(session)).target;
+    for(let i=0;i<32&&selected!==enemy.id;i++){
+      await session.page.keyboard.press('Tab');
+      selected=(await state(session)).target;
+    }
+    if(selected!==enemy.id)throw Error('Required skitter not selected '+JSON.stringify({
+      player:session.name,expected:enemy.id,target:selected,
+      enemyState:enemy.state,hp:Math.ceil(enemy.hp),serverTarget:serverPlayer(session.name)?.target
+    }));
+  };
   const killCurrent = async (enemy) => {
+    if(enemy.state!=='dead')for(const session of [A,B])await selectSkitter(session,enemy);
     // Each actual browser must contribute; selecting the enemy alone is not kill credit.
     if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
       for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id);i++){
@@ -828,12 +848,6 @@ try {
     }
     return enemy.state === 'dead';
   };
-  for (const p of [A, B]) {
-    for (let i = 0; i < 8 && (await state(p)).target !== sk.id; i++) {
-      await p.page.keyboard.press('Tab');
-      await sleep(150);
-    }
-  }
   let killed = await killCurrent(sk);
   check('6/11. the two players defeat the enemy together', killed);
   let xpA = (await state(A)).sheet.xp;
@@ -853,24 +867,13 @@ try {
     await A.page.keyboard.press('Tab');
     await B.page.keyboard.press('Tab');
     await sleep(300);
-    // The enlarged world and nearby creatures can require more than six
-    // Tab cycles. Do not mistake damaging another target for directive credit.
-    // Both players must really target this skitter before using combat inputs.
-    for (const session of [A, B]) {
-      let selected=(await state(session)).target;
-      for (let i=0;i<24&&selected!==next.id;i++){
-        await session.page.keyboard.press('Tab');
-        selected=(await state(session)).target;
-      }
-      if(selected!==next.id)throw Error('Cannot select directive skitter '+next.id+
-        ' in '+session.name+' (target '+selected+', enemy '+next.state+')');
-    }
+    // killCurrent requires each browser to select the intended skitter.
     killed = await killCurrent(next);
-    if(!killed)note('Failed live shared skitter kill '+JSON.stringify({
-      id:next.id,state:next.state,hp:next.hp,maxHp:next.maxHp,
+    if(!killed)note('Live skitter kill failed '+JSON.stringify({
+      id:next.id,state:next.state,hp:Math.ceil(next.hp),
       targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
-      auto:[serverPlayer('Brakka')?.autoOn,serverPlayer('Lumen')?.autoOn],
-      threat:[...next.threat.keys()]}));
+      alive:[serverPlayer('Brakka')?.hp>0,serverPlayer('Lumen')?.hp>0]
+    }));
     if (!killed) break;
   }
   await Promise.all([until(A, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Vanguard directive 1 complete'),until(B, () => window.__attune.state().sheet.quest.step >= 1, null, 5000, 'Conductor directive 1 complete')]);

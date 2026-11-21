@@ -29,8 +29,10 @@ try {
   const creation=page.locator('#creation-preview');await creation.scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.model==='glb');
   const initialAppearance=await creation.getAttribute('data-appearance');
+  await page.getByRole('tab',{name:'2. Body'}).click();
   await page.locator('#ap-frame button[data-value="m"]').click();await creation.scrollIntoViewIfNeeded();
   await page.waitForFunction(a=>document.querySelector('#creation-preview').dataset.appearance!==a&&document.querySelector('#creation-preview').dataset.appearance?.startsWith('m.'),initialAppearance);
+  await creation.locator('[data-preview-inspect]').click();
   await creation.getByRole('button',{name:'Face',exact:true}).click();
   await creation.getByRole('button',{name:'Rotate right'}).click();
   await creation.getByRole('button',{name:'Zoom in'}).click();
