@@ -113,7 +113,7 @@ export class WorldAtlas{
  mapPanel.append(legend,this.details,this.setSelected,this.clearButton,this.waypointDetails);
  savedPanel.append(this.markerLabel,this.noteInput,this.savePointButton,this.noteStatus,this.savedPointPicker,this.savedList);
   this.search.after(this.results);this.results.hidden=true;
- this.canvas=el('canvas');this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map');this.canvas.title='Click to mark a waypoint; drag to pan; scroll to zoom. Distances are straight-line.';const controls=el('div','atlas-controls');
+ this.canvas=el('canvas');this.canvas.tabIndex=0;this.canvas.setAttribute('role','img');this.canvas.setAttribute('aria-label','Current region map. Use arrow keys to pan, Enter to mark the map center, plus and minus to zoom.');this.canvas.title='Click or press Enter to mark a waypoint; drag or use arrow keys to pan; scroll or use plus and minus to zoom. Distances are straight-line.';const controls=el('div','atlas-controls');
  for(const [label,fn] of [['Zoom +',()=>this.scale(1.25)],['Zoom −',()=>this.scale(.8)],['Center on player',()=>{this.pan={x:this.state.me.pos.x-this.region.x,z:this.state.me.pos.z-this.region.z};this.draw();}],['Reset view',()=>{this.zoom=1;this.pan={x:0,z:0};this.draw();}]]){
  const icon=({'Zoom +':'+','Zoom −':'−','Center on player':'⌖','Reset view':'⟲'})[label];const b=el('button',null,icon);b.type='button';b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;controls.append(b);}
  full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
@@ -128,6 +128,30 @@ export class WorldAtlas{
      !['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)){
    e.preventDefault();this.close();
   }
+ });
+ this.canvas.addEventListener('keydown',e=>{
+  if(!this.region||!this.p||e.ctrlKey||e.altKey||e.metaKey)return;
+  const step=10/this.zoom;
+  const offsets={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]};
+  if(Object.hasOwn(offsets,e.key)){
+   e.preventDefault();
+   const [dx,dz]=offsets[e.key];
+   const nextX=clamp(this.pan.x+dx,-this.region.hw,this.region.hw);
+   const nextZ=clamp(this.pan.z+dz,-this.region.hd,this.region.hd);
+   // Reach is circular: keyboard navigation must not pan the map center
+   // into an unmapped corner outside its actual playable geography.
+   const length=Math.hypot(nextX,nextZ);
+   const radius=this.region.area?Infinity:Math.max(0,WORLD.radius-0.001);
+   const ratio=length>radius?radius/length:1;
+   this.pan.x=nextX*ratio;
+   this.pan.z=nextZ*ratio;
+   this.draw();
+  }else if(e.key==='Enter'){
+   e.preventDefault();
+   const point={x:this.region.x+this.pan.x,z:this.region.z+this.pan.z};
+   if(pointInsideRegion(this.region,point.x,point.z))this.setWaypoint(point.x,point.z,'Custom waypoint');
+  }else if(e.key==='+'||e.key==='='){e.preventDefault();this.scale(1.25);}
+  else if(e.key==='-'){e.preventDefault();this.scale(.8);}
  });
  this.canvas.addEventListener('wheel',e=>{e.preventDefault();this.scale(e.deltaY<0?1.2:1/1.2);},{passive:false});
  this.canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;this.drag={x:e.clientX,y:e.clientY,moved:false};this.canvas.setPointerCapture(e.pointerId);});
@@ -355,6 +379,7 @@ export class WorldAtlas{
  g.strokeStyle='rgba(142,170,177,.12)';g.lineWidth=.8;g.beginPath();for(let x=r.x-r.hw;x<=r.x+r.hw;x+=20){g.moveTo(p.X(x),p.Z(r.z-r.hd));g.lineTo(p.X(x),p.Z(r.z+r.hd));}for(let z=r.z-r.hd;z<=r.z+r.hd;z+=20){g.moveTo(p.X(r.x-r.hw),p.Z(z));g.lineTo(p.X(r.x+r.hw),p.Z(z));}g.stroke();
  // Raw collision boxes do not belong on an illustrated map; visible snapshot objects retain markers.
  const party=new Set((st.party||[]).map(m=>m.id)),term=this.search.value.trim().toLowerCase(),entries=[],labelCandidates=[],markerObstacles=[],clusterCandidates=[];
+ let waypointLabel=null;
   this.results.hidden=!term;
  const mark=(name,x,z,category,color,shape='dot')=>{
   if(!this.layers.has(category)||!name.toLowerCase().includes(term))return;
@@ -406,16 +431,22 @@ export class WorldAtlas{
   markerObstacles.push({x,y,r:16},{x,y:y-15,r:16});
   g.save();g.translate(x,y);g.beginPath();g.moveTo(0,-s);g.lineTo(s,0);g.lineTo(0,s);g.lineTo(-s,0);g.closePath();
   g.fillStyle='#7acbdf';g.strokeStyle='#17252a';g.lineWidth=3;g.fill();g.stroke();
-  g.font='bold 14px sans-serif';g.textAlign='center';g.lineWidth=4;g.strokeStyle='#131c21';
-  g.strokeText(this.waypoint.label,0,-15);g.fillStyle='#e3f0f2';g.fillText(this.waypoint.label,0,-15);g.restore();
+  g.restore();
+  // Personal waypoints participate in the same collision layout as place
+  // names. Drawing this caption immediately overlaps the nearby site label.
+  waypointLabel={name:this.waypoint.label,x,y,kind:'waypoint'};
  }
  // Reserve the live player position as well as all visible marker clusters.
  markerObstacles.push({x:p.X(st.me.pos.x),y:p.Z(st.me.pos.z),r:19});
- g.save();g.font='600 13px sans-serif';g.textAlign='center';
- for(const label of placeAtlasLabels(labelCandidates,markerObstacles,w,h,name=>g.measureText(name).width)){
+ g.save();g.font='bold 13px sans-serif';g.textAlign='center';
+ // Place the waypoint first, then shift or suppress lower-priority site labels
+ // when their captions would collide. All markers and search entries stay put.
+ const labels=waypointLabel?[waypointLabel,...labelCandidates]:labelCandidates;
+ for(const label of placeAtlasLabels(labels,markerObstacles,w,h,name=>g.measureText(name).width)){
+  g.font=label.kind==='waypoint'?'bold 13px sans-serif':'600 13px sans-serif';
   g.lineJoin='round';g.strokeStyle='#10171b';g.lineWidth=4;
   g.strokeText(label.name,label.x,label.y);
-  g.fillStyle='#e7eceb';g.fillText(label.name,label.x,label.y);
+  g.fillStyle=label.kind==='waypoint'?'#e3f0f2':'#e7eceb';g.fillText(label.name,label.x,label.y);
  }
  g.restore();
  // The player position is a lightweight DOM overlay, not static map paint.
