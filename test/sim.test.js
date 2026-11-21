@@ -722,7 +722,7 @@ test('progression: levels raise primary skill, health and power', () => {
   assert.ok(p.maxHp > hp);
   assert.ok(p.stats.power > 1);
   grantXp(game, p, 1e6);
-  assert.equal(p.char.level, 5, 'level cap');
+  assert.equal(p.char.level, 15, 'level cap');
 });
 
 test('progression: the directive chain hands out the build pieces in order', () => {

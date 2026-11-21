@@ -25,6 +25,7 @@ import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
 import { spawnSalvageCamp } from './severance-camps.js';
+import { EXPANSE_LEVELS, legacyPatrolLevel, scrapyardLevel, setRegionalEnemyLevel } from './zone-progression.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
@@ -299,6 +300,7 @@ export class Game {
     if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
     if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
+    if(entering&&this.severance&&p.char.level<EXPANSE_LEVELS.min)return {ok:false,reason:`The Severance Expanse requires level ${EXPANSE_LEVELS.min}. Train in the Reach before crossing.`};
     if(entering&&!this.severance)this.openAnnex();
     if(entering&&this.severance)this.openExpanse();
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
@@ -306,13 +308,18 @@ export class Game {
     const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
       : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
     this.transferPlayer(p, destination);
-    this.message(p,'info',entering?(this.severance?'Severance Expanse. Three routes cross the plain to the Severance Gate in the north: the Causeway of Sentinels, the Severed Pass and the Amber Flats. The Expedition Outpost east of the arrival is safe ground. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
+    this.message(p,'info',entering?(this.severance?'Severance Expanse (levels 5–12). Three routes cross the plain to the Severance Gate in the north: the Causeway of Sentinels, the Severed Pass and the Amber Flats. The Expedition Outpost east of the arrival is safe ground. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
   }
 
   /** Expanse patrols spawn with the first arrival and then persist (server-only routes). */
   openExpanse() {
-    if(!this.expanseOpened){spawnSeverancePatrols(this);spawnSalvageCamp(this);this.expanseOpened=true;}
+    if(this.expanseOpened)return;
+    // Tune only the eight legacy patrols; leave upcoming five-soldier squads alone.
+    const legacy=spawnSeverancePatrols(this);
+    legacy.forEach((enemy,i)=>setRegionalEnemyLevel(this,enemy,legacyPatrolLevel(i),'expanse',resetEnemy));
+    for(const enemy of spawnSalvageCamp(this))setRegionalEnemyLevel(this,enemy,scrapyardLevel(enemy),'expanse',resetEnemy);
+    this.expanseOpened=true;
   }
 
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */

@@ -7,9 +7,9 @@ import { GADGET_ITEMS } from './gadgets.js';
 export const GCD_MS = 750;
 /** Weapon auto-attack bonuses and per-hit Charge were authored against 2 s swings; faster swings scale them so damage per second is unchanged. */
 export const AUTO_REFERENCE_MS = 2000;
-export const MAX_LEVEL = 5;
-/** XP needed to advance from level L to L+1 (index L). */
-export const XP_TO_NEXT = [0, 90, 200, 340, 520];
+export const MAX_LEVEL = 15;
+/** Character level XP (not Resonance rank); original levels 1–5 retain their previous pacing. */
+export const XP_TO_NEXT = [0, 90, 200, 340, 520, 700, 910, 1150, 1420, 1720, 2050, 2410, 2800, 3220, 3670];
 
 export const SKILL_NAMES = { kinetics: 'Kinetics', biotech: 'Biotech', instrumentation: 'Instrumentation' };
 export const ATTUNEMENT_NAMES = { resonance: 'Resonance' };

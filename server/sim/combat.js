@@ -86,6 +86,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   const actor = actorPlayer(game, src);
   if (actor && !opts.flat) amt *= actor.stats.power * actor.stats.dmgMul;
   if (src && src.kind === 'enemy') {
+    if (src.zoneScale?.dmg) amt *= src.zoneScale.dmg;
     if (src.elite?.dmg) amt *= src.elite.dmg;
     const sap = getBuff(src, 'sap');
     if (sap) amt *= sap.mul;
