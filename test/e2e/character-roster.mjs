@@ -93,8 +93,16 @@ try{
     if(!el||!el.getClientRects().length)return null;
     const r=el.getBoundingClientRect();
     let clipped=r.left<-.5||r.top<-.5||r.right>innerWidth+.5||r.bottom>innerHeight+.5;
+    // A viewport-fixed control escapes ancestor overflow unless an ancestor
+    // creates its containing block (transform, filter, contain...). Only such
+    // ancestors, and the viewport itself, can clip it.
+    const fixed=getComputedStyle(el).position==='fixed';
+    const containsFixed=st=>st.transform!=='none'||st.filter!=='none'||st.backdropFilter!=='none'||st.perspective!=='none'||/paint|layout|strict|content/.test(st.contain)||/transform|filter|perspective/.test(st.willChange);
+    let escaped=fixed;
     for(let p=el.parentElement;p;p=p.parentElement){
      const st=getComputedStyle(p),overflow=st.overflow+st.overflowX+st.overflowY;
+     if(escaped&&containsFixed(st))escaped=false;
+     if(escaped)continue;
      if(!/(hidden|clip|auto|scroll)/.test(overflow))continue;
      const box=p.getBoundingClientRect();
      if(r.left<box.left-.5||r.top<box.top-.5||r.right>box.right+.5||r.bottom>box.bottom+.5){clipped=true;break;}

@@ -21,8 +21,14 @@ export function setupRosterSettingsPages(panel){
  // The UI constructor appends graphics/effects first, followed by audio,
  // interface and extended settings. Group at existing control boundaries.
  const size=children.length;
- const cuts=size<=10?[Math.ceil(size/2),size]:[8,Math.min(size,13)];
+ // Graphics takes the nameplate toggle (index 8) and window-layout reset;
+ // Interface also takes the hotkey section so More (map and clocks) fits without internal scrolling.
+ const cuts=size<=10?[Math.ceil(size/2),size]:[9,Math.min(size,13)];
  children.forEach((child,i)=>pages[i<cuts[0]?0:i<cuts[1]?1:2].append(child));
+ const reset=pages[1].querySelector(':scope > .reset-window-layouts');
+ if(reset)pages[0].append(reset);
+ const hotkeys=pages[2].querySelector(':scope > .hotkey-entry');
+ if(hotkeys)pages[1].append(hotkeys);
  const labels=['Graphics','Interface','More'];
  const tabs=labels.map((label,i)=>{
   const btn=document.createElement('button');
