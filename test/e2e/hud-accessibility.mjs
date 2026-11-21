@@ -165,9 +165,23 @@ try{
        style:{display:style.display,visibility:style.visibility,opacity:style.opacity,pointerEvents:style.pointerEvents},
        rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},elements};
    },{x:origin.x+origin.width/2,y:origin.y+origin.height/2,from});
-   assert.equal(source.elements[0]?.slot,String(from),'Ctrl-drag source must be hit-testable: '+JSON.stringify(source));
+   // The preceding pointerup reconstructs the bar synchronously. Chromium's
+   // hit-test tree may lag that DOM update by a rendering frame, even though
+   // the relocated ability is visible, enabled and has pointer-events:auto.
+   // Wait for a genuinely pointer-hit-testable slot instead of using a fixed
+   // delay, dispatching synthetic pointer events or weakening drag assertions.
+   const start=Date.now();
+   const hitReady=await page.waitForFunction(({from})=>{
+     const el=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
+     if(!el)return false;
+     const r=el.getBoundingClientRect();
+     return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.actionbar [data-slot-index]')===el;
+   },{from},{timeout:4000,polling:50}).then(()=>true,()=>false);
+   assert.equal(hitReady,true,'Ctrl-drag source never became hit-testable: '+JSON.stringify(source));
+   const settled=await slot(from).boundingBox();
+   console.log('[hud] Ctrl-drag source '+from+' hit-tested after '+(Date.now()-start)+'ms');
    await page.keyboard.down('Control');
-   await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
+   await page.mouse.move(settled.x+settled.width/2,settled.y+settled.height/2);
    await page.mouse.down();
    assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true');
    const dest=to===null?{x:Math.floor(page.viewportSize().width/2),y:Math.floor(page.viewportSize().height/2)}:await slot(to).boundingBox();
