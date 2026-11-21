@@ -35,7 +35,7 @@ from asset_pipeline.blender import phase_scar as ps
 from asset_pipeline.blender.common import finish, payload
 
 SPAL = {  # sRGB, roughness, metallic, stone flag
-    "stone": (0x6e6a63, 0.9, 0.0, 1), "dark": (0x4a4844, 0.92, 0.0, 1), "pale": (0x8d877c, 0.88, 0.0, 1),
+    "stone": (0x5b5852, 0.9, 0.0, 1), "dark": (0x3a3835, 0.93, 0.0, 1), "pale": (0x7c766b, 0.88, 0.0, 1),
     "bronze": (0x8a6a3e, 0.38, 0.88, 0), "iron": (0x2c2f31, 0.6, 0.6, 0), "teal": (0x1f4a4c, 0.4, 0.5, 0),
 }
 PIECES = ["SA_Deck", "SA_Pylon", "SA_Arch", "SA_Beacon", "SA_Span", "SA_HallWall", "SA_HallPillar", "SA_HallLintel", "SA_HallCanopy"]
@@ -381,6 +381,13 @@ def main():
     edges[..., 0] = sg.blur(edges[..., 0], 1)
     nrm, _ = sg.bake_image(kit, ps.detail_bump_material("_bump"), "NORMAL", int(p.get("normal", 2048)), 1, "_normal")
     albedo, rough, occ, metal = ps.composite(base, props, fields, cracks, edges, ao, np.zeros_like(fields))
+    # The shared composite saturates its palette scale (1.35) for every tone here;
+    # re-scale stone texels by the palette's own luminance so curb, flags and
+    # piers keep distinct, darker values under the Sanctum's bright sky light.
+    stone = np.clip(props[..., 2], 0, 1)[..., None]
+    lum = base.mean(-1, keepdims=True)
+    f = np.clip(lum / 0.16, 0.42, 1.15) / 1.35
+    albedo = albedo * (1 - stone) + albedo * f * stone
     maps = {"albedo": work / "sarch_albedo.png", "orm": work / "sarch_orm.png", "normal": work / "sarch_normal.png"}
     sg.save_png(maps["albedo"], albedo, srgb=True)
     sg.save_png(maps["orm"], np.stack([occ, rough, metal], -1))

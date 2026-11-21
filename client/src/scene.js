@@ -774,7 +774,7 @@ const E = new THREE.Euler();
 const SC = new THREE.Vector3();
 /** Matrix for a prop standing on the terrain at (x, z). */
 /** Sanctum architecture kit (Blender; tools/asset-pipeline/.../sanctum_arch.py). */
-export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=85d561df4ade';
+export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=ccb8bf9eb8fe';
 
 /** A Sanctum kit piece placed under a holder, keeping the node's own (quantised)
  * transform; null when the kit is unavailable (the generic kit is used). */

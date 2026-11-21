@@ -1,7 +1,7 @@
 {
  "file": "assets/sanctum_arch/outputs/sanctum_arch.glb",
- "bytes": 2562816,
- "inputBytes": 16275400,
+ "bytes": 2586464,
+ "inputBytes": 15893000,
  "triangles": 18124,
  "meshes": 17,
  "materials": [
@@ -26,7 +26,7 @@
     2048,
     2048
    ],
-   "bytes": 890974
+   "bytes": 891058
   },
   {
    "name": "sarch_albedo",
@@ -35,7 +35,7 @@
     2048,
     2048
    ],
-   "bytes": 380222
+   "bytes": 403780
   }
  ],
  "skins": [],
