@@ -9,7 +9,8 @@ The session stopped at the owner's usage cap. This file records the exact state 
 | `charlie/bold-noether-f8gbb9` | #170, #177, #179 | **Merged.** Combat cadence and crown removal (#170), Phase Scar rift rebuild (#177), resonant veins (#179). |
 | `claude/expanse-scrapyard` | #189 | **Open.** Head `f88037f`; all CI checks were queued when the session stopped. `npm test` passed 550/550 locally. Merge only when every check is green. |
 | `claude/severance-soldiers` | none | **Handed off.** The owner moved the Severance Soldiers to a parallel effort. This branch is a reference only: do not merge it or continue it without owner direction. |
-| `claude/sanctum-architecture` | none yet | **In progress.** The kit asset is committed but not yet integrated. This file is on this branch. |
+| `claude/sanctum-architecture` | #203 | **Open.** Kit integrated (deck, pylons, arches, spire, spans, arrival hall, service console). This file is on this branch. |
+| `claude/vfx-lab` | #205 | **Open.** The VFX inspection lab (`client/vfx-lab.html`) and `tools/vfx-lab-capture.mjs`. |
 
 ## #189 Scrapyard: what it contains
 
@@ -46,8 +47,12 @@ Useful to the parallel effort:
   The emissive inserts are `SA_Channel` and `SA_Lamp`.
 - **Integrated (2026-11-21).** Steps 1–3 below are done: the route, the preload with fallback, and the scene swaps for the deck, pylons, spans, road arches with zone-tinted lamps, and the beacon spire, with a slow pulse on the channels. `test/sanctum-arch.test.js` covers the asset hash and validity, the pieces, the fallback contract and the route. In-game captures were taken.
 - **Arrival hall (2026-11-21), done.** It now uses the same language: `SA_HallWall`, `SA_HallPillar`, `SA_HallLintel` and `SA_HallCanopy` replace the procedural walls, columns, lintels and canopy when the kit loads. Colliders are unchanged.
+- **Service console (2026-11-21), done.** `SA_Console` (a stone plinth, two carved lecterns, bronze-framed teal panels facing the beacon) replaces the generic computers and cable. The storage cases keep their own builder because the playable preview e2e asserts their structure; the fabricator has its own dedicated model.
+- **Capture tool.** `tools/sanctum-capture.mjs` now pauses the software client while the server moves the fixture (as the e2e fixtures do), restores health each shot, and takes the Sanctum shots before the road shots, so every position is confirmed. Shot 05 frames the service console.
+- **CI notes (2026-11-21).**
+  - The playable preview e2e looks up `arrival:threshold-arch`. The hall kit holders keep the procedural names, and a test pins this.
+  - `npm run e2e -- --follow-inventory` also fails on `main` (0a5c169): the first player finishes entering just after the 20 s limit under software GL, with no page errors. It is not caused by this branch.
 - **Next increment.**
-  - Restyle the service props (terminals, crates, cables, fabricator) in the same language.
   - Give the deck stronger material contrast; it reads pale under the bright ambient light.
   - Tune the night lighting.
 - **Original plan:**

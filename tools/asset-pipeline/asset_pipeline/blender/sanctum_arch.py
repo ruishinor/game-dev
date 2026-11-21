@@ -12,6 +12,8 @@ Pieces (each a named node at its own origin, ground at z = 0, -y front):
   SA_Beacon   the beacon spire: a stepped round plinth and a tapered lattice
               obelisk of stone and bronze (~9 m; the beacon's core floats above)
   SA_Span     a 4 m bronze lattice girder along +y (scaled to each span)
+  SA_Console  the Sanctum service console: a stone plinth carrying two carved
+              lecterns with bronze-framed, tilted resonance panels (-y front)
 Emissive inserts (children the runtime drives): SA_Channel (deck ring and
 spokes, pylon and spire channels), SA_Lamp (arch lintel strip, pylon nodes).
 
@@ -38,7 +40,7 @@ SPAL = {  # sRGB, roughness, metallic, stone flag
     "stone": (0x5b5852, 0.9, 0.0, 1), "dark": (0x3a3835, 0.93, 0.0, 1), "pale": (0x7c766b, 0.88, 0.0, 1),
     "bronze": (0x8a6a3e, 0.38, 0.88, 0), "iron": (0x2c2f31, 0.6, 0.6, 0), "teal": (0x1f4a4c, 0.4, 0.5, 0),
 }
-PIECES = ["SA_Deck", "SA_Pylon", "SA_Arch", "SA_Beacon", "SA_Span", "SA_HallWall", "SA_HallPillar", "SA_HallLintel", "SA_HallCanopy"]
+PIECES = ["SA_Deck", "SA_Pylon", "SA_Arch", "SA_Beacon", "SA_Span", "SA_HallWall", "SA_HallPillar", "SA_HallLintel", "SA_HallCanopy", "SA_Console"]
 TOP = 0.47
 rng = np.random.default_rng(1306)
 I3 = (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
@@ -270,6 +272,28 @@ def hall_canopy(b, glow):
         b.tube((x, -2.05, 4.32), (x + 0.3, 2.05, 4.32), 0.012, "bronze", 4)
 
 
+def console(b, glow):
+    """Service console on a 2.6 x 1.2 m footprint (collider hw 1.3, hd 0.6); panels face -y."""
+    stone_block(b, (0, 0, 0.09), I3, (1.26, 0.56, 0.09), "dark")
+    stone_block(b, (0, 0.18, 0.24), I3, (1.12, 0.3, 0.06), "stone")
+    tilt = math.radians(32)
+    w = Vector((0, -math.sin(tilt), math.cos(tilt)))          # panel normal, toward the front
+    v = Vector((0, math.cos(tilt), math.sin(tilt)))           # panel up-slope
+    for x in (-0.6, 0.6):
+        stone_block(b, (x, 0.08, 0.32), I3, (0.36, 0.34, 0.06), "pale")
+        b.cyl((x, 0.08, 0.38), 0.22, 0.62, "stone", 8, 0.17)
+        stone_block(b, (x, 0.08, 1.04), I3, (0.32, 0.26, 0.05), "pale")
+        c = Vector((x, -0.02, 1.2))
+        b.ob(tuple(c), (I3[0], v, w), (0.44, 0.3, 0.035), "bronze", 0.012)          # panel frame
+        b.ob(tuple(c + w * 0.03 + v * 0.31), (I3[0], v, w), (0.46, 0.025, 0.02), "bronze", 0.006)  # top lip
+        glow.append(("panel", tuple(c + w * 0.04), v, w, 0.38, 0.24))
+        for k in range(3):                                   # bronze tally keys under the panel
+            b.ob((x - 0.2 + k * 0.2, -0.24, 1.0), I3, (0.05, 0.035, 0.02), "bronze", 0.006)
+    b.tube((-0.6, 0.34, 0.9), (0.6, 0.34, 0.9), 0.035, "bronze", 8)              # binding rail
+    b.tube((-1.05, 0.3, 0.3), (-0.6, 0.3, 0.86), 0.03, "iron", 6)                  # conduit to the deck
+    b.tube((1.05, 0.3, 0.3), (0.6, 0.3, 0.86), 0.03, "iron", 6)
+
+
 def palette_attrs(o, names):
     me = o.data
     pid = np.zeros(len(me.polygons), np.int32)
@@ -338,6 +362,9 @@ def glow_objects(glows):
                 for k in range(n):
                     a_, b2 = vs[k], vs[(k + 1) % n]
                     ch.faces.new((a_[0], b2[0], b2[1], a_[1]))
+            elif kind == "panel":
+                _, c, v, w, hx, hy = it
+                box(ch, c, (I3[0], Vector(v), Vector(w)), (hx, hy, 0.006))
             elif kind == "lintel_strip":
                 box(lp, (0, -0.37, 3.5), I3, (3.4, 0.008, 0.02))
         out[piece] = (sg.bm_to_obj(f"_ch{piece}", ch) if ch.faces else None, sg.bm_to_obj(f"_lp{piece}", lp) if lp.faces else None)
@@ -360,7 +387,7 @@ def main():
     sc.world = bpy.data.worlds.new("w")
     b = SB()
     glows = {}
-    for i, fn in enumerate([deck, pylon, arch, beacon, span, hall_wall, hall_pillar, hall_lintel, hall_canopy]):
+    for i, fn in enumerate([deck, pylon, arch, beacon, span, hall_wall, hall_pillar, hall_lintel, hall_canopy, console]):
         b.begin(i)
         g = []
         fn(b, g)

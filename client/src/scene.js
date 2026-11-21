@@ -774,7 +774,7 @@ const E = new THREE.Euler();
 const SC = new THREE.Vector3();
 /** Matrix for a prop standing on the terrain at (x, z). */
 /** Sanctum architecture kit (Blender; tools/asset-pipeline/.../sanctum_arch.py). */
-export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=ccb8bf9eb8fe';
+export const SANCTUM_ARCH_URL = '/client/assets/sanctum_arch.glb?v=d79184f83fc0';
 
 /** A Sanctum kit piece placed under a holder, keeping the node's own (quantised)
  * transform; null when the kit is unavailable (the generic kit is used). */
@@ -926,6 +926,22 @@ const kit = {
   },
   gatepost() {},
   console(p, c) {
+    // Sanctum service console in the architecture kit's stone and bronze; its
+    // panels face the beacon (kit -y front is three +z).
+    const carved = archInstance(c, 'SA_Console', at(p.x, p.z, { y: 0, ry: Math.atan2(-p.x, -p.z) }));
+    if (carved) {
+      carved.name = 'sanctum:service-console';
+      // Broad panels use a tone-mapped, dimmer copy of the channel glow: the
+      // channel's unmapped strip intensity would read as flat white here.
+      const panel = c.archGlow('SA_Channel').clone();
+      panel.name = 'SA_Panel';
+      panel.toneMapped = true;
+      panel.emissiveIntensity = 0.32;
+      panel.color?.setHex(0x071416);
+      panel.emissive?.setHex(0x3fd6e0);
+      carved.traverse((o) => { if (o.isMesh && o.material?.name === 'SA_Channel') o.material = panel; });
+      return;
+    }
     for (const dx of [-0.55, 0.55]) c.solid.add(c.piece('sanctum', 'Prop_Computer'), at(p.x + dx, p.z, { y: 0.07, ry: dx * 0.25, s: 1.05 }));
     c.cover.add(c.piece('sanctum', 'Prop_Cable_1'), at(p.x - 1.6, p.z + 0.9, { y: 0.09, ry: 0.6 }));
   },
