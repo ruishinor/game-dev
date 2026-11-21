@@ -2,10 +2,10 @@
 // composition and placement, progress rules, the cache reward and travel.
 // Clients see the enemies they meet and the outcome of their own actions.
 import { ENEMIES } from '../../shared/content.js';
-import { dist, hasLineOfSight } from '../../shared/world.js';
+import { dist, hasLineOfSight, RIFT_ANNEX } from '../../shared/world.js';
 import { SILENT_FOUNDRY as F, inSilentFoundry } from '../../shared/silent-foundry.js';
 import { resetEnemy } from './ai.js';
-import { ELITE } from './enemy-levels.js';
+import { ELITE, regionEntryDenial } from './enemy-levels.js';
 
 const deny = (reason) => ({ ok: false, reason });
 // [type, name, level, u, v, elite] relative to the Foundry centre. Levels follow
@@ -70,6 +70,24 @@ export function claimFoundryCache(game, p, obj, { grantSalvage, inCombat }) {
   if (!grantSalvage(game, p, CACHE.id, CACHE.count)) { p.char.foundryClaimed = false; return deny('Clear space for four Resonance fragments.'); }
   game.markDirty(p);
   game.message(p, 'gain', 'Depths recovery cache claimed: 4 Resonance fragments.');
+  return { ok: true };
+}
+
+/**
+ * The Null Breach in the Excavation Depths: with the Overseer's resonator
+ * silenced, it opens into the Null Annex (level 13-15). Requires level 12
+ * and the Overseer defeated by this character.
+ */
+export function enterNullBreach(game, p, obj) {
+  if (p.dead) return deny('You are defeated.');
+  if (!inSilentFoundry(p.x, p.z) || dist(p, obj) > 5 || !hasLineOfSight(p, obj)) return deny('Approach the Null Breach.');
+  if (p.autoOn || game.time < p.combatUntil || p.buffs.some((b) => b.k === 'root' && b.until > game.time)) return deny('Disengage before travel.');
+  const levelDenial = regionEntryDenial('null_annex', p.char);
+  if (levelDenial) return deny(levelDenial);
+  if (p.char.foundryProgress !== 3) return deny('The breach is held shut while the Foundry Overseer stands.');
+  game.openAnnex();
+  game.transferPlayer(p, { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ });
+  game.message(p, 'info', 'Through the Null Breach: the Null Annex. Cross the Arrival Gallery and the Relay Workshop to the Null Chamber. The gate behind you returns to the Severance Gate.');
   return { ok: true };
 }
 

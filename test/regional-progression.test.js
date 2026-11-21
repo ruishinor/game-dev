@@ -10,7 +10,7 @@ import { REGION_LEVELS, RIFT_LEVEL, ELITE, killXp, levelHpMul, levelDmgMul, regi
 import { SEVERANCE_PATROLS } from '../server/sim/severance-patrols.js';
 import { SALVAGE_GARRISON } from '../server/sim/severance-camps.js';
 import { isEliteEnemy } from '../server/sim/loot-tables.js';
-import { inSeverancePocket } from '../shared/world.js';
+import { inSeverancePocket, travelRegionAt } from '../shared/world.js';
 import { inSilentFoundry } from '../shared/silent-foundry.js';
 
 const traveller = (level) => makeChar('vanguard', { level, attunements: ['resonance'], riftCalibration: 'completed' });
@@ -144,4 +144,57 @@ test('the Phase Scar requires level 5 for its instruments and its travel', () =>
   place(five, f.entry.x, f.entry.z - 3.6);
   assert.ok(interact(g, five, f.entry.id).ok, 'level 5 enters through the Phase Scar');
   assert.ok(inSeverancePocket(five.x, five.z));
+});
+
+test('Null Breach: level 12 and the Overseer defeated open the level 13-15 Null Annex', async () => {
+  const g = makeGame();
+  const p = g.addPlayer(traveller(12));
+  assert.ok((await travelToFoundry(g, p)).ok);
+  const breach = g.objects.find((o) => o.type === 'null_breach');
+  assert.ok(breach && inSilentFoundry(breach.x, breach.z));
+  place(p, breach.x + 2.5, breach.z);
+  let r = interact(g, p, breach.id);
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /Overseer/);
+  p.char.foundryProgress = 3;
+  const low = g.addPlayer(traveller(11));
+  low.char.foundryProgress = 3;
+  assert.ok((await travelToFoundry(g, low)).ok);
+  place(low, breach.x + 2.5, breach.z);
+  r = interact(g, low, breach.id);
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /level 12/);
+  r = interact(g, p, breach.id);
+  assert.ok(r.ok, r.reason);
+  assert.equal(travelRegionAt(p.x, p.z), 'phase_annex');
+
+  const annex = g.enemies.filter((e) => e.annexEncounter);
+  assert.equal(annex.length, 11);
+  assert.ok(annex.every((e) => e.nullAnnex && e.level >= 13 && e.level <= 15), annex.map((e) => e.level).join());
+  const warden = annex.filter((e) => e.type === 'warden');
+  assert.equal(warden.length, 1);
+  assert.equal(warden[0].level, 15);
+  const guards = annex.filter((e) => e.type !== 'warden');
+  assert.ok(guards.filter(isEliteEnemy).length * 2 >= guards.length);
+  assert.deepEqual({ ...REGION_LEVELS.null_annex }, { entry: 12, min: 13, max: 15 });
+
+  // earned: the warden's kill completes the Annex; its cache pays six fragments once
+  const before = p.char.xp + XP_TO_NEXT.slice(0, p.char.level).reduce((a, b) => a + b, 0);
+  for (const e of annex) { place(p, e.x + 1.5, e.z); dealDamage(g, p, e, 1e7, 'test'); }
+  const after = p.char.xp + XP_TO_NEXT.slice(0, p.char.level).reduce((a, b) => a + b, 0);
+  assert.ok(after - before > 3000, `Null Annex clear awards ${after - before} XP`);
+  assert.ok(p.char.level >= 13);
+  assert.equal(p.char.annexProgress, 3);
+  p.combatUntil = 0;
+  const cache = g.objects.find((o) => o.type === 'annex_cache');
+  place(p, cache.x, cache.z + 1.5);
+  p.char.materials = {};
+  assert.ok(interact(g, p, cache.id).ok);
+  assert.equal(p.char.materials.resonance_fragment, 6);
+  assert.equal(interact(g, p, cache.id).ok, false, 'once only');
+  // the annex gate returns to the foot of the Severance Gate
+  const exit = g.objects.find((o) => o.type === 'rift_return');
+  place(p, exit.x, exit.z - 2);
+  assert.ok(interact(g, p, exit.id).ok);
+  assert.ok(inSeverancePocket(p.x, p.z));
 });
