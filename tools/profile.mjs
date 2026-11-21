@@ -61,6 +61,7 @@ try {
     const loadMs = Date.now() - t0;
     if (!report.graphics) report.graphics = await describeGraphics(page);
     const name = `Prof${'abc'[tier]}x`;
+    await page.click('#gate-guest-link');
     await page.fill('#name', name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');

@@ -26,6 +26,7 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await page.goto(`http://127.0.0.1:${srv.port}/?q=2&qlock=1&nolock=1`);
+  await page.click('#gate-guest-link');
   await page.fill('#name', 'Envscout');
   await page.click('.classcard[data-cls="keeper"]');
   await page.click('#enter');

@@ -25,6 +25,7 @@ try {
     page.on('pageerror', (e) => errors.push(`${cls}: ${e.message}`));
     page.on('console', (m) => m.type() === 'error' && errors.push(`${cls}: ${m.text()}`));
     await page.goto(`http://127.0.0.1:${srv.port}/?q=2&qlock=1&nolock=1`);
+    await page.click('#gate-guest-link');
     await page.fill('#name', `Gear${cls.slice(0, 5)}`);
     await page.click(`.classcard[data-cls="${cls}"]`);
     await page.click('#enter');
