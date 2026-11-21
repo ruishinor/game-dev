@@ -805,8 +805,17 @@ try {
         await B.page.keyboard.press('Digit1');await sleep(400);
       }
       if(!enemy.threat.has(serverPlayer('Lumen').id)){
-        note('Lumen contribution missing for '+enemy.id+'; state '+JSON.stringify({hp:enemy.hp,target:serverPlayer('Lumen').target,threat:[...enemy.threat.keys()]}));
+        throw Error('Cannot establish Lumen contribution before kill '+JSON.stringify({
+          enemy:enemy.id,state:enemy.state,hp:enemy.hp,
+          target:serverPlayer('Lumen').target,
+          threat:[...enemy.threat.keys()]
+        }));
       }
+    }
+    // Kill-credit assertions require real server-recorded contributions, not
+    // merely selected targets. Never turn a missing hit into a false XP failure.
+    if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
+      throw Error('Lumen has no recorded contribution for living enemy '+enemy.id);
     }
     for (let i = 0; i < 40 && enemy.state !== 'dead'; i++) {
       await A.page.keyboard.press('Digit1');
@@ -829,6 +838,11 @@ try {
   check('11. both players are credited for the shared kill', xpA > 0 && xpB > 0, `A ${xpA} xp, B ${xpB} xp`);
 
   for (const next of [skitters[2], skitters[3]]) {
+    // A corpse cannot be selected by the real Tab targeting path. Report a
+    // fixture lifecycle failure before attempting inputs against a dead ID.
+    if(next.state==='dead')throw Error('Directive fixture enemy already dead before targeting '+JSON.stringify({
+      id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time
+    }));
     await fightAt(next);
     await A.page.keyboard.press('Escape');
     await B.page.keyboard.press('Escape');
