@@ -621,6 +621,7 @@ function showAccountLogin(message = '') {
   document.body.classList.remove('gate-guest-open');
   setAccountMode('signin');
   setPasswordShown(false);
+  openGuestFromHash();
   $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
@@ -678,6 +679,14 @@ function setAccountMode(mode) {
   $('account-help').hidden = true;
   $('account-help-toggle').setAttribute('aria-expanded', 'false');
 }
+function openGuestView(focus) {
+  if (!document.body.classList.contains('gate-mode')) return;
+  document.body.classList.add('gate-guest-open');
+  if (focus) ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+}
+function openGuestFromHash() {
+  if (location.hash === '#guest-note') openGuestView(false);
+}
 function setPasswordShown(shown) {
   $('account-password').type = shown ? 'text' : 'password';
   $('account-reveal').setAttribute('aria-pressed', String(shown));
@@ -708,10 +717,14 @@ function buildAccountUI() {
   // Guest access stays distinct from the cinematic sign-in viewport.
   for (const a of document.querySelectorAll('#account-auth a[href="#guest-note"]')) a.addEventListener('click', (e) => {
     e.preventDefault();
-    document.body.classList.add('gate-guest-open');
-    ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+    openGuestView(true);
   });
+  // A guest link followed before this module bound its handler only set the
+  // URL hash; honour it now and on later hash changes.
+  window.addEventListener('hashchange', () => openGuestFromHash());
+  openGuestFromHash();
   $('gate-back-to-login').addEventListener('click', () => {
+    if (location.hash === '#guest-note') history.replaceState(null, '', location.pathname + location.search);
     document.body.classList.remove('gate-guest-open');
     $('gate-guest-link').focus({ preventScroll: true });
   });

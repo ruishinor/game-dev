@@ -7,6 +7,9 @@ body.gate-mode:not(.gate-guest-open) #login {
 }
 body.gate-mode:not(.gate-guest-open) #login .login-card {display:none}
 body.gate-mode #account-auth.gate{height:100dvh;min-height:0}
+/* The cover-sized 16:9 stage overhangs short wide viewports by design; clip
+   it here so it cannot extend the login panel's scrollable area. */
+body.gate-mode:not(.gate-guest-open) #account-auth.gate{position:relative;overflow:clip}
 body.gate-mode #account-auth .gate-note:not([hidden]){z-index:6}
 body.gate-mode .gate-foot{z-index:4}
 body.gate-mode.gate-guest-open #account-auth.gate{display:none}
