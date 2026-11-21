@@ -9,6 +9,16 @@ test('defaults preserve existing number and companion shortcuts',()=>{
  assert.equal(b.resolve({code:'Digit3',key:'3',shiftKey:true,ctrlKey:false,altKey:false,metaKey:false}),'companion:3');
  assert.equal(b.resolve({code:'Digit3',key:'3',shiftKey:false,ctrlKey:false,altKey:false,metaKey:false}),'ability:3');
 });
+test('independent Spindle bindings preserve existing choices and require explicit assignment',()=>{
+ const store=storage(),b=new ActionBindings(store);
+ assert.equal(b.get('spindle:2'),null);
+ assert.equal(b.set('companion:2','Ctrl+Digit2').ok,true);
+ assert.equal(b.set('spindle:2','Ctrl+Digit2').ok,false);
+ assert.equal(b.set('spindle:2','Shift+Digit6').ok,true);
+ const restored=new ActionBindings(store);
+ assert.equal(restored.get('companion:2'),'Ctrl+Digit2');
+ assert.equal(restored.resolve({code:'Digit6',key:'6',shiftKey:true}),'spindle:2');
+});
 test('reserved movement and interface shortcuts cannot shadow input',()=>{
  for(const value of ['KeyW','Shift+KeyW','KeyR','KeyM','Shift+KeyM','Shift+KeyF','Ctrl+KeyR','Alt+F4'])assert.equal(bindingPermitted(value),false,value);
  assert.equal(keyChord({key:'Shift',code:'ShiftLeft',shiftKey:true}),null);
