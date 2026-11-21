@@ -115,7 +115,7 @@ Asset: `tools/asset-pipeline/assets/armour_vanguard_set` → `client/assets/armo
 
 Body penetration concentrates where rigid plates cross deforming joints in sprint and punch frames; the shoe and hand shells sit under the boot and glove liners. The gloves' strain on the male body exceeds the limit.
 
-**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
+**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (137k–203k triangles per full set across the four families; loaded only when a piece is worn) and tangents for the detail normal map. **Owner visual acceptance of all four families (Cinderlock, Vesperglass, Strataweave, Mycelial): granted 2026-11-21** (#211).
 
 ## Rare class armour collection (owner specification, 2026-11-20)
 
@@ -158,7 +158,7 @@ All four families share the engine rules of the combat VFX (budget, intensity se
 | 2 | **Owner visual review and polish** of the three vests: silhouette, material wear, decal/stencil detail, emissive strength; worn screenshots in the Sanctum under game lighting; adjust per feedback | Owner art sign-off; side-by-side with the vector art |
 | 3 | **Look coverage**: check every look's shells (hood, helmet, coat, harness gear in `looks.js`, signature gear) against each vest; per-look exceptions (hide or refit) where gear collides | Validation extended to each look's gear; no visible clipping in the appearance capture tool |
 | 4 | **Class armour sets** (SYS-01, PR #119): gloves, greaves and boots × four class sets (Bastion Circuit, Verdant Conduit, Hinge Array, Faultline Harness). First original vector inventory art for each piece, then 3D through this route with new lofts (forearm/hand over the `hands` mesh, shin, foot over the shoe shell) | Each piece worn and rendered like the chests; set identity readable at a distance; `av` generalised to a per-slot allowlist |
-| 4b | **Cinderlock Regalia** (Vanguard set, this change): four slots × two bodies on the hard-surface route, emissive channel VFX, shells hidden under worn pieces, multi-slot `av`, rendered icons. Next: validation to the phase-1 limits, LOD/tangents, owner art review, then the other three class sets | Worn by wearer and observer in all four slots with FX (browser e2e); icons load; owner art sign-off against the concept sheet |
+| 4b | **Cinderlock Regalia** (Vanguard set, this change): four slots × two bodies on the hard-surface route, emissive channel VFX, shells hidden under worn pieces, multi-slot `av`, rendered icons. All four families merged (#156, #211); owner art sign-off granted 2026-11-21. Next: validation to the phase-1 limits, LOD/tangents | Worn by wearer and observer in all four slots with FX (browser e2e); icons load; owner art sign-off (done) |
 | 5 | **Distance LOD** (a decimated variant per item) and a **texture budget** check with many armoured characters on screen | Frame time and memory within the low-spec preset; no pop at the LOD switch |
 | 6 | **Rendered icons for other item families** (devices, implants, glyphs, weapons via ART-01): reuse the icon stage on their 3D models where those exist; the vector art stays the fallback | Every item with a finished model has a rendered icon; the rest keep vector art |
 

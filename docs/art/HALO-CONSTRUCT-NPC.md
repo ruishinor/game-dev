@@ -1,6 +1,6 @@
 # Halo Construct NPC race — production and integration record
 
-Status: merged (#122). Vendor revised 2026-11-21 (below). Technical validation below.
+Status: merged (#122). Vendor revised 2026-11-21 (#213, below); owner visual acceptance of the revised vendor granted 2026-11-21. Technical validation below.
 
 ## What is in the game
 
