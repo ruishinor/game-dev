@@ -15,8 +15,16 @@ import { makeEnvironment } from './scene.js';
 
 const q = new URLSearchParams(location.search);
 const items = (q.get('items') || 'look:vanguard_plate,look:aegis_keeper,look:conductor,look:brine_surveyor,look:archivist,mender,skitter,sentinel,warden').split(',').filter(Boolean);
-const cols = Number(q.get('cols')) || Math.min(4, items.length);
-const cell = Number(q.get('cell')) || 320;
+// Clamp untrusted query parameters before allocating the WebGL drawing buffer.
+// Invalid/negative/huge values otherwise produce zero-sized or enormous canvases.
+const requestedCols = Number(q.get('cols'));
+const cols = q.has('cols') && Number.isFinite(requestedCols) && requestedCols >= 1
+  ? Math.min(items.length || 1, Math.floor(requestedCols))
+  : Math.min(4, items.length || 1);
+const requestedCell = Number(q.get('cell'));
+const cell = q.has('cell') && Number.isFinite(requestedCell) && requestedCell >= 64
+  ? Math.min(1024, Math.floor(requestedCell))
+  : 320;
 const yaw = Number(q.get('yaw') ?? 0.55);
 const pitch = Number(q.get('pitch') ?? 0.22);
 const rows = Math.ceil(items.length / cols);
