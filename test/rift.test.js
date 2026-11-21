@@ -88,3 +88,12 @@ test('Phase Scar calibration is personal, persisted and recoverable exactly once
 test('legacy and invalid calibration records never imply reward eligibility',()=>{
  for(const v of [null,undefined,true,{},'constructor','done'])assert.equal(sanitizeRiftCalibration(v),null);
 });
+
+test('profile core keeps the throat visible edge-on and follows the effects quality', () => {
+ const m=buildRift(THREE,RIFT_SITE,groundHeight),core=m.group.getObjectByName('rift:profile-core'),veil=m.group.getObjectByName('rift:depth-veil');
+ assert.ok(core&&veil);
+ assert.equal(core.material,veil.material,'shares the corona material: no extra shader');
+ assert.ok(Math.abs(core.rotation.y-Math.PI/2)<1e-9,'turned to face profile views');
+ m.update(.05,{riftPhase:'unstable',effectsQuality:0});assert.equal(core.visible,false);
+ m.update(.05,{riftPhase:'unstable',effectsQuality:2});assert.equal(core.visible,true);
+});
