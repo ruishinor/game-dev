@@ -125,7 +125,7 @@ function sanitize(raw) {
     c.equipped = resolveLoadout(c, eq).equipped;
     for(const slot of SLOTS.filter(slot => !['device','implant','glyph'].includes(slot)))if(!c.equipped[slot])delete c.equipped[slot];
   }
-  if(c.cls==='vanguard'&&c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
+  if(c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
   const activeWeapon=sanitizeActiveWeapon(raw.activeWeapon);
   if(activeWeapon)c.activeWeapon=activeWeapon;
   return c;

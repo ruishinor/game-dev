@@ -142,6 +142,8 @@ test('every class has melee and ranged modes, can carry the rod, and keeps its p
     assert.equal(profileFor(cls, 'weapon').kind, 'melee');
     assert.equal(wpn(p.char).dmg, ITEMS[ROD].auto.dmg, 'the rod is the same for every class');
     assert.equal(rowOf(g, p).er, 1);
+    assert.ok(setElectricalRodMode(g, p, 'dual').ok, 'all rod-wielding classes may configure dual mode');
+    assert.equal(p.char.electricalRodMode, 'dual');
     // DPS parity: the off-mode deals the same damage per second as the primary.
     const dps = a => a.dmg / a.interval;
     assert.ok(Math.abs(dps(CLASSES[cls].meleeAuto) - dps(CLASSES[cls].auto)) < 1e-9);
@@ -233,6 +235,9 @@ test('legacy single-slot saves migrate deterministically; selection and configur
     // Global legacy rule: any class whose only weapon is ranged attacks with it.
     const surveyorLegacy = store.create('Legacy Surveyor', 'surveyor');
     surveyorLegacy.char.inventory = [EMITTER]; surveyorLegacy.char.equipped.weapon = EMITTER;
+    const keeperRod = store.create('Rod Keeper', 'keeper');
+    keeperRod.char.inventory = [ROD]; keeperRod.char.equipped.weapon = ROD;
+    keeperRod.char.activeWeapon = 'weapon'; keeperRod.char.electricalRodMode = 'dual';
     store.markDirty(); store.flush();
     const reloaded = new CharacterStore(file);
     const a = reloaded.authenticate(legacy.token);
@@ -247,6 +252,9 @@ test('legacy single-slot saves migrate deterministically; selection and configur
     assert.equal(activeWeaponSlot(c), 'weapon');
     const d = reloaded.authenticate(surveyorLegacy.token);
     assert.equal(d.equipped.ranged, EMITTER); assert.equal(activeWeaponSlot(d), 'ranged');
+    const restoredRod = reloaded.authenticate(keeperRod.token);
+    assert.equal(restoredRod.activeWeapon, 'weapon');
+    assert.equal(restoredRod.electricalRodMode, 'dual', 'dual rod mode survives a non-Vanguard save/reload');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
