@@ -197,19 +197,8 @@ def blueprint_render(sc, objs, path, p):
         saved[o.name] = [s_.material for s_ in o.material_slots]
         for s_ in o.material_slots:
             s_.material = fill
-    # Freestyle's view map grows with every small bevel and tread edge (a
-    # 60k-triangle greave ran the render out of memory): schematic linework
-    # needs the shape, not the micro-detail, so heavy pieces are simplified
-    # for this pass only
-    budget = int(bp.get("tri_budget", 22000))
-    reduce = []
-    for o in objs:
-        if o.type == "MESH":
-            n = sum(len(f.vertices) - 2 for f in o.data.polygons)
-            if n > budget:
-                md = o.modifiers.new("_bp_decimate", "DECIMATE")
-                md.ratio = budget / n
-                reduce.append((o, md))
+    if bp.get("edges", "normals") == "normals":
+        return _blueprint_normals(sc, objs, path, bp, fill, saved)
     sc.render.use_freestyle = True
     sc.render.line_thickness_mode = "ABSOLUTE"
     sc.render.line_thickness = bp.get("line", 1.1)
@@ -217,7 +206,6 @@ def blueprint_render(sc, objs, path, p):
     vl.use_freestyle = True
     fs = vl.freestyle_settings
     fs.crease_angle = math.radians(bp.get("crease", 150))
-    fs.use_culling = True
     ls = fs.linesets[0] if len(fs.linesets) else fs.linesets.new("bp")
     ls.select_by_visibility = True
     ls.visibility = "VISIBLE"
@@ -232,8 +220,6 @@ def blueprint_render(sc, objs, path, p):
     sc.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
     sc.render.use_freestyle = False
-    for o, md in reduce:
-        o.modifiers.remove(md)
     for o in objs:
         for s_, m0 in zip(o.material_slots, saved[o.name]):
             s_.material = m0
@@ -365,6 +351,76 @@ def op_worn(p):
     finish(p, {"renders": written})
 
 
+
+def _blueprint_normals(sc, objs, path, bp, fill, saved):
+    """Schematic linework from image-space edges instead of Freestyle: the
+    holographic fill is rendered once, the camera-space normals once, and
+    creases (normal discontinuities) and the silhouette (alpha) are traced
+    in the image. Memory stays flat with geometry (Freestyle's view map ran
+    the heaviest pieces out of memory)."""
+    import cv2
+
+    fill_path = Path(str(path).replace(".png", "_fill.png"))
+    nrm_path = Path(str(path).replace(".png", "_nrm.png"))
+    sc.view_settings.view_transform = "Standard"
+    sc.view_settings.look = "None"
+    sc.render.filepath = str(fill_path)
+    bpy.ops.render.render(write_still=True)
+    nm = bpy.data.materials.new("_bp_normals")
+    nm.use_nodes = True
+    nt = nm.node_tree
+    for n_ in list(nt.nodes):
+        nt.nodes.remove(n_)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    vt = nt.nodes.new("ShaderNodeVectorTransform")
+    vt.vector_type, vt.convert_from, vt.convert_to = "NORMAL", "WORLD", "CAMERA"
+    ma = nt.nodes.new("ShaderNodeVectorMath")
+    ma.operation = "MULTIPLY_ADD"
+    ma.inputs[1].default_value = (0.5, 0.5, 0.5)
+    ma.inputs[2].default_value = (0.5, 0.5, 0.5)
+    em = nt.nodes.new("ShaderNodeEmission")
+    nt.links.new(geo.outputs["Normal"], vt.inputs["Vector"])
+    nt.links.new(vt.outputs["Vector"], ma.inputs[0])
+    nt.links.new(ma.outputs["Vector"], em.inputs["Color"])
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    for o in objs:
+        for s_ in o.material_slots:
+            s_.material = nm
+    samples = sc.cycles.samples
+    sc.cycles.samples = 4
+    sc.render.filepath = str(nrm_path)
+    bpy.ops.render.render(write_still=True)
+    sc.cycles.samples = samples
+    for o in objs:
+        for s_, m0 in zip(o.material_slots, saved[o.name]):
+            s_.material = m0
+    F = cv2.imread(str(fill_path), cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+    Nn = cv2.imread(str(nrm_path), cv2.IMREAD_UNCHANGED).astype(np.float32) / 255
+    a = Nn[..., 3]
+    n = Nn[..., :3] * 2 - 1
+    mag = np.zeros(a.shape, np.float32)
+    for c in range(3):
+        gx = cv2.Sobel(n[..., c] * a, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(n[..., c] * a, cv2.CV_32F, 0, 1, ksize=3)
+        mag += gx * gx + gy * gy
+    crease = np.clip((np.sqrt(mag) - bp.get("crease_lo", 0.9)) / (bp.get("crease_hi", 1.8) - bp.get("crease_lo", 0.9)), 0, 1)
+    ga = cv2.Sobel(a, cv2.CV_32F, 1, 0, ksize=3) ** 2 + cv2.Sobel(a, cv2.CV_32F, 0, 1, ksize=3) ** 2
+    sil = np.clip(np.sqrt(ga) * 1.5, 0, 1)
+    lines = np.maximum(crease * (a > 0.5), sil)
+    w = max(1, int(round(bp.get("line", 1.1) * F.shape[0] / 768)))
+    if w > 1:
+        lines = cv2.dilate(lines, np.ones((w, w), np.uint8))
+    lines = cv2.GaussianBlur(lines, (0, 0), 0.6)
+    lc = np.array(bp.get("line_rgb", (0.62, 0.93, 1.0)), np.float32)[::-1]  # BGR
+    rgb = F[..., :3] * (1 - lines[..., None]) + lc[None, None] * lines[..., None]
+    alpha = np.maximum(F[..., 3], lines)
+    cv2.imwrite(str(path), (np.dstack([rgb, alpha]).clip(0, 1) * 255).astype(np.uint8))
+    for f in (fill_path, nrm_path):
+        f.unlink(missing_ok=True)
+    return str(path)
+
+
 def main():
     p = payload()
     {"icons": op_icons, "worn": op_worn}[p["op"]](p)
@@ -372,3 +428,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
