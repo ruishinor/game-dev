@@ -24,24 +24,27 @@ const PATROLS = [
   ['turret_drone', 'Gate Drone', 1, [[22, 64], [18, 82], [24, 102], [18, 82]], 0],
 ];
 
-// Severance Soldier squads in Cinderlock armour: a sergeant walks the route
-// and two soldiers hold a wedge behind it (formation slots in the leader's
-// heading frame: [side, back] metres). Followers carry the same route as a
-// fallback for when their sergeant is down or engaged.
+// Severance Soldier squads in Cinderlock armour roam long loops through the
+// Expanse. A soldier walks point on the route; a second soldier and the
+// sergeant hold formation slots behind it in its heading frame ([side, back]
+// metres): the sergeant walks at the rear and hangs back in a fight while its
+// soldiers are up. Followers carry the same route as a fallback for when the
+// point is down or engaged. Loops were path-planned on a 1 m grid with a
+// 3 m formation corridor clear of colliders, the outpost and the arrival.
 const SQUADS = [
-  // the Severed Pass: east of the central massif, north and back
-  ['Severed Pass', [[40, -52], [40, -30], [38, 0], [40, 30], [40, 50], [40, 30], [38, 0], [40, -30]]],
-  // the Causeway: the south canyon below the sentinels' beat
-  ['Causeway', [[-26, -92], [-24, -60], [-26, -30], [-28, -6], [-26, -30], [-24, -60]]],
-  // the gate approach: a sweep across the basin below the stair
-  ['Gate', [[-34, 92], [-16, 104], [16, 104], [34, 92], [16, 104], [-16, 104]]],
+  ['Far West', [[-136, -150], [-136, -60], [-138, 3], [-134, 40], [-136, 130], [-110, 160], [-80, 130], [-77, 115], [-62, 90], [-70, 40], [-63, 6], [-60, 0], [-58, -2], [-67, -84], [-70, -90], [-100, -150]], 0],
+  ['Causeway', [[-26, -92], [-24, -61], [-23, -60], [-30, -40], [-28, -6], [-28, 27], [-30, 30], [-40, 40], [-50, 62], [-44, 95], [-40, 100], [-20, 100], [-28, 40], [-26, -30], [-23, -65], [-26, -89]], 4],
+  ['Severed Pass', [[40, -52], [40, 0], [40, 50], [32, 73], [22, 86], [0, 100], [-7, 84], [-10, 80], [2, 75], [6, 72], [8, 69], [13, 41], [13, 37], [17, 29], [38, -20]], 0],
+  ['Amber Flats', [[56, -56], [92, -54], [100, -50], [136, -20], [140, 40], [140, 100], [100, 112], [80, 103], [70, 90], [60, 20], [50, -20], [51, -32], [57, -38]], 3],
+  ['Gate Basin', [[-110, 165], [0, 168], [110, 165], [120, 110], [76, 103], [70, 100], [42, 103], [7, 102], [0, 96], [-13, 93], [-70, 100], [-120, 110]], 6],
 ];
-const SQUAD_SLOTS = [null, [1.9, -2.1], [-1.9, -2.1]];
+// point, flank soldier, sergeant at the rear
+const SQUAD_SLOTS = [null, [1.8, -2.2], [-0.6, -4.6]];
 
 const ROSTER = [
   ...PATROLS.map(([type, name, dl, route, start]) => ({ type, name, dl, route, start })),
-  ...SQUADS.flatMap(([, route], q) => SQUAD_SLOTS.map((slot, k) => ({
-    type: 'severance_soldier', name: k ? 'Severance Soldier' : 'Severance Sergeant', dl: k ? 0 : 1, route, start: 0, squad: q, slot, rank: k,
+  ...SQUADS.flatMap(([, route, start], q) => SQUAD_SLOTS.map((slot, k) => ({
+    type: 'severance_soldier', name: k === 2 ? 'Severance Sergeant' : 'Severance Soldier', dl: k === 2 ? 1 : 0, route, start, squad: q, slot, rank: k,
   }))),
 ];
 
@@ -69,6 +72,7 @@ export function spawnSeverancePatrols(game) {
       home: { ...p.route[0] }, route: p.route.map((q) => ({ ...q })), patrol: true, form: null, metaVer: 1, severancePatrol: true };
     // regional enemies reuse older rigs under an ash look; soldiers are their own models
     if (p.type !== 'severance_soldier') e.vx = 'ash';
+    if (p.rank === 2) e.rearguard = true;
     if (lead) {
       e.lead = lead.id;
       e.slot = { ...p.slot };
@@ -81,6 +85,7 @@ export function spawnSeverancePatrols(game) {
     }
     resetEnemy(game, e);
     if (p.squad !== undefined && !p.slot) leads.set(p.squad, e);
+    if (lead) lead.squad = [...(lead.squad || [lead.id]), e.id];
     game.enemies.push(e);
     game.ents.set(e.id, e);
     out.push(e);

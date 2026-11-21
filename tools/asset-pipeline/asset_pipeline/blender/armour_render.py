@@ -113,7 +113,7 @@ def boost_channels(strength):
 def belongs(o, item):
     """The item's near pieces (LOD0 and its channel strips), not its distance LODs."""
     n = base_name(o)
-    return (n == item or n.startswith(item + "__")) and "__lod" not in n
+    return (n == item or n.startswith(item + "__")) and "__lod" not in n and not n.endswith("__glow")  # glow is a runtime effect
 
 
 def op_icons(p):

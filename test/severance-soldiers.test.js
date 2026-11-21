@@ -15,76 +15,103 @@ const squads = () => {
     if (!bySquad.has(lead)) bySquad.set(lead, []);
     bySquad.get(lead).push(e);
   }
-  return { g, soldiers, groups: [...bySquad.values()] };
+  const groups = [...bySquad.values()].map((grp) => ({ all: grp, point: grp.find((e) => !e.lead), sergeant: grp.find((e) => e.rearguard) }));
+  return { g, soldiers, groups };
 };
+const routeLength = (r) => r.reduce((n, a, i) => n + Math.hypot(r[(i + 1) % r.length].x - a.x, r[(i + 1) % r.length].z - a.z), 0);
 
-test('Severance Soldiers patrol in squads of a sergeant and two soldiers', () => {
+test('five Severance squads roam long loops: a soldier on point, a soldier and the sergeant behind', () => {
   const defs = SEVERANCE_PATROLS.filter((p) => p.type === 'severance_soldier');
-  assert.ok(defs.length >= 6 && defs.length % 3 === 0, 'whole squads');
+  assert.equal(defs.length, 15, 'five squads of three');
+  const loops = [...new Map(defs.map((p) => [p.squad, p.route])).values()];
+  assert.equal(loops.length, 5, 'each squad has its own loop');
+  for (const r of loops) assert.ok(routeLength(r) > 300, `a roaming loop, not a short beat (${Math.round(routeLength(r))} m)`);
   const { soldiers, groups } = squads();
-  assert.equal(soldiers.length, defs.length);
-  assert.equal(groups.length, defs.length / 3);
-  for (const grp of groups) {
-    const lead = grp.find((e) => !e.lead);
-    assert.ok(lead, 'one sergeant per squad');
-    assert.equal(lead.name, 'Severance Sergeant');
-    assert.equal(lead.level, ENEMIES.severance_soldier.level + 1);
-    const followers = grp.filter((e) => e.lead === lead.id);
-    assert.equal(followers.length, 2);
-    for (const f of followers) {
-      assert.equal(f.name, 'Severance Soldier');
-      assert.ok(Math.hypot(f.x - lead.x, f.z - lead.z) < 4, 'starts in formation');
-    }
+  assert.equal(soldiers.length, 15);
+  assert.equal(groups.length, 5);
+  for (const { all, point, sergeant } of groups) {
+    assert.equal(all.length, 3);
+    assert.equal(point.name, 'Severance Soldier', 'a soldier walks point');
+    assert.ok(sergeant && sergeant !== point, 'the sergeant is not the route leader');
+    assert.equal(sergeant.name, 'Severance Sergeant');
+    assert.equal(sergeant.level, ENEMIES.severance_soldier.level + 1);
+    assert.equal(all.filter((e) => e.rearguard).length, 1);
+    for (const f of all.filter((e) => e.lead)) assert.ok(Math.hypot(f.x - point.x, f.z - point.z) < 6, 'starts in formation');
     // the squad does not vent its reactors in unison
-    const firsts = grp.map((e) => (e.specials || ENEMIES.severance_soldier.specials)[0].first);
+    const firsts = all.map((e) => (e.specials || ENEMIES.severance_soldier.specials)[0].first);
     assert.equal(new Set(firsts).size, 3);
   }
-  // soldiers are their own models, not the reused-rig ash look
-  for (const e of soldiers) assert.equal(e.vx, undefined);
+  for (const e of soldiers) assert.equal(e.vx, undefined, 'soldiers are their own models, not the ash look');
 });
 
-test('followers hold their wedge while the sergeant walks the route', () => {
+test('the squad holds formation on the move, sergeant at the rear', () => {
   const { g, groups } = squads();
-  const start = groups.map((grp) => grp.map((e) => ({ x: e.x, z: e.z })));
-  for (let i = 0; i < 600; i++) g.tick(50);
-  groups.forEach((grp, k) => {
-    const lead = grp.find((e) => !e.lead);
-    assert.ok(Math.hypot(lead.x - start[k][0].x, lead.z - start[k][0].z) > 8, 'the sergeant moves along its route');
-    for (const f of grp.filter((e) => e.lead)) {
-      const slot = squadSlot(lead, f.slot);
-      assert.ok(Math.hypot(f.x - slot.x, f.z - slot.z) < 3, `follower within 3 m of its slot (${Math.hypot(f.x - slot.x, f.z - slot.z).toFixed(2)})`);
+  const start = groups.map(({ point }) => ({ x: point.x, z: point.z }));
+  let rearChecks = 0, behind = 0;
+  for (let i = 0; i < 900; i++) {
+    g.tick(50);
+    if (i % 50 === 49) for (const { point, sergeant, all } of groups) {
+      const fwd = { x: Math.sin(point.yaw), z: Math.cos(point.yaw) };
+      const back = (o) => (o.x - point.x) * fwd.x + (o.z - point.z) * fwd.z;
+      rearChecks++;
+      if (back(sergeant) < Math.min(...all.filter((e) => e !== sergeant).map(back)) - 1) behind++;
+    }
+  }
+  assert.ok(behind / rearChecks > 0.9, `the sergeant walks behind its soldiers (${behind}/${rearChecks})`);
+  groups.forEach(({ point, all }, k) => {
+    assert.ok(Math.hypot(point.x - start[k].x, point.z - start[k].z) > 8, 'the point soldier moves along the loop');
+    for (const f of all.filter((e) => e.lead)) {
+      const slot = squadSlot(point, f.slot);
+      assert.ok(Math.hypot(f.x - slot.x, f.z - slot.z) < 3.5, `follower near its slot (${Math.hypot(f.x - slot.x, f.z - slot.z).toFixed(2)})`);
       assert.equal(travelRegionAt(f.x, f.z), 'severance_expanse');
     }
   });
 });
 
-test('the whole squad answers an attack on any member, then leashes back', () => {
+test('the whole squad answers an attack; the sergeant hangs back while its soldiers fight', () => {
   const { g, groups } = squads();
   for (let i = 0; i < 100; i++) g.tick(50);
-  const grp = groups[0];
-  const lead = grp.find((e) => !e.lead);
+  const { point, sergeant, all } = groups[0];
   const p = g.addPlayer(makeChar('vanguard', { level: 5 }));
-  place(p, lead.x + 5, lead.z);
+  p.hp = p.maxHp = 1e6; // a punching bag that does not die or fight back
+  place(p, point.x + Math.sin(point.yaw) * 6, point.z + Math.cos(point.yaw) * 6);
   g.tick(50);
-  for (const e of grp) assert.ok(e.threat.has(p.id), `${e.name} engages`);
-  // run far past the leash: everyone gives up, then the wedge re-forms on the route
-  place(p, lead.x + ENEMIES.severance_soldier.leash + 40, lead.z);
-  for (let i = 0; i < 800 && grp.some((e) => e.state !== 'idle'); i++) g.tick(50);
-  for (const e of grp) assert.equal(e.state, 'idle');
+  for (const e of all) assert.ok(e.threat.has(p.id), `${e.name} engages`);
+  for (let i = 0; i < 120; i++) g.tick(50);
+  const d = (e) => Math.hypot(e.x - p.x, e.z - p.z) - p.radius;
+  for (const e of all.filter((x) => x !== sergeant)) assert.ok(d(e) < 2.6, `${e.name} closes to melee (${d(e).toFixed(2)})`);
+  assert.ok(d(sergeant) > 3.4, `the sergeant holds back behind them (${d(sergeant).toFixed(2)})`);
+  // with its soldiers down, the sergeant closes in
+  for (const e of all.filter((x) => x !== sergeant)) { e.state = 'dead'; e.hp = 0; e.respawnAt = Infinity; e.threat.clear(); }
+  for (let i = 0; i < 80; i++) g.tick(50);
+  assert.ok(d(sergeant) < 2.6, `alone, the sergeant engages in melee (${d(sergeant).toFixed(2)})`);
+});
+
+test('after a fight the squad leashes back and re-forms', () => {
+  const { g, groups } = squads();
+  for (let i = 0; i < 100; i++) g.tick(50);
+  const { point, all } = groups[1];
+  const p = g.addPlayer(makeChar('vanguard', { level: 5 }));
+  place(p, point.x + 5, point.z);
+  g.tick(50);
+  place(p, point.x + ENEMIES.severance_soldier.leash + 40, point.z);
+  for (let i = 0; i < 800 && all.some((e) => e.state !== 'idle'); i++) g.tick(50);
+  for (const e of all) assert.equal(e.state, 'idle');
   for (let i = 0; i < 300; i++) g.tick(50);
-  for (const f of grp.filter((e) => e.lead)) {
-    const slot = squadSlot(lead, f.slot);
-    assert.ok(Math.hypot(f.x - slot.x, f.z - slot.z) < 3, 'back in formation');
+  for (const f of all.filter((e) => e.lead)) {
+    const slot = squadSlot(point, f.slot);
+    assert.ok(Math.hypot(f.x - slot.x, f.z - slot.z) < 3.5, 'back in formation');
   }
 });
 
-test('clients learn only what they see: no route, slot or squad link in metadata', () => {
+test('clients learn only what they see: no route, slot or squad link; sergeants flagged for Tab order', () => {
   const { g, soldiers } = squads();
   for (const e of soldiers) {
     const meta = g.metaFor(e);
     assert.equal(meta.c, 'severance_soldier');
     assert.ok(['Severance Soldier', 'Severance Sergeant'].includes(meta.n));
-    for (const k of ['route', 'slot', 'lead', 'home', 'post', 'specials', 'threat']) assert.equal(meta[k], undefined, k);
+    assert.equal(meta.rg, e.rearguard ? 1 : undefined);
+    for (const k of ['route', 'slot', 'lead', 'squad', 'home', 'post', 'specials', 'threat']) assert.equal(meta[k], undefined, k);
     assert.ok(!JSON.stringify(meta).includes('route'));
   }
 });

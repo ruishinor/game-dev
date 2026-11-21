@@ -498,6 +498,15 @@ def stage_rig(asset, params):
                     fi = w.mesh(f"{item}__fx", arr["FX_P"], arr["FX_I"], normals=arr["FX_N"], uvs=arr["FX_UV"], joints=FJ, weights=FW, material=fxmat)
                     w.node(f"{item}__fx", mesh=fi, skin=skin)
                     tri[item + "__fx"] = int(len(arr["FX_I"]))
+                if "GLOW_P" in arr.files:
+                    # soft glow over the channels: NORMAL carries the side vector the runtime widens along
+                    fam = params.get("fx_material", "CL_Channel").split("_")[0]
+                    gmat = w.material(f"{fam}_Glow", base_factor=(0.0, 0.0, 0.0, 1), metallic=0.0, roughness=1.0,
+                                      emissive_factor=tuple(params.get("fx_emissive", (1.0, 0.16, 0.08))))
+                    GJ, GW = by_piece(arr["GLOW_P"], arr["GLOW_piece"])
+                    gi_ = w.mesh(f"{item}__glow", arr["GLOW_P"], arr["GLOW_I"], normals=arr["GLOW_N"], uvs=arr["GLOW_UV"], joints=GJ, weights=GW, material=gmat)
+                    w.node(f"{item}__glow", mesh=gi_, skin=skin)
+                    tri[item + "__glow"] = int(len(arr["GLOW_I"]))
                 continue
             Ps, Ns, UVs, Is, Js, Ws = [], [], [], [], [], []
             off = 0

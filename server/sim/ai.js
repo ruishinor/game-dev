@@ -75,6 +75,17 @@ function moveToward(e, tx, tz, step, radius, steer) {
   return s;
 }
 
+/** Another member of e's squad is alive and in combat. */
+function squadFighting(game, e) {
+  const lead = e.lead ? game.ents.get(e.lead) : e;
+  for (const id of lead?.squad || []) {
+    if (id === e.id) continue;
+    const o = game.ents.get(id);
+    if (o && o.state === 'combat' && o.hp > 0) return true;
+  }
+  return false;
+}
+
 function tickFollower(game, e, def, dt) {
   const lead = game.ents.get(e.lead);
   if (!lead || lead.state !== 'idle' || lead.threat?.size) return false;
@@ -353,7 +364,9 @@ export function tickEnemy(game, e, dt) {
   }
 
   const gap = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
-  const stopAt = def.attack.range * (def.attack.kind === 'melee' ? 0.7 : 0.8);
+  // a squad sergeant hangs back behind its soldiers while any of them still fights
+  const holdBack = e.rearguard && squadFighting(game, e);
+  const stopAt = holdBack ? 4.2 : def.attack.range * (def.attack.kind === 'melee' ? 0.7 : 0.8);
   const rooted = !!getBuff(e, 'root');
   const blocked = !hasLineOfSight(e,target);
   if ((gap > stopAt || blocked) && !rooted) {

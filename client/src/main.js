@@ -1437,7 +1437,8 @@ function nextEnemy() {
     const d = Math.hypot(dx, dz);
     if (d > 50) continue;
     const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
-    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
+    // squad sergeants (rearguard) come after their soldiers in Tab order
+    list.push({ id: ent.id, score: d + (front ? 0 : 100) + (ent.meta.rg ? 8 : 0) });
   }
   if (!list.length) {
     ui.error('No enemies nearby.');

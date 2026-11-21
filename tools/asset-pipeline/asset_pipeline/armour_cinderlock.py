@@ -514,7 +514,8 @@ def design_cuirass(body, base, m):
     cloud = cloud[(np.abs(cloud[:, 0]) < 0.1) & (cloud[:, 1] > nk[1] - 0.12) & (cloud[:, 1] < nk[1] + 0.12)]
     NM = LimbAdapter(LimbMap(np.array([0, nk[1] - 0.055, nk[2]]), np.array([0, nk[1] + 0.065, nk[2]]), [0, 0, 1.0], cloud,
                              t_range=(-0.2, 1.3), half=0.01, rmax=0.12, facets=14))
-    for k, (t0, t1, op, lay) in enumerate(((0.0, 0.48, 16, 0.038), (0.52, 1.0, 22, 0.02))):
+    # a stand-up collar that stays below the jaw: two short rings close to the neck
+    for k, (t0, t1, op, lay) in enumerate(((0.0, 0.4, 18, 0.028), (0.43, 0.7, 24, 0.017))):
         pc = Plate(it, f"collar_{k}", m["plate"], NM, D([(op, t0), (360 - op, t0), (360 - op, t1), (op, t1)]), lay, dome=0.003, thickness=0.008,
                    bevel=0.0025, weight_mode=["band", "y", 0.03], flow_origin=core)
         pc.groove(D([(op + 7, t0 + 0.1), (op + 7, t1 - 0.1)]))
@@ -522,7 +523,7 @@ def design_cuirass(body, base, m):
         if k == 1:
             pc.trace(0.006, chain=(2, 3), width=0.0034, n_per=40)
         pls.append(pc)
-    pc = Plate(it, "nape", m["plate"], NM, D([(146, 0.12), (214, 0.12), (220, 0.7), (206, 1.18), (154, 1.18), (140, 0.7)]), 0.05, dome=0.004,
+    pc = Plate(it, "nape", m["plate"], NM, D([(148, 0.06), (212, 0.06), (218, 0.5), (206, 0.84), (154, 0.84), (142, 0.5)]), 0.036, dome=0.004,
                thickness=0.008, bevel=0.0025, weight_mode=["rigid"], flow_origin=core)
     pc.trace(0.006, chain=(2, 5), width=0.0034, n_per=8)
     pls.append(pc)
@@ -856,9 +857,11 @@ def design_boots(body, base, m):
         BM = LimbAdapter(LimbMap(heel, toe, [0, 1.0, 0], cloud, t_range=(-0.15, 1.12), step=0.02, half=0.02, rmax=0.13, facets=12, tsmooth=0.06))
         bax = list(map(float, (toe - heel) / np.linalg.norm(toe - heel)))
         pb = {**pol, "joints": ["foot", "ball"]}
-        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-150, -0.02), (150, -0.02), (150, 0.86), (96, 1.05), (-96, 1.05), (-150, 0.86)]), 0.006,
-                   thickness=0.007, bevel=0.0026, res=0.011, weights=pb, weight_mode=["band", bax, 0.05], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-118, 0.3), (-118, 0.66)]), width=0.0034).groove(D([(118, 0.3), (118, 0.66)]), width=0.0034)
+        # forefoot and midfoot shell; the heel and ankle have their own pieces,
+        # so nothing folds over the shoe's ankle opening
+        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-136, 0.26), (136, 0.26), (138, 0.86), (98, 1.04), (-98, 1.04), (-138, 0.86)]), 0.007,
+                   thickness=0.007, bevel=0.0026, res=0.012, weights=pb, weight_mode=["band", bax, 0.05], flow_origin=origin, flow_scale=0.6)
+        pl.groove(D([(-120, 0.36), (-120, 0.66)]), width=0.0034).groove(D([(120, 0.36), (120, 0.66)]), width=0.0034)
         P.append(pl.export())
         # wide angled instep strap with a buckle
         pl = Plate(it, f"instep_{s}", m["trim"], BM, D([(-112, 0.46), (112, 0.34), (112, 0.5), (-112, 0.62)]), 0.0145, dome=0.002,
@@ -872,13 +875,6 @@ def design_boots(body, base, m):
                    thickness=0.008, bevel=0.0028, res=0.008, weights={**pol, "joints": ["ball", "foot"]}, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
         pl.trace(0.0065, chain=(1, 0), width=0.0046, n_per=10)
         P.append(pl.export())
-        # heel counter with vertical accent lines
-        pl = Plate(it, f"heel_{s}", m["plate"], BM, D([(-104, 0.0), (104, 0.0), (100, 0.24), (-100, 0.24)]), 0.016, thickness=0.008, bevel=0.0026,
-                   res=0.008, weights=pb, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
-        for a in (-1, 1):  # vertical accents down the sides of the counter
-            for t in (0.03, 0.13):
-                pl.groove(D([(a * 66, t + 0.02), (a * 96, t + 0.02)]), width=0.0034, n_per=6)
-        P.append(pl.export())
         # high ankle collar tucked under the greaves
         ca = body.L["calf_" + s]
         ft = body.L["foot_" + s]
@@ -886,6 +882,18 @@ def design_boots(body, base, m):
         mc = body.P[(joint_weight(body, ["calf", "foot"], s) > 0.45) & ins & (body.P[:, 1] > ft[1] - 0.025)]
         CM = LimbAdapter(LimbMap(ca, ft, fwd, mc, t_range=(0.5, 1.15), half=0.015, rmax=0.085, facets=12, tsmooth=0.05))
         cax = list(map(float, (ft - ca) / np.linalg.norm(ft - ca)))
+        # heel counter: wraps the back of the heel on a vertical map through
+        # the ankle (the heel-to-toe map cannot describe the heel's rear cap),
+        # with vertical accent lines
+        hc = np.concatenate([cloud[cloud[:, 2] < float(np.median(cloud[:, 2]))], mc])
+        HM = LimbAdapter(LimbMap(ca, ft, fwd, hc, t_range=(0.7, 1.3), half=0.012, rmax=0.13, facets=12, tsmooth=0.05))
+        t_sole = float((ca[1] - (y0 + 0.034)) / (ca[1] - ft[1]))
+        pl = Plate(it, f"heel_{s}", m["plate"], HM, D([(118, 1.0), (242, 1.0), (246, t_sole), (114, t_sole)]), 0.011, dome=0.003, thickness=0.008,
+                   bevel=0.0026, res=0.008, weights=pb, weight_mode=["rigid"], flow_origin=origin, flow_scale=0.6)
+        for a in (152, 208):
+            pl.groove(D([(a, 1.03), (a, t_sole - 0.03)]), width=0.0034, n_per=6)
+        pl.bolt(deg(180), (1.0 + t_sole) / 2, r=0.0035)
+        P.append(pl.export())
         pl = Plate(it, f"cuff_{s}", m["plate"], CM, D([(-179, 0.76), (179, 0.76), (179, 1.03), (-179, 1.03)]), 0.011, lip0=0.005, thickness=0.008, bevel=0.003,
                    weights={**pol, "joints": ["calf", "foot"]}, weight_mode=["band", cax, 0.04], flow_origin=origin, flow_scale=0.6)
         pl.groove(D([(-150, 0.82), (150, 0.82)]), width=0.0032, inlay=False, n_per=40)

@@ -186,6 +186,38 @@ def inlay(pts, nrm, flow, width, depth, dst):
         dst["F"] += [(i0 + i, i0 + n + i, i0 + i + 1), (i0 + i + 1, i0 + n + i, i0 + n + i + 1)]
 
 
+def glow_ribbon(pts, nrm, flow, dst, step=0.022, lift=0.0026, base=0.003):
+    """A soft glow ribbon over a channel, for the runtime glow shader: a
+    narrow strip on the plate surface whose NORMAL holds the unit side vector
+    (+S on one edge, -S on the other), so the shader can widen it with camera
+    distance in bind space before skinning. UV.x = flow, UV.y across. The
+    polyline is resampled coarser than the inlay (glow needs no detail)."""
+    P, N, F = np.asarray(pts, float), np.asarray(nrm, float), np.asarray(flow, float)
+    if len(P) < 2:
+        return
+    keep, acc = [0], 0.0
+    for i in range(1, len(P) - 1):
+        acc += np.linalg.norm(P[i] - P[i - 1])
+        a, b = P[i] - P[keep[-1]], P[i + 1] - P[i]
+        turn = np.dot(a, b) / max(np.linalg.norm(a) * np.linalg.norm(b), 1e-12)
+        if acc >= step or turn < 0.9:
+            keep.append(i)
+            acc = 0.0
+    keep.append(len(P) - 1)
+    P, N, F = P[keep], N[keep], F[keep]
+    T = np.gradient(P, axis=0)
+    T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+    S = np.cross(N, T)
+    S /= np.maximum(np.linalg.norm(S, axis=1, keepdims=True), 1e-9)
+    C = P + N * lift
+    i0, n = len(dst["V"]), len(P)
+    dst["V"] += list(C - S * base) + list(C + S * base)
+    dst["N"] += list(-S) + list(S)
+    dst["UV"] += [(f, 0.0) for f in F] + [(f, 1.0) for f in F]
+    for i in range(n - 1):
+        dst["F"] += [(i0 + i, i0 + n + i, i0 + i + 1), (i0 + i + 1, i0 + n + i, i0 + n + i + 1)]
+
+
 def bolt_obj(name, p, n, r, h):
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=r, radius2=r * 0.86, depth=h)
@@ -235,7 +267,7 @@ def sole_obj(name, spec, segments_cut):
     return o
 
 
-def build_piece(meta, arr, fx, details=None):
+def build_piece(meta, arr, fx, details=None, glow=None):
     """One designed piece -> a finished solid object (or None)."""
     name = meta["name"]
     if meta.get("sole"):
@@ -259,6 +291,8 @@ def build_piece(meta, arr, fx, details=None):
         delete([cut])
         L = np.r_[0, np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]
         inlay(P, N, list(0.45 + 0.5 * L / L[-1]), 0.005, 0.003, fx)
+        if glow is not None:
+            glow_ribbon(P, N, list(0.45 + 0.5 * L / L[-1]), glow, lift=0.001)
         bevel(o, meta["bevel"], meta["bevel_segments"])
         return o
     if meta.get("multi") or isinstance(arr, list):
@@ -286,6 +320,8 @@ def build_piece(meta, arr, fx, details=None):
         delete([c])
         if g["inlay"]:
             inlay(g["pts"], g["nrm"], g["flow"], g["width"], g["depth"], fx)
+            if glow is not None:
+                glow_ribbon(g["pts"], g["nrm"], g["flow"], glow)
     # dissolve first: decimating after the bevel scrambles its hardened custom
     # normals (the crumpled shading on small curved plates)
     planar(o, 1.5)
@@ -934,8 +970,8 @@ def split_by_item(arrs, piece_item, items):
     return out
 
 
-def snap_strips(fx, lo):
-    """Lift inlay vertices that the decimated low surface now covers onto it."""
+def snap_strips(fx, lo, lift=0.0004, reach=0.004):
+    """Lift inlay (or glow) vertices that the decimated low surface now covers onto it."""
     from mathutils.bvhtree import BVHTree
 
     if not fx["V"]:
@@ -946,10 +982,10 @@ def snap_strips(fx, lo):
     for i, q in enumerate(fx["V"]):
         p = v3(q)
         loc, nrm, _, d = bvh.find_nearest(p)
-        if loc is None or d > 0.004:
+        if loc is None or d > reach:
             continue
-        if (p - loc).dot(nrm) < 0.0003:
-            fx["V"][i] = B2G(np.array([loc + nrm * 0.0004]))[0]
+        if (p - loc).dot(nrm) < lift * 0.75:
+            fx["V"][i] = B2G(np.array([loc + nrm * lift]))[0]
             moved += 1
     return moved
 
@@ -978,17 +1014,20 @@ def main_groups(p):
     for group, items in p["groups"].items():
         items = [it for it in items if it in by_item]
         fx = {"V": [], "N": [], "UV": [], "F": [], "piece": []}
+        glow = {"V": [], "N": [], "UV": [], "F": [], "piece": []}
         names, mats, piece_item = [], [], []
         hi_objs, lo_objs, info = [], [], {}
         for item in items:
             mains, details, lows, lgro = [], [], [], []
             fx_f0 = len(fx["F"])
+            glow_f0 = len(glow["F"])
             for m in by_item[item]:
                 V, F = npz[m["name"] + "_V"], npz[m["name"] + "_F"]
                 arr = split_parts(V, F) if m.get("multi") else (V, F)
                 fx_before = len(fx["V"])
+                glow_before = len(glow["V"])
                 det = []
-                o = build_piece(m, arr, fx, det)
+                o = build_piece(m, arr, fx, det, glow)
                 if o is None:
                     continue
                 if not m.get("multi") and len(V):
@@ -1008,6 +1047,7 @@ def main_groups(p):
                     a = x.data.attributes.new("matid", "INT", "FACE")
                     a.data.foreach_set("value", [mats.index(m["mat"]) + 1] * len(x.data.polygons))
                 fx["piece"] += [len(names)] * (len(fx["V"]) - fx_before)
+                glow["piece"] += [len(names)] * (len(glow["V"]) - glow_before)
                 names.append(m["name"])
                 piece_item.append(item)
                 # the low piece: the faces nobody sees (against the body) go,
@@ -1026,7 +1066,7 @@ def main_groups(p):
             smooth_by_angle(hi, 24)
             hi_tris = tri_count(hi) + sum(tri_count(x) for x in details)
             # the module budget covers its channel strips too, shared over its pieces
-            fx_tris = len(fx["F"]) - fx_f0
+            fx_tris = len(fx["F"]) - fx_f0 + len(glow["F"]) - glow_f0  # channel strips and their glow ribbons
             have = [tri_count(x) for x in lows]
             alloc = allocate(have, int(budget.get(item, hi_tris)) - fx_tris)
             for x, want, gro in zip(lows, alloc, lgro):
@@ -1096,6 +1136,7 @@ def main_groups(p):
             files["emissive"] = f"{group}_emissive.png"
             save_png(out / files["emissive"], em, srgb=True)
         moved = snap_strips(fx, lo_g)
+        snap_strips(glow, lo_g, lift=0.0022, reach=0.006)
         arrays = {it: {} for it in items}
         lod_tris = {}
         split = split_by_item(mesh_arrays_t(lo_g), piece_item, items)
@@ -1133,10 +1174,24 @@ def main_groups(p):
                     fnn = np.asarray(fx["N"], float)[used]
                     arrays[it].update(FX_P=fxv[used], FX_N=fnn / np.linalg.norm(fnn, axis=1, keepdims=True), FX_UV=np.asarray(fx["UV"], float)[used],
                                       FX_I=rm[sel], FX_piece=fp[used])
+            if glow["V"]:
+                gv = np.asarray(glow["V"], float)
+                gp = np.asarray(glow["piece"])
+                gF = np.asarray(glow["F"], int)
+                keep = np.array([piece_item[gp[f[0]]] == it for f in gF])
+                if keep.any():
+                    sel = gF[keep]
+                    used = np.unique(sel)
+                    rm = -np.ones(len(gv), int)
+                    rm[used] = np.arange(len(used))
+                    gn = np.asarray(glow["N"], float)[used]
+                    arrays[it].update(GLOW_P=gv[used], GLOW_N=gn / np.linalg.norm(gn, axis=1, keepdims=True), GLOW_UV=np.asarray(glow["UV"], float)[used],
+                                      GLOW_I=rm[sel], GLOW_piece=gp[used])
             np.savez(out / f"{it}.npz", **arrays[it])
             item_pieces = [n for n, pi in zip(names, piece_item)]  # global piece ids within the group
             report["sets"][it] = {"pieces": item_pieces, "images": files, "npz": f"{it}.npz", "group": group, "triangles": lod_tris[it][0],
-                                  "lod_triangles": lod_tris[it], "fx_triangles": int(len(arrays[it].get("FX_I", []))), "materials": mats, **info[it]}
+                                  "lod_triangles": lod_tris[it], "fx_triangles": int(len(arrays[it].get("FX_I", []))), "glow_triangles": int(len(arrays[it].get("GLOW_I", []))),
+                                  "materials": mats, **info[it]}
         report["groups"][group] = {"items": items, "texture": size, "images": files, "strips_snapped": moved,
                                    "triangles": int(sum(lod_tris[it][0] for it in items if it in lod_tris))}
         for _, o in levels:

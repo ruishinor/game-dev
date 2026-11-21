@@ -6,7 +6,7 @@
 // channels get live effects (armour-fx.js).
 import * as THREE from 'three';
 import { ARMOUR_ASSETS, ARMOUR_MODULE_ASSETS, modulesOf } from '../../shared/armour-visual.js';
-import { createArmourFx, isChannelMaterial, isGlassMaterial } from './armour-fx.js';
+import { createArmourFx, isChannelMaterial, isGlassMaterial, isGlowMaterial } from './armour-fx.js';
 
 const BODY_KEY = { humanoid_m: 'm', humanoid_f: 'f' };
 export function armourBundle(body, item) {
@@ -82,7 +82,7 @@ export function wearArmour(assets, inst, body, item) {
     host.parent.add(piece);
     piece.bind(new THREE.Skeleton(bones, piece.skeleton.boneInverses.map((m) => m.clone())), host.bindMatrix.clone());
     piece.frustumCulled = false; // bind-pose bounds do not cover every pose
-    piece.castShadow = !piece.name.endsWith('__fx') && !piece.name.endsWith('__glass');
+    piece.castShadow = !piece.name.endsWith('__fx') && !piece.name.endsWith('__glass') && !piece.name.endsWith('__glow');
     piece.userData.armour = item;
     piece.userData.lod = lodOf(piece.name);
     piece.visible = piece.userData.lod === 0;
@@ -104,8 +104,9 @@ export function wearArmour(assets, inst, body, item) {
   }
   const fxMeshes = meshes.filter((m) => isChannelMaterial(m.material?.name) || m.name.endsWith('__fx'));
   const glassMeshes = meshes.filter((m) => isGlassMaterial(m.material?.name) || m.name.endsWith('__glass'));
+  const glowMeshes = meshes.filter((m) => isGlowMaterial(m.material?.name) || m.name.endsWith('__glow'));
   const resolved = anchors.map((a) => ({ ...a, bone: inst.getObjectByName(a.joint) })).filter((a) => a.bone);
-  const fx = fxMeshes.length || resolved.length || glassMeshes.length ? createArmourFx(fxMeshes, resolved, glassMeshes) : null;
+  const fx = fxMeshes.length || resolved.length || glassMeshes.length || glowMeshes.length ? createArmourFx(fxMeshes, resolved, glassMeshes, glowMeshes) : null;
   let level = 0;
   const maxLod = Math.max(0, ...meshes.map((m) => m.userData.lod));
   const hasLods = maxLod > 0;
@@ -123,6 +124,8 @@ export function wearArmour(assets, inst, body, item) {
       if (next === level) return level;
       level = next;
       for (const m of meshes) {
+        // the glow ribbons carry the channels at every distance; the strips only up close
+        if (m.name.endsWith('__glow')) continue;
         const fxStrip = m.name.endsWith('__fx') || m.name.endsWith('__glass');
         m.visible = fxStrip ? level === 0 : m.userData.lod === level;
       }

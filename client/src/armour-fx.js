@@ -37,6 +37,22 @@ export function attachArmourFxEnv(e) { env = { ...env, ...e }; }
 
 export const CHANNEL_MATERIAL = 'CL_Channel';
 export const isChannelMaterial = (name) => typeof name === 'string' && /^[A-Z]{2}_Channel(\.\d+)?$/.test(name);
+export const isGlowMaterial = (name) => typeof name === 'string' && /^[A-Z]{2}_Glow(\.\d+)?$/.test(name);
+
+// Channel glow ribbons ("<module>__glow"): a soft additive band over each
+// channel whose NORMAL is the unit side vector. The shader widens it with
+// camera distance (in bind space, before skinning), so the lines still read
+// at 10-30 m where the 3 mm strips are under a pixel; up close it stays a
+// faint halo. Half-width in metres for a camera distance d:
+export function glowHalfWidth(d) {
+  const x = Number.isFinite(d) ? d : 6;
+  return Math.min(0.045, Math.max(0.006, 0.0035 + 0.0024 * x));
+}
+export function glowGain(d) {
+  const x = Number.isFinite(d) ? d : 6;
+  const t = Math.min(1, Math.max(0, (x - 3) / 11));
+  return 0.35 + 0.65 * t * t * (3 - 2 * t);
+}
 export const isGlassMaterial = (name) => typeof name === 'string' && /^[A-Z]{2}_Glass(\.\d+)?$/.test(name);
 export const familyOf = (name) => (typeof name === 'string' && /^(CL|VG|MY|SW)_/.test(name) ? name.slice(0, 2) : 'CL');
 
@@ -116,6 +132,30 @@ const CHANNEL_FRAG = `
   diffuseColor.rgb = col * k * (0.35 + 0.65 * across) * uBright;
 `;
 
+// channel flow, shared by the strips and the glow (k: the channel's brightness)
+const FLOW_K = CHANNEL_FRAG.split('float core =')[0];
+
+function glowMaterial(u, fam) {
+  const m = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  m.name = `${fam}_Glow`;
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vFlow;\nuniform float uHalf;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFlow = uv;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normal * uHalf;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vFlow;\nuniform float uTime, uLevel, uGain, uMotion, uSurge, uSurgeAge, uMode, uSustain, uBright, uGlow;\nuniform vec3 uBase, uHot;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+  ${FLOW_K}
+  float a = abs(vFlow.y * 2.0 - 1.0);
+  float soft = exp(-a * a * 3.2) * (1.0 - a);
+  diffuseColor.rgb = mix(uBase, uHot, clamp((k - 0.9) * 0.5, 0.0, 0.6)) * k * soft * uGlow;
+  diffuseColor.a = 1.0;`);
+  };
+  m.customProgramCacheKey = () => 'armour-glow-v1';
+  return m;
+}
+
 function channelMaterial(u, fam) {
   const m = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   m.name = `${fam}_Channel`;
@@ -191,7 +231,7 @@ const _v = new THREE.Vector3();
  * `glassMeshes`: bound translucent meshes. The family comes from the channel
  * (or glass) material name; Cinderlock when unknown.
  */
-export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
+export function createArmourFx(fxMeshes, anchors, glassMeshes = [], glowMeshes = []) {
   const famKey = familyOf(fxMeshes[0]?.material?.name || glassMeshes[0]?.material?.name || CHANNEL_MATERIAL);
   const fam = FAMILIES[famKey];
   const u = {
@@ -199,9 +239,12 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
     uMode: { value: fam.mode }, uSustain: { value: 0 }, uBright: { value: fam.gain },
     uBase: { value: new THREE.Vector3(...fam.base) }, uHot: { value: new THREE.Vector3(...fam.hot) },
     uGlassA: { value: new THREE.Vector3(...(fam.glass?.a || fam.base)) }, uGlassB: { value: new THREE.Vector3(...(fam.glass?.b || fam.hot)) },
+    uHalf: { value: glowHalfWidth(6) }, uGlow: { value: glowGain(6) },
   };
   const mat = channelMaterial(u, famKey);
   for (const m of fxMeshes) { m.userData.srcMaterial = m.material; m.material = mat; }
+  const glowMat = glowMeshes.length ? glowMaterial(u, famKey) : null;
+  for (const m of glowMeshes) { m.userData.srcMaterial = m.material; m.material = glowMat; m.castShadow = false; m.renderOrder = 3; }
   const glassMats = [];
   for (const m of glassMeshes) {
     m.userData.srcMaterial = m.material;
@@ -262,6 +305,8 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
       u.uTime.value = time; u.uMotion.value = motion; u.uLevel.value = level;
       u.uSurge.value = reduced ? 0 : surgeK; u.uSurgeAge.value = surgeAge; u.uSustain.value = sustain;
       u.uGain.value = q === 0 ? 0.8 : 1;
+      u.uHalf.value = glowHalfWidth(st.cameraDistance);
+      u.uGlow.value = glowGain(st.cameraDistance) * (q === 0 ? 0.7 : 1);
       const showHalo = q > 0;
       for (const h of halos) {
         h.visible = showHalo;
@@ -294,7 +339,9 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
       for (const e of particles) { e.removeFromParent(); e.geometry.dispose(); e.material.dispose(); }
       for (const m of fxMeshes) if (m.userData.srcMaterial) m.material = m.userData.srcMaterial;
       for (const m of glassMeshes) if (m.userData.srcMaterial) m.material = m.userData.srcMaterial;
+      for (const m of glowMeshes) if (m.userData.srcMaterial) m.material = m.userData.srcMaterial;
       for (const g of glassMats) g.dispose();
+      glowMat?.dispose();
       mat.dispose();
     },
   };
