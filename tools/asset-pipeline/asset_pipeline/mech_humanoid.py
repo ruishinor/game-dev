@@ -178,6 +178,9 @@ def stage_materials(asset, params):
     for k in ("basecolor", "orm", "normal", "emissive"):
         hm.write_rgb(out / f"body_{k}.png", maps[k])
         files.append(out / f"body_{k}.png")
+    if "basecolor_paint" in maps:
+        hm.write_rgb(out / "body_basecolor_paint.png", maps["basecolor_paint"])
+        files.append(out / "body_basecolor_paint.png")
     hm.write_rgb(out / "masks.png", maps["masks"])
     write_json(out / "report.json", rep)
     return files + [out / "masks.png", out / "report.json"], rep["texel_fractions"]
@@ -452,7 +455,14 @@ def stage_rig(asset, params):
     tri = {}
     tri["body"] = add_mesh("body", V, Fcore, N_body, UV, J, Wt, mat_body)
     tri["ring_vertical"] = add_mesh("ring_vertical", V, Fring, N_body, UV, J, Wt, mat_body)
-    tri["ring_horizontal"] = add_mesh("ring_horizontal", Vh, Fring, Nh, UV, J, Wt, mat_body)
+    # (the horizontal ring variant is no longer shipped: owner direction
+    # 2026-11-21, the vendor wears the guard's vertical ring)
+    if (m_dir / "body_basecolor_paint.png").exists():
+        # painted livery: same geometry, UVs and maps except the base colour
+        mat_paint = w.material("halo_body_paint", base=tex(m_dir / "body_basecolor_paint.png", "body_basecolor_paint"), orm=t_body["orm"],
+                               normal=t_body["normal"], emissive=t_body["emissive"], emissive_factor=params["optics_default"])
+        tri["body_paint"] = add_mesh("body_paint", V, Fcore, N_body, UV, J, Wt, mat_paint)
+        tri["ring_vertical_paint"] = add_mesh("ring_vertical_paint", V, Fring, N_body, UV, J, Wt, mat_paint)
     for set_name, groups in sets.items():
         wdir = asset.path("wardrobe")
         imgs = wd["sets"][set_name]["images"]

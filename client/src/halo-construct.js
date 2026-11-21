@@ -17,8 +17,10 @@ export const HALO_BUNDLE = 'halo_construct';
 const ROLES = {
   // Sanctum Wardens: open vertical ring, security uniform and warden stave.
   guard: { meshes: ['body', 'ring_vertical', 'security', 'stave'], idle: 'Guard_Watch_Loop', lookAt: false, height: 1.85 },
-  // Vendors: horizontal ring and the sash (owner reference); civilian posture.
-  vendor: { meshes: ['body', 'ring_horizontal', 'vendor'], idle: 'Idle_Loop', talk: 'Idle_Talking_Loop', lookAt: true, height: 1.8 },
+  // Vendors (owner direction 2026-11-21): the guard body and vertical ring in
+  // the painted livery (white shell, ebony mechanism) with a blue sash only;
+  // civilian posture.
+  vendor: { meshes: ['body_paint', 'ring_vertical_paint', 'vendor'], idle: 'Idle_Loop', talk: 'Idle_Talking_Loop', lookAt: true, height: 1.85 },
 };
 
 // Per-warden variation: equipment carried, optic tint and idle phase/tempo.
@@ -59,7 +61,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   // Per-instance optic tint: one cloned body material shared by body and ring.
   let bodyMat = null;
   inst.traverse((o) => {
-    if (!o.isMesh || !(o.name === 'body' || o.name.startsWith('ring_'))) return;
+    if (!o.isMesh || !(o.name === 'body' || o.name === 'body_paint' || o.name.startsWith('ring_'))) return;
     if (!bodyMat) {
       bodyMat = o.material.clone();
       bodyMat.isShared = false;

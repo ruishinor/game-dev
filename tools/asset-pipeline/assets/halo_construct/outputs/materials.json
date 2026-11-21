@@ -15,5 +15,18 @@
   "base_colour": "source projection atlas re-baked onto the new UVs; shell cavity shading partly divided out with AO (k=0.45); garments authored",
   "roughness_metallic": "inferred from material classes, not recovered",
   "emissive": "optics mask x source colour x 0.80"
+ },
+ "paint": {
+  "shell": [
+   0.93,
+   0.925,
+   0.91
+  ],
+  "ebony": [
+   0.075,
+   0.07,
+   0.068
+  ],
+  "method": "shell recoloured with its own relative shading; garments and mechanism ebony; optics kept"
  }
 }
