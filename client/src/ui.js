@@ -505,7 +505,7 @@ export class UI {
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
-    this.partyBtn = h('button', 'menubtn', 'Party [P]');
+    this.partyBtn = h('button', 'menubtn', 'Party [Shift+P]');
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
