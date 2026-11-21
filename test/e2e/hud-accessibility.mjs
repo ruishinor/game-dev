@@ -155,47 +155,35 @@ try{
  const ctrlDrag=async(from,to)=>{
    const origin=await slot(from).boundingBox();
    assert.ok(origin,'Source ability must have a visible slot');
-   // Capture the real browser target after the action bar re-renders.
-   await page.evaluate(()=>{
-     window.__hudPointerDown=null;
-     document.addEventListener('pointerdown',e=>{
-       window.__hudPointerDown={target:e.target.closest?.('.actionbar [data-slot-index]')?.dataset.slotIndex??null,
-         ctrl:e.ctrlKey,button:e.button,disabled:!!e.target.closest?.('button')?.disabled};
-     },{capture:true,once:true});
-   });
-   // The last pointerup reconstructs the slots. Under software Chromium the
-   // new button can have a bounding box before it enters the pointer hit tree.
-   // This bounded wait does not simulate input or bypass the drag operation.
-   const ready=await page.waitForFunction(({from})=>{
+   const source=await page.evaluate(({x,y,from})=>{
+     const node=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
+     const style=getComputedStyle(node);
+     const elements=document.elementsFromPoint(x,y).slice(0,8).map(el=>({tag:el.tagName,className:typeof el.className==='string'?el.className:null,slot:el.dataset?.slotIndex??null}));
+     const rect=node.getBoundingClientRect();
+     return {from,cls:node.className,hidden:node.hidden,disabled:node.disabled,
+       ability:node.dataset.ability??null,barMode:node.parentElement?.dataset.emptyMode??null,
+       style:{display:style.display,visibility:style.visibility,opacity:style.opacity,pointerEvents:style.pointerEvents},
+       rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},elements};
+   },{x:origin.x+origin.width/2,y:origin.y+origin.height/2,from});
+   // The preceding pointerup reconstructs the bar synchronously. Chromium's
+   // hit-test tree may lag that DOM update by a rendering frame, even though
+   // the relocated ability is visible, enabled and has pointer-events:auto.
+   // Wait for a genuinely pointer-hit-testable slot instead of using a fixed
+   // delay, dispatching synthetic pointer events or weakening drag assertions.
+   const start=Date.now();
+   const hitReady=await page.waitForFunction(({from})=>{
      const el=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
      if(!el)return false;
      const r=el.getBoundingClientRect();
-     return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)
-       ?.closest('.actionbar [data-slot-index]')===el;
+     return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.actionbar [data-slot-index]')===el;
    },{from},{timeout:4000,polling:50}).then(()=>true,()=>false);
-   if(!ready){
-     const details=await page.evaluate(from=>{
-       const el=document.querySelector('.actionbar [data-slot-index="'+from+'"]');
-       const css=el&&getComputedStyle(el);
-       return el?{className:el.className,hidden:el.hidden,disabled:el.disabled,
-         ability:el.dataset.ability,visibility:css.visibility,display:css.display,
-         pointerEvents:css.pointerEvents,mode:el.parentElement?.dataset.emptyMode}:null;
-     },from);
-     console.error('HUD_SOURCE_NOT_HIT_TESTABLE '+JSON.stringify({from,to,details}));
-   }
-   assert.equal(ready,true,'reconstructed hotbar source must become pointer-hit-testable');
+   assert.equal(hitReady,true,'Ctrl-drag source never became hit-testable: '+JSON.stringify(source));
+   const settled=await slot(from).boundingBox();
+   console.log('[hud] Ctrl-drag source '+from+' hit-tested after '+(Date.now()-start)+'ms');
    await page.keyboard.down('Control');
-   await page.mouse.move(origin.x+origin.width/2,origin.y+origin.height/2);
-   const hit=await page.evaluate(({x,y})=>{
-     const node=document.elementFromPoint(x,y)?.closest?.('.actionbar [data-slot-index]');
-     return {slot:node?.dataset.slotIndex??null,disabled:!!node?.disabled,ability:node?.dataset.ability??null};
-   },{x:origin.x+origin.width/2,y:origin.y+origin.height/2});
+   await page.mouse.move(settled.x+settled.width/2,settled.y+settled.height/2);
    await page.mouse.down();
-   const state=await page.locator('.actionbar').getAttribute('data-rearranging');
-   if(state!=='true')console.error('HUD_CTRL_DRAG_DIAGNOSTIC '+JSON.stringify({
-     from,to,hit,pointer:await page.evaluate(()=>window.__hudPointerDown),state
-   }));
-   assert.equal(state,'true','Ctrl-drag must initiate from the rebuilt ability slot');
+   assert.equal(await page.locator('.actionbar').getAttribute('data-rearranging'),'true');
    const dest=to===null?{x:Math.floor(page.viewportSize().width/2),y:Math.floor(page.viewportSize().height/2)}:await slot(to).boundingBox();
    assert.ok(dest,'Drop target must be reachable');
    await page.mouse.move(to===null?dest.x:dest.x+dest.width/2,to===null?dest.y:dest.y+dest.height/2,{steps:8});
