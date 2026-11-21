@@ -17,6 +17,22 @@
    "attribution": "Model created with Meshy (meshy.ai), CC BY 4.0 where applicable. Credited in docs/ASSETS.md.",
    "redistribution": "Owner-authorised for this repository and the game build; not an open licence. Do not reuse elsewhere without the owner.",
    "use": "Source geometry and texture of the Halo Construct NPC race (client/assets/halo_construct.glb)."
+  },
+  {
+   "id": "login_gate_owner",
+   "title": "Attunement sign-in gate key art",
+   "file": "client/login/gate-2560.webp",
+   "sha256": "565e21c4684b70842a93cc2dbbe4cc54ea749310a8a458bf6dd403483250786d",
+   "bytes": 220392,
+   "origin": "Owner-supplied 880x495 login-screen reference image (2026-11-20). Derivative: baked-in form, link and footer text painted out (OpenCV FSR/Telea inpainting), upscaled 4x locally with ESRGAN (UpscalerJS esrgan-thick), border-trimmed and exported as 2560x1440 WebP. The live HTML form is laid over the painted-out area.",
+   "owner_decisions": [
+    "2026-11-20: owner directed that this image replace the current login screen, upscaled where needed."
+   ],
+   "license": "owner-authorised; provider licence not independently verified",
+   "provider_terms": "Not recorded. The owner supplied the image; the tool or service that produced it was not stated.",
+   "attribution": "Attunement key art supplied by the owner. Credited in docs/ASSETS.md.",
+   "redistribution": "Owner-authorised for this repository and the game build, served publicly as the sign-in backdrop; not an open licence. Do not reuse elsewhere without the owner.",
+   "use": "Account sign-in gate backdrop (client/index.html, client/style.css)."
   }
  ]
 }

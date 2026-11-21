@@ -42,6 +42,7 @@ async function join(name, cls) {
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`));
   await page.goto(`http://127.0.0.1:${srv.port}/?q=2&qlock=1&nolock=1&vfxt=${slow}${phases ? '&vfxcapture=1' : ''}`);
+  await page.click('#gate-guest-link');
   await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   await page.click('#enter');

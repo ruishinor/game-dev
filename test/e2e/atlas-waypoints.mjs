@@ -16,7 +16,7 @@ try {
  page.setDefaultTimeout(60000);
  const errors=[];page.on('pageerror',err=>errors.push(err.message));
  await page.goto('http://127.0.0.1:'+srv.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
- await page.fill('#name','Atlas Tester');await page.click('#enter');
+ await page.click('#gate-guest-link');await page.fill('#name','Atlas Tester');await page.click('#enter');
  await liveFixturePlayer(page,srv,'Atlas Tester',60000);
  await page.locator('.map-open').click();
  const atlas=page.locator('.world-atlas');

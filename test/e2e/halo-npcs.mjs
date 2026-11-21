@@ -21,7 +21,7 @@ try {
   page.on('pageerror', (e) => report.pageErrors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') report.consoleErrors.push(m.text()); });
   await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
-  await page.fill('#name', 'Halo Witness');
+  await page.click('#gate-guest-link');await page.fill('#name', 'Halo Witness');
   await page.click('.classcard[data-cls="vanguard"]');
   await page.click('#enter');
   await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });

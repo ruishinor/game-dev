@@ -18,6 +18,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1`);
+  await page.click('#gate-guest-link');
   await page.fill('#name', 'Crown Surveyor');
   await page.click('.classcard[data-cls="keeper"]');
   await page.click('#enter');
