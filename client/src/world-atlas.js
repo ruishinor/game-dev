@@ -37,6 +37,16 @@ export function daylightDisplay(state){
  const minutes=((Math.floor(state.t*1440)+720)%1440+1440)%1440;
  return {minutes,phase:minutes>=360&&minutes<1080?'day':'night',preview:state.mode!=='live'};
 }
+// The server sends a global clock even in regions with static local lighting.
+// Deliberate Expanse lighting previews must remain labelled as previews.
+export function atlasClockDisplay(state,inExpanse){
+ const local=inExpanse?daylightDisplay(state?.daylight):null;
+ if(local?.preview)return local;
+ const wc=state?.worldClock;
+ if(Number.isFinite(wc)&&wc>=0&&wc<=10000)
+  return daylightDisplay({applied:true,t:wc/10000,mode:'live'});
+ return local;
+}
 export function formatMinutes(minutes,format='24'){
  const hours=Math.floor(minutes/60)%24,m=String(minutes%60).padStart(2,'0');
  return format==='12'?(hours%12||12)+':'+m+' '+(hours<12?'AM':'PM'):String(hours).padStart(2,'0')+':'+m;
@@ -180,7 +190,7 @@ export class WorldAtlas{
  this.clock=el('div','map-clock-row');this.day=el('span','map-day');this.game=el('span','map-game-clock');this.real=el('span','map-real-clock');this.clock.append(this.day,this.game,this.real);
  const section=el('section','map-settings');section.append(el('h3',null,'Map and clocks'));this.prefs={};
  for(const [key,label] of [['phase','Show day/night indicator'],['game','Show game clock'],['real','Show local real-time clock']]){
- const row=el('label'),check=el('input');check.type='checkbox';check.checked=key==='phase';
+ const row=el('label'),check=el('input');check.type='checkbox';check.checked=true;
  try{const stored=localStorage.getItem('attunement.map.'+key);if(stored!==null)check.checked=stored==='1';}catch{}
  this.prefs[key]=check;check.onchange=()=>{this.save(key,check.checked?'1':'0');this.clocks();};row.append(check,document.createTextNode(' '+label));section.append(row);}
  for(const key of ['gameFormat','realFormat']){const label=el('label',null,key==='gameFormat'?'Game clock format':'Real clock format'),select=el('select');for(const v of ['24','12']){const o=el('option',null,v+'-hour');o.value=v;select.append(o);}try{select.value=localStorage.getItem('attunement.map.'+key)==='12'?'12':'24';}catch{}this.prefs[key]=select;select.onchange=()=>{this.save(key,select.value);this.clocks();};label.append(select);section.append(label);}
@@ -278,14 +288,13 @@ export class WorldAtlas{
  }
 
  clocks(){
- const s=this.state?.daylight;
  const inExpanse=this.region?.area===SEVERANCE_POCKET;
- const d=inExpanse?daylightDisplay(s):null,n=new Date();
+ const d=atlasClockDisplay(this.state,inExpanse),n=new Date();
  // Use the authoritative cycle when present; a deliberate preview must say so.
  // A paired icon is intentionally neutral, not a claim about actual world time.
  this.day.hidden=!this.prefs.phase.checked;
  this.day.textContent=d?(d.phase==='day'?'☀ Day':'☾ Night'):'☀ / ☾';
- this.day.title=d?(d.preview?'Expanse lighting preview · ':'Expanse world time · ')+d.phase:inExpanse?'Expanse day/night cycle not active yet':'No active day/night cycle in this region';
+ this.day.title=d?(d.preview?'Expanse lighting preview · ':'World clock · ')+d.phase+(!inExpanse?' (local lighting is independent)':''):'World clock not received yet';
  this.day.setAttribute('aria-label',this.day.title);
  this.day.dataset.status=d?'active':'pending';
  this.game.hidden=!this.prefs.game.checked;
