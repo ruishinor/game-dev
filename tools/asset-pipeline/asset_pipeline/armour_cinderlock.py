@@ -847,7 +847,8 @@ def design_boots(body, base, m):
         rm[used] = np.arange(len(used))
         pol = {"joints": ["foot", "ball", "calf"], "side": s, "surfaces": ["shell_shoes", "body"]}
         F = rm[Fs]
-        P.append(sheet_piece(it, f"boot_{s}", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.0035, F, 2, 0.3), F, 0.0025, weights=pol))
+        # liner: the shoe shell lifted and smoothed hard (its laces and folds read as crumples)
+        P.append(sheet_piece(it, f"boot_{s}", m["under"], ad.relax(ms["V"][used] + ms["N"][used] * 0.004, F, 10, 0.5), F, 0.0025, weights=pol))
         cloud = ms["V"][side_v]
         origin = body.L["calf_" + s]
         zc = cloud[:, 2]
@@ -859,16 +860,16 @@ def design_boots(body, base, m):
         pb = {**pol, "joints": ["foot", "ball"]}
         # forefoot and midfoot shell; the heel and ankle have their own pieces,
         # so nothing folds over the shoe's ankle opening
-        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-136, 0.26), (136, 0.26), (138, 0.86), (98, 1.04), (-98, 1.04), (-138, 0.86)]), 0.007,
+        pl = Plate(it, f"upper_{s}", m["plate"], BM, D([(-116, 0.26), (116, 0.26), (120, 0.86), (92, 1.04), (-92, 1.04), (-120, 0.86)]), 0.007,
                    thickness=0.007, bevel=0.0026, res=0.012, weights=pb, weight_mode=["band", bax, 0.05], flow_origin=origin, flow_scale=0.6)
-        pl.groove(D([(-120, 0.36), (-120, 0.66)]), width=0.0034).groove(D([(120, 0.36), (120, 0.66)]), width=0.0034)
+        pl.groove(D([(-104, 0.36), (-104, 0.66)]), width=0.0034).groove(D([(104, 0.36), (104, 0.66)]), width=0.0034)
         P.append(pl.export())
         # wide angled instep strap with a buckle
-        pl = Plate(it, f"instep_{s}", m["trim"], BM, D([(-112, 0.46), (112, 0.34), (112, 0.5), (-112, 0.62)]), 0.0145, dome=0.002,
-                   thickness=0.005, bevel=0.0016, res=0.008, weights=pb, weight_mode=["band", bax, 0.05])
+        pl = Plate(it, f"instep_{s}", m["trim"], BM, D([(-100, 0.45), (100, 0.37), (100, 0.44), (-100, 0.52)]), 0.0135, dome=0.0015,
+                   thickness=0.004, bevel=0.0014, res=0.008, weights=pb, weight_mode=["band", bax, 0.05])
         P.append(pl.export())
-        bp0, bp1 = BM.point(deg(70 * sg), 0.4, 0.021), BM.point(deg(70 * sg), 0.5, 0.021)
-        P.append(bar(it, f"instep_buckle_{s}", m["metal"], [(bp0, bp1, BM.normal(deg(70 * sg), 0.45, 0.021), 0.02, 0.0045)], weights=pb, weight_mode=["rigid"]))
+        bp0, bp1 = BM.point(deg(72 * sg), 0.4, 0.019), BM.point(deg(72 * sg), 0.48, 0.019)
+        P.append(bar(it, f"instep_buckle_{s}", m["metal"], [(bp0, bp1, BM.normal(deg(72 * sg), 0.44, 0.019), 0.016, 0.004)], weights=pb, weight_mode=["rigid"]))
         # armoured toe cap with a glowing bumper strip wrapping its lower perimeter
         tc = [(-104, 0.74), (104, 0.74), (100, 0.94), (64, 1.07), (-64, 1.07), (-100, 0.94)]
         pl = Plate(it, f"toe_cap_{s}", m["plate"], BM, D(tc), 0.0145, dome=0.002,

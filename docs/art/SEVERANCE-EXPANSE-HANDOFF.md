@@ -39,7 +39,7 @@ Branch `feat/severance-expanse-landscape`, PR #139. This is the broad-strokes pa
   - Gate Drones on the ceremonial approach.
 - They spawn with the first arrival and persist.
 - Long patrols leash to the point where they left their route (`ai.js anchorOf`) and resume their route there. Static enemies are unchanged.
-- **Severance Soldier squads (2026-11-21).** Squads of a sergeant and two soldiers in Cinderlock Regalia walk the Severed Pass, the Causeway and the gate basin. Followers hold a wedge slot behind their sergeant (`ai.js tickFollower`), walk the route themselves when the sergeant is engaged or down, and the whole squad answers an attack on any member. Routes, composition and slots stay server-only; clients see only the soldiers they meet. Presentation and the armour: [Cinderlock Regalia and the Severance Soldiers](CINDERLOCK-SOLDIERS-HANDOFF.md).
+- **Severance Soldier squads (2026-11-21).** Five squads of three in Cinderlock Regalia roam long loops through the Expanse (Far West, Causeway, Severed Pass, Amber Flats, Gate Basin). A soldier walks point; the flank soldier and the sergeant hold formation slots behind it (`ai.js tickFollower`), the sergeant at the rear. In a fight the whole squad answers an attack on any member, and the sergeant hangs back while its soldiers fight. The squads drop no items (owner decision). Routes, composition and slots stay server-only; clients see only the soldiers they meet. Presentation and the armour: [Cinderlock Regalia and the Severance Soldiers](CINDERLOCK-SOLDIERS-HANDOFF.md).
 
 ### 4. Silent Foundry
 

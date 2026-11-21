@@ -16,7 +16,7 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
     { item: 'conductive_membrane', chance: 0.42 },
   ]),
   warden: freezeDrops([{ item: 'wardstone_shard', chance: 0.12 }]),
-  // No item drops decided yet for the Severance squads (owner decision).
+  // Owner decision (2026-11-21): the Severance squads drop no items.
   severance_soldier: freezeDrops([]),
 });
 export const SALVAGE = Object.freeze({skitter:'mire_fibre',sentinel:'sentinel_alloy',turret_drone:'sentinel_alloy',warden:'resonance_fragment'});

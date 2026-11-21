@@ -338,8 +338,8 @@
     "vanguard_field_set_boots": 3000
    },
    "lods": [
-    0.5,
-    0.25
+    0.45,
+    0.2
    ],
    "samples": 16
   },

@@ -97,17 +97,24 @@ try {
     game.openExpanse();
     game.aiHold = true;
     const stand = { x: E.x - 70, z: E.z - 60 };
+    // the point soldier faces the camera; the flank soldier and the sergeant take their own formation slots behind it
     const lead = game.enemies.find((e) => e.severancePatrol && e.type === 'severance_soldier' && !e.lead);
     const squad = [lead, ...game.enemies.filter((e) => e.lead === lead.id)];
-    const wedge = (d) => squad.forEach((e, i) => {
-      e.x = stand.x + [0, 1.9, -1.9][i]; e.z = stand.z + d + [0, 2.1, 2.1][i];
+    const wedge = (d) => squad.forEach((e) => {
+      const side = e.slot ? e.slot.side : 0, back = e.slot ? e.slot.back : 0;
+      e.x = stand.x - side; e.z = stand.z + d - back;   // yaw PI: forward is -z, right is -x
       e.home = { x: e.x, z: e.z }; e.post = { ...e.home }; e.wanderAt = Infinity; e.state = 'idle'; e.threat.clear(); e.yaw = Math.PI; e.hp = e.maxHp;
     });
     wedge(6);
-    await shot('18-severance-squad-close', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { settle: 5000 });
+    // the armour bundle loads on first sight; wait for it before the first view
+    await page.waitForFunction(() => window.__attune.state().assets?.loaded?.includes?.('armour_vanguard_set_m') ?? true, null, { polling: 500 }).catch(() => {});
+    await shot('18-severance-squad-close', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { settle: 12000 });
     await shot('18b-severance-squad-close-night', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { tod: 'night', settle: 3000 });
     wedge(16);
     await shot('18c-severance-squad-mid', stand, N, { yaw: N, pitch: 0.08, dist: 3.2 }, { settle: 3000 });
+    wedge(24);
+    await shot('18c2-severance-squad-24m', stand, N, { yaw: N, pitch: 0.06, dist: 3.2 }, { settle: 3000 });
+    await shot('18c3-severance-squad-24m-night', stand, N, { yaw: N, pitch: 0.06, dist: 3.2 }, { tod: 'night', settle: 3000 });
     wedge(44);
     await shot('18d-severance-squad-far', stand, N, { yaw: N, pitch: 0.06, dist: 3.2 }, { settle: 3000 });
     if (!only.length || only.some((o) => '18e-severance-kinetic-discharge'.startsWith(o))) {

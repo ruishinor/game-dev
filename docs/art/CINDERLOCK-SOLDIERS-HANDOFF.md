@@ -74,24 +74,22 @@ Compared with the previous build, edge strain now passes everywhere (the old gau
 ## Severance Soldiers
 
 * **Server** (`server/sim/severance-patrols.js`, `ai.js`):
-  * Three squads, each a sergeant and two soldiers, on the Severed Pass, the Causeway and the gate basin.
-  * Followers hold a wedge slot in the sergeant's heading frame. They walk the route themselves when the sergeant is engaged, down or more than 40 m away.
-  * The whole squad engages when any member is attacked (`social`), and the Kinetic Discharge first-cast times are staggered.
-  * Routes, slots and links never reach clients.
+  * **Five squads roam long loops** through the Expanse: Far West, Causeway, Severed Pass, Amber Flats and Gate Basin, each loop 340–694 m. The loops were path-planned on a 1 m grid with a 3 m formation corridor clear of colliders, the outpost and the arrival.
+  * Each squad is three strong. A soldier walks point on the route; a second soldier and the **sergeant follow, the sergeant at the rear** (formation slots in the point's heading frame). Followers walk the route themselves when the point is engaged, down or more than 40 m away.
+  * The whole squad engages when any member is attacked (`social`).
+  * **The sergeant hangs back** about 4 m from the fight while any squadmate is still fighting, then closes in.
+  * Sergeants carry a public `rg` flag, so Tab targeting ranks them after their soldiers even when the squad is approached from behind.
+  * Kinetic Discharge first-cast times are staggered.
+  * Routes, slots and squad links never reach clients.
 * **Enemy** (`shared/content.js` `severance_soldier`): a melee brawler with a telegraphed point-blank Kinetic Discharge. Numbers are first-pass tuning for the owner to adjust after play.
+* **Loot:** owner decision, 2026-11-21: the squads drop no items. The empty entry in `server/sim/loot-tables.js` is that decision. The publication preflight flags any change to that file by path; this one is exempt by the owner.
 * **Client:**
   * The `severance_soldier` look wears all six modules over a dark undersuit (shown only until the armour loads). Each soldier gets a stable face and frame from its entity id.
-  * Distance LODs switch at 14 m and 32 m with hysteresis. Channel strips show on LOD0 only; the far levels use the HDR emissive map.
-  * The armour channels charge through the wind-up, and the release plays the Vanguard Discharge animation plus a crimson recipe in the shared combat VFX engine (`vfx/combat.js` `kinetic_discharge`).
+  * Distance LODs switch at 14 m and 32 m with hysteresis.
+  * **Channel glow:** a soft additive ribbon over every channel (`<module>__glow`) widens and brightens with camera distance: half-width 6 mm up close, about 2.8 cm at 10 m (about 3 px), 4.5 cm at most. The widening happens in bind space before skinning, so the lines still read at 10–30 m, where the 3 mm strips are under a pixel. Up close it stays a faint halo over the animated strips. The ribbons share the strips' flow animation and surge, and stay visible at every LOD.
+  * During the wind-up the armour channels charge; on release the Vanguard Discharge animation plays with a crimson recipe in the shared combat VFX engine (`vfx/combat.js` `kinetic_discharge`). The recipe is also inspectable in the VFX lab: `client/vfx-lab.html?fx=area:kinetic_discharge`. It is deterministic across seeks and raises no page errors.
   * The Codex has a soldier entry.
-* **Captures:** `node tools/severance-expanse-capture.mjs <dir> 18` covers squad close, mid and far, night, and the discharge (wind-up and burst). Review material stays out of Git.
-* **In game (software GL, 1280×720, 2026-11-21):**
-  * The squads hold their wedge, each soldier has its own face, and the full set is worn on both frames.
-  * The discharge reads clearly: the shared wind-up dome and ground telegraph, the crimson burst, and the Discharge animation.
-  * No console or page errors.
-  * The first close shot was taken before the 5.5 MB bundle had loaded, so it shows the undersuit fallback; the later shots show the armour.
-  * **Finding: the channels barely read at gameplay distance.** Only the reactor and the anchor halos show at 8–10 m. The strips are about 3 mm wide, under a pixel at that range, and the renderer has no bloom pass. Options: a wider additive glow ribbon per channel built by the pipeline and driven by the armour FX shader, distance-scaled halos, or a renderer-wide bloom pass (a cross-game performance decision).
-  * Frame cost in that view: 550–640 draw calls, 0.83–0.96 M triangles. Not a GPU figure.
+* **Captures:** `node tools/severance-expanse-capture.mjs <dir> 18` covers squad close, mid, 24 m (day and night) and far, and the discharge (wind-up and burst). `node tools/vfx-lab-capture.mjs <dir> kinetic_discharge` covers the recipe on its own. Review material stays out of Git.
 
 ## Tests
 
