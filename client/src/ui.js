@@ -613,8 +613,31 @@ export class UI {
     this.inventoryOpacityButton.addEventListener('keydown',e=>{
       if(e.key==='Enter'||e.key===' ')e.stopPropagation();
     });
+    // Keep search focus while filtering a densely paged inventory.
+    this.inventoryQuery='';
+    const inventorySearchRow=h('div','inventory-search-row');
+    this.inventorySearch=h('input','inventory-search');
+    this.inventorySearch.type='search';
+    this.inventorySearch.placeholder='Search…';
+    this.inventorySearch.autocomplete='off';
+    this.inventorySearch.spellcheck=false;
+    this.inventorySearch.maxLength=80;
+    this.inventorySearch.setAttribute('aria-label','Search carried items');
+    this.inventorySearch.addEventListener('input',()=>{
+      this.inventoryQuery=this.inventorySearch.value;
+      this.inventorySelection=null;this.inventoryPage=0;
+      if(!this.inventoryPanel.hidden)renderInventory(this);
+    });
+    this.inventorySearch.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){
+        e.preventDefault();e.stopPropagation();
+        this.inventorySearch.value='';this.inventoryQuery='';this.inventoryPage=0;
+        renderInventory(this);
+      }
+    });
+    inventorySearchRow.append(this.inventorySearch);
     this.inventoryBody = h('div','inventory-body');
-    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,this.inventoryBody);
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,inventorySearchRow,this.inventoryBody);
     root.append(this.inventoryPanel);
     this.setInventoryOpacity(this.inventoryOpacity);
     // On smaller screens, either overlapping window can be brought forward
@@ -624,6 +647,7 @@ export class UI {
       if(panel)root.classList.toggle('inventory-front',panel===this.inventoryPanel);
     });
     this.inventoryFilter = 'all';
+    this.inventoryPage=0;
     this.inventorySelection = this.loadoutSelection = null;
     this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
     this.loadoutTab = 'character';

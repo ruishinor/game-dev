@@ -162,7 +162,7 @@ try{
  await panel.getByRole('button',{name:'Close vendor'}).click();
  await page.waitForFunction(()=>!window.__attune.state().you.vendor);
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
- await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
+ await inventory.getByRole('button',{name:'Gear',exact:true}).click();
  await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
  // The rod has its own main-weapon slot: equipping it keeps the emitter in the
  // Ranged slot, and keeps the emitter (the weapon in use) active with the rod stowed.
@@ -174,7 +174,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyZ');
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.activeWeapon==='weapon'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
  assert.equal(p.char.equipped.ranged,'field_emitter','drawing the rod keeps the emitter equipped');
- await page.keyboard.press('KeyI');await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
+ await page.keyboard.press('KeyI');await inventory.getByRole('button',{name:'Gear',exact:true}).click();
  // Check the actual equipped runtime geometry, not just a call to an effect mock.
  await page.waitForFunction(()=>{const rod=window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod');return [0,1].every(i=>{const g=rod?.getObjectByName('RodCorona'+i),s=g?.children[0];return g?.visible&&s?.visible&&s.children[0]?.material.opacity>=.45;});});
  // Installed items leave carried inventory; use the real equipment slot.
