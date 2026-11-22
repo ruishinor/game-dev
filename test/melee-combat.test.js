@@ -31,7 +31,8 @@ test('manual melee chains 3 distinct variants, then resets after its window',()=
  for(let i=1;i<=3;i++){
    assert.equal(requestMelee(g,p,'light').ok,true);
    assert.equal(g.events.filter(x=>x.e==='melee_start').at(-1).style,String(i));
-   advance(g,p,220);advance(g,p,470);
+   const windup=220+(i-1)*70,recovery=690+(i-1)*80;
+   advance(g,p,windup);advance(g,p,recovery-windup);
  }
  advance(g,p,1800);
  assert.equal(requestMelee(g,p,'light').ok,true);
