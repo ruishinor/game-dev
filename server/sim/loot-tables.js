@@ -6,9 +6,6 @@ export const ENEMY_ITEM_DROPS = Object.freeze({
   sinter_grazer: freezeDrops([]),
   quarantine_custodian: freezeDrops([]),
   faultstalker: freezeDrops([{ item: 'sinter_laminate', chance: 0.45 }]),
-  // Bog Stalkers have no bespoke equipment table yet; elite variants retain
-  // the established server-side elite uncommon roll and resource rewards.
-  fen_stalker: freezeDrops([]),
   skitter: freezeDrops([]),
   sentinel: freezeDrops([
     { item: 'adrenal_shunt', chance: 0.35 },
