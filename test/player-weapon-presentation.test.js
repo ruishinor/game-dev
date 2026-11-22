@@ -48,6 +48,24 @@ test('player Longpoint falls back to an actual spine-mounted rifle on unreachabl
  assert.equal(releases,1,'one and only one instance release');
 });
 
+test('player Longpoint with incompatible authored grip falls back to visible back-carry',()=>{
+ const {model,spine}=rig();
+ const prop=new THREE.Group();
+ const grip=new THREE.Object3D();grip.name='GripAnchor';prop.add(grip);
+ // SupportAnchor intentionally missing: the GLB is incomplete, not the game.
+ const pose=createLongpointPresentation(THREE,model,prop,()=>{},
+  {stowBone:spine,stowTransform:{position:new THREE.Vector3(0,.22,-.30),quaternion:new THREE.Quaternion()}});
+ assert.ok(pose,'retains valid fallback even with malformed asset');
+ assert.equal(pose.inspect().mode,'stowed');
+ assert.equal(pose.inspect().reason,'missing-grip-anchors');
+ assert.equal(prop.parent,spine);
+ assert.equal(prop.visible,true);
+ assert.equal(pose.fire(),false);
+ pose.update({dead:true});
+ assert.equal(prop.visible,false);
+ pose.dispose();
+});
+
 test('dual electrical rod is actually aligned with the off-hand grip',()=>{
  const right=new THREE.Bone(),left=new THREE.Bone(),root=new THREE.Group();
  right.name='hand_r';left.name='hand_l';
