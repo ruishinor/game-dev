@@ -22,7 +22,7 @@ export class LiveAegis {
       // Visual envelope, not attack range. Stay inside the sampler's opaque time window.
       const radius = shieldEnvelope(ent.model.height);
       const sample = aegisSampler({ variant: 'base', radius, duration: 120, reducedMotion });
-      const effect = createArtEffect(this.THREE, t => sample(t).map(o => ({...o, opacity: o.opacity * 0.62})));
+      const effect = createArtEffect(this.THREE, t => sample(t).map(o => ({...o, opacity: o.opacity * (o.id === 'dome' ? 0.28 : 0.46)})));
       effect.group.name = 'live-aegis:' + ent.id;
       ent.holder.add(effect.group);
       field = { effect, reducedMotion, parent: ent.holder };
