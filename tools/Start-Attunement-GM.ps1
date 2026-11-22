@@ -34,25 +34,29 @@ if ($characters.Count -ne 1) {
 if ($characters[0].accountId -cne $account.id) {
   throw 'The selected character is not linked to that registered account. GM will remain disabled.'
 }
-$npm = Get-Command npm -ErrorAction SilentlyContinue
+# Prefer npm.cmd on Windows to avoid execution-policy failures from npm.ps1.
+$npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if (-not $npm) { $npm = Get-Command npm -ErrorAction SilentlyContinue }
 if (-not $npm) { throw 'npm is not installed or not on PATH.' }
 Write-Host "Verified GM account '$($account.handle)' owns character '$($characters[0].name)'."
 Write-Host 'Start the game at http://127.0.0.1:8080 after npm reports the server listening.'
 Write-Host 'Sign in through Account Login (not Guest). Use /gm status and /gm kill in chat.'
 
 $oldIds = [Environment]::GetEnvironmentVariable('ATTUNEMENT_GM_ACCOUNT_IDS', 'Process')
+$oldDataFile = [Environment]::GetEnvironmentVariable('DATA_FILE', 'Process')
 try {
-  # Set only for the current shell and npm child; never persist in a config file.
+  # The verified save and the save actually opened by the server must match.
+  # Both settings are process-scoped and restored when the server exits.
   $env:ATTUNEMENT_GM_ACCOUNT_IDS = $account.id
+  $env:DATA_FILE = [System.IO.Path]::GetFullPath($DataFile)
   Push-Location $repoRoot
   try {
-    & npm start
+    & $npm.Source start
     if ($LASTEXITCODE -ne 0) { throw "Attunement server exited with code $LASTEXITCODE." }
   } finally { Pop-Location }
 } finally {
-  if ($null -eq $oldIds) {
-    Remove-Item Env:\ATTUNEMENT_GM_ACCOUNT_IDS -ErrorAction SilentlyContinue
-  } else {
-    $env:ATTUNEMENT_GM_ACCOUNT_IDS = $oldIds
-  }
+  if ($null -eq $oldIds) { Remove-Item Env:\ATTUNEMENT_GM_ACCOUNT_IDS -ErrorAction SilentlyContinue }
+  else { $env:ATTUNEMENT_GM_ACCOUNT_IDS = $oldIds }
+  if ($null -eq $oldDataFile) { Remove-Item Env:\DATA_FILE -ErrorAction SilentlyContinue }
+  else { $env:DATA_FILE = $oldDataFile }
 }
