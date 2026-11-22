@@ -144,7 +144,13 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('Escape');
  if(await inventory.isVisible())await inventory.getByRole('button',{name:'Close inventory'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyC');
- await page.getByRole('button',{name:'[1] Rending Arc',exact:true}).click();
+ // Profession abilities are deliberately collapsed in the compact Character view.
+ // Open the real disclosure before exercising its Codex action.
+ const professionAbilities=page.locator('details.character-secondary').filter({hasText:'Profession abilities'});
+ await professionAbilities.locator('summary').waitFor({state:'visible'});
+ if(!await professionAbilities.evaluate(node=>node.open))await professionAbilities.locator('summary').click();
+ assert.ok(await professionAbilities.getByRole('button',{name:'[1] Rending Arc',exact:true}).isVisible());
+ await professionAbilities.getByRole('button',{name:'[1] Rending Arc',exact:true}).click();
  await codex.getByRole('heading',{name:'Rending Arc',exact:true}).waitFor({state:'visible'});
  assert.match(await codex.locator('.codex-facts').innerText(),/Kinetic Vanguard · key 1/);
  assert.deepEqual(errors,[]);
