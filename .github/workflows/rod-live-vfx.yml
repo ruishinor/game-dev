@@ -14,6 +14,10 @@ permissions:
   contents: read
 jobs:
   rod-live:
+    strategy:
+      fail-fast: false
+      matrix:
+        class: [vanguard, symbiotech, surveyor, keeper]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -25,9 +29,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node test/e2e/rod-live-vfx.mjs
+        env:
+          ATTUNEMENT_ROD_TEST_CLASS: ${{ matrix.class }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: rod-live-evidence
+          name: rod-live-evidence-${{ matrix.class }}
           path: rod-live-evidence/
           if-no-files-found: ignore

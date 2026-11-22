@@ -169,6 +169,27 @@ try{
  await page.locator('.player-context').getByRole('button',{name:'Equip',exact:true}).click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('StowedElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.sheet.equipped.ranged==='field_emitter'&&s.sheet.activeWeapon==='ranged'&&s.ents.find(e=>e.id===s.myId)?.row?.er===3&&/^spine_0/.test(rod?.parent?.name||'')&&rod.visible;});
  assert.equal(p.char.equipped.weapon,'electrical_combat_rod');assert.equal(p.char.equipped.ranged,'field_emitter');
+ // Geometry gate: a bone parent alone is not enough; the previous stow mount
+ // passed this check while floating beyond the shoulders and near the ground.
+ const backFit=await page.evaluate(()=>{
+   const rod=window.__attune.gfx.scene.getObjectByName('StowedElectricalCombatRod');
+   if(!rod)return null;
+   let node=rod.parent;
+   while(node&&!(node.getObjectByName('upperarm_r')&&node.getObjectByName('upperarm_l')))node=node.parent;
+   if(!node)return null;
+   const r=node.getObjectByName('upperarm_r'),l=node.getObjectByName('upperarm_l');
+   const shoulder=r.getWorldPosition(r.position.clone()).add(l.getWorldPosition(l.position.clone())).multiplyScalar(.5);
+   const center=rod.getWorldPosition(rod.position.clone());
+   const p=rod.getObjectByName('RodRightTip'),q=rod.getObjectByName('RodLeftTip');
+   if(!p||!q)return null;
+   const a=p.getWorldPosition(p.position.clone()),b=q.getWorldPosition(q.position.clone());
+   return {distance:center.distanceTo(shoulder),top:Math.max(a.y,b.y)-shoulder.y,
+     bottom:shoulder.y-Math.min(a.y,b.y),span:a.distanceTo(b),
+     transverse:Math.hypot(a.x-b.x,a.z-b.z)};
+ });
+ assert.ok(backFit&&backFit.distance<.53&&backFit.top<.55&&backFit.bottom<1.06
+   &&backFit.span>1.4&&backFit.transverse>.55,
+   'stowed rod is centered close to the animated back, diagonal and clear of the floor: '+JSON.stringify(backFit));
  // Draw the rod with the default weapon-switch hotkey.
  await inventory.getByRole('button',{name:'Close inventory'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyZ');

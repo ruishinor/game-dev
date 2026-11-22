@@ -8,6 +8,7 @@ import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
+import { makeDepthsRecoveryCache } from './depths-cache.js';
 import { severanceLink } from './severance-gate.js';
 
 const std = (color, o = {}) =>
@@ -926,14 +927,7 @@ export const MODEL_FACTORIES = {
   severance_return:()=>riftModel('severance_return'),
   foundry_return:()=>riftModel('foundry_return'),
   null_breach:()=>riftModel('null_breach'),
-  foundry_cache:()=>{
-    const group=new THREE.Group();group.name='foundry:recovery-cache';
-    const metal=std(0x3a3d3f,{metal:.7}),trim=std(0xb2793a,{metal:.5}),lamp=lit(0x4fd1c5);
-    group.add(part(BOX,metal,1.8,.72,1.0,0,.4,0),part(BOX,trim,1.86,.2,1.04,0,.86,0));
-    for(const x of [-.66,.66])group.add(part(BOX,trim,.14,.86,1.05,x,.44,0));
-    group.add(part(BOX,lamp,.5,.1,.05,0,.66,.53));
-    return {group,height:1,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
-  },
+  foundry_cache:()=>makeDepthsRecoveryCache(THREE),
   // The gate's architecture and effects belong to the scene landmark; this
   // interaction anchor forwards the replicated phase to it.
   severance_gate:()=>({group:new THREE.Group(),height:3,radius:1.2,hover:0,update(dt,st){severanceLink.controller?.setPhase(st.gatePhase);}}),

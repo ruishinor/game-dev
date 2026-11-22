@@ -39,20 +39,32 @@ try{
    window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:10,face:Math.PI/2});
    if(software)window.__attune.pause(true);
  },SOFTWARE_GL);
- await page.locator('#view').focus();await page.keyboard.press('KeyF');
- const phase=await page.evaluate(()=>{
-   const observed=[];
-   return new Promise(resolve=>{
-     const started=performance.now();
-     const poll=()=>{
-       const phase=window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf;
-       if(phase&&observed.at(-1)!==phase)observed.push(phase);
-       if(phase==='unstable'||performance.now()-started>25000)resolve(observed);
-       else requestAnimationFrame(poll);
-     };
-     poll();
-   });
+ // Arm the client-phase observer BEFORE the input. The previous observer
+ // started after the browser/keyboard round trip, so under software rendering
+ // the short opening phase could elapse before its first sample. Do not waive
+ // the opening assertion: record it reliably from actual client snapshots.
+ await page.evaluate(()=>{
+   const watch={phases:[],last:null};
+   const poll=()=>{
+     const phase=window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf;
+     if(phase&&phase!==watch.last){watch.phases.push(phase);watch.last=phase;}
+   };
+   watch.interval=setInterval(poll,25);
+   poll();
+   window.__riftPhaseWatch=watch;
  });
+ await page.locator('#view').focus();await page.keyboard.press('KeyF');
+ const phase=await page.evaluate(()=>new Promise(resolve=>{
+   const watch=window.__riftPhaseWatch,started=performance.now();
+   const poll=()=>{
+     if(watch.phases.includes('unstable')||performance.now()-started>25000){
+       clearInterval(watch.interval);
+       delete window.__riftPhaseWatch;
+       resolve(watch.phases);
+     }else setTimeout(poll,25);
+   };
+   poll();
+ }));
  assert.ok(phase.includes('opening'),'Expected opening after indexer activation, observed '+phase.join(', '));
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='unstable');
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:interference-membrane')));
