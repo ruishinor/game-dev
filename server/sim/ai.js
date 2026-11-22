@@ -443,7 +443,8 @@ export function tickEnemy(game, e, dt) {
       const windup=Math.max(390,Math.min(610,Math.round(def.attack.interval*.42)));
       e.basicWindup={targetId:target.id,yaw:e.yaw,until:game.time+windup};
       // Existing event/render paths already support bounded enemy warnings.
-      game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming strike',x:target.x,z:target.z,r:Math.min(2.2,def.attack.range),ms:windup,g:1});
+      // This is a frontal weapon swing, NOT a ground AoE; don't draw a false hazard circle.
+      game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming melee strike',x:e.x,z:e.z,r:Math.min(2.2,def.attack.range),ms:windup,g:0});
     }else{
       e.nextAttack=game.time+def.attack.interval;
       dealDamage(game,e,target,def.attack.dmg,'auto',{kind:def.attack.kind});
