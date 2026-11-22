@@ -1926,6 +1926,7 @@ export class UI {
     // An acknowledgement updates the indicators without rebuilding the
     // control the player is currently hovering or focusing.
     if (previous && previous.inventoryRev === sheet.inventoryRev &&
+      JSON.stringify(previous.buildPreview) === JSON.stringify(sheet.buildPreview) &&
       Object.keys(sheet).every(key => key === 'unseenItems' || JSON.stringify(sheet[key]) === JSON.stringify(previous[key]))) {
       this.updateItemIndicators();
       return;
