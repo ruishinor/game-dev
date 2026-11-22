@@ -106,6 +106,17 @@ test('six Lumenfen landmark compositions are distinct, anchored and collision-al
  fen.update(.05,0,{...LUMENFEN.arrival});
  assert.ok(wheel.rotation.x>start,'mechanism moves during active simulation');
 });
+test('Lumenfen fauna have six articulated legs and animated drifter fins',()=>{
+ const lantern=makeFenLantern(T),stalker=makeFenStalker(T);
+ assert.equal(lantern.group.children.filter(c=>c.name==='lumenfen:lantern:fin').length,6);
+ assert.equal(stalker.group.children.filter(c=>c.name==='lumenfen:stalker:leg').length,6);
+ assert.ok(stalker.group.getObjectByName('lumenfen:stalker:anatomical-torso'));
+ stalker.update(.016,{t:2,speed:3});
+ assert.ok(stalker.group.children.filter(c=>c.name==='lumenfen:stalker:leg').some(c=>Math.abs(c.rotation.x)>.01));
+ lantern.update(.016,{t:2});
+ assert.ok(lantern.group.children.filter(c=>c.name==='lumenfen:lantern:fin').some(c=>Math.abs(c.rotation.z)>.01));
+ lantern.dispose();stalker.dispose();
+});
 test('living rootglass and wetland visuals have independent geometry and bounded scene state',()=>{
  const scene=new T.Scene();scene.fog=new T.Fog(0x555555,40,180);
  const sky=new T.Group(),ambient=new T.HemisphereLight(),sun=new T.DirectionalLight();
