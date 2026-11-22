@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import {makeGame,makeChar,enemyOf,isolate,place} from './helpers.js';
 import {requestMelee} from '../server/sim/melee.js';
 import {tickPlayerCombat,dealDamage} from '../server/sim/combat.js';
-import {CLASSES} from '../shared/content.js';
+import {clearCombatSpot} from './cover-setup.js';
 
 function setup(){
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard'));
  const e=enemyOf(g,'skitter');isolate(g,e);g.aiHold=true;
- place(p,e.x+1.5,e.z);p.target=e.id;
+ const pos=clearCombatSpot(e,0,1.65);place(p,pos.x,pos.z);p.target=e.id;
  p.yaw=Math.atan2(e.x-p.x,e.z-p.z);
  return {g,p,e};
 }
@@ -43,7 +43,7 @@ test('missed contact, target disappearance and stale/rear attacks cannot produce
  place(p,e.x+15,e.z);
  advance(g,p,440);assert.equal(e.hp,before);
  assert.ok(g.events.some(x=>x.e==='melee_miss'));
- advance(g,p,800);place(p,e.x+1.5,e.z);
+ advance(g,p,800);const pos=clearCombatSpot(e,0,1.65);place(p,pos.x,pos.z);
  p.yaw=Math.atan2(p.x-e.x,p.z-e.z);
  assert.equal(requestMelee(g,p,'light').ok,false,'rear-attack forbidden');
  p.yaw=Math.atan2(e.x-p.x,e.z-p.z);
