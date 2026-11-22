@@ -489,7 +489,11 @@ try {
     assetFailures.length === 0,
     assetFailures.length ? `failed: ${assetFailures.join(', ')}`
       : `bundles loaded: A [${sa.assets.loaded.join(', ')}], B [${sb.assets.loaded.join(', ')}]`);
-  check('14. the world is built from the kits with no missing pieces', sa.world.kits === true && sa.world.fallbacks === 0, JSON.stringify(sa.world));
+  // An intentionally procedural scene is valid; only unresolved asset-piece
+  // substitutions count as failures, irrespective of which source was used.
+  check('14. the world assembles without unresolved asset-piece failures',
+    sa.world.fallbacks === 0 && sb.world.fallbacks === 0,
+    `A: ${JSON.stringify(sa.world)}; B: ${JSON.stringify(sb.world)}`);
   check('14. the Annex cache is omitted from the Reach scene', !sa.ents.some(e => e.c === 'annex_cache') &&
     await A.page.evaluate(() => !window.__attune.gfx.scene.getObjectByName('annex:recovery-cache')));
   const aByB = await drawn(B, sa.myId);
