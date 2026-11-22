@@ -54,7 +54,9 @@ try{
    assert.equal(hit.mv,String(stage));
    assert.ok(enemy.hp<previous,'target health reduced');
    previous=enemy.hp;
-   await page.screenshot({path:'melee-live-evidence/'+stage+'-rod-strike.png'});
+   // Software WebGL screenshot encoding may consume several seconds: capture
+   // only after completing the time-sensitive chain, not between inputs.
+   if(stage===3)await page.screenshot({path:'melee-live-evidence/03-finisher.png'});
    if(stage<3)await page.waitForTimeout(510);
  }
  assert.ok((await liveFixturePlayer(page,server,'Melee Tester'))===p);
