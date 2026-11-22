@@ -115,7 +115,7 @@ Asset: `tools/asset-pipeline/assets/armour_vanguard_set` → `client/assets/armo
 
 Body penetration concentrates where rigid plates cross deforming joints in sprint and punch frames; the shoe and hand shells sit under the boot and glove liners. The gloves' strain on the male body exceeds the limit.
 
-**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (115–121k triangles per full set; loaded only when a piece is worn), tangents for the detail normal map, and the owner's art review against the concept sheet. The other three class sets follow the same route.
+**Remaining** (tracked in the table below as phase 4b): validation tuning to the phase-1 limits (currently `strict: false`), a distance LOD (137k–203k triangles per full set across the four families; loaded only when a piece is worn) and tangents for the detail normal map. **Owner visual acceptance of all four families (Cinderlock, Vesperglass, Strataweave, Mycelial): granted 2026-11-21** (#211).
 
 ## Rare class armour collection (owner specification, 2026-11-20)
 
@@ -134,7 +134,21 @@ Four class sets, 16 pieces, 16 blueprints, 16 recipes, 12 cumulative effects. Ow
 
 **Acquisition.** Each piece has a personal, non-consumed blueprint and a class-locked fabrication recipe. Rewards, eligibility and rarity are server-authoritative; exact unrevealed source-to-outcome rules and probabilities are intentionally omitted from public documentation. Some blueprint acquisition sources are not yet implemented and those items are not currently obtainable through their intended gameplay route. Avoid implying complete availability until a tested end-to-end source is shipped.
 
-**Status.** Mechanics, blueprints, recipes and drops: integrated and tested (`test/rare-class-sets.test.js`, `test/class-armour-acquisition.test.js`). 3D: Cinderlock rendered and worn; Mycelial, Vesperglass and Strataweave in production on the same route. Inventory art: rendered from the 3D models where they exist, otherwise the vector portrait; blueprint art: a schematic of the piece's own portrait until the 3D blueprint render replaces it.
+**Status.** Mechanics, blueprints, recipes and drops: integrated and tested (`test/rare-class-sets.test.js`, `test/class-armour-acquisition.test.js`). 3D: all four families are built, fitted to both bodies, skinned, published and worn in game (`client/assets/armour_{vanguard,keeper,surveyor,symbiotech}_set_{m,f}.glb`; mapping in `shared/armour-visual.js`). Inventory art: Cycles renders of each real piece; blueprint art: a Freestyle schematic render of the same piece on a gridded holographic sheet (`blueprint_<item>`), so every icon depicts implemented geometry.
+
+### The other three families (same route as Cinderlock)
+
+Designs live in `tools/asset-pipeline/asset_pipeline/armour_families.py` on the Cinderlock maps, with the shared part kit in `armour_parts.py` (swept tubes, surface straps, oriented boxes, faceted gems, lens rings, authored FX strips). The hard-surface build adds a translucent layer (`<item>__glass`, family `XX_Glass` material, alpha blend) and pattern bakes (textile weave, organic cells, hazard bands).
+
+| Family | Construction (what makes it readable without colour) | Energy language (runtime, `client/src/armour-fx.js`) |
+|---|---|---|
+| **Vesperglass Array** (Keeper) | Porcelain shells on titanium frames; a protected hexagonal optical core in the cuirass; diamond prism windows in slim thigh and shin shells; diamond knee cops with gems; vambrace prism panel and wrist projection lens; porcelain finger plates | ice-blue lines in phase, iridescent prism glass; Harmonic Shield / Hinge Field / Lattice Relay casts hold a sustained resonance |
+| **Strataweave Fieldkit** (Surveyor) | Abrasion textile vest and trousers (weave bake) under bolted ochre plates; cross harness, belt with pouches, flaps, buckles and a survey canister; sternum instrument housing with a recessed amber readout; articulated thigh plates, hazard-banded knee guards, strapped shin plates; treaded boots | instrument readouts, scan bar and beacon blink; Fault Scan / Field Rig / Core Bore / Controlled Blast answer as calibration pulses |
+| **Mycelial Accord** (Symbiotech) | Cultivated ivory carapace (cell bake) over jade tissue, deliberately asymmetric (leaf-shell pauldron with a membrane fin on the left, cupped shell on the right); rib ridges and flank membrane; vertebral spine plates; seed-node vessel; tendrils spiralling round chest, forearms and legs; culture vessel on each forearm; leaf-scale thigh plates; grown boot cuffs | peristaltic circulation along branching capillaries, breathing membranes and spores; Mending Graft / Neural Lash / Shared Pulse / Overgrowth Surge answer with a brief bloom |
+
+All four families share the engine rules of the combat VFX (budget, intensity setting, reduced motion); a four-piece set of one family lights a restrained set signature. Nothing raises global bloom or particle counts.
+
+**Cinderlock reconciliation** against the original concept sheet (supplied after the build): kept the graphite plates with crimson conduits, hexagonal reactor frame, raised collar, heavy pauldrons, articulated finger plates, chevron greaves and treaded anchor soles; restored the conduit down each middle phalanx that the sheet shows. Nothing else regressed.
 
 ## Roadmap to complete
 
@@ -144,7 +158,7 @@ Four class sets, 16 pieces, 16 blueprints, 16 recipes, 12 cumulative effects. Ow
 | 2 | **Owner visual review and polish** of the three vests: silhouette, material wear, decal/stencil detail, emissive strength; worn screenshots in the Sanctum under game lighting; adjust per feedback | Owner art sign-off; side-by-side with the vector art |
 | 3 | **Look coverage**: check every look's shells (hood, helmet, coat, harness gear in `looks.js`, signature gear) against each vest; per-look exceptions (hide or refit) where gear collides | Validation extended to each look's gear; no visible clipping in the appearance capture tool |
 | 4 | **Class armour sets** (SYS-01, PR #119): gloves, greaves and boots × four class sets (Bastion Circuit, Verdant Conduit, Hinge Array, Faultline Harness). First original vector inventory art for each piece, then 3D through this route with new lofts (forearm/hand over the `hands` mesh, shin, foot over the shoe shell) | Each piece worn and rendered like the chests; set identity readable at a distance; `av` generalised to a per-slot allowlist |
-| 4b | **Cinderlock Regalia** (Vanguard set, this change): four slots × two bodies on the hard-surface route, emissive channel VFX, shells hidden under worn pieces, multi-slot `av`, rendered icons. Next: validation to the phase-1 limits, LOD/tangents, owner art review, then the other three class sets | Worn by wearer and observer in all four slots with FX (browser e2e); icons load; owner art sign-off against the concept sheet |
+| 4b | **Cinderlock Regalia** (Vanguard set, this change): four slots × two bodies on the hard-surface route, emissive channel VFX, shells hidden under worn pieces, multi-slot `av`, rendered icons. All four families merged (#156, #211); owner art sign-off granted 2026-11-21. Next: validation to the phase-1 limits, LOD/tangents | Worn by wearer and observer in all four slots with FX (browser e2e); icons load; owner art sign-off (done) |
 | 5 | **Distance LOD** (a decimated variant per item) and a **texture budget** check with many armoured characters on screen | Frame time and memory within the low-spec preset; no pop at the LOD switch |
 | 6 | **Rendered icons for other item families** (devices, implants, glyphs, weapons via ART-01): reuse the icon stage on their 3D models where those exist; the vector art stays the fallback | Every item with a finished model has a rendered icon; the rest keep vector art |
 

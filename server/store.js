@@ -1,14 +1,18 @@
 // Character persistence: a single JSON file written atomically.
+import {sanitizeVeinReady} from './sim/severance-veins.js';
 // Characters are owned by whoever holds their secret token; only a hash of
 // the token is stored.
 
-import {sanitizeVeinReady} from './sim/severance-veins.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
+import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, XP_TO_NEXT, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { resolveLoadout } from '../shared/build.js';
+import { publicWeaponVisual } from '../shared/weapon-visual.js';
+import { publicArmourVisual } from '../shared/armour-visual.js';
+import { publicSocialVisual } from '../shared/social-visual.js';
+import { WORLD, zoneAt, inDisconnectedRegion } from '../shared/world.js';
 import { surveyState, brineStage } from '../shared/survey.js';
 import { sanitizeMaterials } from '../shared/crafting.js';
 import {sanitizeCraftingDisciplines} from '../shared/crafting-disciplines.js';
@@ -16,7 +20,7 @@ import { appearanceString } from '../shared/appearance.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
-import { migrateWeaponSlots, sanitizeActiveWeapon } from '../shared/weapons.js';
+import { migrateWeaponSlots, sanitizeActiveWeapon, electricalRodActive } from '../shared/weapons.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
 import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
@@ -50,6 +54,8 @@ function sanitize(raw) {
   if (!accountId && typeof raw.tokenHash !== 'string') return null;
   if (!validName(raw.name) || !Object.hasOwn(CLASSES, raw.cls)) return null;
   const int = (v, lo, hi, d) => (Number.isInteger(v) && v >= lo && v <= hi ? v : d);
+  const level = int(raw.level, 1, MAX_LEVEL, 1);
+  const maxSavedXp = level === MAX_LEVEL ? 0 : XP_TO_NEXT[level] - 1;
   const c = {
     id: raw.id,
     tokenHash: accountId ? null : raw.tokenHash,
@@ -61,8 +67,9 @@ function sanitize(raw) {
     // Cosmetic body/race/hair; saves made before it existed keep their look's body.
     appearance: appearanceString(raw.appearance, validLook(raw.cls, raw.look) ? raw.look : defaultLook(raw.cls)),
     initiationSeen:raw.initiationSeen===true,
-    level: int(raw.level, 1, MAX_LEVEL, 1),
-    xp: int(raw.xp, 0, 1e6, 0),
+    level,
+    // Preserve valid legacy XP; fail closed on impossible progress and capped XP.
+    xp: int(raw.xp, 0, maxSavedXp, 0),
     inventory: Array.isArray(raw.inventory) ? [...new Set(raw.inventory.filter((i) => Object.hasOwn(ITEMS, i)))] : [],
     materials: sanitizeMaterials(raw.materials),
     goods: sanitizeGoods(raw.goods),
@@ -255,7 +262,21 @@ export class CharacterStore {
 
   listCharacters(account) {
     return [...this.chars.values()].filter((c) => c.accountId === account.id)
-      .map((c) => ({ id: c.id, name: c.name, cls: c.cls, look: c.look, appearance: c.appearance, level: c.level, lastSeen: c.lastSeen }))
+      .map((c) => ({
+        id:c.id, name:c.name, cls:c.cls, look:c.look, appearance:c.appearance,
+        level:c.level, xp:c.xp, credits:c.credits, lastSeen:c.lastSeen,
+        initiationSeen:c.initiationSeen,
+        // Only this authenticated account's characters are projected.
+        // Use the same allowlisted appearance metadata as the actual world entity.
+        wv:publicWeaponVisual(c),
+        // Match the world entity's cosmetic override precedence.
+        av:publicSocialVisual(c)?null:publicArmourVisual(c),
+        sv:publicSocialVisual(c),
+        er:c.equipped?.weapon==='electrical_combat_rod'
+          &&c.inventory.includes('electrical_combat_rod')?(!electricalRodActive(c)?3:c.electricalRodMode==='dual'?2:1):null,
+        location:!c.initiationSeen?'Character Initiation':!c.pos||inDisconnectedRegion(c.pos.x,c.pos.z,4)
+          ?zoneAt(WORLD.spawn.x,WORLD.spawn.z):zoneAt(c.pos.x,c.pos.z),
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 

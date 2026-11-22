@@ -1,0 +1,38 @@
+{
+ "m": {
+  "triangles": {
+   "keeper_field_set_chest": 60784,
+   "keeper_field_set_chest__fx": 348,
+   "keeper_field_set_chest__glass": 2382,
+   "keeper_field_set_gloves": 40482,
+   "keeper_field_set_gloves__fx": 192,
+   "keeper_field_set_gloves__glass": 1132,
+   "keeper_field_set_greaves": 32010,
+   "keeper_field_set_greaves__fx": 312,
+   "keeper_field_set_greaves__glass": 3252,
+   "keeper_field_set_boots": 29194,
+   "keeper_field_set_boots__fx": 552,
+   "keeper_field_set_boots__glass": 1200
+  },
+  "bytes": 28603332,
+  "joints": 67
+ },
+ "f": {
+  "triangles": {
+   "keeper_field_set_chest": 58636,
+   "keeper_field_set_chest__fx": 348,
+   "keeper_field_set_chest__glass": 2312,
+   "keeper_field_set_gloves": 39202,
+   "keeper_field_set_gloves__fx": 192,
+   "keeper_field_set_gloves__glass": 1110,
+   "keeper_field_set_greaves": 34046,
+   "keeper_field_set_greaves__fx": 312,
+   "keeper_field_set_greaves__glass": 3256,
+   "keeper_field_set_boots": 28836,
+   "keeper_field_set_boots__fx": 432,
+   "keeper_field_set_boots__glass": 824
+  },
+  "bytes": 28124296,
+  "joints": 67
+ }
+}

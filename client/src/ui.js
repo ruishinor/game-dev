@@ -425,6 +425,7 @@ export class UI {
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
         const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
         if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/gm(?:\s|$)/i.test(text)){this.a.gm(text.slice(3).trim());this.resetChatTarget();return;}
         if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
           this.selectChatChannel(command[1].toLowerCase()==='p'?'party':'vicinity');
@@ -528,7 +529,7 @@ export class UI {
     this.buildBtn.addEventListener('click', () => this.toggleBuild());
     this.inventoryBtn = h('button', 'menubtn', 'Inventory [I]');
     this.inventoryBtn.addEventListener('click', () => this.toggleInventory());
-    this.partyBtn = h('button', 'menubtn', 'Party [P]');
+    this.partyBtn = h('button', 'menubtn', 'Party [Shift+P]');
     this.partyBtn.addEventListener('click', () => this.toggleParty());
     this.settingsBtn = h('button', 'menubtn', 'Settings [O]');
     this.settingsBtn.addEventListener('click', () => this.toggleSettings());
@@ -763,7 +764,7 @@ export class UI {
       fxLabel, this.fxSelect, calmLabel,
       h('p', 'muted', 'Enemy warnings stay fully visible at every setting.'),
       plateLabel,this.loot.settings(),this.radio.settings());
-    const resetWindows=h('button',null,'Reset all window layouts');
+    const resetWindows=h('button','reset-window-layouts','Reset all window layouts');
     resetWindows.type='button';resetWindows.addEventListener('click',()=>{for(const layout of this.windowLayouts)layout.reset();});
     this.settingsPanel.append(resetWindows);
     const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;
@@ -2145,15 +2146,35 @@ export class UI {
     const sig = keys.join(',')+'|'+(barrier?`${barrier.remaining}/${barrier.capacity}/${Math.ceil(barrier.ms/1000)}`:'');
     if (el._sig === sig) return;
     el._sig = sig;
-    el.replaceChildren(...keys.filter((k) => BUFFS[k]).map((k) => {
+    // Reuse chips while snapshot details change, notably Aegis's countdown.
+    // Replacing focused/hovered nodes every second would interrupt inspection.
+    const effects=[...new Set(keys.filter(k=>Object.hasOwn(BUFFS,k)))];
+    const present=new Map([...el.children].map(chip=>[chip.dataset.effect,chip]));
+    for(const [k,chip] of present)if(!effects.includes(k)){
+      if(this.tipFor===chip){this.tooltip.hidden=true;this.tipFor=null;}
+      chip.remove();
+    }
+    effects.forEach((k,index)=>{
       const text=k==='shield'&&barrier?`Aegis ${barrier.remaining}/${barrier.capacity} · ${Math.ceil(barrier.ms/1000)}s`:BUFFS[k][0];
-      const chip=h('span',`chip buff-chip ${BUFFS[k][1]}`);
-      chip.dataset.effect=k;chip.setAttribute('role','img');chip.setAttribute('aria-label',text);chip.title=text;
-      if(k==='shield')chip.title+=' · Damage absorption; finite capacity, not a solid collision wall.';
-      const pict=h('span','buff-icon');pict.innerHTML=BUFF_ICONS[k]??ICONS.guard;
-      chip.append(pict,h('span','buff-label',text));
-      return chip;
-    }));
+      let chip=present.get(k);
+      if(!chip){
+        chip=h('span',`chip buff-chip ${BUFFS[k][1]}`);
+        chip.dataset.effect=k;chip.setAttribute('role','img');chip.tabIndex=0;
+        const pict=h('span','buff-icon');pict.innerHTML=BUFF_ICONS[k]??ICONS.guard;pict.setAttribute('aria-hidden','true');
+        chip.append(pict,h('span','buff-label'));
+        this.hover(chip,()=>[
+          h('div','tip-title',chip.getAttribute('aria-label')),
+          ...(k==='shield'?[h('div','tip-body','Damage absorption; finite capacity, not a solid collision wall.')]:[])
+        ]);
+      }
+      chip.setAttribute('aria-label',text);
+      chip.querySelector('.buff-label').textContent=text;
+      if(el.children[index]!==chip)el.insertBefore(chip,el.children[index]??null);
+      if(this.tipFor===chip&&!this.tooltip.hidden){
+        const title=this.tooltip.querySelector('.tip-title');
+        if(title)title.textContent=text;
+      }
+    });
   }
 
   /**
@@ -2432,6 +2453,7 @@ export class UI {
     else if(st.nearObject?.meta.c==='annex_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Null Chamber cache');
     else if(st.nearObject?.meta.c==='foundry_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Depths recovery cache');
     else if(st.nearObject?.meta.c==='foundry_return')set(this.interact,'text',lock?'Return portal · disengage first':'[F] Return to the Severance Gate');
+    else if(st.nearObject?.meta.c==='null_breach')set(this.interact,'text',lock?'Null Breach · disengage first':'[F] Enter the Null Breach');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_') || ['sanctum_fabricator','initiation_terminal'].includes(st.nearObject.meta.c)) ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);

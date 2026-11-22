@@ -1,5 +1,10 @@
 # ATTUNEMENT — Development roadmap and delivery register
 
+## Cinematic Character Selection and World Entry — 2026-11-20
+
+See [the complete owner-directed cinematic selection delivery roadmap](art/CINEMATIC-CHARACTER-SELECTION-ROADMAP.md) and [the original composition blueprint](art/concepts/cinematic-character-selection.svg). An isolated branch replaces the rejected beige/gray selection treatment with full-viewport cold material architecture and a live **persisted** gameplay model. Reuses authoritative account/character ownership, six-slot limit, character creation/initiation, deletion and world-entry contracts. Account-only projection now includes supported equipment visuals and true character-owned metadata. Focused validation is added; runtime screenshots, GPU profiling, full race/equipment visual acceptance, and PR checks must be verified before production promotion. Keep Expanse/Silent Foundry owner-isolated.
+
+
 Owner direction, 2026-11-18. Baseline: main after audit PR #68. Read [Implementation audit](IMPLEMENTATION-AUDIT-2026-11-18.md), [Game concept](Attunement-Game-Concept.md), [AGENTS.md](../AGENTS.md), and [playtest validation](PLAYTEST-VALIDATION.md). This is the public, high-level execution register explicitly requested by the owner; private encounter scripts, undiscovered triggers, exact loot odds, unreleased assets and other sensitive production information are excluded. Status is evidence-based: **present** means source implementation exists, **partial** means unfinished/limited, **outstanding** means not complete, **branch only** means not integrated, **deferred** specifies sequencing, and **verify** requires current integrated evidence.
 
 ## 1. Objective and authority
@@ -73,7 +78,7 @@ Milestone B exit: player can understand and use rewards, construct a differentia
 | ART-07 | Review prior 15 deliverables and 19 visual reviews | Partial; 56 vector item portraits rendered for review, final in-context review pending | See art/ASSET-PRODUCTION-PLAN.md and art/reviews; verify actual in-game usage, not just file presence; reference archive remains incomplete. |
 | ART-08 | Asset sourcing and licensing feasibility | Investigated; AO direct reuse blocked absent permission | See section 7. Prefer legally reusable donors and original adaptation; no ripped models. |
 
-| ART-09 | Halo Construct NPC race (wardens, vendor) | Implemented on `feat/halo-construct-npcs`: four outward-facing Sanctum Wardens and the quartermaster as the Halo vendor, from the accepted source via the asset pipeline's `imported-mechanical-humanoid` route; technical validation recorded in art/HALO-CONSTRUCT-NPC.md. Owner visual acceptance granted; integrated CI pending | Preserve accepted anatomy, open ring and optics; distinct security/vendor wardrobes; rigid shells, flexible couplings; exactly four outward wardens outside the perimeter; vendor services unchanged; actual GLB in game. Further roles (artisan/crafting with the original utility kit, researcher, mediator) are separate decisions. |
+| ART-09 | Halo Construct NPC race (wardens, vendor) | Merged (#122, browser e2e in CI): four outward-facing Sanctum Wardens and the quartermaster as the Halo vendor, from the accepted source via the asset pipeline's `imported-mechanical-humanoid` route; technical validation recorded in art/HALO-CONSTRUCT-NPC.md. 2026-11-21: the vendor moves to the guard body and vertical ring, painted white and ebony, with a blue sash only (the horizontal-ring vendor read as deformed) | Preserve accepted anatomy, open ring and optics; distinct security/vendor wardrobes; rigid shells, flexible couplings; exactly four outward wardens outside the perimeter; vendor services unchanged; actual GLB in game. Further roles (artisan/crafting with the original utility kit, researcher, mediator) are separate decisions. |
 | ART-10 | Rendered 3D armour from the vector inventory art | Phase 1 on `feat/armour-3d-assets`: the three chest items as body-fitted, skinned 3D armour for both bodies, worn in game via server-derived `av` metadata, with Cycles-rendered inventory icons, through the asset pipeline's `body-fitted-armour` route ([record and roadmap](art/ARMOUR-3D.md)). Owner visual acceptance pending | Fitted to the real bodies and their worn-under shells, torso-borne skinning, clearance and strain validated over the clip set; icons from the shipped GLB; server-authoritative visibility; then phases 2-6: visual polish, look coverage, class armour sets (SYS-01), LOD/budgets, rendered icons for other item families. |
 
 ## 6. Milestone D — Expansion (deferred until coherence gate)
@@ -261,7 +266,7 @@ This checkpoint supersedes stale branch-only labels above without rewriting hist
 | SYS-01, EQ-02/08 | [#119](https://github.com/ruishinor/game-dev/pull/119) reconciled at `97630ab`, merged `08442f6` after 12 successful reported checks. Distinct class set slots and cumulative effects, owned-loadout validation, save migration and vector catalogue portraits. | Acquisition, recipe/blueprint art and fabrication, balancing, actual class-set 3D pieces and per-slot visual projection; other EQ-02 slots remain outstanding. |
 | SYS-04, EQ-07 | [#142](https://github.com/ruishinor/game-dev/pull/142) merged `b96e010` after 13 successful reported checks (including Rift on retry); legacy #89 closed. Two coats, vendor preview, independent owned cosmetics and restoration of combat armour presentation. | Human review of visual fit and expanded wardrobe. |
 | CB-01, ART-01 | [#135](https://github.com/ruishinor/game-dev/pull/135) merged `46bfd7d`, selective recovery of #92's Longpoint recoil, traces and hand motion. | Remaining generic weapon families, dual independent slots, weapon-specific actions, full visual review. Do not merge the old stacked #92 wholesale. |
-| ART-10 | [#136](https://github.com/ruishinor/game-dev/pull/136) merged `7af55f0`; three existing fitted chest models and rendered icons, with browser test repairs [#140](https://github.com/ruishinor/game-dev/pull/140) and [#141](https://github.com/ruishinor/game-dev/pull/141) merged. Cinderlock Regalia (the Vanguard class set: chest, gloves, greaves, boots) on the hard-surface route with emissive channel VFX, multi-slot worn armour and rendered icons on `feat/cinderlock-regalia` (phase 4b). See [armour record](art/ARMOUR-3D.md). | Real worn visual quality, look coverage, the other three class sets, Cinderlock validation tuning and owner art review, LOD/budgets and other rendered icons. |
+| ART-10 | [#136](https://github.com/ruishinor/game-dev/pull/136) merged `7af55f0`; three existing fitted chest models and rendered icons, with browser test repairs [#140](https://github.com/ruishinor/game-dev/pull/140) and [#141](https://github.com/ruishinor/game-dev/pull/141) merged. All four rare class families (Cinderlock, Vesperglass, Strataweave, Mycelial) in game as fitted 3D armour with family VFX, rendered icons and blueprint schematics (#156, #211); owner visual acceptance granted 2026-11-21. See [armour record](art/ARMOUR-3D.md). | Validation tuning to the phase-1 limits, distance LOD and triangle budgets, tangents, look coverage. |
 | SYS-05/06, WORLD-01/02 | #115 and #131 preserve current multi-chamber Annex and Expanse entry. #137 is local presentation preview only. [#139](https://github.com/ruishinor/game-dev/pull/139) remains an unfinished draft. | New Expanse client geometry, minimap, kit HTTP allowlist/capture migration, four known failed old-pocket tests, full browser integration and visual review before promotion. Outpost, patrols, resources and Foundry remain separate. |
 | EQ-09, DEL-01 | #93 remains non-ancestral/blocked: recover modular weapon assembly independently. #91 and #96 are historical consolidation branches with overlapping already-recovered behavior and still-unmerged dependencies. | The original #91 traversal scope is implemented and expanded in main; verify remaining deltas before retirement. Recover modular assembly and sustained fabrication independently before retiring #96. Do not use reconciliation to enter Claude's reserved world track. |
 
@@ -407,3 +412,113 @@ Checkpoint: canonical `main` at `1d246346` following #173. This is a **historica
 
 **Every scheduled execution:** verify canonical main/AGENTS/open heads/current CI/jobs, concurrent work and current contents; implement and test before reporting; use expected SHA updates; no force push, no waived defects, no edits to Claude's reserved environment. Store publication-sensitive decisions only in access-controlled storage.
 
+
+
+## 12. Live delivery reconciliation — 2026-11-21 (replaces historical current-state labels)
+
+**Pinned audit baseline:** canonical \`main\` \`0a5c1697139cf0832f6091cc3fc777412f39ed57\` (merged [#200](https://github.com/ruishinor/game-dev/pull/200)). This is a timestamped observation, **not** a merge authorization or a claim that main will remain unchanged. The 2026-11-18 audit and checkpoints above remain historical evidence. Each new integration owner must refresh main, PR heads, applicable root/nested AGENTS instructions, checks, individual jobs, review decisions, and ownership at invocation. All status labels below refer to the inspected heads, not future branches.
+
+### 12.1 Confirmed main capabilities and explicit limits
+
+| Capability | Evidence / disposition | Remaining acceptance |
+|---|---|---|
+| Existing playable journeys, travel and return, companions, crafting, vendors, quests and character persistence | Previously integrated gameplay systems; preserve current player and server contracts | Verify complete fresh acquisition → quest → combat → loot → fabrication → equip/repair → reconnect journeys; not production certified |
+| Spindle Field Light | [#183](https://github.com/ruishinor/game-dev/pull/183) merged \`df26829a\` | In-world lighting/visual judgment remains independent |
+| Reach cartography and pipeline integrity | [#187](https://github.com/ruishinor/game-dev/pull/187) merged \`8b733e15\`; [#192](https://github.com/ruishinor/game-dev/pull/192) merged \`7d8dc681\`; [#188](https://github.com/ruishinor/game-dev/pull/188) merged \`1489de0a\` | Original reference fidelity, legibility and viewport checks are not established by merge |
+| Atlas captions, keyboard pan and saved waypoints | [#199](https://github.com/ruishinor/game-dev/pull/199) merged \`4949994a\`; [#201](https://github.com/ruishinor/game-dev/pull/201) merged \`90706b13\`, superseding unmerged closed [#191](https://github.com/ruishinor/game-dev/pull/191) | Verify actual keyboard input, search, markers, collision avoidance, saved markers and desktop presentation |
+| HUD action layout and Ctrl-drag | [#181](https://github.com/ruishinor/game-dev/pull/181) merged; [#200](https://github.com/ruishinor/game-dev/pull/200) merged \`0a5c1697\` with a targeted post-rebuild hit-test correction | Test reliability improved; do not infer all integrated combat/drag scenarios are fixed or that owner-rejected art was approved |
+| Player/party status, combat cadence, class armour foundations, social coats, Longpoint and rod visual systems | Main contains recovery work from [#169](https://github.com/ruishinor/game-dev/pull/169), [#170](https://github.com/ruishinor/game-dev/pull/170), [#172](https://github.com/ruishinor/game-dev/pull/172), [#119](https://github.com/ruishinor/game-dev/pull/119), [#142](https://github.com/ruishinor/game-dev/pull/142), [#156](https://github.com/ruishinor/game-dev/pull/156)–[#158](https://github.com/ruishinor/game-dev/pull/158) | Owner visual acceptance, other class meshes, production-scale LOD/GPU, source/animation fidelity and full economy/progression still incomplete |
+| Expanded Expanse and Foundry foundation | [#139](https://github.com/ruishinor/game-dev/pull/139) merged \`7b58fc53\`; further environment is *reserved*, not globally authorized | Separate Claude-owned world/environment and creature handoffs; do not treat merge as final environment acceptance |
+
+### 12.2 Active PRs: exact inspected-head gates
+
+Counts below represent **workflow conclusions** on the stated SHA. They are not job-level proof of a safe current-main merge, and passing only some workflows is insufficient.
+
+| PR / current head | Status and evidence | Integration ownership / next gate |
+|---|---|---|
+| [#193](https://github.com/ruishinor/game-dev/pull/193) \`747e4df7\` | Open, 17 workflows successful / 2 failed (HUD accessibility, Rift); recovery of [#178](https://github.com/ruishinor/game-dev/pull/178). Based on older main. | Integration owner: diagnose actual job logs, preserve every working weapon, rod VFX, class action, sit and save behavior; correct and verify merged-current result. Do not wholesale merge #178. |
+| [#202](https://github.com/ruishinor/game-dev/pull/202) \`d8d13527\` | Open, four inspected workflows successful; test-only current-main recovery of skitter targeting and companion action-bar locator. | Integrator: check *all applicable* workflows/jobs, source assertions, real enemy/companion behavior and expected head; merge if independently defensible; not a waiver of unrelated integration failures. |
+| [#180](https://github.com/ruishinor/game-dev/pull/180) \`f22e057b\` | Open, 15 successful / 2 failed (character roster and integrated playtest). Owner-approved scene, **human visual verification pending**. | Preserve sharp accepted Gate artwork, central character composition, working New Character/Inspect/Settings/world entry, real form, full-screen desktop layout without unnecessary scroll; repair failures and verify separately. |
+| [#198](https://github.com/ruishinor/game-dev/pull/198) \`6dd0b8f1\` | **Draft**, 4 successful / 15 failed; recover Claude's sign-in from draft [#190](https://github.com/ruishinor/game-dev/pull/190), dependent on #180. | Integrate *only after* selection contract stabilizes; preserve existing cinematic source, Cinzel, actual account registration, guest entry and all unrelated UI. #190's integration ancestry must not be transplanted wholesale. |
+| [#197](https://github.com/ruishinor/game-dev/pull/197) \`fe75a4b9\` | Open, 16 successful / 2 failed (party HUD, integrated playtest). Independent owner GM preview candidate. | Integrator: prefer current-main-based, server-allowlisted account UUID authorization, default disabled, bounded commands and audited persistence; avoid inheriting old level/region changes from [#194](https://github.com/ruishinor/game-dev/pull/194). Privileged commands and secrets stay server-side. |
+| [#196](https://github.com/ruishinor/game-dev/pull/196) \`3716cd15\` | **Draft**, 10 successful / 1 failed (integrated playtest). Level-15 infrastructure only, not player-accepted 1–15 content. | Progression owner: recover independently from [#165](https://github.com/ruishinor/game-dev/pull/165), protect existing level-5 saves and class/attunement semantics; deliver real progression, quest/encounter suitability, migration and browser journey before declaring complete. |
+| [#195](https://github.com/ruishinor/game-dev/pull/195) \`85e6b966\` | Open, 7 successful / 2 failed (vendor and integrated playtest). Isolated asset preview \`.glb\` filter and unit regression. | Integrator: keep the GLB-only correction narrow, diagnose applicable failures and verify exact current integration before merging; no asset pipeline replacement. |
+| [#189](https://github.com/ruishinor/game-dev/pull/189) \`3c6a1b75\` | Open, 12 successful / 1 failed (integrated playtest). **Owner-approved publication exemption for precisely approved Scrapyard rewards is preserved.** | Claude owns environment/gameplay; a separately owner-authorized scanner/test intervention must remain limited to its approved fixture/blob and retain all other disclosure scanning. General agent must not merge/edit #189's reserved content. |
+| [#203](https://github.com/ruishinor/game-dev/pull/203) | Claude's active Sanctum architecture branch; new commits were appearing during this inspection. | Claude-only; not a general delivery target. Inspect its **latest** head and full validation in its own workstream. |
+
+Other open historical heads [#165](https://github.com/ruishinor/game-dev/pull/165), [#178](https://github.com/ruishinor/game-dev/pull/178), [#190](https://github.com/ruishinor/game-dev/pull/190), [#194](https://github.com/ruishinor/game-dev/pull/194), [#91](https://github.com/ruishinor/game-dev/pull/91), [#92](https://github.com/ruishinor/game-dev/pull/92), [#93](https://github.com/ruishinor/game-dev/pull/93) and [#96](https://github.com/ruishinor/game-dev/pull/96) are source/recovery candidates; do not read “open” as merge-ready. Compare actual changed-file deltas, ancestry, ownership and retained semantics before closing or extracting unique work.
+
+### 12.3 Non-overlapping ownership and prerequisites
+
+- **Single Attunement integration/merge owner:** “Attunement Roadmap Delivery”, existing hourly task. It alone coordinates global PR merge decisions and merges. Read and inspect other agents' changes; do not overwrite branches they are actively modifying. Other workers may produce focused PRs and evidence without competing merges. Ownership is per file/system and must be rechecked on every run.
+- **Claude only:** Cinderlock and remaining rare-class armour 3D models (including Vesperglass, Strataweave and Mycelial); Sanctum structure/architecture; assigned expanded Severance Expanse and Foundry environment, Scrapyard work, original environment-specific VFX and presentation. [#203](https://github.com/ruishinor/game-dev/pull/203) is a current example. Never globally promote Claude's reserved branch.
+- **Separate parallel owner:** Severance Soldiers. Read-only reference/handoff; no general implementation or merge. The production-zone readiness and enemy ecology handoff must precede claiming level 5–12 Expanse and level 8–11 Foundry playable balance. Keep unpublished content specifics out of the public register.
+- **Selection owner:** #180's existing authenticated character-selection branch, including any changes to \`client/src/looks.js\`. Sign-in recovery #198 depends on that presentation; source #190 remains history. Prevent race/appearance migrations from colliding with selection renderer and saved character identities.
+- **Race migration:** Intended Human, Velari and Augmented roster is **not verified complete**. Existing saved Mirekin and historical race/appearance records require an explicit versioned migration/compatibility rule, round-trip persistence tests, look rendering, legacy creation/loading, gear attachment and safe deletion. Never silently rewrite or orphan saved characters. Current work is partial/dependent, not visual-accepted.
+- **Level-15 owner:** #196 recovery governs independent character-XP infrastructure; no GM command should be promoted by piggybacking on older #165. Character level, attunement affinity/rank and crafting profession levels remain separate concepts. Do not claim a playable level-15 ladder before real XP, appropriate content and persistence integration.
+- **Publication boundary:** This repository is still **public**. Root AGENTS disclosure rules apply. Prior-publication exposure is not retroactively repaired by a scanner. The narrow #189 owner exemption is valid, does not apply to new content and does not permit weakening unrelated scans.
+
+### 12.4 Full-roadmap execution after recovery queue
+
+| Workstream (existing IDs) | Actual starting position | Next independent outcome and acceptance |
+|---|---|---|
+| Gameplay and HUD: INT-02/07/11, UX-01–12, HUD-01–05, MAP-01–06 | Multiple merged subsystems, remaining human visual/input gaps | Fix confirmed integrated failures; test Ctrl-drag, real keyboard focus, companion, party, resizing and no-unnecessary-scroll **desktop/TV** viewports; retain accessible overflow fallback |
+| Equipment, weapons and fabrication: INT-05/10, SYS-01/02/09/10, EQ-01–09, CB-01/02, REC-01–06 | Slots/rarity/social clothing/rods/Longpoint and modular components partially merged | Preserve approved art and current weapon functionality; add truly missing server-owned acquisitions, upgrade/repair transactions, distinctive weapon/implant/glyph effects and recovery of unique #92/#93/#96 deltas; validate legacy saves and abuse paths |
+| Quest, economy and playable chapter: UX-09/10, SYS-03/05/06, NAR-01–05 | Journal, quests, vendors, rift and rewards exist; meaningful multi-quest chapter, receipts and pacing incomplete | Deliver real progressing objectives for existing characters, reward receipts and economic sinks; test one-time/replay, disconnect, death and no quest/reward exploit, without exposing private loot logic |
+| Companions, races, identity: INT-03/07, SYS-08, ART-02–05, EXP-06/11 | Multiple real creatures/portraits and limited class/race appearances | Existing-save compatibility, distinct body/rig/attachment tests, live observer rendering and real interactions; visual sign-off separate |
+| Asset and performance: ART-01/06–13 | Authored pipeline, original assets, first 3D armour and region art already integrated | Correct model validation failures, account for LOD/tangents, provenance, draw/memory/GPU budgets and in-game captures; Claude retains reserved model ownership |
+| Expansion: EXP-01–12, WORLD-01–03 | Existing traversal and some content integrated; broad progression and new systems incomplete | Gate later content on verified stable quests/economy/level scaling, access/return contracts and owner-approved region handoffs, not on the presence of a roadmap entry |
+
+**Next executable integration decision:** inspect current-head #202 and its complete applicable gate; then #193/#195 failures and independent #197 recovery. Keep #180 visual acceptance separate, #198 blocked by its dependency, #196 draft until playable progression. When these are blocked, select a distinct narrow item with its own branch (for example, cartography saved-point persistence hardening) rather than writing another checkpoint alone.
+
+**Checkpoint contract for each run:** record observed main SHA, open-head SHAs, changed paths, owner, actual workflow/job URLs and conclusions, whether branch matches expected SHA, tested commit SHA, outstanding human judgments, safe next action, and who may merge. Create an independently verifiable code/asset diff wherever unblocked; update this public register only with non-sensitive evidence. A stale or partial green result must not become a merge claim.
+## 13. Delivery checkpoint — 2026-11-21 (afternoon)
+
+Main after this run: `15d48c9` (plus this docs commit).
+
+| Item | Status | Evidence / note |
+|---|---|---|
+| [#207](https://github.com/ruishinor/game-dev/pull/207) shared-kill test preconditions | Merged | Green playtest. No server XP-credit defect found: once contribution is established, both players are credited. |
+| [#206](https://github.com/ruishinor/game-dev/pull/206) GLB-only preview preload | Merged | Playtest green after #207; supersedes [#195](https://github.com/ruishinor/game-dev/pull/195) (closed). |
+| [#212](https://github.com/ruishinor/game-dev/pull/212) follow-inventory entry timeout | Merged | Main and #178 both timed out: the second client's sheet arrived 19–45 s late because client A was still drawing under software GL. The test now pauses A's draws while B enters. |
+| [#196](https://github.com/ruishinor/game-dev/pull/196) PROG-15 foundation | Merged | Cap 15, server-validated `grantXp`, save sanitisation and a single award per corpse generation. 583/583 Node tests. The vendor job fails only by heartbeat disconnect, which is flaky across branches (seen on #197 too). |
+| [#180](https://github.com/ruishinor/game-dev/pull/180) character selection | Merged | Settings pages rebalanced so none scrolls. The roster test now measures `position:fixed` controls correctly. Main merged in, which fixes the stale companion step. Roster and playtest (79/79) green. |
+| [#198](https://github.com/ruishinor/game-dev/pull/198) cinematic login | Merged | Guest link works when clicked before the module loads (`#guest-note` hash). The cover stage is clipped, so 844×390 no longer scrolls. `openPlayer` waits for the entry curtain. Capture tools open the guest view. Every job is green except party. Supersedes [#190](https://github.com/ruishinor/game-dev/pull/190) (closed). |
+
+**Known red on main:** the `party` browser job. Plain P now opens the Ability Matrix, so the test must press Shift+P. That fix is on #197 (`d4a4816e`), owned by the concurrent integrator.
+
+**Active elsewhere (do not collide):** #197 GM preview and #178 weapon switching, both receiving commits from another agent on 2026-11-21. #178's `focused` failure is the main defect fixed by #212; merge main into #178 to clear it.
+
+**Next smallest actions:** merge #197 once green. Merge main into #178 and re-gate it. PROG-15 content (XP sources and encounters for levels 6–15) is outstanding: #196 is infrastructure only. Decide #165 against merged #196 before retiring it.
+
+### 13.1 PROG-15 regional progression — [#217](https://github.com/ruishinor/game-dev/pull/217)
+
+Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar and Expanse entry at level 5, with Expanse content at levels 5–12 and the Scrapyard elite at 12. Silent Foundry entry at level 8, with content at 8–11: 8 of 14 guards elite, plus the Overseer boss. Enemy HP, damage and XP scale only above each type's base level, so levels 1–5 are unchanged. Server-only rules live in `server/sim/enemy-levels.js`.
+
+**Remaining gaps:**
+- No dedicated level 12–15 content (Foundry repeats only).
+- The Severance Soldiers squads on `charlie/festive-thompson-a5h4f5` still need levels 7–11, with each sergeant elite at the squad's level +1 (max 12), when they merge.
+- No naturally played 5→12 browser journey yet.
+- #165 can be retired once #217 merges: the cap, thresholds and validation are equivalent (merged in #196), and the regional work is superseded here.
+
+### 13.2 Level 13–15 band: the Null Annex — branch `feat/prog15-null-annex`
+
+- **Way in:** a Null Breach in the Foundry's Excavation Depths at (-9, -99). It requires level 12 and the Foundry Overseer defeated by that character.
+- **Where it leads:** the existing Phase Annex deck (x=220), which was unreachable since the Foundry replaced it. With the Expanse present, it is now level 13–15 content: 6 of 10 guards are elite, and the Null Chamber Warden is the level-15 boss.
+- **Reward:** the cache gives 6 Resonance fragments once.
+- **Return:** the Annex gate returns to the Severance Gate.
+- **Pacing:** one clear gives about 4,000 XP, so levels 12→15 take about 2.4 clears.
+- **Art:** the breach reuses the return-rift model, and no new art was made. A distinct breach visual is optional polish.
+
+### 13.3 Severance Soldier squads candidate — branch `feat/severance-squads-levels`
+
+- **Candidate scope:** the gameplay and rendering from `charlie/festive-thompson-a5h4f5` (owner-authorized 2026-11-21):
+  - Five roaming squads of three: a soldier on point, a flank soldier and a rearguard Sergeant.
+  - Formation following, and the Sergeant holding back while its soldiers fight.
+  - Target cycling follows the current nearest-first behavior; rear-guard formation does not override targeting.
+  - Kinetic Discharge, with its VFX.
+  - The soldier look wearing the full Cinderlock set, and the journal entry.
+- **Levels:** squads are level 7–11: Amber Flats 7, Far West 8, Severed Pass 9, Causeway 10, Gate Basin 11. Each Sergeant is one level above its squad (max 12) and is the squad's elite, using the standard `ELITE` multipliers. XP and scaling come from `enemy-levels.js`.
+- **Loot:** squads, Sergeants included, drop no items (owner decision), and are excluded from the elite uncommon-item roll. Elite material salvage still applies.
+- **Route change:** the Far West loop now turns north of the Scrapyard and clear of `vein_west_south`, which main added after its routes were planned.
+- **Not merged:** that branch's Cinderlock "second pass" GLBs, arms and legs modules, glow ribbons and pipeline changes. Main keeps the owner-approved Cinderlock from #211 (accepted in #214), and the squads wear that four-piece set. Any future art pass should go through its own review.

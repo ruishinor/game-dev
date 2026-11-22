@@ -12,8 +12,8 @@ function companion(id, x, opts = {}) {
   };
 }
 
-test('Spindle field light is exactly 10m and constrained to a fixed local light pool', () => {
-  assert.equal(SPINDLE_LIGHT.range, 10);
+test('Spindle field light is exactly 20m and constrained to a fixed local light pool', () => {
+  assert.equal(SPINDLE_LIGHT.range, 20);
   assert.equal(SPINDLE_LIGHT.maxSources, 3);
   const others = [
     companion(5, 2), companion(7, 7), companion(1, 4),
@@ -27,7 +27,7 @@ test('Spindle field light is exactly 10m and constrained to a fixed local light 
   assert.deepEqual(activeSpindleLights([companion(3, 80.001)], point), []);
   // Three closer players must not crowd out your own nearby field light.
   assert.deepEqual(activeSpindleLights([
-    companion(1, 1), companion(2, 2), companion(3, 3), companion(42, 9),
+    companion(1, 1), companion(2, 2), companion(3, 3), companion(42, 19),
   ], point, SPINDLE_LIGHT, 42).map(e => e.id), [42, 1, 2]);
 });
 

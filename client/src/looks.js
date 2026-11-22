@@ -8,6 +8,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { buildUtilityPouch } from './utility-pouch.js';
+import { CINDERLOCK_FULL } from '../../shared/armour-visual.js';
 
 const std = (o) => new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0, ...o });
 const glow = (color) => new THREE.MeshBasicMaterial({ color });
@@ -107,14 +108,24 @@ function cultureTank(ctx) {
   ctx.attach('pelvis', place(buildUtilityPouch(THREE,'conductor'), 0.19, 0.93, 0.0));
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), teal);
   ctx.attach('pelvis', place(lamp, 0.24, 0.95, 0.01));
-  // A small industrial lower-face respirator breaks up the exposed
-  // mannequin silhouette without hiding the eyes or adding fantasy trim.
-  const filter = std({ color: 0x253c39, metalness: 0.35, roughness: 0.65 });
-  const mask = new THREE.Mesh(box(0.15, 0.075, 0.042), filter);
-  ctx.attach('Head', place(mask, 0, 1.612, 0.152, -0.12));
-  for (const side of [-1, 1]) {
-    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), casing);
-    ctx.attach('Head', place(port, side * 0.082, 1.61, 0.158, Math.PI / 2));
+  // Keep the actual face readable in both gameplay and close-up account
+  // previews. The former box covered the mouth and projected out like a
+  // floating block. Use a narrow, chamfered chin receiver with inset vents
+  // instead of masking the face or introducing a menu-only head model.
+  const filter = std({ color: 0x253c39, metalness: 0.36, roughness: 0.68 });
+  const outline = new THREE.Shape();
+  outline.moveTo(-0.053,-0.008);outline.lineTo(-0.040,0.008);
+  outline.lineTo(0.040,0.008);outline.lineTo(0.053,-0.008);
+  outline.lineTo(0.034,-0.020);outline.lineTo(-0.034,-0.020);
+  outline.closePath();
+  const receiver = new THREE.Mesh(new THREE.ExtrudeGeometry(outline,{
+    depth:0.012,bevelEnabled:true,bevelThickness:0.003,
+    bevelSize:0.003,bevelSegments:2,steps:1,curveSegments:4
+  }),filter);
+  ctx.attach('Head',place(receiver,0,1.567,0.153,-.15));
+  for (const side of [-1,1]) {
+    const port=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.014,12),casing);
+    ctx.attach('Head',place(port,side*.064,1.579,.146,Math.PI/2));
   }
 }
 
@@ -296,8 +307,29 @@ LOOK_DEFS.outpost_signaller={
  accent:0xffb36a,gear:[],gloves:true,
  face:{tone:0x6b4532,hair:0x120e0c,eye:0x2a1a12,hairStyle:'crop',brow:0.7,stubble:0,lip:0.35,morph:{age:0.3,heritage_a:0.75,heritage_b:0.1,heritage_c:0.1,cheekbones:0.6,face_angular:0.45}},
 };
+// Severance Soldier: Cinderlock Regalia over a carbon-weave undersuit (the
+// undersuit shells only show until the armour bundle has loaded). Each
+// soldier gets its own face and frame from its entity id: presentation only.
+const SOLDIER_SUIT = { color: 0x1c1d20, roughness: 0.78 };
+LOOK_DEFS.severance_soldier = {
+  body: 'humanoid_m',
+  scale: 1.0,
+  parts: { body: SOLDIER_SUIT, joints: { color: 0x16171a, roughness: 0.62 } },
+  shells: { chest: SOLDIER_SUIT, belt: { color: 0x16171a, roughness: 0.62 }, upperarms: SOLDIER_SUIT, forearms: SOLDIER_SUIT, shorts: SOLDIER_SUIT,
+    thighs: SOLDIER_SUIT, shins: SOLDIER_SUIT, shoes: { color: 0x111214, roughness: 0.9 } },
+  gear: [],
+  gloves: true,
+  armour: CINDERLOCK_FULL,
+  facePerEntity: true,
+  appearanceFor(meta) {
+    const n = Math.abs(Number(meta?.i) || 0);
+    return { frame: n % 3 === 1 ? 'f' : 'm', race: 'human', skin: (n * 5) % 9, hair: ['none', 'buzz', 'buzz', 'crop'][n % 4], hairColour: [0, 1, 0, 5][(n >> 2) % 4] };
+  },
+  accent: 0xff1e1e,
+};
+
 /** Entity class -> look used when the server does not name one. */
-export const CLASS_LOOK = { vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster', expedition_quartermaster:'expedition_quartermaster' };
+export const CLASS_LOOK = { severance_soldier: 'severance_soldier', vanguard: 'vanguard_plate', symbiotech: 'conductor', surveyor: 'brine_surveyor', keeper:'aegis_keeper', archivist: 'archivist', quartermaster:'quartermaster', expedition_quartermaster:'expedition_quartermaster' };
 
 export function lookFor(meta) {
   if (meta.a && LOOK_DEFS[meta.a]) return meta.a;

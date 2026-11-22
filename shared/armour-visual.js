@@ -13,8 +13,14 @@ export const ARMOUR_ASSETS = Object.freeze({
   vanguard_field_set_gloves: 'armour_vanguard_set',
   vanguard_field_set_greaves: 'armour_vanguard_set',
   vanguard_field_set_boots: 'armour_vanguard_set',
+  // Vesperglass Array (Aegis Keeper), Strataweave Fieldkit (Brine Surveyor)
+  // and Mycelial Accord (Symbiotech Conductor)
+  ...Object.fromEntries(['keeper', 'surveyor', 'symbiotech'].flatMap((fam) =>
+    ['chest', 'gloves', 'greaves', 'boots'].map((slot) => [`${fam}_field_set_${slot}`, `armour_${fam}_set`]))),
 });
 export const ARMOUR_VISUALS = Object.freeze(Object.keys(ARMOUR_ASSETS));
+/** The full Cinderlock set, as the Severance squads wear it (presentation only). */
+export const CINDERLOCK_FULL = Object.freeze({ chest: 'vanguard_field_set_chest', gloves: 'vanguard_field_set_gloves', greaves: 'vanguard_field_set_greaves', boots: 'vanguard_field_set_boots' });
 export const ARMOUR_SLOTS = Object.freeze(['chest', 'gloves', 'greaves', 'boots']);
 
 // Public, allowlisted presentation only: for each armour slot, the id of the

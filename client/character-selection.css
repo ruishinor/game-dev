@@ -1,0 +1,679 @@
+
+/* Guest creation remains a legacy, distinct entry path. Ensure the shared
+   heading introduced for account creation is legible there as well, rather
+   than running three text nodes together in the default login layout. */
+#login-form .creation-section-heading{
+ display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+ margin:0 0 17px;padding:0 0 13px;
+ border-bottom:1px solid #35576a;
+}
+#login-form .creation-section-heading>span{
+ display:block;color:#8fb9ca;letter-spacing:.17em;
+ font:600 11px/1.4 'Segoe UI',sans-serif;
+}
+#login-form .creation-section-heading>strong{
+ display:block;color:#e7f0f5;
+ font:600 21px/1.25 Georgia,serif;
+}
+#login-form .creation-section-heading>small{
+ display:block;color:#a3bbc6;
+ font:12px/1.45 'Segoe UI',sans-serif;
+}
+
+/* Cinematic resonance vestibule UI. Its 3D scene is the composition, not a card.
+   Palette: midnight shale, cold steel, restrained cyan. No beige/amber default. */
+.character-selection-mode #login{
+ position:fixed;inset:0;display:block;overflow:hidden;padding:0;
+ background:#050b12;
+}
+.character-selection-mode #login .login-card{
+ position:absolute;inset:0;width:100%;height:100%;max-height:none;
+ overflow:hidden;padding:0;margin:0;box-shadow:none;
+ border:0;border-radius:0;background:#050b12;backdrop-filter:none;
+}
+.character-selection-mode #login .login-card>h1{
+ position:absolute;left:clamp(20px,3.25vw,62px);top:24px;z-index:5;
+ margin:0;color:#e0edf2;font:600 clamp(24px,2.15vw,38px)/1.15 Georgia,serif;
+ text-transform:uppercase;letter-spacing:.14em;text-shadow:0 2px 10px #000;
+}
+.character-selection-mode #login .login-card>.tagline{display:none}
+.character-selection-mode #character-roster{
+ position:absolute;inset:0;display:block;margin:0;padding:0;border:0;
+ border-radius:0;background:none;isolation:isolate;
+}
+.character-selection-mode .roster-stage{position:absolute;inset:0;height:auto;min-height:0;display:block;background:none;overflow:hidden;}
+.character-selection-mode #roster-preview{
+ position:absolute;inset:0;z-index:0;display:block;height:auto;min-height:0;overflow:hidden;
+ background:radial-gradient(ellipse at 50% 37%,#172a39,#050b12 78%);
+}
+.character-selection-mode #roster-preview:after{
+ content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(90deg,rgba(3,9,15,.88) 0%,rgba(4,11,17,.12) 30%,transparent 59%,rgba(4,10,16,.62) 100%),
+ linear-gradient(0deg,rgba(2,7,12,.8),transparent 26%,transparent 78%,rgba(3,7,12,.35));
+}
+.character-selection-mode #roster-preview canvas{
+ width:100%;height:100%;display:block;outline:none;touch-action:none;cursor:grab;
+}
+.character-selection-mode #roster-preview canvas:focus-visible{outline:2px solid #93cddd;outline-offset:-4px;}
+.character-selection-mode .roster-head{
+ position:absolute;top:76px;left:clamp(20px,3.3vw,64px);z-index:3;
+ padding:0;margin:0;display:block;border:0;background:none;
+}
+.character-selection-mode .roster-head h2{
+ font:600 clamp(12px,1vw,16px)/1.4 'Segoe UI',sans-serif;
+ letter-spacing:.20em;text-transform:uppercase;color:#dbe9ef;
+}
+.character-selection-mode #roster-realm{
+ font:11px/1.65 'Segoe UI',sans-serif;color:#98adb9;
+ letter-spacing:.11em;text-transform:uppercase;margin:3px 0 0;
+}
+.character-selection-mode #roster-realm span:first-child{color:#577586;margin:0 7px;}
+.character-selection-mode #account-signout{
+ position:fixed;bottom:35px;left:clamp(20px,3.3vw,64px);z-index:5;
+ background:transparent;border:0;border-bottom:1px solid #5f7988;
+ border-radius:0;color:#c8d7df;font:12px/1.8 'Segoe UI',sans-serif;
+ letter-spacing:.06em;padding:5px 3px;min-width:0;
+}
+.character-selection-mode #account-signout:hover{background:transparent;color:#fff;border-color:#a0c9d8;}
+.character-selection-mode .roster-facts{
+ position:absolute;left:clamp(20px,3.3vw,64px);bottom:135px;z-index:2;
+ width:min(28vw,285px);padding:8px 0 13px;display:block;
+ background:linear-gradient(90deg,rgba(5,12,20,.78),rgba(5,12,20,.1));
+ color:#dceaf0;text-shadow:0 2px 8px #000;
+}
+.character-selection-mode .roster-level{
+ font:11px/1.5 'Segoe UI',sans-serif;letter-spacing:.16em;color:#9dcbdc;
+}
+.character-selection-mode #character-roster h3.roster-character-name{
+ font:600 clamp(24px,2vw,35px)/1.2 Georgia,serif;letter-spacing:.015em;
+ color:#f0f6f8;margin:4px 0 17px;
+}
+.character-selection-mode .roster-fact{
+ display:grid;grid-template-columns:minmax(74px,.7fr) minmax(115px,1.3fr);
+ align-items:baseline;gap:12px;padding:5px 0;border:0;
+ font:12px/1.35 'Segoe UI',sans-serif;
+}
+.character-selection-mode .roster-fact-label{color:#8ea8b4;}
+.character-selection-mode .roster-fact strong{font-size:12px;font-weight:500;text-align:left;overflow-wrap:anywhere;}
+.character-selection-mode .roster-empty-message{font-size:13px;color:#bdcfd8;max-width:200px;}
+.character-selection-mode .roster-cards{
+ position:absolute;right:clamp(20px,3.3vw,64px);top:17%;z-index:3;
+ width:clamp(258px,26vw,385px);max-height:66%;padding:6px;
+ overflow-y:auto;background:linear-gradient(90deg,rgba(6,14,22,.55),rgba(6,14,22,.82));
+ border:0;
+}
+.character-selection-mode .roster-cards h3{
+ margin:4px 0 14px;padding:0 10px;
+ color:#b6cbd5;font:600 11px/1.5 'Segoe UI',sans-serif;
+ letter-spacing:.2em;text-transform:uppercase;
+}
+.character-selection-mode .roster-select{
+ display:flex;align-items:center;text-align:left;gap:15px;width:100%;min-height:67px;
+ margin:0 0 8px;padding:10px 13px 10px 18px;
+ border:1px solid #39505e;border-left:3px solid #4e7185;border-radius:0;
+ clip-path:polygon(13px 0,100% 0,100% 100%,13px 100%,0 50%);
+ background:linear-gradient(90deg,rgba(19,37,50,.88),rgba(8,19,29,.8));
+ color:#d9e9f0;transition:background .2s,border-color .2s;
+}
+.character-selection-mode .roster-select[aria-pressed="true"]{
+ background:linear-gradient(90deg,rgba(44,79,98,.92),rgba(14,39,54,.9));
+ border-color:#8dbbc9;border-left-color:#a6d4df;
+ outline:none;
+}
+.character-selection-mode .roster-select:hover:not(:disabled){
+ background:linear-gradient(90deg,#355365e3,#172f3fcf);
+ border-color:#9ec0cc;
+}
+.character-selection-mode .roster-select:focus-visible{outline:2px solid #b0e0ee;outline-offset:3px;}
+.character-selection-mode .roster-insignia{
+ display:flex;align-items:center;justify-content:center;flex:0 0 38px;
+ width:38px;height:40px;color:#9ac6d6;
+}
+.character-selection-mode .roster-insignia svg{width:29px;height:29px;}
+.character-selection-mode .roster-insignia--vanguard{color:#9bc2e0}
+.character-selection-mode .roster-insignia--keeper{color:#b7a5df}
+.character-selection-mode .roster-insignia--symbiotech{color:#91cfb9}
+.character-selection-mode .roster-insignia--surveyor{color:#b7d4d7}
+.character-selection-mode .roster-entry-copy{min-width:0;display:grid;gap:3px;}
+.character-selection-mode .roster-entry-copy small{
+ display:block;color:#a6bbc5;font:10px/1.4 'Segoe UI',sans-serif;white-space:normal;
+}
+.character-selection-mode .roster-entry-copy strong{
+ display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+ font:600 18px/1.15 Georgia,serif;color:#eff6f8;
+}
+.character-selection-mode .roster-slot-vacant{
+ display:flex;align-items:center;min-height:34px;padding:5px 12px;
+ border:1px dashed #364c5a;border-radius:0;background:rgba(10,20,29,.56);
+ color:#7896a5;font-size:11px;width:100%;margin:4px 0;
+}
+.character-selection-mode button.roster-slot-vacant:hover{color:#d8e7ec;border-color:#8cbbca;background:#182b36;}
+.character-selection-mode #roster-capacity{
+ margin:15px 5px 0;font:11px 'Segoe UI',sans-serif;
+ letter-spacing:.1em;color:#a8bcc6;text-align:right;
+}
+.character-selection-mode .roster-footer{
+ position:absolute;left:0;right:0;bottom:32px;z-index:4;
+ display:block;height:58px;margin:0;padding:0;pointer-events:none;
+}
+.character-selection-mode .roster-footer button{
+ position:absolute;pointer-events:auto;border:1px solid #68889a;border-radius:1px;
+ background:rgba(9,20,29,.81);color:#d6e7ec;letter-spacing:.04em;
+ font:12px/1.5 'Segoe UI',sans-serif;min-width:0;margin:0;padding:10px 14px;
+}
+.character-selection-mode .roster-footer button:hover:not(:disabled){border-color:#b6d8e1;background:rgba(38,71,89,.92);}
+.character-selection-mode .roster-footer #roster-enter{
+ left:50%;top:0;transform:translateX(-50%);min-width:220px;
+ padding:11px 24px;font:600 19px/1.4 Georgia,serif;color:#f2f9fa;
+ text-transform:uppercase;letter-spacing:.08em;
+ border-color:#9dc4d1;background:linear-gradient(180deg,#264657,#102431);
+ clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,13px 100%,0 50%);
+}
+.character-selection-mode .roster-footer #roster-create{right:calc(clamp(20px,3.3vw,64px) + 116px);top:0;}
+.character-selection-mode .roster-footer #roster-delete{right:clamp(20px,3.3vw,64px);top:0;color:#d9b0b8;}
+.character-selection-mode .roster-footer #roster-settings{
+ left:calc(clamp(20px,3.3vw,64px) + 135px);top:0;
+}
+.character-selection-mode .roster-preview-controls{
+ position:absolute;z-index:3;left:50%;bottom:116px;
+ transform:translateX(-50%);display:flex;flex-wrap:nowrap;gap:3px;max-width:330px;
+ background:rgba(6,15,22,.38);padding:3px;
+}
+.character-selection-mode #roster-preview .roster-preview-controls button{
+ font-size:11px;padding:4px 7px;background:rgba(7,20,31,.75);
+ border-color:#416277;color:#b9d3de;border-radius:0;
+}
+.character-selection-mode #roster-preview .roster-preview-controls button[aria-pressed="true"]{border-color:#9ac7d5;color:#f1f7f9;}
+.character-selection-mode #roster-preview [data-preview-status]{
+ position:absolute;left:50%;bottom:89px;transform:translateX(-50%);
+ z-index:2;width:auto;white-space:nowrap;max-width:50%;
+ color:#86a3b1;font-size:10px;text-shadow:0 2px 6px #000;
+}
+.character-selection-mode .roster-delete-confirm:not([hidden]){
+ position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+ z-index:10;width:min(480px,calc(100% - 40px));max-width:none;
+ padding:25px;background:#07141ef5;border:1px solid #b07b89;
+ box-shadow:0 0 0 150vmax #0009;display:flex;
+}
+.character-selection-mode #roster-error:not(:empty){
+ position:absolute;left:50%;bottom:188px;transform:translateX(-50%);
+ z-index:6;padding:8px 14px;background:#21151ce8;border:1px solid #ad7080;
+ max-width:min(540px,90vw);text-align:center;
+}
+.character-selection-mode #character-roster .legacy-link{
+ position:absolute;top:calc(17% + 448px);right:clamp(20px,3.3vw,64px);
+ z-index:4;width:clamp(258px,26vw,385px);max-height:30vh;overflow:auto;
+ margin:0;padding:7px 10px;color:#9bb5c1;border:0;background:#081620b8;
+ font-size:11px;
+}
+.character-selection-mode #character-roster .legacy-link:not([open]){opacity:.78;}
+.character-selection-mode #hud{z-index:20;}
+.character-selection-mode #hud>:not(.settings-panel){display:none!important;}
+@media(max-width:960px){
+ .character-selection-mode .roster-facts{bottom:150px;width:240px;}
+ .character-selection-mode .roster-cards{width:260px;right:18px;top:17%;}
+ .character-selection-mode #character-roster .legacy-link{right:18px;width:260px;top:auto;bottom:119px;}
+ .character-selection-mode .roster-footer #roster-create{right:160px;}
+ .character-selection-mode .roster-footer #roster-delete{right:18px;}
+ .character-selection-mode .roster-footer #roster-enter{min-width:184px;font-size:17px;}
+}
+@media(max-width:680px){
+ .character-selection-mode #login{overflow:auto;}
+ .character-selection-mode #login .login-card{height:max(710px,100%);min-height:710px;overflow:auto;}
+ .character-selection-mode #character-roster{min-height:710px;}
+ .character-selection-mode .roster-head{top:67px;left:18px;}
+ .character-selection-mode #login .login-card>h1{top:15px;left:18px;font-size:23px;}
+ .character-selection-mode .roster-stage{min-height:710px;}
+ .character-selection-mode .roster-cards{top:129px;right:14px;width:min(48%,245px);max-height:260px;}
+ .character-selection-mode .roster-facts{top:405px;left:18px;bottom:auto;width:min(48%,230px);}
+ .character-selection-mode #roster-preview:after{background:linear-gradient(90deg,#06101bc0,transparent 34%,#05111bb3);}
+ .character-selection-mode .roster-entry-copy strong{font-size:15px;}
+ .character-selection-mode .roster-select{min-height:57px;padding:8px 9px 8px 13px;gap:4px;}
+ .character-selection-mode .roster-insignia{width:26px;flex-basis:26px;}
+ .character-selection-mode .roster-insignia svg{width:23px;height:23px;}
+ .character-selection-mode .roster-preview-controls{bottom:126px;max-width:95%;gap:1px;}
+ .character-selection-mode .roster-footer{bottom:35px;height:90px;}
+ .character-selection-mode .roster-footer #roster-enter{top:0;min-width:180px;}
+ .character-selection-mode .roster-footer #roster-create{right:12px;top:52px;}
+ .character-selection-mode .roster-footer #roster-delete{right:152px;top:52px;}
+ .character-selection-mode .roster-footer #roster-settings{left:90px;top:52px;}
+ .character-selection-mode #account-signout{left:14px;bottom:50px;font-size:11px;}
+ .character-selection-mode #character-roster .legacy-link{top:575px;right:14px;width:min(49%,220px);max-height:75px;}
+ .character-selection-mode #roster-error:not(:empty){bottom:200px;}
+}
+@media(max-width:400px){
+ .character-selection-mode .roster-cards{width:49%;right:8px;top:135px;}
+ .character-selection-mode .roster-cards h3{font-size:10px;}
+ .character-selection-mode .roster-facts{left:12px;width:48%;top:420px;}
+ .character-selection-mode .roster-fact{grid-template-columns:1fr;gap:0;padding:2px 0;}
+ .character-selection-mode .roster-preview-controls{bottom:150px;}
+ .character-selection-mode #roster-preview .roster-preview-controls button{padding:3px 4px;font-size:10px;}
+ .character-selection-mode .roster-footer{bottom:13px;}
+ .character-selection-mode .roster-footer #roster-enter{top:0;left:50%;}
+ .character-selection-mode .roster-footer #roster-settings{top:57px;left:87px;}
+ .character-selection-mode #account-signout{bottom:26px;left:10px;}
+ .character-selection-mode .roster-footer #roster-create{top:57px;right:8px;}
+ .character-selection-mode .roster-footer #roster-delete{top:57px;right:150px;}
+}
+@media(prefers-reduced-motion:reduce){
+ .character-selection-mode .roster-select{transition:none;}
+}
+
+/* A bounded transition during the authoritative session handshake. */
+.character-selection-mode #roster-world-transition:not([hidden]){
+ position:absolute;inset:0;z-index:7;display:flex;align-items:flex-end;
+ justify-content:center;padding:0 20px 170px;pointer-events:none;
+ background:radial-gradient(ellipse at 50% 58%,transparent 22%,rgba(1,5,11,.66) 91%);
+ animation:selection-entry-reveal .42s ease-out both;
+}
+.character-selection-mode #roster-world-transition span{
+ color:#dfedf3;background:#071420e0;border-top:1px solid #82b8c7;
+ padding:16px 27px;font:12px/1.5 'Segoe UI',sans-serif;
+ letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 5px #000;
+}
+@keyframes selection-entry-reveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+ .character-selection-mode #roster-world-transition:not([hidden]){animation:none}
+}
+
+
+/* 2026-11-20 owner screenshot correction — real shared environment for selection
+   AND creation; UI tools never intersect the bottom primary action. */
+.character-selection-mode #roster-preview .roster-preview-controls {
+ bottom: 134px; left: 50%; z-index: 5; transform: translateX(-50%);
+ width: max-content; max-width: min(94vw,410px);
+ flex-wrap: nowrap; gap: 3px; align-items: center;
+ padding: 5px; border: 1px solid #34506190;
+ background: #071722e3;
+}
+.character-selection-mode #roster-preview [data-preview-status] {
+ bottom: 112px; z-index: 4;
+ font: 10px/1.2 'Segoe UI',sans-serif; color:#a7cad8;
+}
+.character-selection-mode #character-roster.roster-empty #roster-preview .roster-preview-controls,
+.character-selection-mode #character-roster.roster-empty #roster-preview [data-preview-status] {
+ display:none;
+}
+.character-selection-mode #character-roster.roster-empty #roster-enter,
+.character-selection-mode #character-roster.roster-empty #roster-delete {display:none;}
+.character-selection-mode #character-roster.roster-empty #roster-create {
+ left:50%;right:auto;top:0;transform:translateX(-50%);
+ min-width:230px;padding:12px 26px;text-align:center;
+ font:600 17px/1.35 Georgia,serif;
+ background:linear-gradient(180deg,#30556b,#0d2635);
+ border-color:#8bbccd;
+}
+.character-selection-mode .roster-slot-vacant {
+ min-height:56px;margin:0;border:1px solid #638ca180;border-left:3px solid #73a8bd;
+ color:#d2e4eb;background:linear-gradient(100deg,#193044b8,#0c1b28a6);
+ clip-path:polygon(12px 0,100% 0,100% 100%,12px 100%,0 50%);
+ font:600 14px 'Segoe UI',sans-serif;letter-spacing:.04em;
+ justify-content:center;
+}
+.character-selection-mode #character-roster.roster-empty .roster-facts{
+ bottom:180px;font-size:13px;
+}
+.character-selection-mode #roster-preview:after {
+ background:
+ linear-gradient(90deg,#030a1296 0%,#030a1229 23%,transparent 57%,#030a125b 100%),
+ linear-gradient(0deg,#030910c8 0%,transparent 24%,transparent 78%,#0309105e 100%);
+}
+.character-create-mode #login{
+ position:fixed;inset:0;display:block;overflow:hidden;padding:0;background:#07111a;
+}
+.character-create-mode #login .login-card{
+ position:absolute;inset:0;width:100%;height:100%;max-height:none;
+ overflow:hidden;margin:0;padding:0;border:0;border-radius:0;
+ box-shadow:none;background:#07111a;backdrop-filter:none;
+}
+.character-create-mode #login .login-card>h1{
+ position:absolute;left:clamp(20px,3vw,58px);top:20px;z-index:8;
+ margin:0;color:#e3eef3;letter-spacing:.13em;
+ font:600 clamp(23px,2.15vw,36px)/1.2 Georgia,serif;
+ text-shadow:0 2px 12px #000b;
+}
+.character-create-mode #login .login-card>.tagline{display:none}
+.character-create-mode #login-form{
+ position:absolute;inset:0;display:block;margin:0;padding:0;
+ border:0;background:none;pointer-events:none;overflow:hidden;
+}
+.character-create-mode #login-form>*{pointer-events:auto;}
+.character-create-mode #creation-fields{
+ position:absolute;left:clamp(15px,3vw,58px);top:102px;bottom:114px;
+ z-index:3;width:clamp(304px,27.5vw,410px);padding:18px 18px 24px;
+ overflow-y:auto;overscroll-behavior:contain;
+ border-left:1px solid #5f8999;scrollbar-color:#48697b #071722;
+ background:linear-gradient(90deg,#08151fea 0%,#0a1c28dc 86%,#0a1c2818 100%);
+ box-shadow:20px 0 35px #02070d40;
+}
+.character-create-mode .creation-section-heading{
+ display:flex;flex-direction:column;gap:7px;margin:0 0 17px;
+ padding-bottom:14px;border-bottom:1px solid #375363;
+}
+.character-create-mode .creation-section-heading>span{
+ font:11px/1.5 'Segoe UI',sans-serif;letter-spacing:.2em;color:#7faec0;
+}
+.character-create-mode .creation-section-heading strong{
+ font:600 20px/1.2 Georgia,serif;color:#edf5f8;
+}
+.character-create-mode .creation-section-heading small{
+ font:11px/1.45 'Segoe UI',sans-serif;color:#96b2c0;
+}
+.character-create-mode #creation-back{
+ position:fixed;bottom:34px;left:clamp(15px,3vw,58px);
+ z-index:9;min-width:0;padding:8px 2px;
+ background:transparent;border:0;border-bottom:1px solid #6d94a7;
+ border-radius:0;color:#c5d9e2;font-size:12px;
+}
+.character-create-mode #login-form label,
+.character-create-mode #login-form .label{
+ color:#9fc3d1;font-size:11px;letter-spacing:.14em;margin:13px 0 6px;
+}
+.character-create-mode #name{
+ background:#06131ddc;border:1px solid #4c7186;border-radius:1px;
+ font-size:16px;padding:10px 12px;color:#eef5f9;
+}
+.character-create-mode #classes{
+ display:grid;grid-template-columns:1fr 1fr;gap:6px;
+}
+.character-create-mode #classes .classcard{
+ display:flex;flex-direction:column;justify-content:space-between;
+ min-height:68px;padding:10px 11px;
+ border:1px solid #3c5a6d;border-left:2px solid #507a8e;
+ background:#102330de;border-radius:0;color:#dbe9ee;
+}
+.character-create-mode #classes .classcard[aria-pressed="true"]{
+ border-color:#99cddd;border-left-color:#b5e4ee;
+ box-shadow:inset 0 0 0 1px #7bb5c583;
+ background:#2b5265db;
+}
+.character-create-mode #classes .classcard strong{
+ font-size:13px;line-height:1.3;font-weight:600;
+}
+.character-create-mode #classes .classcard .role{
+ display:block;font-size:10px;letter-spacing:.07em;
+ color:#98baca;line-height:1.3;margin-top:4px;
+}
+.character-create-mode #classes .classcard p{display:none;}
+.character-create-mode #appearance{
+ border:0;border-top:1px solid #446273;border-radius:0;
+ padding:15px 0 0;margin:17px 0 0;
+}
+.character-create-mode #appearance legend{
+ color:#a9d1df;font-size:11px;padding-right:9px;
+}
+.character-create-mode .ap-row{display:grid;grid-template-columns:55px minmax(0,1fr);gap:5px;margin:8px 0;}
+.character-create-mode .ap-name{width:auto;font-size:11px;color:#9ab3c0;}
+.character-create-mode .ap-choices{gap:5px;}
+.character-create-mode .ap-choices button{
+ background:#132b39d9;color:#c2d9e3;border:1px solid #45687d;
+ border-radius:2px;padding:4px 7px;font-size:11px;
+}
+.character-create-mode .ap-choices button[aria-pressed="true"]{
+ background:#2b6578a8;border-color:#a5d8e9;color:#f4f9fa;
+ box-shadow:inset 0 0 0 1px #78bfd05e;
+}
+.character-create-mode .ap-swatches button{
+ width:22px;height:22px;padding:0;border-radius:50%;
+ border:2px solid #243e4b;
+}
+.character-create-mode .ap-swatches button[aria-pressed="true"]{
+ box-shadow:0 0 0 2px #a6d9e7;
+}
+.character-create-mode .ap-blurb{
+ margin:4px 0 7px 62px;line-height:1.4;font-size:11px;color:#9cb6c0;
+}
+.character-create-mode #look-row{margin-bottom:14px}
+.character-create-mode #creation-preview{
+ position:absolute;inset:0;z-index:0;margin:0;padding:0;border:0;
+ border-radius:0;background:#06111c;overflow:hidden;
+}
+.character-create-mode #creation-preview canvas{
+ display:block;width:100%;height:100%;border:0;border-radius:0;
+ cursor:grab;touch-action:none;background:#06111c;
+}
+.character-create-mode #creation-preview canvas:active{cursor:grabbing;}
+.character-create-mode #creation-preview h2{
+ position:absolute;top:37px;right:clamp(22px,3vw,60px);z-index:2;
+ margin:0;font:600 11px/1.5 'Segoe UI',sans-serif;
+ letter-spacing:.2em;color:#a6c7d4;text-transform:uppercase;
+}
+.character-create-mode #creation-preview>.preview-controls{
+ position:absolute;left:50%;bottom:132px;z-index:4;
+ transform:translateX(-50%);
+ display:flex;flex-wrap:nowrap;gap:4px;
+ max-width:min(98vw,480px);padding:5px;margin:0;
+ background:#071722e3;border:1px solid #4a7084;
+}
+.character-create-mode #creation-preview .preview-controls button{
+ padding:5px 8px;border-radius:0;border-color:#54788a;
+ background:#102b3acc;color:#e0edf1;white-space:nowrap;font-size:11px;
+}
+.character-create-mode #creation-preview .preview-controls button[aria-pressed="true"]{
+ border-color:#b3d8e3;background:#244c60;
+}
+.character-create-mode #creation-preview [data-preview-status]{
+ position:absolute;bottom:109px;left:50%;z-index:4;
+ transform:translateX(-50%);margin:0;
+ color:#a8cedd;font-size:10px;text-shadow:0 2px 6px #000;
+ white-space:nowrap;
+}
+.character-create-mode #creation-preview [data-preview-frames]:not([hidden]){
+ position:absolute;z-index:6;bottom:183px;left:50%;
+ transform:translateX(-50%);background:#071722e8;border:1px solid #527385;
+}
+.character-create-mode #enter{
+ position:absolute;z-index:8;left:50%;bottom:36px;transform:translateX(-50%);
+ width:auto;min-width:250px;padding:12px 30px;
+ border-radius:1px;border:1px solid #a0d0df;
+ clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);
+ background:linear-gradient(180deg,#315b70,#0b2635);
+ color:#f4f8fb;font:600 17px/1.3 Georgia,serif;letter-spacing:.06em;
+ text-transform:uppercase;
+}
+.character-create-mode #login-error:not(:empty){
+ position:absolute;left:50%;bottom:191px;transform:translateX(-50%);
+ z-index:9;max-width:min(500px,85vw);
+ border:1px solid #a66c78;background:#25151ae8;padding:10px 18px;
+ text-align:center;font:12px/1.5 'Segoe UI',sans-serif;
+}
+.character-create-mode #creation-guest-hint{display:none}
+@media(max-width:850px){
+ .character-create-mode #creation-fields{
+  left:16px;top:90px;bottom:120px;width:290px;padding:12px;
+ }
+ .character-create-mode #creation-preview h2{top:26px;right:16px;}
+ .character-create-mode #creation-preview>.preview-controls{bottom:116px;}
+ .character-selection-mode #roster-preview .roster-preview-controls{bottom:120px;}
+}
+@media(max-width:620px){
+ .character-create-mode #creation-fields{
+  top:87px;left:10px;bottom:auto;right:10px;
+  width:auto;height:min(40vh,320px);padding:12px 13px;
+  background:#081721f0;
+ }
+ .character-create-mode #creation-preview h2{top:70px;right:12px;font-size:9px;}
+ .character-create-mode #creation-preview>.preview-controls{
+  bottom:125px;max-width:calc(100vw - 12px);gap:2px;
+ }
+ .character-create-mode #creation-preview .preview-controls button{padding:4px;font-size:10px;}
+ .character-create-mode #creation-preview [data-preview-status]{bottom:105px;}
+ .character-create-mode #enter{bottom:25px;min-width:190px;font-size:14px;}
+ .character-create-mode #creation-back{left:10px;bottom:27px;font-size:10px;}
+ .character-selection-mode #roster-preview .roster-preview-controls{bottom:142px;gap:2px;}
+ .character-selection-mode #roster-preview .roster-preview-controls button{padding:4px 5px;font-size:10px;}
+}
+
+/* Real screenshot remediation at 390 px: horizontal roster, reserved action
+   zones and a compact metadata strip. No overlay stacking on the avatar. */
+@media(max-width:620px){
+ .character-selection-mode #login .login-card>h1{
+  top:10px;left:14px;font-size:22px;letter-spacing:.12em;
+ }
+ .character-selection-mode .roster-head{
+  top:51px;left:14px;right:14px;
+ }
+ .character-selection-mode .roster-head h2{font-size:13px;letter-spacing:.12em;}
+ .character-selection-mode #roster-realm{
+  max-width:72vw;font-size:9px;letter-spacing:.06em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+ }
+ .character-selection-mode #account-signout{
+  position:absolute;top:73px;right:14px;bottom:auto;left:auto;
+  padding:3px 0;font-size:10px;line-height:1.3;z-index:8;
+ }
+ .character-selection-mode .roster-cards{
+  top:111px;left:11px;right:11px;width:calc(100% - 22px);
+  max-height:95px;padding:0;border:0;background:#071824bf;
+  overflow:hidden;
+ }
+ .character-selection-mode .roster-cards h3{display:none;}
+ .character-selection-mode #roster-list{
+  display:flex;align-items:stretch;gap:6px;overflow-x:auto;
+  scrollbar-width:thin;scrollbar-color:#537d90 #112631;
+  padding:0 2px 2px;
+ }
+ .character-selection-mode #roster-list .roster-select{
+  flex:0 0 195px;width:195px;min-height:52px;height:52px;
+  padding:7px 10px 7px 13px;margin:0;
+ }
+ .character-selection-mode #roster-list .roster-select .roster-entry-copy strong{
+  font-size:14px;
+ }
+ .character-selection-mode #roster-list .roster-select .roster-entry-copy small{
+  font-size:9px;
+ }
+ .character-selection-mode #roster-list .roster-slot-vacant{
+  flex:0 0 165px;width:165px;height:52px;min-height:52px;
+  padding:5px;margin:0;font-size:12px;
+ }
+ .character-selection-mode #roster-capacity{
+  font-size:9px;letter-spacing:.08em;text-align:right;
+  margin:3px 5px 0;
+ }
+ .character-selection-mode .roster-facts,
+ .character-selection-mode #character-roster.roster-empty .roster-facts{
+  position:absolute;left:12px;right:12px;top:auto;bottom:194px;
+  width:calc(100% - 24px);padding:11px 13px;margin:0;
+  background:linear-gradient(90deg,#071621ef,#081a26be);
+  border-left:2px solid #648fa1;text-shadow:0 1px 4px #000;
+ }
+ .character-selection-mode #roster-details{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;
+ }
+ .character-selection-mode .roster-level{
+  grid-column:1/-1;font-size:10px;
+ }
+ .character-selection-mode #character-roster h3.roster-character-name{
+  grid-column:1/-1;margin:0 0 4px;font-size:21px;line-height:1.25;
+ }
+ .character-selection-mode .roster-fact{
+  display:flex;flex-direction:column;gap:1px;padding:3px 0;min-width:0;
+ }
+ .character-selection-mode .roster-fact-label{font-size:10px;}
+ .character-selection-mode .roster-fact strong{font-size:11px;}
+ .character-selection-mode #roster-preview .roster-preview-controls{
+  bottom:133px;max-width:calc(100% - 12px);gap:2px;
+ }
+ .character-selection-mode #roster-preview .roster-preview-controls button{
+  padding:4px 5px;font-size:10px;white-space:nowrap;
+ }
+ .character-selection-mode #roster-preview [data-preview-status]{
+  bottom:113px;max-width:96%;font-size:9px;
+ }
+ .character-selection-mode .roster-footer{bottom:11px;height:104px;}
+ .character-selection-mode .roster-footer #roster-enter{
+  top:0;left:50%;min-width:196px;font-size:15px;padding:10px 18px;
+ }
+ .character-selection-mode .roster-footer #roster-settings{
+  top:58px;left:12px;right:auto;padding:7px 9px;font-size:11px;
+ }
+ .character-selection-mode .roster-footer #roster-create{
+  top:58px;right:111px;left:auto;transform:none;
+  padding:7px 9px;font-size:11px;
+ }
+ .character-selection-mode .roster-footer #roster-delete{
+  top:58px;right:12px;left:auto;padding:7px 8px;font-size:11px;
+ }
+ .character-selection-mode #character-roster.roster-empty #roster-create{
+  top:0;left:50%;right:auto;transform:translateX(-50%);
+  min-width:210px;padding:10px 16px;font-size:15px;
+ }
+ .character-selection-mode #character-roster .legacy-link{
+  top:202px;right:12px;bottom:auto;width:155px;max-height:40vh;
+  padding:4px 6px;background:#071520ac;opacity:.86;font-size:10px;
+ }
+ .character-selection-mode #character-roster .legacy-link[open]{
+  width:calc(100% - 24px);max-height:45vh;background:#071520f5;
+  border:1px solid #55798b;z-index:7;
+ }
+}
+
+
+/* Owner visual review, Nov 20: keep the character and primary action clear.
+   Camera controls are opt-in, keyboard/pointer orbit still works on canvas. */
+.character-selection-mode #roster-preview .roster-preview-controls[hidden],
+.character-create-mode #creation-preview .preview-controls[hidden],
+#roster-preview [data-preview-inspect][hidden],
+#creation-preview [data-preview-inspect][hidden]{display:none!important;}
+.character-selection-mode #roster-preview [data-preview-inspect],
+.character-create-mode #creation-preview [data-preview-inspect]{
+ position:absolute;z-index:6;
+ width:auto;min-width:0;padding:8px 11px;
+ border:1px solid #6a8da0;border-radius:1px;
+ background:#081b29df;color:#cfdee7;
+ font:600 11px/1.4 'Segoe UI',sans-serif;
+ letter-spacing:.05em;text-shadow:0 1px 3px #000;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]:hover,
+.character-create-mode #creation-preview [data-preview-inspect]:hover{
+ background:#294c60e8;color:#fff;border-color:#a2ccdd;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]:focus-visible,
+.character-create-mode #creation-preview [data-preview-inspect]:focus-visible{
+ outline:2px solid #a8d6e4;outline-offset:3px;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]{
+ left:max(18px,calc(50% - 333px));bottom:217px;
+}
+.character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+ left:max(18px,calc(50% - 333px));bottom:258px;right:auto;
+ transform:none;display:flex;flex-direction:column;
+ flex-wrap:nowrap;align-items:stretch;gap:4px;width:174px;
+ max-width:min(46vw,174px);padding:8px;
+ border:1px solid #64879a;background:#061521f2;
+ box-shadow:0 10px 26px #01070b8c;
+}
+.character-selection-mode #roster-preview .roster-preview-controls:not([hidden]) button{
+ display:block;width:100%;padding:6px 9px;font-size:11px;
+ white-space:nowrap;text-align:left;
+}
+.character-create-mode #creation-preview [data-preview-inspect]{
+ right:clamp(20px,4vw,65px);bottom:171px;
+}
+.character-create-mode #creation-preview>.preview-controls:not([hidden]){
+ left:auto;right:clamp(20px,4vw,65px);bottom:214px;
+ transform:none;display:flex;flex-direction:column;
+ flex-wrap:nowrap;align-items:stretch;
+ width:175px;max-width:46vw;gap:4px;
+ border:1px solid #678fa2;background:#061521f2;
+ padding:8px;box-shadow:0 10px 26px #01070b8c;
+}
+.character-create-mode #creation-preview>.preview-controls:not([hidden]) button{
+ width:100%;text-align:left;
+}
+@media(max-width:680px){
+ .character-selection-mode #roster-preview [data-preview-inspect]{
+  left:auto;right:12px;top:218px;bottom:auto;padding:6px 8px;
+ }
+ .character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+  left:auto;right:12px;top:258px;bottom:auto;
+  max-width:165px;width:165px;z-index:8;
+ }
+ .character-create-mode #creation-preview [data-preview-inspect]{
+  right:12px;bottom:156px;padding:6px 8px;
+ }
+ .character-create-mode #creation-preview>.preview-controls:not([hidden]){
+  right:12px;bottom:196px;width:155px;max-width:46vw;
+ }
+}

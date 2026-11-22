@@ -33,25 +33,42 @@ export const HAIR_COLOURS = [
 ];
 
 /**
- * Races differ in silhouette and features, not only tint.
- * - human (Colonist): settler stock; natural skin, any hair.
- * - veyran: established lore (Red Rucker, "Veyran Burdenkeeper"): smooth,
- *   featureless, naturally crimson; hairless, with fine surface tracery.
- * - mirekin: colony-born, altered by the biotech bloom (concept: biologically
- *   altered forms); mottled skin, bioluminescent vein lines, a chitin crest.
+ * Playable races (owner decision, 2026-11): Human, Velari and Augmented, all on
+ * the shared humanoid skeleton. Species is not culture or class: any race may
+ * take any class or outfit.
+ * - human: unaltered stock; natural skin, any hair.
+ * - velari: a luminous, crystalline, resonance-adapted people. Faceted skin
+ *   with softly glowing resonance seams, and a crystal crest along the skull.
+ * - augmented: engineered humans with implants. Human skin with alloy implant
+ *   plating at the temple and cheek, an ocular ring and status nodes.
+ * Retired races (Colonist, renamed Human; Mirekin) migrate explicitly: see
+ * RETIRED_RACES.
  */
+const HUMAN_SKINS = [0xfaf0ea, 0xf0dccf, 0xdcc0ab, 0xc4a086, 0xa98066, 0x8a644d, 0x6c4a39, 0x50362a, 0x3a271f];
 export const RACES = {
   human: {
-    id: 'human', name: 'Colonist', blurb: 'Settler stock. Weathered, adaptable and unaltered.',
-    skins: [0xfaf0ea, 0xf0dccf, 0xdcc0ab, 0xc4a086, 0xa98066, 0x8a644d, 0x6c4a39, 0x50362a, 0x3a271f],
+    id: 'human', name: 'Human', blurb: 'Unaltered stock: weathered, adaptable, and the most numerous people in the Reach.',
+    skins: HUMAN_SKINS,
     hair: ['none', 'buzz', 'crop', 'swept'],
   },
-  mirekin: {
-    id: 'mirekin', name: 'Mirekin', blurb: 'Colony-born, altered by the biotech bloom: mottled skin, bioluminescent veins and a chitin crest.',
-    skins: [0x9aa89f, 0x8394a3, 0xa494a6, 0x7f9a84],
+  velari: {
+    id: 'velari', name: 'Velari', blurb: 'Resonance-adapted: crystalline, faceted skin with seams that carry a faint inner light, and a crystal crest.',
+    skins: [0xdcdff0, 0xbccbe2, 0xcdb9de, 0xa3bdb9, 0x9095bb],
     hair: ['none', 'buzz', 'crop'],
   },
+  augmented: {
+    id: 'augmented', name: 'Augmented', blurb: 'Engineered humans: alloy implant plating at the temple and cheek, an ocular ring and status nodes.',
+    skins: HUMAN_SKINS,
+    hair: ['none', 'buzz', 'crop', 'swept'],
+  },
 };
+
+/**
+ * Retired playable races and the race their saves migrate to. Skin index and
+ * hair carry over when the new race allows them (every Mirekin skin and hair
+ * choice is valid for Velari, the closest kin: bio-luminous and altered).
+ */
+export const RETIRED_RACES = { mirekin: 'velari' };
 
 // Archived for explicit art inspection only; never enumerate this as a playable origin.
 export const ARCHIVED_RACES = {
@@ -101,7 +118,8 @@ export function defaultAppearance(look) {
 /**
  * Validate any input (string or object) into a complete appearance. Each
  * field falls back independently, so one bad field never discards the rest;
- * race rules (hairless Veyran, the Mirekin hair set) are enforced last.
+ * retired races migrate first; race rules (hairless Veyran, each race's hair
+ * set) are enforced last.
  */
 export function normalizeAppearance(input, look) {
   const d = defaultAppearance(look);
@@ -112,7 +130,8 @@ export function normalizeAppearance(input, look) {
   // The retired identity is only available to explicit archive art inspection.
   // Active looks reject archived origins; preserve the chosen body frame.
   if (look !== 'red_rucker' && own(ARCHIVED_RACES, raw.race)) return { ...d, frame };
-  const race = Object.hasOwn(LOOK_RACE, look) ? LOOK_RACE[look] : own(RACES, raw.race) ? raw.race : d.race;
+  const asked = own(RETIRED_RACES, raw.race) ? RETIRED_RACES[raw.race] : raw.race;
+  const race = Object.hasOwn(LOOK_RACE, look) ? LOOK_RACE[look] : own(RACES, asked) ? asked : d.race;
   const R = RENDER_RACES[race];
   const skin = Number.isInteger(raw.skin) && raw.skin >= 0 && raw.skin < R.skins.length ? raw.skin : Math.min(d.race === race ? d.skin : 0, R.skins.length - 1);
   let hair = own(HAIR_STYLES, raw.hair) ? raw.hair : d.hair;

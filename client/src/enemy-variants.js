@@ -11,6 +11,9 @@
 
 const VARIANTS = Object.freeze({
   ash: { tint: 0x6a5c52, mix: 0.5, rough: 0.12, vein: 0xff7a2a, veinGain: 1.3, scale: 2.6, crystal: 0xffa548, core: 0x4a1a06, shards: 5 },
+  // Scrapyard garrison: patched salvage plating with brass-hot seams; the elite runs hotter and larger
+  salvage: { tint: 0x5a4c3c, mix: 0.45, rough: -0.08, vein: 0xd9893a, veinGain: 0.75, scale: 5.0, crystal: 0x7fe6ff, core: 0x062a36, shards: 4 },
+  salvage_elite: { tint: 0x4a3a2a, mix: 0.55, rough: -0.12, vein: 0xffa040, veinGain: 1.25, scale: 5.5, crystal: 0x9ff4ff, core: 0x083646, shards: 8, size: 1.35 },
   foundry: { tint: 0x2f2b29, mix: 0.55, rough: -0.05, vein: 0xff5a14, veinGain: 1.9, scale: 3.4, crystal: 0x5ef2e2, core: 0x05302f, shards: 3 },
 });
 export const ENEMY_VARIANTS = Object.freeze(Object.keys(VARIANTS));
@@ -119,6 +122,7 @@ export function applyEnemyVariant(T, model, vx) {
     for (const m of owned) m.dispose();
     return dispose?.();
   };
+  if (v.size) model.group.scale.multiplyScalar(v.size);
   model.variant = vx;
   return model;
 }

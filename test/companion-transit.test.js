@@ -9,7 +9,7 @@ import { addBuff } from '../server/sim/combat.js';
 import { inSilentFoundry, inSeverancePocket } from '../shared/world.js';
 
 function annexReady(game) {
-  const p = game.addPlayer(makeChar('symbiotech', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
+  const p = game.addPlayer(makeChar('symbiotech', { level: 8, attunements: ['resonance'], riftCalibration: 'completed' }));
   game.rift.phase = 'stabilized';
   return p;
 }

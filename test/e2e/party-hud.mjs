@@ -18,18 +18,18 @@ try {
    const page=await ctx.newPage();page.setDefaultTimeout(65000);
    page.on('pageerror',e=>errors.push(name+': '+e.message));
    await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=0.25':''));
-   await page.fill('#name',name);await page.click('#enter');
+   await page.click('#gate-guest-link');await page.fill('#name',name);await page.click('#enter');
    const player=await liveFixturePlayer(page,server,name,65000);
    return {page,player,ctx};
  }
  const first=await join('Party Vanguard','party-a'),second=await join('Party Healer','party-b');
  const A=first.page,B=second.page;
  // Both start in the Reach; no player or party data is directly forged.
- // P opens the ability matrix; Shift+P is the Party shortcut.
- await A.locator('#view').focus();await A.keyboard.press('Shift+KeyP');
+ // Shift+P opens Party; plain P opens the Ability Matrix.
+ await A.locator('#view').focus();await A.keyboard.press('Shift+P');
  await A.locator('.party-panel').waitFor({state:'visible'});
  await A.locator('.party-panel .party-member').filter({hasText:'Party Healer'}).getByRole('button',{name:'Invite'}).click();
- await B.locator('#view').focus();await B.keyboard.press('Shift+KeyP');
+ await B.locator('#view').focus();await B.keyboard.press('Shift+P');
  await B.locator('.party-panel').waitFor({state:'visible'});
  await B.locator('.party-panel').getByRole('button',{name:'Accept'}).click();
  await A.waitForFunction(()=>window.__attune?.state()?.you?.party?.members?.length===2);
@@ -42,6 +42,21 @@ try {
  const icon=A.locator('.party-frame-stacks .party .buff-chip[data-effect="ward"]');
  assert.match(await icon.getAttribute('aria-label'),/Kinetic Ward/);
  assert.equal(await icon.locator('.buff-icon svg').count(),1);
+ // Player and party use the same icon-only inspection contract.
+ first.player.buffs.push({k:'corrode',until:server.game.time+30000});
+ const own=A.locator('.frame.player .buff-chip[data-effect="corrode"]');
+ await own.waitFor({state:'visible'});
+ for(const [chip,label] of [[icon,'Kinetic Ward'],[own,'Corroded']]){
+   assert.equal(await chip.locator('.buff-label').evaluate(n=>getComputedStyle(n).clipPath),'inset(50%)');
+   assert.equal(await chip.getAttribute('tabindex'),'0');
+   await chip.focus();
+   assert.equal(await A.locator('.tooltip .tip-title').textContent(),label);
+   await chip.evaluate(n=>n.blur());
+ }
+ await A.mouse.move(0,0);
+ await icon.hover();
+ assert.equal(await A.locator('.tooltip .tip-title').textContent(),'Kinetic Ward');
+ await A.mouse.move(0,0);
  // Snapshot visibility follows travel region, not distance within the Reach.
  // Moving a member to a different region preserves party membership but hides
  // unobserved live health, buffs and portraits.

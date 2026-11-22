@@ -19,7 +19,7 @@ try {
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',msg=>{if(msg.type()==='error') errors.push(msg.text());});
     await page.goto('http://127.0.0.1:'+server.port+'/?q='+quality+'&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=1':''));
-    await page.fill('#name',name);
+    await page.click('#gate-guest-link');await page.fill('#name',name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
     await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>0;},null,{polling:100});
@@ -50,7 +50,7 @@ try {
   assert.equal(p.companion.lightOn, false);
   await owner.getByRole('button',{name:'Field light',exact:true}).click();
   await owner.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 1), id);
-  await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 10 && o.intensity > 0));
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 20 && o.intensity > 0));
   assert.equal(p.companion.lightOn, true);
   await owner.screenshot({path:path.join(out,'field-light-on.png')});
   // Drive the real camera and verify actual visible geometry, not just a flag.
@@ -107,7 +107,7 @@ try {
   await owner.locator('#view').focus();
   await owner.keyboard.press('Shift+2');
   await observer.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 0), id);
-  await owner.waitForFunction(() => window.__attune.gfx.scene.children.filter(o => o.isPointLight && o.distance === 10).every(o => o.intensity === 0));
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.filter(o => o.isPointLight && o.distance === 20).every(o => o.intensity === 0));
   assert.equal(p.companion.lightOn, false);
   const before={x:p.companion.x,z:p.companion.z};
   await owner.keyboard.down('KeyW');

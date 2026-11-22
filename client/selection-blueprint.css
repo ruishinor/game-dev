@@ -1,0 +1,355 @@
+/* ATTUNEMENT: Character Selection reference composition, 2026-11-20.
+   Loaded AFTER legacy styles. The 3D environment and actual character are the
+   screen; chrome stays sparse, grounded and secondary to the scene.
+   No second, unrelated dashboard skin. */
+
+.character-selection-mode #login,
+.character-create-mode #login,
+.character-selection-mode #login .login-card,
+.character-create-mode #login .login-card{
+ background:#05070b;
+}
+
+.character-selection-mode #login .login-card>h1,
+.character-create-mode #login .login-card>h1{
+ top:29px;left:clamp(23px,3.1vw,51px);
+ color:#ebe9e5;text-transform:uppercase;
+ font:600 clamp(23px,1.7vw,32px)/1.15 Georgia,'Times New Roman',serif;
+ letter-spacing:.1em;text-shadow:0 3px 7px #000a;
+}
+.character-selection-mode .roster-head{
+ top:80px;left:clamp(24px,3.1vw,51px);
+}
+.character-selection-mode .roster-head h2{
+ font:500 clamp(15px,1.27vw,23px)/1.2 Georgia,serif;
+ letter-spacing:.16em;text-transform:uppercase;color:#e0e1e3;
+}
+.character-selection-mode #roster-realm{
+ color:#adb2b6;font:10px/1.7 'Segoe UI',sans-serif;
+ letter-spacing:.09em;
+}
+.character-selection-mode #roster-realm span:first-child{color:#859099}
+.character-selection-mode #roster-preview:after{
+ background:linear-gradient(90deg,rgba(2,4,8,.84) 0%,rgba(2,4,8,.31) 19%,transparent 39%,transparent 62%,rgba(2,4,8,.64) 100%),
+ linear-gradient(0deg,rgba(2,3,7,.77) 0%,transparent 22%,transparent 78%,rgba(2,3,7,.29) 100%);
+}
+.character-selection-mode #roster-preview{
+ background:#06070d;
+}
+.character-selection-mode #roster-preview canvas{
+ cursor:grab;
+}
+.character-selection-mode .roster-facts{
+ left:clamp(58px,10.6vw,185px);bottom:clamp(147px,18vh,190px);
+ width:clamp(190px,17vw,280px);background:none;
+ padding:0;box-shadow:none;text-shadow:0 1px 8px #000;
+}
+.character-selection-mode .roster-level{
+ color:#bdc2c9;font:11px/1.5 Georgia,serif;
+ letter-spacing:.035em;
+}
+.character-selection-mode #character-roster h3.roster-character-name{
+ color:#f1efe9;font:600 clamp(23px,1.5vw,30px)/1.3 Georgia,serif;
+ margin:4px 0 15px;
+}
+.character-selection-mode .roster-fact{
+ display:grid;grid-template-columns:75px minmax(0,1fr);gap:10px;
+ padding:3px 0;border:0;
+}
+.character-selection-mode .roster-fact-label{
+ color:#c5c8cb;font:12px/1.45 Georgia,serif;
+}
+.character-selection-mode .roster-fact strong{
+ color:#ebedf0;font:500 12px/1.45 Georgia,serif;
+ text-align:left;
+}
+.character-selection-mode .roster-cards{
+ right:clamp(23px,3.3vw,57px);top:18%;
+ width:clamp(280px,23.4vw,390px);max-height:52%;
+ background:none;border:0;padding:0;overflow:auto;
+}
+.character-selection-mode .roster-cards h3{
+ padding:0 6px;margin:0 0 15px;
+ font:500 11px/1.3 'Segoe UI',sans-serif;
+ color:#dadee1;letter-spacing:.17em;
+}
+.character-selection-mode .roster-select{
+ margin:0 0 9px;min-height:71px;
+ padding:12px 19px 12px 23px;gap:14px;
+ background:linear-gradient(92deg,rgba(29,32,40,.92),rgba(29,31,38,.7));
+ border:1px solid rgba(139,148,162,.64);
+ border-left:3px solid #a0a8b5;
+ clip-path:polygon(21px 0,100% 0,100% 100%,21px 100%,0 50%);
+ box-shadow:none;border-radius:0;
+}
+.character-selection-mode .roster-select[aria-pressed="true"]{
+ background:linear-gradient(90deg,rgba(59,66,76,.95),rgba(42,47,54,.8));
+ border-color:#a8b4c1;border-left-color:#c8d2dc;
+}
+.character-selection-mode .roster-select:hover:not(:disabled){
+ background:linear-gradient(90deg,rgba(65,72,82,.96),rgba(34,40,48,.9));
+ border-color:#d4dbe1;
+}
+.character-selection-mode .roster-insignia{
+ color:#c8d5df;
+}
+.character-selection-mode .roster-entry-copy small{
+ color:#bcc2c8;font-size:11px;
+}
+.character-selection-mode .roster-entry-copy strong{
+ color:#f0eee9;font-size:18px;
+}
+.character-selection-mode .roster-slot-vacant{
+ margin:0;min-height:49px;
+ border-color:#65717b75;border-left-color:#8997a4;
+ color:#c1c8ce;font:500 12px Georgia,serif;
+ background:linear-gradient(90deg,#111820bf,#1118217a);
+}
+.character-selection-mode #roster-capacity{
+ color:#d4d8db;letter-spacing:.05em;font:12px Georgia,serif;
+ margin:16px 2px 0;
+}
+.character-selection-mode .roster-footer{bottom:31px;height:68px;}
+.character-selection-mode .roster-footer #roster-enter{
+ left:44%;top:0;min-width:212px;
+ font:600 20px/1.4 Georgia,serif;letter-spacing:.035em;
+ color:#f4f2ea;border:1px solid #abb4bd;
+ background:linear-gradient(180deg,#202631cf,#11141adf);
+ clip-path:polygon(15px 0,calc(100% - 15px) 0,100% 50%,calc(100% - 15px) 100%,15px 100%,0 50%);
+}
+.character-selection-mode .roster-footer button{
+ font:11px Georgia,serif;letter-spacing:0;
+ background:rgba(7,10,15,.66);
+ color:#d9dcde;border:1px solid #626b77;
+}
+.character-selection-mode .roster-footer #roster-create{
+ right:clamp(25px,3.1vw,53px);top:2px;
+}
+.character-selection-mode .roster-footer #roster-delete{
+ right:calc(clamp(25px,3.1vw,53px) + 143px);top:2px;
+ color:#d3c8c8;
+}
+.character-selection-mode .roster-footer #roster-settings{
+ left:calc(clamp(24px,3.1vw,52px) + 130px);top:2px;
+}
+.character-selection-mode #account-signout{
+ left:clamp(24px,3.1vw,52px);bottom:37px;
+ border-color:#747a85;color:#d1d4d9;
+ font:11px Georgia,serif;
+}
+.character-selection-mode #roster-preview [data-preview-inspect]{
+ left:max(20px,calc(50% - 350px));bottom:190px;
+ border:1px solid #5a6570;background:#090f18cc;color:#c4cbd2;
+ font:11px Georgia,serif;
+}
+.character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+ left:max(20px,calc(50% - 350px));bottom:235px;
+ max-width:170px;background:#0a1019f5;
+}
+.character-selection-mode #roster-preview [data-preview-status]:empty{
+ display:none!important;
+}
+.character-selection-mode #roster-preview [data-preview-status]{
+ bottom:98px;color:#b6c0ca;font-size:10px;
+}
+.character-selection-mode #character-roster .legacy-link{
+ position:absolute;right:clamp(25px,3.3vw,57px);
+ top:57%;bottom:auto;width:clamp(280px,23.4vw,390px);
+ margin:0;background:none;border:0;
+ color:#afb6be;font-size:10px;
+ opacity:.8;max-height:none;
+}
+.character-selection-mode #character-roster .legacy-link:not([open]){background:none;}
+.character-selection-mode #character-roster .legacy-link[open]{
+ top:44%;max-height:40%;overflow:auto;
+ padding:13px 15px;background:#080d15f4;
+ border:1px solid #5e6875;opacity:1;z-index:9;
+ box-shadow:0 14px 30px #000b;
+}
+.character-selection-mode #character-roster.roster-empty #roster-create{
+ left:50%;right:auto;top:0;transform:translateX(-50%);
+ min-width:218px;font:600 16px/1.4 Georgia,serif;
+ border-color:#aeb9c3;background:#1b232de8;
+}
+
+/* Character Creation is a continuation of the same environment, not a
+   separate card floating over the entire game world. */
+.character-create-mode #creation-fields{
+ width:clamp(300px,24.5vw,405px);
+ top:103px;left:clamp(20px,3.2vw,55px);
+ bottom:115px;
+ background:linear-gradient(90deg,#050911de,#070b14d0 85%,#070b1400);
+ border-left:1px solid #777d8580;
+ box-shadow:none;
+}
+.character-create-mode .creation-section-heading strong{
+ font:600 21px/1.25 Georgia,serif;color:#ebe9e5;
+}
+.character-create-mode #creation-preview{
+ background:#05070b;
+}
+.character-create-mode #creation-preview h2{
+ color:#d3d4d6;
+}
+.character-create-mode #enter{
+ background:linear-gradient(180deg,#202631ec,#11161de8);
+ border-color:#abb5c1;color:#f2eee8;
+ font:600 17px Georgia,serif;
+}
+.character-create-mode #creation-preview [data-preview-inspect]{
+ color:#cdd5dc;border-color:#6a7480;
+ background:#080e17e0;
+}
+@media(max-width:760px){
+ .character-selection-mode .roster-cards{
+  top:117px;left:10px;right:10px;
+  width:calc(100% - 20px);max-height:100px;
+ }
+ .character-selection-mode .roster-facts{
+  bottom:194px;left:12px;width:calc(100% - 24px);
+  background:linear-gradient(90deg,#070b12ed,#070b12c0);
+  padding:9px;
+ }
+ .character-selection-mode .roster-fact{display:flex;flex-direction:column;gap:0;}
+ .character-selection-mode #character-roster h3.roster-character-name{margin-bottom:3px;}
+ .character-selection-mode #account-signout{
+  left:12px;top:77px;right:auto;bottom:auto;
+ }
+ .character-selection-mode .roster-footer #roster-enter{
+  left:50%;top:0;min-width:186px;font-size:17px;
+ }
+ .character-selection-mode .roster-footer #roster-create{
+  top:55px;right:12px;
+ }
+ .character-selection-mode .roster-footer #roster-delete{
+  top:55px;right:146px;
+ }
+ .character-selection-mode .roster-footer #roster-settings{
+  top:55px;left:12px;
+ }
+ .character-selection-mode #roster-preview [data-preview-inspect]{
+  left:auto;right:12px;top:221px;bottom:auto;
+ }
+ .character-selection-mode #roster-preview .roster-preview-controls:not([hidden]){
+  left:auto;right:12px;top:260px;bottom:auto;
+ }
+ .character-selection-mode #character-roster .legacy-link{
+  top:225px;right:12px;width:165px;font-size:9px;
+ }
+ .character-selection-mode #character-roster .legacy-link[open]{
+  top:200px;right:12px;width:calc(100% - 24px);
+  max-height:44%;
+ }
+ .character-create-mode #creation-fields{
+  left:10px;right:10px;width:calc(100% - 20px);
+  top:94px;height:min(39vh,320px);bottom:auto;
+ }
+}
+
+
+/* Cover the transient unauthenticated title-camera view until the actual
+   character's authoritative first world frame has been drawn. */
+#world-entry-curtain:not([hidden]){
+ position:fixed;inset:0;z-index:9999;
+ display:flex;align-items:flex-end;justify-content:center;
+ padding:0 20px min(16vh,140px);
+ background:radial-gradient(ellipse at 50% 56%,#0a101cfa,#02050afc);
+ opacity:1;pointer-events:all;transition:opacity .65s ease;
+}
+#world-entry-curtain span{
+ color:#e1dfe1;font:600 20px/1.5 Georgia,serif;
+ letter-spacing:.11em;text-transform:uppercase;
+ border-bottom:1px solid #82949d;padding:15px 35px;
+ text-shadow:0 2px 14px #000;
+}
+#world-entry-curtain.dismissed:not([hidden]){
+ opacity:0;pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+ #world-entry-curtain:not([hidden]){transition:none;}
+}
+
+/* A real rendered gateway frame fades into selection/creation; neither a
+   black WebGL canvas nor a half-constructed title camera may flash onscreen. */
+.character-selection-mode #roster-preview canvas,
+.character-create-mode #creation-preview canvas{
+ opacity:0;transition:opacity .52s ease;
+}
+.character-selection-mode #roster-preview[data-frame-ready="yes"][data-scene-asset="severance-gate-glb"] canvas,
+.character-create-mode #creation-preview[data-frame-ready="yes"][data-scene-asset="severance-gate-glb"] canvas,
+.character-selection-mode #roster-preview[data-frame-ready="yes"][data-scene-asset="unavailable"] canvas,
+.character-create-mode #creation-preview[data-frame-ready="yes"][data-scene-asset="unavailable"] canvas{
+ opacity:1;
+}
+@media(prefers-reduced-motion:reduce){
+ .character-selection-mode #roster-preview canvas,
+ .character-create-mode #creation-preview canvas{transition:none}
+}
+
+
+/* Owner's 101s in-engine recording: inspector overprinted Location and the
+   split-screen creator placed a second avatar behind the controls.
+   Keep presentation controls in distinct, non-overlapping zones. */
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect] {
+ position:relative;display:block;left:auto;right:auto;top:auto;bottom:auto;
+ transform:none;width:fit-content;min-width:0;margin:14px 2px 3px auto;
+ padding:8px 12px;border:1px solid #8c98a5;color:#e4e8ea;
+ background:rgba(14,20,29,.85);font:12px/1.3 Georgia,serif;
+ cursor:pointer;
+}
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect]:hover {
+ border-color:#c4d1da;background:rgba(37,47,61,.92);
+}
+.character-selection-mode #character-roster .roster-cards [data-preview-inspect][hidden],
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls[hidden] {
+ display:none!important;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls:not([hidden]) {
+ position:relative;display:grid;grid-template-columns:1fr 1fr;
+ gap:5px;left:auto;right:auto;top:auto;bottom:auto;
+ width:100%;max-width:none;max-height:none;margin:8px 0 0;
+ padding:9px;transform:none;overflow:visible;
+ border:1px solid #687582;border-radius:0;
+ background:rgba(9,15,24,.94);box-shadow:none;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls button {
+ display:block;min-width:0;max-width:100%;
+ padding:6px 8px;background:rgba(25,35,48,.86);
+ color:#d6e1e6;border:1px solid #536271;
+ text-align:center;font:11px/1.45 'Segoe UI',sans-serif;
+}
+.character-selection-mode #character-roster .roster-cards .roster-preview-controls [data-preview-reset] {
+ grid-column:1/-1;
+}
+.character-selection-mode .roster-facts {
+ z-index:3;width:min(306px,21vw);
+}
+.character-selection-mode #character-roster .roster-fact {
+ grid-template-columns:85px minmax(0,1fr);gap:9px;
+}
+.character-selection-mode #character-roster .roster-fact strong {
+ overflow-wrap:break-word;word-break:normal;
+}
+.character-create-mode #creation-fields {
+ background:#070d17f5;border-left:1px solid #777d8590;
+ border-right:1px solid #343f4d;
+ box-shadow:10px 0 32px #02040977;
+}
+.character-create-mode #creation-preview [data-preview-frames] {
+ display:none!important;
+}
+@media(max-width:760px) {
+ .character-selection-mode .roster-facts {
+  width:calc(100% - 24px);
+ }
+ .character-selection-mode #character-roster .roster-cards [data-preview-inspect] {
+  padding:5px 8px;font-size:10px;margin:5px 5px 2px auto;
+ }
+ .character-selection-mode #character-roster .roster-cards .roster-preview-controls:not([hidden]) {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:3px;padding:5px;
+ }
+ .character-selection-mode #character-roster .roster-cards .roster-preview-controls button {
+  padding:5px;font-size:10px;
+ }
+}

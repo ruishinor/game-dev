@@ -34,6 +34,7 @@ export const ENTRIES = [
     desc: id === 'skitter' ? 'A hostile creature encountered in the Sporefield. Attacks in melee and can draw nearby skitters into combat.' :
       id === 'sentinel' ? 'A ranged enemy at the Derelict Relay. Its Arc Pulse marks the ground before it strikes.' :
       id === 'turret_drone' ? 'A mobile ranged defence drone in the eastern relay outskirts. Its Suppressive Barrage brackets the target area before impact.' :
+      id === 'severance_soldier' ? 'Soldiers of the Severance Expanse in Cinderlock armour. They patrol in squads under a sergeant, answer each other when one is attacked, and fight with induction gauntlets. A Kinetic Discharge builds visibly in the reactor before it bursts around them.' :
       'The elite guardian of the Resonance Vault. Its attacks threaten nearby travellers; its health scales with the number engaged.',
     meta: { k: 'e', c: id }, facts: [
       'Level: ' + e.level, 'Base health: ' + e.hp,

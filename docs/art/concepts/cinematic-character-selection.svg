@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Attunement cinematic character selection composition: monumental resonance gate, actual live character presentation, roster to the right and minimal floating controls">
+<defs>
+ <radialGradient id="sky"><stop stop-color="#193044"/><stop offset=".7" stop-color="#07121e"/><stop offset="1" stop-color="#030810"/></radialGradient>
+ <linearGradient id="stone" x2=".6" y2="1"><stop stop-color="#2a3c4b"/><stop offset=".5" stop-color="#10202e"/><stop offset="1" stop-color="#070e17"/></linearGradient>
+ <linearGradient id="metal"><stop stop-color="#6c96a9"/><stop offset=".3" stop-color="#213d4e"/><stop offset=".7" stop-color="#152d3e"/><stop offset="1" stop-color="#54788b"/></linearGradient>
+ <linearGradient id="ui" x2="1" y2="0"><stop stop-color="#27465a" stop-opacity=".94"/><stop offset="1" stop-color="#0b1c2b" stop-opacity=".87"/></linearGradient>
+ <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#1b2c36"/><stop offset="1" stop-color="#030810"/></linearGradient>
+ <filter id="haze"><feGaussianBlur stdDeviation="18"/></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="3"/></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<g fill="#17242d"><path d="M0 245 130 82 245 265 355 116 520 309 640 140 750 340 905 74 1090 284 1254 89 1420 233 1535 25 1600 30V900H0Z"/>
+<path d="M0 352 194 208 318 422 533 244 689 428 856 219 1004 414 1158 218 1350 371 1600 201V900H0Z" fill="#0b151f"/></g>
+<ellipse cx="817" cy="390" rx="218" ry="290" fill="#417b98" opacity=".12" filter="url(#haze)"/>
+<g transform="translate(805,160)">
+ <path d="M-226 515 -199 77 -155 -26 155 -26 199 77 226 515" stroke="#4e7587" stroke-width="4" fill="#091520"/>
+ <path d="M-188 480 -155 99 -119 4 119 4 155 99 188 480" stroke="url(#metal)" stroke-width="25" fill="#0b1822"/>
+ <rect x="-91" y="70" width="182" height="405" rx="87" stroke="#42687a" stroke-width="6" fill="#030b14"/>
+ <ellipse cx="0" cy="262" rx="83" ry="145" fill="#19485e" opacity=".16"/>
+ <path d="M0 53V476" stroke="#a4d8ec" stroke-width="6" opacity=".73" filter="url(#soft)"/>
+ <path d="M0 53V476" stroke="#d2f2fc" stroke-width="2" opacity=".8"/>
+ <path d="M-225 27H225" stroke="url(#metal)" stroke-width="29"/>
+ <path d="M-165 27 -136 -20M165 27 136 -20" stroke="#7595a3" stroke-width="5"/>
+ <g stroke="#739cb0" stroke-width="2" opacity=".48"><path d="M-159 110V460M159 110V460M-201 120V480M201 120V480"/></g>
+</g>
+<g fill="url(#ground)">
+ <path d="M0 631 600 573 848 586 1186 600 1600 626V900H0Z"/>
+ <path d="M0 720 600 618 820 640 1600 695V900H0Z" opacity=".7"/>
+</g>
+<ellipse cx="806" cy="733" rx="215" ry="38" fill="#060e18" stroke="#537f90" stroke-width="2"/>
+<ellipse cx="806" cy="741" rx="145" ry="19" fill="#1f4155" opacity=".35"/>
+<!-- Identity reservation: this translucent silhouette represents the engine-rendered selected character only. -->
+<g fill="none" stroke="#a4c5d4" opacity=".72" stroke-width="3">
+ <ellipse cx="805" cy="278" rx="53" ry="62" stroke-dasharray="6 8"/>
+ <path d="M753 356 720 381 713 486 748 518 756 610 733 724M859 356 895 381 902 486 866 518 857 610 878 724"/>
+ <path d="M758 357Q807 337 851 357L868 523Q805 548 744 523Z"/>
+ <path d="M770 536 770 636 756 718M840 536 841 640 859 718M736 724H774M845 724H885"/>
+</g>
+<text x="805" y="777" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="12" letter-spacing="3" fill="#85a7b8">RENDER THE SELECTED PERSISTED MODEL HERE</text>
+<g font-family="Segoe UI,sans-serif" fill="#e0edf2">
+ <text x="54" y="54" font-family="Georgia,serif" font-size="34" letter-spacing="5">ATTUNEMENT</text>
+ <text x="55" y="86" font-size="15" letter-spacing="4">CHARACTER SELECTION</text>
+ <text x="55" y="112" font-size="13" letter-spacing="2" fill="#8fafbf">THE VERDIGRIS REACH</text>
+ <text x="62" y="560" font-size="12" letter-spacing="2" fill="#9bc0d1">LEVEL / ACTUAL</text>
+ <text x="62" y="606" font-family="Georgia,serif" font-size="38">Selected character</text>
+ <g font-size="16" fill="#99b6c4"><text x="62" y="647">Class</text><text x="62" y="681">Race</text><text x="62" y="715">Location</text><text x="62" y="749">Progress / Credits</text></g>
+ <g font-size="16"><text x="195" y="647">From server</text><text x="195" y="681">From appearance</text><text x="195" y="715">From persisted world</text><text x="195" y="749">Character-owned</text></g>
+ <text x="1235" y="185" font-size="15" letter-spacing="3" fill="#b7cfdb">YOUR CHARACTERS</text>
+</g>
+<g transform="translate(1222,208)">
+ <g fill="url(#ui)" stroke="#80aebf" stroke-width="2"><path d="M18 0H343V84H18L0 42Z"/><path d="M18 97H343V181H18L0 139Z" opacity=".7"/><path d="M18 194H343V278H18L0 236Z" opacity=".7"/></g>
+ <g fill="#d9edf4" font-family="Segoe UI,sans-serif"><text x="62" y="30" font-size="13">ACTUAL LEVEL · CLASS</text><text x="62" y="57" font-family="Georgia,serif" font-size="25">Selected name</text><text x="62" y="126" font-size="13">OTHER ACCOUNT CHARACTER</text><text x="62" y="154" font-family="Georgia,serif" font-size="23">Name</text><text x="62" y="223" font-size="13">EMPTY CHARACTER SLOT</text><text x="62" y="253" font-size="20">+ Create character</text></g>
+ <g stroke="#92c9df" stroke-width="2" fill="none"><path d="M34 25 47 35 43 53 29 53 24 35Z"/><path d="M29 119 45 139 29 158 13 139Z"/></g>
+</g>
+<text x="1565" y="520" font-family="Segoe UI,sans-serif" text-anchor="end" font-size="14" fill="#a7c6d4">OCCUPIED / SERVER CAPACITY</text>
+<g font-family="Segoe UI,sans-serif" text-anchor="middle"><path d="M699 814H904L923 842 904 870H699L679 842Z" fill="url(#ui)" stroke="#a6d7e6" stroke-width="2"/><text x="801" y="852" font-family="Georgia,serif" font-size="23" fill="#eff9fc">ENTER WORLD</text></g>
+<g font-family="Segoe UI,sans-serif" font-size="14" fill="#b6d1dc"><text x="58" y="848">RETURN TO LOGIN</text><text x="275" y="848">SETTINGS</text><text x="1325" y="848">DELETE</text><text x="1455" y="848">CREATE</text></g>
+</svg>

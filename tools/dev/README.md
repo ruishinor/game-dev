@@ -1,14 +1,14 @@
-# Development diagnostics
+# Development probes (not part of the game)
 
-One-off probes used while building the visual fidelity and appearance work.
-None run in CI. Run them from the repo root with Node 24.
+Small diagnostics written while building the Severance work. Run from `tools/dev/`.
 
-| Script | What it does | Found |
-|---|---|---|
-| `contact-sheet.py` | Tiles evidence frames into one review image (needs Pillow) | Used for every visual review in `docs/art/reviews/` |
-| `measure-skull.mjs` | Skull ellipsoid from rest-pose skinned Head vertices, per frame | Static fallbacks in `client/src/appearance-render.js` `HEAD` |
-| `measure-head-glb.mjs` | Head bounds straight from the GLBs (node space) | Showed that GLB space ≠ gear space |
-| `probe-bones.mjs` | Inverse-bind joint positions of a live humanoid | Showed that skinning space ≠ gear space, which led to the runtime `measureSkull` |
-| `diagnose-character-tabs.mjs` | Per-tab conditions of e2e check 9 | Root cause: uppercase `.kicker` with case-sensitive `innerText` matches |
+- `render_blend.py`, `render_spread.py`: Cycles preview renders of a pipeline `.blend`
+  (`PYTHONPATH=../asset-pipeline <venv>/python render_blend.py '{"blend":...,"out":...,"views":[[name,eye,target]]}'`;
+  `render_spread.py` also takes `"spread":[object names]` to lay kit pieces out in a row).
+- `vein-sites.mjs`, `camp-site.mjs`: search the Expanse for clear, level sites away from colliders,
+  patrol routes, the outpost and the gate approach.
+- `rift-fps.mjs <repoRoot>`: same-session A/B frame time near the rift (visible / no refraction / hidden).
+- `reach-probe.mjs`, `vein-probe.mjs`: scene probes (entities and meshes present at a moment).
+- `ab-vendor.sh`: run the vendor e2e in two worktrees back to back (set `SCRATCH`).
 
-`measure-skull.mjs` and `probe-bones.mjs` reflect intermediate states. The game now measures the skull itself at character creation (`characters.js` `measureSkull`).
+Software rendering only: numbers here are not GPU measurements.

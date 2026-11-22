@@ -24,7 +24,7 @@ try {
     page.on('console', (m) => { if (m.type() === 'error' || (m.type() === 'warning' && /\[assets\]|\[armour\]/.test(m.text()))) report.consoleErrors.push(m.text()); });
     await page.bringToFront();
     await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
-    await page.fill('#name', name);
+    await page.click('#gate-guest-link');await page.fill('#name', name);
     // A second WebGL page under software GL can starve layout and rAF long
     // enough that Playwright never sees the class card as visible/stable; the
     // join only needs the DOM clicks, so dispatch them directly.
@@ -141,10 +141,39 @@ try {
   await capture(page, `${OUT}/cinderlock-worn.png`);
   report.cinderlock = { worn: full.worn.armourWornAll, observerSees: full.seen.armourWornAll, fx };
   assert.deepEqual(Object.keys(full.seen.armourWornAll).sort(), [...ARMOUR_SLOTS].sort());
+  // the other three class families: the same wearer re-classed by the
+  // fixture, each four-piece set equipped through the server's own equip path;
+  // each is built for wearer and observer with its family's energy language
+  const { unequipSlot, equipItem } = await import('../../server/sim/progress.js');
+  const FAMILY = { keeper: 'VG', surveyor: 'SW', symbiotech: 'MY' };
+  report.families = {};
+  for (const [cls, code] of Object.entries(FAMILY)) {
+    const set = ARMOUR_VISUALS.filter((id) => ARMOUR_ASSETS[id] === `armour_${cls}_set`);
+    if (!set.length) continue;
+    for (const slot of ARMOUR_SLOTS) unequipSlot(server.game, p, slot);
+    p.char.cls = cls;
+    const fwant = {};
+    for (const id of set) {
+      const r = equipItem(server.game, p, id);
+      assert.equal(r.ok, true, `${id}: ${r.reason || ''}`);
+      fwant[ITEMS[id].slot] = id;
+    }
+    server.game.refreshStats(p);
+    server.game.markDirty(p);
+    await page.bringToFront();
+    const got = await wornBoth(fwant);
+    // a piece with emissive parts runs its family's FX; some pieces have none
+    // by design (Strataweave greaves: no unnecessary glowing surfaces)
+    const fams = ARMOUR_SLOTS.map((slot) => got.worn.armourFx?.[slot]?.family ?? null);
+    assert.ok(fams.some((f) => f === code), `${cls}: ${code} family FX on the set`);
+    for (const [i, f] of fams.entries()) assert.ok(f === null || f === code, `${cls} ${ARMOUR_SLOTS[i]}: ${f} is not ${code}`);
+    await page.bringToFront();
+    await capture(page, `${OUT}/${cls}-worn.png`);
+    report.families[cls] = { worn: got.worn.armourWornAll, observerSees: got.seen.armourWornAll, fx: got.worn.armourFx };
+  }
   // removal (the server's own unequip, as the slot's Remove action does)
   // clears the piece for the wearer and the observer
-  const { unequipSlot } = await import('../../server/sim/progress.js');
-  for (const slot of ARMOUR_SLOTS) assert.equal(unequipSlot(server.game, p, slot).ok, true);
+  for (const slot of ARMOUR_SLOTS) if (p.char.equipped[slot]) assert.equal(unequipSlot(server.game, p, slot).ok, true);
   server.game.markDirty(p);
   await page.bringToFront();
   await page.waitForFunction(() => { const s = window.__attune.state(); const e = s.ents.find((x) => x.id === s.myId); return e && !e.armourVisual && !e.armourWorn && !Object.keys(e.armourWornAll || {}).length; }, null, { timeout: 30000 });

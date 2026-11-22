@@ -1,16 +1,13 @@
 # Halo Construct NPC race — production and integration record
 
-Status: implemented on `feat/halo-construct-npcs`. Technical validation below.
-**Owner visual acceptance of the derivative (cleaned base, wardrobes, ring
-variant, shell cleanup) is outstanding**; acceptance of the original source
-(PR #94) does not extend to these changes automatically.
+Status: merged (#122). Vendor revised 2026-11-21 (#213, below); owner visual acceptance of the revised vendor granted 2026-11-21. Technical validation below.
 
 ## What is in the game
 
 | Role | World object | Where | Look |
 |---|---|---|---|
 | Sanctum Warden ×4 | `sanctum_guard_1..4` (new, `shared/world.js` `SANCTUM_GUARDS`) | radius 16 m, bearings 15°/105°/200°/280°, yaw = bearing (outward) | vertical open ring, security uniform, warden stave |
-| Vendor | `quartermaster` (unchanged id, name, position −5.6, −1.8, services) | inside the Sanctum, as before | horizontal open ring, navy sash and olive shoulder plate |
+| Vendor | `quartermaster` (unchanged id, name, position −5.6, −1.8, services) | inside the Sanctum, as before | the guard body and vertical ring in a painted livery (white shell, ebony mechanism and base garments), blue sash only |
 
 | Warden | x | z | yaw (rad) | equipment | optic tint |
 |---|---:|---:|---:|---|---|
@@ -39,6 +36,18 @@ It turns its ring toward a nearby customer, switches to the conversational
 clip while engaged (the existing `talking` signal), and plays the `Interact`
 gesture when a trade window opens. Archivist Venn is not migrated (separate
 decision).
+
+## Owner direction applied (2026-11-21): vendor on the guard model
+
+The horizontal-ring vendor read as disfigured. The vendor now uses the
+warden's body and vertical ring (no ring remap; the horizontal variant is no
+longer shipped) in a painted livery: the shell repainted a clean white with
+its own relative shading, mechanism and base garments ebony, optics kept
+(`materials.paint`, a second base-colour map on `body_paint` /
+`ring_vertical_paint`; same geometry, UVs, normal and ORM maps). Its
+clothing is a blue sash only: shoulder sash, knot, two tails and the brass
+buckle (`sash_blue`); the waist wrap and the olive shoulder plate are
+removed. Services, position, behaviour and clips are unchanged.
 
 ## Owner direction applied (2026-11-19)
 

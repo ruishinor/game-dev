@@ -21,15 +21,27 @@ export function loadSavedPoints(storage,owner) {
   try {
     const list=JSON.parse(storage.getItem(key)||'[]');
     if(!Array.isArray(list))return [];
-    const unique=new Set();
-    return list.slice(0,MAX_SAVED_POINTS).map(sanitizeSavedPoint)
-      .filter(p=>p&&!unique.has(p.id)&&unique.add(p.id));
+    const unique=new Set(), result=[];
+    // Count valid unique markers, not corrupt or duplicate storage records.
+    for(const entry of list){
+      const point=sanitizeSavedPoint(entry);
+      if(!point||unique.has(point.id))continue;
+      unique.add(point.id);
+      result.push(point);
+      if(result.length===MAX_SAVED_POINTS)break;
+    }
+    return result;
   } catch { return []; }
 }
 export function persistSavedPoints(storage,owner,points) {
   const key=ownerKey(owner);
   if(!key||!storage||!Array.isArray(points)||points.length>MAX_SAVED_POINTS)return false;
   const clean=points.map(sanitizeSavedPoint);
-  if(clean.some(x=>!x))return false;
+  const ids=new Set();
+  for(const point of clean){
+    // Reject ambiguous identities before touching durable local storage.
+    if(!point||ids.has(point.id))return false;
+    ids.add(point.id);
+  }
   try {storage.setItem(key,JSON.stringify(clean));return true;}catch{return false;}
 }

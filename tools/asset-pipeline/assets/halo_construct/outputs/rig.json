@@ -5,13 +5,14 @@
  "triangles": {
   "body": 23724,
   "ring_vertical": 4514,
-  "ring_horizontal": 4514,
+  "body_paint": 23724,
+  "ring_vertical_paint": 4514,
   "security": 18186,
   "equip_pouches": 216,
   "equip_radio": 332,
   "equip_baton": 168,
   "stave": 688,
-  "vendor": 19732
+  "vendor": 7884
  },
  "joints": 67,
  "clips": [
@@ -35,6 +36,6 @@
    1.674456123828888
   ]
  },
- "bytes": 18948940,
+ "bytes": 22329060,
  "reference_rig": "client/assets/humanoid_m.glb"
 }

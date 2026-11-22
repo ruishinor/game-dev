@@ -59,6 +59,12 @@ not covered by the statement above.
 | Asset | Source | Terms | Used for |
 | --- | --- | --- | --- |
 | `client/assets/halo_construct.glb` | Owner-accepted Halo Construct (`client/character-assets/halo_construct.glb`, SHA-256 `02853bfd…a32036`), reconstructed from owner-provided Meshy footage; skeleton and five clips from the Universal Animation Library (CC0) | Owner-authorised for this repository and the game build; provider licence not independently verified. Model created with Meshy (meshy.ai), CC BY 4.0 where applicable. | Halo Construct NPC race: Sanctum Wardens and the quartermaster ([record](art/HALO-CONSTRUCT-NPC.md)) |
+| `client/login/gate-2560.webp` | Owner-supplied login-screen key art (880×495 reference, 2026-11-20). The baked-in form, link and footer text were painted out (OpenCV FSR/Telea inpainting), then upscaled 4× with ESRGAN (UpscalerJS `esrgan-thick`, run locally), border-trimmed and exported at 2560×1440 WebP. | Owner-authorised for this repository and the game build; generator/provider terms not independently verified. | Account sign-in gate backdrop; the live form is laid over the painted-out area |
+
+Third-party font: `client/login/cinzel-latin-600-normal.woff2` is Cinzel 600
+(Latin subset, `@fontsource/cinzel` 5.3.0, © 2020 The Cinzel Project Authors)
+under the SIL Open Font License 1.1; the licence ships beside it as
+`client/login/OFL-Cinzel.txt`. Used for the sign-in plate and gate headings.
 
 ## Pipeline
 

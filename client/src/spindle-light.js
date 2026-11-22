@@ -2,7 +2,7 @@
 // authenticated owner switched this utility on; no visibility/combat mechanics
 // depend on the client rendering. Distances use world metres.
 export const SPINDLE_LIGHT = Object.freeze({
-  range: 10,
+  range: 20,
   height: 0.68,
   intensity: 100,
   color: 0xbddfff,

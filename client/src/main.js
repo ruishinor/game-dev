@@ -3,13 +3,15 @@
 // every outcome; this file only shows them and sends intents.
 
 import * as THREE from '/vendor/three/three.module.js';
+import {setupCreationSections} from './creation-sections.js';
+import {setupRosterSettingsPages} from './menu-settings-pager.js';
 import { CLASSES, ABILITIES, COMPANIONS, LOOKS, defaultLook } from '../../shared/content.js';
 import { attachArmourFxEnv } from './armour-fx.js';
 import { FRAMES, RACES, HAIR_STYLES, HAIR_COLOURS, LOOK_RACE, defaultAppearance, normalizeAppearance, encodeAppearance } from '../../shared/appearance.js';
 import { BRINE_TRIAL } from '../../shared/survey.js';
 import { MOVE_DT, stepMove, groundHeight, zoneAt, sameTravelRegion } from '../../shared/world.js';
 import { parseTimeOfDay } from './severance-daylight.js';
-import { buildWorld, makeEnvironment } from './scene.js';
+import { buildWorld, makeEnvironment, SANCTUM_ARCH_URL } from './scene.js';
 import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
@@ -30,6 +32,7 @@ import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
+import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
@@ -99,6 +102,10 @@ await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets
 });
 // Three existing licensed compact firearm meshes; Longpoint remains the authored original.
 if(glbOnly!=='none')await loadWeaponModels(assets);
+// The Sanctum's carved architecture kit; the generic kit remains the fallback.
+// Low quality (q=0) keeps the lighter generic kit, as with the other optional
+// art: the kit adds three 2048 px maps and a material program at first draw.
+if(glbOnly===null&&params.get('q')!=='0')assets.sanctumArch=await assets.loader.loadAsync(SANCTUM_ARCH_URL).catch((err)=>{console.warn('[sanctum] architecture kit unavailable; using the generic kit:',err?.message||err);return null;});
 // Original carapace is opt-in until actual visual/motion review; no
 // change to default companion animation or low-spec behavior.
 if(params.get('menderArt')==='1'&&glbOnly!=='none'&&params.get('q')!=='0'){
@@ -328,8 +335,12 @@ const net = new Net({
   onAuthFail: (reason) => showAccountLogin(reason ? `${reason} Sign in to an account or create a guest character.` : ''),
   onAccountReady: showRoster,
   onAccountFail: (reason) => {
-    const el = net.accountLogged ? ($('character-roster').hidden ? $('login-error') : $('roster-error')) : $('account-error');
+    const el = net.accountLogged
+      ? ($('character-roster').hidden ? $('login-error')
+        : $('roster-import-dialog').open ? $('roster-import-error') : $('roster-error'))
+      : $('account-error');
     el.textContent = reason;
+    selectionView.setBusy(false);
     if (!net.accountToken && /session expired/i.test(reason)) {
       clearWorld();
       S.myId = 0;
@@ -350,7 +361,11 @@ const net = new Net({
     $('enter').disabled = false;
   },
   onStatus: (text) => {
-    if (text) stopAutomaticMovement();
+    if (text) {
+      stopAutomaticMovement();
+      if(document.body.classList.contains('character-selection-mode'))selectionView.setBusy(false);
+      if(worldEntryPending){worldEntryPending=false;$('world-entry-curtain').hidden=true;}
+    }
     $('status').hidden = !text;
     $('status').textContent = text || '';
     if (text) input.reset();
@@ -473,6 +488,7 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
+  gm: line => net.send({ t: 'gm', line }),
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
@@ -486,7 +502,7 @@ let chosenLook = defaultLook(chosenClass);
 let chosenAp = defaultAppearance(chosenLook);
 let apTouched = false;
 const creationPreview=createCreationPreview({
-  root:$('creation-preview'),assets,useGlb,motionPreference,
+  root:$('creation-preview'),assets,useGlb,motionPreference,variant:'selection',
   getMeta:()=>({k:'p',c:chosenClass,a:chosenLook,n:$('name').value.trim()||chosenClass,ap:encodeAppearance(normalizeAppearance(chosenAp,chosenLook))}),
   selectFrame:frame=>{
     apTouched=true;
@@ -500,17 +516,26 @@ const selectionView=new CharacterRosterView({root:$('character-roster'),assets,u
   onDelete:(id,name)=>net.deleteCharacter(id,name)
 });
 let titleDrawAt=-Infinity;
+let worldEntryPending=false;
+const creationSections=setupCreationSections();
 function showCharacterCreation(){
-  if(!net.accountLogged||!lastRoster)return;
+  if(!net.accountLogged||!lastRoster){
+    $('roster-error').textContent='Your account session is unavailable. Sign in again to create a character.';
+    return;
+  }
+  creationSections.show('identity');
+  ui.toggleSettings(false);
+  $('hud').hidden=true;
   $('character-roster').hidden=true;
   $('login-form').hidden=false;
   $('creation-back').hidden=false;
   $('enter').textContent='Create character';
   $('enter').disabled=false;
   $('login-error').textContent='';
-  document.body.classList.remove('character-selection-mode');
+  document.body.classList.remove('character-selection-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
+  creationPreview.resetView();
   $('name').focus({preventScroll:true});
 }
 function backToRoster(){if(lastRoster&&net.accountLogged)showRoster(lastRoster);}
@@ -620,8 +645,15 @@ function buildLogin() {
 }
 
 function showAccountLogin(message = '') {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.add('gate-mode');
+  document.body.classList.remove('gate-guest-open');
+  setAccountMode('signin');
+  setPasswordShown(false);
+  openGuestFromHash();
   $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
@@ -638,10 +670,14 @@ function showAccountLogin(message = '') {
   $('login-error').textContent = '';
   $('enter').textContent = 'Enter as guest';
   $('enter').disabled = false;
+  $('gate-guest-link').textContent = net.token ? 'Return to your saved guest' : 'Play as a guest';
 }
 
 function showRoster(m) {
+  worldEntryPending=false;
+  $('world-entry-curtain').hidden=true;
   lastRoster=m;
+  if($('roster-import-dialog').open)$('roster-import-dialog').close();
   input.enabled=false;
   $('login').hidden=false;
   $('hud').hidden=true;
@@ -656,10 +692,37 @@ function showRoster(m) {
   $('roster-error').textContent='';
   $('login-error').textContent='';
   $('link-legacy').hidden=!net.token;
-  document.body.classList.remove('character-create-mode');
+  document.body.classList.remove('character-create-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
+  ui.toggleSettings(false);
+}
+
+// The gate form signs in or creates an account; the footer switch flips the mode.
+function setAccountMode(mode) {
+  const register = mode === 'register';
+  $('account-form').dataset.mode = register ? 'register' : 'signin';
+  $('account-signin').textContent = register ? 'Create account' : 'Sign in';
+  $('account-password').autocomplete = register ? 'new-password' : 'current-password';
+  $('account-mode-prompt').textContent = register ? 'Already have an account?' : 'Don’t have an account yet?';
+  $('account-register').textContent = register ? 'Sign in' : 'Sign up';
+  $('account-register-hint').hidden = !register;
+  $('account-help').hidden = true;
+  $('account-help-toggle').setAttribute('aria-expanded', 'false');
+}
+function openGuestView(focus) {
+  if (!document.body.classList.contains('gate-mode')) return;
+  document.body.classList.add('gate-guest-open');
+  if (focus) ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+}
+function openGuestFromHash() {
+  if (location.hash === '#guest-note') openGuestView(false);
+}
+function setPasswordShown(shown) {
+  $('account-password').type = shown ? 'text' : 'password';
+  $('account-reveal').setAttribute('aria-pressed', String(shown));
+  $('account-reveal').setAttribute('aria-label', shown ? 'Hide password' : 'Show password');
 }
 
 function buildAccountUI() {
@@ -667,13 +730,77 @@ function buildAccountUI() {
   $('account-form').addEventListener('submit', (e) => {
     e.preventDefault();
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, false);
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, $('account-form').dataset.mode === 'register');
   });
   $('account-register').addEventListener('click', () => {
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
+    setAccountMode($('account-form').dataset.mode === 'register' ? 'signin' : 'register');
+    $('account-handle').focus({ preventScroll: true });
+  });
+  $('account-reveal').addEventListener('click', () => {
+    setPasswordShown($('account-password').type === 'password');
+    $('account-password').focus({ preventScroll: true });
+  });
+  $('account-help-toggle').addEventListener('click', () => {
+    const open = $('account-help').hidden;
+    $('account-help').hidden = !open;
+    $('account-help-toggle').setAttribute('aria-expanded', String(open));
+  });
+  // Guest access stays distinct from the cinematic sign-in viewport.
+  for (const a of document.querySelectorAll('#account-auth a[href="#guest-note"]')) a.addEventListener('click', (e) => {
+    e.preventDefault();
+    openGuestView(true);
+  });
+  // A guest link followed before this module bound its handler only set the
+  // URL hash; honour it now and on later hash changes.
+  window.addEventListener('hashchange', () => openGuestFromHash());
+  openGuestFromHash();
+  $('gate-back-to-login').addEventListener('click', () => {
+    if (location.hash === '#guest-note') history.replaceState(null, '', location.pathname + location.search);
+    document.body.classList.remove('gate-guest-open');
+    $('gate-guest-link').focus({ preventScroll: true });
   });
   $('account-signout').addEventListener('click', () => net.signOut());
+  $('roster-settings').addEventListener('click', () => {
+    if(!net.accountLogged)return;
+    const open=ui.settingsPanel.hidden;
+    if(open){
+      setupRosterSettingsPages(ui.settingsPanel);
+      const more=ui.settingsPanel.querySelector('#settings-screen-page-2');
+      if(more&&!more.querySelector('#roster-import-trigger')){
+        const button=document.createElement('button');
+        button.id='roster-import-trigger';
+        button.type='button';
+        button.textContent='Import previous guest character';
+        button.addEventListener('click',()=>{
+          ui.toggleSettings(false);
+          $('hud').hidden=true;
+          $('roster-import-dialog').showModal();
+          $('recovery-token').focus({preventScroll:true});
+        });
+        more.append(button);
+      }
+    }
+    $('hud').hidden=!open;
+    ui.toggleSettings(open);
+    if(open)ui.settingsPanel.querySelector('button')?.focus({preventScroll:true});
+  });
+  // Settings can also close itself via its own X and Escape handlers.
+  // Once it is closed, never leave an otherwise hidden gameplay HUD in front
+  // of the account roster.
+  let rosterSettingsWasOpen=false;
+  new MutationObserver(()=>{
+    const open=!ui.settingsPanel.hidden;
+    const closed=rosterSettingsWasOpen&&!open;
+    rosterSettingsWasOpen=open;
+    if(document.body.classList.contains('character-selection-mode')&&!open){
+      $('hud').hidden=true;
+      // The existing Settings Escape handler focuses the gameplay canvas.
+      // On the account roster, the opener is the correct return destination.
+      if(closed&&!$('character-roster').hidden&&!$('roster-import-dialog').open)
+        $('roster-settings').focus({preventScroll:true});
+    }
+  }).observe(ui.settingsPanel,{attributes:true,attributeFilter:['hidden']});
   $('resume-saved-guest').addEventListener('click', () => {
     if (net.token) net.resumeGuest(net.token);
   });
@@ -701,13 +828,18 @@ function buildAccountUI() {
     if (!net.resumeGuest(token)) $('guest-error').textContent = 'Enter a valid 64-character recovery key.';
     else { $('guest-resume-key').value = ''; $('guest-error').textContent = ''; }
   });
-  $('link-legacy').addEventListener('click', () => {
-    if (net.token) net.claimLegacy(net.token);
+  const importDialog=$('roster-import-dialog');
+  $('roster-import-close').addEventListener('click',()=>importDialog.close());
+  importDialog.addEventListener('close',()=>{
+    $('recovery-token').value='';
+    $('roster-import-error').textContent='';
+    if(document.body.classList.contains('character-selection-mode'))$('roster-settings').focus({preventScroll:true});
   });
-  $('import-legacy').addEventListener('click', () => {
-    const token = $('recovery-token').value.trim();
-    if (!net.claimLegacy(token)) $('roster-error').textContent = 'Enter a valid 64-character guest recovery key.';
-    else $('recovery-token').value = '';
+  $('link-legacy').addEventListener('click',()=>{if(net.token)net.claimLegacy(net.token);});
+  $('import-legacy').addEventListener('click',()=>{
+    const token=$('recovery-token').value.trim();
+    if(!net.claimLegacy(token))$('roster-import-error').textContent='Enter a valid 64-character guest recovery key.';
+    else {$('roster-import-error').textContent='Import requested. Awaiting account confirmation…';$('recovery-token').value='';}
   });
   // Controls are disabled in the static HTML until both auth handlers exist.
   // This prevents first-click loss during slow module initialization.
@@ -728,6 +860,7 @@ function openCharacterMenu() {
     $('character-roster').hidden = true;
     $('resuming').hidden = false;
     $('resuming').textContent = 'Loading your characters…';
+    document.body.classList.remove('gate-mode');
   } else showAccountLogin('Your guest is saved. Return to it below, or create an account and link it.');
 }
 
@@ -892,10 +1025,16 @@ function onWelcome(m) {
   local.err = { x: 0, z: 0 };
   creationPreview.release();
   selectionView.release();
-  document.body.classList.remove('character-selection-mode','character-create-mode');
+  ui.toggleSettings(false);
+  worldEntryPending=true;
+  $('world-entry-curtain').classList.remove('dismissed');
+  $('world-entry-curtain').hidden=false;
+  document.body.classList.remove('character-selection-mode','character-create-mode','gate-mode','gate-guest-open');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
+  // Preserve the existing input lifecycle; the transition veil only
+  // affects presentation, not authoritative game simulation or controls.
   input.enabled = true;
   canvas.focus();
   if (!onWelcome.greeted) {
@@ -982,7 +1121,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -1184,7 +1323,8 @@ function onEvent(e) {
         }
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
+      if (e.k === 'kinetic_discharge') s?.model?.trigger?.('cast', 'discharge');
+      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep' || e.k === 'kinetic_discharge') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1287,6 +1427,8 @@ function onEvent(e) {
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
       else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      // armoured enemies (the Severance squads) charge their channels through the wind-up
+      ent?.model?.armourReact?.('ability', e.k);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
@@ -1451,28 +1593,12 @@ function nearestObject() {
   return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
-function nextEnemy() {
+function nextEnemy(reverse = false) {
   const me = S.ents.get(S.myId);
   if (!me) return;
-  const fx_ = Math.sin(cam.yaw);
-  const fz_ = Math.cos(cam.yaw);
-  const list = [];
-  for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
-    const dx = ent.pos.x - me.pos.x;
-    const dz = ent.pos.z - me.pos.z;
-    const d = Math.hypot(dx, dz);
-    if (d > 50) continue;
-    const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
-    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
-  }
-  if (!list.length) {
-    ui.error('No enemies nearby.');
-    return;
-  }
-  list.sort((a, b) => a.score - b.score);
-  const i = list.findIndex((e) => e.id === S.target);
-  setTarget(list[(i + 1) % list.length].id);
+  const id = cycleHostileTarget(S.ents.values(), me.pos, S.target, reverse);
+  if (!id) { ui.error('No enemies nearby.'); return; }
+  setTarget(id);
 }
 
 input.onClick = (button, x, y) => {
@@ -1544,7 +1670,7 @@ input.onAction = (code, e) => {
       break;
     case 'Tab':
       e.preventDefault();
-      nextEnemy();
+      nextEnemy(e.shiftKey);
       break;
     case 'KeyR':
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
@@ -2015,7 +2141,11 @@ function frame(now) {
   if (!S.myId) {
     machine?.userData.updateWork?.(dt,time,null,true);
     const inspecting=creationPreview.update(now,dt)||selectionView.update(now,dt);
+    // Dedicated cinematic scenes own both character screens.
+    if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
+    // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
+    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
@@ -2088,7 +2218,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state, worldClock: S.you.wc });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;
@@ -2103,6 +2233,18 @@ function frame(now) {
     renderer.render(scene, camera);
     lastDraw = now;
     S.drawn++;
+    if(worldEntryPending&&me?.placed&&me.row&&S.you){
+      // Never reveal the title camera's vacant aerial scene before the
+      // selected, server-owned character is instantiated and framed.
+      worldEntryPending=false;
+      input.enabled=true;
+      const curtain=$('world-entry-curtain');
+      curtain.classList.add('dismissed');
+      if(motionPreference.matches)curtain.hidden=true;
+      else curtain.addEventListener('transitionend',()=>{
+        if(!worldEntryPending)curtain.hidden=true;
+      },{once:true});
+    }
   }
   S.frames++;
   S.frameMs += (performance.now() - now - S.frameMs) * 0.2;

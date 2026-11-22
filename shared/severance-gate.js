@@ -140,6 +140,45 @@ const VEINS = [
 ];
 export const SEVERANCE_VEINS = Object.freeze(VEINS.map(([key, u, v], i) => Object.freeze({ key, ...at(u, v), r: 0.95, yaw: (i * 2.39996) % (Math.PI * 2), seed: 2200 + i })));
 
+// The salvage yard: a palisaded camp where rogue sentinels strip and re-forge
+// scrap (salvage_camp.glb pieces). Visible layout and colliders only; who
+// guards it, their levels and posts are server-only (server/sim/severance-camps.js).
+// Local frame: +u east (the entrance faces east), +v north; metres.
+export const SALVAGE_CAMP = Object.freeze({ key: 'salvage_yard', name: 'Scrapyard', ...at(-88, -146), r: 12, wall: 10 });
+const CAMP_DECOR = [
+  // piece, u, v, yaw (rad, three.js rotation.y), colliders [[du, dv, r]] in the piece frame
+  ['CK_Forge', -5, 0.5, Math.PI / 2, [[0, 0, 1.45]]],
+  ['CK_LeanTo', -1, 6.2, Math.PI, [[-2.2, -1.3, 0.25], [2.2, -1.3, 0.25], [-2.2, 1.3, 0.25], [2.2, 1.3, 0.25], [-0.6, -0.4, 0.6]]],
+  ['CK_Gantry', 0.5, -5.5, 0, [[-2.2, -0.9, 0.22], [2.2, -0.9, 0.22], [-2.2, 0.9, 0.22], [2.2, 0.9, 0.22], [0.2, 0, 0.75]]],
+  ['CK_Mast', -6.5, -6, 0.4, [[0, 0, 0.75]]],
+  ['CK_Crates', 4.5, 6, 0.3, [[0.3, 0.3, 1.1]]],
+  ['CK_Crates', 5.5, -5, 2.1, [[0.3, 0.3, 1.1]]],
+  ['CK_Pile', -7, 3.8, 0, [[0, 0, 1.15]]],
+  ['CK_Pile', 6.5, 2.4, 1.3, [[0, 0, 1.15]]],
+];
+const campAt = (u, v) => ({ x: SALVAGE_CAMP.x + u, z: SALVAGE_CAMP.z + v });
+const campPieces = [];
+const campColliders = [];
+for (const [piece, u, v, yaw, cols] of CAMP_DECOR) {
+  const p = campAt(u, v);
+  campPieces.push(Object.freeze({ piece, ...p, yaw }));
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  // three.js rotation.y maps local (x, z) -> (x c + z s, -x s + z c); piece dv is local -z
+  for (const [du, dv, r] of cols) campColliders.push(Object.freeze({ type: 'camp_' + piece.slice(3).toLowerCase(), x: p.x + du * c - dv * s, z: p.z - du * s - dv * c, r }));
+}
+// palisade: bays round the ring, leaving a two-bay entrance to the east
+const BAY = 3.2, GAP = 0.36;
+for (let a = GAP; a <= Math.PI * 2 - GAP + 1e-6; a += BAY / SALVAGE_CAMP.wall) {
+  const p = { x: SALVAGE_CAMP.x + Math.cos(a) * SALVAGE_CAMP.wall, z: SALVAGE_CAMP.z + Math.sin(a) * SALVAGE_CAMP.wall };
+  // the bay's front (local +z) faces outward: rotation.y maps +z to (sin yaw, cos yaw)
+  const yaw = Math.atan2(Math.cos(a), Math.sin(a));
+  campPieces.push(Object.freeze({ piece: 'CK_Wall', ...p, yaw }));
+  const tx = -Math.sin(a), tz = Math.cos(a);
+  for (const k of [-0.8, 0.8]) campColliders.push(Object.freeze({ type: 'camp_wall', x: p.x + tx * k, z: p.z + tz * k, r: 0.9 }));
+}
+export const SALVAGE_CAMP_PIECES = Object.freeze(campPieces);
+export const SALVAGE_CAMP_COLLIDERS = Object.freeze(campColliders);
+
 // The colossal ring: a broken ring of gate-builder stone standing across the
 // west route, sunk into the ash (severance_kit.glb, Ring_Colossal). Travellers
 // pass beneath it along the route (the ring's plane faces +-z). Colliders are its
@@ -224,7 +263,7 @@ export function inExpeditionOutpost(p) {
   return Math.hypot(p.x - OP.x, p.z - OP.z) < OP.r;
 }
 
-export const SEVERANCE_PROPS = Object.freeze([...GATE_COLLIDERS, ...SEVERANCE_MASSIFS, ...SEVERANCE_CRYSTALS.map((c) => Object.freeze({ ...c, r: c.r * 0.85 })), ...RING_FEET, ...SEVERANCE_RUINS, ...SEVERANCE_OUTCROPS, ...OUTPOST_COLLIDERS]);
+export const SEVERANCE_PROPS = Object.freeze([...GATE_COLLIDERS, ...SEVERANCE_MASSIFS, ...SEVERANCE_CRYSTALS.map((c) => Object.freeze({ ...c, r: c.r * 0.85 })), ...RING_FEET, ...SEVERANCE_RUINS, ...SEVERANCE_OUTCROPS, ...OUTPOST_COLLIDERS, ...SALVAGE_CAMP_COLLIDERS]);
 
 
 export function inSeverancePocket(x, z, pad = 0) {
