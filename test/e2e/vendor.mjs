@@ -183,10 +183,26 @@ try{
   const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
   const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
   const context=page.locator('.player-context');
+  let lastRodEntity=p.id;
   async function syncRodPlayer(){
    const live=await liveFixturePlayer(page,server,'Vendor Tester');
    assert.equal(live.char.id,rodCharacterId,'Rod configuration preserves authenticated character');
    assert.equal(live.char.equipped.weapon,'electrical_combat_rod','Rod survives reconnect');
+   if(SOFTWARE_GL&&live.id!==lastRodEntity){
+    // A new welcome restores the world-entry curtain. When software drawing
+    // is paused for DOM interaction, the curtain cannot finish its first-frame
+    // handoff and intercepts real controls. Render one authenticated world
+    // frame before resuming paused interaction; never force-click through it.
+    const draw=await page.evaluate(()=>window.__attune.state().drawn);
+    await page.evaluate(()=>window.__attune.pause(false));
+    try{
+     await page.waitForFunction(({draw,entity})=>{
+      const state=window.__attune?.state();
+      return state?.myId===entity&&state.drawn>draw&&document.getElementById('world-entry-curtain')?.hidden===true;
+     },{draw,entity:live.id},{timeout:30000,polling:100});
+    }finally{await page.evaluate(()=>window.__attune.pause(true));}
+   }
+   lastRodEntity=live.id;
    p=live;
    return live;
   }
