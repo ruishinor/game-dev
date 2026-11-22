@@ -27,6 +27,22 @@ const tiers = (process.argv[2] || '2,1,0').split(',').map(Number);
 const WIDTH = Number(process.env.ATTUNEMENT_WIDTH) || 1280;
 const HEIGHT = Number(process.env.ATTUNEMENT_HEIGHT) || 800;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const STEP_MS = Number(process.env.ATTUNEMENT_PROFILE_STEP_TIMEOUT_MS) || 45000;
+const FRAME_COUNT = Number(process.env.ATTUNEMENT_PROFILE_FRAMES) || (SOFTWARE_GL ? 6 : 90);
+// Synchronized readPixels is opt-in on real GPUs because it can amplify stalls.
+const SYNC_BENCH = (process.env.ATTUNEMENT_PROFILE_SYNC ?? (SOFTWARE_GL ? '1' : '0')) === '1';
+async function bounded(label, operation, ms = STEP_MS) {
+  console.log('[profile] ' + label + ': start');
+  let timer;
+  try {
+    const result = await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Profile deadline exceeded: ' + label + ' (' + ms + 'ms)')), ms); }),
+    ]);
+    console.log('[profile] ' + label + ': complete');
+    return result;
+  } finally { clearTimeout(timer); }
+}
 const sf = ZONES.sporefield;
 
 const SCENES = [
@@ -44,20 +60,34 @@ const only = (process.env.ATTUNEMENT_SCENES || '').split(',').filter(Boolean);
 const scenes = only.length ? SCENES.filter((s) => only.some((o) => s.name.startsWith(o))) : SCENES;
 
 const srv = await startServer({ port: 0, dataFile: null });
-const browser = await launchBrowser();
+const browser = await bounded('launch browser', () => launchBrowser());
 const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [] };
 let failed = false;
+let timedOut = false;
+const output = path.join(ROOT, 'docs', 'evidence', `profile-${SOFTWARE_GL ? 'software' : 'gpu'}.json`);
+const saveReport = () => { fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, JSON.stringify(report, null, 1) + '\n'); };
+const MAX_MS = Number(process.env.ATTUNEMENT_PROFILE_MAX_MS) || Math.max(150000, tiers.length * scenes.length * STEP_MS);
+const watchdog = setTimeout(() => {
+  report.error = 'Overall profiling deadline exceeded after ' + MAX_MS + 'ms';
+  console.error('[profile] ' + report.error + '; saving partial results and terminating browser');
+  try { saveReport(); } catch (error) { console.error('[profile] save failed:', error); }
+  browser.process()?.kill();
+  process.exit(124);
+}, MAX_MS);
+console.log(`[profile] ${tiers.length} tiers, ${scenes.length} scenes, ${FRAME_COUNT} frames per capture; forced GPU-sync: ${SYNC_BENCH ? 'on' : 'off'}`);
 
 try {
   for (const tier of tiers) {
-    const ctx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });
-    const page = await ctx.newPage();
-    page.setDefaultTimeout(240000);
+    console.log(`[profile] starting quality q${tier}`);
+    const ctx = await bounded(`q${tier}: context`, () => browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 }));
+    const page = await bounded(`q${tier}: page`, () => ctx.newPage());
+    page.setDefaultTimeout(STEP_MS);
+    page.setDefaultNavigationTimeout(STEP_MS);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     const t0 = Date.now();
-    await page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`);
-    await page.waitForSelector('#enter:not([disabled])');
+    await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
+    await bounded(`q${tier}: loading`, () => page.waitForSelector('#enter:not([disabled])'));
     const loadMs = Date.now() - t0;
     if (!report.graphics) report.graphics = await describeGraphics(page);
     const name = `Prof${'abc'[tier]}x`;
@@ -65,9 +95,10 @@ try {
     await page.fill('#name', name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
-    await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos);
+    await bounded(`q${tier}: enter world`, () => page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos));
     for (const scene of scenes) {
-      const player = await activeBrowserPlayer(page, srv, name);
+      console.log(`[profile] q${tier}: scene ${scene.name}`);
+      const player = await bounded(`q${tier}/${scene.name}: player`, () => activeBrowserPlayer(page, srv, name));
       if (scene.transfer) { player.char.level = Math.max(3, player.char.level); srv.game.transferPlayer(player, { x: scene.x, z: scene.z }); }
       player.x = scene.x;
       player.z = scene.z;
@@ -78,10 +109,10 @@ try {
       }, [scene.x, scene.z]);
       await page.evaluate((v) => window.__attune.view(v), { ...scene.view, yaw: scene.face, face: scene.face });
       await sleep(scene.transfer ? (SOFTWARE_GL ? 6000 : 4000) : SOFTWARE_GL ? 500 : 1500);
-      const m = await page.evaluate(async (software) => {
+      const m = await bounded(`q${tier}/${scene.name}: frame sample`, () => page.evaluate(async ({ software, frameCount, syncBench }) => {
         const A = window.__attune;
         // Frame intervals as the browser delivers them.
-        const want = software ? 6 : 240;
+        const want = frameCount;
         const stamps = [];
         await new Promise((resolve) => {
           const tick = (t) => {
@@ -94,22 +125,21 @@ try {
         const gaps = stamps.slice(1).map((t, i) => t - stamps[i]).sort((a, b) => a - b);
         const pick = (q) => gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * q))];
         const s = A.state();
-        // One render forced to completion.
-        const { renderer, scene, camera } = A.gfx;
-        const gl = renderer.getContext();
-        const px = new Uint8Array(4);
-        const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
-        A.pause(true);
-        renderer.render(scene, camera);
-        sync();
-        const n = software ? 2 : 20;
-        const t0 = performance.now();
-        for (let i = 0; i < n; i++) {
-          renderer.render(scene, camera);
-          sync();
+        let synced = null;
+        if (syncBench) {
+          const { renderer, scene, camera } = A.gfx;
+          const gl = renderer.getContext();
+          const px = new Uint8Array(4);
+          const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          A.pause(true);
+          try {
+            renderer.render(scene, camera); sync();
+            const n = software ? 2 : 20;
+            const t0 = performance.now();
+            for (let i = 0; i < n; i++) { renderer.render(scene, camera); sync(); }
+            synced = (performance.now() - t0) / n;
+          } finally { A.pause(false); }
         }
-        const synced = (performance.now() - t0) / n;
-        A.pause(false);
         return {
           frames: gaps.length,
           intervalMs: { median: pick(0.5), p95: pick(0.95), worst: gaps[gaps.length - 1] },
@@ -128,11 +158,11 @@ try {
             events: s.renderDiagnostics.events.slice(-25),
           } : null,
         };
-      }, SOFTWARE_GL);
+      }, { software: SOFTWARE_GL, frameCount: FRAME_COUNT, syncBench: SYNC_BENCH }));
       const row = { scene: scene.name, tier, loadMs, ...m };
       report.results.push(row);
       const r = (v) => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
-      console.log(`${scene.name.padEnd(11)} q${tier}  interval ${r(m.intervalMs.median)} ms median / ${r(m.intervalMs.p95)} p95 / ${r(m.intervalMs.worst)} worst (${r(m.fps)} fps)  cpu ${m.cpuFrameMs} ms  synced render ${r(m.syncedRenderMs)} ms  calls ${m.draw.calls}  tris ${m.draw.triangles}  drawn ${m.entities.inView}/${m.entities.total}  worst live render ${r(m.renderProbe?.stats?.maxRenderMs ?? 0)} ms`);
+      console.log(`${scene.name.padEnd(11)} q${tier}  interval ${r(m.intervalMs.median)} ms median / ${r(m.intervalMs.p95)} p95 / ${r(m.intervalMs.worst)} worst (${r(m.fps)} fps)  cpu ${m.cpuFrameMs} ms  synced render ${m.syncedRenderMs === null ? 'off' : r(m.syncedRenderMs) + ' ms'}  calls ${m.draw.calls}  tris ${m.draw.triangles}  drawn ${m.entities.inView}/${m.entities.total}  worst live render ${r(m.renderProbe?.stats?.maxRenderMs ?? 0)} ms`);
     }
     if (errors.length) {
       failed = true;
@@ -142,16 +172,22 @@ try {
   }
 } catch (err) {
   failed = true;
+  timedOut = /deadline exceeded|timed out/i.test(String(err));
+  report.error = String(err?.message || err);
   console.log(`FAIL: ${err.stack || err}`);
 } finally {
-  await browser.close();
-  await srv.close();
+  clearTimeout(watchdog);
+  if (timedOut) browser.process()?.kill();
+  else {
+    try { await bounded('close browser', () => browser.close(), 5000); }
+    catch (error) { console.warn('[profile] browser close failed:', String(error)); browser.process()?.kill(); }
+  }
+  try { await bounded('close in-memory server', () => srv.close(), 5000); }
+  catch (error) { console.warn('[profile] server close failed:', String(error)); }
 }
 
 console.log(`graphics: ${report.graphics ? `${report.graphics.renderer}` : 'unknown'}`);
 console.log(SOFTWARE_GL ? 'SOFTWARE RENDERING: these timings say nothing about a real GPU.' : 'Hardware rendering requested: check the renderer line above names your GPU, not SwiftShader/llvmpipe.');
-const out = path.join(ROOT, 'docs', 'evidence', `profile-${SOFTWARE_GL ? 'software' : 'gpu'}.json`);
-fs.mkdirSync(path.dirname(out), { recursive: true });
-fs.writeFileSync(out, `${JSON.stringify(report, null, 1)}\n`);
-console.log(`wrote ${path.relative(ROOT, out)}`);
+saveReport();
+console.log(`wrote ${path.relative(ROOT, output)}`);
 process.exit(failed ? 1 : 0);
