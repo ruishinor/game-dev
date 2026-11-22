@@ -1333,6 +1333,7 @@ export class UI {
   }
 
   zone(name) {
+    this.questTracker?.setZone(name);
     set(this.zoneLabel, 'text', name);
     this.banner.textContent = name;
     this.banner.classList.remove('show');
