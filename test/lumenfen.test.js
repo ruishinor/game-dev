@@ -1,0 +1,84 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import {LUMENFEN,inLumenfen,FEN_POOLS,FEN_TREES,fenHeight,fenArea} from '../shared/lumenfen.js';
+import {LUMENFEN_ENTRY_SITE,OBJECTS,groundHeight,resolveCollisions,PLAYER_RADIUS,travelRegionAt,sameTravelRegion,hasLineOfSight,inDisconnectedRegion} from '../shared/world.js';
+import {makeGame,makeChar,place} from './helpers.js';
+import {interact} from '../server/sim/progress.js';
+import {makeLumenfenRift} from '../client/src/lumenfen-rift.js';
+import {makeFenLantern,makeFenStalker} from '../client/src/lumenfen-creatures.js';
+import {buildLumenfenWorld} from '../client/src/lumenfen-world.js';
+const eligible=()=>makeChar('vanguard',{level:7,attunements:['resonance']});
+const find=(g,type)=>g.objects.find(o=>o.type===type);
+test('second region is separate, deterministic and has safe landing/portal sites',()=>{
+ const p=LUMENFEN;
+ assert.ok(LUMENFEN_ENTRY_SITE,'Reach entrance must have clear placement');
+ assert.ok(p.x-p.hw>150,'no overlap with original Expanse');
+ assert.equal(travelRegionAt(p.x,p.z),'lumenfen');
+ assert.ok(inDisconnectedRegion(p.arrival.x,p.arrival.z));
+ assert.ok(!sameTravelRegion(p.arrival,{x:0,z:0}));
+ assert.ok(!hasLineOfSight(p.arrival,{x:0,z:0}));
+ for(const pt of [p.arrival,p.returnRift,p.springRift,p.crownRift,p.springLanding,p.crownLanding]){
+  assert.ok(inLumenfen(pt.x,pt.z));
+  assert.equal(groundHeight(pt.x,pt.z),fenHeight(pt.x,pt.z));
+  const actual=resolveCollisions({...pt},PLAYER_RADIUS);
+  assert.ok(Math.hypot(pt.x-actual.x,pt.z-actual.z)<.15,'clear landing '+JSON.stringify(pt));
+ }
+ assert.ok(FEN_TREES.length>30&&FEN_POOLS.length>=5);
+ assert.equal(fenArea(p.arrival.x,p.arrival.z),'Veil Landing');
+ assert.ok(OBJECTS.some(o=>o.type==='lumenfen_entry'));
+ assert.equal(new Set(OBJECTS.map(o=>o.key)).size,OBJECTS.length);
+});
+test('authoritative entry checks level, attunement, range, combat and region',()=>{
+ const g=makeGame(),entry=find(g,'lumenfen_entry');assert.ok(entry);
+ const low=g.addPlayer(makeChar('vanguard',{level:6,attunements:['resonance']}));
+ place(low,entry.x,entry.z-3.7);
+ let r=interact(g,low,entry.id);assert.equal(r.ok,false);assert.match(r.reason,/level 7/);
+ const plain=g.addPlayer(makeChar('vanguard',{level:7}));place(plain,entry.x,entry.z-3.7);
+ assert.equal(interact(g,plain,entry.id).ok,false);
+ const p=g.addPlayer(eligible());place(p,entry.x+30,entry.z);
+ assert.equal(interact(g,p,entry.id).ok,false);
+ place(p,entry.x,entry.z-3.7);p.combatUntil=g.time+5000;
+ assert.equal(interact(g,p,entry.id).ok,false);
+ p.combatUntil=0;
+ assert.equal(interact(g,p,entry.id).ok,true);
+ assert.ok(inLumenfen(p.x,p.z));
+ assert.equal(g.lumenfenOpened,true);
+ assert.equal(g.enemies.filter(e=>e.lumenfenWildlife).length,10);
+ const count=g.enemies.length;g.openLumenfen();assert.equal(g.enemies.length,count,'no spawn duplication');
+ assert.equal(interact(g,p,entry.id).ok,false,'cannot activate remote Reach portal');
+ const exit=find(g,'lumenfen_return');place(p,exit.x,exit.z-3.7);
+ assert.equal(interact(g,p,exit.id).ok,true);
+ assert.equal(travelRegionAt(p.x,p.z),'reach');
+ assert.equal(interact(g,p,exit.id).ok,false,'return blocked from outside region');
+});
+test('internal living rifts traverse both ways and reject combat requests',()=>{
+ const g=makeGame(),p=g.addPlayer(eligible()),P=LUMENFEN;
+ const spring=find(g,'lumenfen_spring'),crown=find(g,'lumenfen_crown');
+ place(p,spring.x,spring.z-3.6);assert.equal(interact(g,p,spring.id).ok,true);
+ assert.ok(Math.hypot(p.x-P.crownLanding.x,p.z-P.crownLanding.z)<.2);
+ place(p,crown.x,crown.z-3.6);p.autoOn=true;
+ assert.equal(interact(g,p,crown.id).ok,false);
+ p.autoOn=false;assert.equal(interact(g,p,crown.id).ok,true);
+ assert.ok(Math.hypot(p.x-P.springLanding.x,p.z-P.springLanding.z)<.2);
+});
+test('living rootglass and wetland visuals have independent geometry and bounded scene state',()=>{
+ const scene=new T.Scene();scene.fog=new T.Fog(0x555555,40,180);
+ const sky=new T.Group(),ambient=new T.HemisphereLight(),sun=new T.DirectionalLight();
+ scene.add(sky,ambient,sun);
+ const fen=buildLumenfenWorld(T,scene,{sky,ambient,sun,detail:0});
+ assert.ok(fen.stats().trees>30&&fen.stats().pools>=5);
+ fen.update(.016,0,{...LUMENFEN.arrival});
+ assert.equal(fen.group.visible,true);assert.equal(scene.fog.color.getHex(),0x1d3436);
+ fen.update(.016,1,{x:0,z:0});
+ assert.equal(fen.group.visible,false);assert.equal(scene.fog.color.getHex(),0x555555);
+ for(const kind of ['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown']){
+  const r=makeLumenfenRift(T,kind);
+  assert.ok(r.group.getObjectByName('lumenfen:membrane'));
+  r.update(.1,{reducedMotion:true});r.dispose();
+ }
+ for(const make of [makeFenLantern,makeFenStalker]){
+  const m=make(T);assert.ok(m.group.children.length>1);
+  m.update(.016,{t:1,speed:2});m.dispose();
+ }
+});
