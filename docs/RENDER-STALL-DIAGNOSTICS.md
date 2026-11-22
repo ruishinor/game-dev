@@ -49,3 +49,19 @@ Run `node --test test/render-stall-probe.test.js` for bounded instrumentation
 unit coverage. This does **not** certify desktop GPU behaviour; reproduce on
 the affected PC to identify the actual rendering mechanism before changing
 materials, shader compilation, or graphics quality. Related: issue #294.
+
+## Existing hardware profiler, now correlated with the probe
+
+The existing `tools/profile.mjs` uses an **in-memory** guest character; no
+saved account or production data is needed. At a desktop with an actual GPU,
+set `ATTUNEMENT_GPU=1`, `ATTUNEMENT_HEADED=1`,
+`ATTUNEMENT_SCENES=sanctum` and optionally `ATTUNEMENT_CHROMIUM` to
+the local Edge executable, then run `npm run profile -- 2,0`.
+
+The resulting `docs/evidence/profile-gpu.json` includes the separate render
+probe metrics from live frames alongside the existing synced WebGL measurements
+and per-scene performance data. Inspect `graphics.renderer` to confirm actual
+hardware acceleration; a SwiftShader result does not validate desktop GPU
+behaviour. The profiler's explicit `readPixels` test is deliberately
+synchronizing/intrusive; do **not** confuse that measurement with the game's
+normal live-frame `renderProbe` observations.

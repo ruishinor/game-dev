@@ -56,7 +56,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     const t0 = Date.now();
-    await page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}`);
+    await page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`);
     await page.waitForSelector('#enter:not([disabled])');
     const loadMs = Date.now() - t0;
     if (!report.graphics) report.graphics = await describeGraphics(page);
@@ -121,12 +121,18 @@ try {
           assets: s.assets,
           entities: { total: s.ents.length, inView: s.ents.filter((e) => e.inView).length, animated: s.ents.filter((e) => e.anim).length },
           world: s.world,
+          // Captures live game-frame stalls, not the intrusive readPixels test below.
+          renderProbe: s.renderDiagnostics?.enabled ? {
+            stats: s.renderDiagnostics.stats,
+            context: s.renderDiagnostics.context,
+            events: s.renderDiagnostics.events.slice(-25),
+          } : null,
         };
       }, SOFTWARE_GL);
       const row = { scene: scene.name, tier, loadMs, ...m };
       report.results.push(row);
       const r = (v) => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
-      console.log(`${scene.name.padEnd(11)} q${tier}  interval ${r(m.intervalMs.median)} ms median / ${r(m.intervalMs.p95)} p95 / ${r(m.intervalMs.worst)} worst (${r(m.fps)} fps)  cpu ${m.cpuFrameMs} ms  synced render ${r(m.syncedRenderMs)} ms  calls ${m.draw.calls}  tris ${m.draw.triangles}  drawn ${m.entities.inView}/${m.entities.total}`);
+      console.log(`${scene.name.padEnd(11)} q${tier}  interval ${r(m.intervalMs.median)} ms median / ${r(m.intervalMs.p95)} p95 / ${r(m.intervalMs.worst)} worst (${r(m.fps)} fps)  cpu ${m.cpuFrameMs} ms  synced render ${r(m.syncedRenderMs)} ms  calls ${m.draw.calls}  tris ${m.draw.triangles}  drawn ${m.entities.inView}/${m.entities.total}  worst live render ${r(m.renderProbe?.stats?.maxRenderMs ?? 0)} ms`);
     }
     if (errors.length) {
       failed = true;
