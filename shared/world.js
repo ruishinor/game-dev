@@ -454,8 +454,12 @@ function findLumenfenEntry(){
   for(let i=0;i<16;i++){const a=i*Math.PI/8;samples.push(groundHeight(x+Math.cos(a)*3.2,z+Math.sin(a)*3.2));}
   return Math.max(...samples)-Math.min(...samples)<2.0;
  };
- if(RIFT_SITE)for(const offset of [13,-13,14,-14,15,-15,16,-16,17,-17,18,-18,19,-19,20,-20,21,-21,24,-24,27,-27,30,-30]){
-  const x=RIFT_SITE.x+offset,z=RIFT_SITE.z;
+ // Prefer the same-Z portal row; when local props or uneven ground prevent
+ // that, test a perpendicular same-X portal row before searching elsewhere.
+ // Both alternatives keep the full safe-distance, terrain and zone checks.
+ if(RIFT_SITE)for(const axis of ['x','z'])for(const offset of [13,-13,14,-14,15,-15,16,-16,17,-17,18,-18,19,-19,20,-20,21,-21,24,-24,27,-27,30,-30]){
+  const x=axis==='x'?RIFT_SITE.x+offset:RIFT_SITE.x;
+  const z=axis==='z'?RIFT_SITE.z+offset:RIFT_SITE.z;
   if(alignedClear(x,z))return Object.freeze({x,z});
  }
  const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
