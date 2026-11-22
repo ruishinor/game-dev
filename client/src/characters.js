@@ -39,7 +39,7 @@ import {createRodBackMount} from './rod-stow.js';
 import { MODEL_FACTORIES as PROCEDURAL, RIFT_KINDS, riftModel } from './models.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { makeDepthsRecoveryCache } from './depths-cache.js';
-import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
+import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, HUMANOID_ROD_SEQUENCE, HUMANOID_DUAL_SEQUENCE, HUMANOID_HEAVY_STRIKE, HUMANOID_COUNTER_STRIKE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
 const UPPER_BODY = /^(spine_|neck_|Head|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_)/;
@@ -222,7 +222,11 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const lod = { acc: 0 };
   let dead = false;
   let moving = false;
-  let landed = true, meleeIndex=0;
+  let landed = true, meleeIndex=0, meleePose=null;
+  const meleeShoulderR=inst.getObjectByName('upperarm_r');
+  const meleeShoulderL=inst.getObjectByName('upperarm_l');
+  const meleeSpine=inst.getObjectByName('spine_02');
+  const motionAxis=new THREE.Vector3(0,1,0),motionRoll=new THREE.Vector3(0,0,1);
   // Capture the grip direction in bind pose, not an arbitrary live frame.
   const rodHand=inst.getObjectByName('hand_r');
   const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
@@ -379,6 +383,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     rodContact(at,ground,blocked=false){
       return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
+    // Presentation-only contact socket from the actual mounted rod halves.
+    // Dual-baton left strikes attach the arc to the offhand tip, not the chest.
+    rodMeleeOrigin(){
+      if(!heldRod?.group.visible||rodStowed)return null;
+      const left=heldRod.progress<.5&&meleePose?.stance==='left';
+      return heldRod.anchor(left?1:0,'Tip');
+    },
     sitState:()=>({blend:sitBlend,available:!!sitPose}),
     rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
     update(dt, st) {
@@ -412,6 +423,19 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         weapon?.restore();
         work.restorePose();
         anim.update(step);
+        // GLB-driven strike base plus weapon-specific additive movement.
+        // Work only after the mixer samples the skeleton; never touch hit rules.
+        if(meleePose){
+          meleePose.age+=step;
+          const t=Math.min(1,meleePose.age/meleePose.duration);
+          const wave=Math.sin(Math.PI*t),sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
+          const sweep=meleePose.stance==='overhead'||meleePose.stance==='heavy'?.36:.53;
+          if(meleeSpine)meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,sign*sweep*wave));
+          if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,sign*.34*wave));
+          if(meleeShoulderL&&['left','cross','heavy'].includes(meleePose.stance))
+            meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,-sign*.53*wave));
+          if(t>=1)meleePose=null;
+        }
         if (working) work.pose(st.work, st.t, st.reducedMotion);
         else if (sitBlend > 0) sitPose?.apply(sitBlend * sitBlend * (3 - 2 * sitBlend));
       }
@@ -464,7 +488,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     // armour-only response (heals given/received): no animation
     armourReact(kind, id) { if (!dead) for (const h of armours.values()) h.handle?.fx?.surge(kind, id); },
-    trigger(kind, id, target) {
+    trigger(kind, id, target, contactMs) {
       if (dead) return;
       for (const h of armours.values()) h.handle?.fx?.surge(kind, id);
       if (kind === 'hit') {
@@ -473,14 +497,29 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       // A mounted rifle retains its two-hand fit and reacts to a confirmed auto hit.
       if (kind === 'cast' && id === 'auto' && weapon?.fire(target)) return;
-      // Keep electrical rod animation unchanged. Alternate hand-combat poses.
-      const combo = kind==='attack'&&id==='auto'&&!heldRod
-        ? HUMANOID_MELEE_SEQUENCE[meleeIndex++%HUMANOID_MELEE_SEQUENCE.length] : null;
-      const a = combo || (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
-      // An in-hand rod snaps through its strike faster (presentation only;
-      // the server's attack interval and timing are unchanged).
-      const rodStrike = kind === 'attack' && heldRod && !rodStowed;
-      anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: (a.timeScale || 1) * (rodStrike ? 1.3 : 1), fadeOut: rodStrike ? 0.13 : a.fadeOut ?? 0.2 });
+      if(kind==='guard'){
+        anim.play('Sword_Block',{kind:'ability',upper:moving,start:.04,timeScale:1.0,fadeOut:.12});
+        return;
+      }
+      const rodStrike=!!(heldRod&&!rodStowed);
+      const sequence=rodStrike?(heldRod.progress<.5?HUMANOID_DUAL_SEQUENCE:HUMANOID_ROD_SEQUENCE):HUMANOID_MELEE_SEQUENCE;
+      let a;
+      if(kind==='melee'){
+        if(id==='heavy')a=HUMANOID_HEAVY_STRIKE;
+        else if(id==='counter')a=HUMANOID_COUNTER_STRIKE;
+        else a=sequence[(Number(id)-1+sequence.length)%sequence.length]||sequence[0];
+      }else if(kind==='attack'&&id==='auto')a=sequence[meleeIndex++%sequence.length];
+      else a=(kind==='cast'&&id==='auto'?null:HUMANOID_ACTIONS[id])||(kind==='cast'?HUMANOID_ACTIONS.bolt:HUMANOID_ACTIONS.auto);
+      // Align the authored clip's contact marker with authoritative contact,
+      // rather than arbitrarily speeding an overhand motion into a phantom hit.
+      const marker=a.contact??.55,clipSeconds=anim.duration(a.clip);
+      const contactSeconds=Number.isFinite(contactMs)?contactMs/1000:0;
+      const authoredScale=kind==='melee'&&contactSeconds>.05&&clipSeconds>0
+        ?clipSeconds*Math.max(.1,marker-(a.start||0))/contactSeconds:null;
+      const scale=authoredScale?Math.max(.7,Math.min(2.8,authoredScale)):(a.timeScale||1)*(rodStrike?1.08:1);
+      if((kind==='melee'||kind==='attack')&&a.stance)
+        meleePose={age:0,duration:kind==='melee'?Math.max(.38,contactSeconds*2):.54,stance:a.stance};
+      anim.play(a.clip,{kind:'ability',upper:moving,start:a.start||0,timeScale:scale,fadeOut:rodStrike?.12:a.fadeOut??.2});
     },
     dispose() {
       releaseRod();

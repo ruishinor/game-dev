@@ -138,6 +138,7 @@ export class Game {
       target: 0,
       autoOn: false,
       nextAuto: 0,
+      meleeState: null,
       cds: {},
       gcdUntil: 0,
       buffs: [],
@@ -361,7 +362,7 @@ export class Game {
     this.stopFollow(p);for(const other of this.players.values())if(other.followId===p.id)this.stopFollow(other);
     clearThreatFor(this,p.id);clearLoot(p);p.vendor=null;
     cancelInscription(this,p);stopProduction(this,p);
-    p.target=0;p.autoOn=false;p.jy=0;p.vy=0;p.brineTrial=null;
+    p.target=0;p.autoOn=false;p.meleeState=null;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
     this.transit(p,destination.x,destination.z,'area crossing');
     resolveCollisions(p,PLAYER_RADIUS);

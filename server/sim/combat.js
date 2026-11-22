@@ -10,6 +10,7 @@ import { effectiveAuto, weaponReach } from '../../shared/condition.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
+import { tickMelee,mitigateMelee } from './melee.js';
 import { companionCanSupport } from './party.js';
 
 // --- buffs -----------------------------------------------------------------
@@ -93,6 +94,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
     if (sap) amt *= sap.mul;
   }
 
+  amt=mitigateMelee(game,src,dst,amt,opts);
   let absorbed = 0;
   if (dst.kind === 'enemy') {
     const cor = getBuff(dst, 'corrode');
@@ -144,6 +146,9 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   const ev = { e: 'dmg', s: src ? src.id : 0, d: dst.id, a: amt, ab: ability };
   if (absorbed > 0) ev.sh = absorbed;
   if (opts.kind) ev.k = opts.kind;
+  // Only public, server-authored contact variants: the VFX engine and browser
+  // tests must match the actual resolved strike, never infer a random arc.
+  if(['melee_light','melee_heavy'].includes(ability) && ['1','2','3','heavy','counter'].includes(opts.variant))ev.mv=opts.variant;
   if(ability==='auto'&&opts.kind==='bolt'&&src?.kind==='player'){
     const visual=publicWeaponVisual(src.char);if(visual)ev.wv=visual;
   }
@@ -277,6 +282,7 @@ function killPlayer(game, p) {
   p.deadAt = game.time;
   p.buffs = [];
   p.autoOn = false;
+  p.meleeState=null;
   p.jy = 0;
   p.vy = 0;
   clearThreatFor(game, p.id);
@@ -292,6 +298,7 @@ export const blastRadiusFor = (p) => (p.stats.glyph === 'glyph_faultline' ? SURV
 
 export function tickPlayerCombat(game, p, dt) {
   if (p.dead) return;
+  tickMelee(game,p,dealDamage,amount=>gainCharge(p,amount));
   const cdef = CLASSES[p.cls];
   const res = cdef.resource;
   const inCombat = game.time < p.combatUntil;

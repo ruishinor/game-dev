@@ -1122,7 +1122,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { melee_light:'Melee strike', melee_heavy:'Heavy strike', kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -1143,13 +1143,35 @@ function onEvent(e) {
   // Muted only where the engine has a recipe; see the 'fx' case for the fallback.
   let fx = rich() ? MUTED_FX : legacyFx;
   switch (e.e) {
+    case 'melee_start': {
+      const s=S.ents.get(e.s),d=S.ents.get(e.d);
+      if(s){s.attack=1;s.meleeStartAt=now;
+        if(d){s.faceTo=d.id;s.faceUntil=now+900;}
+        s.model.trigger?.('melee',e.style,null,e.ms);
+      }
+      break;
+    }
+    case 'melee_guard': {
+      S.ents.get(e.s)?.model.trigger?.('guard','start');
+      break;
+    }
+    case 'melee_deflect': {
+      const s=S.ents.get(e.s),d=S.ents.get(e.d);
+      s?.model.trigger?.('guard','deflect');
+      if(s?.placed&&d?.placed){if(rich())cvfx.deflect(s,d);else fx.burst(s.chest,0x9adfff,5,.5);}
+      break;
+    }
+    case 'melee_miss': {
+      if(e.s===S.myId)ui.error('Strike missed — maintain facing and reach.');
+      break;
+    }
     case 'dmg': {
       const d = S.ents.get(e.d);
       const s = S.ents.get(e.s);
       const mine = e.s === S.myId || e.s === S.compId;
       // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
       // do not multiply weapon discharges; existing ability effects and damage are unchanged.
-      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
+      const rodImpact = ['auto','rending_arc','melee_light','melee_heavy'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -1175,7 +1197,12 @@ function onEvent(e) {
           s.faceTo = d.id;
           s.faceUntil = now + (e.ab === 'auto' ? 1500 : 650);
         }
-        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab, d?.chest);
+        const manual=e.k==='melee'&&['melee_light','melee_heavy'].includes(e.ab);
+        // The deliberate attack began at its authoritative windup event;
+        // damage confirms contact and must not restart the strike.
+        const enemyWindup=e.k==='melee'&&e.ab==='auto'&&s.meta.k==='e'&&s.basicMeleeStartAt&&now-s.basicMeleeStartAt<1200;
+        if(s.model.trigger&&!enemyWindup&&(!manual||!s.meleeStartAt||now-s.meleeStartAt>1600))
+          s.model.trigger(manual?'melee':e.k==='bolt'?'cast':'attack',manual?(e.mv||'1'):e.ab,d?.chest);
         if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
           if(e.wv==='longpoint'&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
@@ -1427,9 +1454,15 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if(ent&&e.k==='basic_melee'){
+        // Start the committed strike during the real server windup; damage
+        // confirmation must not replay the attack animation after contact.
+        ent.basicMeleeStartAt=now;ent.attack=1;
+        ent.model.trigger?.('attack','auto');
+      }
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
-      else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      else if (ent?.placed && rich()) (e.k==='basic_melee'?cvfx.meleeWindup(ent,e.ms):cvfx.windup(ent,e.ms));
       // armoured enemies (the Severance squads) charge their channels through the wind-up
       ent?.model?.armourReact?.('ability', e.k);
       if (e.g) {
@@ -1633,6 +1666,13 @@ input.onClick = (button, x, y) => {
 
 input.onAction = (code, e) => {
   const action=bindings.resolve(e);
+  // Melee intents use remappable desktop bindings; the server owns outcomes.
+  if(action?.startsWith('melee:')){
+    e.preventDefault();
+    if(!S.sheet||combatKeysBlocked())return;
+    net.send({t:'melee',action:action.slice(6)});
+    return;
+  }
   // Weapon actions: never from a focused dialog, menu, form or key capture.
   if (action === 'weapon:switch' || action === 'weapon:config' || action === 'emote:sit') {
     e.preventDefault();

@@ -55,11 +55,26 @@ test('weapon actions default to free keys, resolve, remap with named conflicts a
  assert.equal(b.resolve({code:'KeyZ',key:'Z',shiftKey:true,ctrlKey:false,altKey:false,metaKey:false}),null);
  assert.match(b.set('ability:1','KeyZ').reason,/Switch weapon/);assert.match(b.set('ability:1','KeyX').reason,/Sit \/ stand/);
  assert.equal(bindingPermitted('Slash'),false,'chat command key stays reserved');
- assert.ok(b.set('weapon:switch','KeyN').ok);assert.ok(b.set('ability:2','KeyT').ok);
+ assert.ok(b.set('weapon:switch','KeyN').ok);
+ assert.match(b.set('ability:2','KeyT').reason,/Melee strike/,'new combat keys participate in remap collisions');
+ assert.ok(b.set('ability:2','KeyU').ok);
  assert.equal(new ActionBindings(store).get('weapon:switch'),'KeyN');
  b.reset(['weapon:switch','weapon:config']);
- assert.equal(b.get('weapon:switch'),'KeyZ');assert.equal(b.get('ability:2'),'KeyT','partial reset keeps other remaps');
+ assert.equal(b.get('weapon:switch'),'KeyZ');assert.equal(b.get('ability:2'),'KeyU','partial reset keeps other remaps');
  b.set('weapon:config',null);b.set('ability:3','KeyG');
  b.reset(['weapon:config']);
  const bound=Object.values(b.map).filter(Boolean);assert.equal(new Set(bound).size,bound.length,'partial reset never duplicates a key');
+});
+
+test('historical custom T binding survives introduction of new melee hotkeys',()=>{
+ const store=storage();
+ store.setItem('attunement.keybindings.v1',JSON.stringify({'ability:2':'KeyT','weapon:switch':'KeyN'}));
+ const b=new ActionBindings(store);
+ assert.equal(b.get('ability:2'),'KeyT','do not erase prior custom ability binding');
+ assert.equal(b.get('weapon:switch'),'KeyN','preserve unrelated personal remap');
+ assert.equal(b.get('melee:light'),null,'new conflicting melee default must start unbound');
+ assert.equal(b.get('melee:heavy'),'Shift+KeyT');
+ const used=Object.values(b.map).filter(Boolean);
+ assert.equal(used.length,new Set(used).size);
+ assert.equal(b.set('melee:light','KeyU').ok,true,'owner can assign a different strike key');
 });

@@ -119,6 +119,24 @@ export class CombatVfx {
 
   // --- event recipes -----------------------------------------------------------
 
+  /** Contact-relative deflection, bounded to existing pooled VFX primitives. */
+  deflect(s,d){
+    const at=s.chest.clone().lerp(d.chest,.28);
+    const yaw=this.yawTo(s,d);
+    this.v.arc({at,yaw,radius:1.0,color:PALETTE.aegis,sweep:1.7,tilt:.4,life:.2,alpha:.82});
+    this.v.burst({at,count:7,cell:[CELL.streak,CELL.hex],color:0xb5e8ff,color2:PALETTE.aegis,
+      size:[.04,.09],life:[.16,.31],speed:[.7,2.1],drag:3,alpha:.75});
+  }
+  /** Directional ordinary enemy melee warning; never presented as an area hazard. */
+  meleeWindup(ent,ms){
+    const life=Math.min(.8,Math.max(.2,(ms||450)/1000));
+    const at=ent.chest;
+    this.v.arc({at,yaw:ent.yaw,radius:Math.max(1.0,this.radiusOf(ent)*1.45),
+      color:PALETTE.hostile,sweep:1.65,tilt:.25,life,alpha:.56});
+    this.v.burst({at,count:4,cell:CELL.streak,color:PALETTE.hostileHot,color2:PALETTE.hostile,
+      size:[.025,.065],life:[.18,.32],speed:[.3,.9],drag:2.7,alpha:.55});
+  }
+
   /** Any damage event (auto-attacks and abilities); `kind` from the server. */
   hit(d, s, e) {
     // Confirmed Longpoint hits use the real fitted muzzle and a narrow trace.
@@ -158,7 +176,10 @@ export class CombatVfx {
         life: [0.23, 0.42], speed: [0.6, 1.7], spin: [-1, 1], drag: 3, alpha: 0.72 });
     }
     if (e.k === 'melee' && s && !hostile && e.ab !== 'rending_arc') {
-      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: 1.6, color: hot(c, 0.2), sweep: 2.0, tilt: (this.v.rand() - 0.5) * 0.9, life: 0.24, alpha: 0.75, reverse: this.v.rand() < 0.5 });
+      // Follow the server-authored contact variant, not random identical arcs.
+      const variant=e.mv||'1',heavy=variant==='heavy'||variant==='counter';
+      const mountedTip=s.model?.rodMeleeOrigin?.();
+      this.v.arc({ at: mountedTip?.isVector3?mountedTip:s.chest, yaw: this.yawTo(s, d), radius: heavy?2.05:1.6, color: hot(c, heavy?.38:.2), sweep: heavy?2.8:2.0, tilt: variant==='3'?.65:variant==='2'?-.4:.12, life: heavy?.34:.24, alpha: heavy?.9:.75, reverse: variant==='2' });
     } else if (e.k === 'melee' && hostile) {
       this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1, this.radiusOf(s) * 1.1), color: PALETTE.hostile, sweep: 1.5, tilt: 0.6, life: 0.22, alpha: 0.4 });
     }
