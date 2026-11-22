@@ -15,6 +15,7 @@ import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
+import { SPOREFIELD_COLONIES, planSporeMotes } from './sporefield-colonies.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
@@ -1198,11 +1199,7 @@ function buildVegetation(c, detail) {
 
   // Colonies occupy distinct patches under the canopy and on the shoulders
   // of the approach. Taller silhouettes remain away from the playable lane.
-  const patches = [
-    [-28.5, 23, 2.3, 0], [-33.5, 15, 3.2, 1], [-36, 29, 3.2, 0],
-    [-39, 17, 3.0, 1], [-46.5, 21, 3.8, 0], [-44.5, 34, 3.5, 1],
-    [-49.5, 29, 3.6, 0], [-53.5, 20, 3.0, 1],
-  ];
+  const patches = SPOREFIELD_COLONIES;
   const fungi = c.piece('nature', 'Mushroom_Common');
   const shelves = c.piece('nature', 'Mushroom_Laetiporus');
   const leaves = c.piece('nature', 'Plant_7_Big');
@@ -1217,7 +1214,19 @@ function buildVegetation(c, detail) {
       const z = cz + Math.cos(a) * r;
       return roadOffset(x, z) > 2.6 || roadDistance(x, z) > 46 ? [x, z] : null;
     };
-    scatter(N(5), pick, (x, z) => c.cover.add(wet ? shelves : fungi, at(x, z, { y: 0.02, ry: rnd() * 6, s: 0.68 + rnd() * 0.57 }), vary(gills)));
+    // Build coherent mixed-growth silhouettes from the production nature GLBs:
+    // low, horizontally spreading wet shelves and taller dry fungal caps.
+    // Keep all pieces in the existing c.cover batch/distance-culling budget.
+    scatter(N(5), pick, (x, z) => {
+      const donor = rnd() < (wet ? .77 : .20) ? shelves : fungi;
+      const sx = .68 + rnd() * .55;
+      const sy = sx * (wet ? .58 + rnd() * .40 : .92 + rnd() * .42);
+      const sz = sx * (.72 + rnd() * .50);
+      c.cover.add(donor, at(x, z, {
+        y: wet ? -.025 : .02, ry: rnd() * 6,
+        rx: (rnd() - .5) * (wet ? .17 : .09), s: [sx, sy, sz],
+      }), vary(gills, wet ? .18 : .28));
+    });
     scatter(N(6), pick, (x, z) => c.cover.add(leaves, at(x, z, { y: -0.025, ry: rnd() * 6, s: 0.9 + rnd() * 0.55 }), vary(foliage)));
     if (wet) scatter(N(4), pick, (x, z) => c.cover.add(reeds, at(x, z, { y: -0.05, ry: rnd() * 6, s: 0.24 + rnd() * 0.18 }), vary(foliage)));
   }
@@ -1233,7 +1242,7 @@ function buildVegetation(c, detail) {
 
 }
 
-function buildParticlesAndLights(scene) {
+function buildParticlesAndLights(scene, detail = 1, opts = {}) {
   const rnd = mulberry32(1337);
   // Way-lights from the Sanctum toward each landmark.
   const post = new THREE.CylinderGeometry(0.06, 0.09, 1.3, 5);
@@ -1250,15 +1259,10 @@ function buildParticlesAndLights(scene) {
       scene.add(scaled(G.sph, glow(colour), 0.14, 0.14, 0.14, x, y + 1.4, z, false));
     }
   }
-  // Drifting spores over the bog.
-  const pts = [];
-  for (let i = 0; i < 110; i++) {
-    const a = rnd() * Math.PI * 2;
-    const r = Math.sqrt(rnd()) * 23;
-    const x = ZONES.sporefield.x + Math.sin(a) * r;
-    const z = ZONES.sporefield.z + Math.cos(a) * r;
-    pts.push(x, groundHeight(x, z) + 0.5 + rnd() * 5.5, z);
-  }
+  // Spore air follows the actual GLB colonies instead of a uniform floating
+  // disk; one Points draw call, bounded by visual detail and reduced motion.
+  const moteCount = Math.round(40 + 70 * Math.max(0, Math.min(1, detail)));
+  const pts = planSporeMotes(moteCount, groundHeight);
   const sg = new THREE.BufferGeometry();
   sg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
   const spores = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xe0c5e3, size: 0.095, transparent: true, opacity: 0.58, depthWrite: false }));
@@ -1268,8 +1272,12 @@ function buildParticlesAndLights(scene) {
   bog.position.set(ZONES.sporefield.x, 5, ZONES.sporefield.z);
   scene.add(bog);
   return (dt, t) => {
-    spores.position.y = Math.sin(t * 0.4) * 0.4;
-    spores.position.x = Math.sin(t * 0.17) * 0.6;
+    if (opts.reducedMotion?.()) {
+      spores.position.set(0, 0, 0);
+      return;
+    }
+    spores.position.y = Math.sin(t * 0.4) * 0.16;
+    spores.position.x = Math.sin(t * 0.17) * 0.22;
   };
 }
 
@@ -1540,7 +1548,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   scene.add(buildSinterHabitat(THREE));
   if (kits) buildVegetation(c, detail);
   else buildProceduralDecor(scene);
-  anim.push(buildParticlesAndLights(scene));
+  anim.push(buildParticlesAndLights(scene, detail, opts));
 
   let batches = c.solid.build(scene) + c.cover.build(scene, { castShadow: false }) + c.far.build(scene, { castShadow: false, receiveShadow: false });
   if (c.beads.length) {
