@@ -22,7 +22,7 @@ import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import { WEAPON_SWITCH, activeWeaponSlot, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
-import { GOODS } from '../../shared/goods.js';
+import { GOODS, sanitizeGoods } from '../../shared/goods.js';
 import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
@@ -449,13 +449,31 @@ export function interact(game, p, objectId) {
   if(obj.type==='foundry_cache')return claimFoundryCache(game,p,obj,{grantSalvage,inCombat});
   if(obj.type==='annex_cache'){
     if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
-    if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};
     if(p.char.annexProgress!==3)return {ok:false,reason:'Participate in an Annex encounter and defeat the Null Chamber Warden first.'};
+    // Existing saves may have claimed the fragment cache before this blueprint
+    // existed. Give them the one-time knowledge on revisit, never fragments.
+    if(p.char.annexClaimed===true){
+      const oldGoods=sanitizeGoods(p.char.goods);
+      if(oldGoods.blueprint_relay_arc_carbine===1)return {ok:false,reason:'You have already recovered this expedition cache.'};
+      oldGoods.blueprint_relay_arc_carbine=1;
+      p.char.goods=oldGoods;game.markDirty(p);
+      game.message(p,'gain','Recovered: Relay Arc Carbine blueprint (previous expedition claim).');
+      return {ok:true};
+    }
     // The level 13-15 Null Annex (behind the Null Breach) yields a larger cache.
     const count=game.severance?6:3,words=count===6?'six':'three';
-    p.char.annexClaimed=true;
-    if(!grantSalvage(game,p,'resonance_fragment',count)){p.char.annexClaimed=false;return {ok:false,reason:`Clear space for ${words} Resonance fragments.`};}
-    game.markDirty(p);game.message(p,'gain',`Null Chamber recovery cache claimed: ${count} Resonance fragments.`);return {ok:true};
+    // Claim one unique blueprint as expedition knowledge, not a random corpse
+    // award. Both grants are validated first, then committed atomically.
+    const materials=sanitizeMaterials(p.char.materials);
+    if((materials.resonance_fragment||0)+count>MATERIAL_CAP)return {ok:false,reason:`Clear space for ${words} Resonance fragments.`};
+    const goods=sanitizeGoods(p.char.goods);
+    const newKnowledge=goods.blueprint_relay_arc_carbine!==1;
+    materials.resonance_fragment=(materials.resonance_fragment||0)+count;
+    if(newKnowledge)goods.blueprint_relay_arc_carbine=1;
+    p.char.materials=materials;p.char.goods=goods;p.char.annexClaimed=true;
+    game.markDirty(p);
+    game.message(p,'gain',`Null Chamber recovery cache claimed: ${count} Resonance fragments${newKnowledge?' and Relay Arc Carbine blueprint':''}.`);
+    return {ok:true};
   }
   if(['phase_scar','rift_indexer','rift_regulator'].includes(obj.type))return interactRift(game,p,obj,{grantSalvage});
   if (obj.type === 'obelisk') {
