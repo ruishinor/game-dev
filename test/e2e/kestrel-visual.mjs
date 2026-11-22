@@ -19,14 +19,14 @@ try {
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   await page.goto('http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':''));
   await page.click('#gate-guest-link');
-  await page.fill('#name','Kestrel Art Tester');
+  await page.fill('#name','Kestrel Tester');
   await page.click('.classcard[data-cls="surveyor"]');
   await page.click('#enter');
   await page.waitForFunction(()=>{
     const s=window.__attune?.state();
     return s?.myId&&s.sheet?.cls==='surveyor'&&s.drawn>=2;
   });
-  const p=await liveFixturePlayer(page,server,'Kestrel Art Tester');
+  const p=await liveFixturePlayer(page,server,'Kestrel Tester');
   // Test setup only; live traversal, reward and collision contracts are not
   // modified. Avoid combat interruption during image capture.
   for (const enemy of server.game.enemies) {
