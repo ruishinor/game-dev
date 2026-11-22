@@ -1,0 +1,62 @@
+{
+  "sourceArchive": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
+  "status": "source-only; not approved for runtime or production manifest",
+  "donors": [
+    {
+      "id": "rootglass_oak",
+      "file": "modelpack - Forest Trees and Woodland Plants.glb",
+      "node": "000-english-oak-mature",
+      "role": "old forest canopy and root-supported civic structure",
+      "requiredTreatment": "rebuild bark and branch transitions, hand-authored canopy silhouettes, atlased PBR textures; integrate glass veins in branches"
+    },
+    {
+      "id": "cage_bloom",
+      "file": "modelpack - Alien Planet Plants and Terrain.glb",
+      "node": "002-cage-tree",
+      "role": "bioluminescent mangrove understorey and fungal ecology",
+      "requiredTreatment": "retopologize cage ribs, add layered translucent leaves, organic growth stages and distant LOD"
+    },
+    {
+      "id": "stone_guild",
+      "file": "modelpack - Fantasy Cartographers Map Printing Guild.glb",
+      "node": "001-roofed-cartographers-guild",
+      "role": "roof/timber donor for marsh observatory, not a literal fantasy guild",
+      "requiredTreatment": "rebuild fascia, blend salvaged instruments and carved stone, use moss and water erosion masks"
+    },
+    {
+      "id": "tidal_boardwalk",
+      "file": "modelpack - Flooded and Coastal Survival.glb",
+      "node": "000-boardwalk-junction",
+      "role": "stilted marsh walkways and water-crossing language",
+      "requiredTreatment": "replace low-poly plank ends and supports with worked driftwood, tension cables, grown root braces"
+    },
+    {
+      "id": "weir_mechanism",
+      "file": "modelpack - Animated Mechanisms Kit.glb",
+      "node": "000-bucket-elevator",
+      "role": "manual and resonance-assisted hydrology at settlement sluice",
+      "requiredTreatment": "mechanical detail, worn alloys, rotating sockets, physically intelligible water-flow integration"
+    },
+    {
+      "id": "wetland_bird",
+      "file": "modelpack - Birds and Flying Creatures.glb",
+      "node": "001-grey-heron",
+      "role": "wetland ecology scale and movement reference",
+      "requiredTreatment": "rebuild anatomy and feathers; author grounded idles, takeoff, flight, landing and swim-surface reaction"
+    },
+    {
+      "id": "six_limb_predator",
+      "file": "model - Alien Creatures and Monsters.glb",
+      "node": "000-six-limbed-apex-predator",
+      "role": "bog-stalker silhouette and skeletal study",
+      "requiredTreatment": "rebuild joint structure and skin; animate hexapod gait, turns, reaction and combat readability"
+    },
+    {
+      "id": "rift_radial_mesh",
+      "file": "modelpack - VFX Mesh Library.glb",
+      "node": "000-radial-impact-burst",
+      "role": "mesh study for rootglass portal ground disturbances, not the rift membrane itself",
+      "requiredTreatment": "rebuild radial rings as pooled shader/displacement passes, integrate environmental response, preserve approved exterior Phase Scar"
+    }
+  ]
+}
