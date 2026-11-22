@@ -17,14 +17,49 @@ export function poseLongpoint(group, deployment = 0) {
 
 // In-world visual fitting, independent of the authoritative combat simulation.
 // Existing character animation remains the source of non-arm motion.
-export function createLongpointPresentation(T, humanoid, prop, release = () => {}) {
+export function createLongpointPresentation(T, humanoid, prop, release = () => {}, {stowBone=null,stowTransform=null}={}) {
   const arms = ['r','l'].map(side => ({ side, upper:humanoid.getObjectByName('upperarm_'+side), lower:humanoid.getObjectByName('lowerarm_'+side), hand:humanoid.getObjectByName('hand_'+side) }));
   const anchors = ['GripAnchor','SupportAnchor','EffectAnchor'].map(name => prop?.getObjectByName(name));
-  if (!prop || anchors.some(x=>!x) || arms.some(a=>!a.upper||!a.lower||!a.hand||a.lower.parent!==a.upper||a.hand.parent!==a.lower)) return null;
+  if(!prop)return null;
+  const invalidAnchors=anchors.some(x=>!x),invalidRig=arms.some(a=>!a.upper||!a.lower||!a.hand||a.lower.parent!==a.upper||a.hand.parent!==a.lower);
+  if(invalidAnchors||invalidRig){
+    // Loading a rifle does not guarantee a compatible player rig/asset.
+    // Keep the same asset visibly stowed, like the neutral Warden fallback,
+    // rather than discarding it and leaving the character apparently unarmed.
+    if(!stowBone||!stowTransform)return null;
+    prop.scale.setScalar(.43);stowBone.add(prop);
+    prop.position.copy(stowTransform.position);prop.quaternion.copy(stowTransform.quaternion);
+    let closed=false;
+    const reason=invalidAnchors?'missing-grip-anchors':'incompatible-player-rig';
+    return {
+      update(st={}){prop.visible=!st.dead&&!st.air&&!st.hideWeapon;return false;},
+      restore(){},fire(){return false;},origin(){return null;},
+      inspect(){return {mode:'stowed',reason,visible:prop.visible,parent:prop.parent?.name||null,
+        gripError:null,supportError:null,failures:0,recoveries:0,attempts:0,placement:null};},
+      dispose(){if(closed)return;closed=true;prop.removeFromParent();release(prop);}
+    };
+  }
   const [grip,support,effect]=anchors;
   const v=()=>new T.Vector3(), q=()=>new T.Quaternion();
   const world=n=>n.getWorldPosition(v()), inBody=n=>humanoid.worldToLocal(world(n));
   const saved=new Map();let active=false, closed=false, shotAge=Infinity, lastState=null, fittedPlacement=-1, fittedYaw=NaN;
+  let failures=0,recoveries=0,wasReady=false,attempts=0;
+  let fitInfo={mode:'initializing',failures,recoveries,attempts,gripError:null,supportError:null,placement:null};
+  const inspect=()=>({...fitInfo,visible:!!prop.visible,parent:prop.parent?.name||null});
+  function showStowed(reason){
+    active=false;restore();
+    if(stowBone&&stowTransform){
+      stowBone.add(prop);
+      prop.position.copy(stowTransform.position);
+      prop.quaternion.copy(stowTransform.quaternion);
+      prop.scale.setScalar(.43);prop.visible=true;
+      fitInfo={mode:'stowed',reason,failures,recoveries,attempts,gripError:null,supportError:null,placement:null};
+    }else{
+      prop.visible=false;
+      fitInfo={mode:'unfitted',reason,failures,recoveries,attempts,gripError:null,supportError:null,placement:null};
+    }
+    return false;
+  }
   prop.scale.setScalar(.43);prop.visible=false;humanoid.add(prop);poseLongpoint(prop,0);
   function restore(){if(!saved.size)return;for(const [bone,rotation] of saved)bone.quaternion.copy(rotation);saved.clear();humanoid.updateWorldMatrix(true,true);}
   function orient(bone,child,target){
@@ -51,7 +86,15 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
   function update(st={},dt=0){
     if(closed)return false;
     restore();active=false;prop.visible=false;
-    if(st.dead||st.air||st.hideWeapon){shotAge=Infinity;return false;}
+    // A stowed fallback is the *same* authored rifle, not a detached duplicate.
+    // Restore its original humanoid parent before attempting two-arm fitting.
+    if(prop.parent!==humanoid)humanoid.add(prop);
+    if(st.dead||st.air||st.hideWeapon){
+      shotAge=Infinity;
+      fitInfo={mode:'hidden',reason:st.dead?'dead':st.air?'air':'action',failures,recoveries,attempts,gripError:null,supportError:null,placement:null};
+      return false;
+    }
+    attempts++;
     lastState=st;
     if(st.reducedMotion)shotAge=Infinity;
     const right=inBody(arms[0].upper),left=inBody(arms[1].upper),mid=right.clone().add(left).multiplyScalar(.5);
@@ -101,11 +144,18 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
       };
       if(tryFit(kick)||(kick>0&&(restore(),tryFit(0)))){
         fittedPlacement=index;fittedYaw=yaw;
-        active=true;prop.visible=true;return true;
+        active=true;prop.visible=true;
+        const gripError=world(arms[0].hand).distanceTo(world(grip));
+        const supportError=world(arms[1].hand).distanceTo(world(support));
+        if(!wasReady&&failures)recoveries++;
+        wasReady=true;
+        fitInfo={mode:'ready',failures,recoveries,attempts,gripError,supportError,placement:index};
+        return true;
       }
     }
     fittedPlacement=-1;
-    restore();return false;
+    failures++;wasReady=false;
+    return showStowed('unreachable-grips');
   }
-  return { update, restore, fire(target=null){if(!active||closed||!prop.visible)return false;if(target?.isVector3&&lastState)update({...lastState,weaponAimAt:target},0);if(!active)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
+  return { update, restore, inspect, fire(target=null){if(!active||closed||!prop.visible)return false;if(target?.isVector3&&lastState)update({...lastState,weaponAimAt:target},0);if(!active)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
 }

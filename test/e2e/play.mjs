@@ -282,6 +282,25 @@ async function workshopPlaytest(){
   const planned=await page.locator('.workshop-comparison').isVisible()&&player.char.equipped.device==='servo_harness';
   check('workshop UI: planner exposes auto-attack reach',await page.locator('.workshop-comparison').getByText('Auto-attack reach',{exact:true}).isVisible());
   await shot(P,'workshop-01-planner.png');
+  await page.locator('.workshop-tabs [data-tab="assembly"]').click();
+  const assembly=page.locator('.weapon-assembly-graph');
+  check('workshop UI: source-backed assembly graph exposes seven components and seven dependency edges',
+    await assembly.locator('[data-assembly-node]').count()===7&&await assembly.locator('.assembly-links path').count()===7);
+  await assembly.locator('[data-assembly-node="pulse_module"]').click();
+  check('workshop UI: pulse module displays its real phase lens and pulse cell requirements',
+    await page.locator('.assembly-detail').getByText('Field phase lens',{exact:true}).isVisible()&&
+    await page.locator('.assembly-detail').getByText('Dormant pulse cell',{exact:true}).isVisible());
+  await assembly.locator('[data-assembly-node="relay_arc_carbine"]').click();
+  check('workshop UI: locked QL5 carbine shows rare blueprint gate and disables fabrication',
+    await page.locator('.assembly-detail').getByText('Rare blueprint required',{exact:true}).isVisible()&&
+    await page.locator('[data-assembly-craft="assemble_relay_arc_carbine"]').isDisabled());
+  await assembly.locator('[data-assembly-node="patrol_arc_sidearm"]').click();
+  await shot(P,'workshop-01a-weapon-assembly.png');
+  await page.locator('[data-open-recipe="assemble_patrol_arc_sidearm"]').click();
+  check('workshop UI: selected graph node opens its actual Workshop recipe',
+    await page.locator('.workshop-tabs [data-tab="fabrication"]').getAttribute('aria-pressed')==='true'&&
+    await page.locator('.recipe-entry[data-recipe="assemble_patrol_arc_sidearm"].active').isVisible());
+
   await page.locator('.workshop-tabs [data-tab="fabrication"]').click();
   await (await revealRecipe(page.locator('.workshop-window'),'coupler')).click();
   await page.locator('[data-craft="coupler"]').click();
