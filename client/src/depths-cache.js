@@ -72,10 +72,12 @@ export function makeDepthsRecoveryCache(T, loader) {
     const box = new T.Box3().setFromObject(model);
     const size = box.getSize(new T.Vector3());
     if (![size.x, size.y, size.z].every(v => Number.isFinite(v) && v > .001)) throw new Error('Invalid source model dimensions');
-    const scale = Math.min(1.55 / size.x, .72 / size.y, .78 / size.z);
+    // The source model is nearly square. Refit its footprint to the long,
+    // shallow Foundry recovery case so the visible GLB fills its armored mount.
+    const sx = 1.55 / size.x, sy = Math.min(1.65, .72 / size.y), sz = .78 / size.z;
     const center = box.getCenter(new T.Vector3());
-    model.scale.setScalar(scale);
-    model.position.set(-center.x * scale, .24 - box.min.y * scale, -center.z * scale);
+    model.scale.set(sx, sy, sz);
+    model.position.set(-center.x * sx, .24 - box.min.y * sy, -center.z * sz);
     const palette = {
       gunmetal:[0x33464d, .52, .48], steel:[0xa3a9a3, .65, .34],
       rust:[0x745a43, .38, .74], rubber:[0x1c282b, .10, .91], ember:[0x78c9b8, .18, .38]
