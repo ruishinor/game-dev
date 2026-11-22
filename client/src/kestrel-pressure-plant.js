@@ -87,7 +87,6 @@ export function buildKestrelPressurePlant(T,assets=null){
  return {
   group,stats:{dynamos:motors.length,glbParts,colliderChanges:0,newLights:0},
   update(t,{reducedMotion=false}={}){
-   const speed=reducedMotion?0:Math.min(1,Math.max(0,t))*0.1;
    for(let i=0;i<motors.length;i++)motors[i].rotation.z=reducedMotion?0:Math.sin(t*.3+i)*.16;
    coil.emissiveIntensity=reducedMotion?0.9:1+.12*Math.sin(t*.8);
   },
