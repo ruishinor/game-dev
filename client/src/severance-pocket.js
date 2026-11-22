@@ -178,7 +178,7 @@ export function buildSeverancePocket(T, scene, o) {
   const stone = new T.MeshStandardMaterial({ color: 0x4b4648, roughness: 0.92, flatShading: true });
   // ring, spires, hoodoos, talus, outcrops and crystals (severance_kit.glb)
   const kit = createExpanseKit(T, { group, loader: o.assets?.loader, ground: (x, z) => ridgeHeight(x, z, o.ground), url: o.kitUrl });
-  const outpost = createExpeditionOutpost(T, { group, ground: o.ground, loader: o.assets?.loader });
+  const outpost = createExpeditionOutpost(T, { group, ground: o.ground, loader: o.assets?.loader, assets:o.assets });
   const camp = createSalvageCamp(T, { group, ground: o.ground, loader: o.assets?.loader });
   // ruin fallbacks (replaced by the gate GLB's Ruins meshes once it loads)
   const fallbackRuins = new T.Group();
