@@ -109,7 +109,8 @@ function reconstruct(source,spec,optic){
  const grip=new THREE.Object3D(),support=new THREE.Object3D();
  grip.name='WardenGripAnchor';support.name='WardenSupportAnchor';
  grip.position.set(0,-.105,-L*.18);
- support.position.set(0,-.055,L*.19);
+ // Long marksman foregrip is closer to the receiver for reachable low-ready carry.
+ support.position.set(0,-.055,L*(L>1?.13:.19));
  group.add(grip,support);
  return {group,sightMaterial:sight.material,origin:source,grip,support};
 }
