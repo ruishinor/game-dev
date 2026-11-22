@@ -261,7 +261,7 @@ try{
  await social.getByRole('button',{name:'Preview',exact:true}).click();
  await social.locator('.social-preview').waitFor({state:'visible'});
  await social.getByRole('button',{name:'Buy 1',exact:true}).click();
- await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('social_service_coat')&&window.__attune.state().sheet.credits===8);
+ await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.includes('social_service_coat')&&window.__attune.state().sheet?.credits===8);
  const wearing=await liveFixturePlayer(page,server,'Vendor Tester');
  assert.equal(wearing.char.id,p.char.id,'Wardrobe purchase remains on the same character');
  p=wearing;
