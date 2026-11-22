@@ -381,7 +381,8 @@ export function tickEnemy(game, e, dt) {
     const w=e.basicWindup;
     if(game.time<w.until)return;
     e.basicWindup=null;
-    e.nextAttack=game.time+def.attack.interval;
+    // The next attack was scheduled when the swing began; adding another
+    // interval on contact would reduce encounter DPS and break boss pacing.
     const victim=game.players.get(w.targetId);
     if(victim&&!victim.dead&&!inSafeZone(victim)&&sameTravelRegion(e,victim)&&
       dist(e,victim)-victim.radius-e.radius*.5<=def.attack.range&&hasLineOfSight(e,victim)){
@@ -442,6 +443,9 @@ export function tickEnemy(game, e, dt) {
     if(def.attack.kind==='melee'){
       const windup=Math.max(390,Math.min(610,Math.round(def.attack.interval*.42)));
       e.basicWindup={targetId:target.id,yaw:e.yaw,until:game.time+windup};
+      // Retain the original start-to-start cadence: the windup is part of
+      // the interval rather than an additional unbalanced recovery delay.
+      e.nextAttack=game.time+def.attack.interval;
       // Existing event/render paths already support bounded enemy warnings.
       // This is a frontal weapon swing, NOT a ground AoE; don't draw a false hazard circle.
       game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming melee strike',x:e.x,z:e.z,r:Math.min(2.2,def.attack.range),ms:windup,g:0});
