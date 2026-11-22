@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { Animator } from './animator.js';
 import { disposeInstance } from './assets.js';
-import { createWardenRifle, hasWardenRifle } from './warden-rifles.js';
+import { createWardenRifle, hasWardenRifle, syncWardenWeapon } from './warden-rifles.js';
 
 export const HALO_BUNDLE = 'halo_construct';
 
@@ -51,7 +51,9 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   const v = role === 'guard' ? GUARD_VARIANTS[((variant % GUARD_VARIANTS.length) + GUARD_VARIANTS.length) % GUARD_VARIANTS.length] : null;
   const guardIndex = v ? GUARD_VARIANTS.indexOf(v) : -1;
   const armed = !!v && hasWardenRifle(assets, guardIndex);
-  const keep = new Set([...spec.meshes, ...(v ? v.equip : []), ...(v && !armed ? ['stave'] : [])]);
+  // Keep one existing anchored stave as a hidden emergency presentation fallback.
+  // A valid download does not guarantee the rifle can be fitted every frame.
+  const keep = new Set([...spec.meshes, ...(v ? v.equip : []), ...(v ? ['stave'] : [])]);
   const missing = [...keep].filter((n) => !inst.getObjectByName(n));
   if (missing.length) throw new Error(`halo_construct is missing meshes: ${missing.join(', ')}`);
   // Drop the meshes this role does not wear (they would still be skinned every frame if merely hidden).
@@ -75,14 +77,16 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   const group = new THREE.Group();
   group.name = `halo_construct:${role}`;
   group.add(inst);
+  const stave = v ? inst.getObjectByName('stave') : null;
   const rifle = armed ? createWardenRifle(assets, inst, guardIndex, v.optic) : null;
   const clips = assets.clips(HALO_BUNDLE);
   const anim = new Animator(inst, clips);
   if (!anim.has(spec.idle)) throw new Error(`halo_construct has no clip ${spec.idle}`);
   anim.setBase(spec.idle, { fade: 0, timeScale: v ? v.tempo : 1 });
-  // Desynchronise the wardens' watch cycles.
-  if (v && v.phase) anim.update(v.phase);
-  rifle?.update(0, { t: v?.phase || 0 });
+  // Evaluate the base clip even at phase zero. Previously the first Warden
+  // was fitted against the unanimated bind pose and emitted a false failure.
+  anim.update(v?.phase ?? 0);
+  let weaponPresentation = v ? syncWardenWeapon(rifle,stave,0,{t:v.phase}) : null;
   const head = inst.getObjectByName('Head');
   const neck = inst.getObjectByName('neck_01');
   const lod = { acc: 0 };
@@ -103,6 +107,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     hover: 0,
     meshes: [...keep, ...(rifle ? ['warden-rifle:' + rifle.id] : [])],
     weaponFit: () => rifle?.inspect() ?? null,
+    weaponPresentation: () => weaponPresentation,
     update(dt, st) {
       if (spec.talk) {
         const want = !!st.talking;
@@ -117,7 +122,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       const step = lod.acc;
       lod.acc = 0;
       anim.update(step);
-      rifle?.update(step, st);
+      if(v)weaponPresentation=syncWardenWeapon(rifle,stave,step,st);
       // Vendor attention: turn the ring toward a nearby customer (presentation only).
       const target = spec.lookAt && st.lookAt && !st.dead ? st.lookAt : null;
       attention += ((target ? 1 : 0) - attention) * Math.min(1, step * 4);

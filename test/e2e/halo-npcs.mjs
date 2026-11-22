@@ -72,10 +72,17 @@ try {
     assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rifle must be held, not merely loaded: ${JSON.stringify(mine.halo.fit)}`);
     assert.ok(mine.halo.fit.gripError < .035 && mine.halo.fit.supportError < .035,
       `${def.key} both hand-to-grip errors must remain below 35mm`);
-    assert.ok(!mine.halo.meshes.includes('stave'), `${def.key} no longer relies on the guard stave when rifle assets load`);
+    assert.ok(mine.halo.meshes.includes('stave'), `${def.key} retains the hidden anchored fallback`);
+    assert.equal(mine.halo.presentation,'rifle',`${def.key} must display the rifle rather than fallback`);
+    assert.equal(mine.halo.fit?.failures,0,`${def.key} must have no transient grip failures`);
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);
     const outward = (fx * def.x + fz * def.z) / Math.hypot(def.x, def.z);
     assert.ok(outward > 0.999, `${def.key} faces away from the Sanctum centre (cos ${outward.toFixed(4)})`);
+    // Save a normal third-person frame separately from close inspection
+    // views. This is player-camera evidence, not a posed art render.
+    const regularDrawn=await page.evaluate(()=>window.__attune.state().drawn);
+    await page.waitForFunction(n=>window.__attune.state().drawn>n+1,regularDrawn);
+    await page.screenshot({path:`${OUT}/${def.key}-gameplay.png`});
     // Earlier 'front' captures actually framed the local player's back and
     // occasionally hid the warden entirely. Position the review camera
     // relative to the drawn Halo world transform, not to the test player.
@@ -91,19 +98,43 @@ try {
           const d=Math.hypot(at.x-x,at.z-z);
           if(d<best){best=d;found=at;}
         });
-        if(!found||best>.5)throw new Error('Cannot frame live Halo model for visual review');
-        // yaw is the Warden's authoritative outward facing, not player yaw.
+        if(!found||best>.5)throw new Error('Cannot locate live Halo model for visual review');
+        // This explicitly marks an *inspection* view. Repositioning the
+        // browser camera bypasses the normal camera/frustum ordering, so
+        // override that entity's prior-frame culling for this render only.
+        // Ordinary gameplay evidence is saved separately above.
         const guard=api.state().ents.find(e=>e.c==='sanctum_guard'&&Math.hypot(e.x-x,e.z-z)<.05);
+        if(!guard)throw new Error('No authoritative Warden state at capture point');
         const angle=guard.halo.yaw+azimuth;
-        camera.position.set(found.x+2.75*Math.sin(angle),found.y+1.40,found.z+2.75*Math.cos(angle));
-        camera.lookAt(found.x,found.y+1.10,found.z);
+        camera.position.set(found.x+1.9*Math.sin(angle),found.y+1.35,found.z+1.9*Math.cos(angle));
+        camera.lookAt(found.x,found.y+.95,found.z);
         camera.updateMatrixWorld(true);
+        const expected=found.clone().add(camera.up.clone().multiplyScalar(1));
+        const ndc=expected.project(camera);
+        if(!Number.isFinite(ndc.x+ndc.y+ndc.z)||
+          Math.abs(ndc.x)>.35||Math.abs(ndc.y)>.35||ndc.z>1||ndc.z< -1)
+          throw new Error('Warden is outside the inspection-camera centre');
+        // The parent is the live entity holder, not a duplicate art model.
+        let parent=scene.getObjectByName('halo_construct:guard');
+        // Resolve *this* guard rather than Three's first same-name match.
+        scene.traverse(o=>{if(o.name==='halo_construct:guard'&&Math.hypot(o.getWorldPosition(camera.position.clone()).x-x,o.getWorldPosition(camera.position.clone()).z-z)<.5)parent=o;});
+        if(!parent)throw new Error('No live guard render group');
+        for(let node=parent;node&&node!==scene;node=node.parent)node.visible=true;
         renderer.render(scene,camera);
       },{x:def.x,z:def.z,azimuth});
       await page.screenshot({ path: `${OUT}/${def.key}-${view}.png` });
     }
     await page.evaluate(()=>window.__attune.pause(false));
-    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, fit: mine.halo.fit, anim: mine.anim });
+    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
+  }
+
+  // A successful final grip state does not excuse a rifle vanishing at an
+  // earlier sampled animation frame. Verify real browser history and warnings.
+  assert.deepEqual(report.consoleWarnings.filter(m=>m.includes('[wardens] rifle grips cannot reach')),[],
+    'no Warden may temporarily lose the weapon during the watch loop');
+  for(const def of SANCTUM_GUARDS){
+    const g=report.guards.find(g=>g.key===def.key);
+    assert.equal(g?.fit?.failures,0,`${def.key} reported a transient weapon-pose failure`);
   }
   // independent animation state per warden
   const animTimes = report.guards.map((g) => JSON.stringify(g.anim));

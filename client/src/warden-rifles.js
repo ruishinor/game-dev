@@ -115,6 +115,16 @@ function reconstruct(source,spec,optic){
  return {group,sightMaterial:sight.material,origin:source,grip,support};
 }
 
+/** Keep the fallback visible whenever the rifle cannot be posed, including after
+ * loading succeeded but a later animation frame produces unreachable grips.
+ * This is purely visual: the neutral Warden acquires no combat capability. */
+export function syncWardenWeapon(rifle,stave,dt=0,state={}){
+ const ready=rifle?.update(dt,state)===true;
+ if(rifle?.group)rifle.group.visible=ready;
+ if(stave)stave.visible=!ready;
+ return ready?'rifle':stave?'stave':'unarmed';
+}
+
 /** Source model loaded? Used to retain the existing stave when unavailable. */
 export function hasWardenRifle(assets,variant=0){
  const id=variant%4===3?'marksman':'carbine';
@@ -149,7 +159,8 @@ export function createWardenRifle(assets,inst,variant,optic){
   const centre=inst.localToWorld(new THREE.Vector3());
   return inst.localToWorld(new THREE.Vector3(sign*.8,-.55,-.3)).sub(centre);
  };
- let last={mode:'unfitted',gripError:null,supportError:null};
+ let last={mode:'unfitted',gripError:null,supportError:null,failures:0,recoveries:0,candidate:null};
+ let failures=0,recoveries=0,wasReady=false,lastCandidate=0;
  let warned=false;
  return {
   id,group:root,material:made.sightMaterial,
@@ -176,7 +187,11 @@ export function createWardenRifle(assets,inst,variant,optic){
     [0,-.27,.24,.48,rightSign*.12],
     [0,-.17,.31,.24,0],
    ];
-   for(const [x,y,z,pitch,yaw] of positions){
+   // Reuse the last successful placement first to avoid changing shoulder
+   // and wrist poses unnecessarily between otherwise identical idle frames.
+   const order=[lastCandidate,...positions.map((_,i)=>i).filter(i=>i!==lastCandidate)];
+   for(const i of order){
+    const [x,y,z,pitch,yaw]=positions[i];
     restore();
     root.rotation.set(0,0,0);
     root.position.copy(midpoint).add(new THREE.Vector3(x,y,z));
@@ -189,15 +204,17 @@ export function createWardenRifle(assets,inst,variant,optic){
     const supportError=left?left.distanceTo(s):Infinity;
     if(gripError<=.035&&supportError<=.035){
      root.visible=true;
-     last={mode:'ready',gripError,supportError,rifle:id};
+     if(!wasReady&&failures)recoveries++;
+     wasReady=true;lastCandidate=i;
+     last={mode:'ready',gripError,supportError,rifle:id,failures,recoveries,candidate:i};
      return true;
     }
    }
    // Fail visibly in the diagnostic, not as a rifle hovering across the legs.
    restore();
-   root.visible=false;
-   last={mode:'unfitted',gripError:null,supportError:null,rifle:id};
-   if(!warned){warned=true;console.warn('[wardens] rifle grips cannot reach both Halo hands: '+id);}
+   root.visible=false;wasReady=false;failures++;
+   last={mode:'unfitted',gripError:null,supportError:null,rifle:id,failures,recoveries,candidate:null};
+   if(!warned){warned=true;console.warn('[wardens] rifle grips cannot reach both Halo hands: '+id+' variant='+variant);}
    return false;
   },
  };
