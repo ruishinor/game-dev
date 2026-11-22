@@ -5,13 +5,15 @@ export const SPINDLE_SLOTS=4;
 // Weapon actions and emotes retain the established Spindle hotkey bindings.
 export const WEAPON_ACTIONS=Object.freeze({'weapon:switch':'Switch weapon','weapon:config':'Rod configuration'});
 export const EMOTE_ACTIONS=Object.freeze({'emote:sit':'Sit / stand'});
-const ACTION_LABELS={...WEAPON_ACTIONS,...EMOTE_ACTIONS};
+export const MELEE_ACTIONS=Object.freeze({'melee:light':'Melee strike','melee:heavy':'Heavy strike','melee:guard':'Guard / counter'});
+const ACTION_LABELS={...WEAPON_ACTIONS,...EMOTE_ACTIONS,...MELEE_ACTIONS};
 export const DEFAULT_BINDINGS=Object.freeze(Object.fromEntries([
  ...Array.from({length:PRIMARY_SLOTS},(_,i)=>['ability:'+(i+1),'Digit'+(i+1)]),
  ...Array.from({length:COMPANION_SLOTS},(_,i)=>['companion:'+(i+1),'Shift+Digit'+(i+1)]),
  // Secondary utility shortcuts are opt-in so existing custom bindings cannot collide.
  ...Array.from({length:SPINDLE_SLOTS},(_,i)=>['spindle:'+(i+1),null]),
- ['weapon:switch','KeyZ'],['weapon:config','KeyG'],['emote:sit','KeyX']
+ ['weapon:switch','KeyZ'],['weapon:config','KeyG'],['emote:sit','KeyX'],
+ ['melee:light','KeyT'],['melee:heavy','Shift+KeyT'],['melee:guard','KeyY']
 ]));
 const CODES=/^(?:Digit[0-9]|Key[A-Z]|Numpad[0-9]|F(?:[1-9]|1[0-2])|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote)$/;
 const MOVEMENT=new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);

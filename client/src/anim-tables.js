@@ -22,6 +22,22 @@ export const HUMANOID_MELEE_SEQUENCE = Object.freeze([
   {clip:'Melee_Hook',start:.15,timeScale:1.7},
 ]);
 
+
+/** Existing, asset-validated GLB clips plus motion profiles. These are visual
+ * variants; the server owns the actual three-hit progression and windups. */
+export const HUMANOID_ROD_SEQUENCE=Object.freeze([
+ {clip:'Melee_Hook',start:.06,timeScale:1.15,stance:'sweep'},
+ {clip:'Punch_Cross',start:.04,timeScale:1.0,stance:'backhand'},
+ {clip:'OverhandThrow',start:.12,timeScale:1.28,stance:'overhead'},
+]);
+export const HUMANOID_DUAL_SEQUENCE=Object.freeze([
+ {clip:'Punch_Jab',start:.02,timeScale:1.2,stance:'left'},
+ {clip:'Punch_Cross',start:.06,timeScale:1.15,stance:'right'},
+ {clip:'Melee_Hook',start:.05,timeScale:1.25,stance:'cross'},
+]);
+export const HUMANOID_HEAVY_STRIKE=Object.freeze({clip:'OverhandThrow',start:0,timeScale:.94,stance:'heavy'});
+export const HUMANOID_COUNTER_STRIKE=Object.freeze({clip:'Melee_Hook',start:.03,timeScale:1.45,stance:'counter'});
+
 export const HUMANOID_ACTIONS = {
   phase_needle:{clip:'Spell_Simple_Shoot',timeScale:1.1},
   hinge_field:{clip:'Spell_Simple_Enter',fadeOut:.4},

@@ -3,6 +3,7 @@
 // Nothing a client sends is trusted beyond "this is what I would like to do".
 
 import { useAbility, startAttack } from './sim/combat.js';
+import {requestMelee} from './sim/melee.js';
 import { setPosture } from './sim/posture.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
 import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance, setElectricalRodMode, selectWeapon } from './sim/progress.js';
@@ -384,6 +385,13 @@ export class NetServer {
         if (typeof msg.sit !== 'boolean') return this.strike(conn);
         reply(setPosture(game, p, msg.sit));
         break;
+      case 'melee': {
+        if(!['light','heavy','guard'].includes(msg.action))return this.strike(conn);
+        const result=requestMelee(game,p,msg.action);
+        if(result.ok)p.sitting=null;
+        reply(result);
+        break;
+      }
       case 'atk':
         // Right-click (legacy atk) always engages; explicit on=0 disengages.
         if (msg.on !== undefined && msg.on !== 0 && msg.on !== 1) return this.strike(conn);

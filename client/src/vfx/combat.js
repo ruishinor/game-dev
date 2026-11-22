@@ -158,7 +158,9 @@ export class CombatVfx {
         life: [0.23, 0.42], speed: [0.6, 1.7], spin: [-1, 1], drag: 3, alpha: 0.72 });
     }
     if (e.k === 'melee' && s && !hostile && e.ab !== 'rending_arc') {
-      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: 1.6, color: hot(c, 0.2), sweep: 2.0, tilt: (this.v.rand() - 0.5) * 0.9, life: 0.24, alpha: 0.75, reverse: this.v.rand() < 0.5 });
+      // Follow the server-authored contact variant, not random identical arcs.
+      const variant=e.mv||'1',heavy=variant==='heavy'||variant==='counter';
+      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: heavy?2.05:1.6, color: hot(c, heavy?.38:.2), sweep: heavy?2.8:2.0, tilt: variant==='3'?.65:variant==='2'?-.4:.12, life: heavy?.34:.24, alpha: heavy?.9:.75, reverse: variant==='2' });
     } else if (e.k === 'melee' && hostile) {
       this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1, this.radiusOf(s) * 1.1), color: PALETTE.hostile, sweep: 1.5, tilt: 0.6, life: 0.22, alpha: 0.4 });
     }
