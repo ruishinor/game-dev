@@ -34,3 +34,19 @@ test('moving behind the committed swing evades its facing arc',()=>{
  place(p,pos.x,pos.z);g.time+=ms;tickEnemy(g,e,0);
  assert.equal(p.hp,before);
 });
+
+test('enemy melee windup consumes part of the original attack interval, not extra recovery',()=>{
+ const {g,p,e}=setup();
+ const startedAt=g.time;
+ tickEnemy(g,e,0);
+ const next=e.nextAttack;
+ assert.equal(next-startedAt,1800,'skitter retains original 1.8s start-to-start cadence');
+ assert.ok(e.basicWindup.until<next,'contact is inside the interval');
+ g.time=e.basicWindup.until;
+ tickEnemy(g,e,0);
+ assert.equal(e.nextAttack,next,'contact must not delay next ready time');
+ g.time=next-1;tickEnemy(g,e,0);
+ assert.equal(e.basicWindup,null,'still recovering from first attack');
+ g.time=next;tickEnemy(g,e,0);
+ assert.ok(e.basicWindup,'next readable windup begins on the original cadence');
+});
