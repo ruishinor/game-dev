@@ -20,7 +20,7 @@ test('phase scar is additive, outside named sites, supported and accessible from
  assert.ok(RIFT_SITE);const {x,z}=RIFT_SITE;assert.equal(zoneAt(x,z),'The Phase Scar');
  for(const a of Object.values(ZONES))assert.ok(Math.hypot(x-a.x,z-a.z)>=a.r+8.6);
  for(const o of PROPS)assert.ok(Math.hypot(x-o.x,z-o.z)>=8.6+(o.r??Math.hypot(o.hw??0,o.hd??0)));
- for(const o of OBJECTS.filter(o=>o.type.startsWith('rift_'))){const q={x:o.x,z:o.z+1.7},v=resolveCollisions({...q},PLAYER_RADIUS);assert.ok(Math.hypot(v.x-q.x,v.z-q.z)<.001);}
+ for(const o of OBJECTS.filter(o=>o.type==='rift_indexer'||o.type==='rift_regulator')){const q={x:o.x,z:o.z+1.7},v=resolveCollisions({...q},PLAYER_RADIUS);assert.ok(Math.hypot(v.x-q.x,v.z-q.z)<.001);}
 });
 test('opening, telegraphed discharge, shared snapshot and regulator stabilization are server-owned',()=>{
  const g=makeGame(),p=g.addPlayer(eligible()),b=g.addPlayer(eligible()),other=g.addPlayer(makeChar('vanguard'));

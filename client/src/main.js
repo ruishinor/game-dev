@@ -35,7 +35,7 @@ import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
-import { UI, companionCommandKeys } from './ui.js';
+import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
 import { nearestInteractable } from './interact-target.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
@@ -1603,7 +1603,10 @@ input.onAction = (code, e) => {
   if(action && S.sheet) {
     const i=Number(action.split(':')[1])-1;
     const def=CLASSES[S.sheet.cls];
-    if(action.startsWith('companion:')){
+    if(action.startsWith('spindle:')){
+      const mode=SPINDLE_UTILITY_COMMANDS[i];
+      if(mode&&S.you?.spindleId)net.send({t:'pet',c:mode,type:'spindle'});
+    } else if(action.startsWith('companion:')){
       const pet=S.ents.get(S.compId)?.meta.c;
       const mode=companionCommandKeys(pet)[i];
       if(mode && COMPANIONS[pet]?.modes[mode])net.send({t:'pet',c:mode});
