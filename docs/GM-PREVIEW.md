@@ -4,18 +4,16 @@ GM preview modifies **only the authenticated owner's active character**. There i
 
 ## Local PowerShell setup
 
-1. Run the ordinary account registration/sign-in and create a character. Stop the local server to flush the save.
-2. From the repository root, inspect the local account IDs (not tokens):
+1. Register an account and create or claim a character through Account Login, then stop any running local Attunement server.
+2. Use the fail-closed launcher from the repository root, passing the **account handle** and the **character name** separately:
 
-    $accounts = (Get-Content .\data\characters.json -Raw | ConvertFrom-Json).accounts
-    $accounts | Select-Object handle,id
+    .\tools\Start-Attunement-GM.ps1 -AccountHandle "Avalon" -CharacterName "Ryu"
 
-3. Set the actual UUID in the **server** process environment, not the browser:
+The example demonstrates two **different** names; use your own registered pair. The launcher checks the persisted account UUID and character ownership, refuses missing/unlinked/mismatched accounts instead of silently setting an empty GM allowlist, and starts npm with the validated UUID only in that server process environment. No UUID, password or token is printed or committed. If the server uses a custom save file, pass -DataFile "path\to\characters.json" (or set DATA_FILE beforehand).
 
-    $env:ATTUNEMENT_GM_ACCOUNT_IDS = '<your-account-uuid>'
-    npm start
+3. Open http://127.0.0.1:8080 in the browser, sign in with **Account Login**, and select that linked character. Incognito/private windows start without an existing session; **Guest** with the same display name is not an authorized account. In-game: /gm status, then select a living enemy and /gm kill.
 
-Multiple UUIDs may be comma-separated, but prefer one owner account. Use normal sign-in credentials, enter a character, open chat and run /gm help. To turn off privilege for a new server process:
+You may also set ATTUNEMENT_GM_ACCOUNT_IDS manually to the actual **UUID**, not the handle, but it must be set **in the same PowerShell session as npm start and before starting the server**. The launcher validates this automatically. Multiple UUIDs may be comma-separated in manual server configuration, but one owner account is preferable. To turn off privilege for a new server process, stop it and run:
 
     Remove-Item Env:\ATTUNEMENT_GM_ACCOUNT_IDS
 
@@ -27,6 +25,7 @@ Hosted deployment: set this key only in private server configuration, do not com
 - /gm level N, where N is a decimal integer from 1 through the current server MAX_LEVEL (currently 15); resets XP and refreshes derived stats
 - /gm tp reach|scar|sporefield|relay|sinter|annex; validated named main-branch locations, no arbitrary coordinates
 - /gm heal; restores health of a living character
+- /gm kill; kills the currently selected living enemy in the same region, using normal death/respawn handling but granting no XP, loot or directive progression. Does not target players or companions
 - /gm god on|off; incoming damage immunity on the *live player entity only*, never stored
 - /gm unlock; sets existing Resonance attunement and Phase Scar calibration to completed on that character (idempotent)
 - /gm credits 999; **adds** 999 credits to the owner character's wallet (bounded by the normal credit cap)
