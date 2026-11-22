@@ -438,7 +438,11 @@ export function interact(game, p, objectId) {
     game.message(p, 'info', obj.name + ': ' + lines[Math.floor(game.time / 7000) % lines.length]);
     return { ok: true };
   }
-  if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
+  // Existing server range/death checks apply; neutral Wardens never offer combat or inventory actions.
+  if (obj.type === 'sanctum_guard') {
+    game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
+    return {ok:true};
+  }
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
   if(['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown'].includes(obj.type))return travelLumenfen(game,p,obj);

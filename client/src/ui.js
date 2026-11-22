@@ -2533,6 +2533,7 @@ export class UI {
     else if(st.nearObject?.meta.c==='foundry_cache')set(this.interact,'text',lock?'Recovery cache · disengage first':'[F] Open Depths recovery cache');
     else if(st.nearObject?.meta.c==='foundry_return')set(this.interact,'text',lock?'Return portal · disengage first':'[F] Return to the Severance Gate');
     else if(st.nearObject?.meta.c==='null_breach')set(this.interact,'text',lock?'Null Breach · disengage first':'[F] Enter the Null Breach');
+    else if(st.nearObject?.meta.c==='sanctum_guard')set(this.interact,'text','[F] Observe Sanctum Warden');
     else if (st.nearObject) set(this.interact, 'text', `[F] ${st.nearObject.meta.c === 'obelisk' ? 'Touch' : (st.nearObject.meta.c.startsWith('brine_') || ['sanctum_fabricator','initiation_terminal'].includes(st.nearObject.meta.c)) ? 'Operate' : (st.nearObject.meta.c.startsWith('survey_') || st.nearObject.meta.c === 'sinter_sampler' || st.nearObject.meta.c === 'deep_console') ? 'Inspect' : 'Speak with'} ${st.nearObject.meta.n}`);
 
     set(this.netLabel, 'text', `${st.latency ?? '–'} ms · ${st.fps} fps`);
