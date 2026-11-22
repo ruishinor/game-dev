@@ -385,6 +385,30 @@ test('real WebSocket: signed-in owner, guest, wrong owner, revoked session and r
       assert.equal(connection.player.gmClassUnlocked,undefined);
     }
 
+    // Real socket: the server's selected target is authoritative and the same
+    // entity cannot be defeated by a guest or another registered account.
+    const enemy = srv.game.enemies.find(e => e.state !== 'dead' && e.state !== 'evade' &&
+      travelRegionAt(e.x,e.z) === 'reach');
+    assert.ok(enemy,'live enemy available for owner command');
+    const originalHp=enemy.hp;
+    for(const [client,connection] of [[b,otherConn],[guest,guestConn]]){
+      client.send({t:'tgt',id:enemy.id});
+      await until(()=>connection.player.target===enemy.id,'non-owner target selection');
+      const before=client.msgs.length;
+      client.send({t:'gm',line:'kill'});
+      await until(()=>client.msgs.slice(before).some(m=>m.t==='s'&&m.pv?.some(e=>/GM access denied/.test(e.m))),
+        'unauthorized kill rejected at socket boundary');
+      assert.equal(enemy.hp,originalHp,'unauthorized request leaves selected enemy unchanged');
+    }
+    a.send({t:'gm',line:'tp reach'});
+    await until(()=>travelRegionAt(ownerConn.player.x,ownerConn.player.z)==='reach','owner returns to reach');
+    a.send({t:'tgt',id:enemy.id});
+    await until(()=>ownerConn.player.target===enemy.id,'owner selects enemy via socket');
+    a.send({t:'gm',line:'kill'});
+    await until(()=>enemy.state==='dead','owner kill via authenticated socket');
+    assert.equal(enemy.hp,0);
+    assert.equal(enemy.lootByPlayer.size,0,'GM kill never generates loot for combatants');
+
     const priorPlayer = ownerConn.player;
     a.send({ t: 'account_leave' });
     await until(() => a.msgs.filter(m => m.t === 'account_ready').length > 1, 'owner leaves character');
