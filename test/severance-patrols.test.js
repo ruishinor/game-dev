@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { makeGame, makeChar, place } from './helpers.js';
 import { SEVERANCE_PATROLS } from '../server/sim/severance-patrols.js';
+import { SOLDIER_WALK_SPEED } from '../server/sim/ai.js';
 import { ENEMIES } from '../shared/content.js';
 import { COLLIDERS, travelRegionAt, inSafeZone } from '../shared/world.js';
 import { EXPEDITION_OUTPOST as OP, SEVERANCE_EXPANSE as E, inSeverancePocket } from '../shared/severance-gate.js';
@@ -43,6 +44,27 @@ test('patrols spawn once with the first arrival, walk their routes, and persist'
   const moved = patrols.filter((e, i) => Math.hypot(e.x - start[i].x, e.z - start[i].z) > 4).length;
   assert.ok(moved >= patrols.length - 1, `patrols move along their routes (${moved}/${patrols.length})`);
   for (const e of patrols) assert.equal(travelRegionAt(e.x, e.z), 'severance_expanse');
+});
+
+test('idle Severance soldiers retain a true walking pace during routes and formation catch-up', () => {
+  const g = makeGame(); g.openExpanse();
+  const troops = g.enemies.filter(e => e.severancePatrol && e.type === 'severance_soldier');
+  assert.ok(troops.length >= 15, 'five infantry squads are present');
+  assert.ok(SOLDIER_WALK_SPEED.patrol < SOLDIER_WALK_SPEED.follow, 'followers can close small gaps');
+  assert.ok(SOLDIER_WALK_SPEED.follow < 2.2, 'both states stay below the humanoid jog threshold');
+  const start = new Map(troops.map(e => [e.id, { x: e.x, z: e.z }]));
+  for (let i = 0; i < 120; i++) {
+    const previous = new Map(troops.map(e => [e.id, { x: e.x, z: e.z }]));
+    g.tick(50);
+    for (const e of troops) {
+      assert.equal(e.state, 'idle', 'no players present to initiate combat');
+      const old = previous.get(e.id);
+      const speed = Math.hypot(e.x - old.x, e.z - old.z) / 0.05;
+      assert.ok(speed <= 2.2 + 0.01, e.name + ' exceeded walking pace at tick ' + i + ': ' + speed);
+    }
+  }
+  const moved = troops.filter(e => Math.hypot(e.x - start.get(e.id).x, e.z - start.get(e.id).z) > 1).length;
+  assert.ok(moved >= 10, 'troops continue actually roaming rather than freezing to avoid running');
 });
 
 test('a patrol engages, leashes to where it left its route, then resumes; the outpost is safe', () => {

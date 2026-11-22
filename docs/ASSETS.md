@@ -5,6 +5,10 @@ Every third-party visual source the asset build uses is listed in
 source URL, size, SHA-256 and acquisition date. Nothing is used that is not in
 that ledger, and the build refuses an asset that names an unknown source.
 
+## Owner-supplied GLB building-block archive (authorization 2026-11-22)
+
+The owner explicitly authorizes `assets/source-archives/glb-low-poly-models-building-blocks.zip` and Attunement-specific derivatives for this public development repository, automated GLB inspection artifacts and in-game asset-pipeline output. This archive is **not represented as CC0**. It is distinct from the independently sourced CC0 inventory below. Record source node/asset lineage and any actually known attribution in the relevant owner-source/art registers; do not impose a generic “unlicensed archive-derived art” or speculative redistribution-clearance blocker. A concrete evidenced conflict can be assessed independently. The low-poly originals still require substantial visual and engineering improvement before becoming finished gameplay art, and the original source ZIP should not be shipped to clients as a gameplay bundle.
+
 ## Credits
 
 All entries in the visual ledger are **CC0 1.0 (public domain dedication)**: no

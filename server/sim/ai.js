@@ -11,6 +11,11 @@ import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sint
 // post), not to the route's start; static enemies and short circuits use home.
 const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
 
+// The humanoid locomotion controller enters its jog cycle above 2.2 m/s.
+// Keep idle Severance infantry below it, while allowing measured catch-up
+// in formation and normal full-speed pursuit once combat begins.
+export const SOLDIER_WALK_SPEED = Object.freeze({ patrol: 1.8, follow: 2.05 });
+
 /** Max HP at no encounter scaling: the type's, scaled by levels above its base and a per-instance elite multiplier. */
 export function baseHp(e) {
   return Math.round(ENEMIES[e.type].hp * levelHpMul(e) * (e.elite?.hp ?? 1));
@@ -99,7 +104,11 @@ function tickFollower(game, e, def, dt) {
   const tx = lead.x + e.slot.side * c + e.slot.back * s, tz = lead.z - e.slot.side * s + e.slot.back * c;
   const d = Math.hypot(tx - e.x, tz - e.z);
   if (d > 40) return false;
-  if (d > 0.25) moveToward(e, tx, tz, def.speed * Math.min(0.95, 0.5 + 0.15 * d) * dt, def.radius, 0);
+  if (d > 0.25) {
+    const speed = def.speed * Math.min(0.95, 0.5 + 0.15 * d);
+    const walk = e.severancePatrol && e.type === 'severance_soldier' ? Math.min(speed, SOLDIER_WALK_SPEED.follow) : speed;
+    moveToward(e, tx, tz, walk * dt, def.radius, 0);
+  }
   else e.yaw = lead.yaw;
   if (e.patrol) e.post = { x: e.x, z: e.z };
   return true;
@@ -273,7 +282,9 @@ export function tickEnemy(game, e, dt) {
       if(e.form)e.ecologyMode='travel';
       const stalking=e.type==='faultstalker';
       if(stalking)e.ecologyMode='stalk';
-      moveToward(e, waypoint.x, waypoint.z, def.speed * (def.neutral ? pace : stalking ? (e.routeIndex%3===0?0.37:0.56) : 0.56) * dt, def.radius, 0);
+      const routeSpeed = def.speed * (def.neutral ? pace : stalking ? (e.routeIndex%3===0?0.37:0.56) : 0.56);
+      const walkSpeed = e.severancePatrol && e.type === 'severance_soldier' ? Math.min(routeSpeed, SOLDIER_WALK_SPEED.patrol) : routeSpeed;
+      moveToward(e, waypoint.x, waypoint.z, walkSpeed * dt, def.radius, 0);
       if(e.form){
         // Soft local spacing, with collision re-resolution. No global
         // flocking or RNG consumption; it affects only the three grazers.
