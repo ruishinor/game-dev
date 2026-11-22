@@ -176,6 +176,16 @@ try{
  // networking and animation updates continue; resume before visual evidence.
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  try{
+  // Synchronize first. A world reset closes transient windows and item menus;
+  // opening the menu before waiting for the authenticated replacement entity
+  // can leave the test targeting a dismissed context from the old session.
+  // A software-renderer stall may terminate and resume the WebSocket.
+  // Reconnect creates a fresh live entity; require the same character and
+  // active authenticated session rather than obsolete entity identity.
+  const configured=await liveFixturePlayer(page,server,'Vendor Tester');
+  assert.equal(configured.char.id,p.char.id,'Rod configuration must preserve the authenticated character');
+  assert.equal(configured.char.equipped.weapon,'electrical_combat_rod','Rod equipment survives reconnect');
+  p=configured;
   await page.locator('#view').focus();await page.keyboard.press('KeyC');
   const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
   await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
@@ -188,21 +198,14 @@ try{
   const context=page.locator('.player-context');
   await context.waitFor({state:'visible'});
   assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  // A software-renderer stall may terminate and resume the WebSocket.
-  // Reconnect creates a fresh live entity; require the same character and
-  // active authenticated session rather than obsolete entity identity.
-  const configured=await liveFixturePlayer(page,server,'Vendor Tester');
-  assert.equal(configured.char.id,p.char.id,'Rod configuration must preserve the authenticated character');
-  assert.equal(configured.char.equipped.weapon,'electrical_combat_rod','Rod equipment survives reconnect');
-  p=configured;
   async function configure(label,mode,code){
    const action=context.getByRole('button',{name:label,exact:true});
-   await action.focus();
-   await action.press('Enter');
    try{
+    await action.focus();
+    await action.press('Enter');
     await page.waitForFunction(({mode,code})=>{const s=window.__attune.state();return s.sheet?.electricalRodMode===mode&&s.ents.find(e=>e.id===s.myId)?.row?.er===code;},{mode,code});
    }catch(error){
-    const client=await page.evaluate(()=>{const s=window.__attune.state();return {id:s.myId,snaps:s.snaps,mode:s.sheet?.electricalRodMode,row:s.ents.find(e=>e.id===s.myId)?.row?.er,status:document.querySelector('#status')?.textContent,context:!document.querySelector('.player-context')?.hidden};}).catch(()=>null);
+    const client=await page.evaluate(()=>{const s=window.__attune.state();return {id:s.myId,snaps:s.snaps,mode:s.sheet?.electricalRodMode,row:s.ents.find(e=>e.id===s.myId)?.row?.er,status:document.querySelector('#status')?.textContent,context:!document.querySelector('.player-context')?.hidden,contextActions:[...document.querySelectorAll('.player-context button')].map(b=>({name:b.textContent,disabled:b.disabled}))};}).catch(()=>null);
     console.error('[rod configuration]',{mode,client,server:{mode:p.char.electricalRodMode,live:server.game.players.get(p.id)===p,dead:p.dead,combat:p.combatUntil-server.game.time,auto:p.autoOn,jump:p.jy},errors});
     throw error;
    }
