@@ -1,7 +1,7 @@
 // Rootglass thresholds are an independent living architecture family. The
 // approved Phase Scar exterior model and shader are never modified here.
 // These share the server's existing radius/traversal contract.
-export const ROOTGLASS_LIMITS=Object.freeze({layers:3,lights:1,leafMotes:22,roots:18});
+export const ROOTGLASS_LIMITS=Object.freeze({layers:3,lights:1,leafMotes:22,roots:21});
 
 export function makeLumenfenRift(T,kind='lumenfen_entry'){
   const group=new T.Group();group.name='lumenfen:rootglass:'+kind;
@@ -37,11 +37,6 @@ export function makeLumenfenRift(T,kind='lumenfen_entry'){
     a.needsUpdate=true;geo.computeVertexNormals();
     return geo;
   }
-  const shader=`
-    uniform float uTime,uHue,uLayer,uMotion;
-    varying vec2 vUv;
-    void main(){}
-  `;
   // Refracted bands, layered occlusion and a thin bright edge. Motion is
   // optional and never changes the underlying interaction or rift geometry.
   const fragment=`
