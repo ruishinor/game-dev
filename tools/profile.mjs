@@ -80,7 +80,7 @@ try {
   for (const tier of tiers) {
     console.log(`[profile] starting quality q${tier}`);
     let ctx, page;
-    const errors = [], failedRequests = [], pending = new Set();
+    const errors = [], consoleMessages = [], failedRequests = [], pending = new Set();
     const assetPath = (request) => {
       try { const u = new URL(request.url()); return u.hostname === '127.0.0.1' ? u.pathname.slice(0, 160) : null; }
       catch { return null; }
@@ -92,7 +92,7 @@ try {
     page.setDefaultNavigationTimeout(STEP_MS);
     page.on('pageerror', (e) => { if (errors.length < 12) errors.push(String(e.message).slice(0, 320)); });
     page.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type()) && errors.length < 12) errors.push(`${msg.type()}: ${msg.text().slice(0, 240)}`);
+      if (['error', 'warning'].includes(msg.type()) && consoleMessages.length < 12) consoleMessages.push(`${msg.type()}: ${msg.text().slice(0, 240)}`);
     });
     page.on('request', (request) => { if (assetPath(request)) pending.add(request); });
     page.on('requestfinished', (request) => pending.delete(request));
@@ -199,7 +199,7 @@ try {
       failed = true;
       const evidence = {
         tier, error: String(error?.message || error).slice(0, 360),
-        pageErrors: errors.slice(-12), requestFailures: failedRequests.slice(-12),
+        pageErrors: errors.slice(-12), consoleMessages: consoleMessages.slice(-12), requestFailures: failedRequests.slice(-12),
         pendingAssetPaths: [...pending].map(assetPath).filter(Boolean).slice(-20),
       };
       if (page) {
