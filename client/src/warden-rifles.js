@@ -148,7 +148,6 @@ export function createWardenRifle(assets,inst,variant,optic){
   const centre=inst.localToWorld(new THREE.Vector3());
   return inst.localToWorld(new THREE.Vector3(sign*.8,-.55,-.3)).sub(centre);
  };
- const rightPole=poleFor(rightSign),leftPole=poleFor(-rightSign);
  let last={mode:'unfitted',gripError:null,supportError:null};
  let warned=false;
  return {
@@ -183,8 +182,8 @@ export function createWardenRifle(assets,inst,variant,optic){
     made.group.rotation.set(pitch,yaw,0);
     inst.updateMatrixWorld(true);
     const g=world(made.grip),s=world(made.support);
-    const right=solveArm(THREE,arms[0].upper,arms[0].lower,arms[0].hand,g,rightPole);
-    const left=solveArm(THREE,arms[1].upper,arms[1].lower,arms[1].hand,s,leftPole);
+    const right=solveArm(THREE,arms[0].upper,arms[0].lower,arms[0].hand,g,poleFor(rightSign));
+    const left=solveArm(THREE,arms[1].upper,arms[1].lower,arms[1].hand,s,poleFor(-rightSign));
     const gripError=right?right.distanceTo(g):Infinity;
     const supportError=left?left.distanceTo(s):Infinity;
     if(gripError<=.035&&supportError<=.035){
