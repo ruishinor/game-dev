@@ -1,0 +1,25 @@
+{
+  "id": "glb_archive",
+  "kind": "archive-glb-source",
+  "description": "All 138 owner-supplied GLBs as first-class asset-pipeline inputs. Index or ingest with no per-model whitelist or manual extraction.",
+  "archive": {
+    "path": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
+    "sha256": "a2e60f2a220ebf427f6211805d0a4aa11504205af91a62e2065ab18474977e43",
+    "models": 138
+  },
+  "sources": [
+    {
+      "id": "all_138_archive_glbs",
+      "path": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
+      "role": "pipeline donor geometry, materials and animation; may be transformed, remeshed, rigged, PBR authored, composed, optimized and tested",
+      "provenance": "Owner-provided archive committed in PR #237; license/attribution metadata retained as supplied."
+    }
+  ],
+  "pipeline": {
+    "inputStage": "ingest",
+    "outputDirectory": ".asset-cache/pipeline/glb_archive/imports",
+    "metadataIndex": ".asset-cache/pipeline/glb_archive/imports.json",
+    "automaticGameplayPublication": false,
+    "manualPreApprovalRequiredForDevelopment": false
+  }
+}

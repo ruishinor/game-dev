@@ -1994,6 +1994,8 @@ function updateEntities(dt, t, now) {
       sitting: ent.meta.k==='p'&&!!(row?.f&16),
       electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):null,
       electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
+      cacheFx: ent.meta.c==='foundry_cache' && ent.inView && camD < 24 && rich() ? vfx : null,
+      cacheAt: ent.meta.c==='foundry_cache' ? [x,groundHeight(x,z)+.05,z] : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
       work:row?.work,
       ecology: row?.ec,

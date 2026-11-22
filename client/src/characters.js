@@ -38,6 +38,7 @@ import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.j
 import {createRodBackMount} from './rod-stow.js';
 import { MODEL_FACTORIES as PROCEDURAL, RIFT_KINDS, riftModel } from './models.js';
 import { buildResonantVein } from './resonant-vein.js';
+import { makeDepthsRecoveryCache } from './depths-cache.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -734,6 +735,8 @@ export function createModel(assets, meta, glb = true) {
 
 function buildModel(assets, meta, glb) {
   if(meta.c==='survey_strider')return createSurveyStrider();
+  // Dedicated world prop: GLB plus visual refit, independent of character LOD.
+  if(meta.c==='foundry_cache')return makeDepthsRecoveryCache(THREE, assets?.loader);
   let model = null;
   const haloRole=haloRoleFor(meta);
   if (glb) try {
