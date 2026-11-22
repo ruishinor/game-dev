@@ -38,6 +38,26 @@ function sceneFromGLB(file) {
   const nodes=doc.nodes.map(n=>{const group=new Group();group.name=n.name||'';if(n.matrix){new THREE.Matrix4().fromArray(n.matrix).decompose(group.position,group.quaternion,group.scale);}else{if(n.translation)group.position.fromArray(n.translation);if(n.rotation)group.quaternion.fromArray(n.rotation);if(n.scale)group.scale.fromArray(n.scale);}return group;});
   doc.nodes.forEach((n,i)=>n.children?.forEach(id=>nodes[i].add(nodes[id])));const scene=new Group();doc.scenes[doc.scene||0].nodes.forEach(id=>scene.add(nodes[id]));return scene;
 }
+test('Longpoint is shouldered forward rather than crossing the torso on both shipped body frames',()=>{
+  for(const frame of ['m','f']){
+    const rig=sceneFromGLB('../client/assets/humanoid_'+frame+'.glb');
+    const prop=sceneFromGLB('../client/assets/longpoint.glb');
+    const p=createLongpointPresentation(THREE,rig,prop);
+    assert.ok(p&&p.update({}),frame);
+    const world=n=>n.getWorldPosition(new THREE.Vector3());
+    const shoulder=world(rig.getObjectByName('upperarm_r')).add(world(rig.getObjectByName('upperarm_l'))).multiplyScalar(.5);
+    const grip=world(prop.getObjectByName('GripAnchor')),effect=world(prop.getObjectByName('EffectAnchor'));
+    const forward=new THREE.Vector3(0,0,1).applyQuaternion(rig.getWorldQuaternion(new THREE.Quaternion()));
+    const barrel=effect.sub(grip).normalize();
+    assert.ok(barrel.dot(forward)>.85,frame+' barrel points along character facing, not across torso');
+    assert.ok(grip.clone().sub(shoulder).dot(forward)>.09,frame+' grip clears torso toward front');
+    const target=rig.localToWorld(new THREE.Vector3(2,1,12));
+    assert.equal(p.fire(target),true,frame+' confirmed shot fitted');
+    assert.ok(p.origin()?.isVector3,frame+' confirmed muzzle remains available');
+    p.dispose();
+  }
+});
+
 test('Longpoint fit reaches both named anchors on actual masculine and feminine bind hierarchies and restores animation state',()=>{
   for(const frame of ['m','f']){
     const rig=sceneFromGLB('../client/assets/humanoid_'+frame+'.glb'),prop=sceneFromGLB('../client/assets/longpoint.glb');
