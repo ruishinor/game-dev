@@ -139,7 +139,7 @@ try{
   throw error;
  }finally{
   server.game.tick=originalTick;
-  await page.evaluate(()=>{window.__vendorProductionObservation.running=false;window.__attune.pause(!SOFTWARE_GL);});
+  await page.evaluate(software=>{window.__vendorProductionObservation.running=false;window.__attune.pause(software);},SOFTWARE_GL);
  }
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
  await page.waitForFunction(()=>{const a=window.__attune,scene=a.gfx.scene;return scene.getObjectByName('sanctum-precision-fabricator')?.userData.working===false&&!scene.getObjectByName('production:right')?.visible;});
