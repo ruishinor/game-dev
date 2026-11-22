@@ -35,6 +35,7 @@ export function resetEnemy(game, e) {
   e.fixate = null;
   e.buffs = [];
   e.cast = null;
+  e.basicWindup = null;
   e.nextAttack = 0;
   e.specialAt = {};
   e.deadAt = 0;
@@ -373,6 +374,23 @@ export function tickEnemy(game, e, dt) {
     return;
   }
 
+  // A basic melee attack now has a committed, readable server-owned windup.
+  // It cannot track the player throughout the warning or hit through cover.
+  if(e.basicWindup){
+    const w=e.basicWindup;
+    if(game.time<w.until)return;
+    e.basicWindup=null;
+    e.nextAttack=game.time+def.attack.interval;
+    const victim=game.players.get(w.targetId);
+    if(victim&&!victim.dead&&!inSafeZone(victim)&&sameTravelRegion(e,victim)&&
+      dist(e,victim)-victim.radius-e.radius*.5<=def.attack.range&&hasLineOfSight(e,victim)){
+      const dx=victim.x-e.x,dz=victim.z-e.z,len=Math.hypot(dx,dz);
+      const facing=len<.001||(Math.sin(w.yaw)*dx+Math.cos(w.yaw)*dz)/len>=.14;
+      if(facing)dealDamage(game,e,victim,def.attack.dmg,'auto',{kind:'melee',melee:true});
+    }
+    return;
+  }
+
   for (const sp of e.specials || def.specials || []) {
     if (game.time >= e.specialAt[sp.id] && hasLineOfSight(e,target)) {
       beginSpecial(game, e, sp, target);
@@ -420,8 +438,15 @@ export function tickEnemy(game, e, dt) {
 
   const reach = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
   if (reach <= def.attack.range && game.time >= e.nextAttack && hasLineOfSight(e,target)) {
-    e.nextAttack = game.time + def.attack.interval;
-    dealDamage(game, e, target, def.attack.dmg, 'auto', { kind: def.attack.kind, melee: def.attack.kind === 'melee' });
+    if(def.attack.kind==='melee'){
+      const windup=Math.max(390,Math.min(610,Math.round(def.attack.interval*.42)));
+      e.basicWindup={targetId:target.id,yaw:e.yaw,until:game.time+windup};
+      // Existing event/render paths already support bounded enemy warnings.
+      game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming strike',x:target.x,z:target.z,r:Math.min(2.2,def.attack.range),ms:windup,g:1});
+    }else{
+      e.nextAttack=game.time+def.attack.interval;
+      dealDamage(game,e,target,def.attack.dmg,'auto',{kind:def.attack.kind});
+    }
   } else if (def.attack.far && reach > def.attack.range && reach <= def.attack.far.range && game.time >= e.nextAttack + 600 && hasLineOfSight(e,target)) {
     // Elites punish kiting with a slower ranged strike.
     e.nextAttack = game.time + def.attack.far.interval;
