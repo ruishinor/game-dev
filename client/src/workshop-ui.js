@@ -9,6 +9,7 @@ import { GOODS } from '../../shared/goods.js';
 import {recoveryRank} from '../../shared/recovery.js';
 import {disciplineProgress,disciplineDuration} from '../../shared/crafting-disciplines.js';
 import { productionEstimate } from './production-presentation.js';
+import {ASSEMBLY_NODES,assemblyEdges,assemblyNodeState} from './weapon-assembly-model.js';
 const h=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
 const row=(label,value,met)=>{const el=h('div','workshop-row');el.append(h('span',null,label),h('span',met===undefined?'':met?'met':'unmet',value));return el;};
 const btn=(label,action,cls='')=>{const b=h('button',cls,label);b.type='button';b.addEventListener('click',action);return b;};
@@ -258,6 +259,96 @@ function fabrication(ui,body){
   body.append(catalogue,detail);
 }
 
+function weaponAssembly(ui,body){
+ const sheet=ui.sheet,site=ui.workshopSite??(ui.atSanctum?'sanctum':null);
+ const selected=ASSEMBLY_NODES.find(n=>n.id===ui.assemblySelected)||ASSEMBLY_NODES[5];
+ ui.assemblySelected=selected.id;
+ const graphShell=h('section','assembly-map');
+ graphShell.append(h('h3',null,'Modular weapon assembly'),h('p','muted','Select a component to inspect what you own, what is missing and how to make it. Connections represent actual consumed inputs.'));
+ const viewport=h('div','assembly-graph-viewport'),graph=h('div','weapon-assembly-graph');
+ graph.setAttribute('role','group');graph.setAttribute('aria-label','Weapon component dependency graph');
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ svg.setAttribute('class','assembly-links');svg.setAttribute('viewBox','0 0 100 100');
+ svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');
+ for(const edge of assemblyEdges()){
+  const from=ASSEMBLY_NODES.find(n=>n.id===edge.from),to=ASSEMBLY_NODES.find(n=>n.id===edge.to);
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  const middle=(from.y+to.y)/2;
+  path.setAttribute('d','M '+from.x+' '+(from.y+9)+' V '+middle+' H '+to.x+' V '+(to.y-9));
+  path.setAttribute('vector-effect','non-scaling-stroke');
+  path.dataset.from=edge.from;path.dataset.to=edge.to;
+  if(to.id===selected.id||from.id===selected.id)path.classList.add('connected');
+  svg.append(path);
+ }
+ graph.append(svg);
+ for(const node of ASSEMBLY_NODES){
+  const st=assemblyNodeState(sheet,site,node.id,ui.buildLock);
+  const button=btn(node.label,()=>{
+   ui.assemblySelected=node.id;renderWorkshop(ui);
+   ui.workshopBody.querySelector('[data-assembly-node="'+node.id+'"]')?.focus({preventScroll:true});
+  },'assembly-node'+(node.id===selected.id?' active':'')+(st.owned?' owned':st.ready?' ready':st.known?' needs-parts':' locked'));
+  button.dataset.assemblyNode=node.id;button.dataset.status=st.status;
+  button.setAttribute('aria-pressed',String(node.id===selected.id));
+  button.setAttribute('aria-label',node.label+'. '+st.status+(st.owned?', '+st.owned+' owned':''));
+  button.style.left=node.x+'%';button.style.top=node.y+'%';
+  const icon=itemArt(node.id),copy=h('span','assembly-node-copy');
+  copy.append(h('strong',null,node.label),h('small',null,st.owned?st.owned+' owned':st.status));
+  button.replaceChildren(icon,copy);
+  ui.hover(button,()=>itemTooltip(sheet,node.id,{owned:st.owned,required:1}));
+  graph.append(button);
+ }
+ viewport.append(graph);graphShell.append(viewport);
+ const details=h('section','workshop-section assembly-detail');
+ details.setAttribute('aria-label','Selected assembly component');
+ const st=assemblyNodeState(sheet,site,selected.id,ui.buildLock),recipe=st.recipe;
+ const output=st.item||st.material;
+ const head=h('div','assembly-detail-head'),copy=h('div');
+ copy.append(h('div','kicker',st.item?'Weapon · '+(st.item.rarity||'Common'):'Component'),h('h2',null,output.name));
+ head.append(itemArt(selected.id),copy);
+ details.append(head,h('p','muted',output.desc),h('p',st.owned?'met':st.ready?'met':'muted',st.status+(st.owned?' · '+st.owned+' in inventory':'')));
+ if(st.item?.auto){
+  const stats=h('div','assembly-stats');
+  for(const [label,value] of [['QL',st.item.ql],['Damage',st.item.auto.dmg],['Cadence',(st.item.auto.interval/1000).toFixed(2)+'s'],['Reach',st.item.auto.range+'m']])
+   stats.append(h('span',null,label),h('strong',null,String(value)));
+  details.append(stats);
+ }
+ details.append(h('h3',null,'Required components'));
+ for(const [input,count] of Object.entries(recipe.inputs)){
+  const name=MATERIALS[input]?.name||ITEMS[input]?.name||input,have=sheet.materials?.[input]||0;
+  const line=h('div','assembly-requirement');
+  line.append(h('span',null,name),h('span',have>=count?'met':'unmet',have+' / '+count));
+  if(ASSEMBLY_NODES.some(n=>n.id===input)){
+   const go=btn('Inspect',()=>{ui.assemblySelected=input;renderWorkshop(ui);},'assembly-go');
+   go.dataset.assemblyJump=input;go.setAttribute('aria-label','Inspect '+name);line.append(go);
+  }
+  details.append(line);
+ }
+ if(recipe.blueprint){
+  const known=sheet.goods?.[recipe.blueprint]===1;
+  details.append(h('div','assembly-requirement blueprint',known?'Blueprint recovered':'Rare blueprint required'));
+  details.append(h('p','muted',known?'Knowledge retained on your character.':'Recovered from displaced Sentinels in the Phase Annex; no guaranteed drop.'));
+ }
+ if(recipe.attune)details.append(row('Resonance attunement',sheet.attunements?.includes(recipe.attune)?'Known':'Missing',sheet.attunements?.includes(recipe.attune)));
+ for(const [skill,level] of Object.entries(recipe.requires||{})){
+  const current=sheet.stats?.skills?.[skill]||0;
+  details.append(row(SKILL_NAMES[skill],current+' / '+level,current>=level));
+ }
+ if(selected.id==='pulse_module')details.append(h('p','muted','Alternative: a recovered Sentinel vector matrix and a pulse cell also make this module. Existing Dense Pulse Core fabrication remains unchanged.'));
+ if(st.reason)details.append(h('p','why',st.reason));
+ const actions=h('div','assembly-actions');
+ const open=btn(st.known?'Open recipe in Workshop':'Knowledge required',()=>{
+  if(!st.known)return;
+  ui.workshopTab='fabrication';ui.recipeId=selected.recipe;ui.recipeReveal=selected.recipe;ui.recipePage=0;ui.productionQuantity=1;
+  if(ui.recipeFilter)Object.assign(ui.recipeFilter,{query:'',discipline:'All disciplines',materials:false,learned:false,prioritize:false});
+  renderWorkshop(ui);
+ });
+ open.disabled=!st.known;open.dataset.openRecipe=selected.recipe;
+ const fabricate=btn(st.item?'Assemble weapon':'Fabricate component',()=>ui.a.craft(selected.recipe,1,sheet.inventoryRev),'primary');
+ fabricate.disabled=!st.ready;fabricate.dataset.assemblyCraft=selected.recipe;
+ actions.append(open,fabricate);details.append(actions);
+ body.append(graphShell,details);
+}
+
 export function updateProduction(ui) {
   const job = ui.production;
   const body = ui.workshopBody;
@@ -284,6 +375,7 @@ export function renderWorkshop(ui){
   if (root.contains(ui.tipFor)) ui.tooltip.hidden = true;
   root.replaceChildren();
   ui.workshopPanel.classList.toggle('producing', !!ui.production);
+  ui.workshopPanel.classList.toggle('assembly-open',ui.workshopTab==='assembly'&&!ui.production);
   if (ui.production && Object.hasOwn(RECIPES, ui.production.id)) {
     const recipe = RECIPES[ui.production.id];
     const status = h('p', 'workshop-production-status');
@@ -301,14 +393,17 @@ export function renderWorkshop(ui){
     return;
   }
   const tabs=h('div','workshop-tabs');
-  for(const [id,name] of [['planner','Build Planner'],['fabrication','Workshop']]){
+  for(const [id,name] of [['planner','Build Planner'],['fabrication','Workshop'],['assembly','Weapon Assembly']]){
     const b=btn(name,()=>{ui.workshopTab=id;renderWorkshop(ui);},ui.workshopTab===id?'active':'');
     b.dataset.tab=id;b.setAttribute('aria-pressed',String(ui.workshopTab===id));tabs.append(b);
   }
   if(ui.workshopTutorialOpen===undefined){try{ui.workshopTutorialSeen=localStorage.getItem('attunement.workshopTutorial')==='1';}catch{}ui.workshopTutorialOpen=!ui.workshopTutorialSeen;}
-  root.append(tabs,tutorial(ui));
-  const content=h('div','workshop-layout'+(ui.workshopTab==='fabrication'?' fabrication':''));
-  if(ui.workshopTab==='fabrication')fabrication(ui,content);else planner(ui,content);
+  root.append(tabs);
+  if(ui.workshopTab!=='assembly')root.append(tutorial(ui));
+  const content=h('div','workshop-layout'+(ui.workshopTab==='fabrication'?' fabrication':ui.workshopTab==='assembly'?' assembly':''));
+  if(ui.workshopTab==='fabrication')fabrication(ui,content);
+  else if(ui.workshopTab==='assembly')weaponAssembly(ui,content);
+  else planner(ui,content);
   root.append(content);
   if (searchFocused) root.querySelector('.recipe-search')?.focus({ preventScroll: true });
 }
