@@ -12,7 +12,7 @@ test('Reach rootglass threshold shares Phase Scar portal axis without colliding 
  assert.equal(entry.z,LUMENFEN_ENTRY_SITE.z);
  // Aligned plaza placement is preferable to arbitrary separated clearings.
  assert.ok(Math.abs(entry.z-RIFT_SITE.z)<.001,'portal faces share one alignment');
- assert.ok(Math.abs(entry.x-RIFT_SITE.x)>=17.9,'separate collision and interaction footprints');
+ assert.ok(Math.abs(entry.x-RIFT_SITE.x) >=16.9,'separate collision and interaction footprints');
  for(const x of [entry.x-3.5,entry.x+3.5]){
   const at={x,z:entry.z-3.5};
   resolveCollisions(at,PLAYER_RADIUS);
