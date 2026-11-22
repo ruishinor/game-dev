@@ -182,7 +182,8 @@ test('GM class override covers weapon, armour, device, implant, glyph; preserves
   assert.equal(equipItem(g,p,'vanguard_field_set_gloves').ok,false,'ownership remains');
   assert.equal(executeGm(g,p,'stats 20').ok,true);
   assert.equal(executeGm(g,p,'unlock').ok,true);
-  for(const id of ids.slice(0,5)){
+  // The universal rod was already equipped before the override; exercise only the restricted items here.
+  for(const id of ids.slice(1,5)){
     assert.equal(tryEquip(g.sheet(p),id,g.sheet(p).buildPreview).ok,true,id);
     assert.equal(equipItem(g,p,id).ok,true,id);
     if(ITEMS[id].slot==='glyph'){g.time=p.inscription.until;tickInscription(g,p);}
