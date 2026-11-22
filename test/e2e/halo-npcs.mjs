@@ -56,6 +56,9 @@ try {
     assert.ok(Math.hypot(mine.x - def.x, mine.z - def.z) < 0.05, `${def.key} drawn at its shared position`);
     assert.equal(mine.model, 'glb', `${def.key} is the Halo GLB, not a fallback`);
     assert.equal(mine.halo.role, 'guard');
+    assert.ok(mine.halo.meshes.includes('warden-rifle:' + (mine.halo.variant === 3 ? 'marksman' : 'carbine')),
+      `${def.key} has an archived/reconstructed rifle visibly mounted`);
+    assert.ok(!mine.halo.meshes.includes('stave'), `${def.key} no longer relies on the guard stave when rifle assets load`);
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);
     const outward = (fx * def.x + fz * def.z) / Math.hypot(def.x, def.z);
     assert.ok(outward > 0.999, `${def.key} faces away from the Sanctum centre (cos ${outward.toFixed(4)})`);
