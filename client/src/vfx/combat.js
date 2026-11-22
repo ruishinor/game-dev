@@ -30,6 +30,7 @@ export const AREA_KINDS = new Set([
   // Sinter ecology (feat/attunement-asset-production): dormant until that line lands here.
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
   'rift_open','rift_pulse','rift_stabilize','rift_collapse','vein_extract','vein_harvest','vein_break','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
+  'kinetic_discharge',
   'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
@@ -456,6 +457,25 @@ export class CombatVfx {
       this.dust(f, e.r * .55, 10);
       v.scorch({ at: f, radius: Math.min(e.r * .6, 3.4), color: 0xe07234, life: 3.2 });
       v.flash({ at: [f[0], f[1] + 1, f[2]], color: PALETTE.hostileHot, intensity: 12, life: .3 });
+      return;
+    }
+    if (e.k === 'kinetic_discharge') {
+      // a Severance Soldier vents its Cinderlock reactor: a crimson shock ring
+      // at its feet, arcs from the chest to the ground, embers and a short flash
+      const at = s ? this.feet(s)() : [e.x, groundHeightOr(e, s), e.z];
+      if (!at.every(Number.isFinite)) return;
+      const chest = s ? s.chest : { x: at[0], y: at[1] + 1.25, z: at[2] };
+      const r = Number.isFinite(e.r) ? e.r : 3.6;
+      v.shock({ at, radius: r, color: 0xff2a1a, life: 0.5, width: 0.09 });
+      v.shock({ at, radius: r * 0.6, color: 0xffb090, life: 0.32, width: 0.05 });
+      v.shell({ at, radius: r * 0.95, height: 1.4, color: 0xff1e1e, kind: 'wall', life: 0.45, from: 0.15, growPart: 0.5, alpha: 0.6 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + v.rand() * 0.5, rr = r * (0.55 + v.rand() * 0.4);
+        v.beam({ from: [chest.x, chest.y, chest.z], to: [at[0] + Math.cos(a) * rr, at[1] + 0.05, at[2] + Math.sin(a) * rr], color: 0xff4a3a, width: 0.05, life: 0.26, jitter: 0.3, taper: 1 });
+      }
+      v.burst({ at: [chest.x, chest.y, chest.z], shape: 'sphere', radius: 0.25, count: 26, cell: [CELL.ember, CELL.shard], color: 0xffb090, color2: 0xff1e1e, size: [0.05, 0.12], sizeEnd: 0.015, life: [0.35, 0.7], speed: [3, 7], drag: 1.6, gravity: 3 });
+      v.scorch({ at, radius: r * 0.55, color: 0xa01008, life: 2.6 });
+      v.flash({ at: [chest.x, chest.y, chest.z], color: 0xff2a1a, intensity: 16, life: 0.32, distance: r * 3 });
       return;
     }
     if (e.k === 'overseer_press_slam') {

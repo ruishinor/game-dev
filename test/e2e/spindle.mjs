@@ -50,7 +50,7 @@ try {
   assert.equal(p.companion.lightOn, false);
   await owner.getByRole('button',{name:'Field light',exact:true}).click();
   await owner.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 1), id);
-  await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 10 && o.intensity > 0));
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 20 && o.intensity > 0));
   assert.equal(p.companion.lightOn, true);
   await owner.screenshot({path:path.join(out,'field-light-on.png')});
   // Drive the real camera and verify actual visible geometry, not just a flag.
@@ -107,7 +107,7 @@ try {
   await owner.locator('#view').focus();
   await owner.keyboard.press('Shift+2');
   await observer.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 0), id);
-  await owner.waitForFunction(() => window.__attune.gfx.scene.children.filter(o => o.isPointLight && o.distance === 10).every(o => o.intensity === 0));
+  await owner.waitForFunction(() => window.__attune.gfx.scene.children.filter(o => o.isPointLight && o.distance === 20).every(o => o.intensity === 0));
   assert.equal(p.companion.lightOn, false);
   const before={x:p.companion.x,z:p.companion.z};
   await owner.keyboard.down('KeyW');

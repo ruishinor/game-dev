@@ -32,6 +32,7 @@ import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
+import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
@@ -1090,7 +1091,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -1292,7 +1293,8 @@ function onEvent(e) {
         }
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
+      if (e.k === 'kinetic_discharge') s?.model?.trigger?.('cast', 'discharge');
+      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep' || e.k === 'kinetic_discharge') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1395,6 +1397,8 @@ function onEvent(e) {
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
       else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      // armoured enemies (the Severance squads) charge their channels through the wind-up
+      ent?.model?.armourReact?.('ability', e.k);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
@@ -1559,28 +1563,12 @@ function nearestObject() {
   return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
-function nextEnemy() {
+function nextEnemy(reverse = false) {
   const me = S.ents.get(S.myId);
   if (!me) return;
-  const fx_ = Math.sin(cam.yaw);
-  const fz_ = Math.cos(cam.yaw);
-  const list = [];
-  for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
-    const dx = ent.pos.x - me.pos.x;
-    const dz = ent.pos.z - me.pos.z;
-    const d = Math.hypot(dx, dz);
-    if (d > 50) continue;
-    const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
-    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
-  }
-  if (!list.length) {
-    ui.error('No enemies nearby.');
-    return;
-  }
-  list.sort((a, b) => a.score - b.score);
-  const i = list.findIndex((e) => e.id === S.target);
-  setTarget(list[(i + 1) % list.length].id);
+  const id = cycleHostileTarget(S.ents.values(), me.pos, S.target, reverse);
+  if (!id) { ui.error('No enemies nearby.'); return; }
+  setTarget(id);
 }
 
 input.onClick = (button, x, y) => {
@@ -1646,7 +1634,7 @@ input.onAction = (code, e) => {
       break;
     case 'Tab':
       e.preventDefault();
-      nextEnemy();
+      nextEnemy(e.shiftKey);
       break;
     case 'KeyR':
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
@@ -2192,7 +2180,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state, worldClock: S.you.wc });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;

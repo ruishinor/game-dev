@@ -498,3 +498,16 @@ Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar a
 - **Return:** the Annex gate returns to the Severance Gate.
 - **Pacing:** one clear gives about 4,000 XP, so levels 12→15 take about 2.4 clears.
 - **Art:** the breach reuses the return-rift model, and no new art was made. A distinct breach visual is optional polish.
+
+### 13.3 Severance Soldier squads candidate — branch `feat/severance-squads-levels`
+
+- **Candidate scope:** the gameplay and rendering from `charlie/festive-thompson-a5h4f5` (owner-authorized 2026-11-21):
+  - Five roaming squads of three: a soldier on point, a flank soldier and a rearguard Sergeant.
+  - Formation following, and the Sergeant holding back while its soldiers fight.
+  - Target cycling follows the current nearest-first behavior; rear-guard formation does not override targeting.
+  - Kinetic Discharge, with its VFX.
+  - The soldier look wearing the full Cinderlock set, and the journal entry.
+- **Levels:** squads are level 7–11: Amber Flats 7, Far West 8, Severed Pass 9, Causeway 10, Gate Basin 11. Each Sergeant is one level above its squad (max 12) and is the squad's elite, using the standard `ELITE` multipliers. XP and scaling come from `enemy-levels.js`.
+- **Loot:** squads, Sergeants included, drop no items (owner decision), and are excluded from the elite uncommon-item roll. Elite material salvage still applies.
+- **Route change:** the Far West loop now turns north of the Scrapyard and clear of `vein_west_south`, which main added after its routes were planned.
+- **Not merged:** that branch's Cinderlock "second pass" GLBs, arms and legs modules, glow ribbons and pipeline changes. Main keeps the owner-approved Cinderlock from #211 (accepted in #214), and the squads wear that four-piece set. Any future art pass should go through its own review.

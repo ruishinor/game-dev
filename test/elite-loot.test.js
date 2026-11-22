@@ -10,7 +10,7 @@ function killElite(eliteRng, inventory = []) {
   const g = makeGame();
   const p = g.addPlayer(makeChar('vanguard', { level: 5, inventory }));
   g.openExpanse();
-  const e = g.enemies.find((x) => x.elite);
+  const e = g.enemies.find((x) => x.elite && x.severanceCamp);
   const grunt = g.enemies.find((x) => x.severanceCamp && !x.elite);
   g.rng = () => 0.999; g.eliteRng = eliteRng;
   place(p, e.x + 1, e.z);
