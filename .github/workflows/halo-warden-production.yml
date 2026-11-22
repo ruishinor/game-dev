@@ -42,6 +42,15 @@ jobs:
           test -s client/assets/halo_construct.glb
           test "$(head -c4 client/assets/halo_construct.glb)" = glTF
           sha256sum client/assets/halo_construct.glb
+          test -s tools/asset-pipeline/assets/halo_construct/outputs/export.json
+          python - <<'PY'
+          import json,hashlib
+          file='client/assets/halo_construct.glb'
+          record=json.load(open('tools/asset-pipeline/assets/halo_construct/outputs/export.json'))
+          assert record['sha256']==hashlib.sha256(open(file,'rb').read()).hexdigest(), 'pipeline export provenance mismatch'
+          assert record['bytes']==len(open(file,'rb').read()), 'pipeline output size mismatch'
+          print('Validated exact optimized GLB against pipeline export metadata')
+          PY
       - name: Test reconstructed Warden in live browser
         run: |
           npx playwright install --with-deps chromium
@@ -51,6 +60,7 @@ jobs:
           mkdir -p output/runtime
           cp client/assets/halo_construct.glb output/runtime/halo_construct.glb
           cp client/assets/manifest.json output/runtime/manifest.json
+          cp tools/asset-pipeline/assets/halo_construct/outputs/export.json output/runtime/export.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: halo-warden-validated-runtime
@@ -81,13 +91,14 @@ jobs:
         with:
           name: halo-warden-validated-runtime
           path: candidate/
-      - name: Publish only the validated GLB and manifest to this internal branch
+      - name: Publish only the validated GLB, manifest and export metadata to this internal branch
         run: |
           test -s candidate/runtime/halo_construct.glb
           test "$(head -c4 candidate/runtime/halo_construct.glb)" = glTF
           cp candidate/runtime/halo_construct.glb client/assets/halo_construct.glb
           cp candidate/runtime/manifest.json client/assets/manifest.json
-          git add -- client/assets/halo_construct.glb client/assets/manifest.json
+          cp candidate/runtime/export.json tools/asset-pipeline/assets/halo_construct/outputs/export.json
+          git add -- client/assets/halo_construct.glb client/assets/manifest.json tools/asset-pipeline/assets/halo_construct/outputs/export.json
           if ! git diff --cached --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
