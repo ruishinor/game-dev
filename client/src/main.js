@@ -1984,9 +1984,10 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
-      // The Listening Stone budgets its own low-spec waves; quality is not an
-      // accessibility preference. Other actor models retain current behaviour.
-      reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk'),
+      // Landmarks budget their own inexpensive shader layers at q=0.
+      // Do not silently treat lower graphics quality as an accessibility setting;
+      // other actors retain their existing low-quality motion simplification.
+      reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk' && !ent.model.group?.name?.startsWith('rift:')),
       effectsQuality: quality,
       rodClass: ent.meta.k==='p'?ent.meta.c:null,
       sitting: ent.meta.k==='p'&&!!(row?.f&16),
