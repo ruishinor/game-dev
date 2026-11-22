@@ -59,7 +59,7 @@ try {
   catch (cleanupError) { console.error('[profile] server cleanup failed:', String(cleanupError)); }
   throw error;
 }
-const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [] };
+const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [], failures: [] };
 let failed = false;
 let timedOut = false;
 const output = path.join(ROOT, 'docs', 'evidence', `profile-${SOFTWARE_GL ? 'software' : 'gpu'}.json`);
@@ -69,7 +69,9 @@ const watchdog = setTimeout(() => {
   report.error = 'Overall profiling deadline exceeded after ' + MAX_MS + 'ms';
   console.error('[profile] ' + report.error + '; saving partial results and terminating browser');
   try { saveReport(); } catch (error) { console.error('[profile] save failed:', error); }
-  browser.process()?.kill();
+  // Playwright Browser does not have process(). The independent Windows
+  // process watchdog handles any browser that ignores graceful shutdown.
+  void browser.close().catch(() => {});
   process.exit(124);
 }, MAX_MS);
 console.log(`[profile] ${tiers.length} tiers, ${scenes.length} scenes, ${FRAME_COUNT} frames per capture; forced GPU-sync: ${SYNC_BENCH ? 'on' : 'off'}`);
@@ -77,23 +79,43 @@ console.log(`[profile] ${tiers.length} tiers, ${scenes.length} scenes, ${FRAME_C
 try {
   for (const tier of tiers) {
     console.log(`[profile] starting quality q${tier}`);
-    const ctx = await bounded(`q${tier}: context`, () => browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 }));
-    const page = await bounded(`q${tier}: page`, () => ctx.newPage());
+    let ctx, page;
+    const errors = [], failedRequests = [], pending = new Set();
+    try {
+    ctx = await bounded(`q${tier}: context`, () => browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 }));
+    page = await bounded(`q${tier}: page`, () => ctx.newPage());
     page.setDefaultTimeout(STEP_MS);
     page.setDefaultNavigationTimeout(STEP_MS);
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(e.message));
-    const t0 = Date.now();
-    await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
-    await bounded(`q${tier}: loading`, () => page.waitForSelector('#enter:not([disabled])'));
-    const loadMs = Date.now() - t0;
+    page.on('pageerror', (e) => { if (errors.length < 12) errors.push(String(e.message).slice(0, 320)); });
+    page.on('console', (msg) => {
+      if (['error', 'warning'].includes(msg.type()) && errors.length < 12) errors.push(`${msg.type()}: ${msg.text().slice(0, 240)}`);
+    });
+    const assetPath = (request) => {
+      try { const u = new URL(request.url()); return u.hostname === '127.0.0.1' ? u.pathname.slice(0, 160) : null; }
+      catch { return null; }
+    };
+    page.on('request', (request) => { if (assetPath(request)) pending.add(request); });
+    page.on('requestfinished', (request) => pending.delete(request));
+    page.on('requestfailed', (request) => {
+      pending.delete(request);
+      if (failedRequests.length < 12) failedRequests.push({ path: assetPath(request), reason: String(request.failure()?.errorText || 'network error').slice(0, 90) });
+    });
+    page.on('response', (response) => {
+      if (response.status() >= 400 && failedRequests.length < 12) failedRequests.push({ path: assetPath(response.request()), status: response.status() });
+    });
     if (!report.graphics) {
-      report.graphics = await bounded(`q${tier}: inspect renderer`, () => describeGraphics(page));
+      report.graphics = await bounded(`q${tier}: inspect renderer before game load`, () => describeGraphics(page), 6000);
       const label = `${report.graphics?.vendor || ''} ${report.graphics?.renderer || ''}`;
+      console.log('[profile] browser GPU:', label || 'unavailable');
+      saveReport();
       if (!SOFTWARE_GL && (!label.trim() || /swiftshader|llvmpipe|software rasterizer|microsoft basic render/i.test(label))) {
         throw new Error('Hardware GPU not confirmed; browser reported: ' + (label || 'unavailable'));
       }
     }
+    const t0 = Date.now();
+    await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
+    await bounded(`q${tier}: loading`, () => page.waitForSelector('#enter:not([disabled])'));
+    const loadMs = Date.now() - t0;
     const name = `Prof${'abc'[tier]}x`;
     await page.click('#gate-guest-link');
     await page.fill('#name', name);
@@ -165,6 +187,7 @@ try {
       }, { software: SOFTWARE_GL, frameCount: FRAME_COUNT, syncBench: SYNC_BENCH }));
       const row = { scene: scene.name, tier, loadMs, ...m };
       report.results.push(row);
+      saveReport();
       const r = (v) => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
       console.log(`${scene.name.padEnd(11)} q${tier}  interval ${r(m.intervalMs.median)} ms median / ${r(m.intervalMs.p95)} p95 / ${r(m.intervalMs.worst)} worst (${r(m.fps)} fps)  cpu ${m.cpuFrameMs} ms  synced render ${m.syncedRenderMs === null ? 'off' : r(m.syncedRenderMs) + ' ms'}  calls ${m.draw.calls}  tris ${m.draw.triangles}  drawn ${m.entities.inView}/${m.entities.total}  worst live render ${r(m.renderProbe?.stats?.maxRenderMs ?? 0)} ms`);
     }
@@ -172,7 +195,37 @@ try {
       failed = true;
       console.log(`script errors at q${tier}: ${errors.slice(0, 3).join(' | ')}`);
     }
-    await bounded(`q${tier}: close context`, () => ctx.close(), 5000);
+    } catch (error) {
+      failed = true;
+      const evidence = {
+        tier, error: String(error?.message || error).slice(0, 360),
+        pageErrors: errors.slice(-12), requestFailures: failedRequests.slice(-12),
+        pendingAssetPaths: [...pending].map(assetPath).filter(Boolean).slice(-20),
+      };
+      if (page) {
+        try {
+          evidence.page = await bounded(`q${tier}: inspect failed loading state`, () => page.evaluate(() => {
+            const enter = document.getElementById('enter');
+            return {
+              readyState: document.readyState,
+              enterDisabled: enter?.disabled ?? null,
+              enterLabel: enter?.textContent?.trim().slice(0, 100) ?? null,
+              gameHookPresent: !!window.__attune,
+              visibility: document.visibilityState,
+            };
+          }), 2500);
+        } catch (inspectionError) { evidence.inspectionError = String(inspectionError).slice(0, 200); }
+      }
+      report.failures.push(evidence);
+      console.error('[profile] q' + tier + ' failed; attempting remaining tiers:', evidence.error);
+      console.error('[profile] failure evidence:', JSON.stringify(evidence));
+    } finally {
+      saveReport();
+      if (ctx) {
+        try { await bounded(`q${tier}: close context`, () => ctx.close(), 3000); }
+        catch (error) { console.warn('[profile] context cleanup incomplete:', String(error)); }
+      }
+    }
   }
 } catch (err) {
   failed = true;
@@ -181,11 +234,9 @@ try {
   console.log(`FAIL: ${err.stack || err}`);
 } finally {
   clearTimeout(watchdog);
-  if (timedOut) browser.process()?.kill();
-  else {
-    try { await bounded('close browser', () => browser.close(), 5000); }
-    catch (error) { console.warn('[profile] browser close failed:', String(error)); browser.process()?.kill(); }
-  }
+  try { await bounded(timedOut ? 'close browser after timeout' : 'close browser', () => browser.close(), 4000); }
+  catch (error) { console.warn('[profile] browser close incomplete:', String(error)); }
+  // No unsupported Browser.process() call. Exit status is preserved.
   try { await bounded('close in-memory server', () => srv.close(), 5000); }
   catch (error) { console.warn('[profile] server close failed:', String(error)); }
 }
