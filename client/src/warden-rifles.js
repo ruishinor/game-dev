@@ -4,6 +4,7 @@
 // rail, optic, vent and muzzle details and authored graphite PBR finishes.
 // No combat simulation, firing or authorization is attached to Sanctum Wardens.
 import * as THREE from 'three';
+import { solveArm } from './weapon-pose.js';
 
 export const WARDEN_RIFLES=Object.freeze({
  carbine:{file:'sanctum-warden-carbine.glb',length:0.93},
@@ -103,7 +104,14 @@ function reconstruct(source,spec,optic){
  sight.rotation.x=-Math.PI/2;group.add(sight);
  const status=new THREE.Mesh(new THREE.BoxGeometry(.014,.012,.048),sight.material);
  status.position.set(.11,.035,-L*.13);status.name='warden:status-emitter';group.add(status);
- return {group,sightMaterial:sight.material,origin:source};
+ // Explicit contact points are part of the authored rifle, not guessed from the
+ // mesh centre or attached to the pelvis. Positions use the rebuilt +Z axis.
+ const grip=new THREE.Object3D(),support=new THREE.Object3D();
+ grip.name='WardenGripAnchor';support.name='WardenSupportAnchor';
+ grip.position.set(0,-.105,-L*.18);
+ support.position.set(0,-.055,L*.19);
+ group.add(grip,support);
+ return {group,sightMaterial:sight.material,origin:source,grip,support};
 }
 
 /** Source model loaded? Used to retain the existing stave when unavailable. */
@@ -111,7 +119,7 @@ export function hasWardenRifle(assets,variant=0){
  const id=variant%4===3?'marksman':'carbine';
  return !!assets.wardenRifles?.has(id);
 }
-/** Subtle powered-optic status VFX only: Wardens do not fire or acquire targets. */
+/** Non-combat cosmetic low-ready weapon with measured two-hand contact. */
 export function createWardenRifle(assets,inst,variant,optic){
  const id=variant%4===3?'marksman':'carbine';
  const source=assets.wardenRifles?.get(id);
@@ -119,24 +127,78 @@ export function createWardenRifle(assets,inst,variant,optic){
  const made=reconstruct(source,WARDEN_RIFLES[id],optic);
  const root=new THREE.Group();root.name='warden:equipped-'+id;
  root.add(made.group);
- // Weapons sit in front of the chest at a low-ready angle, clear of the ring
- // and without substituting procedural weapon slots or player inventory.
- made.group.rotation.set(.40,variant%2===0?-.22:.18,0);
- root.position.set(.07,1.13,.39);
  inst.add(root);
- const chest=inst.getObjectByName('spine_02');
- const w=new THREE.Vector3();
+ const arms=['r','l'].map(side=>({
+  upper:inst.getObjectByName('upperarm_'+side),
+  lower:inst.getObjectByName('lowerarm_'+side),
+  hand:inst.getObjectByName('hand_'+side)
+ }));
+ if(arms.some(a=>!a.upper||!a.lower||!a.hand||
+  a.lower.parent!==a.upper||a.hand.parent!==a.lower)){
+  root.removeFromParent();
+  console.warn('[wardens] incompatible Halo arm rig; cannot fit '+id);
+  return null;
+ }
+ const world=node=>node.getWorldPosition(new THREE.Vector3());
+ const local=node=>inst.worldToLocal(world(node));
+ const rightSign=Math.sign(local(arms[0].upper).x-local(arms[1].upper).x)||-1;
+ made.grip.position.x=rightSign*.09;
+ made.support.position.x=-rightSign*.065;
+ const poleFor=sign=>{
+  const centre=inst.localToWorld(new THREE.Vector3());
+  return inst.localToWorld(new THREE.Vector3(sign*.8,-.55,-.3)).sub(centre);
+ };
+ const rightPole=poleFor(rightSign),leftPole=poleFor(-rightSign);
+ let last={mode:'unfitted',gripError:null,supportError:null};
+ let warned=false;
  return {
   id,group:root,material:made.sightMaterial,
-  update(dt,st){
-   // Follow the animated chest without depending on the guard's weapon combat IK.
-   if(chest){
-    inst.updateMatrixWorld(true);
-    chest.getWorldPosition(w);inst.worldToLocal(w);
-    root.position.set(w.x+.07,w.y-.13,w.z+.39);
-   }
+  inspect(){return {...last};},
+  update(dt,st={}){
    const time=Number.isFinite(st.t)?st.t:0;
    made.sightMaterial.emissiveIntensity=.32+.14*(.5+.5*Math.sin(time*2.1+variant*1.5));
+   // The authoritative guard watch animation has already updated this frame.
+   // Work on these animated joints; do not change combat state or NPC facing.
+   inst.updateMatrixWorld(true);
+   const midpoint=local(arms[0].upper).add(local(arms[1].upper)).multiplyScalar(.5);
+   const saved=arms.flatMap(a=>[a.upper,a.lower].map(b=>[b,b.quaternion.clone()]));
+   const restore=()=>{
+    for(const [bone,q] of saved)bone.quaternion.copy(q);
+    inst.updateMatrixWorld(true);
+   };
+   // Bounded low-ready placements, keeping the barrel forward and under the
+   // head ring. Each candidate is accepted only if BOTH hands actually reach.
+   const positions=[
+    [0,-.22,.32,.34,0],
+    [rightSign*.025,-.27,.29,.40,rightSign*.09],
+    [0,-.19,.40,.30,-rightSign*.10],
+    [rightSign*.035,-.32,.34,.46,0],
+    [0,-.27,.24,.48,rightSign*.12],
+    [0,-.17,.31,.24,0],
+   ];
+   for(const [x,y,z,pitch,yaw] of positions){
+    restore();
+    root.rotation.set(0,0,0);
+    root.position.copy(midpoint).add(new THREE.Vector3(x,y,z));
+    made.group.rotation.set(pitch,yaw,0);
+    inst.updateMatrixWorld(true);
+    const g=world(made.grip),s=world(made.support);
+    const right=solveArm(THREE,arms[0].upper,arms[0].lower,arms[0].hand,g,rightPole);
+    const left=solveArm(THREE,arms[1].upper,arms[1].lower,arms[1].hand,s,leftPole);
+    const gripError=right?right.distanceTo(g):Infinity;
+    const supportError=left?left.distanceTo(s):Infinity;
+    if(gripError<=.035&&supportError<=.035){
+     root.visible=true;
+     last={mode:'ready',gripError,supportError,rifle:id};
+     return true;
+    }
+   }
+   // Fail visibly in the diagnostic, not as a rifle hovering across the legs.
+   restore();
+   root.visible=false;
+   last={mode:'unfitted',gripError:null,supportError:null,rifle:id};
+   if(!warned){warned=true;console.warn('[wardens] rifle grips cannot reach both Halo hands: '+id);}
+   return false;
   },
  };
 }
