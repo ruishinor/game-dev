@@ -3,7 +3,7 @@
 // traversal/line-of-sight footprints remain in shared/world.js.
 export const KESTREL_KIT_PIECES = Object.freeze([
   'Column_Hollow', 'Prop_Computer', 'Prop_Cable_1',
-  'Prop_Vent_Big', 'Prop_Light_Floor',
+  'Prop_Vent_Big', 'Prop_Light_Floor', 'Prop_AccessPoint', 'Prop_ItemHolder',
 ]);
 
 export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
@@ -86,6 +86,58 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
   plates('kestrel:roof-crossbeams',alloy,overhead);
   plates('kestrel:roof-perimeter-rails',bronze,trusses);
   plates('kestrel:fastened-roof-joints',gasket,rails);
+  // The roof was formerly one uninterrupted concrete block: give the buried
+  // research station an identifiable *exterior* pressure-housing silhouette.
+  // This shell sits over, not in place of, the existing non-walkable roof.
+  const exteriorY=deep.roofTop-deep.floor;
+  const roofCourses=[],roofBand=[],roofBolts=[];
+  for(let i=0;i<9;i++) {
+    const x=-6.10+i*1.52;
+    roofCourses.push([x,exteriorY+.035,0,1.43,.038,12.52]);
+    for(const z of [-5.85,5.85]) {
+      roofBand.push([x,exteriorY+.067,z,1.14,.018,.095]);
+      for(const dx of [-.58,.58])roofBolts.push([x+dx,exteriorY+.083,z,.082,.025,.072]);
+    }
+  }
+  for(const z of [-6.17,6.17])
+    roofBand.push([0,exteriorY+.13,z,13.7,.26,.22]);
+  // The east rim is over the lintel, never across the walkable doorway.
+  roofBand.push([6.76,exteriorY+.14,0,.22,.22,12.1]);
+  plates('kestrel:roof-armour-courses',basalt,roofCourses);
+  plates('kestrel:roof-pressure-edges',bronze,roofBand);
+  plates('kestrel:roof-ceramic-fasteners',alloy,roofBolts,false);
+  const capGroup=new T.Group();
+  capGroup.name='kestrel:roof-observatory';
+  capGroup.position.set(1.1,exteriorY+.13,-.8);
+  const addCap=(geo,mat,x,y,z,rx=0)=>{
+    const obj=new T.Mesh(geo,mat);
+    obj.position.set(x,y,z);obj.rotation.x=rx;
+    obj.castShadow=true;obj.receiveShadow=true;capGroup.add(obj);return obj;
+  };
+  addCap(new T.CylinderGeometry(1.15,1.42,.28,24,1),basalt,0,.14,0);
+  addCap(new T.CylinderGeometry(.82,1.02,.24,24),rib,0,.39,0);
+  addCap(new T.CylinderGeometry(.64,.77,.14,24),frost,0,.59,0);
+  const crown=addCap(new T.TorusGeometry(.83,.062,8,48),bronze,0,.61,0,Math.PI/2);
+  for(let i=0;i<8;i++) {
+    const a=i*Math.PI/4;
+    const bolt=addCap(new T.CylinderGeometry(.075,.075,.045,10),alloy,
+      Math.sin(a)*1.23,.31,Math.cos(a)*1.23);
+    bolt.castShadow=false;
+  }
+  root.add(capGroup);
+  // Recessed mechanical louvers frame the access corridor. They are mounted
+  // above the player rather than creating non-authoritative waist-high props.
+  const ventSlots=[],ventHousings=[],warningBands=[];
+  for(const side of [-1,1]){
+    for(const x of [-4.65,1.0,4.75]){
+      ventHousings.push([x,4.68,side*6.0,1.33,.35,.16]);
+      for(let i=0;i<6;i++)ventSlots.push([x-.5+i*.2,4.65,side*5.88,.046,.16,.035]);
+      warningBands.push([x,4.87,side*5.85,1.45,.025,.045]);
+    }
+  }
+  plates('kestrel:ribbed-vent-casings',rib,ventHousings);
+  plates('kestrel:vent-grille-fins',gasket,ventSlots,false);
+  plates('kestrel:vent-inspection-lines',warning,warningBands,false);
   // Physical mechanical modules already in the production GLB manifest:
   // use loaded models as recognizable machinery rather than fake silhouette
   // boxes. Their anchors overlap the existing wall/roof footprint, not lanes.
@@ -113,6 +165,10 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
     }
     for(const x of [-3.9,-.7,2.5])
       kit('Prop_Cable_1',x,5.02,-2.6,.75,.4,.66);
+    for(const z of [-5.9,5.9])
+      kit('Prop_AccessPoint',3.35,3.67,z,.8,.8,.62,0,z>0?Math.PI:0);
+    for(const z of [-3.25,3.25])
+      kit('Prop_ItemHolder',-6.44,1.47,z,.58,.63,.58,0,Math.PI/2);
     for(const z of [-2.65,2.65])
       kit('Prop_Computer',-6.50,1.35,z,.29,.82,.35,0,Math.PI/2);
   }
