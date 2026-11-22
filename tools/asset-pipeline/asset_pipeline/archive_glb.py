@@ -36,10 +36,12 @@ def read_source_library(archive: Path, sha256: str):
                 continue
             name = info.filename
             path = PurePosixPath(name)
-            if (not name.startswith(ARCHIVE_PREFIX) or
-                    ".." in path.parts or path.is_absolute() or
-                    not name.lower().endswith(".glb")):
-                raise StageError(f"unexpected archive member: {name}")
+            if ".." in path.parts or path.is_absolute() or "\\" in name:
+                raise StageError(f"unsafe archive member: {name}")
+            if not name.lower().endswith(".glb"):
+                continue  # benign metadata is not a model input
+            if not name.startswith(ARCHIVE_PREFIX):
+                raise StageError(f"unexpected GLB source hierarchy: {name}")
             if info.file_size > MAX_MEMBER_BYTES:
                 raise StageError(f"oversized archive model: {name}")
             total += info.file_size
