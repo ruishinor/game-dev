@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {LUMENFEN,inLumenfen,FEN_POOLS,FEN_TREES,fenHeight,fenArea} from '../shared/lumenfen.js';
+import {LUMENFEN,inLumenfen,FEN_POOLS,FEN_TREES,FEN_SITES,fenHeight,fenArea} from '../shared/lumenfen.js';
 import {LUMENFEN_ENTRY_SITE,OBJECTS,groundHeight,resolveCollisions,PLAYER_RADIUS,travelRegionAt,sameTravelRegion,hasLineOfSight,inDisconnectedRegion} from '../shared/world.js';
 import {makeGame,makeChar,place} from './helpers.js';
 import {interact} from '../server/sim/progress.js';
@@ -64,6 +64,39 @@ test('internal living rifts traverse both ways and reject combat requests',()=>{
  assert.equal(interact(g,p,crown.id).ok,false);
  p.autoOn=false;assert.equal(interact(g,p,crown.id).ok,true);
  assert.ok(Math.hypot(p.x-P.springLanding.x,p.z-P.springLanding.z)<.2);
+});
+test('six Lumenfen landmark compositions are distinct, anchored and collision-aligned',()=>{
+ const expected=['veil-landing','mossbound-thicket','glasswater-spring','root-crown-hollow','tidal-weir','luminous-canopy'];
+ assert.deepEqual(FEN_SITES.map(s=>s.id),expected);
+ const approaches=[LUMENFEN.arrival,LUMENFEN.returnRift,LUMENFEN.springRift,LUMENFEN.crownRift,
+   LUMENFEN.springLanding,LUMENFEN.crownLanding];
+ const scene=new T.Scene();scene.fog=new T.Fog(0x555555,40,180);
+ const sky=new T.Group(),ambient=new T.HemisphereLight(),sun=new T.DirectionalLight();
+ scene.add(sky,ambient,sun);
+ const fen=buildLumenfenWorld(T,scene,{sky,ambient,sun,detail:0});
+ assert.equal(fen.stats().landmarks.sites.length,6);
+ const sites=fen.group.getObjectByName('lumenfen:sites');
+ assert.ok(sites);
+ for(const site of FEN_SITES){
+   assert.ok(inLumenfen(site.x,site.z));
+   assert.ok(approaches.every(p=>Math.hypot(site.x-p.x,site.z-p.z)>site.clearance+10),
+     'landmark encroaches on safe travel: '+site.id);
+   assert.ok(FEN_TREES.every(t=>Math.hypot(site.x-t.x,site.z-t.z)>site.clearance+t.r+1.9),
+     'landmark interpenetrates a trunk collider: '+site.id);
+   const landmark=sites.getObjectByName('lumenfen:site:'+site.id);
+   assert.ok(landmark&&landmark.children.some(c=>c.isInstancedMesh),
+     'site must contain visible built/ecological geometry: '+site.id);
+   assert.ok(landmark.position.distanceTo(new T.Vector3(site.x,fenHeight(site.x,site.z),site.z))<.001);
+   const moved=resolveCollisions({x:site.x,z:site.z},PLAYER_RADIUS);
+   assert.ok(Math.hypot(moved.x-site.x,moved.z-site.z)>=site.core+PLAYER_RADIUS-.01,
+     'built core must have matching authoritative collision: '+site.id);
+ }
+ const wheel=sites.getObjectByName('lumenfen:weir:wheel');
+ const dial=sites.getObjectByName('lumenfen:observatory:resonance-armillary');
+ assert.ok(wheel&&dial,'weir machinery and observatory instrument must be present');
+ const start=wheel.rotation.x;
+ fen.update(.05,0,{...LUMENFEN.arrival});
+ assert.ok(wheel.rotation.x>start,'mechanism moves during active simulation');
 });
 test('living rootglass and wetland visuals have independent geometry and bounded scene state',()=>{
  const scene=new T.Scene();scene.fog=new T.Fog(0x555555,40,180);
