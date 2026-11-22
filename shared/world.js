@@ -442,17 +442,21 @@ OBJECTS.push(...SANCTUM_GUARDS);
 // alignment and sufficient room for its Indexer/Regulator and player approach.
 // Recompute the shared location for both client and authoritative server.
 function findLumenfenEntry(){
- const safe=(x,z)=>{
+ // The old nine-metre stand-off against every cosmetic prop arbitrarily
+ // excluded the same portal plaza. Keep a six-metre interaction buffer plus
+ // each actual object collider, and accept ordinary terrain undulation. The
+ // threshold itself still remains a solid 2.45m gameplay footprint.
+ const alignedClear=(x,z)=>{
   if(Math.hypot(x,z)>WORLD.radius-14)return false;
-  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+9))return false;
-  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<9+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
+  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+6))return false;
+  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<6+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
   const samples=[groundHeight(x,z)];
-  for(let i=0;i<12;i++){const a=i*Math.PI/6;samples.push(groundHeight(x+Math.cos(a)*3.6,z+Math.sin(a)*3.6));}
-  return Math.max(...samples)-Math.min(...samples)<1.55;
+  for(let i=0;i<16;i++){const a=i*Math.PI/8;samples.push(groundHeight(x+Math.cos(a)*3.2,z+Math.sin(a)*3.2));}
+  return Math.max(...samples)-Math.min(...samples)<2.0;
  };
- if(RIFT_SITE)for(const offset of [18,-18,21,-21,24,-24,27,-27,30,-30]){
+ if(RIFT_SITE)for(const offset of [17,-17,18,-18,19,-19,20,-20,21,-21,24,-24,27,-27,30,-30]){
   const x=RIFT_SITE.x+offset,z=RIFT_SITE.z;
-  if(safe(x,z))return Object.freeze({x,z});
+  if(alignedClear(x,z))return Object.freeze({x,z});
  }
  const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
  for(let r=67;r<=77;r+=2)for(let k=0;k<48;k++){
