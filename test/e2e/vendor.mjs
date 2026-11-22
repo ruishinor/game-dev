@@ -274,8 +274,8 @@ try{
  // Recover the social wardrobe independently of combat equipment through real purchases and equipment UI.
  const wardrobePlayer=await liveFixturePlayer(page,server,'Vendor Tester');
  assert.equal(wardrobePlayer.char.id,p.char.id,'Wardrobe fixture preserves authenticated character');
- assert.equal(wardrobePlayer.char.equipped.weapon,'electrical_combat_rod','melee rod remains independently equipped after switching');
- assert.equal(wardrobePlayer.char.equipped.ranged,'field_emitter','ranged emitter remains independently equipped after switching');
+ assert.equal(wardrobePlayer.char.equipped.weapon,'electrical_combat_rod');
+ assert.equal(wardrobePlayer.char.equipped.ranged,'field_emitter');
  p=wardrobePlayer;
  p.x=vendor.x;p.z=vendor.z+2;
  await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
