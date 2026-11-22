@@ -10,13 +10,29 @@ export const LUMENFEN = Object.freeze({
   crownLanding: Object.freeze({ x: 466, z: -688 }),
 });
 const P=LUMENFEN;
+// Environmental landmark cores remain outside all portal and arrival approach
+// circles. Tree scatter must respect their physical footprints; only the
+// central built/solid mass is a player collider, not walkable piers/decking.
+export const FEN_SITES=Object.freeze([
+  ['veil-landing',18,-130,7,3],
+  ['mossbound-thicket',-80,-8,9,5],
+  ['glasswater-spring',106,61,10,2.6],
+  ['root-crown-hollow',-108,34,10,5.4],
+  ['tidal-weir',40,10,12,6],
+  ['luminous-canopy',26,114,10,5.5],
+].map(([id,u,v,clearance,core])=>Object.freeze({
+  id,x:P.x+u,z:P.z+v,clearance,core
+})));
 export const FEN_POOLS=Object.freeze([
   [-74,-51,31,18],[-25,39,25,20],[65,-44,30,23],
   [46,98,20,15],[-82,93,26,18],[7,-88,23,17],
 ].map(([u,v,rx,rz],i)=>Object.freeze({x:P.x+u,z:P.z+v,rx,rz,seed:110+i})));
 const access=[P.arrival,P.returnRift,P.springRift,P.crownRift,P.springLanding,P.crownLanding];
 const square=(n)=>n*n;
-function clear(x,z,r){return access.every(p=>Math.hypot(x-p.x,z-p.z)>r+12);}
+function clear(x,z,r){
+  return access.every(p=>Math.hypot(x-p.x,z-p.z)>r+12)
+    && FEN_SITES.every(s=>Math.hypot(x-s.x,z-s.z)>r+s.clearance+2);
+}
 function makeTrees(){
   const trees=[];
   // A different spatial rhythm from the Expanse's rock/mesa scatter.
@@ -33,7 +49,8 @@ function makeTrees(){
   return Object.freeze(trees);
 }
 export const FEN_TREES=makeTrees();
-export const FEN_COLLIDERS=FEN_TREES;
+export const FEN_COLLIDERS=Object.freeze([...FEN_TREES,
+  ...FEN_SITES.map(s=>Object.freeze({type:'fen_site',x:s.x,z:s.z,r:s.core}))]);
 export function inLumenfen(x,z,pad=0){
   return Math.abs(x-P.x)<=P.hw+pad && Math.abs(z-P.z)<=P.hd+pad;
 }
