@@ -38,11 +38,15 @@ try{
   if(!SOFTWARE_GL)return shot(name);
   const actor=await liveFixturePlayer(page,server,'Switch Tester');
   const wasHeld=!!server.game.aiHold,oldNext=actor.nextAuto;
+  const combatRemaining=Math.max(0,(actor.combatUntil||0)-server.game.time);
   server.game.aiHold=true;
   actor.nextAuto=server.game.time+15*60*1000;
   try{await shot(name);}
   finally{
    actor.nextAuto=oldNext;
+   // The screenshot is observational, not gameplay time: keep the remaining
+   // authoritative fixture combat linger unchanged despite slow SwiftShader.
+   if(combatRemaining>0)actor.combatUntil=Math.max(actor.combatUntil||0,server.game.time+combatRemaining);
    server.game.aiHold=wasHeld;
   }
  };
