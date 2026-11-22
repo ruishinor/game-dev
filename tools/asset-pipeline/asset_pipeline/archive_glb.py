@@ -107,7 +107,7 @@ def _index(asset, extract: bool):
                 outputs.append(target)
             result.append({
                 "index": index, "source": item.filename,
-                "pipeline_input": str(target.relative_to(REPO_ROOT)),
+                "pipeline_input": str(target.relative_to(REPO_ROOT) if target.is_relative_to(REPO_ROOT) else target),
                 "bytes": len(data), "sha256": digest, **metadata,
             })
     file = asset.work / ("imports.json" if extract else "source-inventory.json")
