@@ -11,7 +11,11 @@ import { noiseTexture, particleField } from './severance-gate.js';
 export const FOUNDRY_LIMITS = Object.freeze({ lights: 4, motes: 4 * 120 });
 export const FOUNDRY_KIT_URL = '/client/assets/foundry_kit.glb?v=c95f58b44395';
 const CEILING = 15;
-const FOG = { color: 0x0d0b10, near: 18, far: 120 };
+const FOG = { color: 0x161b20, near: 24, far: 150 };
+export const FOUNDRY_VISIBILITY = Object.freeze({
+  ambientInside:1.1, guideWidth:.09, guideOpacity:.60, guideDraws:1,
+  maxLocalLights:FOUNDRY_LIMITS.lights,
+});
 
 const VS = `varying vec2 vUv; varying vec3 vW; varying vec3 vN; varying float vFog;
 void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal);
@@ -206,14 +210,43 @@ export function buildSilentFoundry(T, scene, o = {}) {
   });
 
   // ---- lights: one per chamber, pre-created
-  const lightDefs = [[0, 76, 0xff8a40, 40], [0, 26, 0x5ff0d0, 36], [0, -26, 0x8fd8ff, 52], [0, -82, 0xffa04a, 40]];
+  const lightDefs = [[0, 76, 0xffac70, 112], [0, 26, 0x7af2d9, 96], [0, -26, 0xb8d4ff, 106], [0, -82, 0xffbc77, 112]];
   const lights = lightDefs.map(([u, v, color, power]) => {
-    const l = new T.PointLight(color, power, 46, 1.6);
-    l.position.set(F.x + u, yAt(u, v) + 9, F.z + v);
+    const l = new T.PointLight(color, power, 58, 1.55);
+    l.position.set(F.x + u, yAt(u, v) + 7.3, F.z + v);
     l.userData.base = power;
     group.add(l);
     return l;
   });
+
+  // Thin, inset route guides are always visible to a walking player, even
+  // when only one of the four chamber lights reaches the camera. A single
+  // non-shadowed InstancedMesh follows the authoritative ramp and uses room
+  // colors for orientation; no colliders, fake heightfields or draw-call storm.
+  const guideSites=[];
+  for(let i=0;i<FOUNDRY_AREAS.length;i++){
+    const area=FOUNDRY_AREAS[i];
+    for(let v=area.v0+5;v<area.v1-3;v+=4.1)for(const u of [-6.25,6.25])
+      guideSites.push({u,v,room:i});
+  }
+  const guideColors=[0xffc08a,0x70ccaf,0xa7bbef,0xffc18e];
+  const guideGeom=new T.BoxGeometry(FOUNDRY_VISIBILITY.guideWidth,.022,3.35);
+  const guideMat=M(new T.MeshBasicMaterial({color:0xffffff,toneMapped:false,
+    transparent:true,opacity:FOUNDRY_VISIBILITY.guideOpacity,depthWrite:false}));
+  const routeGuides=new T.InstancedMesh(guideGeom,guideMat,guideSites.length);
+  routeGuides.name='foundry:inset-route-guides';
+  routeGuides.castShadow=false;routeGuides.receiveShadow=false;
+  const guideDummy=new T.Object3D();
+  const guideColor=new T.Color();
+  for(let i=0;i<guideSites.length;i++){
+    const {u,v,room}=guideSites[i];
+    guideDummy.position.set(F.x+u,yAt(u,v)+.07,F.z+v);
+    guideDummy.updateMatrix();routeGuides.setMatrixAt(i,guideDummy.matrix);
+    routeGuides.setColorAt(i,guideColor.setHex(guideColors[room]));
+  }
+  routeGuides.instanceMatrix.needsUpdate=true;
+  if(routeGuides.instanceColor)routeGuides.instanceColor.needsUpdate=true;
+  group.add(routeGuides);
 
   // ---- entering / leaving: lighting, fog and the sky are restored on exit
   let saved = null;
@@ -223,7 +256,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
     if (fog) { fog.color.setHex(FOG.color); fog.near = FOG.near; fog.far = FOG.far; }
     if (L2.sky) L2.sky.visible = false;
     if (L2.sun) L2.sun.intensity = 0.15;
-    if (L2.ambient) L2.ambient.intensity = 0.55;
+    if (L2.ambient) L2.ambient.intensity = FOUNDRY_VISIBILITY.ambientInside;
   }
   function leave() {
     const fog = scene.fog, L2 = o.lighting || {};
@@ -323,7 +356,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
       });
     },
     get kitStatus() { return kitState.status; },
-    stats() { return { inside: !!saved, lights: lights.length, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
+    stats() { return { inside: !!saved, lights: lights.length, guideInstances:routeGuides.count, guideDraws:1, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
     dispose() {
       kitState.status = 'disposed';
       if (saved) leave();

@@ -1,6 +1,8 @@
 // Kestrel Deep: GLB-based industrial dressing and original pressure-lab detailing.
 // Presentation only. The authoritative floor, roof, three walls, vessels and
 // traversal/line-of-sight footprints remain in shared/world.js.
+import { buildKestrelPressurePlant } from './kestrel-pressure-plant.js';
+
 export const KESTREL_KIT_PIECES = Object.freeze([
   'Column_Hollow', 'Prop_Computer', 'Prop_Cable_1',
   'Prop_Vent_Big', 'Prop_Light_Floor', 'Prop_AccessPoint', 'Prop_ItemHolder',
@@ -200,6 +202,8 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
       root.add(hoop); pressureRings.push(hoop);
     }
   }
+  const pressurePlant=buildKestrelPressurePlant(T,assets);
+  root.add(pressurePlant.group);
   // Lightweight drifting motes in the containment corner. Bounded to the
   // existing vessels, independent of world/encounter/ability VFX.
   const moteCount=detail>.65?44:detail>.3?16:0;
@@ -230,6 +234,7 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
     const nearby=focus && Math.hypot(focus.x-deep.x,focus.z-deep.z)<29;
     root.visible = !focus || Math.hypot(focus.x-deep.x,focus.z-deep.z)<90;
     if(!root.visible)return;
+    pressurePlant.update(t,{reducedMotion:calm()});
     const phase=calm()? .74 : .76+.24*Math.sin(t*.8);
     signal.emissiveIntensity=baseGlow*phase;
     frost.emissiveIntensity=.32+.08*phase;
@@ -238,5 +243,5 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
     if(motes.visible && !calm()) motes.position.y=Math.sin(t*.24)*.08;
     moteMat.opacity=calm()?.32:.32+.12*phase;
   }
-  return {group:root,update,stats:{kitPieces:glbPieces.length,motes:moteCount,colliderChanges:0},materials:pulseMaterials};
+  return {group:root,update,stats:{kitPieces:glbPieces.length+pressurePlant.stats.glbParts,plant:pressurePlant.stats,motes:moteCount,colliderChanges:0},materials:pulseMaterials};
 }
