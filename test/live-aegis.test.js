@@ -34,6 +34,10 @@ test('Aegis visual follows snapshot, reuses resources, and clears on death, abse
   live.sync(ent,false,0);
   const g=ent.holder.getObjectByName('live-aegis:7');
   assert.ok(g && g.children.some(m=>m.material.isShaderMaterial));
+  const dome=g.children.find(m=>m.material.isShaderMaterial);
+  const perimeter=g.children.filter(m=>!m.material.isShaderMaterial);
+  assert.ok(dome.material.uniforms.alpha.value<0.2,'persistent dome must not obscure combat or weapon');
+  assert.ok(perimeter.some(m=>m.material.opacity>dome.material.uniforms.alpha.value),'shield perimeter remains legible');
   const old=g.children.slice();
   let disposed=0;
   for(const m of old){m.material.addEventListener('dispose',()=>disposed++);m.geometry.addEventListener('dispose',()=>disposed++);}
