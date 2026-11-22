@@ -1,0 +1,49 @@
+name: WebGL render profiler smoke
+on:
+  pull_request:
+    paths:
+      - 'tools/profile.mjs'
+      - 'tools/profile-deadline.mjs'
+      - 'client/src/render-stall-probe.js'
+      - '.github/workflows/render-profile-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  profile-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise actual guest-gate sequence and collect software WebGL metrics
+        env:
+          ATTUNEMENT_SCENES: sanctum
+          ATTUNEMENT_PROFILE_FRAMES: '5'
+          ATTUNEMENT_PROFILE_SYNC: '0'
+          ATTUNEMENT_PROFILE_MAX_MS: '110000'
+          ATTUNEMENT_PROFILE_STEP_TIMEOUT_MS: '35000'
+        run: npm run profile -- 0
+      - name: Validate bounded profiler output
+        run: |
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            const r = JSON.parse(fs.readFileSync('docs/evidence/profile-software.json','utf8'));
+            if (r.softwareRendering !== true || r.results.length !== 1 || r.results[0].tier !== 0 || r.results[0].scene !== 'sanctum') throw Error('Missing q0 Sanctum result');
+            if (!r.results[0].renderProbe || !r.results[0].renderProbe.stats) throw Error('Missing live render probe');
+            if (r.failures?.length) throw Error('Unexpected startup/profile failure: ' + JSON.stringify(r.failures));
+          "
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: render-profile-software-smoke
+          path: docs/evidence/profile-software.json
+          if-no-files-found: ignore
