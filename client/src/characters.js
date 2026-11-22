@@ -378,7 +378,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     // armour-only response (heals given/received): no animation
     armourReact(kind, id) { if (!dead) for (const h of armours.values()) h.handle?.fx?.surge(kind, id); },
-    trigger(kind, id) {
+    trigger(kind, id, target) {
       if (dead) return;
       for (const h of armours.values()) h.handle?.fx?.surge(kind, id);
       if (kind === 'hit') {
@@ -386,7 +386,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         return;
       }
       // A mounted rifle retains its two-hand fit and reacts to a confirmed auto hit.
-      if (kind === 'cast' && id === 'auto' && weapon?.fire()) return;
+      if (kind === 'cast' && id === 'auto' && weapon?.fire(target)) return;
       // Keep electrical rod animation unchanged. Alternate hand-combat poses.
       const combo = kind==='attack'&&id==='auto'&&!heldRod
         ? HUMANOID_MELEE_SEQUENCE[meleeIndex++%HUMANOID_MELEE_SEQUENCE.length] : null;
