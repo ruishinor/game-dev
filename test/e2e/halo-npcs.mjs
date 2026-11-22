@@ -13,19 +13,30 @@ const OUT = 'halo-evidence';
 fs.mkdirSync(OUT, { recursive: true });
 const server = await startServer({ port: 0, dataFile: null });
 let browser;
-const report = { guards: [], vendor: null, perf: {}, pageErrors: [], consoleErrors: [] };
+const report = { guards: [], vendor: null, perf: {}, pageErrors: [], consoleErrors: [], consoleWarnings: [], rifleSources: [] };
 try {
   browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.setDefaultTimeout(120000);
   page.on('pageerror', (e) => report.pageErrors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') report.consoleErrors.push(m.text()); });
+  page.on('console', (m) => { if (m.type() === 'error') report.consoleErrors.push(m.text()); else if(m.type()==='warning')report.consoleWarnings.push(m.text()); });
   await page.goto(`http://127.0.0.1:${server.port}/?q=1&qlock=1&nolock=1${SOFTWARE_GL ? '&rfps=1' : ''}`);
   await page.click('#gate-guest-link');await page.fill('#name', 'Halo Witness');
   await page.click('.classcard[data-cls="vanguard"]');
   await page.click('#enter');
   await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });
   report.graphics = await describeGraphics(page);
+  // Diagnose HTTP source and decoder failures separately from rig/attachment
+  // mismatches; no bypass of the requirement that all wardens visibly equip.
+  report.rifleSources = await page.evaluate(async()=>{
+    return Promise.all(['carbine','marksman'].map(async id=>{
+      const url='/client/assets/sanctum-warden-'+id+'.glb';
+      try{
+        const res=await fetch(url),raw=await res.arrayBuffer();
+        return {id,status:res.status,bytes:raw.byteLength,magic:new TextDecoder().decode(raw.slice(0,4))};
+      }catch(error){return {id,error:String(error)}}
+    }));
+  });
   // Re-resolve the live fixture before every move (play.mjs pattern) and wait
   // for the browser to render the authoritative position.
   const teleport = async (x, z) => {
