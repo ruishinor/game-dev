@@ -6,6 +6,7 @@ import { classArmourGoods } from './class-armour.js';
 const itemNames = Object.fromEntries(Object.entries(ITEMS).map(([id, it]) => [id, it.name]));
 export const GOODS = Object.freeze({
   ...classArmourGoods(itemNames),
+  blueprint_relay_arc_carbine:Object.freeze({name:'Blueprint: Relay Arc Carbine',category:'blueprint',rarity:'Rare',cap:1,desc:'Recovered fabrication knowledge from the completed Null Chamber recovery cache. It unlocks extended-frame weapon assembly at commissioned Brineworks; the blueprint is retained and never consumed.'}),
   blueprint_relay_vest:Object.freeze({name:'Blueprint: Reinforced Relay Vest',category:'blueprint',rarity:'Rare',cap:1,desc:'Retained engineering knowledge. Recover this blueprint to learn its recipe. It cannot be traded or consumed.'}),
   blueprint_resonant_vest:Object.freeze({name:'Blueprint: Resonance-Lined Vest',category:'blueprint',rarity:'Very rare',cap:1,desc:'Retained advanced engineering knowledge. Recover this blueprint to learn its recipe. It cannot be traded or consumed.'}),
   vault_memory_foil:Object.freeze({name:'Vault Memory Foil',category:'relic',rarity:'Rare',cap:1,desc:'An etched memory surface from an obsolete containment apparatus. Retain it as an archival specimen; it has no combat modifier or trade value.'}),

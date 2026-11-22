@@ -17,6 +17,7 @@ export function shotProfile(id){
 }
 export function createWeaponCarry(T,assets,inst,holstered=false){
  const mounts=new Map(),saved=new Map();let active=null,age=Infinity,aim=null,lastShot=null;
+ let failures=0,recoveries=0,wasAiming=false,poseMode='none',gripError=null;
  const V=()=>new T.Vector3(),Q=()=>new T.Quaternion();
  const find=n=>inst.getObjectByName(n);
  const arms=['r','l'].map(side=>({upper:find('upperarm_'+side),lower:find('lowerarm_'+side),hand:find('hand_'+side)}));
@@ -55,7 +56,9 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
  function apply(id){
   const next=Object.hasOwn(WEAPON_MODELS,id)?mounts.get(id):null;
   if((next??null)===active)return;
-  restorePose();active?.anchor.removeFromParent();active=next??null;age=Infinity;aim=null;lastShot=null;if(active)bone.add(active.anchor);
+  restorePose();active?.anchor.removeFromParent();active=next??null;age=Infinity;aim=null;lastShot=null;
+  poseMode=active?'neutral':'none';wasAiming=false;gripError=null;
+  if(active)bone.add(active.anchor);
  }
  function pose(target){
   if(!active||holstered||!target||!arms[0].upper||!arms[0].lower||!arms[0].hand)return false;
@@ -72,7 +75,12 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
   const wrist=center.clone().addScaledVector(f,(heavy?.34:.48)*scale-kick).addScaledVector(side,(heavy?.12:.16)*scale);
   wrist.y-=(heavy?.16:.12)*scale;
   const actual=solveArm(T,right.upper,right.lower,right.hand,wrist,side.clone().add(new T.Vector3(0,-.8,0)));
-  if(!actual){restorePose();return false;}
+  if(!actual){
+    restorePose();failures++;wasAiming=false;poseMode='neutral';gripError=null;
+    // A compact emitter stays in its real right-hand socket rather than
+    // vanishing or floating after an unreachable target pose.
+    return false;
+  }
   const axis=f.clone();axis.y+=kick*.9;axis.normalize();
   const orientation=Q().setFromRotationMatrix(new T.Matrix4().lookAt(axis,new T.Vector3(),new T.Vector3(0,1,0)));
   const finger=right.hand.children.find(b=>b.isBone&&/^(index|middle)_/.test(b.name));
@@ -89,12 +97,17 @@ export function createWeaponCarry(T,assets,inst,holstered=false){
   }
   const muzzle=active.muzzlePoint.getWorldPosition(V());
   const grip=active.anchor.getWorldPosition(V());
+  gripError=right.hand.getWorldPosition(V()).distanceTo(grip);
+  if(!wasAiming&&failures)recoveries++;
+  wasAiming=true;poseMode='aiming';
   const forwardDot=muzzle.clone().sub(grip).normalize().dot(f);
   if(age===0)lastShot={id:active.id,forwardDot,supportError,recoil:kick,grip:grip.toArray(),muzzle:muzzle.toArray()};
   return true;
  }
  return {
   apply,restorePose,
+  fitInfo(){return {mode:poseMode,id:active?.id??null,visible:!!active?.anchor.visible,
+    parent:active?.anchor.parent?.name??null,failures,recoveries,gripError};},
   fire(id,target){apply(id);if(!active||holstered)return false;age=0;aim=target.clone();return pose(aim);},
   update(dt,st,stepped){age+=dt;if(active)active.anchor.visible=!st.dead&&!st.air&&!st.hideWeapon;if(st.dead||st.air||st.hideWeapon||age>(st.combat&&st.aimAt?2.15:.52)){if(saved.size)restorePose();return;}if(stepped&&aim)pose(st.aimAt??aim);},
   inspect(){return lastShot;},

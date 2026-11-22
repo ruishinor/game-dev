@@ -38,6 +38,17 @@ try{
  for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(mounted,p.id);}
  await owner.bringToFront();await owner.evaluate(()=>window.__attune.view({yaw:2.2,pitch:.21,dist:4.5}));
  await capture(owner,'owner-equipped.png');await capture(observer,'observer-equipped.png');
+ // Both clients render a valid two-hand rifle pose; an equipped token alone
+ // cannot establish that the hands actually reach either authored grip.
+ for(const [page,label] of [[owner,'owner'],[observer,'observer']]){
+  await page.waitForFunction(id=>{
+   const e=window.__attune.state().ents.find(e=>e.id===id);
+   return e?.weaponPose?.mode==='ready'&&e.weaponPose.gripError<.035&&e.weaponPose.supportError<.035;
+  },p.id);
+  const fit=await page.evaluate(id=>window.__attune.state().ents.find(e=>e.id===id)?.weaponPose,p.id);
+  assert.equal(fit.mode,'ready',label+' Longpoint shouldered');
+  assert.ok(fit.gripError<.035&&fit.supportError<.035,label+' hand-grip distances');
+ }
  assert.ok((await liveFixturePlayer(owner,server,'Longpoint Tester'))===p,'Owner must remain connected');
  // Real input fires the currently mounted rifle. Fixture only stages distance
  // and isolates other enemies; no damage or animation is injected.

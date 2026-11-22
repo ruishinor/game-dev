@@ -1,2 +1,3 @@
 /client/art-assets/**/*.json text eol=lf
 /client/art-assets/**/*.svg text eol=lf
+/client/assets/atlas/reach-handdrawn.svg text eol=lf

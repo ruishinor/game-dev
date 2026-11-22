@@ -14,6 +14,18 @@ try{
  const page=await browser.newPage({viewport:{width:1100,height:750}});
  page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // SwiftShader evidence capture must not leave the main thread rendering
+ // continuously for several minutes between authenticated vendor actions.
+ // Only rasterization is paused; simulation, DOM, input and sockets remain live.
+ async function evidence(file){
+  if(SOFTWARE_GL)await page.evaluate(()=>{
+   const a=window.__attune;
+   a.pause(true);
+   a.gfx.camera.updateMatrixWorld(true);
+   a.gfx.renderer.render(a.gfx.scene,a.gfx.camera);
+  });
+  await page.screenshot({path:file});
+ }
  const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
  await page.goto(url);await page.click('#gate-guest-link');await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb'&&e.halo?.role==='vendor');});
@@ -26,7 +38,7 @@ try{
  await page.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.18,dist:7,face:Math.PI}));
  const drawn=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,drawn);
- await page.screenshot({path:'vendor-evidence/01-quartermaster-world.png'});
+ await evidence('vendor-evidence/01-quartermaster-world.png');
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
  const panel=page.getByRole('dialog',{name:'Vendor',exact:true});
  await panel.waitFor({state:'visible'});
@@ -40,13 +52,13 @@ try{
  const fibre=panel.locator('.vendor-row').filter({hasText:'Mire fibre'});
  await fibre.getByRole('button',{name:'Buy 1',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().sheet.credits===10&&window.__attune.state().sheet.materials.mire_fibre===1);
- await page.screenshot({path:'vendor-evidence/02-purchase.png'});
+ await evidence('vendor-evidence/02-purchase.png');
  await panel.getByRole('button',{name:'Buyback',exact:true}).click();
  const husk=panel.locator('.vendor-row').filter({hasText:'Torn mire husk'});
  await husk.getByRole('button',{name:'Buy back',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().sheet.credits===4&&window.__attune.state().sheet.goods.mire_husk===3);
  assert.equal(p.char.credits,4);assert.deepEqual(p.char.goods,{mire_husk:3});
- await page.screenshot({path:'vendor-evidence/03-buyback.png'});
+ await evidence('vendor-evidence/03-buyback.png');
  // Fixture supplies currency and damaged condition; buying/repairing still
  // use the authenticated browser. Defeat wear is covered by simulation tests.
  p.char.credits=50;server.game.markDirty(p);
@@ -60,7 +72,7 @@ try{
  await panel.locator('.vendor-row').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Repair',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().sheet.credits===30&&!Object.hasOwn(window.__attune.state().sheet.condition,'field_emitter'));
  assert.equal(p.char.credits,30);assert.deepEqual(p.char.condition,{});
- await page.screenshot({path:'vendor-evidence/04-repair.png'});
+ await evidence('vendor-evidence/04-repair.png');
  await panel.getByRole('button',{name:'Buy',exact:true}).click();
  await panel.locator('.vendor-row').filter({hasText:'Field Maintenance Kit'}).getByRole('button',{name:'Buy 1',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===1&&window.__attune.state().sheet.credits===18);
@@ -127,7 +139,7 @@ try{
   throw error;
  }finally{
   server.game.tick=originalTick;
-  await page.evaluate(()=>{window.__vendorProductionObservation.running=false;window.__attune.pause(false);});
+  await page.evaluate(software=>{window.__vendorProductionObservation.running=false;window.__attune.pause(software);},SOFTWARE_GL);
  }
  await page.waitForFunction(()=>window.__attune.state().sheet.goods.field_maintenance_kit===2);
  await page.waitForFunction(()=>{const a=window.__attune,scene=a.gfx.scene;return scene.getObjectByName('sanctum-precision-fabricator')?.userData.working===false&&!scene.getObjectByName('production:right')?.visible;});
@@ -139,7 +151,7 @@ try{
  await inventory.getByRole('button',{name:'Use Field Maintenance Kit',exact:true}).click();
  await page.waitForFunction(()=>!Object.hasOwn(window.__attune.state().sheet.condition,'field_emitter')&&window.__attune.state().sheet.goods.field_maintenance_kit===1);
  assert.ok(await inventory.getByRole('button',{name:'Use Field Maintenance Kit',exact:true}).isDisabled());
- await page.screenshot({path:'vendor-evidence/05-field-maintenance.png'});
+ await evidence('vendor-evidence/05-field-maintenance.png');
  await inventory.getByRole('button',{name:'Close inventory'}).click();
  p.x=vendor.x;p.z=vendor.z+2;await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
@@ -278,16 +290,16 @@ try{
   assert.equal(p.char.electricalRodMode,'rod');
   if(await loadout.isVisible())await loadout.getByRole('button',{name:'Close',exact:true}).click();
  }finally{
-  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  }
- const rodDraw=await page.evaluate(()=>window.__attune.state().drawn);
- await page.waitForFunction(n=>window.__attune.state().drawn>n,rodDraw);
- await page.screenshot({path:'vendor-evidence/06-electrical-combat-rod.png'});
+ const rodDraw=await page.evaluate(software=>{const s=window.__attune.state();return software?s.frames:s.drawn;},SOFTWARE_GL);
+ await page.waitForFunction(({n,software})=>{const s=window.__attune.state();return (software?s.frames:s.drawn)>n;},{n:rodDraw,software:SOFTWARE_GL});
+ await evidence('vendor-evidence/06-electrical-combat-rod.png');
  // Explicitly capture persistent corona at the normal camera after the joined mode is restored.
  await page.evaluate(()=>window.__attune.view({yaw:2.2,pitch:.21,dist:4.5}));
- const coronaDraw=await page.evaluate(()=>window.__attune.state().drawn);
- await page.waitForFunction(n=>window.__attune.state().drawn>n,coronaDraw);
- await page.screenshot({path:'vendor-evidence/07-electrical-rod-corona-close.png'});
+ const coronaDraw=await page.evaluate(software=>{const s=window.__attune.state();return software?s.frames:s.drawn;},SOFTWARE_GL);
+ await page.waitForFunction(({n,software})=>{const s=window.__attune.state();return (software?s.frames:s.drawn)>n;},{n:coronaDraw,software:SOFTWARE_GL});
+ await evidence('vendor-evidence/07-electrical-rod-corona-close.png');
  // Switch back to the emitter through the hotbar action: the rod stays equipped and stowed.
  await page.locator('.weaponbar .weapon-action[data-action="weapon:switch"]').click();
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.activeWeapon==='ranged'&&s.sheet.equipped.weapon==='electrical_combat_rod'&&s.sheet.equipped.ranged==='field_emitter'&&s.ents.find(e=>e.id===s.myId)?.row?.er===3&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod')&&a.gfx.scene.getObjectByName('StowedElectricalCombatRod');});
@@ -320,7 +332,7 @@ try{
  await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return s.sheet.equipped.social_torso==='social_service_coat'&&s.sheet.equipped.ranged==='field_emitter'&&s.sheet.equipped.weapon==='electrical_combat_rod'&&me.socialVisual==='service'&&me.socialWorn==='service';});
  await socialLoadout.getByRole('button',{name:'Character',exact:true}).click();
  await page.waitForFunction(previous=>{const img=document.querySelector('.doll-portrait .doll-image');return img?.getAttribute('src')&&img.getAttribute('src')!==previous;},originalPortrait);
- await page.screenshot({path:'vendor-evidence/08-social-wardrobe.png'});
+ await evidence('vendor-evidence/08-social-wardrobe.png');
  await socialLoadout.getByRole('button',{name:'Social clothing',exact:true}).click();
  await socialLoadout.getByRole('button',{name:'Torso: Sanctum Service Coat',exact:true}).press('Shift+F10');
  await page.locator('.player-context').getByRole('button',{name:'Unequip',exact:true}).click();
