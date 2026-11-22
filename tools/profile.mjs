@@ -114,10 +114,13 @@ try {
     }
     const t0 = Date.now();
     await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
-    await bounded(`q${tier}: loading`, () => page.waitForSelector('#enter:not([disabled])'));
+    // The cinematic account gate intentionally hides the guest form until
+    // the user selects "Play as a guest". Never wait for hidden #enter here.
+    await bounded(`q${tier}: login UI ready`, () => page.waitForSelector('#account-register:not([disabled])'));
     const loadMs = Date.now() - t0;
     const name = `Prof${'abc'[tier]}x`;
-    await page.click('#gate-guest-link');
+    await bounded(`q${tier}: open guest creation`, () => page.click('#gate-guest-link'));
+    await bounded(`q${tier}: guest form ready`, () => page.waitForSelector('#enter:not([disabled])'));
     await page.fill('#name', name);
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
