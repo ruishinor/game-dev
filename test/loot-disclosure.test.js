@@ -4,8 +4,19 @@ import {ENEMIES,ITEMS} from '../shared/content.js';
 import {MATERIALS} from '../shared/crafting.js';
 import {ENEMY_ITEM_DROPS,SALVAGE,itemDrops} from '../server/sim/loot-tables.js';
 import {ENTRIES} from '../client/src/journal.js';
+import {NO_ITEM_REWARD_TYPES} from '../server/sim/loot.js';
 test('server-only reward definitions cover existing enemies and reference valid items',()=>{
- assert.deepEqual(Object.keys(ENEMY_ITEM_DROPS).sort(),Object.keys(ENEMIES).sort());
+ // Every archetype must be explicitly classified: table-backed or no items.
+ // Disallow duplicate classification and accidental unclassified enemies.
+ const classified=[...Object.keys(ENEMY_ITEM_DROPS),...NO_ITEM_REWARD_TYPES];
+ assert.equal(new Set(classified).size,classified.length);
+ assert.deepEqual(classified.sort(),Object.keys(ENEMIES).sort());
+ for(const type of NO_ITEM_REWARD_TYPES){
+  assert.ok(Object.hasOwn(ENEMIES,type));
+  assert.equal(Object.hasOwn(ENEMY_ITEM_DROPS,type),false);
+  assert.equal(Object.hasOwn(ENEMIES[type],'loot'),false);
+  assert.deepEqual(itemDrops(type),[]);
+ }
  for(const [type,drops] of Object.entries(ENEMY_ITEM_DROPS)){
   assert.equal(Object.hasOwn(ENEMIES[type],'loot'),false);
   assert.equal(new Set(drops.map(d=>d.item)).size,drops.length);
