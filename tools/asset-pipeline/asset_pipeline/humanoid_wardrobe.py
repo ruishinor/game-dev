@@ -339,6 +339,49 @@ def pauldron(body, side, t0, t1, half_angle, offset, n_t=9, n_phi=22):
                       lateral=np.array([sg * 0.85, 0.5, 0.0]), max_r=0.13)
 
 
+def lower_security(body, side):
+    """Fitted Warden lower-leg/instep protection built on the accepted Halo body.
+
+    Loft the shell over real calf samples, transfer skin weights to the live
+    skeleton, and project the instep plate onto the existing foot surface.
+    Preserve exposed ankle mechanics and avoid oversized rigid donor boots.
+    """
+    region = "leg_" + side
+    a, b = body.L["calf_" + side], body.L["foot_" + side]
+    rows = np.linspace(0.15, 0.82, 13)
+    front = np.linspace(-1.08, 1.08, 30)
+    back = np.linspace(2.12, 4.16, 26)
+    pieces = []
+    V, F = limb_panel(body, region, a, b, rows, front,
+                      lambda ph, t: 0.014 + 0.006 * np.maximum(0, np.cos(ph))**4 * (1 - 0.35*t),
+                      closed=False, max_r=0.16)
+    pieces.append({"name": "greave_front_" + side, "set": "security", "core": True,
+                   "mat": "graphite_plate", "skin": "transfer", "V": V, "F": F,
+                   "thickness": 0.005, "bevel": 0.002})
+    V, F = limb_panel(body, region, a, b, rows[1:-1], back, 0.010,
+                      closed=False, max_r=0.16)
+    pieces.append({"name": "greave_rear_" + side, "set": "security", "core": True,
+                   "mat": "graphite_plate", "skin": "transfer", "V": V, "F": F,
+                   "thickness": 0.004, "bevel": 0.0018})
+    V, F = limb_panel(body, region, a, b, np.linspace(0.79, 0.89, 4),
+                      np.linspace(-np.pi, np.pi, 32, endpoint=False), 0.014,
+                      closed=True, max_r=0.16)
+    pieces.append({"name": "boot_collar_" + side, "set": "security", "core": True,
+                   "mat": "bronze_plate", "skin": "transfer", "V": V, "F": F,
+                   "thickness": 0.004, "bevel": 0.002})
+    foot, ball, toe = [body.L[name + "_" + side] for name in ("foot", "ball", "toe")]
+    path = np.stack((foot + [0, 0.035, 0],
+                     (foot + ball) * 0.5 + [0, 0.065, 0],
+                     ball + [0, 0.055, 0],
+                     toe + [0, 0.025, 0]))
+    V, F = ribbon(body, path, width=lambda t: 0.120 * (1 - 0.35*t),
+                  offset=0.012, n=34)
+    pieces.append({"name": "boot_vamp_" + side, "set": "security", "core": True,
+                   "mat": "graphite_plate", "skin": "transfer", "V": V, "F": F,
+                   "thickness": 0.004, "bevel": 0.002})
+    return pieces
+
+
 def design_security(body):
     L = body.L
     deg = np.radians
@@ -380,6 +423,7 @@ def design_security(body):
         V, F = limb_panel(body, "arm_" + s, a, b, np.linspace(0.18, 0.86, 9), np.linspace(-np.pi, np.pi, 28, endpoint=False), 0.009)
         pieces.append({"name": "vambrace_" + s, "set": "security", "core": True, "mat": "graphite_plate", "skin": "rigid:lowerarm_" + s,
                        "V": V, "F": F, "thickness": 0.004, "bevel": 0.0015})
+        pieces.extend(lower_security(body, s))
     V, F = param_panel(body, 4, 64, lambda s, q: (2 * np.pi * q - np.pi, 1.045 + 0.045 * s, 0.013), closed=True)
     pieces.append({"name": "duty_belt", "set": "security", "core": True, "mat": "leather", "skin": "rigid:pelvis", "V": V, "F": F, "thickness": 0.006})
     for name, t0, t1, side in (("tasset_l", 24, 58, "l"), ("tasset_r", -58, -24, "r")):

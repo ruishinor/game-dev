@@ -311,6 +311,20 @@ def guard_clip(skel, rig_mod, idle, bind_world, params):
         chans.append({"node": ch["node"], "path": ch["path"], "interpolation": ch.get("interpolation", "LINEAR"),
                       "times": np.array(allt), "values": np.array(allv)})
     up = np.array([0, 1.0, 0])
+    # Subtle continuous torso motion makes the lookout visibly breathe and
+    # transfer attention without moving its planted feet. The runtime rifle IK
+    # must still solve each frame on the resulting animated upper body.
+    for name, share in (("spine_02", 0.35), ("spine_03", 0.65)):
+        ch = next((c for c in chans if c["node"] == name and c["path"] == "rotation"), None)
+        if ch is None:
+            continue
+        base = np.array([rig_mod.sample_channel(ch["times"], ch["values"], "LINEAR", t, "rotation") for t in times])
+        parent = skel.parent[skel.index[name]]
+        parent_rot = rig_mod.world_rot(bind_world[[parent]])[0]
+        up_local = rig_mod.qrot(rig_mod.qinv(parent_rot), up)
+        ang = share * np.radians(2.2) * np.sin(4 * np.pi * times / T)
+        ch["times"], ch["values"] = times, np.array([
+            rig_mod.qmul(rig_mod.q_axis_angle(up_local, a), q) for a, q in zip(ang, base)])
     for name, share in (("neck_01", 0.45), ("Head", 0.55)):
         ch = next(c for c in chans if c["node"] == name and c["path"] == "rotation")
         base = np.array([rig_mod.sample_channel(ch["times"], ch["values"], "LINEAR", t, "rotation") for t in times])
