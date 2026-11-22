@@ -371,6 +371,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     rodContact(at,ground,blocked=false){
       return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
+    // Presentation-only contact socket from the actual mounted rod halves.
+    // Dual-baton left strikes attach the arc to the offhand tip, not the chest.
+    rodMeleeOrigin(){
+      if(!heldRod?.group.visible||rodStowed)return null;
+      const left=heldRod.progress<.5&&meleePose?.stance==='left';
+      return heldRod.anchor(left?1:0,'Tip');
+    },
     sitState:()=>({blend:sitBlend,available:!!sitPose}),
     rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
     update(dt, st) {
