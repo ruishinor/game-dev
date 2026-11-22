@@ -46,3 +46,22 @@ test('all four rootglass portals contain curved layered membranes and physical r
   r.dispose();
  }
 });
+
+test('entry, return, spring and crown show distinct destination architecture',()=>{
+ const signature={
+  lumenfen_entry:'lumenfen:entry-fissure-root',
+  lumenfen_return:'lumenfen:return-woven-root',
+  lumenfen_spring:'lumenfen:spring-calibration-gauge',
+  lumenfen_crown:'lumenfen:crown-high-branch',
+ };
+ for(const [kind,feature] of Object.entries(signature)){
+   const model=makeLumenfenRift(T,kind);
+   assert.ok(model.group.getObjectByName(feature),kind+' must carry its own physical signature');
+   for(const [other,otherFeature] of Object.entries(signature))if(other!==kind)
+     assert.equal(model.group.getObjectByName(otherFeature),undefined,
+       kind+' should not reuse '+other+' threshold identity');
+   assert.ok(model.group.getObjectByName('lumenfen:membrane'));
+   if(kind==='lumenfen_crown')assert.ok(model.height>6.4,'high crown must fit camera/label bounds');
+   model.dispose();
+ }
+});
