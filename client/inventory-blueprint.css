@@ -1,14 +1,7 @@
 /* Blueprint bag. Functional DOM controls, no flattened screenshots or new image assets. */
-/* Keep the title and close control inside the viewport at every supported size.
- * Default inventory previously retained a 100px bottom gap, pushing its top offscreen
- * when the compact 9-column bag was expanded. Custom dragged layouts are independent. */
-.panel.inventory-window:not([data-window-custom="true"]) {
-  bottom:12px;
-  top:auto;
-}
 .panel.inventory-window {
-  width:min(506px,calc(100vw - 32px));max-width:calc(100vw - 32px);
-  max-height:min(730px,calc(100vh - 52px));min-width:440px;
+  /* Preserve the original inventory's 368px/93vw width and 72vh height cap.
+     The reference artwork illustrates possible cells, not an expanded window. */
   padding:46px 13px 12px;border:1px solid #387d91;
   background:linear-gradient(155deg,rgba(8,35,45,var(--inventory-alpha,1)),rgba(5,22,31,var(--inventory-alpha,1)));
   box-shadow:0 0 0 2px #07121ccc,inset 0 0 0 1px #397f9344,0 12px 34px #000b;

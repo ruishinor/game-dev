@@ -9,7 +9,7 @@ import { materialUses } from './material-uses.js';
 import { GOODS } from '../../shared/goods.js';
 import { conditionOf, maintenanceTarget } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
-import {inventoryPage,INVENTORY_PAGE_SIZE} from './inventory-blueprint-page.js';
+import {inventoryPage,visibleVacancies} from './inventory-blueprint-page.js';
 import { refinedItemMotif } from './item-artwork.js';
 import { renderedItemIcon } from './item-renders.js';
 import {cataloguePortrait} from './catalogue-portraits.js';
@@ -402,8 +402,13 @@ export function renderInventory(ui) {
     ui.hover(btn,()=>itemTooltip(s,id));
     grid.append(btn);
   }
-  // A cell is an equipment item or one material stack, not storage capacity.
-  for(let i=items.length;i<INVENTORY_PAGE_SIZE;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
+  // Only show at most five vacant cells, never the full theoretical capacity
+  // depicted in the approved reference artwork.
+  for(let i=0;i<visibleVacancies(items.length);i++){
+    const empty=h('div','item-cell vacant');
+    empty.setAttribute('aria-hidden','true');
+    grid.append(empty);
+  }
   const count=h('div','inventory-count',view.total+' carried stacks'+(query?' · '+total+' matches':''));
   count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' goods stacks · '+view.goodsUnits+' goods units';
   const wallet=h('div','inventory-wallet','◉ '+String(Number.isSafeInteger(s.credits)&&s.credits>=0?s.credits:0));
