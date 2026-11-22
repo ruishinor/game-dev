@@ -16,6 +16,7 @@ import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { enemyWeaponPresentation } from './enemy-weapon-presentation.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
 import {loadWeaponModels} from './weapon-visuals.js';
 import {loadWardenRifles} from './warden-rifles.js';
@@ -2008,6 +2009,7 @@ function updateEntities(dt, t, now) {
     const weaponAimAt = weaponTarget?.placed && !weaponTarget.dead
       ? (ent.weaponAimVec ||= new THREE.Vector3()).set(weaponTarget.pos.x, weaponTarget.pos.y + (weaponTarget.model.height || 1.8) * .65, weaponTarget.pos.z)
       : null;
+    const enemyWeapon=enemyWeaponPresentation(ent.meta);
     ent.model.update(dt, {
       lookAt,
       weaponAimAt,
@@ -2030,10 +2032,10 @@ function updateEntities(dt, t, now) {
       // other actors retain their existing low-quality motion simplification.
       reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk' && !ent.model.group?.name?.startsWith('rift:')),
       effectsQuality: quality,
-      rodClass: ent.meta.k==='p'?ent.meta.c:null,
+      rodClass: ent.meta.k==='p'?ent.meta.c:enemyWeapon?.rodClass??null,
       sitting: ent.meta.k==='p'&&!!(row?.f&16),
-      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):null,
-      electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):enemyWeapon?.mode??null,
+      electricalRodVfx: enemyWeapon ? (ent.inView && camD < 16 && !!(row?.f&8) && rich() ? vfx : null) : ent.inView && camD < 24 ? vfx : null,
       cacheFx: ent.meta.c==='foundry_cache' && ent.inView && camD < 24 && rich() ? vfx : null,
       cacheAt: ent.meta.c==='foundry_cache' ? [x,groundHeight(x,z)+.05,z] : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
@@ -2065,12 +2067,16 @@ function updateEntities(dt, t, now) {
 
 function updatePlates(now) {
   const me = S.ents.get(S.myId);
-  // Only suppress overlapping calm wildlife labels, never active enemies,
-  // allies, objects or the currently selected target. Stable priority.
+  // Keep selected targets, nearby interactables and combat labels visible.
+  // At crowded hubs, distant static-object plates otherwise obscure each
+  // other despite the underlying NPCs and terminals being individually usable.
   const occupied=[];
+  const distance=e=>me?Math.hypot(e.pos.x-me.pos.x,e.pos.z-me.pos.z):Infinity;
+  const nearPlate=e=>e.meta.k==='o'&&distance(e)<=INTERACT_RANGE+.5;
   const entries=[...S.ents.values()].sort((a,b)=>{
-    const priority=e=>e.id===S.target?0:e.meta.neu&&!(e.row?.f&8)&&!e.dead?2:1;
-    return priority(a)-priority(b)||a.id-b.id;
+    const priority=e=>e.id===S.target?0:nearPlate(e)?1:e.meta.neu&&!(e.row?.f&8)&&!e.dead?3:e.meta.k==='o'?2:1;
+    const pa=priority(a),pb=priority(b);
+    return pa-pb || (a.meta.k==='o'&&b.meta.k==='o'?distance(a)-distance(b):a.id-b.id);
   });
   for (const ent of entries) {
     if (ent.id === S.myId) continue;
@@ -2095,7 +2101,8 @@ function updatePlates(now) {
       const half=Math.max(36,label.length*3.9);
       const rect={l:screen.x-half,r:screen.x+half,t:screen.y-30,b:screen.y};
       const calm=ent.meta.neu&&!(row.f&8)&&!ent.dead;
-      if(calm&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
+      const canDeclutter=calm||(k==='o'&&d>INTERACT_RANGE+.5);
+      if(canDeclutter&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
       if(screen)occupied.push(rect);
     }
     ui.placePlate(ent, screen, {
@@ -2338,7 +2345,7 @@ window.__attune = {
       you: S.you,
       sheet: S.sheet,
       ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, armourWornAll: e.model.armourWornAll?.() || null, armourFx: e.model.armourFxInfo?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
-        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw, fit: e.model.weaponFit?.() ?? null, presentation: e.model.weaponPresentation?.() ?? null } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },
