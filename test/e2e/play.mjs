@@ -618,8 +618,8 @@ try {
   let sk = skitters[0];
   await fightAt(sk);
 
-  // Tab favours enemies ahead of the camera; it does not promise the nearest
-  // enemy in all directions. Verify selection and that cycling reaches sk.
+  // Tab starts with the nearest valid hostile and cycles by distance.
+  // Verify selection and that cycling reaches the intended encounter.
   await A.page.keyboard.press('Tab');
   await until(A, () => window.__attune.state().target !== 0, null, 3000, 'tab target');
   sa = await state(A);
