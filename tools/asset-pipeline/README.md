@@ -4,6 +4,21 @@ Reference-driven 3D asset production for Attunement. It is CPU-only, runs Blende
 
 Each asset has a tracked configuration in `assets/<id>/asset.json` and an untracked workspace in `.asset-cache/pipeline/<id>/`. Stages record SHA-256 hashes of their inputs, parameters and outputs in `state.json` and are skipped when nothing has changed, so a failed or edited stage reruns alone. Source material is never written to. Unpublished references belong in git-ignored paths such as `/art-source/`.
 
+## Owner GLB archive — first-class production-pipeline inputs
+
+The owner-supplied 138-model archive is registered as asset `glb_archive`. **All** donor GLBs are available for reconstruction, refinement, composition and fitting in this pipeline; there is no per-model approval queue or preliminary exclusion because a model is low-poly.
+
+From `tools/asset-pipeline`:
+
+```bash
+python -m asset_pipeline inspect --asset glb_archive
+python -m asset_pipeline all --asset glb_archive
+```
+
+`inventory` validates the archive, hashes and structures of every donor. `ingest` extracts all 138 GLBs into the pipeline workspace at `.asset-cache/pipeline/glb_archive/imports/`, with a stable `imports.json` index mapping original paths to individual source inputs and hashes. Downstream geometry/material/rig/animation builders can consume those inputs directly. The original ZIP is not altered. This stage is intentionally independent of the optional Blender toolchain and of browser hosting.
+
+**Asset-pipeline inclusion happens immediately.** Review, renderer checks and optimization apply to playable outputs during ordinary implementation, not to whether a developer may process the source. The `glb-source-quality` report helps prioritize rework; missing texture channels or low triangle count do not disqualify the source from the pipeline. Keep runtime delivery legal with respect to third-party distribution rights and technically non-regressive.
+
 ## Setup
 
 Python 3.13 (the `bpy` wheel requires it), ffmpeg, and Node (`npm ci` at the repository root, for glTF Transform and Playwright).
