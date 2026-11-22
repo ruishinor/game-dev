@@ -16,6 +16,7 @@ import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
+import { enemyWeaponPresentation } from './enemy-weapon-presentation.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
 import {loadWeaponModels} from './weapon-visuals.js';
 import {loadWardenRifles} from './warden-rifles.js';
@@ -2008,6 +2009,7 @@ function updateEntities(dt, t, now) {
     const weaponAimAt = weaponTarget?.placed && !weaponTarget.dead
       ? (ent.weaponAimVec ||= new THREE.Vector3()).set(weaponTarget.pos.x, weaponTarget.pos.y + (weaponTarget.model.height || 1.8) * .65, weaponTarget.pos.z)
       : null;
+    const enemyWeapon=enemyWeaponPresentation(ent.meta);
     ent.model.update(dt, {
       lookAt,
       weaponAimAt,
@@ -2030,10 +2032,10 @@ function updateEntities(dt, t, now) {
       // other actors retain their existing low-quality motion simplification.
       reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk' && !ent.model.group?.name?.startsWith('rift:')),
       effectsQuality: quality,
-      rodClass: ent.meta.k==='p'?ent.meta.c:null,
+      rodClass: ent.meta.k==='p'?ent.meta.c:enemyWeapon?.rodClass??null,
       sitting: ent.meta.k==='p'&&!!(row?.f&16),
-      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):null,
-      electricalRodVfx: ent.inView && camD < 24 ? vfx : null,
+      electricalRod: ent.meta.k==='p'?(row?.er===2?'dual':row?.er===1?'rod':row?.er===3?'stowed':null):enemyWeapon?.mode??null,
+      electricalRodVfx: enemyWeapon ? (ent.inView && camD < 16 && !!(row?.f&8) && rich() ? vfx : null) : ent.inView && camD < 24 ? vfx : null,
       cacheFx: ent.meta.c==='foundry_cache' && ent.inView && camD < 24 && rich() ? vfx : null,
       cacheAt: ent.meta.c==='foundry_cache' ? [x,groundHeight(x,z)+.05,z] : null,
       rodQuality: quality,rodIntensity:vfx?.intensity??1,rodCalm:motionPreference.matches||vfx?.calmFlashes||false,
