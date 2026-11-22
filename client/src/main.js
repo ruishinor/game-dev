@@ -36,6 +36,7 @@ import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
+import { createRenderStallProbe } from './render-stall-probe.js';
 import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
 import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
@@ -95,6 +96,8 @@ const spindleHaloMaterial = new THREE.MeshBasicMaterial({
 // bundle is missing, the affected entities use their procedural stand-ins.
 // ?glb=none|vanguard,skitter,… limits which entity types use GLB models.
 const params = new URLSearchParams(location.search);
+// Separate opt-in probe for graphics stalls (independent of network recovery).
+const renderProbe = createRenderStallProbe({ enabled: params.get('renderdiag') === '1', renderer, canvas });
 const glbOnly = params.get('glb');
 const assets = new Assets();
 await assets.init();
@@ -2185,6 +2188,7 @@ function advanceEffects(dt) {
 
 function frame(now) {
   requestAnimationFrame(frame);
+  if (renderProbe.enabled) renderProbe.frameGap(now - last, quality, document.hidden);
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
   last = now;
   time += dt;
@@ -2218,7 +2222,8 @@ function frame(now) {
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
     camera.lookAt(0, 5, 0);
     world.update(dt, time, { x: 0, y: 0, z: 0 });
-    renderer.render(scene, camera);
+    if (renderProbe.enabled) renderProbe.measure('title', quality, () => renderer.render(scene, camera));
+    else renderer.render(scene, camera);
     return;
   }
 
@@ -2296,7 +2301,8 @@ function frame(now) {
   // (?rfps=N) or paused. Where drawing is very slow (software WebGL) that
   // keeps input, prediction and networking in real time.
   if (!S.paused && now - lastDraw >= drawGap) {
-    renderer.render(scene, camera);
+    if (renderProbe.enabled) renderProbe.measure('world', quality, () => renderer.render(scene, camera));
+    else renderer.render(scene, camera);
     lastDraw = now;
     S.drawn++;
     if(worldEntryPending&&me?.placed&&me.row&&S.you){
@@ -2330,6 +2336,7 @@ window.__attune = {
       frames: S.frames,
       drawn: S.drawn,
       quality,
+      renderDiagnostics: renderProbe.get(),
       target: S.target,
       followId:S.followId,
       inspected: S.inspect?.id || 0,
