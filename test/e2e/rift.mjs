@@ -39,8 +39,14 @@ try{
    window.__attune.view({yaw:Math.PI/2,pitch:.22,dist:10,face:Math.PI/2});
    if(software)window.__attune.pause(true);
  },SOFTWARE_GL);
+ // The four-second opening is a real server-authoritative phase. Capture
+ // its transition BEFORE the input; software WebGL can skip transient client
+ // snapshots even while the world advances correctly on the server.
+ const serverPhases=[f.phase];
+ const phaseSampler=setInterval(()=>{if(serverPhases.at(-1)!==f.phase)serverPhases.push(f.phase);},25);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');
- const phase=await page.evaluate(()=>{
+ let phase;
+ try { phase=await page.evaluate(()=>{
    const observed=[];
    return new Promise(resolve=>{
      const started=performance.now();
@@ -53,7 +59,10 @@ try{
      poll();
    });
  });
- assert.ok(phase.includes('opening'),'Expected opening after indexer activation, observed '+phase.join(', '));
+ } finally {clearInterval(phaseSampler);}
+ assert.ok(serverPhases.includes('opening'),'Indexer never entered server-owned opening phase: '+serverPhases.join(', '));
+ assert.ok(serverPhases.includes('unstable')||f.phase==='unstable','Indexer never reached server-owned unstable phase: '+serverPhases.join(', '));
+ assert.ok(phase.includes('unstable'),'Browser did not observe unstable phase: '+phase.join(', '));
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='phase_scar')?.row.rf==='unstable');
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('rift:interference-membrane')));
  assert.ok(await page.evaluate(()=>{const r=window.__attune.gfx.scene.getObjectByName('rift:phase-scar');return ['rift:depth-veil','rift:filaments','rift:field-motes','rift:footprint-halo'].every(n=>r?.getObjectByName(n));}),'Reach rift retains enhanced atmosphere');
