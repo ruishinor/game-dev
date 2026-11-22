@@ -1147,7 +1147,7 @@ function onEvent(e) {
       const s=S.ents.get(e.s),d=S.ents.get(e.d);
       if(s){s.attack=1;s.meleeStartAt=now;
         if(d){s.faceTo=d.id;s.faceUntil=now+900;}
-        s.model.trigger?.('melee',e.style);
+        s.model.trigger?.('melee',e.style,null,e.ms);
       }
       break;
     }
