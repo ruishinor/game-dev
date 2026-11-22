@@ -1,0 +1,23 @@
+name: Lumenfen source GLB inventory
+
+on:
+  pull_request:
+    paths:
+      - 'tools/assets/lumenfen-source-inventory.py'
+      - '.github/workflows/lumenfen-source-inventory.yml'
+      - 'assets/source-archives/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false
+      - name: Verify all donor GLBs and print names, nodes, and possible roles
+        run: python3 tools/assets/lumenfen-source-inventory.py
