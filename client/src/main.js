@@ -2212,8 +2212,10 @@ function frame(now) {
     // Dedicated cinematic scenes own both character screens.
     if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
-    // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
-    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
+    // The cinematic sign-in and guest surfaces are opaque, including the
+    // entire game canvas. Never compile or render an invisible 3D title scene
+    // behind them: owner GPU profiling measured 4–15 s first-use stalls here.
+    if(document.body.classList.contains('gate-mode')&&!$('login').hidden)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
