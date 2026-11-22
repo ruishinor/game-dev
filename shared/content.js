@@ -224,6 +224,19 @@ export const COMPANIONS = {
 };
 
 export const ENEMIES = {
+  // Native to Lumenfen: living drifting lights and moss-covered predators.
+  fen_lantern: {
+   name:'Fen Lantern',level:7,hp:100,speed:3.1,radius:.62,
+   neutral:true,aggro:0,social:0,leash:18,
+   attack:{range:2.5,interval:2200,dmg:9,kind:'melee'},
+   xp:0,respawn:25000,
+  },
+  fen_stalker: {
+   name:'Bog Stalker',level:8,hp:205,speed:4.1,radius:.83,
+   aggro:9,social:4,leash:28,
+   attack:{range:2.8,interval:1850,dmg:14,kind:'melee'},
+   xp:64,respawn:32000,
+  },
   sinter_grazer: {
     name: 'Sinter Grazer',
     level: 1, hp: 85, speed: 3.1, radius: 0.62,

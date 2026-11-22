@@ -13,6 +13,8 @@ export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
 import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
 import { SILENT_FOUNDRY, FOUNDRY_COLLIDERS, inSilentFoundry, foundryArea, foundryHeight, clampToFoundry } from './silent-foundry.js';
+import { LUMENFEN, FEN_COLLIDERS, FEN_RIFTS, inLumenfen, clampToLumenfen, fenHeight, fenArea } from './lumenfen.js';
+export { LUMENFEN, inLumenfen, fenArea } from './lumenfen.js';
 export { SILENT_FOUNDRY, inSilentFoundry, foundryArea } from './silent-foundry.js';
 export { SEVERANCE_POCKET, SEVERANCE_EXPANSE, SEVERANCE_GATE, EXPEDITION_OUTPOST, inSeverancePocket, inExpeditionOutpost } from './severance-gate.js';
 
@@ -29,11 +31,11 @@ export function inRiftAnnex(x,z,pad=0){
  return Math.abs(x-RIFT_ANNEX.x)<=RIFT_ANNEX.hw+pad&&Math.abs(z-RIFT_ANNEX.z)<=RIFT_ANNEX.hd+pad;
 }
 export function travelRegionAt(x, z) {
-  return inRiftAnnex(x, z, 2) ? 'phase_annex' : inSeverancePocket(x, z, 2) ? 'severance_expanse' : inSilentFoundry(x, z, 2) ? 'silent_foundry' : 'reach';
+  return inRiftAnnex(x, z, 2) ? 'phase_annex' : inSeverancePocket(x, z, 2) ? 'severance_expanse' : inSilentFoundry(x, z, 2) ? 'silent_foundry' : inLumenfen(x, z, 2) ? 'lumenfen' : 'reach';
 }
 /** Areas reached only by server-owned travel; reconnects there return to the Reach. */
 export function inDisconnectedRegion(x, z, pad = 2) {
-  return inRiftAnnex(x, z, pad) || inSeverancePocket(x, z, pad) || inSilentFoundry(x, z, pad);
+  return inRiftAnnex(x, z, pad) || inSeverancePocket(x, z, pad) || inSilentFoundry(x, z, pad) || inLumenfen(x, z, pad);
 }
 
 export function sameTravelRegion(a, b) {
@@ -102,6 +104,7 @@ export function groundHeight(x, z) {
   if(inRiftAnnex(x,z,2))return 0;
   if(inSeverancePocket(x,z,2))return pocketHeight(x,z);
   if(inSilentFoundry(x,z,2))return foundryHeight(x,z);
+  if(inLumenfen(x,z,2))return fenHeight(x,z);
   let h =
     1.7 * Math.sin(x * 0.043) * Math.cos(z * 0.051) +
     0.9 * Math.sin(x * 0.11 + 1.3) * Math.sin(z * 0.093 + 0.7) +
@@ -327,7 +330,7 @@ export const ANNEX_FORMATIONS=Object.freeze([
 ].map(([dx,z,r,h,seed])=>Object.freeze({type:'annex_formation',x:RIFT_ANNEX.x+dx,z,r,h,seed})));
 // Ambient Stillpoint marker (presentation only; the living creature has no static collider).
 export const STILLPOINT_SITE=Object.freeze({type:'stillpoint_rest',x:8,z:-1.5,r:2,h:1.9,seed:107});
-export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE,...SEVERANCE_PROPS,...FOUNDRY_COLLIDERS];
+export const PROPS = [...buildProps(),...ANNEX_PARTITIONS,...ANNEX_FORMATIONS,STILLPOINT_SITE,...SEVERANCE_PROPS,...FOUNDRY_COLLIDERS,...FEN_COLLIDERS];
 export const COLLIDERS = PROPS.filter((p) => p.type!=='stillpoint_rest' && (p.r !== undefined || p.hw !== undefined));
 
 // Conservative horizontal cover test against the same solid prop footprints
@@ -433,6 +436,25 @@ export const SANCTUM_GUARDS = Object.freeze([15, 105, 200, 280].map((deg, i) => 
     yaw: Math.atan2(x - WORLD.sanctum.x, z - WORLD.sanctum.z), variant: i });
 }));
 OBJECTS.push(...SANCTUM_GUARDS);
+// New Rootglass Tear: choose safe Reach ground without moving older landmarks.
+function findLumenfenEntry(){
+ const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
+ for(let r=67;r<=77;r+=2)for(let k=0;k<48;k++){
+  const t=k*Math.PI*2/48;candidates.push([Math.round(Math.sin(t)*r),Math.round(Math.cos(t)*r)]);
+ }
+ for(const [x,z] of candidates){
+  if(Math.hypot(x,z)>WORLD.radius-14)continue;
+  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+9))continue;
+  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<9+(o.r??Math.hypot(o.hw??0,o.hd??0))))continue;
+  return Object.freeze({x,z});
+ }
+ return null;
+}
+export const LUMENFEN_ENTRY_SITE=findLumenfenEntry();
+if(LUMENFEN_ENTRY_SITE){
+ OBJECTS.push({key:'lumenfen_entry',type:'lumenfen_entry',name:'Rootglass Tear',...LUMENFEN_ENTRY_SITE,r:PHASE_RIFT_RADIUS});
+ OBJECTS.push(...FEN_RIFTS);
+}
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));
 const DEEP_WALLS = COLLIDERS.filter(p => p.type === 'deep_wall'||p.type==='annex_wall');
 
@@ -466,9 +488,10 @@ export function deepLineClear(a, b) {
  * the world. Mutates and returns `p` ({x, z}).
  */
 export function resolveCollisions(p, rad) {
-  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX,pocket=!annex&&inSeverancePocket(p.x,p.z,4),foundry=!annex&&!pocket&&inSilentFoundry(p.x,p.z,4);
+  const annex=inRiftAnnex(p.x,p.z,4),a=RIFT_ANNEX,pocket=!annex&&inSeverancePocket(p.x,p.z,4),foundry=!annex&&!pocket&&inSilentFoundry(p.x,p.z,4),fen=!annex&&!pocket&&!foundry&&inLumenfen(p.x,p.z,4);
   if(pocket)clampToPocket(p,rad);
   if(foundry)clampToFoundry(p,rad);
+  if(fen)clampToLumenfen(p,rad);
   const clampAnnex=()=>{p.x=Math.max(a.x-a.hw+rad,Math.min(a.x+a.hw-rad,p.x));p.z=Math.max(a.z-a.hd+rad,Math.min(a.z+a.hd-rad,p.z));};
   if(annex)clampAnnex();
   for (let pass = 0; pass < 2; pass++) {
@@ -518,6 +541,7 @@ export function resolveCollisions(p, rad) {
   if(annex){clampAnnex();return p;}
   if(pocket){clampToPocket(p,rad);return p;}
   if(foundry){clampToFoundry(p,rad);return p;}
+  if(fen){clampToLumenfen(p,rad);return p;}
   const lim = WORLD.radius - 6;
   const r = Math.hypot(p.x, p.z);
   if (r > lim) {
@@ -579,6 +603,7 @@ export function zoneAt(x, z) {
   if(inRiftAnnex(x,z,2))return annexArea(x,z)?RIFT_ANNEX.name+' · '+annexArea(x,z):RIFT_ANNEX.name;
   if(inSilentFoundry(x,z,2))return foundryArea(x,z)?SILENT_FOUNDRY.name+' · '+foundryArea(x,z):SILENT_FOUNDRY.name;
   if(inSeverancePocket(x,z,2))return SEVERANCE_POCKET.name+' · '+pocketArea(x,z);
+  if(inLumenfen(x,z,2))return LUMENFEN.name+' · '+fenArea(x,z);
   for (const k of Object.keys(ZONES)) {
     const zn = ZONES[k];
     if (Math.hypot(x - zn.x, z - zn.z) < zn.r) return zn.name;

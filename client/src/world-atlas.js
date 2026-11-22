@@ -1,12 +1,12 @@
 // Cartography presentation: use only existing public geometry and delivered snapshots.
-import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
+import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,LUMENFEN,inLumenfen,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
 import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory,placeAtlasLabels} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
 import {WindowLayout} from './window-layout.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function regionFor(pos){
- const a=inRiftAnnex(pos.x,pos.z,2)?RIFT_ANNEX:inSeverancePocket(pos.x,pos.z,2)?SEVERANCE_POCKET:null;
+ const a=inRiftAnnex(pos.x,pos.z,2)?RIFT_ANNEX:inSeverancePocket(pos.x,pos.z,2)?SEVERANCE_POCKET:inLumenfen(pos.x,pos.z,2)?LUMENFEN:null;
  return a?{area:a,name:a.name||'Current region',x:a.x,z:a.z,hw:a.hw,hd:a.hd}:{area:null,name:WORLD.name,x:0,z:0,hw:WORLD.radius,hd:WORLD.radius};
 }
 export function project(r,w,h,zoom=1,pan={x:0,z:0}){

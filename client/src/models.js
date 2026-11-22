@@ -6,6 +6,8 @@ import * as THREE from '/vendor/three/three.module.js';
 import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
+import { makeLumenfenRift } from './lumenfen-rift.js';
+import { makeFenLantern,makeFenStalker } from './lumenfen-creatures.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { severanceLink } from './severance-gate.js';
@@ -887,6 +889,8 @@ export const MODEL_FACTORIES = {
   keeper: makeKeeper,
   mender: makeMender,
   skitter: makeSkitter,
+  fen_lantern:()=>makeFenLantern(THREE),
+  fen_stalker:()=>makeFenStalker(THREE),
   sinter_grazer: meta => makeSinterFauna(false,meta?.form),
   faultstalker: () => makeSinterFauna(true),
   survey_strider:()=>{const m=makeQuarantineCustodian(),kit=pivot(0,1.65,0),frame=std(0x344043,{metal:.5}),sensor=lit(0x8bcfc5);m.group.name='strider:fallback';kit.add(part(CYL,frame,.08,.48,.08,0,.19,-.15),part(SPH,sensor,.21,.1,.21,0,.45,-.15));m.group.add(kit);const dispose=m.dispose;m.dispose=()=>{dispose();frame.dispose();sensor.dispose();};m.height=2.1;m.radius=.9;return m;},
@@ -911,6 +915,10 @@ export const MODEL_FACTORIES = {
   // Existing mineral-bed scene geometry is the visible resource; only the interaction anchor is instanced here.
   sinter_recovery:()=>({group:new THREE.Group(),height:.65,radius:1.2,hover:0,update(){}}),
   phase_scar:()=>riftModel('phase_scar'),
+  lumenfen_entry:()=>makeLumenfenRift(THREE,'lumenfen_entry'),
+  lumenfen_return:()=>makeLumenfenRift(THREE,'lumenfen_return'),
+  lumenfen_spring:()=>makeLumenfenRift(THREE,'lumenfen_spring'),
+  lumenfen_crown:()=>makeLumenfenRift(THREE,'lumenfen_crown'),
   resonant_vein:()=>buildResonantVein(THREE),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
