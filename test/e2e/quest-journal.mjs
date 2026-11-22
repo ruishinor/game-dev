@@ -68,12 +68,12 @@ try{
  await page.locator('.workshop-window').waitFor({state:'visible'});
  const layoutPanel=page.locator('.workshop-window');
  const beforeLayout=await layoutPanel.boundingBox();
- const moveButton=layoutPanel.getByRole('button',{name:'Move',exact:true});
+ const moveButton=layoutPanel.getByRole('button',{name:'Move window',exact:true});
  const moveBox=await moveButton.boundingBox();
  await page.mouse.move(moveBox.x+moveBox.width/2,moveBox.y+moveBox.height/2);
  await page.mouse.down();await page.mouse.move(moveBox.x+moveBox.width/2+50,moveBox.y+moveBox.height/2+20,{steps:5});await page.mouse.up();
  assert.ok((await layoutPanel.boundingBox()).x>beforeLayout.x+10);
- const resizeButton=layoutPanel.getByRole('button',{name:'Resize',exact:true});
+ const resizeButton=layoutPanel.getByRole('button',{name:'Resize window',exact:true});
  const beforeResize=await layoutPanel.boundingBox();
  await resizeButton.focus();await page.keyboard.press('ArrowLeft');
  assert.ok((await layoutPanel.boundingBox()).width<beforeResize.width);

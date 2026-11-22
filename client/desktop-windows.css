@@ -17,3 +17,8 @@
 #hud .quest-journal:not([data-window-custom="true"]){max-height:calc(100vh - 32px)}
 #hud .loadout-list,#hud .quest-journal-nav,#hud .codex-nav{overscroll-behavior:contain}
 @container (max-width:560px){#hud .planner-selectors{grid-template-columns:1fr}}
+
+#hud .character-secondary{margin-top:8px;border-top:1px solid #315761;padding-top:5px}
+#hud .character-secondary summary{font-size:12px;line-height:1.5;color:#b6d8df;cursor:pointer;padding:4px 0}
+#hud .character-secondary summary:focus-visible{outline:2px solid #b8e9f4}
+#hud .character-discipline-grid{display:grid;gap:2px}

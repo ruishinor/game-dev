@@ -69,13 +69,27 @@ try {
   await page.locator('#view').focus();
   await page.keyboard.press('KeyI');
   await page.locator('.inventory-window').waitFor({ state: 'visible' });
-  const icons = await page.evaluate((ids) => ids.map((id) => {
-    const el = document.querySelector(`.inventory-window .item-art[data-art="${id}"] img.item-render`);
-    return { id, present: !!el, loaded: !!el && el.complete && el.naturalWidth > 0, src: el?.getAttribute('src') || null };
-  }), ARMOUR_VISUALS);
-  await page.waitForFunction((ids) => ids.every((id) => { const el = document.querySelector(`.inventory-window .item-art[data-art="${id}"] img.item-render`); return el && el.complete && el.naturalWidth > 0; }), ARMOUR_VISUALS, { timeout: 15000 });
-  await page.locator('.inventory-window').screenshot({ path: `${OUT}/inventory.png` });
-  report.icons = icons;
+  // Inventory is paginated; verify every icon, including later pages, not just page one.
+  const inventory=page.locator('.inventory-window');
+  const icons=[];
+  const nextPage=inventory.getByRole('button',{name:'Next items',exact:true});
+  const prevPage=inventory.getByRole('button',{name:'Previous items',exact:true});
+  async function firstInventoryPage(){
+    while(await prevPage.isVisible()&&await prevPage.isEnabled())await prevPage.click();
+  }
+  await firstInventoryPage();
+  for(let pageNo=0;pageNo<Math.ceil(ARMOUR_VISUALS.length/17)+3;pageNo++){
+    const visibleIds=await inventory.locator('.inventory-grid .item-art[data-art]').evaluateAll(els=>els.map(e=>e.dataset.art));
+    const ids=visibleIds.filter(id=>ARMOUR_VISUALS.includes(id));
+    await page.waitForFunction(ids=>ids.every(id=>{const el=document.querySelector(`.inventory-grid .item-art[data-art="${id}"] img.item-render`);return el&&el.complete&&el.naturalWidth>0;}),ids,{timeout:15000});
+    icons.push(...await page.evaluate(ids=>ids.map(id=>{const el=document.querySelector(`.inventory-grid .item-art[data-art="${id}"] img.item-render`);return {id,present:!!el,loaded:!!el&&el.complete&&el.naturalWidth>0,src:el?.getAttribute('src')||null};}),ids));
+    if(!(await nextPage.isVisible()&&await nextPage.isEnabled()))break;
+    await nextPage.click();
+  }
+  assert.deepEqual([...new Set(icons.map(x=>x.id))].sort(),[...ARMOUR_VISUALS].sort(),'all armour portraits remain reachable across inventory pages');
+  await firstInventoryPage();
+  await inventory.screenshot({ path: `${OUT}/inventory.png` });
+  report.icons=icons;
 
   // an observer in the same region
   const watcher = await join('Armour Watcher', 'keeper');
@@ -88,6 +102,8 @@ try {
   // equip with the inventory's own context action, validated by the server
   async function equip(id) {
     const cell = page.locator(`.inventory-window button.item-cell[aria-label="${ITEMS[id].name}"]`);
+    await firstInventoryPage();
+    while(!(await cell.count())&&await nextPage.isVisible()&&await nextPage.isEnabled())await nextPage.click();
     await cell.click({ button: 'right' });
     await page.getByRole('button', { name: /^(Equip|Swap in)$/ }).first().click();
     await page.waitForFunction(([it, slot]) => window.__attune.state().sheet.equipped[slot] === it, [id, ITEMS[id].slot], { timeout: 15000 });

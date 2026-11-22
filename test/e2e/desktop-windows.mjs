@@ -19,13 +19,14 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
  await page.click('#gate-guest-link');await page.fill('#name','Window Tester');await page.click('#enter');
- const player=await liveFixturePlayer(page,server,'Window Tester',60000);
+ const player=await liveFixturePlayer(page,server,'Window Tester',60000);const charId=player.char.id;
+ const sync=async()=>{const live=await liveFixturePlayer(page,server,'Window Tester',60000);assert.equal(live.char.id,charId);return live;};
  // Fixture only supplies ownership for a growing inventory, not a gameplay grant.
  player.char.inventory=[...new Set([...player.char.inventory,...Object.keys(ITEMS)])];
  server.game.markDirty(player);
  await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.length>17);
  const focus=()=>page.locator('#view').focus();
- const open=async(key,selector)=>{await focus();await page.keyboard.press(key);const p=page.locator(selector);await p.waitFor({state:'visible'});return p;};
+ const open=async(key,selector)=>{await sync();await focus();await page.keyboard.press(key);const p=page.locator(selector);await p.waitFor({state:'visible'});return p;};
  const fits=async(p,selectors)=>{
    const report=await p.evaluate((node,selectors)=>{
     const box=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
@@ -40,8 +41,8 @@ try{
    assert.ok(report.controls.every(c=>c.svg&&c.label&&c.title&&c.size.width>=28&&c.size.height>=28),'icon accessibility');
    assert.deepEqual(report.outside,[],'core controls must fit');
  };
- const shot=async(p,name)=>p.screenshot({path:'window-evidence/'+mode+'/'+name+'.png'});
- const close=async(p)=>{await p.locator('.close').first().click();await p.waitFor({state:'hidden'});};
+ const shot=async(p,name)=>{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));try{await p.screenshot({path:'window-evidence/'+mode+'/'+name+'.png'});}finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}};
+ const close=async(p)=>{const before=await page.evaluate(()=>window.__attune.state().myId);const live=await sync();if(await p.isHidden()){assert.notEqual(live.id,before,'window unexpectedly closed without reconnection');return;}await p.locator('.close').first().click();await p.waitFor({state:'hidden'});};
  const character=await open('KeyC','.panel.build');
  await fits(character,['.window-controls button','.doll-tabs button']);await shot(character,'character');
  const move=character.locator('[data-window-action="move"]'),size=character.locator('[data-window-action="resize"]'),lock=character.locator('[data-window-action="lock"]'),reset=character.locator('[data-window-action="reset"]');
