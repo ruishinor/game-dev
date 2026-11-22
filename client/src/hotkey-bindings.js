@@ -46,10 +46,22 @@ export class ActionBindings{
   try{
    const saved=JSON.parse(this.storage?.getItem('attunement.keybindings.v1')||'null');
    if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
-    const next={...this.map};
+    const next={...this.map},valid=[];
     for(const [key,val] of Object.entries(saved)){
      if(!Object.hasOwn(DEFAULT_BINDINGS,key)||!bindingPermitted(val))continue;
+     valid.push([key,val]);
      next[key]=val;
+    }
+    // Preserve old, explicitly customized bindings when new actions gain
+    // default hotkeys. An existing T remap wins over the newly introduced
+    // melee light default; melee starts unbound rather than resetting all
+    // persisted user preferences.
+    const savedKeys=new Set(valid.map(([key])=>key));
+    const explicit=valid.map(([,value])=>value).filter(Boolean);
+    if(new Set(explicit).size!==explicit.length)return; // reject forged/duplicated saved mappings
+    for(const key of Object.keys(MELEE_ACTIONS)){
+     if(savedKeys.has(key)||next[key]===null)continue;
+     if(Object.entries(next).some(([other,value])=>other!==key&&value===next[key]))next[key]=null;
     }
     const bound=Object.values(next).filter(Boolean);
     if(new Set(bound).size===bound.length)this.map=next;
