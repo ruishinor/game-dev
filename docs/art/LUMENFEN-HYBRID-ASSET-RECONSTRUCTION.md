@@ -2,6 +2,10 @@
 
 **Status:** feature world exists on PR #236; source donor audit and an **unapproved** composite kit are being built. The new archive is source material, not runtime art. Nothing in this document constitutes visual approval or a claim of finished art.
 
+## Owner authorization — no licensing/redistribution hold
+
+As clarified 2026-11-22, the owner authorizes the supplied 138-GLB source archive and its adapted Attunement derivatives in this public development repository, CI source-study artifacts and game asset pipeline. **Do not assert an unspecified “unlicensed archive-derived asset”, “redistribution clearance”, or raw donor-artifact publication blocker** on Lumenfen or other world/character/weapon projects. Keep the existing source-study GLB artifact upload. Document donor lineage and known attribution, and assess a concrete evidenced rights conflict if one exists. The separate *visual-quality requirement* still applies: raw low-poly study geometry is not a finished in-game Lumenfen ecosystem.
+
 ## Artistic and gameplay direction
 
 Use the *architecture and authority contracts* of Severance Expanse, not its art, terrain shapes, enemy kits, or portal look. Lumenfen is a lived-in tidal watershed where root-bound forests, masonry waterworks, field-repaired mechanisms, hand-built timber settlements, and rare resonance technology have accumulated over centuries. Keep that layered history visible. The result must not read as a uniform fantasy village, science-fiction base, post-apocalyptic camp, or medieval dungeon. No generic low-poly domes or floating spheres as substitutes for real geometry.
