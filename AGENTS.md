@@ -27,6 +27,12 @@ The owner supplied `assets/source-archives/glb-low-poly-models-building-blocks.z
 
 Retain actual third-party attribution and documented provenance. Investigate a **specific, evidenced** conflicting licence or rights restriction if one emerges; do not treat the mere absence of a separately verified licence statement as evidence of a conflict. Normal independent gates still apply: substantive model/rig/material improvements, correct authoring and runtime pipeline, security/disclosure, current-head tests, merge safety, and actual visual acceptance where required. The existing #189 disclosure exception remains exactly scoped.
 
+## Asset origin and implementation neutrality — owner decision 2026-11-22
+
+Do not impose a CI, review, roadmap, merge or publication hold solely because an asset was made procedurally, authored by hand, generated, sourced from the owner-provided archive, composed from multiple donors, or delivered in a particular model format. **Neither GLB origin nor procedural origin is inherently an acceptance or rejection criterion.** Do not use origin-based allowlists, exclusion lists or proxy quality tests as substitutes for evaluating the resulting asset.
+
+Validate observable correctness and suitability instead: actual loading and rendering, geometry/material/animation integrity, collisions, gameplay integration, visual quality against the brief, performance and lifecycle handling. Validate the declared integration contract for assets that actually require a specific format or pipeline without extending that contract to unrelated objects. Provenance may be recorded but is not by itself a reason to block work; investigate only specific evidenced rights conflicts, and preserve independently justified security/disclosure and functional regression checks.
+
 ## Recurring review gate
 
 For each relevant change, record in the PR or handoff: (1) authority and trust boundary; (2) data exposed to client/public repo and why; (3) ownership/authorization and abuse cases; (4) targeted verification and remaining limitations. Test unauthorized/forged actions, replay, invalid state and direct retrieval of server-only content where relevant; confirm existing valid UI/gameplay still works. Block promotion for confirmed material authority, disclosure, security or persistence regressions. Do not mark a check PASS without evidence; documentation-only edits need only targeted document verification. Revisit the boundary at architecture changes, integration and before public releases. Escalate conflicts with these rules to the owner.
