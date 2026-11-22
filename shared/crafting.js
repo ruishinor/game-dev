@@ -23,6 +23,8 @@ export const MATERIALS={
 };
 export const RECIPES={
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  relay_carbine:{name:'Assemble Relay Carbine',discipline:'Engineering',kind:'assembly',inputs:{pulse_housing:1,pulse_cell:1,sentinel_alloy:3,mire_fibre:2},output:{item:'relay_carbine'}},
+  bastion_rifle:{name:'Assemble Bastion Rifle',discipline:'Engineering',kind:'assembly',site:'brine_engineering',attune:'resonance',requires:{kinetics:11},inputs:{pulse_housing:1,kinetic_coupler:2,sentinel_alloy:5,resonance_fragment:1},output:{item:'bastion_rifle'}},
   // Optional modular route to the existing QL5 weapon; the classic upgrade path and Longpoint are unchanged.
   extract_vector_matrix:{name:'Recover sentinel vector matrix',discipline:'Engineering',kind:'assembly',inputs:{sentinel_alloy:1},targets:['field_vector_array'],output:{material:'vector_matrix',count:1}},
   prepare_pulse_cell:{name:'Prepare dormant pulse cell',discipline:'Engineering',inputs:{mire_fibre:2},output:{material:'pulse_cell',count:1}},

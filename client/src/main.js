@@ -16,7 +16,7 @@ import {captureStaticAtlas} from './atlas-static-capture.js';
 import { Assets, disposeInstance, shared } from './assets.js';
 import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
-import { LONGPOINT_TRACE } from './longpoint.js';
+import { rifleTrace } from './rifle-families.js';
 import {loadWeaponModels} from './weapon-visuals.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
@@ -1177,8 +1177,9 @@ function onEvent(e) {
         if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
         if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
-          if(e.wv==='longpoint'&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
-            legacyFx.beam(()=>muzzle,chestOf(d),LONGPOINT_TRACE.color,LONGPOINT_TRACE.life*1000,LONGPOINT_TRACE.width);
+          const trace=e.ab==='auto'?rifleTrace(e.wv):null;
+          if(trace&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
+            legacyFx.beam(()=>muzzle,chestOf(d),trace.color,trace.life*1000,trace.width);
           }else legacyFx.bolt(() => muzzle || s.chest, chestOf(d), sourceColour(s), 200, s.meta.k==='e'?'hostile':s.meta.c);
         }
         if (rich() && d?.placed && s.placed) cvfx.abilityHit(e.ab, s, d);

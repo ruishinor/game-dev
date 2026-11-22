@@ -62,7 +62,7 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     const aim=mid.clone().add(new T.Vector3(-.065,-.18,.065));
     const gripLocal=inBody(grip);
     const neutral=aim.sub(gripLocal);
-    const kick=recoilAmount(shotAge,false);
+    const kick=recoilAmount(shotAge,prop.userData.rifleFamily==='bastion-rifle');
     if(Number.isFinite(dt)&&dt>0)shotAge+=Math.min(dt,.1);
     const tryFit=(offset,clearance)=>{
       prop.position.copy(neutral)
@@ -84,5 +84,5 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     if(!fitted)return false;
     active=true;prop.visible=true;return true;
   }
-  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
+  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.rifleShotCount=(prop.userData.rifleShotCount??0)+1;if(!prop.userData.rifleFamily)prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
 }

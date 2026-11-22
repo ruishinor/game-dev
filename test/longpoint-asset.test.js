@@ -10,6 +10,7 @@ import {Group,Vector3} from 'three';
 import {poseLongpoint,createLongpointPresentation} from '../client/src/longpoint.js';
 import * as THREE from 'three';
 import {ITEMS} from '../shared/content.js';
+import {createRifleFamily} from '../client/src/rifle-families.js';
 
 const bytes=readFileSync(new URL('../client/assets/longpoint.glb',import.meta.url));
 const meta=JSON.parse(readFileSync(new URL('../client/assets/manifest.json',import.meta.url),'utf8')).assets.longpoint;
@@ -67,5 +68,21 @@ test('Longpoint fitting remains reachable across sampled shipped locomotion pose
   for(let i=0;i<16;i++){p.restore();mixer.setTime(clip.duration*i/16);rig.updateMatrixWorld(true);if(p.update({}))fits++;}
   p.dispose();mixer.stopAllAction();mixer.uncacheRoot(rig);
   assert.equal(fits,16,`${frame}/${name}: ${fits}/16 poses fitted`);
+ }
+});
+
+test('both new rifle families fit actual masculine and feminine rigs, with separate geometry and muzzle anchors',()=>{
+ for(const family of ['relay-carbine','bastion-rifle'])for(const frame of ['m','f']){
+  const rig=sceneFromGLB('../client/assets/humanoid_'+frame+'.glb'),prop=createRifleFamily(THREE,family);
+  assert.ok(prop.getObjectByName(family==='relay-carbine'?'CompactShroud':'HeavyShroud'));
+  let meshes=0;prop.traverse(o=>{if(o.isMesh)meshes++});assert.ok(meshes>=20);
+  const p=createLongpointPresentation(THREE,rig,prop);assert.ok(p);
+  assert.equal(p.update({}),true,frame+' '+family);
+  for(const [hand,anchor] of [['hand_r','GripAnchor'],['hand_l','SupportAnchor']]){
+   assert.ok(rig.getObjectByName(hand).getWorldPosition(new Vector3()).distanceTo(prop.getObjectByName(anchor).getWorldPosition(new Vector3()))<.004);
+  }
+  assert.equal(p.fire(),true);assert.equal(prop.userData.rifleShotCount,1);assert.equal(p.update({},.016),true);
+  assert.ok(p.origin().distanceTo(prop.getObjectByName('EffectAnchor').getWorldPosition(new Vector3()))<1e-8);
+  p.dispose();const geometries=new Set(),materials=new Set();prop.traverse(o=>{if(o.isMesh){geometries.add(o.geometry);materials.add(o.material);}});for(const g of geometries)g.dispose();for(const m of materials)m.dispose();
  }
 });

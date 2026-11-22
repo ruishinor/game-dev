@@ -12,7 +12,7 @@
 //   hostile      red/orange; hazard sigils, scorch, dust, debris
 import { CELL } from './textures.js';
 import { hot, shieldEnvelope } from './engine.js';
-import { LONGPOINT_TRACE } from '../longpoint.js';
+import { rifleTrace } from '../rifle-families.js';
 import { finiteVector, projectileStyle } from '../projectile-presentation.js';
 
 export const PALETTE = {
@@ -123,11 +123,12 @@ export class CombatVfx {
   hit(d, s, e) {
     // Confirmed Longpoint hits use the real fitted muzzle and a narrow trace.
     // Other ranged families use directional trails; preserve this fitted trace.
-    const muzzle=e.ab==='auto'&&e.k==='bolt'&&e.wv==='longpoint'&&s?.placed&&s!==d?s.model?.weaponEffectOrigin?.():null;
+    const trace=e.ab==='auto'&&e.k==='bolt'?rifleTrace(e.wv):null;
+    const muzzle=trace&&s?.placed&&s!==d?s.model?.weaponEffectOrigin?.():null;
     if(muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
       const from=muzzle.clone(),to=d.chest.clone();
-      this.v.beam({from,to,...LONGPOINT_TRACE,grow:.08,taper:1});
-      this.v.burst({at:from,count:3,cell:CELL.streak,color:LONGPOINT_TRACE.color,size:[.045,.095],life:[.07,.13],speed:[.4,1.2],dir:to.clone().sub(from).normalize()});
+      this.v.beam({from,to,...trace,grow:.08,taper:1});
+      this.v.burst({at:from,count:3,cell:CELL.streak,color:trace.color,size:[.045,.095],life:[.07,.13],speed:[.4,1.2],dir:to.clone().sub(from).normalize()});
       this.impact(d,s,e);return;
     }
     // Projectiles land when they arrive; everything else lands now.
