@@ -21,6 +21,7 @@ import { startServer } from '../server/index.js';
 import { ZONES, SEVERANCE_EXPANSE as EX, SILENT_FOUNDRY as SF } from '../shared/world.js';
 import { gateToWorld } from '../shared/severance-gate.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL, activeBrowserPlayer } from './browser.mjs';
+import { withDeadline } from './profile-deadline.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tiers = (process.argv[2] || '2,1,0').split(',').map(Number);
@@ -31,18 +32,7 @@ const STEP_MS = Number(process.env.ATTUNEMENT_PROFILE_STEP_TIMEOUT_MS) || 45000;
 const FRAME_COUNT = Number(process.env.ATTUNEMENT_PROFILE_FRAMES) || (SOFTWARE_GL ? 6 : 90);
 // Synchronized readPixels is opt-in on real GPUs because it can amplify stalls.
 const SYNC_BENCH = (process.env.ATTUNEMENT_PROFILE_SYNC ?? (SOFTWARE_GL ? '1' : '0')) === '1';
-async function bounded(label, operation, ms = STEP_MS) {
-  console.log('[profile] ' + label + ': start');
-  let timer;
-  try {
-    const result = await Promise.race([
-      Promise.resolve().then(operation),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Profile deadline exceeded: ' + label + ' (' + ms + 'ms)')), ms); }),
-    ]);
-    console.log('[profile] ' + label + ': complete');
-    return result;
-  } finally { clearTimeout(timer); }
-}
+const bounded = (label, operation, ms = STEP_MS) => withDeadline(label, operation, ms);
 const sf = ZONES.sporefield;
 
 const SCENES = [
@@ -60,7 +50,15 @@ const only = (process.env.ATTUNEMENT_SCENES || '').split(',').filter(Boolean);
 const scenes = only.length ? SCENES.filter((s) => only.some((o) => s.name.startsWith(o))) : SCENES;
 
 const srv = await startServer({ port: 0, dataFile: null });
-const browser = await bounded('launch browser', () => launchBrowser());
+let browser;
+try {
+  browser = await bounded('launch browser', () => launchBrowser());
+} catch (error) {
+  console.error('[profile] browser launch failed; closing in-memory game server:', String(error));
+  try { await bounded('close server after failed launch', () => srv.close(), 5000); }
+  catch (cleanupError) { console.error('[profile] server cleanup failed:', String(cleanupError)); }
+  throw error;
+}
 const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [] };
 let failed = false;
 let timedOut = false;
@@ -89,7 +87,13 @@ try {
     await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
     await bounded(`q${tier}: loading`, () => page.waitForSelector('#enter:not([disabled])'));
     const loadMs = Date.now() - t0;
-    if (!report.graphics) report.graphics = await describeGraphics(page);
+    if (!report.graphics) {
+      report.graphics = await bounded(`q${tier}: inspect renderer`, () => describeGraphics(page));
+      const label = `${report.graphics?.vendor || ''} ${report.graphics?.renderer || ''}`;
+      if (!SOFTWARE_GL && (!label.trim() || /swiftshader|llvmpipe|software rasterizer|microsoft basic render/i.test(label))) {
+        throw new Error('Hardware GPU not confirmed; browser reported: ' + (label || 'unavailable'));
+      }
+    }
     const name = `Prof${'abc'[tier]}x`;
     await page.click('#gate-guest-link');
     await page.fill('#name', name);
@@ -103,11 +107,11 @@ try {
       player.x = scene.x;
       player.z = scene.z;
       player.hp = player.maxHp;
-      await page.waitForFunction(([x, z]) => {
+      await bounded(`q${tier}/${scene.name}: position`, () => page.waitForFunction(([x, z]) => {
         const s = window.__attune.state();
         return s.pos && Math.hypot(s.pos.x - x, s.pos.z - z) < 1.5;
-      }, [scene.x, scene.z]);
-      await page.evaluate((v) => window.__attune.view(v), { ...scene.view, yaw: scene.face, face: scene.face });
+      }, [scene.x, scene.z]));
+      await bounded(`q${tier}/${scene.name}: camera`, () => page.evaluate((v) => window.__attune.view(v), { ...scene.view, yaw: scene.face, face: scene.face }));
       await sleep(scene.transfer ? (SOFTWARE_GL ? 6000 : 4000) : SOFTWARE_GL ? 500 : 1500);
       const m = await bounded(`q${tier}/${scene.name}: frame sample`, () => page.evaluate(async ({ software, frameCount, syncBench }) => {
         const A = window.__attune;
@@ -168,7 +172,7 @@ try {
       failed = true;
       console.log(`script errors at q${tier}: ${errors.slice(0, 3).join(' | ')}`);
     }
-    await ctx.close();
+    await bounded(`q${tier}: close context`, () => ctx.close(), 5000);
   }
 } catch (err) {
   failed = true;
