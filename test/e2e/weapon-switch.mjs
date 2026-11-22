@@ -29,6 +29,27 @@ try{
  // continue) so a slow frame cannot stall the connection; resume only to capture.
  const paused=on=>SOFTWARE_GL?page.evaluate(on=>window.__attune.pause(on),on):null;
  const shot=async name=>{await paused(false);const n=await page.evaluate(()=>window.__attune.state().drawn);await until(n=>window.__attune.state().drawn>n,n);await page.screenshot({path:`${OUT}/${name}.png`});await paused(true);};
+ // In SwiftShader the evidence frame may take minutes while the independent
+ // authoritative simulation keeps ticking. Freeze *only fixture combat* while
+ // drawing an already-validated contact, then restore timing in finally.
+ // Without this, screenshot time (not a gameplay failure) can kill the player
+ // or the fixture enemy before the next real combat assertion.
+ const combatShot=async name=>{
+  if(!SOFTWARE_GL)return shot(name);
+  const actor=await liveFixturePlayer(page,server,'Switch Tester');
+  const wasHeld=!!server.game.aiHold,oldNext=actor.nextAuto;
+  const combatRemaining=Math.max(0,(actor.combatUntil||0)-server.game.time);
+  server.game.aiHold=true;
+  actor.nextAuto=server.game.time+15*60*1000;
+  try{await shot(name);}
+  finally{
+   actor.nextAuto=oldNext;
+   // The screenshot is observational, not gameplay time: keep the remaining
+   // authoritative fixture combat linger unchanged despite slow SwiftShader.
+   if(combatRemaining>0)actor.combatUntil=Math.max(actor.combatUntil||0,server.game.time+combatRemaining);
+   server.game.aiHold=wasHeld;
+  }
+ };
  const bar=page.locator('.weaponbar'),switchBtn=bar.locator('[data-action="weapon:switch"]'),configBtn=bar.locator('[data-action="weapon:config"]');
  const view=page.locator('#view');
 
@@ -181,7 +202,7 @@ try{
  assert.ok(shotEvent.hitDistance>CLASSES.vanguard.auto.range+2,
   'ranged hit must occur beyond melee reach; observed '+shotEvent.hitDistance.toFixed(2)+' m');
  server.game.aiHold=false; // Resume enemy AI for subsequent combat.
- await shot('06-ranged-fire');
+ await combatShot('06-ranged-fire');
 
  // 8. Switch in combat; the next swing is delayed, not advanced (recovery timing is covered by Node tests).
  assert.ok(server.game.time<p.combatUntil,'in combat');
@@ -199,7 +220,7 @@ try{
  const t1=Date.now();while(!events.slice(meleeFrom).some(e=>e.ab==='auto'&&e.k==='melee')&&Date.now()-t1<20000)await new Promise(r=>setTimeout(r,100));
  assert.ok(events.slice(meleeFrom).some(e=>e.ab==='auto'&&e.k==='melee'),'rod melee auto-attack');
  await until(()=>(window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod')?.userData.rodContactCount??0)>0);
- await shot('07-dual-contact');
+ await combatShot('07-dual-contact');
 
  // 9. Finish the fight, rejoin out of combat, then joined contact (most intense).
  await finish(enemy);
@@ -218,8 +239,8 @@ try{
  const contacts=await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod')?.userData.rodContactCount??0);
  await page.keyboard.press('Digit1');
  await until(n=>(window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod')?.userData.rodContactCount??0)>n,contacts);
- await shot('08-joined-contact');
- await page.waitForTimeout(500);await shot('09-joined-residual');
+ await combatShot('08-joined-contact');
+ await page.waitForTimeout(500);await combatShot('09-joined-residual');
 
  // 10. Switch to ranged and back (in combat) keeps the rod configuration.
  await page.keyboard.press('KeyZ');await until(()=>window.__attune.state().sheet.activeWeapon==='ranged');

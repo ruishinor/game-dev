@@ -1528,7 +1528,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length],
     lighting: { sky: skyGroup, ambient, sun, dir } });
   const foundry = buildSilentFoundry(THREE, scene, { lighting: { sky: skyGroup, ambient, sun }, loader: kits ? assets.loader : null });
-  const lumenfen = buildLumenfenWorld(THREE, scene, { sky: skyGroup, ambient, sun, detail });
+  const lumenfen = buildLumenfenWorld(THREE, scene, { sky: skyGroup, ambient, sun, detail, reducedMotion: opts.reducedMotion });
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
