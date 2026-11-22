@@ -3,6 +3,7 @@
 
 import * as THREE from '/vendor/three/three.module.js';
 import { groundHeight } from '../../shared/world.js';
+import { buildTerrainTelegraphGeometry } from './terrain-telegraph.js';
 import { createArtEffect } from './artfx/common.js';
 import { faunaImpactSampler } from './artfx/fauna.js';
 import { finiteVector, makeTracerGeometry, poseTracer, projectileStyle } from './projectile-presentation.js';
@@ -149,24 +150,28 @@ export class Fx {
     }
   }
 
-  /** A warning area that fills over `ms`, then vanishes. */
+  /** An authoritative hostile warning with an always-visible marked area.
+   * Deformed ground geometry is never scaled after creation: doing so would
+   * desynchronize the samples from the actual terrain on sloped landscapes.
+   */
   telegraph(x, z, radius, ms) {
-    const y = groundHeight(x, z) + 0.12;
+    const ground=buildTerrainTelegraphGeometry(THREE,x,z,radius,groundHeight);
     const g = new THREE.Group();
-    const edge = new THREE.Mesh(RING, new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }));
-    const area = new THREE.Mesh(DISC, new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
-    const fill = new THREE.Mesh(DISC, new THREE.MeshBasicMaterial({ color: 0xff6a3a, transparent: true, opacity: 0.34, depthWrite: false, side: THREE.DoubleSide }));
-    for (const m of [edge, area, fill]) {
-      m.rotation.x = -Math.PI / 2;
-      g.add(m);
-    }
-    edge.scale.setScalar(radius);
-    area.scale.setScalar(radius * 0.86);
-    fill.position.y = 0.02;
-    g.position.set(x, y, z);
+    g.name='combat:terrain-telegraph';
+    g.userData.telegraphOwnedGeometries=[ground.edge,ground.disc];
+    const material=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,
+      opacity,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
+    const edge=new THREE.Mesh(ground.edge,material(0xffab65,.95));
+    edge.name='combat:telegraph-boundary';
+    const area=new THREE.Mesh(ground.disc,material(0xff552c,.21));
+    area.name='combat:telegraph-marked-ground';
+    const fill=new THREE.Mesh(ground.disc,material(0xffc069,.22));
+    fill.name='combat:telegraph-fill';
+    fill.position.y=.016;
+    g.add(edge,area,fill);g.position.set(x,ground.base,z);
     this.add(g, ms / 1000, (k) => {
-      fill.scale.setScalar(Math.max(0.01, radius * 0.86 * k));
-      edge.material.opacity = 0.6 + Math.sin(k * 40) * 0.35;
+      fill.material.opacity=.12+.32*k;
+      edge.material.opacity=.80+.16*Math.sin(k*18);
     });
   }
 
@@ -186,6 +191,7 @@ export class Fx {
         it.obj.traverse((o) => {
           if (o.material) o.material.dispose();
         });
+        for(const geo of it.obj.userData.telegraphOwnedGeometries || [])geo.dispose();
         this.items.splice(i, 1);
       }
     }
