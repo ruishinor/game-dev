@@ -21,6 +21,7 @@ import { appearanceString } from '../shared/appearance.js';
 import { sanitizeGoods } from '../shared/goods.js';
 import { sanitizeCredits } from './sim/wallet.js';
 import { sanitizeCondition } from '../shared/condition.js';
+import { migrateWeaponSlots, sanitizeActiveWeapon, electricalRodActive } from '../shared/weapons.js';
 import {sanitizeTraceState} from './sim/field-quests.js';
 import {sanitizeFieldReceipts} from './sim/field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../shared/directive-receipts.js';
@@ -126,11 +127,15 @@ function sanitize(raw) {
   if (raw.pos && Number.isFinite(raw.pos.x) && Number.isFinite(raw.pos.z)) c.pos = { x: raw.pos.x, z: raw.pos.z };
   if (raw.equipped && typeof raw.equipped === 'object') {
     const eq = { device: raw.equipped.device || null, implant: raw.equipped.implant || null, glyph: raw.equipped.glyph || null };
-    for(const slot of SLOTS.filter(slot => !['device','implant','glyph'].includes(slot)))if(raw.equipped[slot])eq[slot]=raw.equipped[slot];
+    // Legacy single weapon slot: pulse emitters move to the ranged slot.
+    const rawEquipped = migrateWeaponSlots(raw.equipped);
+    for(const slot of SLOTS.filter(slot => !['device','implant','glyph'].includes(slot)))if(rawEquipped[slot])eq[slot]=rawEquipped[slot];
     c.equipped = resolveLoadout(c, eq).equipped;
     for(const slot of SLOTS.filter(slot => !['device','implant','glyph'].includes(slot)))if(!c.equipped[slot])delete c.equipped[slot];
   }
-  if(c.cls==='vanguard'&&c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
+  if(c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
+  const activeWeapon=sanitizeActiveWeapon(raw.activeWeapon);
+  if(activeWeapon)c.activeWeapon=activeWeapon;
   return c;
 }
 
@@ -268,8 +273,8 @@ export class CharacterStore {
         // Match the world entity's cosmetic override precedence.
         av:publicSocialVisual(c)?null:publicArmourVisual(c),
         sv:publicSocialVisual(c),
-        er:c.cls==='vanguard'&&c.equipped?.weapon==='electrical_combat_rod'
-          &&c.inventory.includes('electrical_combat_rod')?(c.electricalRodMode==='dual'?2:1):null,
+        er:c.equipped?.weapon==='electrical_combat_rod'
+          &&c.inventory.includes('electrical_combat_rod')?(!electricalRodActive(c)?3:c.electricalRodMode==='dual'?2:1):null,
         location:!c.initiationSeen?'Character Initiation':!c.pos||inDisconnectedRegion(c.pos.x,c.pos.z,4)
           ?zoneAt(WORLD.spawn.x,WORLD.spawn.z):zoneAt(c.pos.x,c.pos.z),
       }))

@@ -19,7 +19,7 @@ export const GROUPS = ['Locations', 'Items & Gear', 'Weapons', 'Creatures', 'Fac
 export const ENTRIES = [
   {id:'field_recovery',group:'Fabrication',name:'Field Recovery',type:'Field discipline',desc:'Collect loose mineral shedding without harming Sinter wildlife. Travel safely, wait for replenishment, and recondition maintenance cassettes at the Workshop.',facts:['Available to every profession','Rank 2 after three successful recoveries','No combat XP or wildlife loot required']},
   ...Object.entries(ZONES).map(([id, zone]) => ({ id, group: 'Locations', name: zone.name, type: 'Location', desc: locations[id], facts: ['Region: ' + WORLD.name], zone: id })),
-  ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: item.slot==='weapon'?'Weapons':'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
+  ...Object.entries(ITEMS).map(([id, item]) => ({ id, group: item.slot==='weapon'||item.slot==='ranged'?'Weapons':'Items & Gear', name: item.name, type: SLOT_NAMES[item.slot], desc: item.desc, item: id, facts: [
     ...(item.ql?['Quality level: '+item.ql,'Repairable: condition scales the weapon bonus']:[]),
     ...(item.rarity?[item.rarity]:[]),
     ...(item.cls ? ['Class: ' + CLASSES[item.cls].name] : []),

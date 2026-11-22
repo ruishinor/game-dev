@@ -147,10 +147,19 @@ try{
  const foundryExit=server.game.objects.find(o=>o.type==='foundry_return');
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  try{
+  const live=await liveFixturePlayer(page,server,'Rift Tester',60000);
+  assert.equal(live.char.id,p.char.id,'Foundry return retains the authenticated character');
+  p=live;
   for(const e of server.game.enemies)if(e.foundryEncounter)e.threat.clear();
   p.combatUntil=0;
   p.x=foundryExit.x;p.z=foundryExit.z-3.6;
-  await page.waitForFunction(id=>{const s=window.__attune.state();return s.you&&!s.you.auto&&s.ents.some(e=>e.id===id)&&Math.hypot(s.you.x-s.ents.find(e=>e.id===id).row.x,s.you.z-s.ents.find(e=>e.id===id).row.z)<5;},foundryExit.id,{timeout:20000,polling:100});
+  try{
+   await page.waitForFunction(id=>{const s=window.__attune.state(),exit=s.ents.find(e=>e.id===id);return s.you&&!s.you.auto&&exit&&Math.hypot(s.you.x-exit.row.x,s.you.z-exit.row.z)<5;},foundryExit.id,{timeout:20000,polling:100});
+  }catch(error){
+   const client=await page.evaluate(id=>{const s=window.__attune.state();return {id:s.myId,you:s.you&&{x:s.you.x,z:s.you.z,auto:s.you.auto,region:s.you.region},portal:s.ents.find(e=>e.id===id)?.row??null};},foundryExit.id);
+   console.error('[foundry return precondition]',{client,fixture:{id:p.id,live:server.game.players.get(p.id)===p,x:p.x,z:p.z,auto:p.autoOn},exit:{x:foundryExit.x,z:foundryExit.z}});
+   throw error;
+  }
   await page.locator('#view').focus();await page.keyboard.press('KeyF');
   await page.waitForFunction(()=>window.__attune.state().you?.region==='severance_expanse',null,{polling:250});
  }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}

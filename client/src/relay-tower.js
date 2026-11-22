@@ -38,6 +38,22 @@ export function buildRelayTower(T,p){
  box(hardware,.58,.63,.07,1.18,.88,.37);
  for(let i=0;i<4;i++)box(frame,.42,.035,.045,1.18,.69+i*.10,.42);
  cyl(hardware,.18,.21,.12,.24,13.61,-.16,12);
+ // The service cabinet has a physical fault path rather than a floating
+ // decorative discharge: insulated contacts, a cable, weather shield and
+ // grounded conductor all fit within the existing tower collider.
+ box(casing,.79,.075,.57,1.18,1.27,.10);
+ for(const x of [1.00,1.40]){
+   cyl(base,.075,.09,.10,x,1.20,.37,12);
+   cyl(hardware,.035,.035,.035,x,1.27,.37,12);
+ }
+ beam(hardware,[1.48,1.17,.33],[1.42,1.30,.38],.03);
+ beam(hardware,[1.42,1.30,.38],[1.24,1.48,.39],.03);
+ beam(hardware,[1.24,1.48,.39],[.96,1.59,.55],.04);
+ beam(frame,[.96,1.59,.55],[.62,1.72,.62],.05);
+ for(const y of [.60,.94,1.16]) {
+   box(hardware,.06,.04,.10,1.48,y,.26);
+   box(base,.028,.05,.06,1.51,y,.26);
+ }
  for(const [m,src] of sets){const geo=mergeGeometries(T,src);for(const p of src)p.dispose();const mesh=new T.Mesh(geo,m);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh)}
  const lamp=new T.Mesh(new T.SphereGeometry(.12,12,8),new T.MeshBasicMaterial({color:0xff5a4a}));lamp.position.set(.24,13.77,-.16);lamp.name='relay:marker-lamp';g.add(lamp);
  let disposed=false;

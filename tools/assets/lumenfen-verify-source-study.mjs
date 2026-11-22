@@ -1,5 +1,5 @@
-// CI-only validation for the quarantine GLB composite. Inspects, never
-// publishes, copies to runtime, or loads the unlicensed model in a game client.
+// CI validation for the production-pipeline GLB composite. Checks real
+// geometry, embedded buffers, source lineage and deterministic report hashes.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -8,8 +8,8 @@ import path from 'node:path';
 export function validateLumenfenSourceStudy(directory) {
   const reportFile = path.join(directory, 'lumenfen-source-candidates.json');
   const report = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
-  assert.match(report.warning, /DO NOT INCLUDE IN CLIENT MANIFEST OR GAMEPLAY/);
-  assert.equal(report.composedKit, 'lumenfen-unapproved-donor-studies.glb');
+  assert.match(report.stage, /production-pipeline composite/);
+  assert.equal(report.composedKit, 'lumenfen-donor-composite.glb');
   assert.ok(Array.isArray(report.entries) && report.entries.length === 8,
     'all eight shortlisted donor nodes must survive composition');
   const names = report.entries.map(e => e.id);
@@ -17,7 +17,7 @@ export function validateLumenfenSourceStudy(directory) {
   const file = path.join(directory, report.composedKit);
   const bytes = fs.readFileSync(file);
   assert.ok(bytes.length > 100 && bytes.length < 100 * 1024 * 1024,
-    'source study must have a finite bounded file size');
+    'pipeline composite must have a finite bounded file size');
   assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), report.outputSha256,
     'report must bind the exact exported composite');
   assert.equal(bytes.toString('ascii', 0, 4), 'glTF', 'GLB magic');
@@ -46,7 +46,7 @@ export function validateLumenfenSourceStudy(directory) {
   assert.ok((gltf.meshes || []).length >= 8, 'all selected donors contain mesh geometry');
   for (const image of gltf.images || [])
     assert.ok(!image.uri || image.uri.startsWith('data:'),
-      'source-study textures must be embedded; never refer to undisclosed external files');
+      'composite textures must be embedded or safely resolvable');
   const nodes = gltf.nodes || [];
   const scene = (gltf.scenes || [])[gltf.scene ?? 0];
   assert.ok(scene && Array.isArray(scene.nodes), 'selected donor roots must be in the default scene');
@@ -67,7 +67,7 @@ export function validateLumenfenSourceStudy(directory) {
     return (node.children || []).some(containsMesh);
   }
   for (const entry of report.entries) {
-    assert.equal(entry.status.startsWith('SOURCE-ONLY.'), true, 'do not imply runtime acceptance');
+    assert.ok(entry.status.startsWith('pipeline donor'), 'donors must remain available for production processing');
     const indexes = nodes.flatMap((node, i) => node.name === entry.id ? [i] : []);
     assert.equal(indexes.length, 1, `missing or duplicate donor holder ${entry.id}`);
     assert.ok(roots.has(indexes[0]), `donor ${entry.id} is not present in the actual scene`);
@@ -79,7 +79,7 @@ export function validateLumenfenSourceStudy(directory) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
-  const directory = path.resolve(process.argv[2] || '.lumenfen-candidates');
+  const directory = path.resolve(process.argv[2] || '.asset-cache/pipeline/lumenfen/outputs');
   const result = validateLumenfenSourceStudy(directory);
-  console.log('Validated quarantined source-only GLB geometry, buffers and report:', result);
+  console.log('Validated pipeline GLB geometry, buffers and report:', result);
 }

@@ -19,7 +19,9 @@ test('invalid, stale or absent state fails closed',()=>{
 test('starter fabrication guidance avoids recommending a duplicate weapon',()=>{
  assert.equal(starterFabrication({inventory:['servo_harness'],equipped:{}}),'field_emitter');
  assert.equal(starterFabrication({inventory:['tuned_emitter'],equipped:{}}),'field_maintenance_kit');
- assert.equal(starterFabrication({inventory:[],equipped:{weapon:'field_emitter'}}),'field_maintenance_kit');
+ assert.equal(starterFabrication({inventory:[],equipped:{ranged:'field_emitter'}}),'field_maintenance_kit');
+ // A main-slot rod does not fill the ranged slot, so the emitter lesson still applies.
+ assert.equal(starterFabrication({inventory:['electrical_combat_rod'],equipped:{weapon:'electrical_combat_rod'}}),'field_emitter');
  assert.equal(starterFabrication({inventory:['constructor'],equipped:{}}),'field_emitter');
  assert.equal(starterFabrication(null),'field_emitter');
 });

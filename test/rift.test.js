@@ -97,3 +97,39 @@ test('profile core keeps the throat visible edge-on and follows the effects qual
  m.update(.05,{riftPhase:'unstable',effectsQuality:0});assert.equal(core.visible,false);
  m.update(.05,{riftPhase:'unstable',effectsQuality:2});assert.equal(core.visible,true);
 });
+
+test('rift ground-contact field stays terrain-conforming, noncircular and quality bounded',()=> {
+  const reach=buildRift(THREE,RIFT_SITE,groundHeight);
+  const returning=buildRift(THREE,null,null,{returning:true});
+  try {
+    for(const model of [reach,returning]){
+      const halo=model.group.getObjectByName('rift:footprint-halo');
+      const threads=model.group.getObjectByName('rift:ground-threads');
+      const membrane=model.group.getObjectByName('rift:interference-membrane');
+      assert.ok(halo&&threads&&membrane);
+      assert.ok(threads.material.fragmentShader.includes('pathA') && threads.material.fragmentShader.includes('pathB'),
+        'ground arcs follow paired inward threads rather than an extended orange warning circle');
+      assert.ok(!halo.material.fragmentShader.includes('smoothstep(1.0, 0.8'),
+        'GLSL smoothstep edges must be ordered');
+      assert.equal(halo.geometry.attributes.position.count,threads.geometry.attributes.position.count);
+      for(const n of threads.geometry.attributes.position.array)assert.ok(Number.isFinite(n));
+      assert.equal(model.group.children.filter(o=>o.isLight).length,1,'existing bounded light count');
+      model.update(.05,{riftPhase:'unstable',effectsQuality:0,cameraDistance:4,reducedMotion:false});
+      assert.equal(halo.visible,true,'even low quality retains ground contact');
+      assert.equal(threads.visible,false,'low quality draws only the inexpensive pool');
+      assert.equal(halo.material.uniforms.uDetail.value,0);
+      assert.ok(membrane.material.uniforms.uTime.value>0,'low graphics preset must not imply reduced motion');
+      model.update(.05,{riftPhase:'stabilized',effectsQuality:1,cameraDistance:5});
+      assert.equal(threads.visible,true);
+      assert.equal(halo.material.uniforms.uDetail.value,1);
+      model.update(.05,{riftPhase:'stabilized',effectsQuality:2,reducedMotion:true,cameraDistance:5});
+      assert.equal(membrane.material.uniforms.uTime.value,0,'explicit reduced-motion still freezes shader travel');
+    }
+    assert.ok(reach.group.getObjectByName('rift:persistent-warning'),'existing Reach hazard outline preserved');
+    assert.equal(returning.group.getObjectByName('rift:persistent-warning'),undefined,
+      'return portal may never inherit the dangerous Reach telegraph');
+    assert.deepEqual(reach.group.getObjectByName('rift:interference-membrane').geometry.attributes.position.array,
+      returning.group.getObjectByName('rift:interference-membrane').geometry.attributes.position.array,
+      'original paired membrane geometry unchanged');
+  }finally{reach.dispose();returning.dispose();}
+});

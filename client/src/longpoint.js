@@ -24,7 +24,7 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
   const [grip,support,effect]=anchors;
   const v=()=>new T.Vector3(), q=()=>new T.Quaternion();
   const world=n=>n.getWorldPosition(v()), inBody=n=>humanoid.worldToLocal(world(n));
-  const saved=new Map();let active=false, closed=false, shotAge=Infinity;
+  const saved=new Map();let active=false, closed=false, shotAge=Infinity, lastState=null, fittedPlacement=-1, fittedYaw=NaN;
   prop.scale.setScalar(.43);prop.visible=false;humanoid.add(prop);poseLongpoint(prop,0);
   function restore(){if(!saved.size)return;for(const [bone,rotation] of saved)bone.quaternion.copy(rotation);saved.clear();humanoid.updateWorldMatrix(true,true);}
   function orient(bone,child,target){
@@ -49,30 +49,63 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     return orient(a.upper,a.lower,bend)&&orient(a.lower,a.hand,target)&&world(a.hand).distanceTo(target)<.004;
   }
   function update(st={},dt=0){
-    if(closed)return false;restore();active=false;prop.visible=false;
+    if(closed)return false;
+    restore();active=false;prop.visible=false;
     if(st.dead||st.air||st.hideWeapon){shotAge=Infinity;return false;}
+    lastState=st;
     if(st.reducedMotion)shotAge=Infinity;
-    const right=inBody(arms[0].upper), left=inBody(arms[1].upper);
-    const mid=right.clone().add(left).multiplyScalar(.5);
-    // Preserve the existing carried pose; only a confirmed firing event
-    // adds a bounded local cosmetic recoil. Never change server aiming.
-    const angle=.68;
-    prop.rotation.set(0,-Math.PI/2+angle,0);
-    prop.position.set(0,0,0);prop.updateWorldMatrix(true,true);
-    const aim=mid.clone().add(new T.Vector3(-.065,-.18,.065));
-    const gripLocal=inBody(grip);
-    const neutral=aim.sub(gripLocal);
+    const right=inBody(arms[0].upper),left=inBody(arms[1].upper),mid=right.clone().add(left).multiplyScalar(.5);
+    // The asset's forward axis is +X, while a humanoid faces local +Z.
+    // Prefer a shouldered, forward-facing fit with the grip ahead of the
+    // sternum. A limited target yaw is cosmetic only and cannot decide hits.
+    const target=st.weaponAimAt;
+    let yaw=-Math.PI/2;
+    if(target?.isVector3&&[target.x,target.y,target.z].every(Number.isFinite)){
+      const direction=humanoid.worldToLocal(target.clone()).sub(mid);
+      direction.y=0;
+      if(direction.lengthSq()>.01){
+        const wanted=-Math.atan2(direction.z,direction.x);
+        yaw=Math.max(-Math.PI/2-.4,Math.min(-Math.PI/2+.4,wanted));
+      }
+    }
     const kick=recoilAmount(shotAge,false);
     if(Number.isFinite(dt)&&dt>0)shotAge+=Math.min(dt,.1);
-    const tryFit=offset=>{
-      prop.position.copy(neutral).addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset);
-      prop.updateWorldMatrix(true,true);
-      const targets=[world(grip),world(support)];
-      return arms.every((a,i)=>fit(a,targets[i]));
-    };
-    // Never sacrifice the verified two-hand fit for a recoil pose.
-    if(!tryFit(kick)){restore();if(!kick||!tryFit(0)){restore();return false;}}
-    active=true;prop.visible=true;return true;
+    // Search a small, bounded set of anatomically reachable shouldered grips.
+    // Different body frames/animation poses need subtly different offsets;
+    // never trade away barrel alignment merely to satisfy a hand anchor.
+    // Cache the winning placement so steady-state combat pays for one solve.
+    const placements=[
+      [yaw,.22,-.065,-.18],[yaw,.14,-.065,-.18],
+      [yaw,.10,-.065,-.18],[yaw,.13,-.03,-.14],
+      [yaw,.15,.01,-.13],[yaw,.12,-.10,-.13],
+      [yaw+.20,.16,-.065,-.18],[yaw+.28,.14,-.065,-.18],
+      [yaw+.35,.12,-.065,-.18],[yaw+.42,.12,-.065,-.18],
+      [yaw+.48,.12,-.065,-.18],[yaw+.50,.105,-.065,-.18],
+      [yaw+.50,.13,-.03,-.14],[yaw+.52,.12,.01,-.13],
+      [yaw+.52,.15,-.10,-.15],
+      [-Math.PI/2+.68,.065,-.065,-.18]
+    ];
+    const cached=Math.abs(yaw-fittedYaw)<.08&&fittedPlacement>=0&&fittedPlacement<placements.length-1;
+    const order=cached?[fittedPlacement,...placements.map((_,i)=>i).filter(i=>i!==fittedPlacement)]:placements.map((_,i)=>i);
+    for(const index of order){
+      const [angle,forward,lateral,down]=placements[index];
+      restore();
+      prop.rotation.set(0,angle,0);
+      prop.position.set(0,0,0);prop.updateWorldMatrix(true,true);
+      const neutral=mid.clone().add(new T.Vector3(lateral,down,forward)).sub(inBody(grip));
+      const tryFit=offset=>{
+        prop.position.copy(neutral).addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset);
+        prop.updateWorldMatrix(true,true);
+        const targets=[world(grip),world(support)];
+        return arms.every((a,i)=>fit(a,targets[i]));
+      };
+      if(tryFit(kick)||(kick>0&&(restore(),tryFit(0)))){
+        fittedPlacement=index;fittedYaw=yaw;
+        active=true;prop.visible=true;return true;
+      }
+    }
+    fittedPlacement=-1;
+    restore();return false;
   }
-  return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
+  return { update, restore, fire(target=null){if(!active||closed||!prop.visible)return false;if(target?.isVector3&&lastState)update({...lastState,weaponAimAt:target},0);if(!active)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
 }

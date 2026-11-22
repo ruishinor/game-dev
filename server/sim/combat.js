@@ -6,7 +6,7 @@ import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR, AUTO_REFERENCE_MS
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
-import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import { effectiveAuto, weaponReach } from '../../shared/condition.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
@@ -245,7 +245,17 @@ export function repairAegis(game, healer, dst, base, sourceId) {
   return amount;
 }
 
-function killEnemy(game, e) {
+// GM-only preview transition. The WebSocket dispatcher must authorize the
+// requesting account before invoking this. Ignore a stale/forged entity and
+// preserve ordinary corpse/death rendering without XP, loot or quest credit.
+export function gmDefeatEnemy(game, enemy) {
+  if (!enemy || enemy.kind !== 'enemy' || game?.ents?.get(enemy.id) !== enemy ||
+      enemy.state === 'dead' || enemy.state === 'evade') return false;
+  killEnemy(game, enemy, []);
+  return true;
+}
+
+function killEnemy(game, e, creditedIds = [...e.threat.keys()]) {
   e.hp = 0;
   e.state = 'dead';
   e.deadAt = game.time;
@@ -254,7 +264,7 @@ function killEnemy(game, e) {
   e.target = 0;
   e.buffs = [];
   game.emitWorldEvent({ e: 'die', id: e.id });
-  const credited = [...e.threat.keys()];
+  const credited = creditedIds;
   e.threat.clear();
   e.fixate = null;
   onEnemyKilled(game, e, credited);
@@ -329,10 +339,13 @@ export function tickPlayerCombat(game, p, dt) {
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
     } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
-      p.nextAuto = game.time + cdef.auto.interval;
-      // fast swings: per-hit weapon bonus and Charge scale with the cadence (same per second)
-      const pace = cdef.auto.interval / AUTO_REFERENCE_MS;
-      dealDamage(game, p, t, cdef.auto.dmg + weaponBonus(p.char) * pace, 'auto', { kind: cdef.auto.kind });
+      // The active weapon defines the auto-attack (same for every class); an
+      // empty slot uses the class's innate attack for the mode.
+      const auto = effectiveAuto(p.char);
+      p.nextAuto = game.time + auto.interval;
+      // Charge per hit scales with the cadence (same per second).
+      const pace = auto.interval / AUTO_REFERENCE_MS;
+      dealDamage(game, p, t, auto.dmg, 'auto', { kind: auto.kind });
       gainCharge(p, 5 * pace);
     }
   }

@@ -4,8 +4,9 @@ import { ITEMS } from '../../shared/content.js';
 // Use existing public recipes. This selects a lesson, not crafting eligibility.
 export function starterFabrication(sheet) {
   const carried=Array.isArray(sheet?.inventory)?sheet.inventory:[];
-  const owned=[...carried,sheet?.equipped?.weapon];
-  return owned.some(id=>typeof id==='string'&&Object.hasOwn(ITEMS,id)&&ITEMS[id].slot==='weapon')
+  const owned=[...carried,sheet?.equipped?.ranged,sheet?.equipped?.weapon];
+  // Pulse emitters fill the ranged slot; a main-slot rod is not a duplicate.
+  return owned.some(id=>typeof id==='string'&&Object.hasOwn(ITEMS,id)&&ITEMS[id].slot==='ranged')
     ? 'field_maintenance_kit' : 'field_emitter';
 }
 const profiles = Object.freeze({
