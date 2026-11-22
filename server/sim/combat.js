@@ -146,6 +146,9 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   const ev = { e: 'dmg', s: src ? src.id : 0, d: dst.id, a: amt, ab: ability };
   if (absorbed > 0) ev.sh = absorbed;
   if (opts.kind) ev.k = opts.kind;
+  // Only public, server-authored contact variants: the VFX engine and browser
+  // tests must match the actual resolved strike, never infer a random arc.
+  if(['melee_light','melee_heavy'].includes(ability) && ['1','2','3','heavy','counter'].includes(opts.variant))ev.mv=opts.variant;
   if(ability==='auto'&&opts.kind==='bolt'&&src?.kind==='player'){
     const visual=publicWeaponVisual(src.char);if(visual)ev.wv=visual;
   }
