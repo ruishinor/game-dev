@@ -1,6 +1,6 @@
 {
   "sourceArchive": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
-  "status": "source-only; not approved for runtime or production manifest",
+  "status": "registered production-pipeline GLB donors; available for reconstruction and runtime integration",
   "donors": [
     {
       "id": "rootglass_oak",
@@ -58,5 +58,6 @@
       "role": "mesh study for rootglass portal ground disturbances, not the rift membrane itself",
       "requiredTreatment": "rebuild radial rings as pooled shader/displacement passes, integrate environmental response, preserve approved exterior Phase Scar"
     }
-  ]
+  ],
+  "pipelineAsset": "tools/asset-pipeline/assets/glb_archive/asset.json"
 }

@@ -7,6 +7,7 @@ import { cloneMaterials } from './assets.js';
 import { Animator } from './animator.js';
 import { buildSiteMarkings } from './site-markings.js';
 import { buildRelayTower } from './relay-tower.js';
+import { createReachRelayFx } from './reach-relay-fx.js';
 import { intersectsOccluder } from './occlusion.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 import { buildContainmentVessel } from './containment-vessel.js';
@@ -1560,6 +1561,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
     batches++;
   }
 
+  const relayStructure = scene.getObjectByName('relay:structural-mast');
+  let relayFx = null;
   const points = [];
   const coverRange = 30 + 55 * detail;
   // Static Reach dressing, hidden while the camera is inside the Severance
@@ -1581,6 +1584,12 @@ export function buildWorld(scene, assets = null, opts = {}) {
     lumenfen,
     stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return lumenfen.stats(); } },
     occluders,
+    // Presentation-only fault effects. The object remains usable without VFX,
+    // and the shared engine owns transient particle/ribbon lifetimes.
+    attachReachFx(engine) {
+      relayFx?.dispose();
+      relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;
+    },
     /**
      * @param focus the player's feet
      * @param view optional {eye, points}: camera position and the points that
@@ -1588,6 +1597,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
      */
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
+      relayFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);

@@ -7,8 +7,9 @@ import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NE
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
-import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket, LUMENFEN, inLumenfen } from '../../shared/world.js';
-import { conditionOf, weaponReach } from '../../shared/condition.js';
+import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket , LUMENFEN, inLumenfen } from '../../shared/world.js';
+import { conditionOf, weaponReach, maintenanceTarget, effectiveAuto } from '../../shared/condition.js';
+import { autoProfile, activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive, WEAPON_SWITCH } from '../../shared/weapons.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
@@ -29,13 +30,17 @@ import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas } from './world-atlas.js';
 import { reachMinimapArt } from './minimap-art.js';
 import { paintedAbilityArt } from './ability-art.js';
-import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,SPINDLE_SLOTS} from './hotkey-bindings.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,SPINDLE_SLOTS,WEAPON_ACTIONS,EMOTE_ACTIONS} from './hotkey-bindings.js';
 import {COMPANION_ACTION,defaultHotbar,loadHotbar,storeHotbar,editHotbar,normalizeHotbar} from './hotbar-layout.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
 
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  weapon_rod:svg('<path d="M5 19 19 5"/><path d="m3 17 4 4M17 3l4 4M10.5 13.5l3-3"/>'),
+  weapon_dual:svg('<path d="M4 20 11 13M13 11l7-7"/><path d="M3 17h3M18 3h3M9 4v3M15 17v3"/>'),
+  weapon_ranged:svg('<path d="M3 14h11l3-3h4v4h-4l-3-3"/><path d="M6 14v4h3v-4M17 13h4"/>'),
+  weapon_empty:svg('<path d="M5 19 19 5" stroke-dasharray="2 3"/>'),
   recover:svg('<path d="M4 9h16v12H4zM8 9V6a4 4 0 0 1 8 0v3M9 14h6M12 11v6"/>'),
   screen:svg('<path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7zM8 12h8M12 8v8"/>'),
   phase_needle:svg('<path d="M3 20 21 3M10 17l7-7M16 3h5v5"/>'),
@@ -475,8 +480,26 @@ export class UI {
     this.autoButton.append(this.autoIndicator);
     this.autoButton.addEventListener('click', () => this.a.autoAttack());
     this.actionBar = h('div', 'actionbar');
+    // Weapon actions: switch active weapon and cycle the rod configuration.
+    // Visible state comes from the authoritative sheet; clicks send intent only.
+    this.weaponBar = h('div', 'weaponbar');
+    this.weaponBar.setAttribute('role', 'group');
+    this.weaponBar.setAttribute('aria-label', 'Weapon actions');
+    this.weaponBar.hidden = true;
+    this.weaponSwitch = this.slotButton(ICONS.weapon_rod, '', 'Switch weapon');
+    this.weaponSwitch.el.classList.add('weapon-action');
+    this.weaponSwitch.el.dataset.action = 'weapon:switch';
+    this.weaponSwitch.el.addEventListener('click', () => this.a.switchWeapon?.());
+    this.hover(this.weaponSwitch.el, () => this.weaponActionTip('weapon:switch'));
+    this.rodConfig = this.slotButton(ICONS.weapon_rod, '', 'Rod configuration');
+    this.rodConfig.el.classList.add('weapon-action');
+    this.rodConfig.el.dataset.action = 'weapon:config';
+    this.rodConfig.el.addEventListener('click', () => this.a.cycleRodConfig?.());
+    this.hover(this.rodConfig.el, () => this.weaponActionTip('weapon:config'));
+    this.weaponBar.append(this.weaponSwitch.el, this.rodConfig.el);
+    this.weaponState = { 'weapon:switch': { text: '', why: '' }, 'weapon:config': { text: '', why: '' } };
     const actions = h('div', 'action-row');
-    actions.append(this.autoButton, this.actionBar);
+    actions.append(this.autoButton, this.actionBar, this.weaponBar);
     this.xp = bar('xp');
     this.moveStatus = h('div', 'move-status');
     this.moveStatus.hidden = true;
@@ -608,8 +631,31 @@ export class UI {
     this.inventoryOpacityButton.addEventListener('keydown',e=>{
       if(e.key==='Enter'||e.key===' ')e.stopPropagation();
     });
+    // Keep search focus while filtering a densely paged inventory.
+    this.inventoryQuery='';
+    const inventorySearchRow=h('div','inventory-search-row');
+    this.inventorySearch=h('input','inventory-search');
+    this.inventorySearch.type='search';
+    this.inventorySearch.placeholder='Search…';
+    this.inventorySearch.autocomplete='off';
+    this.inventorySearch.spellcheck=false;
+    this.inventorySearch.maxLength=80;
+    this.inventorySearch.setAttribute('aria-label','Search carried items');
+    this.inventorySearch.addEventListener('input',()=>{
+      this.inventoryQuery=this.inventorySearch.value;
+      this.inventorySelection=null;this.inventoryPage=0;
+      if(!this.inventoryPanel.hidden)renderInventory(this);
+    });
+    this.inventorySearch.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){
+        e.preventDefault();e.stopPropagation();
+        this.inventorySearch.value='';this.inventoryQuery='';this.inventoryPage=0;
+        renderInventory(this);
+      }
+    });
+    inventorySearchRow.append(this.inventorySearch);
     this.inventoryBody = h('div','inventory-body');
-    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,this.inventoryBody);
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,inventorySearchRow,this.inventoryBody);
     root.append(this.inventoryPanel);
     this.setInventoryOpacity(this.inventoryOpacity);
     // On smaller screens, either overlapping window can be brought forward
@@ -619,6 +665,7 @@ export class UI {
       if(panel)root.classList.toggle('inventory-front',panel===this.inventoryPanel);
     });
     this.inventoryFilter = 'all';
+    this.inventoryPage=0;
     this.inventorySelection = this.loadoutSelection = null;
     this.unseenItems.clear();this.sheet=null;this.buildBtn.classList.remove('new');this.inventoryBtn.classList.remove('new');this.workshopSite=null;
     this.loadoutTab = 'character';
@@ -793,6 +840,9 @@ export class UI {
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
       ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
       ['Wheel', 'Zoom'],
+      [this.a.bindings?.label('weapon:switch') || 'Z', 'Switch weapon: melee ↔ ranged (every class; an empty slot uses your innate attack). Works in combat. Remap in Settings → Keybindings.'],
+      [this.a.bindings?.label('weapon:config') || 'G', 'Electrical Combat Rod: joined rod ↔ dual batons, out of combat with the rod drawn.'],
+      [this.a.bindings?.label('emote:sit') || 'X', 'Sit down / stand up. Moving, attacking or abilities stand you up.'],
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
@@ -1046,6 +1096,7 @@ export class UI {
       this.a.bindings?.label('ability:'+(b.slotIndex+1))??String(b.slotIndex+1);
     for(const [name,btn] of this.bindingRows??new Map())btn.textContent=
       this.a.bindings?.label(name)??'Unbound';
+    this.refreshWeaponKeys();
   }
 
   buildHotkeySettings(root){
@@ -1068,30 +1119,38 @@ export class UI {
     panel.append(h('h2',null,'Keybindings'),h('p','muted','Press a key or combination to assign it. Escape cancels; Delete clears. Movement, interface and browser shortcuts are reserved.'),back);
     this.keyError=h('p','keybind-error');this.keyError.setAttribute('role','status');panel.append(this.keyError);
     this.bindingRows=new Map();
+    const addRow=(action,label,describe)=>{
+      const row=h('div','binding-row'),name=h('span',null,label),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
+      button.type='button';button.setAttribute('aria-label','Change '+describe);button.dataset.binding=action;
+      button.addEventListener('click',()=>{this.capturing=action;this.keyError.textContent='Press a key for '+describe+'…';button.textContent='Press key…';button.focus();});
+      button.addEventListener('blur',()=>{if(this.capturing===action)this.capturing=null;button.textContent=this.a.bindings?.label(action)??'Unbound';});
+      button.addEventListener('keydown',event=>{
+        if(this.capturing!==action)return;
+        if(event.key==='Tab')return;
+        event.preventDefault();event.stopPropagation();
+        if(event.key==='Escape'){this.capturing=null;this.keyError.textContent='Capture cancelled.';this.refreshHotkeys();return;}
+        const chord=event.code==='Backspace'||event.code==='Delete'?null:keyChord(event);
+        if(chord===null&&event.code!=='Backspace'&&event.code!=='Delete')return;
+        const result=this.a.bindings?.set(action,chord);
+        this.capturing=null;this.keyError.textContent=result?.ok?'Binding saved.':result?.reason??'Unable to save binding.';
+        this.refreshHotkeys();
+      });
+      row.append(name,button);panel.append(row);this.bindingRows.set(action,button);
+    };
     const addRows=(title,prefix,total)=>{
       panel.append(h('h3',null,title));
       for(let i=1;i<=total;i++){
-        const action=prefix+':'+i,row=h('div','binding-row'),name=h('span',null,title==='Primary bar'?'Slot '+i:prefix==='spindle'?COMPANIONS.spindle.modes[SPINDLE_UTILITY_COMMANDS[i-1]].name:'Command '+i),button=h('button','binding-capture',this.a.bindings?.label(action)??'Unbound');
-        button.type='button';button.setAttribute('aria-label','Change '+title+' '+i);
-        button.addEventListener('click',()=>{this.capturing=action;this.keyError.textContent='Press a key for '+title+' '+i+'…';button.textContent='Press key…';button.focus();});
-        button.addEventListener('blur',()=>{if(this.capturing===action)this.capturing=null;button.textContent=this.a.bindings?.label(action)??'Unbound';});
-        button.addEventListener('keydown',event=>{
-          if(this.capturing!==action)return;
-          if(event.key==='Tab')return;
-          event.preventDefault();event.stopPropagation();
-          if(event.key==='Escape'){this.capturing=null;this.keyError.textContent='Capture cancelled.';this.refreshHotkeys();return;}
-          const chord=event.code==='Backspace'||event.code==='Delete'?null:keyChord(event);
-          if(chord===null&&event.code!=='Backspace'&&event.code!=='Delete')return;
-          const result=this.a.bindings?.set(action,chord);
-          this.capturing=null;this.keyError.textContent=result?.ok?'Binding saved.':result?.reason??'Unable to save binding.';
-          this.refreshHotkeys();
-        });
-        row.append(name,button);panel.append(row);this.bindingRows.set(action,button);
+        const label=prefix==='ability'?'Slot '+i:prefix==='spindle'?COMPANIONS.spindle.modes[SPINDLE_UTILITY_COMMANDS[i-1]].name:'Command '+i;
+        addRow(prefix+':'+i,label,title+' '+i);
       }
     };
     addRows('Primary bar','ability',PRIMARY_SLOTS);
     addRows('Companion bar','companion',COMPANION_SLOTS);
     addRows('Spindle utility bar','spindle',SPINDLE_SLOTS);
+    panel.append(h('h3',null,'Weapon actions'));
+    for(const [action,label] of Object.entries(WEAPON_ACTIONS))addRow(action,label,label);
+    panel.append(h('h3',null,'Emotes'));
+    for(const [action,label] of Object.entries(EMOTE_ACTIONS))addRow(action,label,label);
     const reset=h('button',null,'Restore default hotkeys');
     reset.addEventListener('click',()=>{this.a.bindings?.reset();this.refreshHotkeys();this.keyError.textContent='Default shortcuts restored.';});
     panel.append(reset);this.keyPanel=panel;root.append(panel);
@@ -1111,6 +1170,58 @@ export class UI {
     pip.hidden = true;
     el.append(ic, cd, cdText, h('span', 'key', key), pip);
     return { el, cd, cdText, pip };
+  }
+
+  refreshWeaponKeys() {
+    const b = this.a.bindings;
+    if (!b || !this.weaponSwitch) return;
+    for (const [action, slot] of [['weapon:switch', this.weaponSwitch], ['weapon:config', this.rodConfig]]) {
+      const label = b.get(action) ? b.label(action) : '';
+      set(slot.el.querySelector('.key'), 'text', label);
+      slot.el.setAttribute('aria-keyshortcuts', b.get(action) ? b.get(action).replace(/Key|Digit/g, '') : '');
+    }
+  }
+
+  weaponActionTip(action) {
+    const st = this.weaponState[action];
+    const key = this.a.bindings?.get(action) ? ` (${this.a.bindings.label(action)})` : '';
+    // hover() expects a list of nodes.
+    return [h('div', 'tip-title', (action === 'weapon:switch' ? 'Switch weapon' : 'Rod configuration') + key), h('div', null, st.text), ...(st.why ? [h('div', 'tip-meta', st.why)] : [])];
+  }
+
+  /** Per-frame state of the weapon actions, mirroring (not replacing) server rules. */
+  updateWeaponActions(me, you) {
+    const s = this.sheet;
+    this.weaponBar.hidden = !s || !canSwitchWeapons(s);
+    if (this.weaponBar.hidden) return;
+    const busy = me.dead ? 'Unavailable while defeated.' : you.inscription ? 'Finish or cancel the current inscription.' : you.production ? 'Finish or cancel production first.' : '';
+    const key = action => this.a.bindings?.get(action) ? ' (' + this.a.bindings.label(action) + ')' : '';
+    // Switch weapon mode: every class has melee and ranged; an empty slot uses the innate attack.
+    const active = activeWeaponSlot(s), other = active === 'ranged' ? 'weapon' : 'ranged';
+    const modeName = slot => { const id = equippedWeapon(s, slot); return id ? ITEMS[id].name : (slot === 'ranged' ? 'Innate ranged attack' : 'Unarmed melee'); };
+    const sw = this.weaponSwitch, cdMs = you.weaponSwitchMs || 0;
+    this.weaponState['weapon:switch'] = { text: `Active: ${active === 'ranged' ? 'Ranged' : 'Melee'} — ${modeName(active)}. Switches to ${other === 'ranged' ? 'ranged' : 'melee'}: ${modeName(other)}. Usable in combat; ${WEAPON_SWITCH.cooldownMs / 1000}s recovery.`, why: busy };
+    const swIcon = active === 'ranged' ? 'weapon_ranged' : equippedWeapon(s, 'weapon') === 'electrical_combat_rod' ? (s.electricalRodMode === 'dual' ? 'weapon_dual' : 'weapon_rod') : equippedWeapon(s, 'weapon') ? 'weapon_rod' : 'weapon_empty';
+    if (sw.el.dataset.icon !== swIcon) { sw.el.dataset.icon = swIcon; sw.el.querySelector('.icon').innerHTML = ICONS[swIcon]; }
+    sw.el.dataset.active = active;
+    sw.el.disabled = !!busy;
+    sw.el.classList.toggle('unusable', !!busy);
+    sw.el.classList.toggle('active', active === 'ranged');
+    set(sw.cd, '--cd', cdMs > 0 ? String(Math.min(1, cdMs / WEAPON_SWITCH.cooldownMs).toFixed(2)) : '0');
+    sw.el.setAttribute('aria-label', `Switch weapon. Active: ${active === 'ranged' ? 'ranged' : 'melee'}, ${modeName(active)}` + (busy ? `. Unavailable: ${busy}` : ''));
+    // Rod configuration (any class carrying the rod).
+    const rc = this.rodConfig;
+    const hasRod = equippedWeapon(s, 'weapon') === 'electrical_combat_rod', dual = s.electricalRodMode === 'dual';
+    const combat = !!(me.row?.f & 8);
+    const why = !hasRod ? 'Equip the Electrical Combat Rod (Weapon slot).' : busy || (!electricalRodActive(s) ? `Select melee to draw the rod first${key('weapon:switch')}.` : combat ? 'Unavailable in combat.' : you.auto ? 'Stop auto-attack first (R).' : '');
+    const icon = dual ? 'weapon_dual' : 'weapon_rod';
+    if (rc.el.dataset.icon !== icon) { rc.el.dataset.icon = icon; rc.el.querySelector('.icon').innerHTML = ICONS[icon]; }
+    rc.el.dataset.mode = hasRod ? (dual ? 'dual' : 'rod') : 'none';
+    rc.el.disabled = !!why;
+    rc.el.classList.toggle('unusable', !!why);
+    rc.el.classList.toggle('active', hasRod && dual);
+    this.weaponState['weapon:config'] = { text: hasRod ? `Current: ${dual ? 'Dual batons' : 'Joined rod'}. Switches to ${dual ? 'the joined rod' : 'dual batons'}. Out of combat only; kept while the rod is stowed.` : 'Cycles the Electrical Combat Rod between joined rod and dual batons.', why };
+    rc.el.setAttribute('aria-label', `Rod configuration: ${hasRod ? (dual ? 'dual batons' : 'joined rod') : 'no rod equipped'}` + (why ? `. Unavailable: ${why}` : ''));
   }
 
   hover(el, makeTip) {
@@ -1645,7 +1756,7 @@ export class UI {
     for (const el of this.root.querySelectorAll('[data-seen-group]')) {
       const group = el.dataset.seenGroup;
       const count = [...this.unseenItems].filter(id => group === 'all' ||
-        (['chest','gloves','greaves','boots'].includes(ITEMS[id]?.slot)?'device':ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
+        (['chest','gloves','greaves','boots'].includes(ITEMS[id]?.slot)?'device':ITEMS[id]?.slot==='ranged'?'weapon':ITEMS[id]?.slot ?? GOODS[id]?.category ?? 'materials') === group).length;
       el.classList.toggle('new-equipment', count > 0);
       el.title = count ? `${count} new item(s)` : '';
       el.setAttribute('aria-label', el.textContent);
@@ -1684,12 +1795,19 @@ export class UI {
       equip.disabled=!!this.buildLock||!res.ok;
       equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,installed?'remove':'equip');});
       this.playerContext.append(equip);
+      if(installed&&(item.slot==='weapon'||item.slot==='ranged')&&canSwitchWeapons(s)&&activeWeaponSlot(s)!==item.slot){
+        const pick=h('button',null,'Make active weapon');
+        pick.disabled=!!s.dead;
+        pick.addEventListener('click',()=>{this.closePlayerContext();this.a.selectWeapon(item.slot);});
+        this.playerContext.append(pick);
+      }
       if(id==='electrical_combat_rod'&&installed){
         const dual=s.electricalRodMode==='dual';
         const mode=h('button',null,dual?'Join into combat rod':'Separate into dual batons');
-        mode.disabled=!!this.buildLock;
+        mode.disabled=!!this.buildLock||!electricalRodActive(s);
         mode.addEventListener('click',()=>{this.closePlayerContext();this.a.rodMode(dual?'rod':'dual');});
         this.playerContext.append(mode);
+        if(!electricalRodActive(s))this.playerContext.append(h('div','why','Select the rod as your active weapon to reconfigure it.'));
       }
       if(res.alsoRemoved?.length)this.playerContext.append(h('div','why','Also removes '+res.alsoRemoved.map(key=>ITEMS[key].name).join(', ')+'.'));
       if(!res.ok||this.buildLock)this.playerContext.append(h('div','why',this.buildLock?'Unavailable in combat or defeat.':res.reason));
@@ -1701,7 +1819,7 @@ export class UI {
       this.playerContext.append(use);
     }
     if (id === 'field_maintenance_kit') {
-      const weapon = s.equipped.weapon;
+      const weapon = maintenanceTarget(s);
       const condition = conditionOf(s, weapon);
       const use = h('button', null, 'Use maintenance kit');
       use.disabled = !!this.buildLock || condition === null || condition >= 100;
@@ -2281,16 +2399,20 @@ export class UI {
     }
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
-    const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
+    // The active weapon (main or ranged slot) decides the auto-attack profile.
+    const auto=(this.sheet&&effectiveAuto(this.sheet))||def.auto;
+    const effectiveReach=this.sheet?weaponReach(this.sheet):auto.range;
     const reach=Number(effectiveReach.toFixed(2));
-    const autoTitle=`${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    const autoTitle=`${auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     if (this.autoButton.getAttribute('aria-pressed') !== String(engaging)) this.autoButton.setAttribute('aria-pressed', String(engaging));
     set(this.autoIndicator, 'text', engaging ? '●' : '○');
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     const title = `${autoText}. ${autoTitle}`;
     if (this.autoButton.title !== title) this.autoButton.title = title;
+    this.autoButton.dataset.kind = auto.kind;
+    this.updateWeaponActions(me, you);
 
     // Action bar
     for (const b of this.abilityButtons) {

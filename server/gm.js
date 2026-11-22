@@ -3,9 +3,10 @@
 import { ITEMS, MAX_LEVEL, SKILL_NAMES } from '../shared/content.js';
 import { MAX_ATTRIBUTE_BONUS, reconcileBuildPreview } from './gm-build.js';
 import { cancelInscription } from './sim/progress.js';
+import { gmDefeatEnemy } from './sim/combat.js';
 import { MATERIALS, MATERIAL_CAP, sanitizeMaterials } from '../shared/crafting.js';
 import { walletAfter, CREDIT_CAP } from './sim/wallet.js';
-import { WORLD, ZONES, RIFT_SITE, RIFT_ANNEX, PLAYER_RADIUS, resolveCollisions, travelRegionAt } from '../shared/world.js';
+import { WORLD, ZONES, RIFT_SITE, RIFT_ANNEX, PLAYER_RADIUS, resolveCollisions, travelRegionAt, sameTravelRegion } from '../shared/world.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const deny = reason => ({ ok: false, reason });
@@ -41,7 +42,7 @@ const destinations = Object.freeze({
 });
 
 export const GM_HELP = 'GM preview: /gm help, /gm status, /gm level 1–' + MAX_LEVEL +
-  ', /gm tp reach|scar|sporefield|relay|sinter|annex, /gm unlock, /gm heal, /gm god on|off' +
+  ', /gm tp reach|scar|sporefield|relay|sinter|annex, /gm unlock, /gm heal, /gm kill (selected enemy), /gm god on|off' +
   ', /gm credits N, /gm mats N, /gm glyphs|device|implants|gear|weapons|social clothing, /gm speed 0–300.' +
   ' /gm stats 0–' + MAX_ATTRIBUTE_BONUS + '|reset, /gm class unlock|lock (session only).';
 
@@ -50,7 +51,7 @@ const itemCategories = Object.freeze({
   device: ['device'],
   implants: ['implant'],
   gear: ['chest', 'gloves', 'greaves', 'boots'],
-  weapons: ['weapon'],
+  weapons: ['weapon', 'ranged'],
   'social clothing': ['social_torso'],
 });
 
@@ -191,6 +192,18 @@ export function executeGm(game, p, line) {
     game.markDirty(p);
     game.message(p, 'info', 'GM health restored.');
     return { ok: true, action: 'heal' };
+  }
+  if (parts[0] === 'kill' && parts.length === 1) {
+    if (p.dead) return deny('Respawn before using /gm kill.');
+    // The selected target is the server-owned entity id, never a client
+    // supplied name or id embedded in the command text.
+    const enemy = game.ents.get(p.target);
+    if (!enemy || enemy.kind !== 'enemy' || !sameTravelRegion(p, enemy))
+      return deny('Select a living enemy in your current region.');
+    if (!gmDefeatEnemy(game, enemy))
+      return deny('Target is no longer a living enemy.');
+    game.message(p, 'info', 'GM defeated ' + enemy.name + '. No XP, loot or directive progress awarded.');
+    return { ok: true, action: 'kill', target: String(enemy.id) };
   }
   if (parts[0] === 'credits' && parts.length === 2) {
     if (!/^[1-9]\d*$/.test(parts[1])) return deny('Credits must be a positive integer.');
