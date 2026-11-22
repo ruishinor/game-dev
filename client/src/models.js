@@ -11,6 +11,7 @@ import { makeFenLantern,makeFenStalker } from './lumenfen-creatures.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { makeDepthsRecoveryCache } from './depths-cache.js';
+import { makeAnnexRecoveryCache } from './annex-cache.js';
 import { severanceLink } from './severance-gate.js';
 
 const std = (color, o = {}) =>
@@ -923,14 +924,7 @@ export const MODEL_FACTORIES = {
   resonant_vein:()=>buildResonantVein(THREE),
   rift_indexer:()=>buildRiftControl(THREE,false),
   rift_regulator:()=>buildRiftControl(THREE,true),
-  annex_cache:()=>{
-    const group=new THREE.Group();group.name='annex:recovery-cache';
-    const metal=std(0x414950,{metal:.66}),trim=std(0x76613c,{metal:.65}),lamp=lit(0xc794eb);
-    group.add(part(BOX,metal,1.6,.66,.92,0,.38,0),part(BOX,trim,1.66,.18,.96,0,.8,0));
-    for(const x of [-.58,.58])group.add(part(BOX,trim,.13,.8,.97,x,.41,0));
-    group.add(part(BOX,lamp,.26,.12,.045,0,.62,.49));
-    return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
-  },
+  annex_cache:()=>makeAnnexRecoveryCache(THREE),
   rift_return:()=>riftModel('rift_return'),
   severance_return:()=>riftModel('severance_return'),
   foundry_return:()=>riftModel('foundry_return'),
