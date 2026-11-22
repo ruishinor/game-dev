@@ -121,6 +121,7 @@ function startEvade(game, e) {
   e.fixate = null;
   e.target = 0;
   e.cast = null;
+  e.basicWindup = null;
   e.buffs = [];
   e.evadeSince = game.time;
   if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
