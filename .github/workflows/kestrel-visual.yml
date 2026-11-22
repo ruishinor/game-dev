@@ -1,0 +1,35 @@
+name: Kestrel real-scene visual smoke
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/kestrel-deep-visuals.js'
+      - 'client/src/scene.js'
+      - 'test/e2e/kestrel-visual.mjs'
+      - '.github/workflows/kestrel-visual.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kestrel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Inspect actual GLB-dressed Kestrel Deep
+        run: node test/e2e/kestrel-visual.mjs
+      - name: Preserve evidence for manual artistic review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kestrel-visual-evidence
+          path: kestrel-evidence/
+          if-no-files-found: ignore
