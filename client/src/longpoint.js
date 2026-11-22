@@ -85,7 +85,7 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
       [yaw+.52,.15,-.10,-.15],
       [-Math.PI/2+.68,.065,-.065,-.18]
     ];
-    const cached=Math.abs(yaw-fittedYaw)<.08&&fittedPlacement>=0;
+    const cached=Math.abs(yaw-fittedYaw)<.08&&fittedPlacement>=0&&fittedPlacement<placements.length-1;
     const order=cached?[fittedPlacement,...placements.map((_,i)=>i).filter(i=>i!==fittedPlacement)]:placements.map((_,i)=>i);
     for(const index of order){
       const [angle,forward,lateral,down]=placements[index];
