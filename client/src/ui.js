@@ -7,7 +7,7 @@ import { ABILITIES, CLASSES, COMPANIONS, ITEMS, directiveFor, SURVEYOR, XP_TO_NE
 import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.js';
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
-import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket } from '../../shared/world.js';
+import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket , LUMENFEN, inLumenfen } from '../../shared/world.js';
 import { conditionOf, weaponReach, maintenanceTarget, effectiveAuto } from '../../shared/condition.js';
 import { autoProfile, activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive, WEAPON_SWITCH } from '../../shared/weapons.js';
 import { ENTRIES } from './journal.js';
@@ -2515,6 +2515,10 @@ export class UI {
     if(st.nearObject?.meta.k==='e')set(this.interact,'text',(this.loot.auto?'[F] Auto-loot · [Shift+F] Inspect ':'[F] Loot ')+st.nearObject.meta.n);
     else if(st.nearObject?.meta.c==='sinter_recovery')set(this.interact,'text',lock?'Field Recovery · disengage first':you.recoveryMs>0?'Loose mineral shedding · recover in '+Math.ceil(you.recoveryMs/1000)+'s':'[F] Recover loose mineral shedding');
     else if(st.nearObject?.meta.c==='resonant_vein'){const d=you.veins?.depleted?.find(v=>v.id===st.nearObject.id),ch=you.veins?.channel;set(this.interact,'text',ch?'Extracting resonance… hold still':lock?'Resonant shard vein · disengage first':d?'Resonant shard vein · regrowing ('+Math.ceil(d.ms/60000)+' min)':'[F] Extract resonance');}
+    else if(st.nearObject?.meta.c==='lumenfen_entry')set(this.interact,'text',lock?'Rootglass Tear · disengage first':'[F] Cross the Rootglass Tear to Lumenfen');
+    else if(st.nearObject?.meta.c==='lumenfen_return')set(this.interact,'text',lock?'Veil Return · disengage first':'[F] Return to the Verdigris Reach');
+    else if(st.nearObject?.meta.c==='lumenfen_spring')set(this.interact,'text',lock?'Glasswater Crossing · disengage first':'[F] Cross to Root-Crown Hollow');
+    else if(st.nearObject?.meta.c==='lumenfen_crown')set(this.interact,'text',lock?'Root-Crown Crossing · disengage first':'[F] Cross to Glasswater Spring');
     else if(st.nearObject?.meta.c==='rift_return')set(this.interact,'text',lock?'Phase gate · disengage first':'[F] Return to the Severance Gate');
     else if(st.nearObject?.meta.c==='severance_return')set(this.interact,'text',lock?'Return beacon · disengage first':'[F] Return to the Reach');
     else if(st.nearObject?.meta.c==='severance_gate')set(this.interact,'text',lock?'Severance Gate · disengage first':st.nearObject.row?.gp==='active'?'[F] Enter the Severance Gate':'Severance Gate · the portal is still resonating');
@@ -2661,9 +2665,10 @@ export class UI {
     const R = c.width / 2;
     const annex=inRiftAnnex(st.me.pos.x,st.me.pos.z,2);
     const pocket=!annex&&inSeverancePocket(st.me.pos.x,st.me.pos.z,2);
-    const area=annex?RIFT_ANNEX:pocket?SEVERANCE_POCKET:null;
+    const fen=!annex&&!pocket&&inLumenfen(st.me.pos.x,st.me.pos.z,2);
+    const area=annex?RIFT_ANNEX:pocket?SEVERANCE_POCKET:fen?LUMENFEN:null;
     const zoom=this.minimapZoom||1;
-    const k = (R - 4) / (area?Math.hypot(area.hw,area.hd)*(pocket?.62:1):WORLD.radius)*zoom;
+    const k = (R - 4) / (area?Math.hypot(area.hw,area.hd)*((pocket||fen)?.62:1):WORLD.radius)*zoom;
     g.clearRect(0, 0, c.width, c.height);
     g.save();
     g.translate(R, R);
@@ -2674,11 +2679,11 @@ export class UI {
     g.clip();
     // Top-down with north (-Z) up and east (+X) to the right.
     // The pocket map follows the player; the Annex and the Reach are fixed.
-    const cx=zoom>1||pocket?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket?st.me.pos.z:annex?RIFT_ANNEX.z:0;
+    const cx=zoom>1||pocket||fen?st.me.pos.x:annex?RIFT_ANNEX.x:0,cz=zoom>1||pocket||fen?st.me.pos.z:annex?RIFT_ANNEX.z:0;
     const X = (x) => (x-cx) * k;
     const Z = (z) => (z-cz) * k;
     if(!area)g.drawImage(reachMinimapArt(),X(-WORLD.radius),Z(-WORLD.radius),2*WORLD.radius*k,2*WORLD.radius*k);
-    if(area){g.strokeStyle=pocket?'#607b84':'#638e9c';const lx=pocket?area.hw-area.rim:area.hw,lz=pocket?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
+    if(area){g.strokeStyle=fen?'#6b9d87':pocket?'#607b84':'#638e9c';const lx=pocket||fen?area.hw-area.rim:area.hw,lz=pocket||fen?area.hd-area.rim:area.hd;g.strokeRect(X(area.x-lx),Z(area.z-lz),2*lx*k,2*lz*k);}
     const zoneColours = { sanctum: '#85a6b2', sporefield: '#7c8f91', relay: '#65828e', vault: '#788b9b', obelisk: '#6e9eae', survey: '#758d92', sinter: '#8d9d9b', deep: '#677c85' };
     for (const key of area?[]:Object.keys(ZONES)) {
       const zn = ZONES[key];
@@ -2689,7 +2694,7 @@ export class UI {
     }
     g.fillStyle = 'rgba(92, 124, 137, 0.23)';
     g.strokeStyle='rgba(30, 43, 41, 0.52)';
-    for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):COLLIDERS) {
+    for (const col of annex?[]:pocket?COLLIDERS.filter(c=>inSeverancePocket(c.x,c.z)):fen?COLLIDERS.filter(c=>inLumenfen(c.x,c.z)):COLLIDERS) {
       const r = Math.max(1, (col.r ?? Math.max(col.hw, col.hd)) * k);
       g.fillRect(X(col.x) - r, Z(col.z) - r, r * 2, r * 2);
       g.lineWidth=0.8;g.strokeRect(X(col.x)-r,Z(col.z)-r,r*2,r*2);

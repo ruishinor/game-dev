@@ -28,6 +28,7 @@ import {
 import { createRift,tickRift,riftRow } from './rift.js';
 import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocketArrival } from './severance-gate.js';
 import { spawnSeverancePatrols } from './severance-patrols.js';
+import { spawnLumenfenWildlife } from './lumenfen.js';
 import { spawnSalvageCamp } from './severance-camps.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
@@ -102,6 +103,7 @@ export class Game {
     this.rift=createRift(this);
     this.severance=createSeveranceGate(this);
     this.annexOpened=false;
+    this.lumenfenOpened=false;
   }
 
   // --- players -----------------------------------------------------------
@@ -329,6 +331,9 @@ export class Game {
   openExpanse() {
     if(!this.expanseOpened){spawnSeverancePatrols(this);spawnSalvageCamp(this);this.expanseOpened=true;}
   }
+
+  /** Native wildlife spawns once in the shared Lumenfen region. */
+  openLumenfen(){return spawnLumenfenWildlife(this);}
 
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
   openAnnex() {

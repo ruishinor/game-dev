@@ -9,6 +9,7 @@ import { tryEquip, tryUnequip } from '../../shared/build.js';
 import { buildPreviewOptions } from '../gm-build.js';
 import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
 import { travelSeverance, gateFront } from './severance-gate.js';
+import { travelLumenfen } from './lumenfen.js';
 import { recordFoundryKill, claimFoundryCache, leaveFoundry, enterNullBreach } from './silent-foundry.js';
 import { MATERIALS, MATERIAL_CAP, RECIPES, sanitizeMaterials, previewRecipe, canFabricateAt } from '../../shared/crafting.js';
 import { SURVEY, surveyState, BRINE_TRIAL, BRINE_ROUTES, BRINE_REWARD_XP, brineStage, FIELD_RECORDS, workshopSite } from '../../shared/survey.js';
@@ -440,7 +441,8 @@ export function interact(game, p, objectId) {
   if (obj.type === 'sanctum_guard') return { ok: false, reason: 'The warden keeps watch over the approach.' };
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
-  if(obj.type==='rift_return')return game.travelRift(p,obj);
+  if(['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown'].includes(obj.type))return travelLumenfen(game,p,obj);
+   if(obj.type==='rift_return')return game.travelRift(p,obj);
   if(obj.type==='severance_gate'||obj.type==='severance_return')return travelSeverance(game,p,obj);
   if(obj.type==='foundry_return')return leaveFoundry(game,p,obj,gateFront);
   if(obj.type==='null_breach')return enterNullBreach(game,p,obj);

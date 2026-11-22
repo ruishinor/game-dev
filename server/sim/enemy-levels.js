@@ -10,6 +10,7 @@ import { ENEMIES, MAX_LEVEL } from '../../shared/content.js';
 /** Approved regional bands: entry requirement and content level range. */
 export const REGION_LEVELS = Object.freeze({
   severance_expanse: Object.freeze({ entry: 5, min: 5, max: 12 }),
+  lumenfen: Object.freeze({ entry: 7, min: 7, max: 11 }),
   silent_foundry: Object.freeze({ entry: 8, min: 8, max: 11 }),
   // behind the Foundry's Null Breach; also requires the Foundry Overseer defeated
   null_annex: Object.freeze({ entry: 12, min: 13, max: 15 }),
@@ -54,6 +55,6 @@ export function killXp(e, playerLevel) {
 export function regionEntryDenial(region, char) {
   const band = REGION_LEVELS[region];
   if (!band || (Number.isInteger(char?.level) && char.level >= band.entry)) return null;
-  const name = { silent_foundry: 'The Silent Foundry', null_annex: 'The Null Breach' }[region] ?? 'The Severance Expanse';
+  const name = { silent_foundry: 'The Silent Foundry', null_annex: 'The Null Breach', lumenfen: 'Lumenfen' }[region] ?? 'The Severance Expanse';
   return `${name} requires character level ${band.entry}.`;
 }

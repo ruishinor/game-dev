@@ -21,9 +21,11 @@ import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
+import { buildLumenfenWorld } from './lumenfen-world.js';
 import { buildSilentFoundry } from './silent-foundry.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
+import { inLumenfen } from '../../shared/lumenfen.js';
 
 const matCache = new Map();
 /** Cached flat-shaded standard material. */
@@ -1523,6 +1525,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length],
     lighting: { sky: skyGroup, ambient, sun, dir } });
   const foundry = buildSilentFoundry(THREE, scene, { lighting: { sky: skyGroup, ambient, sun }, loader: kits ? assets.loader : null });
+  const lumenfen = buildLumenfenWorld(THREE, scene, { sky: skyGroup, ambient, sun, detail });
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
@@ -1575,10 +1578,10 @@ export function buildWorld(scene, assets = null, opts = {}) {
   const coverRange = 30 + 55 * detail;
   // Static Reach dressing, hidden while the camera is inside the Severance
   // Expanse (700 m south, behind its ridge): nothing of it can be seen there.
-  const reachStatic = scene.children.filter((c) => c !== severance.group && c !== foundry.group && c !== skyGroup && !c.isLight && !c.isCamera && !severance.owns(c));
+  const reachStatic = scene.children.filter((c) => c !== severance.group && c !== foundry.group && c !== lumenfen.group && c !== skyGroup && !c.isLight && !c.isCamera && !severance.owns(c));
   let reachHidden = null;
   const cullReach = (eye) => {
-    const away = !!eye && (inSeverancePocket(eye.x, eye.z, 40) || inSilentFoundry(eye.x, eye.z, 4));
+    const away = !!eye && (inSeverancePocket(eye.x, eye.z, 40) || inSilentFoundry(eye.x, eye.z, 4) || inLumenfen(eye.x, eye.z, 35));
     if (away && !reachHidden) { reachHidden = reachStatic.filter((c) => c.visible); for (const c of reachHidden) c.visible = false; }
     else if (!away && reachHidden) { for (const c of reachHidden) c.visible = true; reachHidden = null; }
   };
@@ -1589,7 +1592,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severance: severance.landmark,
     severancePocket: severance,
     foundry,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get kestrel() { return kestrelVisual.stats; } },
+    lumenfen,
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return lumenfen.stats(); }, get kestrel() { return kestrelVisual.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
@@ -1611,6 +1615,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);
       severance.update(dt, t, view?.eye ?? focus);
       foundry.update(dt, t, view?.eye ?? focus);
+      lumenfen.update(dt, t, view?.eye ?? focus);
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
