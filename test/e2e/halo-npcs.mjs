@@ -76,11 +76,33 @@ try {
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);
     const outward = (fx * def.x + fz * def.z) / Math.hypot(def.x, def.z);
     assert.ok(outward > 0.999, `${def.key} faces away from the Sanctum centre (cos ${outward.toFixed(4)})`);
-    // camera behind the player, looking back at the warden's face
-    await page.evaluate((yaw) => window.__attune.view({ yaw, pitch: 0.12, dist: 5.5, face: yaw }), Math.atan2(-def.x, -def.z) + Math.PI);
-    const drawn = await page.evaluate(() => window.__attune.state().drawn);
-    await page.waitForFunction((n) => window.__attune.state().drawn > n + 2, drawn);
-    await page.screenshot({ path: `${OUT}/${def.key}-front.png` });
+    // Earlier 'front' captures actually framed the local player's back and
+    // occasionally hid the warden entirely. Position the review camera
+    // relative to the drawn Halo world transform, not to the test player.
+    // Pause ordinary drawing only during each capture, then restore it.
+    for (const [view,azimuth] of [['front',0],['side',Math.PI/2],['rear',Math.PI]]) {
+      await page.evaluate(({x,z,azimuth})=>{
+        const api=window.__attune,{scene,camera,renderer}=api.gfx;
+        api.pause(true);
+        let found=null,best=Infinity;
+        scene.traverse(o=>{
+          if(o.name!=='halo_construct:guard')return;
+          const at=o.getWorldPosition(camera.position.clone());
+          const d=Math.hypot(at.x-x,at.z-z);
+          if(d<best){best=d;found=at;}
+        });
+        if(!found||best>.5)throw new Error('Cannot frame live Halo model for visual review');
+        // yaw is the Warden's authoritative outward facing, not player yaw.
+        const guard=api.state().ents.find(e=>e.c==='sanctum_guard'&&Math.hypot(e.x-x,e.z-z)<.05);
+        const angle=guard.halo.yaw+azimuth;
+        camera.position.set(found.x+2.75*Math.sin(angle),found.y+1.40,found.z+2.75*Math.cos(angle));
+        camera.lookAt(found.x,found.y+1.10,found.z);
+        camera.updateMatrixWorld(true);
+        renderer.render(scene,camera);
+      },{x:def.x,z:def.z,azimuth});
+      await page.screenshot({ path: `${OUT}/${def.key}-${view}.png` });
+    }
+    await page.evaluate(()=>window.__attune.pause(false));
     report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, fit: mine.halo.fit, anim: mine.anim });
   }
   // independent animation state per warden
