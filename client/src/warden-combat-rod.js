@@ -88,7 +88,14 @@ export function createWardenCombatRod(inst,variant=1){
   const axis=desired.applyQuaternion(hand.getWorldQuaternion(Q()).invert()).normalize();
   rod.group.quaternion.setFromUnitVectors(UP,axis);
   rod.group.position.copy(palm).sub(GRIP.clone().applyQuaternion(rod.group.quaternion));
-  rod.update(Math.max(0,Number.isFinite(dt)?dt:0),FULL_POWER);
+  // Energy is always at maximum. Graphics quality and explicit comfort
+  // preferences only reduce expensive flicker/outer layers, never power.
+  const quality=Number.isFinite(st.effectsQuality)
+   ? Math.max(0,Math.min(2,st.effectsQuality)) : FULL_POWER.quality;
+  const calm=!!st.rodCalm;
+  rod.update(Math.max(0,Number.isFinite(dt)?dt:0),{
+   ...FULL_POWER,quality,calm,reducedMotion:calm,
+  });
   rod.setEnergy(1,1);
   rod.group.visible=true;
   const measured=world(rod.group.getObjectByName('RodRightGrip'))

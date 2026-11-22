@@ -47,6 +47,9 @@ test('a Warden rod is always joined and fully energized, anchored to the live pa
    assert.equal(syncWardenCombatRod(weapon,stave,1/30,{t:i/30}),'combat-rod');
    assert.ok(weapon.inspect().gripError<.015);
   }
+  assert.equal(syncWardenCombatRod(weapon,stave,1/30,{effectsQuality:0,rodCalm:true}),'combat-rod');
+  assert.equal(weapon.inspect().energy,1,'low quality and reduced flashes never power down the rod');
+  assert.equal(weapon.inspect().coronaVisible,2,'the powered core remains in low graphics quality');
  }finally{weapon.dispose();}
 });
 
