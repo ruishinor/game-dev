@@ -9,6 +9,7 @@ import { WebSocketServer } from 'ws';
 import { Game } from './sim/game.js';
 import { CharacterStore } from './store.js';
 import { NetServer } from './net.js';
+import { ensureDepthsCacheGLB } from '../tools/assets/extract-depths-cache.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TICK_MS = 50;
@@ -77,6 +78,11 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/sanctum_arch.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'sanctum_arch', 'outputs', 'sanctum_arch.glb');
   if (urlPath === '/client/assets/phase_scar.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'phase_scar', 'outputs', 'phase_scar.glb');
   if (urlPath === '/client/assets/foundry_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'foundry_kit', 'outputs', 'foundry_kit.glb');
+  // Explicitly expose the single upgraded cache source; never mount the ZIP or other models.
+  if (urlPath === '/client/assets/depths-recovery-cache.glb') {
+    try { return ensureDepthsCacheGLB(); }
+    catch (error) { console.error('[assets] Depths cache source unavailable:', error); return null; }
+  }
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);
