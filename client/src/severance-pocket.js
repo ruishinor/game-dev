@@ -90,16 +90,31 @@ function strata(T, material, noise) {
         rockc = mix(rockc, pale, smoothstep(0.68, 0.82, bed) * 0.65);
         rockc *= 0.78 + 0.3 * fine;
         float streak = texture2D(uStrata, vec2(vSW.x * 0.05 + vSW.z * 0.05, vSW.y * 0.006)).a;
-        rockc *= 0.8 + 0.3 * streak;
+        // Exposed, chipped sediment bands; use real world-space surface normals
+        // and two noise frequencies to avoid monotone brown cliffs. The detail
+        // stays in the existing terrain draw and changes no height or collision.
+        float coarse = texture2D(uStrata, vSW.xz * 0.037 + vec2(vSW.y * .014, 0.17)).r;
+        float micro = texture2D(uStrata, vSW.xz * .22 + vec2(.11, vSW.y * .042)).g;
+        float cliffVein = smoothstep(.60, .79, coarse) * (.48 + .52 * micro);
+        vec3 oxidized = vec3(.38, .23, .145);
+        vec3 slate = vec3(.15, .18, .20);
+        rockc = mix(rockc, oxidized, cliffVein * .32);
+        rockc = mix(rockc, slate, smoothstep(.08, .25, abs(streak-coarse)) * .20);
+        rockc *= 0.76 + 0.36 * streak + 0.18 * micro;
         float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
         rockc *= 0.7 + 0.45 * clamp(lum, 0.0, 1.0);
         diffuseColor.rgb = mix(diffuseColor.rgb, rockc, steep);
         // fine ash ripples on the flats
         float ripple = 0.5 + 0.5 * sin(dot(vSW.xz, vec2(0.82, 0.57)) * 3.1 + n.a * 6.0);
-        diffuseColor.rgb *= mix(1.0, 0.94 + 0.08 * ripple, 1.0 - steep);
+        // Dark drainage traces and fine mineral crust interrupt repeated flat
+        // colour at playable scale without recolouring the entire landscape.
+        float vein = texture2D(uStrata, vSW.xz * .085 + .19).b;
+        float cracks = smoothstep(.47,.66,abs(sin(vSW.x*.55+vein*9.)*cos(vSW.z*.48-n.r*6.)));
+        float ashWash = smoothstep(.58,.85,vein)*(.45+.55*cracks);
+        diffuseColor.rgb *= mix(1.0, (0.89 + 0.10*ripple - 0.08*ashWash), 1.0 - steep);
       }`);
   };
-  material.customProgramCacheKey = () => 'severance-strata-v2';
+  material.customProgramCacheKey = () => 'severance-strata-v3';
 }
 
 function terrain(T, assets, ground) {
@@ -163,7 +178,7 @@ export function buildSeverancePocket(T, scene, o) {
   const stone = new T.MeshStandardMaterial({ color: 0x4b4648, roughness: 0.92, flatShading: true });
   // ring, spires, hoodoos, talus, outcrops and crystals (severance_kit.glb)
   const kit = createExpanseKit(T, { group, loader: o.assets?.loader, ground: (x, z) => ridgeHeight(x, z, o.ground), url: o.kitUrl });
-  const outpost = createExpeditionOutpost(T, { group, ground: o.ground, loader: o.assets?.loader });
+  const outpost = createExpeditionOutpost(T, { group, ground: o.ground, loader: o.assets?.loader, assets:o.assets });
   const camp = createSalvageCamp(T, { group, ground: o.ground, loader: o.assets?.loader });
   // ruin fallbacks (replaced by the gate GLB's Ruins meshes once it loads)
   const fallbackRuins = new T.Group();

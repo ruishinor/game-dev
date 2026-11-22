@@ -639,6 +639,21 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 /* Local quest tracking; use the existing HUD card visual language. */
 .quest-tracker-group{width:100%;min-width:0;display:grid;gap:5px}.quest-tracker-header{display:flex;gap:6px;align-items:center;justify-content:space-between}.quest-tracker-header button{font:inherit;font-size:11px;padding:3px 8px}.quest-collapse{min-width:28px}.quest-tracker-cards,.quest-tracker-other{display:grid;gap:6px}.quest-tracker-cards[hidden],.quest-tracker-other[hidden],.quest-tracker-group [hidden]{display:none!important}.quest-journal-detail button[data-focus="tracking"]{margin-top:12px}
 
+/* Hostile dungeon focus: preserve every chosen tracked objective, its name,
+   state and progress, but hide long directions for unrelated Reach errands.
+   The full Journal remains available via Quests [L] and the existing key. */
+.quest-tracker-group[data-dungeon="true"] .tracker[data-contextual="false"]{
+  padding:5px 9px;display:grid;gap:1px;min-height:0;
+}
+.quest-tracker-group[data-dungeon="true"] .tracker[data-contextual="false"] .kicker,
+.quest-tracker-group[data-dungeon="true"] .tracker[data-contextual="false"] .text{display:none!important;}
+.quest-tracker-group[data-dungeon="true"] .tracker[data-contextual="false"] .title{
+  margin:0;font-size:13px;line-height:1.35;white-space:normal;
+}
+.quest-tracker-group[data-dungeon="true"] .tracker[data-contextual="false"] .progress{
+  margin:0;font-size:13px;line-height:1.3;
+}
+
 /* Relic quality is conveyed by explicit text and a secondary border cue. */
 .item-cell[data-rarity="Rare"],.loot-entry[data-rarity="Rare"]{border-color:#82a8b6}
 .item-cell[data-rarity="Very rare"],.loot-entry[data-rarity="Very rare"]{border-color:#cbaf76}
@@ -1261,3 +1276,44 @@ body:has(.panel.build:not([hidden])) .radio-panel{visibility:hidden}
 .gate-mode #creation-preview{border-color:#d9b36f40;}
 @media (prefers-reduced-motion:reduce){.gate-mode #login{scroll-behavior:auto;}}
 @media (max-width:520px){#account-form.gate-form{width:calc(100vw - 32px);}.gate-field,.gate-field-wide{width:100%;}.gate-switch-line{padding:0 4%;}.gate-switch-line::before,.gate-switch-line::after{display:none;}}
+
+
+/* Weapon assembly: source-backed DAG in the existing desktop Workshop. */
+.workshop-window.assembly-open:not([data-window-custom="true"]){width:min(1060px,96vw)}
+.workshop-layout.assembly{grid-template-columns:minmax(0,1.8fr) minmax(250px,.82fr);align-items:stretch}
+.assembly-map{min-width:0}
+.assembly-map h3{margin:0 0 6px;color:#a1e1e8;font-size:15px}
+.assembly-map p{margin:0 0 8px;font-size:12px;color:var(--muted);line-height:1.4}
+.assembly-graph-viewport{overflow-x:auto;max-width:100%;scrollbar-width:thin}
+.weapon-assembly-graph{position:relative;min-width:520px;height:385px;background:radial-gradient(circle at 55% 46%,#17313b 0%,#101f28 65%,#0c1821 100%);border:1px solid #3c5b69;border-radius:7px}
+.assembly-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.assembly-links path{fill:none;stroke:#68808c;stroke-width:2;opacity:.67}
+.assembly-links path.connected{stroke:#83b9be;stroke-width:2.6;opacity:1}
+.assembly-node{position:absolute;width:27%;min-height:74px;transform:translate(-50%,-50%);padding:6px 8px;display:flex;align-items:center;gap:8px;text-align:left;border:1px solid #547080;border-radius:7px;background:#1d2b34;color:#d5e1e5;box-shadow:0 2px 12px #050a0c77;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.assembly-node:hover,.assembly-node:focus-visible{border-color:#a3e2e4;outline:2px solid #7cc5cd;outline-offset:1px;z-index:2}
+.assembly-node.active{background:#234451;border-color:#8fd9e5;z-index:1}
+.assembly-node.owned{border-color:#6ea986}
+.assembly-node.ready:not(.owned){border-color:#71b6c0}
+.assembly-node.locked{opacity:.8;border-style:dashed}
+.assembly-node .item-art{flex:0 0 32px;width:32px;height:32px;display:grid;place-items:center}
+.assembly-node .item-art svg{width:30px;height:30px}
+.assembly-node-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
+.assembly-node-copy strong{font-size:12px;line-height:1.2;font-weight:600}
+.assembly-node-copy small{font-size:10px;line-height:1.2;color:#b1cad2}
+.assembly-node.owned small{color:#a2d3b1}
+.assembly-detail{min-width:0}
+.assembly-detail-head{display:flex;align-items:center;gap:10px}
+.assembly-detail-head .item-art{flex:0 0 52px;display:grid;place-items:center;width:52px;height:52px}
+.assembly-detail-head .item-art svg{width:48px;height:48px}
+.assembly-detail h3{font-size:12px;margin:8px 0 3px}
+.assembly-detail .why{overflow-wrap:anywhere}
+.assembly-stats{display:grid;grid-template-columns:1fr auto;gap:4px 12px;background:#122b34;padding:7px;margin:7px 0;border-radius:4px;font-size:11px}
+.assembly-stats strong{text-align:right}
+.assembly-requirement{display:flex;align-items:center;gap:6px;justify-content:space-between;border-bottom:1px solid #2c4450;padding:5px 0;font-size:11px}
+.assembly-requirement span:first-child{min-width:0;overflow-wrap:anywhere}
+.assembly-requirement span:nth-child(2){flex:none}
+.assembly-requirement.blueprint{color:#a3cbe0}
+.assembly-go{flex:none;font-size:10px;padding:4px 6px}
+.assembly-actions{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.assembly-actions button{white-space:normal;min-height:30px}
+@container (max-width:720px){.workshop-layout.assembly{grid-template-columns:1fr}.weapon-assembly-graph{height:385px}.assembly-detail{margin-top:8px}}

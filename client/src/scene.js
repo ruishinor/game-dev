@@ -23,6 +23,7 @@ import { loadStillpoint } from './stillpoint-world.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
+import { buildLumenfenGlbAccents } from './lumenfen-glb-accents.js';
 import { buildSilentFoundry } from './silent-foundry.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
@@ -1529,6 +1530,15 @@ export function buildWorld(scene, assets = null, opts = {}) {
     lighting: { sky: skyGroup, ambient, sun, dir } });
   const foundry = buildSilentFoundry(THREE, scene, { lighting: { sky: skyGroup, ambient, sun }, loader: kits ? assets.loader : null });
   const lumenfen = buildLumenfenWorld(THREE, scene, { sky: skyGroup, ambient, sun, detail, reducedMotion: opts.reducedMotion });
+  // Ground-level foliage is instantiated from the already loaded runtime GLB
+  // kit; the site structures and authoritative collision do not depend on it.
+  const lumenfenGlbAccents = buildLumenfenGlbAccents(THREE, kits ? assets : null);
+  lumenfen.group.add(lumenfenGlbAccents.group);
+  const disposeLumenfen = lumenfen.dispose?.bind(lumenfen);
+  if (disposeLumenfen) lumenfen.dispose = () => {
+    lumenfenGlbAccents.dispose();
+    disposeLumenfen();
+  };
   // Flush, noninteractive surface details on the excavated flat floor.
   // Explicit positions, no added colliders, no tall geometry in the travel lane.
   const serviceDeck = new THREE.Group();
@@ -1596,7 +1606,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return lumenfen.stats(); }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.

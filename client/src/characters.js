@@ -280,6 +280,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       sidearm.apply(next);
       weapon = {
         restore:()=>sidearm.restorePose(),
+        inspect:()=>sidearm.fitInfo(),
         update(st,dt){
           lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
           sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
@@ -303,7 +304,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       rodBack.add(prop); stowedRifle = prop;
       return;
     }
-    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
+    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance, {stowBone:rodBack,stowTransform:rifleStow});
     if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
@@ -371,6 +372,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     accent: def.accent,
     setWeaponVisual,
     weaponEffectOrigin: () => weapon?.origin() || null,
+    weaponPoseInfo: () => ({visual, ...weapon?.inspect?.() ?? {mode:stowedRifle?'stowed':visual?'pending':'none'}}),
     setArmourVisual,
     // the worn chest piece (phase-1 contract) and every worn slot
     armourWorn: () => armours.get('chest')?.handle?.item || null,
@@ -392,7 +394,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       return heldRod.anchor(left?1:0,'Tip');
     },
     sitState:()=>({blend:sitBlend,available:!!sitPose}),
-    rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
+    rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress,grip:heldRod.gripInfo?.()??null}:null,
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
