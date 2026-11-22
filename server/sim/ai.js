@@ -467,7 +467,7 @@ export function tickEnemy(game, e, dt) {
       game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming melee strike',x:e.x,z:e.z,r:Math.min(2.2,def.attack.range),ms:windup,g:0});
     }else{
       e.nextAttack=game.time+def.attack.interval;
-      dealDamage(game,e,target,def.attack.dmg,'auto',{kind:def.attack.kind});
+      dealDamage(game,e,target,def.attack.dmg,'auto',{kind:def.attack.kind,melee:def.attack.kind==='melee'});
     }
   } else if (def.attack.far && reach > def.attack.range && reach <= def.attack.far.range && game.time >= e.nextAttack + 600 && hasLineOfSight(e,target)) {
     // Elites punish kiting with a slower ranged strike.
