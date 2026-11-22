@@ -1200,7 +1200,8 @@ function onEvent(e) {
         const manual=e.k==='melee'&&['melee_light','melee_heavy'].includes(e.ab);
         // The deliberate attack began at its authoritative windup event;
         // damage confirms contact and must not restart the strike.
-        if(s.model.trigger&&(!manual||!s.meleeStartAt||now-s.meleeStartAt>1600))
+        const enemyWindup=e.k==='melee'&&e.ab==='auto'&&s.meta.k==='e'&&s.basicMeleeStartAt&&now-s.basicMeleeStartAt<1200;
+        if(s.model.trigger&&!enemyWindup&&(!manual||!s.meleeStartAt||now-s.meleeStartAt>1600))
           s.model.trigger(manual?'melee':e.k==='bolt'?'cast':'attack',manual?(e.mv||'1'):e.ab,d?.chest);
         if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
@@ -1453,6 +1454,12 @@ function onEvent(e) {
     case 'tele': {
       const ent = S.ents.get(e.id);
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
+      if(ent&&e.k==='basic_melee'){
+        // Start the committed strike during the real server windup; damage
+        // confirmation must not replay the attack animation after contact.
+        ent.basicMeleeStartAt=now;ent.attack=1;
+        ent.model.trigger?.('attack','auto');
+      }
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
       else if (ent?.placed && rich()) (e.k==='basic_melee'?cvfx.meleeWindup(ent,e.ms):cvfx.windup(ent,e.ms));
