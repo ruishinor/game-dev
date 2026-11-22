@@ -50,3 +50,11 @@ test('enemy melee windup consumes part of the original attack interval, not extr
  g.time=next;tickEnemy(g,e,0);
  assert.ok(e.basicWindup,'next readable windup begins on the original cadence');
 });
+
+test('enemy melee engagement suppresses out-of-combat recovery during its first windup',()=>{
+ const {g,p,e}=setup();
+ p.hp=3;assert.equal(p.combatUntil,0);
+ tickEnemy(g,e,0);
+ assert.ok(p.combatUntil>g.time,'telegraphed attack is already combat pressure');
+ assert.ok(e.basicWindup,'first strike still has a warning interval');
+});
