@@ -67,6 +67,31 @@ const SECURITY_HEADERS = {
 
 const ASSET_PREFIX = '/client/assets/';
 
+// Generated models are produced before the HTTP/WebSocket listener exists.
+// Never hash or inflate the ~94 MB source ZIP during a player's asset request.
+const GENERATED_MODELS = new Map([
+  ['/client/assets/depths-recovery-cache.glb', () => ensureDepthsCacheGLB()],
+  ['/client/assets/sanctum-warden-carbine.glb', () => ensureWardenRifleGLB('carbine')],
+  ['/client/assets/sanctum-warden-marksman.glb', () => ensureWardenRifleGLB('marksman')],
+]);
+const readyGeneratedModels = new Map();
+let generatedModelsPrepared = false;
+function prepareGeneratedModels() {
+  if (generatedModelsPrepared) return;
+  // A failure is an explicit missing-asset fallback for this process; it must
+  // not trigger a synchronous ZIP rebuild on a later HTTP request.
+  for (const [url, build] of GENERATED_MODELS) {
+    try {
+      const file = build();
+      if (!fs.statSync(file).isFile()) throw new Error('Generated asset is not a file');
+      readyGeneratedModels.set(url, file);
+    } catch (error) {
+      console.warn('[assets] startup model unavailable:', url, error.message || error);
+    }
+  }
+  generatedModelsPrepared = true;
+}
+
 function resolveStatic(urlPath) {
   if (urlPath === '/' || urlPath === '/index.html') return path.join(ROOT, 'client', 'index.html');
   // Owner-approved runtime export only; never mount pipeline sources or reports.
@@ -79,16 +104,9 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/sanctum_arch.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'sanctum_arch', 'outputs', 'sanctum_arch.glb');
   if (urlPath === '/client/assets/phase_scar.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'phase_scar', 'outputs', 'phase_scar.glb');
   if (urlPath === '/client/assets/foundry_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'foundry_kit', 'outputs', 'foundry_kit.glb');
-  // Explicitly expose the single upgraded cache source; never mount the ZIP or other models.
-  if (urlPath === '/client/assets/depths-recovery-cache.glb') {
-    try { return ensureDepthsCacheGLB(); }
-    catch (error) { console.error('[assets] Depths cache source unavailable:', error); return null; }
-  }
-  // Serve only exact rebuilt Warden rifle donors. The 94 MB source archive stays outside the HTTP mounts.
-  if (urlPath === '/client/assets/sanctum-warden-carbine.glb' || urlPath === '/client/assets/sanctum-warden-marksman.glb') {
-    try { return ensureWardenRifleGLB(urlPath.endsWith('-carbine.glb') ? 'carbine' : 'marksman'); }
-    catch (err) { console.warn('[wardens] selected rifle export unavailable:', err.message || err); return null; }
-  }
+  // Only prevalidated generated files are eligible for these exact URLs.
+  // Unavailable models return 404; no extraction happens in the request path.
+  if (GENERATED_MODELS.has(urlPath)) return readyGeneratedModels.get(urlPath) || null;
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);
@@ -160,6 +178,10 @@ export function startServer(opts = {}) {
   const port = opts.port ?? 8080;
   const host = opts.host ?? '127.0.0.1';
   const dataFile = opts.dataFile === undefined ? path.join(ROOT, 'data', 'characters.json') : opts.dataFile;
+
+  // May perform synchronous ZIP validation/extraction once, before any player
+  // can connect. The request handler itself now performs only file I/O.
+  prepareGeneratedModels();
 
   const store = new CharacterStore(dataFile);
   const game = new Game({ rng: opts.rng });
