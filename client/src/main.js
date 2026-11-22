@@ -2343,7 +2343,7 @@ window.__attune = {
       you: S.you,
       sheet: S.sheet,
       ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, armourWornAll: e.model.armourWornAll?.() || null, armourFx: e.model.armourFxInfo?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
-        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw, fit: e.model.weaponFit?.() ?? null, presentation: e.model.weaponPresentation?.() ?? null } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw, fit: e.model.weaponFit?.() ?? null, primary: e.model.weaponPrimary?.() ?? null, presentation: e.model.weaponPresentation?.() ?? null } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

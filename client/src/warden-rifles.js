@@ -127,12 +127,12 @@ export function syncWardenWeapon(rifle,stave,dt=0,state={}){
 
 /** Source model loaded? Used to retain the existing stave when unavailable. */
 export function hasWardenRifle(assets,variant=0){
- const id=variant%4===3?'marksman':'carbine';
+ const id=variant%4===2?'marksman':'carbine';
  return !!assets.wardenRifles?.has(id);
 }
 /** Non-combat cosmetic low-ready weapon with measured two-hand contact. */
 export function createWardenRifle(assets,inst,variant,optic){
- const id=variant%4===3?'marksman':'carbine';
+ const id=variant%4===2?'marksman':'carbine';
  const source=assets.wardenRifles?.get(id);
  if(!source)return null;
  const made=reconstruct(source,WARDEN_RIFLES[id],optic);

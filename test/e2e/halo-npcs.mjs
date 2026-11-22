@@ -67,14 +67,37 @@ try {
     assert.ok(Math.hypot(mine.x - def.x, mine.z - def.z) < 0.05, `${def.key} drawn at its shared position`);
     assert.equal(mine.model, 'glb', `${def.key} is the Halo GLB, not a fallback`);
     assert.equal(mine.halo.role, 'guard');
-    assert.ok(mine.halo.meshes.includes('warden-rifle:' + (mine.halo.variant === 3 ? 'marksman' : 'carbine')),
-      `${def.key} has an archived/reconstructed rifle visibly mounted`);
-    assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rifle must be held, not merely loaded: ${JSON.stringify(mine.halo.fit)}`);
-    assert.ok(mine.halo.fit.gripError < .035 && mine.halo.fit.supportError < .035,
-      `${def.key} both hand-to-grip errors must remain below 35mm`);
+    const expectedPrimary = mine.halo.variant % 2 === 0 ? 'rifle' : 'combat-rod';
+    assert.equal(mine.halo.primary, expectedPrimary, `${def.key} alternating primary weapon`);
+    assert.equal(mine.halo.presentation, expectedPrimary,
+      `${def.key} must display its assigned primary weapon, not the fallback`);
     assert.ok(mine.halo.meshes.includes('stave'), `${def.key} retains the hidden anchored fallback`);
-    assert.equal(mine.halo.presentation,'rifle',`${def.key} must display the rifle rather than fallback`);
-    assert.equal(mine.halo.fit?.failures,0,`${def.key} must have no transient grip failures`);
+    if (expectedPrimary === 'rifle') {
+      const id = mine.halo.variant === 2 ? 'marksman' : 'carbine';
+      assert.ok(mine.halo.meshes.includes('warden-rifle:' + id),
+        `${def.key} visibly equips the correct archived rifle`);
+      assert.ok(!mine.halo.meshes.includes('warden-combat-rod:energized'),
+        `${def.key} must not carry a second primary weapon`);
+      assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rifle grips must be fitted`);
+      assert.ok(mine.halo.fit.gripError < .035 && mine.halo.fit.supportError < .035,
+        `${def.key} both rifle hand-to-grip errors <35mm`);
+      assert.equal(mine.halo.fit?.failures,0,`${def.key} no transient rifle-fit failures`);
+    } else {
+      assert.ok(mine.halo.meshes.includes('warden-combat-rod:energized'),
+        `${def.key} must carry the joined combat rod`);
+      assert.ok(!mine.halo.meshes.some(n=>n.startsWith('warden-rifle:')),
+        `${def.key} must not carry a rifle`);
+      assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rod should have a prepared guard pose`);
+      assert.ok(mine.halo.fit?.gripError < .015,
+        `${def.key} rod must remain attached to the real right palm`);
+      assert.ok(mine.halo.fit?.armError < .035,
+        `${def.key} rod guard pose must be reachable`);
+      assert.equal(mine.halo.fit?.joined,true,`${def.key} rod must be joined`);
+      assert.equal(mine.halo.fit?.energized,true,`${def.key} rod must stay powered`);
+      assert.equal(mine.halo.fit?.energy,1,`${def.key} must use full energy`);
+      assert.equal(mine.halo.fit?.coronaVisible,2,`${def.key} both powered corona sections should show`);
+      assert.equal(mine.halo.fit?.failures,0,`${def.key} no transient rod pose failure`);
+    }
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);
     const outward = (fx * def.x + fz * def.z) / Math.hypot(def.x, def.z);
     assert.ok(outward > 0.999, `${def.key} faces away from the Sanctum centre (cos ${outward.toFixed(4)})`);
@@ -125,7 +148,7 @@ try {
       await page.screenshot({ path: `${OUT}/${def.key}-${view}.png` });
     }
     await page.evaluate(()=>window.__attune.pause(false));
-    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
+    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, primary: mine.halo.primary, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
   }
 
   // A successful final grip state does not excuse a rifle vanishing at an
@@ -134,11 +157,13 @@ try {
     'no Warden may temporarily lose the weapon during the watch loop');
   for(const def of SANCTUM_GUARDS){
     const g=report.guards.find(g=>g.key===def.key);
-    assert.equal(g?.fit?.failures,0,`${def.key} reported a transient weapon-pose failure`);
+    assert.equal(g?.fit?.failures,0,`${def.key} reported a transient primary-weapon pose failure`);
   }
   // independent animation state per warden
   const animTimes = report.guards.map((g) => JSON.stringify(g.anim));
   assert.equal(new Set(report.guards.map((g) => g.variant)).size, 4, 'four distinct warden variants');
+  assert.deepEqual(report.guards.map(g=>g.primary),['rifle','combat-rod','rifle','combat-rod'],
+    'the four Warden posts alternate rifle and energized combat rod in world order');
 
   // --- overview: all four from above the Sanctum
   await teleport(0, 7.5);
