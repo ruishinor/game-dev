@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Document } from '@gltf-transform/core';
-import { mergeDocuments, getBounds, prune } from '@gltf-transform/functions';
+import { mergeDocuments, getBounds, prune, unpartition } from '@gltf-transform/functions';
 import { readGltf, writeGlb, triangleCount } from './lib/gltf.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -57,6 +57,10 @@ for (const item of spec.donors) {
   for(const s of doc.getRoot().listScenes())if(s!==scene)s.dispose();
 }
 await doc.transform(prune({keepLeaves:true}));
+// mergeDocuments preserves one buffer per donor; GLB requires a single BIN buffer.
+// Combine only after pruning unselected meshes so the source studies stay small.
+await doc.transform(unpartition());
+assert.equal(doc.getRoot().listBuffers().length, 1, 'GLB study output must have a single buffer');
 fs.mkdirSync(output,{recursive:true});
 const file=path.join(output,'lumenfen-unapproved-donor-studies.glb');
 const outBytes=await writeGlb(doc,file);
