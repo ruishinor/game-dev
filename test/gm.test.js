@@ -79,6 +79,52 @@ test('real outside-safe-zone damage baseline proves session-only invulnerability
 });
 
 
+test('GM kill defeats only the selected living enemy through normal death handling without rewards', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), bystander = g.addPlayer(makeChar('keeper'));
+  const enemy = g.enemies.find(e => e.state !== 'dead' && e.state !== 'evade');
+  assert.ok(enemy);
+  const baseline = { xp:p.char.xp, step:p.char.quest.step, progress:p.char.quest.progress,
+    otherXp:bystander.char.xp, otherProgress:bystander.char.quest.progress };
+  assert.match(GM_HELP,/\/gm kill/);
+  assert.equal(executeGm(g,p,'kill').ok,false,'nothing selected');
+  assert.equal(executeGm(g,p,'kill 123').ok,false,'cannot supply target id by chat');
+  assert.equal(executeGm(g,p,'kill all').ok,false,'cannot mass-kill');
+  assert.equal(executeGm(g,p,'kill extra').ok,false,'no ignored trailing arguments');
+  assert.equal(enemy.state !== 'dead',true);
+  g.setTarget(p,bystander.id);
+  assert.equal(executeGm(g,p,'kill').ok,false,'other players protected');
+  assert.equal(bystander.dead,false);
+  g.setTarget(p,enemy.id);
+  // Another combatant's existing threat never turns a GM test command into
+  // a reward/quest farming mechanism.
+  enemy.threat.set(p.id,10);enemy.threat.set(bystander.id,20);
+  const beforeEvents=g.events.length;
+  const result=executeGm(g,p,'kill');
+  assert.deepEqual(result,{ok:true,action:'kill',target:String(enemy.id)});
+  assert.equal(enemy.hp,0);
+  assert.equal(enemy.state,'dead');
+  assert.equal(enemy.deadAt,g.time);
+  assert.ok(enemy.respawnAt>g.time);
+  assert.equal(enemy.threat.size,0);
+  assert.equal(enemy.lootByPlayer.size,0);
+  assert.ok(g.events.slice(beforeEvents).some(e=>e.e==='die'&&e.id===enemy.id));
+  assert.deepEqual({ xp:p.char.xp, step:p.char.quest.step, progress:p.char.quest.progress,
+    otherXp:bystander.char.xp, otherProgress:bystander.char.quest.progress },baseline);
+  const deaths=g.events.filter(e=>e.e==='die'&&e.id===enemy.id).length;
+  assert.equal(executeGm(g,p,'kill').ok,false,'already dead');
+  assert.equal(g.events.filter(e=>e.e==='die'&&e.id===enemy.id).length,deaths,'no repeated kill');
+  enemy.state='evade';
+  assert.equal(executeGm(g,p,'kill').ok,false,'evading enemy cannot be killed');
+  // Re-establish a live enemy, but invalidate its location after selection.
+  enemy.state='idle';enemy.hp=enemy.maxHp;enemy.x=RIFT_ANNEX.x;enemy.z=RIFT_ANNEX.arrivalZ;
+  assert.equal(executeGm(g,p,'kill').ok,false,'cross-region selection rejected at execution time');
+  assert.equal(enemy.state,'idle');
+  // The command does not target the GM character even when god mode is enabled.
+  g.setTarget(p,p.id);assert.equal(executeGm(g,p,'god on').ok,true);
+  assert.equal(executeGm(g,p,'kill').ok,false);
+  assert.equal(p.dead,false);
+});
+
 test('GM catalogue grants each existing item once, marks inventory and preserves the other player', () => {
   const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), other = g.addPlayer(makeChar('keeper'));
   const categories = [
@@ -341,6 +387,30 @@ test('real WebSocket: signed-in owner, guest, wrong owner, revoked session and r
       assert.equal(connection.player.gmAttributeBonus,undefined);
       assert.equal(connection.player.gmClassUnlocked,undefined);
     }
+
+    // Real socket: the server's selected target is authoritative and the same
+    // entity cannot be defeated by a guest or another registered account.
+    const enemy = srv.game.enemies.find(e => e.state !== 'dead' && e.state !== 'evade' &&
+      travelRegionAt(e.x,e.z) === 'reach');
+    assert.ok(enemy,'live enemy available for owner command');
+    const originalHp=enemy.hp;
+    for(const [client,connection] of [[b,otherConn],[guest,guestConn]]){
+      client.send({t:'tgt',id:enemy.id});
+      await until(()=>connection.player.target===enemy.id,'non-owner target selection');
+      const before=client.msgs.length;
+      client.send({t:'gm',line:'kill'});
+      await until(()=>client.msgs.slice(before).some(m=>m.t==='s'&&m.pv?.some(e=>/GM access denied/.test(e.m))),
+        'unauthorized kill rejected at socket boundary');
+      assert.equal(enemy.hp,originalHp,'unauthorized request leaves selected enemy unchanged');
+    }
+    a.send({t:'gm',line:'tp reach'});
+    await until(()=>travelRegionAt(ownerConn.player.x,ownerConn.player.z)==='reach','owner returns to reach');
+    a.send({t:'tgt',id:enemy.id});
+    await until(()=>ownerConn.player.target===enemy.id,'owner selects enemy via socket');
+    a.send({t:'gm',line:'kill'});
+    await until(()=>enemy.state==='dead','owner kill via authenticated socket');
+    assert.equal(enemy.hp,0);
+    assert.equal(enemy.lootByPlayer.size,0,'GM kill never generates loot for combatants');
 
     const priorPlayer = ownerConn.player;
     a.send({ t: 'account_leave' });
