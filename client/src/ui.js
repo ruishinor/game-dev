@@ -615,7 +615,7 @@ export class UI {
     });
     // Keep search focus while filtering a densely paged inventory.
     this.inventoryQuery='';
-    const searchRow=h('div','inventory-search-row');
+    const inventorySearchRow=h('div','inventory-search-row');
     this.inventorySearch=h('input','inventory-search');
     this.inventorySearch.type='search';
     this.inventorySearch.placeholder='Search…';
@@ -635,9 +635,9 @@ export class UI {
         renderInventory(this);
       }
     });
-    searchRow.append(this.inventorySearch);
+    inventorySearchRow.append(this.inventorySearch);
     this.inventoryBody = h('div','inventory-body');
-    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,searchRow,this.inventoryBody);
+    this.inventoryPanel.append(h('div','journal-brand','ATTUNEMENT'),h('h2','journal-title','Inventory'),this.inventoryOpacityButton,invClose,inventorySearchRow,this.inventoryBody);
     root.append(this.inventoryPanel);
     this.setInventoryOpacity(this.inventoryOpacity);
     // On smaller screens, either overlapping window can be brought forward
