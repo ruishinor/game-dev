@@ -436,8 +436,24 @@ export const SANCTUM_GUARDS = Object.freeze([15, 105, 200, 280].map((deg, i) => 
     yaw: Math.atan2(x - WORLD.sanctum.x, z - WORLD.sanctum.z), variant: i });
 }));
 OBJECTS.push(...SANCTUM_GUARDS);
-// New Rootglass Tear: choose safe Reach ground without moving older landmarks.
+// Two independent rifts on the same Reach approach should read as a
+// deliberate portal row, not randomly scattered openings. Prefer a second
+// rootglass slot directly beside the accepted Phase Scar, with the same Z
+// alignment and sufficient room for its Indexer/Regulator and player approach.
+// Recompute the shared location for both client and authoritative server.
 function findLumenfenEntry(){
+ const safe=(x,z)=>{
+  if(Math.hypot(x,z)>WORLD.radius-14)return false;
+  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+9))return false;
+  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<9+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
+  const samples=[groundHeight(x,z)];
+  for(let i=0;i<12;i++){const a=i*Math.PI/6;samples.push(groundHeight(x+Math.cos(a)*3.6,z+Math.sin(a)*3.6));}
+  return Math.max(...samples)-Math.min(...samples)<1.55;
+ };
+ if(RIFT_SITE)for(const offset of [18,-18,21,-21,24,-24,27,-27,30,-30]){
+  const x=RIFT_SITE.x+offset,z=RIFT_SITE.z;
+  if(safe(x,z))return Object.freeze({x,z});
+ }
  const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
  for(let r=67;r<=77;r+=2)for(let k=0;k<48;k++){
   const t=k*Math.PI*2/48;candidates.push([Math.round(Math.sin(t)*r),Math.round(Math.cos(t)*r)]);
