@@ -7,8 +7,8 @@
 - Supplied archive: `glb-low-poly-models-building-blocks.zip`
 - SHA-256: `a2e60f2a220ebf427f6211805d0a4aa11504205af91a62e2065ab18474977e43`
 - Inspected contents: 138 structurally valid GLB files, approximately 301 MiB uncompressed; seven pairs have identical SHA-256 hashes.
-- Planned source-only repository location: `assets/source-archives/glb-low-poly-models-building-blocks.zip` (original intact ZIP, without adding any GLB to the runtime manifest). **Git status at this document commit: the raw ZIP has not yet been uploaded.** A separate binary push is still needed; this document is not a claim that upload happened. The owner authorizes its retention as source material. Do not mislabel any unknown license as CC0.
-- Until the archive has actually been pushed, local copies may be kept under the existing ignored `reference-library/` or `assets/source/` paths. Do not serve this source material to game clients. The owner's development-repository authorization does not automatically approve its integration in the game's public runtime assets.
+- Source-only repository location: `assets/source-archives/glb-low-poly-models-building-blocks.zip` (original intact ZIP, merged by PR #237 on 2026-11-22). This is development source, **not** a runtime manifest asset or permission to serve its derivatives. Do not mislabel unknown third-party licenses as CC0.
+- Retain working donor extracts in ignored development locations; do not serve the raw ZIP or its untouched donors to game clients. The owner's development-repository authorization does not automatically approve redistribution in the public runtime.
 
 ## Mandatory promotion gate for any derived asset
 
@@ -21,4 +21,6 @@
 
 **Default classification: REFERENCE / DEVELOPMENT BLOCK ONLY — NOT PRODUCTION-READY.**
 
-The owner has authorized the archive as development source; this note is **not** evidence that the binary archive has been pushed, any particular model installed in the runtime pipeline, or any model visually upgraded.
+Run `node tools/assets/glb-source-quality.mjs > glb-source-quality.json` to inspect all 138 donors' geometry counts, normal/UV coverage, PBR texture bindings, skin/animation metadata and duplicate hashes without extracting any asset into the game. Its metrics are structural screening signals only, **not a visual-grade determination, rights clearance or production approval**. The dedicated CI workflow publishes a JSON audit artifact without including donor bytes.
+
+The owner has authorized the archive's development-source retention. The raw ZIP is now present in the public development repository, but no particular donor is thereby approved, materially upgraded, or licensed for distribution to players.
