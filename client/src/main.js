@@ -18,6 +18,7 @@ import { createRecoveryVisuals } from './recovery-visuals.js';
 import { createModel, CHARACTER_BUNDLES, gearKit } from './characters.js';
 import { LONGPOINT_TRACE } from './longpoint.js';
 import {loadWeaponModels} from './weapon-visuals.js';
+import {loadWardenRifles} from './warden-rifles.js';
 import { setFaceQuality, faceDetailRange } from './face.js';
 import { prepareMenderCarapace } from './mender-prototype.js';
 import { signedWheelTravel } from './spindle.js';
@@ -101,7 +102,7 @@ await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
 // Three existing licensed compact firearm meshes; Longpoint remains the authored original.
-if(glbOnly!=='none')await loadWeaponModels(assets);
+if(glbOnly!=='none')await Promise.all([loadWeaponModels(assets),loadWardenRifles(assets)]);
 // The Sanctum's carved architecture kit; the generic kit remains the fallback.
 // Low quality (q=0) keeps the lighter generic kit, as with the other optional
 // art: the kit adds three 2048 px maps and a material program at first draw.

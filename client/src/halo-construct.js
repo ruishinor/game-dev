@@ -10,13 +10,14 @@
 import * as THREE from 'three';
 import { Animator } from './animator.js';
 import { disposeInstance } from './assets.js';
+import { createWardenRifle, hasWardenRifle } from './warden-rifles.js';
 
 export const HALO_BUNDLE = 'halo_construct';
 
 // Mesh names authored by tools/asset-pipeline (rig stage).
 const ROLES = {
-  // Sanctum Wardens: open vertical ring, security uniform and warden stave.
-  guard: { meshes: ['body', 'ring_vertical', 'security', 'stave'], idle: 'Guard_Watch_Loop', lookAt: false, height: 1.85 },
+  // Sanctum Wardens: open vertical ring, fitted security uniform and rebuilt archive rifles (stave fallback).
+  guard: { meshes: ['body', 'ring_vertical', 'security'], idle: 'Guard_Watch_Loop', lookAt: false, height: 1.85 },
   // Vendors (owner direction 2026-11-21): the guard body and vertical ring in
   // the painted livery (white shell, ebony mechanism) with a blue sash only;
   // civilian posture.
@@ -48,7 +49,9 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   const inst = assets.instance(HALO_BUNDLE);
   if (!inst) throw new Error('halo_construct bundle is not loaded');
   const v = role === 'guard' ? GUARD_VARIANTS[((variant % GUARD_VARIANTS.length) + GUARD_VARIANTS.length) % GUARD_VARIANTS.length] : null;
-  const keep = new Set([...spec.meshes, ...(v ? v.equip : [])]);
+  const guardIndex = v ? GUARD_VARIANTS.indexOf(v) : -1;
+  const armed = !!v && hasWardenRifle(assets, guardIndex);
+  const keep = new Set([...spec.meshes, ...(v ? v.equip : []), ...(v && !armed ? ['stave'] : [])]);
   const missing = [...keep].filter((n) => !inst.getObjectByName(n));
   if (missing.length) throw new Error(`halo_construct is missing meshes: ${missing.join(', ')}`);
   // Drop the meshes this role does not wear (they would still be skinned every frame if merely hidden).
@@ -72,6 +75,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   const group = new THREE.Group();
   group.name = `halo_construct:${role}`;
   group.add(inst);
+  const rifle = armed ? createWardenRifle(assets, inst, guardIndex, v.optic) : null;
   const clips = assets.clips(HALO_BUNDLE);
   const anim = new Animator(inst, clips);
   if (!anim.has(spec.idle)) throw new Error(`halo_construct has no clip ${spec.idle}`);
@@ -96,7 +100,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     height: spec.height,
     radius: 0.42,
     hover: 0,
-    meshes: [...keep],
+    meshes: [...keep, ...(rifle ? ['warden-rifle:' + rifle.id] : [])],
     update(dt, st) {
       if (spec.talk) {
         const want = !!st.talking;
@@ -111,6 +115,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       const step = lod.acc;
       lod.acc = 0;
       anim.update(step);
+      rifle?.update(step, st);
       // Vendor attention: turn the ring toward a nearby customer (presentation only).
       const target = spec.lookAt && st.lookAt && !st.dead ? st.lookAt : null;
       attention += ((target ? 1 : 0) - attention) * Math.min(1, step * 4);
