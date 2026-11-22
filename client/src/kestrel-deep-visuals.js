@@ -41,7 +41,7 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
   // open east entry or changing authoritative collision and cover.
   const wallCells=[],wallSeams=[],fixings=[],wallLights=[];
   for (const side of [-1,1]) {
-    const z = side * (deep.hd - .18);
+    const z = side * (deep.hd - .46);
     for (let i=0;i<6;i++) {
       const x = -5.95 + i*2.32;
       wallCells.push([x,2.33,z,2.18,4.34,.12]);
@@ -53,8 +53,8 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
   }
   for(let i=0;i<6;i++) {
     const z=-5.5+i*2.2;
-    wallCells.push([-deep.hw+.18,2.32,z,.14,4.31,2.06]);
-    wallSeams.push([-deep.hw+.085,2.32,z,.05,.045,1.72]);
+    wallCells.push([-deep.hw+.50,2.32,z,.14,4.31,2.06]);
+    wallSeams.push([-deep.hw+.56,2.32,z,.05,.045,1.72]);
   }
   plates('kestrel:bulkhead-cassettes',basalt,wallCells);
   plates('kestrel:bulkhead-stiffeners',rib,wallSeams);
@@ -114,17 +114,17 @@ export function buildKestrelDeepVisuals(T, deep, assets, options = {}) {
     for(const x of [-3.9,-.7,2.5])
       kit('Prop_Cable_1',x,5.02,-2.6,.75,.4,.66);
     for(const z of [-2.65,2.65])
-      kit('Prop_Computer',-6.76,1.35,z,.29,.82,.35,0,Math.PI/2);
+      kit('Prop_Computer',-6.50,1.35,z,.29,.82,.35,0,Math.PI/2);
   }
   // Rebuilt pressure-coupling instrument: retained GLB computers are given a
   // coherent instrument panel, guarded coil and physically legible readouts.
   // Thin instrument surfaces are mounted on the existing western bulkhead.
   const sockets=[],faces=[],numbers=[],cords=[];
   for (const z of [-2.65,2.65]) {
-    sockets.push([-6.79,2.18,z,.18,1.42,1.15]);
-    faces.push([-6.68,2.4,z,.025,.68,.78]);
-    for(let j=0;j<7;j++)numbers.push([-6.65,2.15+j*.085,z-.29+j*.05,.012,.018,.14]);
-    for(const dz of [-.43,.43]) cords.push([-6.77,1.38,z+dz,.11,1.12,.055]);
+    sockets.push([-6.58,2.18,z,.18,1.42,1.15]);
+    faces.push([-6.47,2.4,z,.025,.68,.78]);
+    for(let j=0;j<7;j++)numbers.push([-6.44,2.15+j*.085,z-.29+j*.05,.012,.018,.14]);
+    for(const dz of [-.43,.43]) cords.push([-6.56,1.38,z+dz,.11,1.12,.055]);
   }
   plates('kestrel:console-frames',alloy,sockets);
   plates('kestrel:console-glass',frost,faces,false);
