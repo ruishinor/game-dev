@@ -5,6 +5,7 @@ import { levelHpMul } from './enemy-levels.js';
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
+import {COMBAT_LINGER_MS} from './game.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
 // Long patrols leash to the point where they broke off their route (their
@@ -35,6 +36,7 @@ export function resetEnemy(game, e) {
   e.fixate = null;
   e.buffs = [];
   e.cast = null;
+  e.basicWindup = null;
   e.nextAttack = 0;
   e.specialAt = {};
   e.deadAt = 0;
@@ -120,6 +122,7 @@ function startEvade(game, e) {
   e.fixate = null;
   e.target = 0;
   e.cast = null;
+  e.basicWindup = null;
   e.buffs = [];
   e.evadeSince = game.time;
   if(e.form||e.type==='faultstalker')resetWildlife(e,game.time);
@@ -144,6 +147,13 @@ function pickTarget(game, e) {
     }
   }
   return best;
+}
+
+// Elite and scripted encounters retain their authored auto and special cadence.
+// Basic committed-facing warnings apply to ordinary melee enemies only.
+function telegraphsOrdinaryMelee(e, def) {
+  return def.attack.kind === 'melee' && !def.elite && !e.elite &&
+    !(e.specials || def.specials || []).length;
 }
 
 function beginSpecial(game, e, sp, target) {
@@ -345,12 +355,20 @@ export function tickEnemy(game, e, dt) {
   if (e.state !== 'combat') {
     e.state = 'combat';
     e.wander = null;
-    e.nextAttack = game.time + 400;
+    // Open the first warned swing immediately so the actual contact lands at
+    // the original ~400 ms engagement point, rather than appending a full
+    // windup to the prior opening delay.
+    e.nextAttack = game.time + (telegraphsOrdinaryMelee(e, def) ? 0 : 400);
     for (const sp of e.specials || def.specials || []) e.specialAt[sp.id] = game.time + sp.first;
     e.progressAt = game.time + 1200;
     e.progressDist = Infinity;
   }
   e.target = target.id;
+  // An actively pursuing melee attacker is combat pressure even before its
+  // telegraphed first contact. Otherwise passive out-of-combat regeneration
+  // heals a low-HP target during the new windup and changes lethal outcomes.
+  if(def.attack.kind==='melee')
+    target.combatUntil=Math.max(target.combatUntil||0,game.time+COMBAT_LINGER_MS);
   if(e.form)e.ecologyMode=e.form==='shieldback'?'defend':'retaliate';
   if(e.type==='faultstalker')e.ecologyMode='hunt';
 
@@ -369,6 +387,24 @@ export function tickEnemy(game, e, dt) {
     if (game.time >= e.cast.until) {
       resolveSpecial(game, e);
       e.nextAttack = Math.max(e.nextAttack, game.time + 700);
+    }
+    return;
+  }
+
+  // A basic melee attack now has a committed, readable server-owned windup.
+  // It cannot track the player throughout the warning or hit through cover.
+  if(e.basicWindup){
+    const w=e.basicWindup;
+    if(game.time<w.until)return;
+    e.basicWindup=null;
+    // The next attack was scheduled when the swing began; adding another
+    // interval on contact would reduce encounter DPS and break boss pacing.
+    const victim=game.players.get(w.targetId);
+    if(victim&&!victim.dead&&!inSafeZone(victim)&&sameTravelRegion(e,victim)&&
+      dist(e,victim)-victim.radius-e.radius*.5<=def.attack.range&&hasLineOfSight(e,victim)){
+      const dx=victim.x-e.x,dz=victim.z-e.z,len=Math.hypot(dx,dz);
+      const facing=len<.001||(Math.sin(w.yaw)*dx+Math.cos(w.yaw)*dz)/len>=.14;
+      if(facing)dealDamage(game,e,victim,def.attack.dmg,'auto',{kind:'melee',melee:true});
     }
     return;
   }
@@ -420,8 +456,19 @@ export function tickEnemy(game, e, dt) {
 
   const reach = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
   if (reach <= def.attack.range && game.time >= e.nextAttack && hasLineOfSight(e,target)) {
-    e.nextAttack = game.time + def.attack.interval;
-    dealDamage(game, e, target, def.attack.dmg, 'auto', { kind: def.attack.kind, melee: def.attack.kind === 'melee' });
+    if(telegraphsOrdinaryMelee(e,def)){
+      const windup=Math.max(390,Math.min(610,Math.round(def.attack.interval*.42)));
+      e.basicWindup={targetId:target.id,yaw:e.yaw,until:game.time+windup};
+      // Retain the original start-to-start cadence: the windup is part of
+      // the interval rather than an additional unbalanced recovery delay.
+      e.nextAttack=game.time+def.attack.interval;
+      // Existing event/render paths already support bounded enemy warnings.
+      // This is a frontal weapon swing, NOT a ground AoE; don't draw a false hazard circle.
+      game.emitWorldEvent({e:'tele',id:e.id,k:'basic_melee',n:'Incoming melee strike',x:e.x,z:e.z,r:Math.min(2.2,def.attack.range),ms:windup,g:0});
+    }else{
+      e.nextAttack=game.time+def.attack.interval;
+      dealDamage(game,e,target,def.attack.dmg,'auto',{kind:def.attack.kind,melee:def.attack.kind==='melee'});
+    }
   } else if (def.attack.far && reach > def.attack.range && reach <= def.attack.far.range && game.time >= e.nextAttack + 600 && hasLineOfSight(e,target)) {
     // Elites punish kiting with a slower ranged strike.
     e.nextAttack = game.time + def.attack.far.interval;
