@@ -20,7 +20,25 @@ export function poseLongpoint(group, deployment = 0) {
 export function createLongpointPresentation(T, humanoid, prop, release = () => {}, {stowBone=null,stowTransform=null}={}) {
   const arms = ['r','l'].map(side => ({ side, upper:humanoid.getObjectByName('upperarm_'+side), lower:humanoid.getObjectByName('lowerarm_'+side), hand:humanoid.getObjectByName('hand_'+side) }));
   const anchors = ['GripAnchor','SupportAnchor','EffectAnchor'].map(name => prop?.getObjectByName(name));
-  if (!prop || anchors.some(x=>!x) || arms.some(a=>!a.upper||!a.lower||!a.hand||a.lower.parent!==a.upper||a.hand.parent!==a.lower)) return null;
+  if(!prop)return null;
+  const invalidAnchors=anchors.some(x=>!x),invalidRig=arms.some(a=>!a.upper||!a.lower||!a.hand||a.lower.parent!==a.upper||a.hand.parent!==a.lower);
+  if(invalidAnchors||invalidRig){
+    // Loading a rifle does not guarantee a compatible player rig/asset.
+    // Keep the same asset visibly stowed, like the neutral Warden fallback,
+    // rather than discarding it and leaving the character apparently unarmed.
+    if(!stowBone||!stowTransform)return null;
+    prop.scale.setScalar(.43);stowBone.add(prop);
+    prop.position.copy(stowTransform.position);prop.quaternion.copy(stowTransform.quaternion);
+    let closed=false;
+    const reason=invalidAnchors?'missing-grip-anchors':'incompatible-player-rig';
+    return {
+      update(st={}){prop.visible=!st.dead&&!st.air&&!st.hideWeapon;return false;},
+      restore(){},fire(){return false;},origin(){return null;},
+      inspect(){return {mode:'stowed',reason,visible:prop.visible,parent:prop.parent?.name||null,
+        gripError:null,supportError:null,failures:0,recoveries:0,attempts:0,placement:null};},
+      dispose(){if(closed)return;closed=true;prop.removeFromParent();release(prop);}
+    };
+  }
   const [grip,support,effect]=anchors;
   const v=()=>new T.Vector3(), q=()=>new T.Quaternion();
   const world=n=>n.getWorldPosition(v()), inBody=n=>humanoid.worldToLocal(world(n));
