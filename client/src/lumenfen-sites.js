@@ -23,7 +23,7 @@ export function buildLumenfenSites(T) {
     leaf: new T.ConeGeometry(1, 1, 5),
   };
   const moving = [], siteNames = [];
-  const Y = new T.Vector3(0, 1, 0), matrix = new T.Matrix4();
+  const matrix = new T.Matrix4();
   const position = new T.Vector3(), quaternion = new T.Quaternion(), scale = new T.Vector3();
   for (const site of FEN_SITES) {
     const root = new T.Group();
@@ -79,7 +79,7 @@ export function buildLumenfenSites(T) {
       // A coherent working crossing: leveled decking, supported piers, simple
       // channel instrumentation and a recognizable local water mirror.
       const water = new T.Mesh(new T.CircleGeometry(1,48),mats.glass);
-      water.rotation.x = -Math.PI/2; water.scale.set(8,5.3,1); water.position.y=.11;
+      water.rotation.x = -Math.PI/2; water.scale.set(8,1,5.3); water.position.y=.11;
       water.name='lumenfen:spring:water';root.add(water);
       for(let j=-8;j<=8;j++){
         box(j%4===0?'pale':'wood',j*.78,.34,0,.68,.2,3.7);
