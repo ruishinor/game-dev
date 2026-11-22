@@ -63,13 +63,28 @@ export function extractRifleGroup(raw,nodeName){
   if(maps.accessor.has(id))return maps.accessor.get(id);
   const a=src.accessors[id],view=src.bufferViews[a?.bufferView];
   if(!a||!view||a.sparse||view.buffer!==0)throw Error('Unsupported rifle accessor');
-  const item=bytesFor[a.componentType]*components[a.type];
-  const start=(view.byteOffset||0)+(a.byteOffset||0),length=view.byteStride?(a.count-1)*view.byteStride+item:a.count*item;
-  if(!item||start+length>(view.byteOffset||0)+view.byteLength||start+length>bin.length)throw Error('Malformed rifle data');
+  // Repack every accessor into an independently aligned, tightly packed view.
+  // Donor packs interleave vertex attributes and use non-zero accessor offsets:
+  // copying a partial strided view while rebasing its offset can create
+  // GLBs that pass JSON-range checks but fail Three's typed-array decoder.
+  const scalar=bytesFor[a.componentType],componentsCount=components[a.type];
+  const item=scalar*componentsCount;
+  const stride=view.byteStride||item;
+  const viewStart=view.byteOffset||0,relative=a.byteOffset||0;
+  if(!item||!Number.isSafeInteger(a.count)||a.count<=0||stride<item||stride%scalar||
+      relative%scalar||relative+item>view.byteLength)
+   throw Error('Malformed rifle accessor layout');
+  const end=relative+(a.count-1)*stride+item;
+  if(end>view.byteLength||viewStart+end>bin.length)throw Error('Truncated rifle accessor data');
+  const packed=Buffer.alloc(a.count*item);
+  for(let i=0;i<a.count;i++){
+   const begin=viewStart+relative+i*stride;
+   bin.copy(packed,i*item,begin,begin+item);
+  }
   const vi=dst.bufferViews.length,ai=dst.accessors.length;
-  dst.bufferViews.push({buffer:0,byteOffset:total,byteLength:length,...(view.byteStride?{byteStride:view.byteStride}:{}),...(view.target?{target:view.target}:{})});
+  dst.bufferViews.push({buffer:0,byteOffset:total,byteLength:packed.length,...(view.target?{target:view.target}:{})});
   dst.accessors.push({...a,bufferView:vi,byteOffset:0});
-  chunks.push(bin.subarray(start,start+length));total+=align(length);
+  chunks.push(packed);total+=align(packed.length);
   maps.accessor.set(id,ai);return ai;
  }
  function material(id){
