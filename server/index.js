@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Game } from './sim/game.js';
+import { ensureWardenRifleGLB } from '../tools/assets/warden-rifle-source.mjs';
 import { CharacterStore } from './store.js';
 import { NetServer } from './net.js';
 
@@ -77,6 +78,11 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/sanctum_arch.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'sanctum_arch', 'outputs', 'sanctum_arch.glb');
   if (urlPath === '/client/assets/phase_scar.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'phase_scar', 'outputs', 'phase_scar.glb');
   if (urlPath === '/client/assets/foundry_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'foundry_kit', 'outputs', 'foundry_kit.glb');
+  // Serve only exact rebuilt Warden rifle donors. The 94 MB source archive stays outside the HTTP mounts.
+  if (urlPath === '/client/assets/sanctum-warden-carbine.glb' || urlPath === '/client/assets/sanctum-warden-marksman.glb') {
+    try { return ensureWardenRifleGLB(urlPath.endsWith('-carbine.glb') ? 'carbine' : 'marksman'); }
+    catch (err) { console.warn('[wardens] selected rifle export unavailable:', err.message || err); return null; }
+  }
   for (const [prefix, dir] of MOUNTS) {
     if (!urlPath.startsWith(prefix)) continue;
     const rel = urlPath.slice(prefix.length);
