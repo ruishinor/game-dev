@@ -68,12 +68,12 @@ try{
  await page.locator('.workshop-window').waitFor({state:'visible'});
  const layoutPanel=page.locator('.workshop-window');
  const beforeLayout=await layoutPanel.boundingBox();
- const moveButton=layoutPanel.getByRole('button',{name:'Move',exact:true});
+ const moveButton=layoutPanel.getByRole('button',{name:'Move window',exact:true});
  const moveBox=await moveButton.boundingBox();
  await page.mouse.move(moveBox.x+moveBox.width/2,moveBox.y+moveBox.height/2);
  await page.mouse.down();await page.mouse.move(moveBox.x+moveBox.width/2+50,moveBox.y+moveBox.height/2+20,{steps:5});await page.mouse.up();
  assert.ok((await layoutPanel.boundingBox()).x>beforeLayout.x+10);
- const resizeButton=layoutPanel.getByRole('button',{name:'Resize',exact:true});
+ const resizeButton=layoutPanel.getByRole('button',{name:'Resize window',exact:true});
  const beforeResize=await layoutPanel.boundingBox();
  await resizeButton.focus();await page.keyboard.press('ArrowLeft');
  assert.ok((await layoutPanel.boundingBox()).width<beforeResize.width);
@@ -144,7 +144,13 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('Escape');
  if(await inventory.isVisible())await inventory.getByRole('button',{name:'Close inventory'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyC');
- await page.getByRole('button',{name:'[1] Rending Arc',exact:true}).click();
+ // Profession abilities are deliberately collapsed in the compact Character view.
+ // Open the real disclosure before exercising its Codex action.
+ const professionAbilities=page.locator('details.character-secondary').filter({hasText:'Profession abilities'});
+ await professionAbilities.locator('summary').waitFor({state:'visible'});
+ if(!await professionAbilities.evaluate(node=>node.open))await professionAbilities.locator('summary').click();
+ assert.ok(await professionAbilities.getByRole('button',{name:'[1] Rending Arc',exact:true}).isVisible());
+ await professionAbilities.getByRole('button',{name:'[1] Rending Arc',exact:true}).click();
  await codex.getByRole('heading',{name:'Rending Arc',exact:true}).waitFor({state:'visible'});
  assert.match(await codex.locator('.codex-facts').innerText(),/Kinetic Vanguard · key 1/);
  assert.deepEqual(errors,[]);

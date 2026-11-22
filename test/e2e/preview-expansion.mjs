@@ -306,7 +306,7 @@ try {
   const initial=await character.boundingBox();
   await drag(character.locator('.journal-title'),-35,-25);
   const moved=await character.boundingBox();
-  assert.ok(moved.x<initial.x-20&&moved.y<initial.y-10,'Title drag moves the actual window');
+  assert.ok(moved.x<initial.x-20&&Math.abs(moved.y-Math.max(8,initial.y-25))<3,'Title drag moves the actual window within viewport bounds');
   await drag(character.locator('[data-edge="e"]'),35,0);
   const resized=await character.boundingBox();
   assert.ok(resized.width>moved.width+20&&Math.abs(resized.x-moved.x)<2,'East edge resizes around the anchored west edge');

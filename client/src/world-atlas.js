@@ -2,6 +2,7 @@
 import {WORLD,ZONES,RIFT_ANNEX,SEVERANCE_POCKET,inRiftAnnex,inSeverancePocket,sameTravelRegion} from '../../shared/world.js';
 import {reachAtlasTerrain,reachAtlasContours,clusterMapMarkers,atlasEntityCategory,placeAtlasLabels} from './atlas-cartography.js';
 import {loadSavedPoints,persistSavedPoints,MAX_SAVED_POINTS,MAX_NOTE_LENGTH} from './atlas-saved-points.js';
+import {WindowLayout} from './window-layout.js';
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function regionFor(pos){
@@ -70,7 +71,8 @@ export class WorldAtlas{
  this.el=el('section','world-atlas');this.el.hidden=true;this.el.setAttribute('role','dialog');this.el.setAttribute('aria-label','World atlas');
  const head=el('header','atlas-header');this.title=el('h2',null,'World atlas');
  const full=el('button',null,'Full screen');full.type='button';full.setAttribute('aria-pressed','false');
- full.addEventListener('click',()=>{const on=this.el.classList.toggle('atlas-fullscreen');full.setAttribute('aria-label',on?'Restore window':'Full screen');full.title=full.getAttribute('aria-label');full.textContent=on?'⤡':'⤢';full.setAttribute('aria-pressed',String(on));this.draw();});
+ const setFull=on=>{this.el.classList.toggle('atlas-fullscreen',on);full.setAttribute('aria-label',on?'Restore window':'Full screen');full.title=full.getAttribute('aria-label');full.textContent=on?'⤡':'⤢';full.setAttribute('aria-pressed',String(on));};
+ full.addEventListener('click',()=>{setFull(!this.el.classList.contains('atlas-fullscreen'));this.layout.sync();this.draw();});
  const close=el('button',null,'Close');close.onclick=()=>this.close();head.append(this.title,close);
  const body=el('div','atlas-body'),tools=el('aside','atlas-tools'),view=el('div','atlas-view');
  const tabs=el('div','atlas-tabs'),mapTab=el('button',null,'Map'),savedTab=el('button',null,'Saved');
@@ -129,6 +131,9 @@ export class WorldAtlas{
  full.textContent='⤢';full.setAttribute('aria-label','Full screen');full.title='Full screen';controls.append(full);
  this.playerMarker=el('div','atlas-player-marker','▲');this.playerMarker.setAttribute('role','img');this.playerMarker.setAttribute('aria-label','Your current position');this.playerMarker.title='Your current position';this.playerMarker.hidden=true;
  view.append(this.canvas,this.playerMarker,controls);body.append(tools,view);this.el.append(head,body);root.append(this.el);
+ this.layout=new WindowLayout(this.el,body,'atlas',{min:{w:760,h:500},controlsHost:head,suspended:()=>this.el.classList.contains('atlas-fullscreen'),onReset:()=>setFull(false)});
+ // Redraw projection after an actual window resize, without changing pan or zoom.
+ if(typeof ResizeObserver==='function')this.resizeObserver=new ResizeObserver(()=>{if(!this.el.hidden&&this.region)this.draw();}),this.resizeObserver?.observe(view);
  this.el.addEventListener('keydown',e=>{
   // The map owns focus while open. M should close it as well as open it,
   // except when the user is editing a search, marker name or note.
@@ -330,7 +335,7 @@ export class WorldAtlas{
   }else this.waypointDetails.textContent='';
   this.waypointDetails.hidden=!wp;
  }
- open(){this.el.hidden=false;this.draw();this.updatePlayerMarker();this.el.querySelector('button')?.focus();}
+ open(){this.el.hidden=false;this.layout.sync();this.layout.raise();this.draw();this.updatePlayerMarker();this.el.querySelector('button')?.focus();}
  close(focus=true){if(this.el.hidden)return false;this.el.hidden=true;this.playerMarker.hidden=true;this.drag=null;if(focus)this.focusWorld();return true;}
  scale(f){this.zoom=clamp(this.zoom*f,1,5);this.draw();}
  update(st){

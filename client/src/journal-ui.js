@@ -9,6 +9,7 @@ import { materialUses } from './material-uses.js';
 import { GOODS } from '../../shared/goods.js';
 import { conditionOf } from '../../shared/condition.js';
 import { inventoryView } from './inventory-view.js';
+import { inventoryPage } from './inventory-page.js';
 import { refinedItemMotif } from './item-artwork.js';
 import { renderedItemIcon } from './item-renders.js';
 import {cataloguePortrait} from './catalogue-portraits.js';
@@ -366,10 +367,12 @@ export function renderInventory(ui) {
     const btn=h('button',ui.inventoryFilter===id?'active':'',name);
     btn.setAttribute('aria-pressed',String(ui.inventoryFilter===id));
     btn.dataset.seenGroup=id;
-    btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;renderInventory(ui);});
+    btn.addEventListener('click',()=>{ui.inventoryFilter=id;ui.inventorySelection=null;ui.inventoryPage=0;renderInventory(ui);});
     tabs.append(btn);
   }
-  const view=inventoryView(s,ui.inventoryFilter),items=view.entries;
+  const view=inventoryView(s,ui.inventoryFilter);
+  const {entries:items,page,pages,total}=inventoryPage(view.entries,ui.inventoryPage);
+  ui.inventoryPage=page;
   const equipment=items.filter(e=>e.kind==='equipment');
   if(!equipment.some(e=>e.id===ui.inventorySelection))ui.inventorySelection=equipment[0]?.id||null;
   const grid=h('div','inventory-grid');
@@ -399,31 +402,38 @@ export function renderInventory(ui) {
     grid.append(btn);
   }
   // A cell is an equipment item or one material stack, not storage capacity.
-  for(let i=items.length;i<24;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
-  const count=h('div','inventory-count',items.length+' shown · '+view.total+' carried slots');
+  for(let i=items.length;i<18;i++){const empty=h('div','item-cell vacant');empty.setAttribute('aria-hidden','true');grid.append(empty);}
+  const count=h('div','inventory-count',total+' in category · '+view.total+' carried slots');
   count.title=view.equipment+' equipment items · '+view.materialStacks+' material stacks · '+view.materialUnits+' material units · '+view.goodsStacks+' goods stacks · '+view.goodsUnits+' goods units';
   const wallet=h('div','inventory-wallet','Credits: '+String(Number.isSafeInteger(s.credits)&&s.credits>=0?s.credits:0));
   wallet.setAttribute('aria-label','Credit balance');
-  root.append(wallet,tabs,count,grid);
+  const pagination=h('nav','inventory-pagination');pagination.setAttribute('aria-label','Inventory pages');
+  const go=delta=>{ui.inventoryPage=page+delta;ui.inventorySelection=null;renderInventory(ui);const next=root.querySelector('[data-inventory-page="'+(delta>0?'next':'previous')+'"]:not(:disabled)');(next||root.querySelector('.inventory-grid button'))?.focus({preventScroll:true});};
+  for(const [id,label,delta] of [['previous','Previous items',-1],['next','Next items',1]]){
+    const b=h('button',null,id==='previous'?'‹':'›');b.type='button';b.dataset.inventoryPage=id;b.title=label;b.setAttribute('aria-label',label);b.disabled=delta<0?page===0:page>=pages-1;b.onclick=()=>go(delta);if(delta<0)pagination.append(b);else{const status=h('span',null,(page+1)+' / '+pages);status.setAttribute('role','status');pagination.append(status,b);}
+  }
+  pagination.hidden=pages<=1;
+  root.append(wallet,tabs,count,grid,pagination);
+  const secondary=h('div','inventory-secondary');root.append(secondary);
   if((ui.inventoryFilter==='all'||ui.inventoryFilter==='utility')&&s.goods?.field_maintenance_kit>0){
     const weapon=s.equipped?.weapon,condition=conditionOf(s,weapon),kit=h('section','inventory-detail');
     kit.append(h('strong',null,'Field Maintenance Kit × '+s.goods.field_maintenance_kit),h('p','muted',condition===null?'Equip a repairable weapon first.':ITEMS[weapon].name+' · '+condition+'% condition. Restores up to 25 points outside combat.'));
     const use=h('button','primary','Use Field Maintenance Kit');use.type='button';
     use.disabled=!!ui.buildLock||condition===null||condition===100||!Number.isSafeInteger(s.utilityRev);
-    use.addEventListener('click',()=>ui.a.useUtility('field_maintenance_kit',weapon,s.utilityRev));kit.append(use);root.append(kit);
+    use.addEventListener('click',()=>ui.a.useUtility('field_maintenance_kit',weapon,s.utilityRev));kit.append(use);secondary.append(kit);
   }
   if((ui.inventoryFilter==='all'||ui.inventoryFilter==='utility')&&s.goods?.field_restorative>0){
     const vial=h('section','inventory-detail');
     vial.append(h('strong',null,'Field Restorative × '+s.goods.field_restorative),h('p','muted','Restores 30% of maximum health over 5 seconds, in or out of combat.'));
     const use=h('button','primary','Use Field Restorative');use.type='button';
     use.disabled=!!s.dead||!Number.isSafeInteger(s.utilityRev);
-    use.addEventListener('click',()=>ui.a.useUtility('field_restorative','',s.utilityRev));vial.append(use);root.append(vial);
+    use.addEventListener('click',()=>ui.a.useUtility('field_restorative','',s.utilityRev));vial.append(use);secondary.append(vial);
   }
   if(!items.length)root.append(h('p','muted',ui.inventoryFilter==='materials'?'No salvage or components carried. Defeat enemies to recover materials.':ui.inventoryFilter==='weapon'?'No weapons carried. Purchase or fabricate a starter emitter.':ui.inventoryFilter==='quest'?'No items of this type exist in the current slice.':'No items in this category.'));
   if(ui.inventorySelection){
-    const card=equipmentCard(ui,ui.inventorySelection,false,null,true);
+    const card=equipmentCard(ui,ui.inventorySelection,false,null,false);
     card.classList.add('inventory-detail');
-    root.append(card);
+    secondary.prepend(card);
   }
   if(ui.buildLock)root.append(h('div','why','Equipment changes are locked during combat or defeat.'));
   ui.updateItemIndicators();

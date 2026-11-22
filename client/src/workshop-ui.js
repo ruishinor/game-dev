@@ -47,6 +47,7 @@ function planner(ui,body){
   const left=h('section','workshop-section');
   left.append(h('h3',null,'Proposed loadout'),h('p','muted','Compare equipment combinations without changing your live character.'));
   if(s.buildPreview)left.append(h('p','muted','Active GM preview applies to this comparison.'));
+  const selectors=h('div','planner-selectors');
   for(const slot of SLOTS){
     const label=h('label','planner-slot',SLOT_NAMES[slot]);
     const select=h('select');
@@ -59,9 +60,11 @@ function planner(ui,body){
     }
     select.value=setup[slot]||'';
     select.addEventListener('change',()=>{setup[slot]=select.value||null;renderWorkshop(ui);});
-    label.append(select);left.append(label);
-    if(setup[slot]&&ITEMS[setup[slot]])left.append(visual(setup[slot],ITEMS[setup[slot]].name,ITEMS[setup[slot]].summary||ITEMS[setup[slot]].desc));
+    label.append(select);selectors.append(label);
+    const item=ITEMS[setup[slot]];
+    if(item){select.title=item.name+' — '+(item.summary||item.desc);ui.hover(select,()=>[h('div','tip-title',item.name),h('div','tip-body',item.summary||item.desc)]);}
   }
+  left.append(selectors);
   left.append(btn('Reset to equipped',()=>{ui.plannedLoadout={...s.equipped};renderWorkshop(ui);}));
   const hypothetical={...s,inventory:[...new Set([...s.inventory,...Object.values(setup).filter(Boolean)])],equipped:setup};
   const res=validateLoadout(hypothetical,setup,s.buildPreview),owned=validateLoadout(s,setup,s.buildPreview),stats=deriveStats(hypothetical,s.buildPreview);

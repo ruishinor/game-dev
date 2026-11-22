@@ -768,6 +768,7 @@ export class UI {
     root.append(this.settingsPanel);
     this.buildHotkeySettings(root);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}),this.a.terrainForAtlas);
+    this.windowLayouts.push(this.atlas.layout);
     this.zoneLabel.after(this.atlas.clock,this.atlas.waypointBrief);
     const mapControls=h('div','map-controls');
     for(const [label,title,delta] of [['−','Zoom minimap out',-.5],['+','Zoom minimap in',.5]]){const button=h('button',null,label);button.type='button';button.setAttribute('aria-label',title);button.addEventListener('click',()=>{this.minimapZoom=Math.max(1,Math.min(3,this.minimapZoom+delta));});mapControls.append(button);}
@@ -2038,26 +2039,26 @@ export class UI {
     }
     else c1.append(h('div', 'muted', 'None yet. Some powers only answer the attuned.'));
 
-    c1.append(h('h3',null,'Profession abilities'));
+    const prof=h('details','character-secondary');prof.append(h('summary',null,'Profession abilities'));
     for(const [i,id] of def.abilities.entries()){
       const ability=ABILITIES[id];
       const link=h('button','ability-guide',`[${i+1}] ${ability.name}`);
       link.type='button';link.addEventListener('click',()=>this.toggleCodex(true,id));
-      c1.append(link);
-      if(id==='phase_transposition')c1.append(h('p','muted',s.attunements.includes('resonance')?'Resonance attuned · transfer your own active barrier to an eligible ally.':'Locked · learn Resonance at the Listening Stone.'));
+      prof.append(link);
+      if(id==='phase_transposition')prof.append(h('p','muted',s.attunements.includes('resonance')?'Resonance attuned · transfer your own active barrier to an eligible ally.':'Locked · learn Resonance at the Listening Stone.'));
     }
-    c1.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
-
-    c1.append(h('h3',null,'Crafting disciplines'));
+    prof.append(h('p','muted','Glyphs can modify existing abilities; inspect equipped glyphs for details.'));
+    const disciplines=h('details','character-secondary');disciplines.append(h('summary',null,'Crafting & field disciplines'));
+    // Keep immediate character statistics visible; extended progression is contextual.
+    const progression=h('div','character-discipline-grid');
     for(const name of CRAFTING_DISCIPLINES){
       const mastery=disciplineProgress(s.craftingDisciplines,name);
-      stat(name,'Level '+mastery.level,false,mastery.speedBonus+'% faster production. Gain experience through successfully committed crafting.');
-      c1.append(h('div','muted',mastery.required===null?'Maximum level':mastery.progress+' / '+mastery.required+' XP'));
+      const row=h('div','stat');row.append(h('span',null,name),h('span','val','Level '+mastery.level));explain(row,name,mastery.speedBonus+'% faster production. Gain experience through successfully committed crafting.');progression.append(row,h('div','muted',mastery.required===null?'Maximum level':mastery.progress+' / '+mastery.required+' XP'));
     }
-    c1.append(h('h3',null,'Field disciplines'));
     const count=recoverySamples(s.recoverySamples),rank=recoveryRank(count);
-    stat('Field Recovery','Rank '+rank,false,'Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');
-    c1.append(h('div','muted',rank===2?'Maintenance cassette reconditioning unlocked.':count+' / '+RECOVERY_MASTERY+' recovered samples'));
+    const recovery=h('div','stat');recovery.append(h('span',null,'Field Recovery'),h('span','val','Rank '+rank));explain(recovery,'Field Recovery','Collect loose sinter shedding without harming wildlife. Rank 2 unlocks material reconditioning.');progression.append(recovery,h('div','muted',rank===2?'Maintenance cassette reconditioning unlocked.':count+' / '+RECOVERY_MASTERY+' recovered samples'));
+    disciplines.append(progression);
+    for(const [key,node] of [['profession',prof],['disciplines',disciplines]]){node.open=!!this.characterDisclosures?.[key];node.addEventListener('toggle',()=>{(this.characterDisclosures??={})[key]=node.open;});c1.append(node);}
     renderLoadout(this, body, c1);
   }
 

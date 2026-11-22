@@ -1,0 +1,24 @@
+/* Keep primary controls and the current inventory page visible by default.
+   Large/dynamic lists and explicitly reduced custom windows can still scroll. */
+#hud .inventory-body{display:flex;flex-direction:column;min-height:0}
+#hud .inventory-body>.inventory-grid,#hud .inventory-body>.inventory-tabs,
+#hud .inventory-wallet,#hud .inventory-count,#hud .inventory-pagination{flex:0 0 auto}
+#hud .inventory-pagination{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:5px;font-size:12px}
+#hud .inventory-pagination[hidden]{display:none}
+#hud .inventory-pagination button{min-width:32px;min-height:28px;padding:2px 8px;font-size:18px}
+#hud .inventory-secondary{min-height:0;overflow:auto;scrollbar-width:thin}
+#hud .inventory-secondary:empty{display:none}
+#hud .inventory-secondary .inventory-detail{margin-top:5px}
+#hud .inventory-secondary .inventory-detail p{margin:4px 0}
+#hud .planner-selectors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin-bottom:8px}
+#hud .planner-selectors select{min-width:0}
+#hud .workshop-window:not(.producing):not([data-window-custom="true"]){width:min(930px,94vw);max-height:calc(100vh - 32px)}
+#hud .panel.build:not([data-window-custom="true"]){max-height:calc(100vh - 32px)}
+#hud .quest-journal:not([data-window-custom="true"]){max-height:calc(100vh - 32px)}
+#hud .loadout-list,#hud .quest-journal-nav,#hud .codex-nav{overscroll-behavior:contain}
+@container (max-width:560px){#hud .planner-selectors{grid-template-columns:1fr}}
+
+#hud .character-secondary{margin-top:8px;border-top:1px solid #315761;padding-top:5px}
+#hud .character-secondary summary{font-size:12px;line-height:1.5;color:#b6d8df;cursor:pointer;padding:4px 0}
+#hud .character-secondary summary:focus-visible{outline:2px solid #b8e9f4}
+#hud .character-discipline-grid{display:grid;gap:2px}

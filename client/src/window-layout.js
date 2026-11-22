@@ -34,34 +34,56 @@ export function resizeWindow(rect,edge,dx,dy,viewport,min={w:480,h:240}){
   return {x,y,w,h};
 }
 
+// Shared presentation for window chrome; gameplay action buttons retain text.
+const ICONS=Object.freeze({
+ move:'<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+ resize:'<path d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5M8 16l8-8m-5 0h5v5"/>',
+ lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+ unlock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0M12 14v3"/>',
+ opacity:'<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
+ reset:'<path d="M4 11a8 8 0 1 1 2 6M4 4v7h7"/>',
+});
+function decorate(b,icon,label,tip=label){
+ b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+ICONS[icon]+'</svg>';
+ b.setAttribute('aria-label',label);b.title=tip;
+ b.dataset.windowAction=icon==='unlock'?'lock':icon;
+ return b;
+}
+
 export class WindowLayout {
   constructor(panel,body,key,options={}){
     this.panel=panel;this.key='attunement.window.'+key;
     this.min=options.min??{w:480,h:240};
     this.titleSelector=options.titleSelector??'h2';
     this.onOpacity=options.onOpacity;
+    this.suspended=options.suspended??(()=>false);
+    this.onReset=options.onReset;
     let saved;try{saved=JSON.parse(localStorage.getItem(this.key));}catch{}
     this.state=sanitizeWindowLayout(saved??{opacity:options.initialOpacity});
     panel.classList.add('managed-window');body.classList.add('managed-window-content');
     const bar=document.createElement('div');bar.className='window-controls';
-    const button=(label,action)=>{
-      const b=document.createElement('button');b.type='button';b.textContent=label;
+    bar.setAttribute('role','group');bar.setAttribute('aria-label','Window layout controls');
+    const button=(icon,label,action,tip)=>{
+      const b=decorate(document.createElement('button'),icon,label,tip);b.type='button';
       b.addEventListener('click',action);bar.append(b);return b;
     };
     // Retain accessible keyboard alternatives, not prerequisites for dragging.
-    this.move=button('Move',()=>{});
-    this.move.title='Drag or use arrow keys to reposition';
-    this.size=button('Resize',()=>{});
-    this.size.title='Drag or use arrow keys to resize';
-    this.lock=button('Lock layout',()=>{
+    this.move=button('move','Move window',()=>{},'Move window — drag or use arrow keys; Shift moves farther');
+    this.size=button('resize','Resize window',()=>{},'Resize window — drag or use arrow keys; Shift resizes farther');
+    this.lock=button('lock','Lock layout',()=>{
       this.state.locked=!this.state.locked;this.sync();this.save();
     });
-    if(!options.onOpacity)this.alpha=button('Opacity 100%',()=>{
+    // Inventory retains its established opacity preference and handler.
+    const existing=options.onOpacity?panel.querySelector('.inventory-opacity'):null;
+    if(existing){bar.append(existing);this.alpha=existing;}
+    else this.alpha=button('opacity','Opacity 100%',()=>{
       this.setOpacity(levels[(levels.indexOf(this.state.opacity)+1)%levels.length]);
     });
-    button('Reset layout',()=>this.reset());
+    decorate(this.alpha,'opacity','Opacity 100%','Window surface opacity: 100% — click to cycle');
+    button('reset','Reset layout',()=>this.reset(),'Reset window position, size, lock and opacity');
     bar.addEventListener('keydown',e=>{if(['Enter',' ','Tab'].includes(e.key))e.stopPropagation();});
-    panel.insertBefore(bar,body);
+    if(options.controlsHost)options.controlsHost.insertBefore(bar,options.controlsHost.lastElementChild);
+    else panel.insertBefore(bar,body);
     for(const edge of ['n','ne','e','se','s','sw','w','nw']){
       const handle=document.createElement('div');handle.className='window-resize-handle';
       handle.dataset.edge=edge;handle.setAttribute('aria-hidden','true');panel.append(handle);
@@ -70,9 +92,10 @@ export class WindowLayout {
     panel.addEventListener('pointerdown',e=>{
       if(e.button!==0)return;
       this.raise();
-      if(this.state.locked||panel.hidden||panel.classList.contains('producing'))return;
+      if(this.state.locked||this.suspended()||panel.hidden||panel.classList.contains('producing'))return;
       const title=panel.querySelector(this.titleSelector);
-      const mode=e.target===this.move?'move':e.target===this.size?'se':
+      const control=e.target.closest('button');
+      const mode=control===this.move?'move':control===this.size?'se':
         e.target.closest('.window-resize-handle')?.dataset.edge??
         (title?.contains(e.target)&&!e.target.closest('button,input,select,a')?'move':null);
       if(!mode)return;
@@ -103,7 +126,7 @@ export class WindowLayout {
       .filter(p=>p!==this.panel).sort((a,b)=>Number(a.style.zIndex||30)-Number(b.style.zIndex||30));
     [...peers,this.panel].forEach((p,i)=>{p.style.zIndex=String(31+i);});
   }
-  reset(){this.state=sanitizeWindowLayout(null);this.sync();this.save();}
+  reset(){this.state=sanitizeWindowLayout(null);this.onReset?.();this.sync();this.save();}
   setOpacity(value){
     if(!levels.includes(value))return;
     this.state.opacity=value;this.sync();this.save();
@@ -118,18 +141,23 @@ export class WindowLayout {
     const {panel,state}=this;
     panel.style.setProperty('--window-alpha',String(state.opacity/100));
     panel.dataset.windowLocked=String(state.locked);
-    this.lock.textContent=state.locked?'Unlock layout':'Lock layout';
+    const label=state.locked?'Unlock layout':'Lock layout';
+    decorate(this.lock,state.locked?'lock':'unlock',label,state.locked?'Unlock moving and resizing':'Lock window position and size');
     this.lock.setAttribute('aria-pressed',String(state.locked));
-    if(this.alpha)this.alpha.textContent='Opacity '+state.opacity+'%';
+    const opacity='Opacity '+state.opacity+'%';
+    this.alpha.setAttribute('aria-label',opacity);
+    this.alpha.title='Window surface opacity: '+state.opacity+'% — click to cycle';
     this.onOpacity?.(state.opacity);
-    this.move.disabled=this.size.disabled=state.locked;
+    const suspended=this.suspended();
+    this.move.disabled=this.size.disabled=state.locked||suspended;
+    panel.dataset.windowSuspended=String(suspended);
     if(!state.rect){delete panel.dataset.windowCustom;return;}
     const rect=constrainWindow(state.rect,this.viewport(),this.min);
     panel.dataset.windowCustom='true';
     for(const [k,v] of Object.entries(rect))panel.style.setProperty('--window-'+k,v+'px');
   }
   transform(start,mode,dx,dy){
-    if(this.state.locked||this.panel.hidden||this.panel.classList.contains('producing'))return;
+    if(this.state.locked||this.suspended()||this.panel.hidden||this.panel.classList.contains('producing'))return;
     this.state.rect=mode==='move'
       ? constrainWindow({...start,x:start.x+dx,y:start.y+dy},this.viewport(),this.min)
       : resizeWindow(start,mode,dx,dy,this.viewport(),this.min);
