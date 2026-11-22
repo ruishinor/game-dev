@@ -25,3 +25,9 @@ The archive includes `141-figure-armoured-heavy` (a rigid low-poly soldier/armou
 Source selection and bounded geometry have unit coverage in `test/warden-rifle-source.test.js`. The selected models use no new UI slots, loot/economy state, server privileges, attack events or VFX network messages. No raw archive HTTP mount is added.
 
 **NOT YET VISUALLY ACCEPTED:** inspect actual rendered Warden silhouettes, front/side/back, weapon resting and moving, shoulder/chest clearance, sight orientation, low-light material response and emissive contrast; verify 1280×800, 1920×1080, 2560×1440 and TV/large-scale views; verify 4 Wardens' draw calls/frame budget on representative integrated GPU and on reduced-motion settings. The server-only source validator and browser model load may pass while the weapon looks wrong; do not use CI as a substitute for visual inspection.
+
+## 2026-11-22 grip-fitting recovery
+
+The owner's six actual gameplay screenshots showed rifle models loaded but hovering across the waist while both hands hung independently. The prior chest-offset implementation did not align either hand. The recovery adds explicit rifle grip/support anchors, reuses the existing two-bone arm solver on the animated Halo rig, tries a bounded set of low-ready poses, and refuses to display an unfitted waist-level weapon. It exposes measured grip errors to the existing read-only browser evidence hook and requires all four real Wardens to have two hands within 35 mm of their weapon anchors. The existing static guard watch clip and non-combat/server authority remain intact.
+
+**Acceptance remains pending:** real browser screenshot evaluation of every variant in front, side and back views, animated movement and silhouette/clipping quality; model reshaping, wardrobe/finish integration and day/night GPU validation are separate outstanding work. Passing a numerical contact test is necessary but not sufficient for visual approval.
