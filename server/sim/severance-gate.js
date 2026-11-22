@@ -7,6 +7,7 @@
 // Timings, presence radius and travel validation stay here.
 import { dist, hasLineOfSight } from '../../shared/world.js';
 import { openFoundry, foundryArrival } from './silent-foundry.js';
+import { regionEntryDenial } from './enemy-levels.js';
 import { inSeverancePocket, SEVERANCE_POCKET, GATE_THRESHOLD, GATE_FRONT, SEVERANCE_GATE } from '../../shared/severance-gate.js';
 
 export const GATE_TIMING = Object.freeze({ resonateMs: 6500, idleMs: 40000, fullTraverseMs: 8000, presence: 120 });
@@ -75,6 +76,8 @@ export function travelSeverance(game, p, obj) {
   if (dist(p, obj) > GATE_THRESHOLD.range || !hasLineOfSight(p, obj)) return deny('Walk through the passage to the portal.');
   if (s.phase !== 'active') return deny('The Severance Gate is still resonating. Wait for the portal to stabilize.');
   if (p.char.level < 3 || !p.char.attunements.includes('resonance') || p.char.riftCalibration !== 'completed') return deny('The portal does not answer an uncalibrated traveller.');
+  const levelDenial = regionEntryDenial('silent_foundry', p.char);
+  if (levelDenial) return deny(levelDenial);
   openFoundry(game);
   const full = game.time - s.lastFull >= GATE_TIMING.fullTraverseMs;
   if (full) s.lastFull = game.time;

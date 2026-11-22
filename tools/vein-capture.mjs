@@ -21,6 +21,7 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1`);
+  await page.click('#gate-guest-link');
   await page.fill('#name', 'Vein Surveyor');
   await page.click('.classcard[data-cls="surveyor"]');
   await page.click('#enter');

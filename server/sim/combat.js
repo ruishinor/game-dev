@@ -1,6 +1,7 @@
 // Combat rules: damage, healing, threat, buffs and player abilities.
 // Every outcome a client sees originates here.
 
+import { levelDmgMul } from './enemy-levels.js';
 import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR, AUTO_REFERENCE_MS } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
@@ -79,7 +80,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if (dst.kind === 'player' && dst.dead) return 0;
   // Last line of defence for the safe zone, including late telegraphed AoE.
   // Threat cleanup alone is not a damage-authorisation boundary.
-  if (dst.kind === 'player' && inSafeZone(dst)) return 0;
+  if (dst.kind === 'player' && (inSafeZone(dst) || dst.gmInvulnerable === true)) return 0;
   if (src && (!sameTravelRegion(src, dst) || !deepLineClear(opts.origin || src,dst))) return 0;
 
   let amt = base;
@@ -87,6 +88,7 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
   if (actor && !opts.flat) amt *= actor.stats.power * actor.stats.dmgMul;
   if (src && src.kind === 'enemy') {
     if (src.elite?.dmg) amt *= src.elite.dmg;
+    amt *= levelDmgMul(src);
     const sap = getBuff(src, 'sap');
     if (sap) amt *= sap.mul;
   }

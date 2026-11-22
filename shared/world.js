@@ -410,7 +410,9 @@ OBJECTS.push({key:'severance_gate',type:'severance_gate',name:'Severance Gate',x
 for (const v of SEVERANCE_VEINS) OBJECTS.push({ key: v.key, type: 'resonant_vein', name: 'Resonant shard vein', x: v.x, z: v.z, r: v.r, yaw: v.yaw });
 // The Silent Foundry: its return portal (back to the gate) and the Depths cache.
 OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Severance Gate',x:SILENT_FOUNDRY.exit.x,z:SILENT_FOUNDRY.exit.z,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
-  {key:'foundry_cache',type:'foundry_cache',name:'Depths Recovery Cache',x:SILENT_FOUNDRY.cache.x,z:SILENT_FOUNDRY.cache.z,r:.9});
+  {key:'foundry_cache',type:'foundry_cache',name:'Depths Recovery Cache',x:SILENT_FOUNDRY.cache.x,z:SILENT_FOUNDRY.cache.z,r:.9},
+  // the Null Breach behind the Overseer's ground: the way into the Null Annex (level 13-15)
+  {key:'null_breach',type:'null_breach',name:'Null Breach',x:SILENT_FOUNDRY.x-9,z:SILENT_FOUNDRY.z-99,r:PHASE_RIFT_RADIUS,yaw:0});
 OBJECTS.push({key:'expedition_quartermaster',type:'expedition_quartermaster',name:'Expedition Quartermaster',x:EXPEDITION_OUTPOST.quartermaster.x,z:EXPEDITION_OUTPOST.quartermaster.z,r:.5,yaw:EXPEDITION_OUTPOST.quartermaster.yaw});
 for(const c of EXPEDITION_OUTPOST.crew)OBJECTS.push({key:c.key,type:'outpost_crew',look:c.key,name:c.name,x:c.x,z:c.z,r:.45,yaw:c.yaw});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.

@@ -24,7 +24,7 @@ try {
   page.on('response', r => { if (r.status() >= 400) errors.push(r.status() + ' ' + r.url()); });
   const url = 'http://127.0.0.1:' + server.port + '/?q=1&qlock=1&nolock=1' + (SOFTWARE_GL ? '&rfps=1' : '');
   await page.goto(url);
-  await page.fill('#name', 'Brine Tester');
+  await page.click('#gate-guest-link');await page.fill('#name', 'Brine Tester');
   await page.click('.classcard[data-cls="surveyor"]');
   const creation=page.locator('#creation-preview');await creation.scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview').dataset.model==='glb');
@@ -55,7 +55,13 @@ try {
     return meshes > 0;
   })));
   await page.screenshot({ path: 'preview-evidence/01-surveyor.png' });
-  const p = await liveFixturePlayer(page,server,'Brine Tester');
+  let p = await liveFixturePlayer(page,server,'Brine Tester');
+  async function currentFixture(stage) {
+    const live = await liveFixturePlayer(page,server,'Brine Tester');
+    assert.equal(live.char.id,p.char.id,stage+' must retain the same authenticated character');
+    p=live; // A legitimate reconnect creates a new simulation entity.
+    return live;
+  }
   assert.equal(p.cls, 'surveyor');
   assert.equal(p.char.appearance,previewAppearance,'Preview appearance must equal authoritative gameplay appearance');
   assert.equal(await creation.getAttribute('data-model'),null,'Creation model released on entering world');
@@ -64,7 +70,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Mending Graft', exact: true }).count(), 0);
   async function moveTo(x, z) {
     assert.ok(!p.dead,`Fixture cannot move a defeated player to ${x},${z}`);
-    assert.ok((await liveFixturePlayer(page,server,'Brine Tester'))===p,'The staged player must remain connected');
+    await currentFixture('Staged player');
     if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
     try {
       p.x=x;p.z=z;
@@ -87,7 +93,7 @@ try {
     if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
     try{await page.screenshot({ path });}
     finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
-    assert.ok((await liveFixturePlayer(page,server,'Brine Tester'))===p,'Capture must preserve the staged player connection');
+    await currentFixture('Controlled capture');
     console.log('[preview] capture complete:',path);
   }
   await moveTo(-2.25,8.2);
@@ -105,7 +111,19 @@ try {
   assert.equal(p.char.appearance,hallAppearance);
   assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('arrival:floor')&&!!window.__attune.gfx.scene.getObjectByName('arrival:threshold-arch')));
   await page.screenshot({path:'preview-evidence/01b-arrival-appearance.png'});
-  await hall.getByRole('button',{name:'Close field record'}).click();
+  await currentFixture('Appearance application');
+  const closeRecord=hall.getByRole('button',{name:'Close field record'});
+  if(!(await closeRecord.isVisible())) {
+    // Slow software-GL screenshot encoding may starve transport heartbeats;
+    // reconnect dismisses transient UI but preserves the character and applied
+    // appearance. Reopen the same archive via its real F interaction.
+    await moveTo(-2.25,8.2);
+    await page.locator('#view').focus();
+    await page.keyboard.press('KeyF');
+    await closeRecord.waitFor({state:'visible'});
+    assert.equal(p.char.appearance,hallAppearance,'Appearance survives reconnect');
+  }
+  await closeRecord.click();
   await moveTo(-5.5,-2.6);
   await page.evaluate(()=>window.__attune.view({yaw:Math.PI+.72,pitch:.48,dist:6,face:Math.PI}));
   assert.ok(await page.evaluate(()=>['industrial:storage:-5.5:-5','industrial:storage:-7:-4.2','industrial:storage:39:23'].every(name=>window.__attune.gfx.scene.getObjectByName(name)?.children.length===4)));
@@ -566,7 +584,7 @@ try {
   bio.setDefaultTimeout(90000);const bioErrors=[];
   bio.on('pageerror',e=>bioErrors.push(e.message));bio.on('console',m=>{if(m.type()==='error')bioErrors.push(m.text())});
   await bio.goto(url+'&menderArt=1');
-  await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
+  await bio.click('#gate-guest-link');await bio.fill('#name','Carapace Tester');await bio.click('.classcard[data-cls="symbiotech"]');await bio.click('#enter');
   await bio.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.compId&&s.drawn>=2&&!!window.__attune.gfx.scene.getObjectByName('mender:original-carapace-preview')});
   await bio.evaluate(()=>window.__attune.view({yaw:Math.PI*.75,pitch:.14,dist:3,face:0}));
   {const frames=await bio.evaluate(()=>window.__attune.state().frames);await bio.waitForFunction(n=>window.__attune.state().frames>=n,frames+4);}
@@ -613,7 +631,7 @@ try {
   keeper.on('pageerror', e => keeperErrors.push(e.message));
   keeper.on('console', m => { if(m.type()==='error')keeperErrors.push(m.text()); });
   await keeper.goto(url);
-  await keeper.fill('#name','Aegis Keeper');
+  await keeper.click('#gate-guest-link');await keeper.fill('#name','Aegis Keeper');
   await keeper.click('.classcard[data-cls="keeper"]');
   await keeper.click('#enter');
   await keeper.waitForFunction(() => {

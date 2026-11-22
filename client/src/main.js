@@ -32,6 +32,7 @@ import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
+import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { UI, companionCommandKeys } from './ui.js';
@@ -457,6 +458,7 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
+  gm: line => net.send({ t: 'gm', line }),
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
   copyRecoveryKey: () => copyGuestRecoveryKey(),
@@ -500,7 +502,7 @@ function showCharacterCreation(){
   $('enter').textContent='Create character';
   $('enter').disabled=false;
   $('login-error').textContent='';
-  document.body.classList.remove('character-selection-mode');
+  document.body.classList.remove('character-selection-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-create-mode');
   creationPreview.release();
   creationPreview.resetView();
@@ -617,6 +619,11 @@ function showAccountLogin(message = '') {
   $('world-entry-curtain').hidden=true;
   selectionView.release();
   document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.add('gate-mode');
+  document.body.classList.remove('gate-guest-open');
+  setAccountMode('signin');
+  setPasswordShown(false);
+  openGuestFromHash();
   $('creation-back').hidden=true;
   $('login').hidden = false;
   $('hud').hidden = true;
@@ -633,6 +640,7 @@ function showAccountLogin(message = '') {
   $('login-error').textContent = '';
   $('enter').textContent = 'Enter as guest';
   $('enter').disabled = false;
+  $('gate-guest-link').textContent = net.token ? 'Return to your saved guest' : 'Play as a guest';
 }
 
 function showRoster(m) {
@@ -654,11 +662,37 @@ function showRoster(m) {
   $('roster-error').textContent='';
   $('login-error').textContent='';
   $('link-legacy').hidden=!net.token;
-  document.body.classList.remove('character-create-mode');
+  document.body.classList.remove('character-create-mode','gate-mode','gate-guest-open');
   document.body.classList.add('character-selection-mode');
   creationPreview.release();
   selectionView.render(m);
   ui.toggleSettings(false);
+}
+
+// The gate form signs in or creates an account; the footer switch flips the mode.
+function setAccountMode(mode) {
+  const register = mode === 'register';
+  $('account-form').dataset.mode = register ? 'register' : 'signin';
+  $('account-signin').textContent = register ? 'Create account' : 'Sign in';
+  $('account-password').autocomplete = register ? 'new-password' : 'current-password';
+  $('account-mode-prompt').textContent = register ? 'Already have an account?' : 'Don’t have an account yet?';
+  $('account-register').textContent = register ? 'Sign in' : 'Sign up';
+  $('account-register-hint').hidden = !register;
+  $('account-help').hidden = true;
+  $('account-help-toggle').setAttribute('aria-expanded', 'false');
+}
+function openGuestView(focus) {
+  if (!document.body.classList.contains('gate-mode')) return;
+  document.body.classList.add('gate-guest-open');
+  if (focus) ($('saved-guest').hidden ? $('guest-resume-key') : $('resume-saved-guest')).focus({ preventScroll: true });
+}
+function openGuestFromHash() {
+  if (location.hash === '#guest-note') openGuestView(false);
+}
+function setPasswordShown(shown) {
+  $('account-password').type = shown ? 'text' : 'password';
+  $('account-reveal').setAttribute('aria-pressed', String(shown));
+  $('account-reveal').setAttribute('aria-label', shown ? 'Hide password' : 'Show password');
 }
 
 function buildAccountUI() {
@@ -666,11 +700,35 @@ function buildAccountUI() {
   $('account-form').addEventListener('submit', (e) => {
     e.preventDefault();
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, false);
+    net.accountAuth($('account-handle').value.trim(), $('account-password').value, $('account-form').dataset.mode === 'register');
   });
   $('account-register').addEventListener('click', () => {
     $('account-error').textContent = '';
-    net.accountAuth($('account-handle').value.trim(), $('account-password').value, true);
+    setAccountMode($('account-form').dataset.mode === 'register' ? 'signin' : 'register');
+    $('account-handle').focus({ preventScroll: true });
+  });
+  $('account-reveal').addEventListener('click', () => {
+    setPasswordShown($('account-password').type === 'password');
+    $('account-password').focus({ preventScroll: true });
+  });
+  $('account-help-toggle').addEventListener('click', () => {
+    const open = $('account-help').hidden;
+    $('account-help').hidden = !open;
+    $('account-help-toggle').setAttribute('aria-expanded', String(open));
+  });
+  // Guest access stays distinct from the cinematic sign-in viewport.
+  for (const a of document.querySelectorAll('#account-auth a[href="#guest-note"]')) a.addEventListener('click', (e) => {
+    e.preventDefault();
+    openGuestView(true);
+  });
+  // A guest link followed before this module bound its handler only set the
+  // URL hash; honour it now and on later hash changes.
+  window.addEventListener('hashchange', () => openGuestFromHash());
+  openGuestFromHash();
+  $('gate-back-to-login').addEventListener('click', () => {
+    if (location.hash === '#guest-note') history.replaceState(null, '', location.pathname + location.search);
+    document.body.classList.remove('gate-guest-open');
+    $('gate-guest-link').focus({ preventScroll: true });
   });
   $('account-signout').addEventListener('click', () => net.signOut());
   $('roster-settings').addEventListener('click', () => {
@@ -772,6 +830,7 @@ function openCharacterMenu() {
     $('character-roster').hidden = true;
     $('resuming').hidden = false;
     $('resuming').textContent = 'Loading your characters…';
+    document.body.classList.remove('gate-mode');
   } else showAccountLogin('Your guest is saved. Return to it below, or create an account and link it.');
 }
 
@@ -940,7 +999,7 @@ function onWelcome(m) {
   worldEntryPending=true;
   $('world-entry-curtain').classList.remove('dismissed');
   $('world-entry-curtain').hidden=false;
-  document.body.classList.remove('character-selection-mode','character-create-mode');
+  document.body.classList.remove('character-selection-mode','character-create-mode','gate-mode','gate-guest-open');
   $('login').hidden = true;
   $('hud').hidden = false;
   ui.setAccountLinked(net.accountLogged);
@@ -1032,7 +1091,7 @@ function onSnapshot(m) {
   if (m.pv) for (const e of m.pv) onEvent(e);
 }
 
-const EXTRA_NAMES = { auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
+const EXTRA_NAMES = { kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
 const abilityName = (id) => (ABILITIES[id] ? ABILITIES[id].name : EXTRA_NAMES[id] || id);
 const sourceColour = (ent) => (ent.meta.k === 'e' ? 0xff6a4a : ent.meta.c === 'vanguard' ? 0xffb45c : ent.meta.c === 'surveyor' ? 0x85cde9 : ent.meta.c === 'keeper' ? 0xb498e8 : ent.meta.c === 'mender' ? 0xffc46b : 0x7dffc4);
 
@@ -1234,7 +1293,8 @@ function onEvent(e) {
         }
         break;
       }
-      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep') {
+      if (e.k === 'kinetic_discharge') s?.model?.trigger?.('cast', 'discharge');
+      if (e.k === 'arc_pulse' || e.k === 'turret_drone_barrage' || e.k === 'seismic_slam' || e.k === 'containment_sweep' || e.k === 'kinetic_discharge') {
         fx.ring(e.x, e.z, e.r, 0xff6a3a, 500);
         fx.ring(e.x, e.z, e.r * 0.6, 0xffe2a0, 380);
         break;
@@ -1337,6 +1397,8 @@ function onEvent(e) {
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
       else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      // armoured enemies (the Severance squads) charge their channels through the wind-up
+      ent?.model?.armourReact?.('ability', e.k);
       if (e.g) {
         fx.telegraph(e.x, e.z, e.r, e.ms);
         if (rich()) cvfx.telegraph(e.x, groundHeight(e.x, e.z), e.z, e.r, e.ms);
@@ -1501,28 +1563,12 @@ function nearestObject() {
   return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
-function nextEnemy() {
+function nextEnemy(reverse = false) {
   const me = S.ents.get(S.myId);
   if (!me) return;
-  const fx_ = Math.sin(cam.yaw);
-  const fz_ = Math.cos(cam.yaw);
-  const list = [];
-  for (const ent of S.ents.values()) {
-    if (ent.meta.k !== 'e' || ent.dead || (ent.meta.neu && !(ent.row?.f & 8))) continue;
-    const dx = ent.pos.x - me.pos.x;
-    const dz = ent.pos.z - me.pos.z;
-    const d = Math.hypot(dx, dz);
-    if (d > 50) continue;
-    const front = (dx * fx_ + dz * fz_) / (d || 1) > 0.2;
-    list.push({ id: ent.id, score: d + (front ? 0 : 100) });
-  }
-  if (!list.length) {
-    ui.error('No enemies nearby.');
-    return;
-  }
-  list.sort((a, b) => a.score - b.score);
-  const i = list.findIndex((e) => e.id === S.target);
-  setTarget(list[(i + 1) % list.length].id);
+  const id = cycleHostileTarget(S.ents.values(), me.pos, S.target, reverse);
+  if (!id) { ui.error('No enemies nearby.'); return; }
+  setTarget(id);
 }
 
 input.onClick = (button, x, y) => {
@@ -1585,7 +1631,7 @@ input.onAction = (code, e) => {
       break;
     case 'Tab':
       e.preventDefault();
-      nextEnemy();
+      nextEnemy(e.shiftKey);
       break;
     case 'KeyR':
       net.send({ t: 'atk', on: S.you?.auto ? 0 : 1 });
@@ -2057,6 +2103,8 @@ function frame(now) {
     // Dedicated cinematic scenes own both character screens.
     if(document.body.classList.contains('character-selection-mode')||document.body.classList.contains('character-create-mode'))return;
     if(now-titleDrawAt<Math.max(drawGap,inspecting?250:0))return;
+    // The opaque sign-in key art hides the title orbit; keep it only lightly warm.
+    if(document.body.classList.contains('gate-mode')&&!$('login').hidden&&now-titleDrawAt<2000)return;
     titleDrawAt=now;
     // Title backdrop: a slow orbit of the Sanctum.
     const a = time * 0.06;
@@ -2129,7 +2177,7 @@ function frame(now) {
     });
     if (slowTimer > 0.12) {
       slowTimer = 0;
-      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state });
+      ui.drawMinimap({ me, ents: S.ents, yaw: local.yaw, party: S.you.party?.members ?? [], daylight: world.severancePocket?.timeOfDay?.state, worldClock: S.you.wc });
       const zone = zoneAt(me.pos.x, me.pos.z);
       if (zone !== S.zone) {
         S.zone = zone;

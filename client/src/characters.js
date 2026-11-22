@@ -370,7 +370,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         for (const c of ctx.coils) c.scale.set(k, k, 1 + (st.charge ?? 0) * 1.5);
       }
       if (gearUpdate) gearUpdate(st);
-      for (const h of armours.values()) h.handle?.fx?.update(dt, st);
+      for (const h of armours.values()) { h.handle?.setDistance?.(st.cameraDistance); h.handle?.fx?.update(dt, st); }
       if (face && (step || st.faceDetail)) face.update(step || dt, st);
       // Veyran tracery brightens with exertion and when struck.
       if (veyranMat) veyranMat.userData.face.trace.value = 0.18 + (st.combat ? 0.22 : 0) + (st.hit || 0) * 0.8;
@@ -679,7 +679,10 @@ function buildModel(assets, meta, glb) {
   if (glb) try {
     const look = haloRole ? null : lookFor(meta);
     if (haloRole) model=createHaloConstruct(assets,haloRole,{variant:meta.v||0});
-    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster', 'outpost_crew'].includes(meta.c) ? { idle: HB.npcIdle } : {}), appearanceKey: meta.n || meta.c, appearance: meta.ap, weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
+    else if (look) model = makeHumanoid(assets, look, { ...(['archivist', 'quartermaster', 'expedition_quartermaster', 'outpost_crew'].includes(meta.c) ? { idle: HB.npcIdle } : {}),
+      // NPC looks may wear a fixed armour set (the Severance squads); soldiers get a face per entity
+      appearanceKey: LOOK_DEFS[look]?.facePerEntity ? `${meta.c}:${meta.i}` : meta.n || meta.c, appearance: meta.k === 'p' ? meta.ap : LOOK_DEFS[look]?.appearanceFor?.(meta) ?? meta.ap,
+      weaponVisual: meta.k === 'p' ? meta.wv : null, armourVisual: meta.k === 'p' ? meta.av : LOOK_DEFS[look]?.armour || null, socialCapable: meta.k === 'p', socialVisual: meta.k === 'p' ? meta.sv : null });
     else if (meta.c === 'spindle') model = createSpindle(assets.instance('spindle'), disposeInstance, assets.instance('spindle', 'distance'));
     else if (meta.c === 'turret_drone') model = createTurretDrone(assets.instance('turret_drone'), disposeInstance);
     else if (meta.c === 'mender') {

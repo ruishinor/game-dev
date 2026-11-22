@@ -190,7 +190,7 @@ export const COMPANIONS = {
     name: 'Spindle',
     modes: {
       inspect: { name: 'Inspect equipment', desc: 'Approaches you, gauges your equipped weapon and reports its condition and maintenance needs. Use outside combat.' },
-      light: { name: 'Field light', desc: 'Toggle a 10 m fading light around Spindle. Works in any environment and independently of Follow, Stay or inspection. Off when summoned.' },
+      light: { name: 'Field light', desc: 'Toggle a 20 m fading light around Spindle. Works in any environment and independently of Follow, Stay or inspection. Off when summoned.' },
       follow: { name: 'Follow', desc: 'Rolls behind you along clear ground.' },
       stay: { name: 'Stay', desc: 'Parks here until recalled or you move beyond its tether.' },
     },
@@ -273,6 +273,23 @@ export const ENEMIES = {
     specials: [{ id: 'arc_pulse', name: 'Arc Pulse', cd: 9000, first: 4000, windup: 1600, radius: 4.5, dmg: 24, at: 'target' }],
     xp: 42,
     respawn: 28000,
+  },
+  // Severance Expanse squads in Cinderlock Regalia (Kinetic Vanguard armour):
+  // induction-gauntlet brawlers that answer each other's alarms and vent the
+  // reactor as a telegraphed close-range discharge.
+  severance_soldier: {
+    name: 'Severance Soldier',
+    level: 3,
+    hp: 160,
+    speed: 4.0,
+    radius: 0.5,
+    aggro: 10,
+    social: 12,
+    leash: 30,
+    attack: { range: 2.4, interval: 1700, dmg: 11, kind: 'melee' },
+    specials: [{ id: 'kinetic_discharge', name: 'Kinetic Discharge', cd: 12000, first: 5000, windup: 1500, radius: 3.6, dmg: 26, at: 'self' }],
+    xp: 52,
+    respawn: 45000,
   },
   turret_drone: {
     name: 'Turret Drone',

@@ -461,3 +461,53 @@ Other open historical heads [#165](https://github.com/ruishinor/game-dev/pull/16
 **Next executable integration decision:** inspect current-head #202 and its complete applicable gate; then #193/#195 failures and independent #197 recovery. Keep #180 visual acceptance separate, #198 blocked by its dependency, #196 draft until playable progression. When these are blocked, select a distinct narrow item with its own branch (for example, cartography saved-point persistence hardening) rather than writing another checkpoint alone.
 
 **Checkpoint contract for each run:** record observed main SHA, open-head SHAs, changed paths, owner, actual workflow/job URLs and conclusions, whether branch matches expected SHA, tested commit SHA, outstanding human judgments, safe next action, and who may merge. Create an independently verifiable code/asset diff wherever unblocked; update this public register only with non-sensitive evidence. A stale or partial green result must not become a merge claim.
+## 13. Delivery checkpoint — 2026-11-21 (afternoon)
+
+Main after this run: `15d48c9` (plus this docs commit).
+
+| Item | Status | Evidence / note |
+|---|---|---|
+| [#207](https://github.com/ruishinor/game-dev/pull/207) shared-kill test preconditions | Merged | Green playtest. No server XP-credit defect found: once contribution is established, both players are credited. |
+| [#206](https://github.com/ruishinor/game-dev/pull/206) GLB-only preview preload | Merged | Playtest green after #207; supersedes [#195](https://github.com/ruishinor/game-dev/pull/195) (closed). |
+| [#212](https://github.com/ruishinor/game-dev/pull/212) follow-inventory entry timeout | Merged | Main and #178 both timed out: the second client's sheet arrived 19–45 s late because client A was still drawing under software GL. The test now pauses A's draws while B enters. |
+| [#196](https://github.com/ruishinor/game-dev/pull/196) PROG-15 foundation | Merged | Cap 15, server-validated `grantXp`, save sanitisation and a single award per corpse generation. 583/583 Node tests. The vendor job fails only by heartbeat disconnect, which is flaky across branches (seen on #197 too). |
+| [#180](https://github.com/ruishinor/game-dev/pull/180) character selection | Merged | Settings pages rebalanced so none scrolls. The roster test now measures `position:fixed` controls correctly. Main merged in, which fixes the stale companion step. Roster and playtest (79/79) green. |
+| [#198](https://github.com/ruishinor/game-dev/pull/198) cinematic login | Merged | Guest link works when clicked before the module loads (`#guest-note` hash). The cover stage is clipped, so 844×390 no longer scrolls. `openPlayer` waits for the entry curtain. Capture tools open the guest view. Every job is green except party. Supersedes [#190](https://github.com/ruishinor/game-dev/pull/190) (closed). |
+
+**Known red on main:** the `party` browser job. Plain P now opens the Ability Matrix, so the test must press Shift+P. That fix is on #197 (`d4a4816e`), owned by the concurrent integrator.
+
+**Active elsewhere (do not collide):** #197 GM preview and #178 weapon switching, both receiving commits from another agent on 2026-11-21. #178's `focused` failure is the main defect fixed by #212; merge main into #178 to clear it.
+
+**Next smallest actions:** merge #197 once green. Merge main into #178 and re-gate it. PROG-15 content (XP sources and encounters for levels 6–15) is outstanding: #196 is infrastructure only. Decide #165 against merged #196 before retiring it.
+
+### 13.1 PROG-15 regional progression — [#217](https://github.com/ruishinor/game-dev/pull/217)
+
+Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar and Expanse entry at level 5, with Expanse content at levels 5–12 and the Scrapyard elite at 12. Silent Foundry entry at level 8, with content at 8–11: 8 of 14 guards elite, plus the Overseer boss. Enemy HP, damage and XP scale only above each type's base level, so levels 1–5 are unchanged. Server-only rules live in `server/sim/enemy-levels.js`.
+
+**Remaining gaps:**
+- No dedicated level 12–15 content (Foundry repeats only).
+- The Severance Soldiers squads on `charlie/festive-thompson-a5h4f5` still need levels 7–11, with each sergeant elite at the squad's level +1 (max 12), when they merge.
+- No naturally played 5→12 browser journey yet.
+- #165 can be retired once #217 merges: the cap, thresholds and validation are equivalent (merged in #196), and the regional work is superseded here.
+
+### 13.2 Level 13–15 band: the Null Annex — branch `feat/prog15-null-annex`
+
+- **Way in:** a Null Breach in the Foundry's Excavation Depths at (-9, -99). It requires level 12 and the Foundry Overseer defeated by that character.
+- **Where it leads:** the existing Phase Annex deck (x=220), which was unreachable since the Foundry replaced it. With the Expanse present, it is now level 13–15 content: 6 of 10 guards are elite, and the Null Chamber Warden is the level-15 boss.
+- **Reward:** the cache gives 6 Resonance fragments once.
+- **Return:** the Annex gate returns to the Severance Gate.
+- **Pacing:** one clear gives about 4,000 XP, so levels 12→15 take about 2.4 clears.
+- **Art:** the breach reuses the return-rift model, and no new art was made. A distinct breach visual is optional polish.
+
+### 13.3 Severance Soldier squads candidate — branch `feat/severance-squads-levels`
+
+- **Candidate scope:** the gameplay and rendering from `charlie/festive-thompson-a5h4f5` (owner-authorized 2026-11-21):
+  - Five roaming squads of three: a soldier on point, a flank soldier and a rearguard Sergeant.
+  - Formation following, and the Sergeant holding back while its soldiers fight.
+  - Target cycling follows the current nearest-first behavior; rear-guard formation does not override targeting.
+  - Kinetic Discharge, with its VFX.
+  - The soldier look wearing the full Cinderlock set, and the journal entry.
+- **Levels:** squads are level 7–11: Amber Flats 7, Far West 8, Severed Pass 9, Causeway 10, Gate Basin 11. Each Sergeant is one level above its squad (max 12) and is the squad's elite, using the standard `ELITE` multipliers. XP and scaling come from `enemy-levels.js`.
+- **Loot:** squads, Sergeants included, drop no items (owner decision), and are excluded from the elite uncommon-item roll. Elite material salvage still applies.
+- **Route change:** the Far West loop now turns north of the Scrapyard and clear of `vein_west_south`, which main added after its routes were planned.
+- **Not merged:** that branch's Cinderlock "second pass" GLBs, arms and legs modules, glow ribbons and pipeline changes. Main keeps the owner-approved Cinderlock from #211 (accepted in #214), and the squads wear that four-piece set. Any future art pass should go through its own review.

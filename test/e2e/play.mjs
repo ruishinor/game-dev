@@ -69,7 +69,7 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   // The form may render before the client module binds its submit handler.
   // Check readiness rather than racing an early click during slow software GL.
   await page.waitForFunction(()=>!!window.__attune,null,{timeout:120000});
-  await page.fill('#name', name);
+  await page.click('#gate-guest-link');await page.fill('#name', name);
   await page.click(`.classcard[data-cls="${cls}"]`);
   if (look) await page.click(`.lookcard[data-look="${look}"]`);
   if(appearance){
@@ -81,6 +81,9 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
   }
   await page.click('#enter');
   await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  // The entry curtain lifts on the first drawn frame of the placed character.
+  // Callers may pause drawing next, so wait here until the world is revealed.
+  await page.waitForFunction(()=>{const c=document.getElementById('world-entry-curtain');return !c||c.hidden||c.classList.contains('dismissed');},null,{timeout:60000});
   if (integrated) await finishInitialDraw(page);
   return { ctx, page, name };
 }
@@ -615,8 +618,8 @@ try {
   let sk = skitters[0];
   await fightAt(sk);
 
-  // Tab favours enemies ahead of the camera; it does not promise the nearest
-  // enemy in all directions. Verify selection and that cycling reaches sk.
+  // Tab starts with the nearest valid hostile and cycles by distance.
+  // Verify selection and that cycling reaches the intended encounter.
   await A.page.keyboard.press('Tab');
   await until(A, () => window.__attune.state().target !== 0, null, 3000, 'tab target');
   sa = await state(A);
@@ -855,11 +858,23 @@ try {
   check('11. both players are credited for the shared kill', xpA > 0 && xpB > 0, `A ${xpA} xp, B ${xpB} xp`);
 
   for (const next of [skitters[2], skitters[3]]) {
-    // A corpse cannot be selected by the real Tab targeting path. Report a
-    // fixture lifecycle failure before attempting inputs against a dead ID.
-    if(next.state==='dead')throw Error('Directive fixture enemy already dead before targeting '+JSON.stringify({
-      id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time
-    }));
+    // A preceding real AoE/auto-attack may already have defeated this
+    // skitter. Let its normal server respawn finish before selecting it;
+    // don't fabricate a live enemy or bypass the directive/credit assertions.
+    for(const session of [A,B]){
+      await session.page.locator('#view').focus();
+      if((await state(session)).you.auto){
+        await session.page.keyboard.press('KeyR');
+        if(!await until(session,()=>window.__attune.state().you.auto===0,null,5000,'disengage before next target'))throw Error('Auto-attack did not disengage');
+      }
+      await session.page.keyboard.press('Escape');
+    }
+    if(next.state==='dead'){
+      await teleport(A,0,7.5);await teleport(B,0,7.5);
+      const deadline=Date.now()+45000;
+      while(next.state==='dead'&&Date.now()<deadline)await sleep(200);
+      if(next.state==='dead')throw Error('Directive fixture did not naturally respawn '+JSON.stringify({id:next.id,deadAt:next.deadAt,respawnAt:next.respawnAt,time:game.time}));
+    }
     await fightAt(next);
     await A.page.keyboard.press('Escape');
     await B.page.keyboard.press('Escape');

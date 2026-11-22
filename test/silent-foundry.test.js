@@ -8,7 +8,7 @@ import { SILENT_FOUNDRY as F, FOUNDRY_COLLIDERS, FOUNDRY_AREAS, foundryArea, inS
 import { WORLD, PLAYER_RADIUS, stepMove, resolveCollisions, hasLineOfSight, travelRegionAt, zoneAt, groundHeight, inSeverancePocket, COLLIDERS } from '../shared/world.js';
 import { buildSilentFoundry, FOUNDRY_LIMITS } from '../client/src/silent-foundry.js';
 
-const ready = (g) => g.addPlayer(makeChar('vanguard', { level: 3, attunements: ['resonance'], riftCalibration: 'completed' }));
+const ready = (g) => g.addPlayer(makeChar('vanguard', { level: 8, attunements: ['resonance'], riftCalibration: 'completed' }));
 
 test('the Severance Gate leads into the Silent Foundry; the encounter is shared and persists', async () => {
   const g = makeGame(), p = ready(g), q = ready(g);

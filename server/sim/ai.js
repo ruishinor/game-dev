@@ -1,6 +1,7 @@
 // Enemy behaviour: idle wander, aggro, threat-based targeting, chase,
 // attacks, telegraphed specials, leashing and respawn.
 
+import { levelHpMul } from './enemy-levels.js';
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
@@ -10,9 +11,9 @@ import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sint
 // post), not to the route's start; static enemies and short circuits use home.
 const anchorOf = (e) => (e.patrol && e.post) ? e.post : e.home;
 
-/** Max HP at no encounter scaling: the type's, times a per-instance elite multiplier. */
+/** Max HP at no encounter scaling: the type's, scaled by levels above its base and a per-instance elite multiplier. */
 export function baseHp(e) {
-  return Math.round(ENEMIES[e.type].hp * (e.elite?.hp ?? 1));
+  return Math.round(ENEMIES[e.type].hp * levelHpMul(e) * (e.elite?.hp ?? 1));
 }
 
 export function resetEnemy(game, e) {
@@ -78,6 +79,30 @@ function moveToward(e, tx, tz, step, radius, steer) {
   resolveCollisions(e, radius);
   e.yaw = Math.atan2(dx, dz);
   return s;
+}
+
+/** Another member of e's squad is alive and in combat. */
+function squadFighting(game, e) {
+  const lead = e.lead ? game.ents.get(e.lead) : e;
+  for (const id of lead?.squad || []) {
+    if (id === e.id) continue;
+    const o = game.ents.get(id);
+    if (o && o.state === 'combat' && o.hp > 0) return true;
+  }
+  return false;
+}
+
+function tickFollower(game, e, def, dt) {
+  const lead = game.ents.get(e.lead);
+  if (!lead || lead.state !== 'idle' || lead.threat?.size) return false;
+  const s = Math.sin(lead.yaw || 0), c = Math.cos(lead.yaw || 0);
+  const tx = lead.x + e.slot.side * c + e.slot.back * s, tz = lead.z - e.slot.side * s + e.slot.back * c;
+  const d = Math.hypot(tx - e.x, tz - e.z);
+  if (d > 40) return false;
+  if (d > 0.25) moveToward(e, tx, tz, def.speed * Math.min(0.95, 0.5 + 0.15 * d) * dt, def.radius, 0);
+  else e.yaw = lead.yaw;
+  if (e.patrol) e.post = { x: e.x, z: e.z };
+  return true;
 }
 
 function startEvade(game, e) {
@@ -221,6 +246,9 @@ export function tickEnemy(game, e, dt) {
       if (Math.hypot(tx-6,tz-58)<14.5) moveToward(e,tx,tz,def.speed*0.85*dt,def.radius,0);
       return;
     }
+    // Squad followers hold their wedge slot behind a sergeant who is on its
+    // route; with the sergeant down, engaged or far away they walk the route.
+    if (e.lead && tickFollower(game, e, def, dt)) return;
     // Authored migration circuits run in real simulation time.
     if (e.route) {
       if (game.time < e.wanderAt) {
@@ -342,7 +370,9 @@ export function tickEnemy(game, e, dt) {
   }
 
   const gap = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
-  const stopAt = def.attack.range * (def.attack.kind === 'melee' ? 0.7 : 0.8);
+  // a squad sergeant hangs back behind its soldiers while any of them still fights
+  const holdBack = e.rearguard && squadFighting(game, e);
+  const stopAt = holdBack ? 4.2 : def.attack.range * (def.attack.kind === 'melee' ? 0.7 : 0.8);
   const rooted = !!getBuff(e, 'root');
   const blocked = !hasLineOfSight(e,target);
   if ((gap > stopAt || blocked) && !rooted) {

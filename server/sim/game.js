@@ -1,3 +1,4 @@
+import { regionEntryDenial, RIFT_LEVEL, ELITE } from './enemy-levels.js';
 import {migrateSurveyStrider} from './survey-strider.js';
 // Authoritative world simulation. No I/O here: the network layer feeds
 // validated commands in and reads snapshots/events out, and tests drive the
@@ -6,6 +7,7 @@ import {migrateSurveyStrider} from './survey-strider.js';
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import { activeBuildPreview, buildPreviewOptions, reconcileBuildPreview } from '../gm-build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { publicArmourVisual, sameArmourVisual } from '../../shared/armour-visual.js';
 import { publicSocialVisual } from '../../shared/social-visual.js';
@@ -170,6 +172,12 @@ export class Game {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
+    if (activeBuildPreview(p)) {
+      p.gmAttributeBonus = 0;
+      p.gmClassUnlocked = false;
+      reconcileBuildPreview(p);
+      this.refreshStats(p);
+    }
     this.syncChar(p);
     cancelInscription(this, p);
     stopProduction(this, p);
@@ -215,7 +223,7 @@ export class Game {
 
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
-    p.stats = deriveStats(p.char);
+    p.stats = deriveStats(p.char, buildPreviewOptions(p));
     this.refreshPresentation(p);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
@@ -236,7 +244,9 @@ export class Game {
   // --- movement ----------------------------------------------------------
 
   moveSpeedMul(p) {
-    return p.dead ? 0 : 1;
+    // Owner GM preview bonus is session-only, bounded and server-authoritative.
+    // The regular snapshot `sp` also updates the client's existing predictor.
+    return p.dead ? 0 : 1 + Math.min(300, Math.max(0, p.gmSpeedBonus || 0)) / 100;
   }
 
   /**
@@ -297,8 +307,11 @@ export class Game {
     if(!entering&&!exiting)return {ok:false,reason:'Unknown phase gate.'};
     if(p.dead||dist(p,obj)>5||!hasLineOfSight(p,obj))return {ok:false,reason:'Approach the gate while alive.'};
     if(p.autoOn||this.time<p.combatUntil||p.buffs.some(b=>b.k==='root'&&b.until>this.time))return {ok:false,reason:'Disengage before travel.'};
-    if(entering&&(inRiftAnnex(p.x,p.z)||p.char.level<3||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
+    if(entering&&!(p.char.level>=RIFT_LEVEL))return {ok:false,reason:`The Phase Scar requires character level ${RIFT_LEVEL}.`};
+    if(entering&&(inRiftAnnex(p.x,p.z)||!p.char.attunements.includes('resonance')||p.char.riftCalibration!=='completed'||['opening','unstable'].includes(this.rift.phase)))return {ok:false,reason:'Complete calibration and wait for a safe phase.'};
     if(exiting&&!inRiftAnnex(p.x,p.z))return {ok:false,reason:'The return gate is inside the annex.'};
+    const regionDenial=entering&&this.severance?regionEntryDenial('severance_expanse',p.char):null;
+    if(regionDenial)return {ok:false,reason:regionDenial};
     if(entering&&!this.severance)this.openAnnex();
     if(entering&&this.severance)this.openExpanse();
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
@@ -318,12 +331,17 @@ export class Game {
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
   openAnnex() {
     if(!this.annexOpened){
-      for(const [type,dx,z,name] of [
-        ['skitter',-9,17,'Threshold Skitter'],['skitter',9,16,'Gallery Skitter'],['skitter',-3,14,'Gallery Burrower'],
-        ['sentinel',-6,2,'Displaced Sentinel'],['skitter',6,-3,'Phase Skitter'],['faultstalker',10,5,'Null Relay Stalker'],['skitter',-8,-5,'Relay Burrower'],
-        ['sentinel',7,-24,'Null Chamber Sentinel'],['warden',-7,-25,'Null Chamber Warden'],['faultstalker',8,-14,'Null Stalker'],['skitter',-8,-17,'Null Burrower']
+      // With the Severance Expanse present, the Annex is the Null Annex behind
+      // the Foundry's Null Breach: level 13-15 content (REGION_LEVELS.null_annex),
+      // six of its ten guards elite, and the Null Chamber Warden at 15.
+      const heroic=!!this.severance;
+      for(const [type,dx,z,name,lvl,elite] of [
+        ['skitter',-9,17,'Threshold Skitter',13],['skitter',9,16,'Gallery Skitter',13],['skitter',-3,14,'Gallery Burrower',13,true],
+        ['sentinel',-6,2,'Displaced Sentinel',14,true],['skitter',6,-3,'Phase Skitter',14],['faultstalker',10,5,'Null Relay Stalker',14,true],['skitter',-8,-5,'Relay Burrower',14],
+        ['sentinel',7,-24,'Null Chamber Sentinel',15,true],['warden',-7,-25,'Null Chamber Warden',15],['faultstalker',8,-14,'Null Stalker',15,true],['skitter',-8,-17,'Null Burrower',15,true]
       ]){
-        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true};
+        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:heroic?lvl:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true,
+          ...(heroic?{nullAnnex:true}:{}),...(heroic&&elite?{elite:{hp:ELITE.hp,dmg:ELITE.dmg}}:{})};
         resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
       }
       this.annexOpened=true;
@@ -566,6 +584,8 @@ export class Game {
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,
+      // Private sheet only; these values describe active preview effects, never grant authority.
+      ...(activeBuildPreview(p) ? { buildPreview: buildPreviewOptions(p) } : {}),
     };
   }
 

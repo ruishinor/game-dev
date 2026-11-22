@@ -17,7 +17,7 @@ try{
   const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
   await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=0.25':''));
-  await page.fill('#name','Arrival Tester');
+  await page.click('#gate-guest-link');await page.fill('#name','Arrival Tester');
   const creation=page.locator('#creation-preview');
   await creation.locator('canvas').scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.model==='glb');
