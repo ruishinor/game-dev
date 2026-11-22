@@ -30,7 +30,6 @@ export function buildOutpostStaging(T,{ground,assets=null}={}){
  focus.rotation.x=.45;
  for(let i=0;i<5;i++){
   const a=(i+.5)*Math.PI*2/5;
-  const angle=Math.sin(a)*.4;
   const start=i===0?[generator.x,ground(generator.x,generator.z)+generator.h+.22,generator.z]
     :[mast.x+Math.cos(a)*.78,top-.7,mast.z+Math.sin(a)*.78];
   const dest=i===0?[mast.x,top-.9,mast.z]:[mast.x+.06,top-.30,mast.z+.13];
