@@ -162,6 +162,7 @@ export function createExpanseKit(T, o) {
   const U = (v) => ({ value: v });
   const shared = { uTime: U(0), uMotion: U(1) };
   const crystalMats = [];
+  const fallbackCrystalMats = [];
   const fields = [];
   const halosGeo = new T.InstancedBufferGeometry();
   let halosMat = null, ringMat = null, ringMotes = null;
@@ -296,19 +297,27 @@ export function createExpanseKit(T, o) {
   }
 
   function fallback() {
-    // simple stone silhouettes so the colliders are never invisible
-    const mat = new T.MeshStandardMaterial({ color: 0x4b4648, roughness: 0.92, flatShading: true });
+    // Keep mineral clusters recognisable when the authored GLB cannot load.
+    // The fallback never replaces the accepted production GLB; retain one
+    // shared light and the existing instanced halo/mote budgets.
+    const stone = new T.MeshStandardMaterial({ color: 0x4b4648, roughness: 0.92, flatShading: true });
+    const amber = new T.MeshStandardMaterial({ color: 0x81502f, emissive: AMBER.hot, emissiveIntensity: 0.55, roughness: 0.38, flatShading: true });
+    const teal = new T.MeshStandardMaterial({ color: 0x286f69, emissive: TEAL.hot, emissiveIntensity: 0.55, roughness: 0.38, flatShading: true });
+    fallbackCrystalMats.push(amber, teal);
     const cone = new T.ConeGeometry(1, 1, 7, 1);
     cone.translate(0, 0.5, 0);
     const dode = new T.DodecahedronGeometry(1, 0);
     for (const p of place) {
       if (p.kind === 'ring') continue;
       const geo = /^Spire/.test(p.variant) ? cone : dode;
+      const mat = p.kind === 'crystal' ? (p.teal ? teal : amber) : stone;
       const m = new T.Mesh(geo, mat);
       m.scale.set(p.w, geo === cone ? p.h : p.h * 0.5, p.w);
       m.position.set(p.x, o.ground(p.x, p.z) - (p.kind === 'hoodoo' ? p.sink : 0), p.z);
+      m.name = p.kind === 'crystal' ? 'severance-kit:fallback-crystal' : 'severance-kit:fallback-stone';
       root.add(m);
     }
+    if (!halosMat) buildCrystalFx();
     state.status = 'fallback';
   }
 
@@ -341,6 +350,7 @@ export function createExpanseKit(T, o) {
       const gain = 0.75 + 0.85 * night;
       state.gain = gain;
       for (const m of crystalMats) m.uniforms.uGain.value = gain;
+      for (const m of fallbackCrystalMats) m.emissiveIntensity = 0.55 + 0.9 * night;
       if (halosMat) halosMat.uniforms.uGain.value = 0.35 + 0.9 * night;
       if (ringMat) ringMat.uniforms.uGain.value = 0.7 + 0.8 * night;
       if (ringMotes) { ringMotes.mat.uniforms.uTime.value = t; ringMotes.mat.uniforms.uLevel.value = 0.35 + 0.5 * night; }
