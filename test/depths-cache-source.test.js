@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import { DEPTHS_MEMBER, DEPTHS_NODE, DEPTHS_ARCHIVE, ensureDepthsCacheGLB, isolateDepthsCacheGLB, readZipMember } from '../tools/assets/extract-depths-cache.mjs';
 import { DEPTHS_CACHE_URL } from '../client/src/depths-cache.js';
 
@@ -39,7 +40,7 @@ test('the owner archive produces only the selected cache, not a full outpost sce
 
 test('generated GLB stays outside source ZIP web mounts and builds deterministically',()=>{
   const file=ensureDepthsCacheGLB();
-  assert.ok(file.endsWith('.asset-cache/depths-recovery-cache.glb'));
+  assert.ok(file.endsWith(path.join('.asset-cache', 'depths-recovery-cache.glb')));
   assert.equal(unpack(fs.readFileSync(file)).nodes[0].name,DEPTHS_NODE);
   assert.equal(ensureDepthsCacheGLB(),file);
 });
