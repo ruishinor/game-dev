@@ -1,9 +1,13 @@
-name: Source-only GLB material and geometry audit
+name: Archive GLB pipeline ingestion and quality audit
 
 on:
   pull_request:
     paths:
       - 'tools/assets/glb-source-quality.mjs'
+      - 'tools/asset-pipeline/asset_pipeline/archive_glb.py'
+      - 'tools/asset-pipeline/asset_pipeline/__main__.py'
+      - 'tools/asset-pipeline/assets/glb_archive/asset.json'
+      - 'tools/asset-pipeline/tests/test_archive_glb.py'
       - 'test/glb-source-quality.test.js'
       - 'assets/source-archives/glb-low-poly-models-building-blocks.zip'
       - '.github/workflows/glb-source-quality.yml'
@@ -21,8 +25,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - name: Audit all 138 source GLBs without extracting to runtime
+      - name: Audit all 138 GLBs (pipeline intake screening)
         run: node tools/assets/glb-source-quality.mjs > glb-source-quality.json
+      - name: Verify pipeline ingestion tests
+        run: cd tools/asset-pipeline && python -m unittest discover -s tests -p 'test_archive_glb.py' -v
+      - name: Ingest all 138 GLBs into production pipeline workspace
+        run: cd tools/asset-pipeline && python -m asset_pipeline all --asset glb_archive
       - name: Verify source-only report and no automatic promotion
         run: |
           node --input-type=module -e "
