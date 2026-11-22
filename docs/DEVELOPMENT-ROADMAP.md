@@ -499,12 +499,12 @@ Branch `feat/prog15-regional-progression`. Cap 15 (merged in #196). Phase Scar a
 - **Pacing:** one clear gives about 4,000 XP, so levels 12→15 take about 2.4 clears.
 - **Art:** the breach reuses the return-rift model, and no new art was made. A distinct breach visual is optional polish.
 
-### 13.3 Severance Soldier squads integrated — branch `feat/severance-squads-levels`
+### 13.3 Severance Soldier squads candidate — branch `feat/severance-squads-levels`
 
-- **What merged:** the gameplay and rendering from `charlie/festive-thompson-a5h4f5` (owner-authorized 2026-11-21):
+- **Candidate scope:** the gameplay and rendering from `charlie/festive-thompson-a5h4f5` (owner-authorized 2026-11-21):
   - Five roaming squads of three: a soldier on point, a flank soldier and a rearguard Sergeant.
   - Formation following, and the Sergeant holding back while its soldiers fight.
-  - The `rg` flag, which puts Sergeants after their soldiers in Tab targeting.
+  - Target cycling follows the current nearest-first behavior; rear-guard formation does not override targeting.
   - Kinetic Discharge, with its VFX.
   - The soldier look wearing the full Cinderlock set, and the journal entry.
 - **Levels:** squads are level 7–11: Amber Flats 7, Far West 8, Severed Pass 9, Causeway 10, Gate Basin 11. Each Sergeant is one level above its squad (max 12) and is the squad's elite, using the standard `ELITE` multipliers. XP and scaling come from `enemy-levels.js`.

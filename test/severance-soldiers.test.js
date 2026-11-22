@@ -110,13 +110,13 @@ test('after a fight the squad leashes back and re-forms', () => {
   }
 });
 
-test('clients learn only what they see: no route, slot or squad link; sergeants flagged for Tab order', () => {
+test('clients learn only what they see: no route, slot or squad link', () => {
   const { g, soldiers } = squads();
   for (const e of soldiers) {
     const meta = g.metaFor(e);
     assert.equal(meta.c, 'severance_soldier');
     assert.ok(['Severance Soldier', 'Severance Sergeant'].includes(meta.n));
-    assert.equal(meta.rg, e.rearguard ? 1 : undefined);
+    assert.equal(meta.rg, undefined, 'no reserved targeting priority overrides nearest-first cycling');
     for (const k of ['route', 'slot', 'lead', 'squad', 'home', 'post', 'specials', 'threat']) assert.equal(meta[k], undefined, k);
     assert.ok(!JSON.stringify(meta).includes('route'));
   }

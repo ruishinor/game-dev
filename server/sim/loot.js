@@ -10,19 +10,23 @@ import {dist,hasLineOfSight,deepLineClear,sameTravelRegion} from '../../shared/w
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
 
+// These explicitly classified enemies cannot grant equipment items. Their
+// existing material, goods and credit paths remain independent.
+export const NO_ITEM_REWARD_TYPES=Object.freeze(['severance_soldier']);
 const LOOT_RANGE=5, CREDIT_RANGE=70;
 const fail=reason=>({ok:false,reason});
 const active=(game,e)=>e?.kind==='enemy'&&e.state==='dead'&&game.time-e.deadAt<=CORPSE_MS;
 export function distributeCorpseLoot(game,e,credited){
  if(!active(game,e)||e.lootByPlayer instanceof Map)return;
  e.lootGeneration=(e.lootGeneration||0)+1;e.lootByPlayer=new Map();
+ const allowItems=!NO_ITEM_REWARD_TYPES.includes(e.type);
  for(const id of new Set(credited)){
   const p=game.players.get(id);if(!p||!sameTravelRegion(p,e)||dist(p,e)>CREDIT_RANGE)continue;
   const entries=[],material=SALVAGE[e.type],goods=TRADE_SALVAGE[e.type];
   // Preserve starter material recovery; equipment and blueprints roll independently.
   // A corpse without salvage or another successful reward remains empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
-  for(const drop of itemDrops(e.type))if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
+  for(const drop of allowItems?itemDrops(e.type):[])if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
   if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<goodsCap(goods))entries.push({id:goods,kind:'goods',quantity:1});
   const credits=creditDrop(e.type);
   if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
@@ -35,7 +39,7 @@ export function distributeCorpseLoot(game,e,credited){
    const q=Math.min(r.quantity,MATERIAL_CAP-have-(same?.quantity||0));
    if(q>0){if(same)same.quantity+=q;else entries.push({id:r.id,kind:'material',quantity:q});}
    // Owner decision (2026-11-21): the Severance squads, sergeants included, drop no items.
-   const uncommon=e.type==='severance_soldier'?null:eliteUncommonDrop(e,p.char,game.eliteRng);
+   const uncommon=allowItems?eliteUncommonDrop(e,p.char,game.eliteRng):null;
    if(uncommon&&Object.hasOwn(ITEMS,uncommon)&&!entries.some(x=>x.id===uncommon))entries.push({id:uncommon,kind:'item',quantity:1});
   }
   const armourPrint=classArmourBlueprintDrop(e.type,p.char,game.classArmourRng);
