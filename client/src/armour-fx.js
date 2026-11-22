@@ -27,8 +27,8 @@
 //
 // Bounds: one channel material and one glass material per wearer piece, at
 // most 14 halos and 36 embers/spores per piece. Quality 0 keeps the animated
-// channels only; reduced motion slows time to 0.15 and drops particles and
-// surges.
+// channels and one Cinderlock reactor core halo per piece; full halo fields
+// and sparks respect quality budgets. Reduced motion suppresses particles.
 import * as THREE from 'three';
 import { CELL } from './vfx/textures.js';
 
@@ -212,13 +212,18 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
     const sm = new THREE.SpriteMaterial({ map: glowTexture(), color: fam.halo, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
     const sp = new THREE.Sprite(sm);
     sp.position.copy(a.position);
-    sp.scale.setScalar(h.size);
-    sp.userData = { kind: a.kind, k: h.k, base: h.size, phase: Math.random() * 6.28, bone: a.bone };
+    // Cinderlock uses a recognisable white-hot reactor surrounded by crimson
+    // vents; the other armour families retain their distinct colour languages.
+    if (famKey === 'CL' && a.kind === 'core') sm.color.setHex(0xffe7ce);
+    const coreSize = famKey === 'CL' && a.kind === 'core' ? 1.55 : 1;
+    sp.scale.setScalar(h.size * coreSize);
+    sp.userData = { kind: a.kind, k: h.k, base: h.size * coreSize, phase: Math.random() * 6.28, bone: a.bone };
     a.bone.add(sp);
     halos.push(sp);
     if (fam.particles && (a.kind === 'core' || a.kind === 'vent')) {
       const e = particleSystem(a.kind === 'core' ? 18 : 9, fam.particle, fam.particles);
       e.position.copy(a.position);
+      e.userData.armourEmitter = a.kind;
       a.bone.add(e);
       particles.push(e);
     }
@@ -257,20 +262,25 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
       const level = (0.7 + 0.3 * combat + 0.5 * (st.hit || 0) + (setDone ? 0.12 : 0)) * env.intensity();
       u.uTime.value = time; u.uMotion.value = motion; u.uLevel.value = level;
       u.uSurge.value = reduced ? 0 : surgeK; u.uSurgeAge.value = surgeAge; u.uSustain.value = sustain;
-      u.uGain.value = q === 0 ? 0.8 : 1;
-      const showHalo = q > 0;
+      // At low graphics quality preserve the Cinderlock reactor signature
+      // without increasing particle or dynamic-light budgets.
+      u.uGain.value = q === 0 ? (famKey === 'CL' ? 1.05 : 0.8) : 1;
       for (const h of halos) {
+        const showHalo = q > 0 || (famKey === 'CL' && h.userData.kind === 'core' && (st.cameraDistance ?? 0) < 22);
         h.visible = showHalo;
         if (!showHalo) continue;
         const beat = famKey === 'SW' ? (h.userData.kind === 'beacon' ? (Math.sin(time * motion * 3.1 + h.userData.phase) > 0.85 ? 1 : 0.25) : 0.8)
           : 0.82 + 0.18 * Math.sin(time * motion * (famKey === 'MY' ? 1.25 : 1.7) + (famKey === 'VG' ? 0 : h.userData.phase));
         const pulse = beat + surgeK * 0.6 + sustain * 0.3;
-        h.material.opacity = Math.min(1, h.userData.k * pulse * level);
-        h.scale.setScalar(h.userData.base * (0.9 + 0.2 * pulse));
+        const reactor = famKey === 'CL' && h.userData.kind === 'core';
+        h.material.opacity = Math.min(1, h.userData.k * pulse * level * (reactor ? 1.3 : 1));
+        h.scale.setScalar(h.userData.base * (0.9 + 0.2 * pulse + (reactor ? surgeK * 0.22 : 0)));
       }
-      const showParticles = q >= 2 && !reduced && (st.cameraDistance ?? 0) < 18;
+      const particlesNear = !reduced && (st.cameraDistance ?? 0) < 18;
       for (const e of particles) {
-        e.visible = showParticles;
+        // One existing core emitter at medium quality; no new emitters,
+        // point lights, particle pools or per-frame geometry allocation.
+        e.visible = particlesNear && (q >= 2 || (q === 1 && famKey === 'CL' && e.userData.armourEmitter === 'core'));
         e.material.uniforms.uTime.value = time;
         e.material.uniforms.uLevel.value = (0.55 + 0.45 * combat + surgeK + sustain * 0.5) * env.intensity();
       }
@@ -283,7 +293,7 @@ export function createArmourFx(fxMeshes, anchors, glassMeshes = []) {
       if (kind !== 'hit') react(kind, id);
     },
     /** Four pieces of one family worn: a restrained set signature. */
-    setComplete(on) { setDone = !!on; u.uBright.value = fam.gain * (on ? 1.12 : 1); },
+    setComplete(on) { setDone = !!on; u.uBright.value = fam.gain * (on ? (famKey === 'CL' ? 1.35 : 1.12) : 1); },
     get sustain() { return sustain; },
     dispose() {
       for (const h of halos) { h.removeFromParent(); h.material.dispose(); }
