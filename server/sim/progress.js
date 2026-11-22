@@ -6,6 +6,7 @@ import {appearanceString} from '../../shared/appearance.js';
 
 import { CLASSES, ENEMIES, ITEMS, DIRECTIVES, directiveFor, XP_TO_NEXT, MAX_LEVEL, SLOTS, ARCHIVIST_LINES, ATTUNEMENT_NAMES } from '../../shared/content.js';
 import { tryEquip, tryUnequip } from '../../shared/build.js';
+import { buildPreviewOptions } from '../gm-build.js';
 import { dist, inSanctum, hasLineOfSight, COLLIDERS, sameTravelRegion } from '../../shared/world.js';
 import { travelSeverance, gateFront } from './severance-gate.js';
 import { recordFoundryKill, claimFoundryCache, leaveFoundry, enterNullBreach } from './silent-foundry.js';
@@ -232,7 +233,7 @@ export function equipItem(game, p, itemId) {
   if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
   if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
   if (p.char.equipped[ITEMS[itemId].slot] === itemId) return { ok: false, reason: 'That is already equipped.' };
-  const res = tryEquip(p.char, itemId);
+  const res = tryEquip(p.char, itemId, buildPreviewOptions(p));
   if (!res.ok) return res;
   if (ITEMS[itemId].slot === 'glyph') {
     if (p.followId || p.jy > 0.05 || p.autoOn) return { ok: false, reason: 'Stand still and disengage before inscribing a glyph.' };
@@ -251,7 +252,7 @@ export function unequipSlot(game, p, slot) {
   if (inCombat(game, p)) return { ok: false, reason: 'You cannot modify your build in combat.' };
   if (p.inscription) return { ok: false, reason: 'Finish or cancel the current inscription.' };
   if (p.production) return { ok: false, reason: 'Finish or cancel production before changing equipment.' };
-  const res = tryUnequip(p.char, slot);
+  const res = tryUnequip(p.char, slot, buildPreviewOptions(p));
   if (!res.ok) return res;
   const name = ITEMS[p.char.equipped[slot]].name;
   applyLoadout(game, p, res.equipped, name);
@@ -319,7 +320,7 @@ export function tickInscription(game, p) {
     }
     return;
   }
-  const result = tryEquip(p.char, ritual.itemId);
+  const result = tryEquip(p.char, ritual.itemId, buildPreviewOptions(p));
   if (!result.ok) return cancelInscription(game, p, 'Inscription failed. ' + result.reason);
   p.inscription = null;
   const name = ITEMS[ritual.itemId].name;
