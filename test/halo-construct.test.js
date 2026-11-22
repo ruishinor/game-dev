@@ -73,7 +73,7 @@ test('halo: the quartermaster keeps its identity, position and vendor service', 
   assert.equal(OBJECTS.find((o) => o.key === 'archivist').name, 'Archivist Venn', 'Venn is unchanged');
 });
 
-test('halo: server sends the wardens fixed facing and offers no service or new interaction', () => {
+test('halo: server retains fixed facing and offers Observe, not vendor or combat services', () => {
   const game = new Game();
   const guards = game.objects.filter((o) => o.type === 'sanctum_guard');
   assert.equal(guards.length, 4);
@@ -91,9 +91,11 @@ test('halo: server sends the wardens fixed facing and offers no service or new i
   p.z = g.z;
   const before = JSON.stringify(p.char);
   const res = interact(game, p, g.id);
-  assert.equal(res.ok, false);
+  assert.equal(res.ok, true, 'Observe acknowledges an in-range neutral sentry');
   assert.equal(JSON.stringify(p.char), before, 'no state change');
   assert.ok(!p.vendor, 'no vendor session');
+  assert.ok(p.outbox.some(e => e.e === 'msg' && e.k === 'info' && /watches the approach/.test(e.m)),
+    'informational response only');
 });
 
 test('halo: the runtime bundle has every mesh and clip the client roles use', () => {
