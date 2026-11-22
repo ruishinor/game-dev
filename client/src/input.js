@@ -37,6 +37,8 @@ export class Input {
       // The hotkey editor captures bindings itself. Other gameplay panels
       // must retain global I/B/J/O shortcuts even when their buttons focus.
       if (el.closest?.('.keybindings-panel:not([hidden])')) return true;
+      // Status inspection uses normal keyboard navigation, without taking over combat shortcuts.
+      if (el.classList.contains('buff-chip')) return e.code === 'Tab' && el.matches(':focus-visible');
       if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button')
         return e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space';
       return false;

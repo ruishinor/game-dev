@@ -42,6 +42,21 @@ try {
  const icon=A.locator('.party-frame-stacks .party .buff-chip[data-effect="ward"]');
  assert.match(await icon.getAttribute('aria-label'),/Kinetic Ward/);
  assert.equal(await icon.locator('.buff-icon svg').count(),1);
+ // Player and party use the same icon-only inspection contract.
+ first.player.buffs.push({k:'corrode',until:server.game.time+30000});
+ const own=A.locator('.frame.player .buff-chip[data-effect="corrode"]');
+ await own.waitFor({state:'visible'});
+ for(const [chip,label] of [[icon,'Kinetic Ward'],[own,'Corroded']]){
+   assert.equal(await chip.locator('.buff-label').evaluate(n=>getComputedStyle(n).clipPath),'inset(50%)');
+   assert.equal(await chip.getAttribute('tabindex'),'0');
+   await chip.focus();
+   assert.equal(await A.locator('.tooltip .tip-title').textContent(),label);
+   await chip.evaluate(n=>n.blur());
+ }
+ await A.mouse.move(0,0);
+ await icon.hover();
+ assert.equal(await A.locator('.tooltip .tip-title').textContent(),'Kinetic Ward');
+ await A.mouse.move(0,0);
  // Snapshot visibility follows travel region, not distance within the Reach.
  // Moving a member to a different region preserves party membership but hides
  // unobserved live health, buffs and portraits.
