@@ -1,6 +1,8 @@
 // Owner-only, server-authorized character preview. Never send the allowlist
 // or a privilege flag to a client. No grant exists without server configuration.
-import { ITEMS, MAX_LEVEL } from '../shared/content.js';
+import { ITEMS, MAX_LEVEL, SKILL_NAMES } from '../shared/content.js';
+import { MAX_ATTRIBUTE_BONUS, reconcileBuildPreview } from './gm-build.js';
+import { cancelInscription } from './sim/progress.js';
 import { MATERIALS, MATERIAL_CAP, sanitizeMaterials } from '../shared/crafting.js';
 import { walletAfter, CREDIT_CAP } from './sim/wallet.js';
 import { WORLD, ZONES, RIFT_SITE, RIFT_ANNEX, PLAYER_RADIUS, resolveCollisions, travelRegionAt } from '../shared/world.js';
@@ -40,7 +42,8 @@ const destinations = Object.freeze({
 
 export const GM_HELP = 'GM preview: /gm help, /gm status, /gm level 1–' + MAX_LEVEL +
   ', /gm tp reach|scar|sporefield|relay|sinter|annex, /gm unlock, /gm heal, /gm god on|off' +
-  ', /gm credits N, /gm mats N, /gm glyphs|device|implants|gear|weapons|social clothing, /gm speed 0–300.';
+  ', /gm credits N, /gm mats N, /gm glyphs|device|implants|gear|weapons|social clothing, /gm speed 0–300.' +
+  ' /gm stats 0–' + MAX_ATTRIBUTE_BONUS + '|reset, /gm class unlock|lock (session only).';
 
 const itemCategories = Object.freeze({
   glyphs: ['glyph'],
@@ -99,6 +102,17 @@ function destinationFor(name) {
   return resolved;
 }
 
+function refreshPreviewBuild(game, p) {
+  const removed = reconcileBuildPreview(p);
+  game.refreshStats(p);
+  if (removed.length) {
+    p.buffs = p.buffs.filter(b => b.k !== 'shield');
+    game.message(p, 'info', 'Returned to inventory: ' + removed.map(id => ITEMS[id]?.name ?? id).join(', ') + '.');
+  }
+  game.syncChar(p);
+  game.markDirty(p);
+}
+
 // This function is called only after gmAuthorized in the WebSocket dispatcher.
 export function executeGm(game, p, line) {
   if (typeof line !== 'string' || line.length > 120 || /[\u0000-\u001f\u007f]/.test(line) || !p?.char)
@@ -110,8 +124,33 @@ export function executeGm(game, p, line) {
   }
   if (parts[0] === 'status' && parts.length === 1) {
     game.message(p, 'info', 'GM preview active. Level ' + p.char.level + '/' + MAX_LEVEL +
-      '; invulnerability ' + (p.gmInvulnerable === true ? 'on' : 'off') + '.');
+      '; invulnerability ' + (p.gmInvulnerable === true ? 'on' : 'off') +
+      '; speed +' + (p.gmSpeedBonus ?? 0) + '%; base attributes +' + (p.gmAttributeBonus ?? 0) +
+      '; class restrictions ' + (p.gmClassUnlocked === true ? 'unlocked' : 'locked') + '.');
     return { ok: true, action: 'status' };
+  }
+  if (parts[0] === 'stats' && parts.length === 2) {
+    const arg = parts[1] === 'reset' ? '0' : parts[1];
+    if (!/^(0|[1-9]\d*)$/.test(arg) || !Number.isSafeInteger(Number(arg)) || Number(arg) > MAX_ATTRIBUTE_BONUS)
+      return deny('Attribute bonus must be an integer from 0 to ' + MAX_ATTRIBUTE_BONUS + ', or reset.');
+    const bonus = Number(arg);
+    if ((p.gmAttributeBonus ?? 0) !== bonus) {
+      if (p.inscription) cancelInscription(game, p, 'Inscription cancelled: preview attributes changed.');
+      p.gmAttributeBonus = bonus;
+      refreshPreviewBuild(game, p);
+    }
+    game.message(p, 'info', 'GM base attributes: +' + bonus + ' to ' + Object.values(SKILL_NAMES).join(', ') + '. Session only; 0 or reset restores normal attributes.');
+    return { ok: true, action: 'stats', target: String(bonus) };
+  }
+  if (parts[0] === 'class' && parts.length === 2 && ['unlock','lock'].includes(parts[1])) {
+    const unlocked = parts[1] === 'unlock';
+    if ((p.gmClassUnlocked === true) !== unlocked) {
+      if (p.inscription) cancelInscription(game, p, 'Inscription cancelled: class preview changed.');
+      p.gmClassUnlocked = unlocked;
+      refreshPreviewBuild(game, p);
+    }
+    game.message(p, 'info', 'GM class requirements ' + (unlocked ? 'unlocked for equipment; skill, attunement, ownership and slot requirements still apply.' : 'locked; incompatible equipment returned to inventory.') + ' Class identity unchanged. Session only.');
+    return { ok: true, action: 'class', target: parts[1] };
   }
   if (parts[0] === 'level' && parts.length === 2) {
     if (!/^[1-9]\d*$/.test(parts[1])) return deny('Level must be 1–' + MAX_LEVEL + '.');
@@ -120,7 +159,8 @@ export function executeGm(game, p, line) {
     if (p.dead) return deny('Respawn before changing level.');
     p.char.level = level;
     p.char.xp = 0;
-    game.refreshStats(p);
+    if (p.gmAttributeBonus || p.gmClassUnlocked) refreshPreviewBuild(game, p);
+    else game.refreshStats(p);
     p.hp = p.maxHp;
     p.metaVer += 1;
     game.syncChar(p);

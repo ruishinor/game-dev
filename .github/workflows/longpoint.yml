@@ -5,6 +5,8 @@ on:
       - 'client/assets/manifest.json'
       - 'client/assets/longpoint.glb'
       - 'client/src/longpoint.js'
+      - 'client/src/longpoint-finish.js'
+      - 'client/src/assets.js'
       - 'client/src/characters.js'
       - 'client/src/main.js'
       - 'client/src/vfx/**'
