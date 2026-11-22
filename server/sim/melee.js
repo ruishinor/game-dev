@@ -29,6 +29,7 @@ export function requestMelee(game,p,action){
   s.guardUntil=now+GUARD.active;
   s.next=now+GUARD.recovery;
   p.nextAuto=Math.max(p.nextAuto,s.next);
+  p.gcdUntil=Math.max(p.gcdUntil,s.guardUntil);
   p.autoOn=false;
   game.emitWorldEvent({e:'melee_guard',s:p.id,ms:GUARD.active});
   return {ok:true};
@@ -86,7 +87,7 @@ export function tickMelee(game,p,damage,gainCharge){
 export function mitigateMelee(game,src,dst,damage,opts){
  if(!opts.melee||src?.kind!=='enemy'||dst?.kind!=='player')return damage;
  const s=dst.meleeState;
- if(!s||game.time>=s.guardUntil||!facing(dst,src))return damage;
+ if(!s||activeWeaponSlot(dst.char)!=='weapon'||game.time>=s.guardUntil||!facing(dst,src))return damage;
  s.guardUntil=0;
  s.counterUntil=game.time+GUARD.counterWindow;
  game.emitWorldEvent({e:'melee_deflect',s:dst.id,d:src.id});
