@@ -22,6 +22,11 @@ function h(tag, cls, text) {
   return e;
 }
 const art={
+  patrol_arc_sidearm:'<path d="m2 9 4-3 12 1 4 3-2 4-9 1-2 6H5l2-8-5-1Z" fill="#496775" stroke="#a6d3d9"/><path d="m7 8 9 1 3 2-10 1z" fill="#9dbfb9"/><path d="m9 15 3 1-3 4H6z" fill="#9c8f72"/><path d="M13 12h6" stroke="#80dde4"/>',
+  relay_arc_carbine:'<path d="M2 9h7l3-3h9v5H10l-2 8H5l2-8H2Z" fill="#3c5362" stroke="#93c9df"/><path d="M12 6h6v2h-6zM15 10l-4 4m-3 0h7m-7 2h5" stroke="#c3aed8"/><path d="M20 9h3" stroke="#a9eff0"/>',
+  phase_lens:'<path d="m12 2 8 6v9l-8 5-8-5V8z" fill="#3b6575" stroke="#83c6d1"/><path d="M7 7l5 3 5-3m-5 3v10M7 16l5-6 5 6" stroke="#b7e3e7"/>',
+  relay_frame:'<path d="M2 9 17 4l5 4-1 5-11 3-3 5-4-3 3-6Z" fill="#556a74" stroke="#b5cbd0"/><path d="m6 12 11-4 4 1M10 16l5-6" stroke="#e1bb83"/>',
+  blueprint_relay_arc_carbine:'<path d="M4 3h16v18H4Z" fill="#354d61" stroke="#a6c6d2"/><path d="M6 11h4l3-3h5m-9 5 7-2m-9 6h10" stroke="#b9d8df"/><path d="M7 6h6M17 15l-3 3" stroke="#d9b783"/>',
   vault_memory_foil:'<path d="M4 4 18 3l3 4-1 13-13 1-3-4Z" fill="#4e6265" stroke="#bac7bd"/><path d="M7 6h9l2 2v10H7Z" fill="#293b42" stroke="#a6c3b6"/><path d="m8 15 3-5 3 5 3-7M8 8h3m3 9h3" stroke="#e1c688"/><path d="M5 12h2m12-1h2" stroke="#a0c8c4"/>',
   vault_witness_seal:'<path d="m12 2 8.5 5v10L12 22l-8.5-5V7Z" fill="#515361" stroke="#e3d0a2"/><path d="m12 5 5.7 3.5v7L12 19l-5.7-3.5v-7Z" fill="#292c42" stroke="#b8a3de"/><path d="M7.5 12q4.5-6 9 0-4.5 6-9 0Z" stroke="#e6d9ae" fill="#77668e"/><circle cx="12" cy="12" r="1.8" fill="#e4d8a6"/><path d="M12 2v3m0 14v3" stroke="#efdea7"/>',
   sinter_flake:'<path d="M4 14 7 6 15 3 21 9 18 17 9 21Z" fill="#7c8069" stroke="#c2c4a2"/><path d="m7 6 2 15 6-18 3 14M4 14l5 1 12-6" stroke="#d4c8a0"/><path d="m10 10 4-4 3 4-3 4Z" fill="#a7bb9b"/>',

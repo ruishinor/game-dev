@@ -12,6 +12,8 @@ export const MATERIAL_CAP=99;
 export const MATERIALS={
   pulse_housing:{name:'Pulse containment housing',desc:'A standardized insulated case for modular field emitters.',source:'Sanctum Quartermaster'},
   vector_matrix:{name:'Recovered vector matrix',desc:'A dismantled sentinel control grid. Its original device is permanently consumed during extraction.',source:'Rogue Sentinel field vector array; Engineering fabrication'},
+  phase_lens:{name:'Field phase lens',desc:'An aligned optical substrate shaped from loose sinter and alloy, used in modular pulse assemblies.',source:'Sanctum Engineering Workshop'},
+  relay_frame:{name:'Extended relay frame',desc:'A dedicated longarm chassis fabricated from a field housing and alloy; consumed when assembling a carbine.',source:'Sanctum Engineering Workshop'},
   pulse_cell:{name:'Dormant pulse cell',desc:'A machined energy reservoir prepared from conductive fibres.',source:'Engineering fabrication'},
   pulse_module:{name:'Assembled pulse module',desc:'An aligned vector matrix and cell, ready for final weapon fabrication.',source:'Engineering assembly'},
   sinter_flake:{name:'Loose sinter flake',desc:'Conductive surface shedding recovered without disturbing living mineral colonies or grazers.',source:'Loose deposits at Sinter Flats'},
@@ -23,6 +25,13 @@ export const MATERIALS={
 };
 export const RECIPES={
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
+  // Independent component graph for the Patrol sidearm and Relay Arc Carbine.
+  machine_pulse_housing:{name:'Fabricate field housing',discipline:'Engineering',inputs:{sentinel_alloy:2},output:{material:'pulse_housing',count:1}},
+  shape_phase_lens:{name:'Shape field phase lens',discipline:'Engineering',inputs:{sinter_flake:1,sentinel_alloy:1},output:{material:'phase_lens',count:1}},
+  combine_optic_pulse_module:{name:'Align phase lens and pulse cell',discipline:'Engineering',kind:'assembly',inputs:{phase_lens:1,pulse_cell:1},output:{material:'pulse_module',count:1}},
+  machine_relay_frame:{name:'Fabricate relay frame',discipline:'Engineering',inputs:{pulse_housing:1,sentinel_alloy:2},output:{material:'relay_frame',count:1}},
+  assemble_patrol_arc_sidearm:{name:'Assemble Patrol Arc Sidearm',discipline:'Engineering',kind:'assembly',inputs:{pulse_module:1,pulse_housing:1},output:{item:'patrol_arc_sidearm'}},
+  assemble_relay_arc_carbine:{name:'Assemble Relay Arc Carbine',discipline:'Engineering',kind:'assembly',blueprint:'blueprint_relay_arc_carbine',site:'brine_engineering',attune:'resonance',requires:{instrumentation:13},inputs:{pulse_module:1,relay_frame:1,resonance_fragment:1},output:{item:'relay_arc_carbine'}},
   // Optional modular route to the existing QL5 weapon; the classic upgrade path and Longpoint are unchanged.
   extract_vector_matrix:{name:'Recover sentinel vector matrix',discipline:'Engineering',kind:'assembly',inputs:{sentinel_alloy:1},targets:['field_vector_array'],output:{material:'vector_matrix',count:1}},
   prepare_pulse_cell:{name:'Prepare dormant pulse cell',discipline:'Engineering',inputs:{mire_fibre:2},output:{material:'pulse_cell',count:1}},

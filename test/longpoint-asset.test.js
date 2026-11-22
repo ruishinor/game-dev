@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {NodeIO} from '@gltf-transform/core';
 import {EXTMeshoptCompression,ALL_EXTENSIONS} from '@gltf-transform/extensions';
@@ -78,7 +79,7 @@ test('Longpoint fit reaches both named anchors on actual masculine and feminine 
 
 test('Longpoint fitting remains reachable across sampled shipped locomotion poses on both frames', async()=>{
  await MeshoptDecoder.ready;const io=new NodeIO().registerExtensions([EXTMeshoptCompression]).registerDependencies({'meshopt.decoder':MeshoptDecoder});
- const male=await io.registerExtensions(ALL_EXTENSIONS).read(new URL('../client/assets/humanoid_m.glb',import.meta.url).pathname);const animations=male.getRoot().listAnimations();
+ const male=await io.registerExtensions(ALL_EXTENSIONS).read(fileURLToPath(new URL('../client/assets/humanoid_m.glb',import.meta.url)));const animations=male.getRoot().listAnimations();
  for(const frame of ['m','f'])for(const name of ['Idle_Loop','Walk_Loop','Jog_Fwd_Loop','Sprint_Loop']){
   const rig=sceneFromGLB('../client/assets/humanoid_'+frame+'.glb'),prop=sceneFromGLB('../client/assets/longpoint.glb');
   const animation=animations.find(a=>a.getName()===name);assert.ok(animation,name);const p=createLongpointPresentation(THREE,rig,prop);assert.ok(p);

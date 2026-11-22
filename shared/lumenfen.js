@@ -94,8 +94,22 @@ export function fenHeight(x,z){
   if(edge<20)h+=square(Math.max(0,20-edge))*.026;
   return h;
 }
+// Physical landmark positions take precedence over broad regional quadrants.
+ // A location label must describe the built place the player is standing in.
+const FEN_SITE_NAMES=Object.freeze({
+  'veil-landing':'Veil Landing',
+  'mossbound-thicket':'Mossbound Thicket',
+  'glasswater-spring':'Glasswater Spring',
+  'root-crown-hollow':'Root-Crown Hollow',
+  'tidal-weir':'Tidal Mycelium',
+  'luminous-canopy':'Luminous Canopy',
+});
 export function fenArea(x,z){
   const u=x-P.x,v=z-P.z;
+  for(const site of FEN_SITES){
+    if(Math.hypot(x-site.x,z-site.z)<site.clearance+8)
+      return FEN_SITE_NAMES[site.id];
+  }
   if(Math.hypot(x-P.arrival.x,z-P.arrival.z)<19)return 'Veil Landing';
   if(Math.hypot(x-P.springRift.x,z-P.springRift.z)<21)return 'Glasswater Spring';
   if(Math.hypot(x-P.crownRift.x,z-P.crownRift.z)<22)return 'Root-Crown Hollow';
