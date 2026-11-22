@@ -12,16 +12,10 @@ import { Assets } from './assets.js';
 import { createModel } from './characters.js';
 import { poseLongpoint } from './longpoint.js';
 import { makeEnvironment } from './scene.js';
+import { previewGrid } from './preview-grid.js';
 
 const q = new URLSearchParams(location.search);
-const items = (q.get('items') || 'look:vanguard_plate,look:aegis_keeper,look:conductor,look:brine_surveyor,look:archivist,mender,skitter,sentinel,warden').split(',').filter(Boolean);
-const cols = Number(q.get('cols')) || Math.min(4, items.length);
-const cell = Number(q.get('cell')) || 320;
-const yaw = Number(q.get('yaw') ?? 0.55);
-const pitch = Number(q.get('pitch') ?? 0.22);
-const rows = Math.ceil(items.length / cols);
-const W = cols * cell;
-const H = rows * cell;
+const {items,cols,cell,yaw,pitch,W,H}=previewGrid(q);
 
 const canvas = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
