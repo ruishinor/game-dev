@@ -149,6 +149,13 @@ function pickTarget(game, e) {
   return best;
 }
 
+// Elite and scripted encounters retain their authored auto and special cadence.
+// Basic committed-facing warnings apply to ordinary melee enemies only.
+function telegraphsOrdinaryMelee(e, def) {
+  return def.attack.kind === 'melee' && !def.elite && !e.elite &&
+    !(e.specials || def.specials || []).length;
+}
+
 function beginSpecial(game, e, sp, target) {
   const at = sp.at === 'target' ? { x: target.x, z: target.z } : { x: e.x, z: e.z };
   e.cast = { sp, until: game.time + sp.windup, x: at.x, z: at.z };
@@ -348,7 +355,10 @@ export function tickEnemy(game, e, dt) {
   if (e.state !== 'combat') {
     e.state = 'combat';
     e.wander = null;
-    e.nextAttack = game.time + 400;
+    // Open the first warned swing immediately so the actual contact lands at
+    // the original ~400 ms engagement point, rather than appending a full
+    // windup to the prior opening delay.
+    e.nextAttack = game.time + (telegraphsOrdinaryMelee(e, def) ? 0 : 400);
     for (const sp of e.specials || def.specials || []) e.specialAt[sp.id] = game.time + sp.first;
     e.progressAt = game.time + 1200;
     e.progressDist = Infinity;
@@ -446,7 +456,7 @@ export function tickEnemy(game, e, dt) {
 
   const reach = dist(e, target) - target.radius - (def.attack.kind === 'melee' ? e.radius * 0.5 : 0);
   if (reach <= def.attack.range && game.time >= e.nextAttack && hasLineOfSight(e,target)) {
-    if(def.attack.kind==='melee'){
+    if(telegraphsOrdinaryMelee(e,def)){
       const windup=Math.max(390,Math.min(610,Math.round(def.attack.interval*.42)));
       e.basicWindup={targetId:target.id,yaw:e.yaw,until:game.time+windup};
       // Retain the original start-to-start cadence: the windup is part of
