@@ -5,14 +5,16 @@ export const ROOTGLASS_LIMITS=Object.freeze({layers:3,lights:1,leafMotes:22,root
 
 export function makeLumenfenRift(T,kind='lumenfen_entry'){
   const group=new T.Group();group.name='lumenfen:rootglass:'+kind;
-  const returning=kind==='lumenfen_return',crossing=kind==='lumenfen_spring'||kind==='lumenfen_crown';
+  const returning=kind==='lumenfen_return',spring=kind==='lumenfen_spring',
+    crown=kind==='lumenfen_crown',entry=kind==='lumenfen_entry',crossing=spring||crown;
   const mats=[],geometries=[];
   const take=(m)=>{mats.push(m);return m;};
   const bark=take(new T.MeshStandardMaterial({color:0x152724,roughness:.92,metalness:.06}));
   const heartwood=take(new T.MeshStandardMaterial({color:0x2e4d41,roughness:.74,metalness:.10}));
   const stone=take(new T.MeshStandardMaterial({color:0x343c3c,roughness:.86,metalness:.14}));
   const glass=take(new T.MeshPhysicalMaterial({
-    color:crossing?0x85cdb9:0x7ed5c5,roughness:.18,metalness:.1,
+    color:spring?0x7bc1d4:crown?0xb6db9e:returning?0x9bccac:0x7ed5c5,
+    roughness:.18,metalness:.1,
     transparent:true,opacity:.88,clearcoat:.6,clearcoatRoughness:.13,
     emissive:0x1b6c66,emissiveIntensity:.38,
   }));
@@ -121,6 +123,61 @@ export function makeLumenfenRift(T,kind='lumenfen_entry'){
       chip.rotation.z=side*.27;
     }
   }
+  // Destination-specific architectural silhouettes on top of the existing
+  // triple-layer bent membrane. Identical frames with different tint are not
+  // sufficiently readable in a third-person game camera.
+  if(entry){
+    // An open, split wound with asymmetrical root horns and embedded shards.
+    for(const side of [-1,1]){
+      addRoot([[side*1.28,.02,-.32],[side*1.75,1.9,-.44],
+        [side*1.92,3.65,-.44],[side*.79,5.61,-.27]],.16,
+        heartwood,'lumenfen:entry-fissure-root');
+      const spike=add(new T.OctahedronGeometry(.52,0),glass,
+        'lumenfen:entry-split-glass',side*1.67,3.32,-.33);
+      spike.scale.set(.33,1.5,.32);spike.rotation.z=side*.27;
+    }
+  } else if(returning){
+    // Braided, protective return weave rather than the entry's split prongs.
+    for(const side of [-1,1]){
+      addRoot([[side*1.50,.02,.22],[side*1.43,1.3,.31],
+        [side*.85,3.0,.35],[side*.32,5.35,.07]],.17,
+        heartwood,'lumenfen:return-woven-root');
+      addRoot([[side*1.36,.35,.17],[side*1.17,1.7,.41],
+        [side*.7,3.9,.33],[side*.19,5.2,.09]],.07,
+        glass,'lumenfen:return-resonance-vein');
+    }
+  } else if(spring){
+    // Waterworks threshold; a real gauge and two stone weir buttresses.
+    const bronze=take(new T.MeshStandardMaterial({color:0x827759,metalness:.66,roughness:.43}));
+    for(const side of [-1,1]){
+      add(new T.CylinderGeometry(.34,.59,2.15,12),stone,
+        'lumenfen:spring-stone-pier',side*2.0,1.05,-.26);
+      addRoot([[side*2.0,2.18,-.22],[side*1.54,3.1,-.31],
+        [side*1.28,4.25,-.24]],.08,bronze,'lumenfen:spring-gauge-rib');
+    }
+    for(let i=0;i<3;i++){
+      const ripple=add(new T.TorusGeometry(.57+i*.36,.025,6,42,Math.PI*1.7),glass,
+        'lumenfen:spring-waterline',0,.08+i*.01,.53);
+      ripple.rotation.x=Math.PI/2;ripple.scale.y=.72;
+    }
+    add(new T.TorusGeometry(.44,.055,7,40),bronze,
+      'lumenfen:spring-calibration-gauge',0,5.63,.12);
+  } else if(crown){
+    // Tall branching crown with suspended glass growth above the membrane.
+    for(const side of [-1,1]){
+      addRoot([[side*1.38,1.78,-.26],[side*1.65,3.57,-.41],
+        [side*2.03,5.12,-.55],[side*2.33,6.0,-.62]],.16,
+        heartwood,'lumenfen:crown-high-branch');
+      addRoot([[side*1.72,4.04,-.43],[side*1.19,5.12,-.5],
+        [side*.56,6.24,-.58]],.10,bark,'lumenfen:crown-fork');
+      const shard=add(new T.OctahedronGeometry(.39,0),glass,
+        'lumenfen:crown-hanging-glass',side*2.26,5.85,-.56);
+      shard.scale.set(.5,1.7,.47);
+    }
+    const fin=add(new T.OctahedronGeometry(.45,0),glass,
+      'lumenfen:crown-keystone',0,6.27,-.54);
+    fin.scale.set(.62,1.55,.42);
+  }
   const leaf=take(new T.MeshBasicMaterial({color:crossing?0xa7e5cd:0x86d6ac,
     transparent:true,opacity:.7,depthWrite:false}));
   const motes=[];
@@ -134,7 +191,7 @@ export function makeLumenfenRift(T,kind='lumenfen_entry'){
   light.name='lumenfen:rootglass-local-light';light.position.set(0,2.5,.55);
   light.castShadow=false;group.add(light);
   let elapsed=0;
-  return {group,height:5.8,radius:2.45,hover:0,
+  return {group,height:crown?6.9:entry?6.2:5.8,radius:2.45,hover:0,
     update(dt,st={}){
       const reduce=!!st.reducedMotion;
       if(!reduce)elapsed+=Math.max(0,Math.min(dt||0,.1));
