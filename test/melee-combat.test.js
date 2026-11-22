@@ -24,7 +24,9 @@ test('deliberate melee is an accepted intent with delayed, single server impact'
  advance(g,p,219);assert.equal(e.hp,hp);
  advance(g,p,1);assert.ok(e.hp<hp);
  const after=e.hp;advance(g,p,100);assert.equal(e.hp,after,'impact never repeats');
- assert.equal(g.events.filter(x=>x.e==='dmg'&&x.ab==='melee_light').length,1);
+ const hits=g.events.filter(x=>x.e==='dmg'&&x.ab==='melee_light');
+ assert.equal(hits.length,1);
+ assert.equal(hits[0].mv,'1','confirmed damage carries the server-authored combo variant');
 });
 test('manual melee chains 3 distinct variants, then resets after its window',()=>{
  const {g,p,e}=setup();
