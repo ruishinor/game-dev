@@ -2,6 +2,10 @@
 
 **Status:** Lumenfen's region and first-pass art exist in PR #236. All 138 archive GLBs are eligible for the registered production asset pipeline (`glb_archive`, PR #257); these eight donors are immediate candidates for reconstruction, composing and runtime integration. No additional owner approval or source-only exclusion is required to start development. Visual polish remains iterative.
 
+## Owner-authorized archive and runtime pipeline
+
+The supplied 138-GLB archive and its adapted Attunement derivatives are owner-authorized inputs to the established asset pipeline and CI artifact workflows. Do not impose a speculative archive-license or source-only publication hold. Document source lineage and actual third-party attribution, investigate only evidenced conflicts, and independently validate concrete geometry, rig, lighting and gameplay defects. The composite can advance through the ordinary production tooling without a separate permission checkpoint.
+
 ## Artistic and gameplay direction
 
 Use the *architecture and authority contracts* of Severance Expanse, not its art, terrain shapes, enemy kits, or portal look. Lumenfen is a lived-in tidal watershed where root-bound forests, masonry waterworks, field-repaired mechanisms, hand-built timber settlements, and rare resonance technology have accumulated over centuries. Keep that layered history visible. The result must not read as a uniform fantasy village, science-fiction base, post-apocalyptic camp, or medieval dungeon. No generic low-poly domes or floating spheres as substitutes for real geometry.
