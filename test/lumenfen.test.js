@@ -117,6 +117,23 @@ test('Lumenfen fauna have six articulated legs and animated drifter fins',()=>{
  assert.ok(lantern.group.children.filter(c=>c.name==='lumenfen:lantern:fin').some(c=>Math.abs(c.rotation.z)>.01));
  lantern.dispose();stalker.dispose();
 });
+test('three forest morphologies and six real shallow banks replace repeated primitive blobs',()=>{
+ const scene=new T.Scene(),fen=buildLumenfenWorld(T,scene,{detail:0});
+ const ecology=fen.stats().ecology;
+ assert.equal(ecology.hardwoods+ecology.cageTrees+ecology.willows,FEN_TREES.length);
+ assert.ok(ecology.hardwoods>0&&ecology.cageTrees>0&&ecology.willows>0,
+   'morphological forest classes must all be populated');
+ assert.ok(ecology.instancedBatches>=8&&ecology.instancedBatches<=24,
+   'flora should share bounded draw batches');
+ assert.equal(fen.group.children.filter(o=>o.name==='lumenfen:mirrorpool').length,FEN_POOLS.length);
+ assert.equal(fen.group.children.filter(o=>o.name==='lumenfen:shoreline-shelf').length,FEN_POOLS.length);
+ const water=fen.group.children.find(o=>o.name==='lumenfen:mirrorpool');
+ assert.ok(water?.geometry?.attributes?.normal?.count>200,'water must have a real shaped surface');
+ const bank=fen.group.children.find(o=>o.name==='lumenfen:shoreline-shelf');
+ assert.ok(bank.geometry.attributes.color?.count>100,'banks must have terrain-specific sediment data');
+ fen.dispose();
+ assert.equal(fen.group.parent,null);
+});
 test('living rootglass and wetland visuals have independent geometry and bounded scene state',()=>{
  const scene=new T.Scene();scene.fog=new T.Fog(0x555555,40,180);
  const sky=new T.Group(),ambient=new T.HemisphereLight(),sun=new T.DirectionalLight();
