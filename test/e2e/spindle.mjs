@@ -10,6 +10,22 @@ await fs.mkdir(out,{recursive:true});
 const server=await startServer({port:0,dataFile:null});
 let browser, owner, observer;
 const errors=[];
+// The browser still animates and processes server updates when drawing is
+// paused. Under SwiftShader, continuous rendering plus Playwright screenshots
+// can starve the browser main thread long enough to miss WebSocket heartbeats.
+// Capture one actual rendered frame on demand; never pause game simulation.
+async function shot(page,name){
+  if(SOFTWARE_GL){
+    await page.evaluate(()=>{
+      const api=window.__attune;
+      api.pause(true);
+      const {scene,camera,renderer}=api.gfx;
+      camera.updateMatrixWorld(true);
+      renderer.render(scene,camera);
+    });
+  }
+  await page.screenshot({path:path.join(out,name)});
+}
 try {
   browser=await launchBrowser();
   async function join(name,width,height,slot,quality=1,cls='vanguard') {
@@ -31,6 +47,7 @@ try {
     return page.getByRole('dialog',{name:'Companion Sheet'});
   }
   owner=await join('Gauge Tester',1280,800,'spindle-owner');
+  if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(true));
   const p=await liveFixturePlayer(owner,server,'Gauge Tester');
   const sheet=await openSheet(owner);
   const commission=sheet.getByRole('button',{name:'Commission Spindle'});
@@ -43,7 +60,7 @@ try {
   const entry=sheet.locator('.companion-sheet-entry').filter({has:owner.getByRole('heading',{name:'Spindle',exact:true})});
   await entry.locator('img').waitFor();
   assert.ok(await entry.locator('img').evaluate(i=>i.complete&&i.naturalWidth>0));
-  await owner.screenshot({path:path.join(out,'companion-sheet.png')});
+  await shot(owner,'companion-sheet.png');
   console.log('Owner commissioned and summoned the GLB. Portrait rendered.');
   await sheet.getByRole('button',{name:'Close Companion Sheet'}).click();
   // The lamp must be an explicit server command, not a free ambient effect.
@@ -52,7 +69,7 @@ try {
   await owner.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 1), id);
   await owner.waitForFunction(() => window.__attune.gfx.scene.children.some(o => o.isPointLight && o.distance === 20 && o.intensity > 0));
   assert.equal(p.companion.lightOn, true);
-  await owner.screenshot({path:path.join(out,'field-light-on.png')});
+  await shot(owner,'field-light-on.png');
   // Drive the real camera and verify actual visible geometry, not just a flag.
   const visibleTriangles = () => {
     const rig = window.__attune.gfx.scene.getObjectByName('spindle:precision-machine');
@@ -74,7 +91,7 @@ try {
     return rig?.children.some(scene=>scene.visible && scene.getObjectByName('FarRoll'));
   });
   assert.equal(await owner.evaluate(visibleTriangles),manifest.lodTris);
-  await owner.screenshot({path:path.join(out,'distance-lod.png')});
+  await shot(owner,'distance-lod.png');
   await owner.evaluate(()=>window.__attune.view({yaw:Math.PI,pitch:.32,dist:10}));
   await owner.waitForFunction(()=>{
     const rig=window.__attune.gfx.scene.getObjectByName('spindle:precision-machine');
@@ -103,7 +120,7 @@ try {
   // owner with ordinary input and sample the real wheel on the other client.
   const phase=await observer.evaluate(()=>window.__attune.gfx.scene.getObjectByName('Roll').rotation.x);
   await owner.bringToFront();
-  if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(false));
+  // Ordinary movement, commands and replicated wheel motion remain live.
   await owner.locator('#view').focus();
   await owner.keyboard.press('Shift+2');
   await observer.waitForFunction(id => window.__attune.state().ents.some(e => e.id === id && e.row.li === 0), id);
@@ -118,10 +135,10 @@ try {
   const yaw=p.yaw-1.25;
   await owner.evaluate(yaw=>window.__attune.view({yaw,pitch:.31,dist:7.8}),yaw);
   await owner.waitForTimeout(1200);
-  await owner.screenshot({path:path.join(out,'alongside-player.png')});
+  await shot(owner,'alongside-player.png');
   await owner.evaluate(yaw=>window.__attune.view({yaw,pitch:.34,dist:10}),yaw);
   await owner.waitForTimeout(1000);
-  await owner.screenshot({path:path.join(out,'normal-distance.png')});
+  await shot(owner,'normal-distance.png');
   // Supply a worn, owned weapon on the authoritative test character. The
   // inspection request and its result still cross real gameplay sockets.
   if (!p.char.inventory.includes('field_emitter')) p.char.inventory.push('field_emitter');
@@ -146,10 +163,10 @@ try {
   } catch(error) {
     console.error('Inspection diagnostic:',JSON.stringify({owner:{x:p.x,z:p.z,jy:p.jy,dead:p.dead,combatUntil:p.combatUntil},companion:p.companion&&{id:p.companion.id,x:p.companion.x,z:p.companion.z,mode:p.companion.mode,act:p.companion.act,serviceEnd:p.companion.serviceEnd},time:server.game.time,outbox:p.outbox?.slice(-8)}));
     throw error;
-  } finally {if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(false));}
+  } finally {if(SOFTWARE_GL) await owner.evaluate(()=>window.__attune.pause(true));}
   assert.equal(p.char.condition.field_emitter,63);
   assert.equal(await observer.getByText(/Spindle inspection:/).count(),0);
-  await owner.screenshot({path:path.join(out,'inspection-result.png')});
+  await shot(owner,'inspection-result.png');
   await owner.locator('.pet-select').click({button:'right'});
   await owner.locator('.player-context').getByRole('button',{name:'Dismiss companion',exact:true}).click();
   await observer.waitForFunction(id=>!window.__attune.state().ents.some(e=>e.id===id),id);
@@ -158,6 +175,7 @@ try {
   await observer.context().close();
   await owner.context().close();
   owner=await join('Dual Companion',1280,800,'spindle-dual-owner',1,'symbiotech');
+  if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(true));
   const dual=await liveFixturePlayer(owner,server,'Dual Companion');
   await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.c==='mender');});
   const dualSheet=await openSheet(owner);
@@ -178,7 +196,7 @@ try {
   await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.row.md==='follow');});
   assert.equal(dual.spindleCompanion.mode,'stay');
   assert.equal(dual.spindleCompanion.lightOn,true);
-  await owner.screenshot({path:path.join(out,'dual-companion-hotbars.png')});
+  await shot(owner,'dual-companion-hotbars.png');
   assert.deepEqual(errors,[]);
   console.log('PASS Spindle commission, keyboard operation, summoning, portrait, stay/follow, signed travel on observer, inspection, owner-only report and remote dismissal');
 } catch(error) {
