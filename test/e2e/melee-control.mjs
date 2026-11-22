@@ -35,6 +35,16 @@ try{
  await page.waitForFunction(id=>window.__attune.state().target===id,enemy.id);
  const events=[],sink=server.game.emitWorldEvent.bind(server.game);
  server.game.emitWorldEvent=(e)=>{if(e.s===p.id&&['melee_start','dmg','melee_miss'].includes(e.e))events.push({...e,at:server.game.time});return sink(e);};
+ // Observe rendered clips without delaying the next input beyond the server's
+ // actual combo window. Software-WebGL polling is not combat input timing.
+ await page.evaluate(()=>{
+   window.__meleeObservedClips=[];
+   window.__meleeClipSampler=setInterval(()=>{
+     const s=window.__attune?.state();
+     const clip=s?.ents?.find(e=>e.id===s.myId)?.anim?.last;
+     if(clip&&!window.__meleeObservedClips.includes(clip))window.__meleeObservedClips.push(clip);
+   },50);
+ });
  const expectedClips=['Melee_Hook','Punch_Cross','OverhandThrow'];
  let previous=enemy.hp;
  for(let stage=1;stage<=3;stage++){
@@ -45,7 +55,7 @@ try{
    const start=events.slice(initial).find(x=>x.e==='melee_start');
    assert.ok(start,'keyboard command started attack '+stage);
    assert.equal(start.style,String(stage),'correct combo stage');
-   await page.waitForFunction(clip=>{const s=window.__attune.state();return s.ents.find(e=>e.id===s.myId)?.anim?.last===clip;},expectedClips[stage-1]);
+   // Clip observation runs independently of the timed server-combo sequence.
    const begun=Date.now();
    while(!events.slice(initial).some(x=>x.e==='dmg'&&x.ab==='melee_light')&&Date.now()-begun<15000)await new Promise(r=>setTimeout(r,40));
    const hit=events.slice(initial).find(x=>x.e==='dmg'&&x.ab==='melee_light');
@@ -59,6 +69,12 @@ try{
    if(stage===3)await page.screenshot({path:'melee-live-evidence/03-finisher.png'});
    if(stage<3)await page.waitForTimeout(510);
  }
+ const observed=await page.evaluate(()=>{
+   clearInterval(window.__meleeClipSampler);
+   return window.__meleeObservedClips;
+ });
+ for(const clip of expectedClips)
+   assert.ok(observed.includes(clip),'rendered GLB clip observed: '+clip+' (got '+observed.join(', ')+')');
  assert.ok((await liveFixturePlayer(page,server,'Melee Tester'))===p);
  assert.deepEqual(errors,[],'no browser errors');
  console.log('PASS three live intentional melee stages, server windups, distinct GLB clip routing, damage and screenshots');
