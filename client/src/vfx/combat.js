@@ -31,7 +31,7 @@ export const AREA_KINDS = new Set([
   'sinter_alarm', 'sinter_guard', 'sinter_molt', 'sinter_repel', 'sinter_pounce',
   'rift_open','rift_pulse','rift_stabilize','rift_collapse','vein_extract','vein_harvest','vein_break','severance_traverse','field_maintenance','field_restorative','overseer_press_slam','overseer_slag_wave','overseer_resonant_overload','field_recovery',
   'kinetic_discharge',
-  'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune',
+  'discharge', 'aegis', 'lattice_relay', 'harmonic_restore', 'rescue_lattice', 'brine_service', 'surge', 'resonance_burst', 'respawn', 'spawn', 'equip', 'attune', 'weapon_switch',
 ]);
 /** Ground height for an event: prefer its own world point, else its source's feet. */
 const groundHeightOr = (e, s) => (Number.isFinite(e.y) ? e.y : s ? s.pos.y - (s.model?.hover || 0) : 0);
@@ -575,6 +575,11 @@ export class CombatVfx {
     } else if (e.k === 'equip') {
       v.sigil({ at: f, radius: 1.4, style: 'kinetic', color: PALETTE.gold, life: 1.2, spin: 1.5 });
       this.rising(f, 0.5, [CELL.flare, CELL.ember], PALETTE.gold, 14, 2);
+    } else if (e.k === 'weapon_switch') {
+      // Compact, combat-safe draw cue: no sigil or pillar that would read as an ability.
+      const col = CLASS_COLOUR[s.meta?.c] ?? PALETTE.kinetic;
+      v.shock({ at: f, radius: 0.7, color: col, life: 0.32, width: 0.05, alpha: 0.55 });
+      v.burst({ at: s.chest, shape: 'sphere', radius: 0.18, count: 8, cell: [CELL.streak, CELL.ember], color: hot(col, 0.4), color2: col, size: [0.03, 0.07], sizeEnd: 0.01, life: [0.18, 0.36], speed: [0.8, 2.2], drag: 2.4, alpha: 0.8 });
     } else if (e.k === 'attune') {
       v.shell({ at: f, radius: 1, height: 8, color: PALETTE.aegis, kind: 'pillar', life: 1.6, streak: 1.4, flow: 2 });
       v.sigil({ at: f, radius: 5, style: 'resonance', color: PALETTE.aegis, life: 2, spin: 0.5, grow: 0.3 });

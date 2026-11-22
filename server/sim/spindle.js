@@ -1,4 +1,5 @@
 import { COMPANIONS, ITEMS } from '../../shared/content.js';
+import { WEAPON_SLOTS, activeWeaponSlot, equippedWeapon } from '../../shared/weapons.js';
 import { conditionOf } from '../../shared/condition.js';
 import { dist } from '../../shared/world.js';
 import { SPINDLE_TUNING } from '../../shared/spindle.js';
@@ -52,12 +53,13 @@ function finishInspection(c, p) {
 // Only the authenticated owner's loadout enters this read-only diagnostic.
 // The ordinary character message channel keeps its result private.
 function conditionReport(char) {
-  const id = char.equipped.weapon;
-  const condition = conditionOf(char, id);
-  if (condition === null) return 'No serviceable weapon fitted. Equip a pulse emitter to gauge its condition.';
-  const item = ITEMS[id];
-  const service = condition === 100 ? 'No maintenance needed.' : 'The Sanctum quartermaster can restore it. A Field Maintenance Kit can restore up to 25 points.';
-  return item.name + ' at ' + condition + '% condition. ' + service;
+  // Both weapon slots, active weapon first.
+  const active = activeWeaponSlot(char);
+  const ids = WEAPON_SLOTS.slice().sort((a, b) => (b === active) - (a === active)).map(slot => equippedWeapon(char, slot)).filter(id => conditionOf(char, id) !== null);
+  if (!ids.length) return 'No serviceable weapon fitted. Equip a pulse emitter to gauge its condition.';
+  const parts = ids.map(id => ITEMS[id].name + ' at ' + conditionOf(char, id) + '% condition.');
+  const service = ids.every(id => conditionOf(char, id) === 100) ? 'No maintenance needed.' : 'The Sanctum quartermaster can restore it. A Field Maintenance Kit can restore up to 25 points.';
+  return parts.join(' ') + ' ' + service;
 }
 
 export function commandSpindle(game, p, c, cmd) {

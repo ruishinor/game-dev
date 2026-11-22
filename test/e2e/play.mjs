@@ -884,6 +884,11 @@ try {
     await sleep(300);
     // killCurrent requires each browser to select the intended skitter.
     killed = await killCurrent(next);
+    if(!killed)note('Failed live shared skitter kill '+JSON.stringify({
+      id:next.id,state:next.state,hp:next.hp,maxHp:next.maxHp,
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      auto:[serverPlayer('Brakka')?.autoOn,serverPlayer('Lumen')?.autoOn],
+      threat:[...next.threat.keys()]}));
     if(!killed)note('Live skitter kill failed '+JSON.stringify({
       id:next.id,state:next.state,hp:Math.ceil(next.hp),
       targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],

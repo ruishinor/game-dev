@@ -6,7 +6,7 @@ import { ABILITIES, CLASSES, ENEMIES, GCD_MS, GLYPH, SURVEYOR, AUTO_REFERENCE_MS
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, deepLineClear, sameTravelRegion } from '../../shared/world.js';
 import { COMBAT_LINGER_MS } from './game.js';
 import { onEnemyKilled, checkDirective } from './progress.js';
-import { weaponBonus, weaponReach } from '../../shared/condition.js';
+import { effectiveAuto, weaponReach } from '../../shared/condition.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { wearEquippedWeapon } from './condition.js';
@@ -329,10 +329,13 @@ export function tickPlayerCombat(game, p, dt) {
     if (!t || t.kind !== 'enemy' || t.state === 'dead') {
       p.autoOn = false;
     } else if (t.state !== 'evade' && game.time >= p.nextAuto && dist(p, t) - t.radius <= weaponReach(p.char) && hasLineOfSight(p,t)) {
-      p.nextAuto = game.time + cdef.auto.interval;
-      // fast swings: per-hit weapon bonus and Charge scale with the cadence (same per second)
-      const pace = cdef.auto.interval / AUTO_REFERENCE_MS;
-      dealDamage(game, p, t, cdef.auto.dmg + weaponBonus(p.char) * pace, 'auto', { kind: cdef.auto.kind });
+      // The active weapon defines the auto-attack (same for every class); an
+      // empty slot uses the class's innate attack for the mode.
+      const auto = effectiveAuto(p.char);
+      p.nextAuto = game.time + auto.interval;
+      // Charge per hit scales with the cadence (same per second).
+      const pace = auto.interval / AUTO_REFERENCE_MS;
+      dealDamage(game, p, t, auto.dmg, 'auto', { kind: auto.kind });
       gainCharge(p, 5 * pace);
     }
   }

@@ -1,5 +1,5 @@
 import { SKILL_NAMES } from './content.js';
-import { weaponBonus, weaponReach } from './condition.js';
+import { autoDps, weaponReach } from './condition.js';
 
 export const ATTRIBUTE_DISPLAY = {
   ...Object.fromEntries(Object.entries(SKILL_NAMES).map(([key, name]) => [key, { name }])),
@@ -15,7 +15,7 @@ export const ATTRIBUTE_DISPLAY = {
   relayRadius: { name: 'Lattice Relay radius', unit: ' m' },
   scanMs: { name: 'Fault Scan duration', unit: ' s' },
   blastRadius: { name: 'Controlled Blast radius', unit: ' m' },
-  weaponDamage: { name: 'Auto-attack damage' },
+  weaponDamage: { name: 'Auto-attack damage per second' },
   weaponReach: { name: 'Auto-attack reach', unit: ' m' },
 };
 
@@ -34,7 +34,7 @@ export function equipmentAttributes(character, stats) {
     relayRadius: stats.relayRadius ?? 0,
     scanMs: (stats.scanMs ?? 0) / 1000,
     blastRadius: stats.blastRadius ?? 0,
-    weaponDamage: weaponBonus(character),
+    weaponDamage: autoDps(character),
     weaponReach: weaponReach(character),
   };
 }

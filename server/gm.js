@@ -50,7 +50,7 @@ const itemCategories = Object.freeze({
   device: ['device'],
   implants: ['implant'],
   gear: ['chest', 'gloves', 'greaves', 'boots'],
-  weapons: ['weapon'],
+  weapons: ['weapon', 'ranged'],
   'social clothing': ['social_torso'],
 });
 
