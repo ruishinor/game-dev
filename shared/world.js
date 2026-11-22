@@ -436,8 +436,32 @@ export const SANCTUM_GUARDS = Object.freeze([15, 105, 200, 280].map((deg, i) => 
     yaw: Math.atan2(x - WORLD.sanctum.x, z - WORLD.sanctum.z), variant: i });
 }));
 OBJECTS.push(...SANCTUM_GUARDS);
-// New Rootglass Tear: choose safe Reach ground without moving older landmarks.
+// Two independent rifts on the same Reach approach should read as a
+// deliberate portal row, not randomly scattered openings. Prefer a second
+// rootglass slot directly beside the accepted Phase Scar, with the same Z
+// alignment and sufficient room for its Indexer/Regulator and player approach.
+// Recompute the shared location for both client and authoritative server.
 function findLumenfenEntry(){
+ // The old nine-metre stand-off against every cosmetic prop arbitrarily
+ // excluded the same portal plaza. Keep a six-metre interaction buffer plus
+ // each actual object collider, and accept ordinary terrain undulation. The
+ // threshold itself still remains a solid 2.45m gameplay footprint.
+ const alignedClear=(x,z)=>{
+  if(Math.hypot(x,z)>WORLD.radius-14)return false;
+  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+6))return false;
+  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<6+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
+  const samples=[groundHeight(x,z)];
+  for(let i=0;i<16;i++){const a=i*Math.PI/8;samples.push(groundHeight(x+Math.cos(a)*3.2,z+Math.sin(a)*3.2));}
+  return Math.max(...samples)-Math.min(...samples)<2.0;
+ };
+ // Prefer the same-Z portal row; when local props or uneven ground prevent
+ // that, test a perpendicular same-X portal row before searching elsewhere.
+ // Both alternatives keep the full safe-distance, terrain and zone checks.
+ if(RIFT_SITE)for(const axis of ['x','z'])for(const offset of [13,-13,14,-14,15,-15,16,-16,17,-17,18,-18,19,-19,20,-20,21,-21,24,-24,27,-27,30,-30]){
+  const x=axis==='x'?RIFT_SITE.x+offset:RIFT_SITE.x;
+  const z=axis==='z'?RIFT_SITE.z+offset:RIFT_SITE.z;
+  if(alignedClear(x,z))return Object.freeze({x,z});
+ }
  const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
  for(let r=67;r<=77;r+=2)for(let k=0;k<48;k++){
   const t=k*Math.PI*2/48;candidates.push([Math.round(Math.sin(t)*r),Math.round(Math.cos(t)*r)]);
