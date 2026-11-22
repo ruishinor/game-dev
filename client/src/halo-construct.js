@@ -82,6 +82,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   anim.setBase(spec.idle, { fade: 0, timeScale: v ? v.tempo : 1 });
   // Desynchronise the wardens' watch cycles.
   if (v && v.phase) anim.update(v.phase);
+  rifle?.update(0, { t: v?.phase || 0 });
   const head = inst.getObjectByName('Head');
   const neck = inst.getObjectByName('neck_01');
   const lod = { acc: 0 };
@@ -101,6 +102,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     radius: 0.42,
     hover: 0,
     meshes: [...keep, ...(rifle ? ['warden-rifle:' + rifle.id] : [])],
+    weaponFit: () => rifle?.inspect() ?? null,
     update(dt, st) {
       if (spec.talk) {
         const want = !!st.talking;
