@@ -1,7 +1,8 @@
 // Independent, organic biome built on the Expanse's shared-authority principles,
 // not its rock kit: liquid basins, rootglass canopy, fungal understorey and mist.
 import {LUMENFEN,FEN_TREES,FEN_POOLS,fenHeight,inLumenfen} from '../../shared/lumenfen.js';
-export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1}={}){
+import {buildLumenfenSites} from './lumenfen-sites.js';
+export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMotion=()=>false}={}){
  const P=LUMENFEN,group=new T.Group();group.name='lumenfen:landscape';group.visible=false;scene.add(group);
  const soil=new T.MeshStandardMaterial({vertexColors:true,roughness:.95});
  const foliage=new T.MeshStandardMaterial({color:0x245c4b,roughness:.83,side:T.DoubleSide});
@@ -49,10 +50,11 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1}={}){
   const pod=new T.Mesh(new T.SphereGeometry(.11+(i%4)*.06,6,5),glass);
   pod.position.set(x,fenHeight(x,z)+.18+(i%5)*.09,z);pod.scale.y=1.35;group.add(pod);spores.push(pod);
  }
+ const sites=buildLumenfenSites(T);group.add(sites.group);
  const glowLight=new T.PointLight(0x64ba9e,3.0,34,2);glowLight.position.set(P.x+20,7,P.z-22);group.add(glowLight);
  let prior=null,clock=0;
  const active=eye=>!!eye&&inLumenfen(eye.x,eye.z,35);
- return {group,stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:spores.length}),
+ return {group,stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:spores.length,landmarks:sites.stats()}),
   update(dt,t,eye){
    const inside=active(eye);group.visible=inside;
    if(inside){
@@ -62,6 +64,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1}={}){
     if(ambient)ambient.intensity=.85;if(sun)sun.intensity=1.1;
     if(sky)sky.position.set(eye.x,0,eye.z);
     clock+=Math.max(0,dt||0);
+    sites.update(dt,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
     if(!detail)return;
     for(let i=0;i<spores.length;i++)spores[i].scale.y=1.1+.4*Math.sin(clock*.6+i*.17);
    }else if(prior){
