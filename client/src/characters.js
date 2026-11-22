@@ -460,7 +460,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     },
     // armour-only response (heals given/received): no animation
     armourReact(kind, id) { if (!dead) for (const h of armours.values()) h.handle?.fx?.surge(kind, id); },
-    trigger(kind, id, target) {
+    trigger(kind, id, target, contactMs) {
       if (dead) return;
       for (const h of armours.values()) h.handle?.fx?.surge(kind, id);
       if (kind === 'hit') {
@@ -482,9 +482,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         else a=sequence[(Number(id)-1+sequence.length)%sequence.length]||sequence[0];
       }else if(kind==='attack'&&id==='auto')a=sequence[meleeIndex++%sequence.length];
       else a=(kind==='cast'&&id==='auto'?null:HUMANOID_ACTIONS[id])||(kind==='cast'?HUMANOID_ACTIONS.bolt:HUMANOID_ACTIONS.auto);
-      const scale=(a.timeScale||1)*(rodStrike?1.08:1);
+      // Align the authored clip's contact marker with authoritative contact,
+      // rather than arbitrarily speeding an overhand motion into a phantom hit.
+      const marker=a.contact??.55,clipSeconds=anim.duration(a.clip);
+      const contactSeconds=Number.isFinite(contactMs)?contactMs/1000:0;
+      const authoredScale=kind==='melee'&&contactSeconds>.05&&clipSeconds>0
+        ?clipSeconds*Math.max(.1,marker-(a.start||0))/contactSeconds:null;
+      const scale=authoredScale?Math.max(.7,Math.min(2.8,authoredScale)):(a.timeScale||1)*(rodStrike?1.08:1);
       if((kind==='melee'||kind==='attack')&&a.stance)
-        meleePose={age:0,duration:Math.max(.3,(kind==='melee'&&id==='heavy'?.85:.55)),stance:a.stance};
+        meleePose={age:0,duration:kind==='melee'?Math.max(.38,contactSeconds*2):.54,stance:a.stance};
       anim.play(a.clip,{kind:'ability',upper:moving,start:a.start||0,timeScale:scale,fadeOut:rodStrike?.12:a.fadeOut??.2});
     },
     dispose() {
