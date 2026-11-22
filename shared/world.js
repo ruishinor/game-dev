@@ -398,7 +398,7 @@ if(RIFT_SITE){
   OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:PHASE_RIFT_RADIUS},
     {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
     {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
-    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:.72},
+    {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
     {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
 // The Severance Gate threshold (inside the passage, at the portal) and the

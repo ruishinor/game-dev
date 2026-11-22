@@ -855,12 +855,13 @@ function makeKestrelRecorder(){
 }
 
 /** Phase Scar rifts: the Blender foundation loads through `loader` when given. */
-export const RIFT_KINDS=new Set(['phase_scar','severance_return','foundry_return','null_breach']);
+export const RIFT_KINDS=new Set(['phase_scar','severance_return','foundry_return','null_breach','rift_return']);
 export function riftModel(kind,loader=null){
   if(kind==='phase_scar')return buildRift(THREE,RIFT_SITE,groundHeight,{loader});
   const m=buildRift(THREE,null,null,{returning:true,loader});
   if(kind==='foundry_return')m.group.name='rift:foundry-return';
   if(kind==='null_breach')m.group.name='rift:null-breach';
+  if(kind==='rift_return')m.group.name='rift:annex-return';
   return m;
 }
 export function buildPhaseGate(returning,assets){
@@ -921,7 +922,7 @@ export const MODEL_FACTORIES = {
     group.add(part(BOX,lamp,.26,.12,.045,0,.62,.49));
     return {group,height:.92,radius:.9,hover:0,update(){},dispose(){metal.dispose();trim.dispose();lamp.dispose();}};
   },
-  rift_return:()=>buildPhaseGate(true),
+  rift_return:()=>riftModel('rift_return'),
   severance_return:()=>riftModel('severance_return'),
   foundry_return:()=>riftModel('foundry_return'),
   null_breach:()=>riftModel('null_breach'),
