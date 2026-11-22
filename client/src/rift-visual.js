@@ -581,14 +581,4 @@ export function buildRift(T, site, ground, { returning = false, loader = null, u
   };
 }
 
-export function buildRiftControl(T, regulator) {
-  const group = new T.Group(); group.name = regulator ? 'rift:regulator' : 'rift:indexer'; const m = palette(T);
-  mesh(T, group, new T.CylinderGeometry(0.5, 0.64, 0.26, 8), m.stone, 0, 0.04, 0);
-  mesh(T, group, new T.BoxGeometry(0.64, 0.73, 0.58), m.dark, 0, 0.5, 0);
-  const cap = mesh(T, group, new T.BoxGeometry(0.86, 0.22, 0.65), m.steel, 0, 0.94, 0); cap.rotation.x = -0.18;
-  const glass = mesh(T, group, new T.BoxGeometry(0.56, 0.035, 0.36), m.glass, 0, 1.04, 0.02); glass.rotation.x = -0.18;
-  for (const side of [-1, 1]) mesh(T, group, new T.CylinderGeometry(0.065, 0.065, 0.36, 10), m.brass, side * 0.29, 0.69, 0.19);
-  if (regulator) mesh(T, group, new T.CylinderGeometry(0.24, 0.24, 0.23, 10), m.brass, 0, 1.31, -0.16);
-  else mesh(T, group, new T.CylinderGeometry(0.04, 0.08, 0.52, 8), m.steel, 0, 1.26, -0.17);
-  return { group, height: 1.55, radius: 0.65, hover: 0, update(dt, st) { m.glass.emissiveIntensity = st.riftPhase === 'unstable' ? 1 : st.riftPhase === 'stabilized' ? 0.52 : 0.2; }, dispose() { dispose(group); } };
-}
+export { buildPhaseInstrument as buildRiftControl } from './rift-instruments.js';
