@@ -1125,7 +1125,7 @@ function onEvent(e) {
         const blocked=e.a===0&&e.sh>0;
         const cls = blocked?'shield':e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
-        if (rich() && d.placed) cvfx.hit(d, s, e);
+        
         if (e.sh && d.placed && !motionPreference.matches && quality > 0) fx.burst(d.chest, 0x89cfe1, 5, 0.75);
         else if (!rich() && e.a>0 && !e.sh && d.placed && (d.meta.c==='sinter_grazer'||d.meta.c==='faultstalker')){
           const dx=(s?.placed?s.pos.x:d.pos.x)-d.pos.x,dz=(s?.placed?s.pos.z:d.pos.z+1)-d.pos.z;
@@ -1142,9 +1142,9 @@ function onEvent(e) {
         // stationary attack pose; it never changes server aiming or damage.
         if (d && (s.meta.k === 'p' || s.meta.k === 'e')) {
           s.faceTo = d.id;
-          s.faceUntil = now + 500;
+          s.faceUntil = now + (e.ab === 'auto' ? 1500 : 650);
         }
-        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab);
+        if (s.model.trigger) s.model.trigger(e.k === 'bolt' ? 'cast' : 'attack', e.ab, d?.chest);
         if (e.k === 'bolt' && !rich() && s.placed && d?.placed && s!==d) {
           const muzzle=e.ab==='auto'?s.model.weaponEffectOrigin?.():null;
           if(e.wv==='longpoint'&&muzzle?.isVector3&&[muzzle.x,muzzle.y,muzzle.z].every(Number.isFinite)){
@@ -1157,6 +1157,8 @@ function onEvent(e) {
           authored(e.ab,'kinetic',{variant:e.ab==='phase_needle'||e.ab==='resonant_reversal'?'resonance':'impact',center:[b[0],b[1]+.7,b[2]],direction:toward(a,b),radius:Math.min(2,d.model.radius+.45),duration:.85});
         }
       }
+      // Resolve the visual muzzle pose before sampling the confirmed shot trace.
+      if (rich() && d?.placed) cvfx.hit(d, s, e);
       // Melee already has a burst above. Make bolt impacts readable too,
       // without doubling particles or changing combat damage.
       if (d && e.k === 'bolt' && e.a>0) fx.burst(d.chest, e.d === S.myId ? 0xff6a4a : 0xffe2a0, 3, 0.35);
@@ -1917,8 +1919,17 @@ function updateEntities(dt, t, now) {
       if (tgt && tgt !== ent && tgt.placed) lookAt = (ent.lookVec ||= new THREE.Vector3()).set(tgt.pos.x, tgt.pos.y + (tgt.model.height || 1.8) * 0.88, tgt.pos.z);
       else if (ent.id === S.myId && camD < 3.2) lookAt = (ent.lookVec ||= new THREE.Vector3()).copy(camera.position);
     }
+    // Only the confirmed attack target (or our active combat selection) can
+    // steer a rifle's cosmetic upper-body aim; eye tracking is unrelated.
+    const weaponTarget = ent.meta.k === 'p' && !ent.dead
+      ? (ent.id === S.myId && row && (row.f & 8) ? S.ents.get(S.target) : (now < (ent.faceUntil || 0) ? S.ents.get(ent.faceTo) : null))
+      : null;
+    const weaponAimAt = weaponTarget?.placed && !weaponTarget.dead
+      ? (ent.weaponAimVec ||= new THREE.Vector3()).set(weaponTarget.pos.x, weaponTarget.pos.y + (weaponTarget.model.height || 1.8) * .65, weaponTarget.pos.z)
+      : null;
     ent.model.update(dt, {
       lookAt,
+      weaponAimAt,
       faceDetail: ent.inView && (camD < faceDetailRange() || fullFaceDetail),
       talking: !!(ent.meta.c === 'archivist' || ent.meta.c === 'quartermaster' || ent.meta.c === 'expedition_quartermaster' || ent.meta.c === 'outpost_crew') && !!lookAt,
       t,
