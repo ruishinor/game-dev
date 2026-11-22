@@ -1984,7 +1984,9 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
-      reducedMotion: motionPreference.matches || quality===0,
+      // The Listening Stone budgets its own low-spec waves; quality is not an
+      // accessibility preference. Other actor models retain current behaviour.
+      reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk'),
       effectsQuality: quality,
       rodClass: ent.meta.k==='p'?ent.meta.c:null,
       sitting: ent.meta.k==='p'&&!!(row?.f&16),
