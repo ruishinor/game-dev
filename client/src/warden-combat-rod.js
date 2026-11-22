@@ -100,7 +100,8 @@ export function createWardenCombatRod(inst,variant=1){
    failures,recoveries,candidate:ready?candidate:null};
   return true; // Failed IK still leaves a real rod attached to the actual palm.
  }
- update(0);
+ // The caller evaluates the guard's base animation before the first fitting
+ // pass; avoid fitting against a stale bind pose (the original rifle defect).
  return {
   id:'combat-rod',group:rod.group,update,inspect,
   dispose(){if(closed)return;closed=true;rod.dispose();},
