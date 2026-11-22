@@ -96,6 +96,8 @@ try {
       assert.equal(mine.halo.fit?.energized,true,`${def.key} rod must stay powered`);
       assert.equal(mine.halo.fit?.energy,1,`${def.key} must use full energy`);
       assert.equal(mine.halo.fit?.coronaVisible,2,`${def.key} both powered corona sections should show`);
+      assert.ok(mine.halo.fit?.shaftVerticality > .2 && mine.halo.fit.shaftVerticality < .65,
+        `${def.key} staff must point diagonally away from the head ring`);
       assert.equal(mine.halo.fit?.failures,0,`${def.key} no transient rod pose failure`);
     }
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);

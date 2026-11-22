@@ -13,7 +13,7 @@ const Q = () => new THREE.Quaternion();
 const UP = new THREE.Vector3(0,1,0);
 const GRIP = new THREE.Vector3(0,.13,0);
 const FULL_POWER = Object.freeze({
-  energized:true, activity:1, quality:2, intensity:1,
+  energized:true, activity:.3, quality:2, intensity:1,
   reducedMotion:false, calm:false, combat:true,
 });
 
@@ -81,10 +81,12 @@ export function createWardenCombatRod(inst,variant=1){
   if(!ready){restore();failures++;}
   else if(!wasReady&&failures)recoveries++;
   wasReady=ready;
-  // Express the expected low-ready staff direction in the hand's animated
-  // frame. Recalculate after IK so its axis does not drift with wrist movement.
-  const desired=new THREE.Vector3(side*.09,.96,.25).normalize()
+  // Fully charged does not mean an attack animation: carry the live staff
+  // diagonally outward and forward, away from the vertical head ring.
+  // Recalculate after IK so its axis does not drift with wrist movement.
+  const desired=new THREE.Vector3(side*.50,.42,.72).normalize()
    .applyQuaternion(inst.getWorldQuaternion(Q()));
+  const shaftVerticality=Math.abs(desired.dot(UP));
   const axis=desired.applyQuaternion(hand.getWorldQuaternion(Q()).invert()).normalize();
   rod.group.quaternion.setFromUnitVectors(UP,axis);
   rod.group.position.copy(palm).sub(GRIP.clone().applyQuaternion(rod.group.quaternion));
@@ -103,7 +105,7 @@ export function createWardenCombatRod(inst,variant=1){
   const coronaVisible=[0,1].filter(i=>rod.group.getObjectByName('RodCorona'+i)?.visible).length;
   state={mode:ready?'ready':'hand-carry',weapon:'combat-rod',
    joined:rod.progress>=.95,energized:true,energy:1,
-   gripError:measured,armError:ready?armError:null,coronaVisible,
+   gripError:measured,armError:ready?armError:null,coronaVisible,shaftVerticality,
    failures,recoveries,candidate:ready?candidate:null};
   return true; // Failed IK still leaves a real rod attached to the actual palm.
  }

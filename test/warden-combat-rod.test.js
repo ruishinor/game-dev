@@ -37,6 +37,8 @@ test('a Warden rod is always joined and fully energized, anchored to the live pa
   assert.equal(fit.energized,true);
   assert.equal(fit.energy,1);
   assert.equal(fit.coronaVisible,2);
+  assert.ok(fit.shaftVerticality > .2 && fit.shaftVerticality < .65,
+    'charged rod must remain in low-ready diagonal, not obscure head ring');
   assert.equal(weapon.group.parent?.name,'hand_r');
   assert.equal(weapon.group.visible,true);
   assert.equal(stave.visible,false);
