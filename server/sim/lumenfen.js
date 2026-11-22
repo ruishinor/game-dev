@@ -1,6 +1,6 @@
 // Separate server-authoritative region access and encounters.
 import {LUMENFEN,inLumenfen} from '../../shared/lumenfen.js';
-import {travelRegionAt,hasLineOfSight,dist} from '../../shared/world.js';
+import {travelRegionAt,hasLineOfSight,dist,resolveCollisions} from '../../shared/world.js';
 import {ENEMIES} from '../../shared/content.js';
 import {resetEnemy} from './ai.js';
 import {regionEntryDenial,ELITE} from './enemy-levels.js';
@@ -16,8 +16,9 @@ export function spawnLumenfenWildlife(game){
  ];
  for(const [type,u,v,level,elite] of placements){
   const def=ENEMIES[type],x=P.x+u,z=P.z+v;
+  const home=resolveCollisions({x,z},def.radius);
   const e={id:game.nextId++,kind:'enemy',type,name:def.name,level,radius:def.radius,
-    home:{x,z},route:null,form:null,metaVer:1,lumenfenWildlife:true};
+    home,route:null,form:null,metaVer:1,lumenfenWildlife:true};
   if(elite)e.elite={hp:ELITE.hp,dmg:ELITE.dmg};
   resetEnemy(game,e);game.enemies.push(e);game.ents.set(e.id,e);group.push(e);
  }

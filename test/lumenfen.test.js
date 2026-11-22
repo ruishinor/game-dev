@@ -18,7 +18,10 @@ test('second region is separate, deterministic and has safe landing/portal sites
  assert.ok(inDisconnectedRegion(p.arrival.x,p.arrival.z));
  assert.ok(!sameTravelRegion(p.arrival,{x:0,z:0}));
  assert.ok(!hasLineOfSight(p.arrival,{x:0,z:0}));
- for(const pt of [p.arrival,p.returnRift,p.springRift,p.crownRift,p.springLanding,p.crownLanding]){
+ // Rift centers are intentional solid foundations. Test safe arrival and
+ // approach positions rather than walking into the middle of a portal.
+ const approaches=[p.returnRift,p.springRift,p.crownRift].map(r=>({x:r.x,z:r.z-3.7}));
+ for(const pt of [p.arrival,p.springLanding,p.crownLanding,...approaches]){
   assert.ok(inLumenfen(pt.x,pt.z));
   assert.equal(groundHeight(pt.x,pt.z),fenHeight(pt.x,pt.z));
   const actual=resolveCollisions({...pt},PLAYER_RADIUS);
