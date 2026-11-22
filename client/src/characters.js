@@ -35,6 +35,7 @@ import { wearArmour, armourBundle } from './armour-visual.js';
 import { createSocialTorso } from './social-torso.js';
 import { SIGNATURE_GEAR } from './gear-recipes.js';
 import {createHeldElectricalRod,createElectricalRodVfx} from './electrical-rod.js';
+import {createRodBackMount} from './rod-stow.js';
 import { MODEL_FACTORIES as PROCEDURAL, RIFT_KINDS, riftModel } from './models.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
@@ -228,19 +229,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const offHand=inst.getObjectByName('hand_l');
   const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
   const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
-  // Stowed rod (ranged weapon active): diagonal across the back, clear of the
-  // Vanguard's dorsal stack. Bone-local transform captured once in bind pose.
+  // Capture the rod's bind-pose mount from the current body frame's
+  // shoulders; the animated spine carries it rigidly while walking or turning.
   const rodBack=inst.getObjectByName('spine_03')||inst.getObjectByName('spine_02');
-  let rodStow=null;
-  if(rodBack){
-    const probe=new THREE.Object3D();
-    // Offset beyond the shoulder and clear of the rifle rather than inside the torso.
-    probe.position.set(.30,1.34,-.52);
-    probe.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(.50,1,0).normalize());
-    inst.add(probe);probe.updateMatrixWorld(true);rodBack.attach(probe);
-    rodStow={position:probe.position.clone(),quaternion:probe.quaternion.clone()};
-    probe.removeFromParent();
-  }
+  const rodStow=createRodBackMount(THREE,inst,rodBack);
   let heldRod=null,rodEffects=null,rodEngine=null,rodHeld=null,rodStowed=false;
   const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;rodHeld=null;rodStowed=false;};
   function stowRod(stow){
