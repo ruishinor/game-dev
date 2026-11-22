@@ -81,6 +81,10 @@ try {
     console.log(`[profile] starting quality q${tier}`);
     let ctx, page;
     const errors = [], failedRequests = [], pending = new Set();
+    const assetPath = (request) => {
+      try { const u = new URL(request.url()); return u.hostname === '127.0.0.1' ? u.pathname.slice(0, 160) : null; }
+      catch { return null; }
+    };
     try {
     ctx = await bounded(`q${tier}: context`, () => browser.newContext({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 }));
     page = await bounded(`q${tier}: page`, () => ctx.newPage());
@@ -90,10 +94,6 @@ try {
     page.on('console', (msg) => {
       if (['error', 'warning'].includes(msg.type()) && errors.length < 12) errors.push(`${msg.type()}: ${msg.text().slice(0, 240)}`);
     });
-    const assetPath = (request) => {
-      try { const u = new URL(request.url()); return u.hostname === '127.0.0.1' ? u.pathname.slice(0, 160) : null; }
-      catch { return null; }
-    };
     page.on('request', (request) => { if (assetPath(request)) pending.add(request); });
     page.on('requestfinished', (request) => pending.delete(request));
     page.on('requestfailed', (request) => {
