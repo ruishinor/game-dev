@@ -2,15 +2,20 @@
 export const PRIMARY_SLOTS=9;
 export const COMPANION_SLOTS=5;
 export const SPINDLE_SLOTS=4;
+// Weapon actions and emotes retain the established Spindle hotkey bindings.
+export const WEAPON_ACTIONS=Object.freeze({'weapon:switch':'Switch weapon','weapon:config':'Rod configuration'});
+export const EMOTE_ACTIONS=Object.freeze({'emote:sit':'Sit / stand'});
+const ACTION_LABELS={...WEAPON_ACTIONS,...EMOTE_ACTIONS};
 export const DEFAULT_BINDINGS=Object.freeze(Object.fromEntries([
  ...Array.from({length:PRIMARY_SLOTS},(_,i)=>['ability:'+(i+1),'Digit'+(i+1)]),
  ...Array.from({length:COMPANION_SLOTS},(_,i)=>['companion:'+(i+1),'Shift+Digit'+(i+1)]),
  // Secondary utility shortcuts are opt-in so existing custom bindings cannot collide.
- ...Array.from({length:SPINDLE_SLOTS},(_,i)=>['spindle:'+(i+1),null])
+ ...Array.from({length:SPINDLE_SLOTS},(_,i)=>['spindle:'+(i+1),null]),
+ ['weapon:switch','KeyZ'],['weapon:config','KeyG'],['emote:sit','KeyX']
 ]));
 const CODES=/^(?:Digit[0-9]|Key[A-Z]|Numpad[0-9]|F(?:[1-9]|1[0-2])|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote)$/;
 const MOVEMENT=new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
-const RESERVED=new Set(['KeyR','KeyC','KeyB','KeyI','KeyJ','KeyL','KeyP','KeyO','KeyM','KeyH','KeyV','KeyF','Tab','Enter','Escape','F1','F2','NumLock','Shift+KeyF','Shift+KeyM']);
+const RESERVED=new Set(['KeyR','KeyC','KeyB','KeyI','KeyJ','KeyL','KeyP','KeyO','KeyM','KeyH','KeyV','KeyF','Tab','Enter','Escape','F1','F2','NumLock','Slash','Shift+KeyF','Shift+KeyM']);
 export function keyChord(e){
  if(e.metaKey||['Shift','Control','Alt','Meta'].includes(e.key))return null;
  const code=e.code;
@@ -56,9 +61,16 @@ export class ActionBindings{
   if(!Object.hasOwn(DEFAULT_BINDINGS,action))return {ok:false,reason:'Unknown hotkey action'};
   if(!bindingPermitted(chord))return {ok:false,reason:'This shortcut is reserved for movement, the interface or the browser'};
   const conflict=Object.keys(this.map).find(key=>key!==action&&chord!==null&&this.map[key]===chord);
-  if(conflict)return {ok:false,reason:'Already assigned to '+conflict,conflict};
+  if(conflict)return {ok:false,reason:'Already assigned to '+(ACTION_LABELS[conflict]||conflict),conflict};
   this.map[action]=chord;this.persist();return {ok:true};
  }
- reset(){this.map={...DEFAULT_BINDINGS};this.persist();}
+ reset(actions=null){
+  if(!actions){this.map={...DEFAULT_BINDINGS};this.persist();return;}
+  for(const action of actions)if(Object.hasOwn(DEFAULT_BINDINGS,action))this.map[action]=DEFAULT_BINDINGS[action];
+  // A partial reset must not leave two actions on one key.
+  const bound=Object.values(this.map).filter(Boolean);
+  if(new Set(bound).size!==bound.length)this.map={...DEFAULT_BINDINGS};
+  this.persist();
+ }
  persist(){try{this.storage?.setItem('attunement.keybindings.v1',JSON.stringify(this.map));}catch{}}
 }

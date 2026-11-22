@@ -24,7 +24,7 @@ test('Longpoint GLB matches manifest, has compressed and valid geometry and name
   assert.equal(tris,meta.tris);assert.ok(tris>0&&tris<20000);assert.equal(root.listTextures().length,3);
   for(const name of ['Longpoint','Body','Optic','Core','MagazineShell','FrontShroud','Bipod','SupportLeft','SupportRight','GripAnchor','SupportAnchor','EffectAnchor','ShoulderAnchor'])assert.equal(root.listNodes().filter(n=>n.getName()===name).length,1,name);
   for(const extension of root.listExtensionsUsed())extension.dispose();const report=await validator.validateBytes(await io.writeBinary(doc));assert.equal(report.issues.numErrors,0);assert.equal(report.issues.numWarnings,0);
-  assert.equal(ITEMS.longpoint_emitter.slot,'weapon');
+  assert.equal(ITEMS.longpoint_emitter.slot,'ranged');
 });
 
 test('Longpoint cosmetic support poses are independent, reversible and bounded',()=>{

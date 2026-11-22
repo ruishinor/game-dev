@@ -70,7 +70,7 @@ try{
  const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
  await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
  await page.locator('.player-context button').filter({hasText:/^Equip$/}).click();
- await page.waitForFunction(()=>window.__attune.state().sheet.equipped.weapon==='field_emitter');
+ await page.waitForFunction(()=>window.__attune.state().sheet.equipped.ranged==='field_emitter');
  p.char.condition={field_emitter:60};p.char.materials.sentinel_alloy=1;server.game.markDirty(p);
  await page.waitForFunction(()=>window.__attune.state().sheet.condition.field_emitter===60);
  await inventory.getByRole('button',{name:'Utility',exact:true}).click();
@@ -164,9 +164,17 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('KeyI');
  await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
  await inventory.locator('.item-cell[aria-label="Electrical Combat Rod"]').click({button:'right'});
- await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
- await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
- assert.equal(p.char.equipped.weapon,'electrical_combat_rod');
+ // The rod has its own main-weapon slot: equipping it keeps the emitter in the
+ // Ranged slot, and keeps the emitter (the weapon in use) active with the rod stowed.
+ await page.locator('.player-context').getByRole('button',{name:'Equip',exact:true}).click();
+ await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('StowedElectricalCombatRod');return s.sheet.equipped.weapon==='electrical_combat_rod'&&s.sheet.equipped.ranged==='field_emitter'&&s.sheet.activeWeapon==='ranged'&&s.ents.find(e=>e.id===s.myId)?.row?.er===3&&/^spine_0/.test(rod?.parent?.name||'')&&rod.visible;});
+ assert.equal(p.char.equipped.weapon,'electrical_combat_rod');assert.equal(p.char.equipped.ranged,'field_emitter');
+ // Draw the rod with the default weapon-switch hotkey.
+ await inventory.getByRole('button',{name:'Close inventory'}).click();
+ await page.locator('#view').focus();await page.keyboard.press('KeyZ');
+ await page.waitForFunction(()=>{const a=window.__attune,s=a.state(),rod=a.gfx.scene.getObjectByName('HeldElectricalCombatRod');return s.sheet.activeWeapon==='weapon'&&s.ents.find(e=>e.id===s.myId)?.row?.er===1&&rod?.parent?.name==='hand_r'&&rod.visible;});
+ assert.equal(p.char.equipped.ranged,'field_emitter','drawing the rod keeps the emitter equipped');
+ await page.keyboard.press('KeyI');await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
  // Check the actual equipped runtime geometry, not just a call to an effect mock.
  await page.waitForFunction(()=>{const rod=window.__attune.gfx.scene.getObjectByName('HeldElectricalCombatRod');return [0,1].every(i=>{const g=rod?.getObjectByName('RodCorona'+i),s=g?.children[0];return g?.visible&&s?.visible&&s.children[0]?.material.opacity>=.45;});});
  // Installed items leave carried inventory; use the real equipment slot.
@@ -259,13 +267,11 @@ try{
  const coronaDraw=await page.evaluate(()=>window.__attune.state().drawn);
  await page.waitForFunction(n=>window.__attune.state().drawn>n,coronaDraw);
  await page.screenshot({path:'vendor-evidence/07-electrical-rod-corona-close.png'});
- await page.locator('#view').focus();await page.keyboard.press('KeyI');
- await inventory.getByRole('button',{name:'Weapons',exact:true}).click();
- await inventory.locator('.item-cell[aria-label="Field Pulse Emitter"]').click({button:'right'});
- await page.locator('.player-context').getByRole('button',{name:'Swap in',exact:true}).click();
- await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.equipped.weapon==='field_emitter'&&!s.ents.find(e=>e.id===s.myId)?.row?.er&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod');});
+ // Switch back to the emitter through the hotbar action: the rod stays equipped and stowed.
+ await page.locator('.weaponbar .weapon-action[data-action="weapon:switch"]').click();
+ await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.activeWeapon==='ranged'&&s.sheet.equipped.weapon==='electrical_combat_rod'&&s.sheet.equipped.ranged==='field_emitter'&&s.ents.find(e=>e.id===s.myId)?.row?.er===3&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod')&&a.gfx.scene.getObjectByName('StowedElectricalCombatRod');});
+ assert.equal(p.char.electricalRodMode,'rod','the configuration is retained while stowed');
  // Recover the social wardrobe independently of combat equipment through real purchases and equipment UI.
- await inventory.getByRole('button',{name:'Close inventory'}).click();
  const wardrobePlayer=await liveFixturePlayer(page,server,'Vendor Tester');
  assert.equal(wardrobePlayer.char.id,p.char.id,'Wardrobe fixture preserves authenticated character');
  assert.equal(wardrobePlayer.char.equipped.weapon,'field_emitter');
@@ -289,7 +295,7 @@ try{
  const originalPortrait=await socialLoadout.locator('.doll-portrait .doll-image').getAttribute('src');
  await socialLoadout.getByRole('button',{name:'Social clothing',exact:true}).click();
  await socialLoadout.locator('.compact-item').filter({hasText:'Sanctum Service Coat'}).getByRole('button',{name:'Equip',exact:true}).click();
- await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return s.sheet.equipped.social_torso==='social_service_coat'&&s.sheet.equipped.weapon==='field_emitter'&&me.socialVisual==='service'&&me.socialWorn==='service';});
+ await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return s.sheet.equipped.social_torso==='social_service_coat'&&s.sheet.equipped.ranged==='field_emitter'&&s.sheet.equipped.weapon==='electrical_combat_rod'&&me.socialVisual==='service'&&me.socialWorn==='service';});
  await socialLoadout.getByRole('button',{name:'Character',exact:true}).click();
  await page.waitForFunction(previous=>{const img=document.querySelector('.doll-portrait .doll-image');return img?.getAttribute('src')&&img.getAttribute('src')!==previous;},originalPortrait);
  await page.screenshot({path:'vendor-evidence/08-social-wardrobe.png'});
