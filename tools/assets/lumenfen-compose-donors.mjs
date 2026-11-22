@@ -1,0 +1,70 @@
+// Build a NON-RUNTIME inspection kit containing precisely selected donor nodes.
+//
+// This step is intentionally source-stage only. It never writes under
+// client/assets, edits a manifest, or asserts that the low-poly source is
+// visually acceptable for gameplay. Visual/geometry/material reconstruction
+// must happen before any production promotion.
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Document } from '@gltf-transform/core';
+import { mergeDocuments, getBounds, prune } from '@gltf-transform/functions';
+import { readGltf, writeGlb, triangleCount } from './lib/gltf.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const stage = path.resolve(process.argv[2] || '.lumenfen-source-stage');
+const output = path.resolve(process.argv[3] || '.lumenfen-candidates');
+if (stage.startsWith(path.join(ROOT,'client','assets')+path.sep)
+  || output.startsWith(path.join(ROOT,'client','assets')+path.sep)) {
+  throw new Error('Source-donor inspection kit must not write into the runtime asset tree');
+}
+const spec = JSON.parse(fs.readFileSync(path.join(ROOT,'assets','lumenfen-donors.json'), 'utf8'));
+const sources = JSON.parse(fs.readFileSync(path.join(stage,'sources.json'), 'utf8')).sources;
+const doc = new Document();
+doc.createBuffer();
+const scene = doc.createScene('lumenfen-reference-only');
+doc.getRoot().setDefaultScene(scene);
+const report = [];
+
+for (const item of spec.donors) {
+  const entry = sources.find(x=>x.id===item.id);
+  assert.ok(entry && entry.node===item.node, `staged donor missing/mismatched: ${item.id}`);
+  const sourceFile = path.join(stage, item.id+'.glb');
+  const bytes = fs.readFileSync(sourceFile);
+  assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),entry.sha256);
+  const sourceDoc = await readGltf(sourceFile);
+  const matches = sourceDoc.getRoot().listNodes().filter(n=>n.getName()===item.node);
+  assert.equal(matches.length, 1, `expected exact named node ${item.node} in ${item.file}, found ${matches.length}`);
+  const transferred = mergeDocuments(doc,sourceDoc);
+  const node = transferred.get(matches[0]);
+  assert.ok(node, `mergeDocuments lost selected node ${item.node}`);
+  const holder=doc.createNode(item.id);
+  holder.addChild(node);
+  scene.addChild(holder);
+  const box=getBounds(holder);
+  assert.ok(box.min.every(Number.isFinite) && box.max.every(Number.isFinite),`bad donor bounds for ${item.id}`);
+  const size=box.max.map((x,i)=>Math.round((x-box.min[i])*100)/100);
+  const center=box.max.map((x,i)=>(x+box.min[i])/2);
+  holder.setTranslation([-center[0],-box.min[1],-center[2]]);
+  const triangles=triangleCount(holder);
+  assert.ok(triangles>0,`selected source ${item.id} has no renderable triangle geometry`);
+  report.push({id:item.id,donor:entry.donor,sourceSha256:entry.sha256,selectedNode:item.node,
+    boundingSize:size,triangles,requiredTreatment:item.requiredTreatment,
+    status:'SOURCE-ONLY. Needs substantive geometry, materials, rig and visual review; NOT PRODUCTION.'});
+  // Drop other imported scenes; all unselected meshes are pruned below.
+  for(const s of doc.getRoot().listScenes())if(s!==scene)s.dispose();
+}
+await doc.transform(prune({keepLeaves:true}));
+fs.mkdirSync(output,{recursive:true});
+const file=path.join(output,'lumenfen-unapproved-donor-studies.glb');
+const outBytes=await writeGlb(doc,file);
+assert.ok(outBytes>100);
+fs.writeFileSync(path.join(output,'lumenfen-source-candidates.json'),JSON.stringify({
+  warning:'DO NOT INCLUDE IN CLIENT MANIFEST OR GAMEPLAY; RAW DONOR STUDIES',
+  composedKit: path.basename(file),outputSha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+  entries:report
+},null,2)+'\n');
+console.log(`Exported ${report.length} source-only donor nodes, ${outBytes} bytes; NO production promotion.`);
+for(const e of report)console.log(`${e.id}: ${e.triangles} tris; bounds [${e.boundingSize}]`);
