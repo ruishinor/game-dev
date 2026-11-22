@@ -1,9 +1,12 @@
 // Presentation-only mapping of action-bar shortcuts; server validates each action.
 export const PRIMARY_SLOTS=9;
 export const COMPANION_SLOTS=5;
+export const SPINDLE_SLOTS=4;
 export const DEFAULT_BINDINGS=Object.freeze(Object.fromEntries([
  ...Array.from({length:PRIMARY_SLOTS},(_,i)=>['ability:'+(i+1),'Digit'+(i+1)]),
- ...Array.from({length:COMPANION_SLOTS},(_,i)=>['companion:'+(i+1),'Shift+Digit'+(i+1)])
+ ...Array.from({length:COMPANION_SLOTS},(_,i)=>['companion:'+(i+1),'Shift+Digit'+(i+1)]),
+ // Secondary utility shortcuts are opt-in so existing custom bindings cannot collide.
+ ...Array.from({length:SPINDLE_SLOTS},(_,i)=>['spindle:'+(i+1),null])
 ]));
 const CODES=/^(?:Digit[0-9]|Key[A-Z]|Numpad[0-9]|F(?:[1-9]|1[0-2])|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote)$/;
 const MOVEMENT=new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
