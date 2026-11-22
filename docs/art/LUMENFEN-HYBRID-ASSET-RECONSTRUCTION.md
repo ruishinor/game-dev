@@ -1,6 +1,6 @@
 # Lumenfen — hybrid world reconstruction (implementation contract)
 
-**Status:** feature world exists on PR #236; source donor audit and an **unapproved** composite kit are being built. The new archive is source material, not runtime art. Nothing in this document constitutes visual approval or a claim of finished art.
+**Status:** Lumenfen's region and first-pass art exist in PR #236. All 138 archive GLBs are eligible for the registered production asset pipeline (`glb_archive`, PR #257); these eight donors are immediate candidates for reconstruction, composing and runtime integration. No additional owner approval or source-only exclusion is required to start development. Visual polish remains iterative.
 
 ## Artistic and gameplay direction
 
@@ -41,9 +41,9 @@ Use `assets/lumenfen-donors.json` as the verified shortlist of **individual sour
 
 ## Current technical deliverables
 
-`tools/assets/lumenfen-source-inventory.py` verifies the source ZIP; `tools/assets/lumenfen-stage-donors.py` extracts only an audited shortlist into a temporary path; `tools/assets/lumenfen-compose-donors.mjs` creates a named **source-only study bundle** and records source digests, selected node bounds and triangle counts. The PR workflow publishes a short-lived inspection artifact. The composite is **not yet remeshed, finished or approved** and deliberately never enters `client/assets`.
+`tools/assets/lumenfen-source-inventory.py` verifies the archive, and the native `glb_archive` pipeline ingests **all 138 donors** as reusable inputs. `tools/assets/lumenfen-stage-donors.py` and `tools/assets/lumenfen-compose-donors.mjs` remain a fast shortlist extractor/composition route for the first eight Lumenfen donors. They do not limit access to other source assets. The outputs are eligible for successive geometry, material, rig, animation and world-integration passes, including runtime publication when technically valid; iteration does not require a separate owner sign-off.
 
-## Release gates
+## Technical quality checks during ongoing implementation
 
 1. The full shortlist must exist in the ZIP and each exact selected node must be real, nonempty and independently extractable.
 2. Derived geometry/materials/animations must differ substantively from the low-poly studies, with proper provenance and hash-verified assets. Inspect all donor combinations, not just isolated renders.
@@ -52,4 +52,4 @@ Use `assets/lumenfen-donors.json` as the verified shortlist of **individual sour
 5. Assess 1280×800, 1920×1080, 2560×1440, and TV UI scaling with measured frame times, draw calls and VRAM. Maintain the currently accepted exterior Severance/Phase Scar art.
 6. Confirm exact PR-head CI and integrated browser playtest, server authority, reconnect/persistence and no client disclosure of privileged gameplay logic before making PR #236 mergeable.
 
-**Do not merge an art-only source study as though it were the requested complete GLB-powered game region.** Production acceptance remains blocked until the staged studies have been rebuilt into final assets and verified in Lumenfen gameplay.
+**Do not block or defer unrelated functional/regional merges solely because some art is unfinished or sourced from the low-poly archive.** Merge independently deliverable changes after applicable CI, gameplay and security checks, then continue asset reconstruction and visual improvements as follow-up work. Do not present a first-pass region as visually finished without evidence.
