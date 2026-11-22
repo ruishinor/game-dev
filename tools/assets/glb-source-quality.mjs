@@ -25,7 +25,9 @@ export function* zipMembers(zip) {
   if(end<0)throw Error('Missing ZIP central directory');
   const count=zip.readUInt16LE(end+10);
   let at=zip.readUInt32LE(end+16),total=0;
-  if(zip.readUInt32LE(end+12)!==zip.readUInt32LE(end+8))throw Error('Spanned ZIP not supported');
+  if(zip.readUInt16LE(end+4)!==0 || zip.readUInt16LE(end+6)!==0 ||
+      zip.readUInt16LE(end+8)!==count || zip.readUInt32LE(end+16)+zip.readUInt32LE(end+12)>end)
+    throw Error('Spanned or inconsistent ZIP not supported');
   for(let i=0;i<count;i++){
     field(zip,at,46);
     if(zip.readUInt32LE(at)!==BYTES.ZIP_ENTRY)throw Error('Corrupt ZIP directory');
