@@ -69,6 +69,9 @@ try {
     assert.equal(mine.halo.role, 'guard');
     assert.ok(mine.halo.meshes.includes('warden-rifle:' + (mine.halo.variant === 3 ? 'marksman' : 'carbine')),
       `${def.key} has an archived/reconstructed rifle visibly mounted`);
+    assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rifle must be held, not merely loaded: ${JSON.stringify(mine.halo.fit)}`);
+    assert.ok(mine.halo.fit.gripError < .035 && mine.halo.fit.supportError < .035,
+      `${def.key} both hand-to-grip errors must remain below 35mm`);
     assert.ok(!mine.halo.meshes.includes('stave'), `${def.key} no longer relies on the guard stave when rifle assets load`);
     const fx = Math.sin(mine.halo.yaw), fz = Math.cos(mine.halo.yaw);
     const outward = (fx * def.x + fz * def.z) / Math.hypot(def.x, def.z);
@@ -78,7 +81,7 @@ try {
     const drawn = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction((n) => window.__attune.state().drawn > n + 2, drawn);
     await page.screenshot({ path: `${OUT}/${def.key}-front.png` });
-    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, anim: mine.anim });
+    report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, meshes: mine.halo.meshes, fit: mine.halo.fit, anim: mine.anim });
   }
   // independent animation state per warden
   const animTimes = report.guards.map((g) => JSON.stringify(g.anim));
