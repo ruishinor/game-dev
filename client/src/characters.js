@@ -326,7 +326,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     for (const h of armours.values()) if (h.handle?.fx) counts[h.handle.fx.family] = (counts[h.handle.fx.family] || 0) + 1;
     for (const h of armours.values()) h.handle?.fx?.setComplete?.(counts[h.handle.fx.family] >= 4);
     const complete = (counts.CL || 0) >= 4;
-    if (complete && !cinderlockSetLight) {
+    if (complete && opts.socialCapable && !cinderlockSetLight) {
       const chest = inst.getObjectByName('spine_03') || inst.getObjectByName('spine_02');
       if (chest) {
         cinderlockSetLight = new THREE.PointLight(0xff6748, 0, 3.6, 2);
