@@ -18,9 +18,17 @@ export function weaponBonus(char){
  return ITEMS[id].autoBonus*n/CONDITION_MAX;
 }
 
+// Recover universal rod melee without importing the historical dual-slot system.
+// Keep the existing rod cadence, melee reach and condition-scaled bonus for all classes.
+export function weaponAutoProfile(char){
+ const id=char?.equipped?.weapon;
+ if(id==='electrical_combat_rod'&&char.inventory?.includes(id)&&CLASSES[char.cls])return CLASSES.vanguard.auto;
+ return CLASSES[char?.cls]?.auto;
+}
+
 // Reach is a public presentation projection; authoritative combat applies it independently.
 export function weaponReach(char){
- const auto=CLASSES[char?.cls]?.auto;
+ const auto=weaponAutoProfile(char);
  if(!auto)return 0;
  const id=char?.equipped?.weapon,n=conditionOf(char,id);
  const bonus=n!==null&&ITEMS[id].slot==='weapon'&&auto.kind==='bolt'?(ITEMS[id].autoReachBonus||0)*n/CONDITION_MAX:0;

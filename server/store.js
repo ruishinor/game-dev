@@ -129,7 +129,7 @@ function sanitize(raw) {
     c.equipped = resolveLoadout(c, eq).equipped;
     for(const slot of SLOTS.filter(slot => !['device','implant','glyph'].includes(slot)))if(!c.equipped[slot])delete c.equipped[slot];
   }
-  if(c.cls==='vanguard'&&c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
+  if(c.inventory.includes('electrical_combat_rod')&&raw.electricalRodMode==='dual')c.electricalRodMode='dual';
   return c;
 }
 
@@ -267,7 +267,7 @@ export class CharacterStore {
         // Match the world entity's cosmetic override precedence.
         av:publicSocialVisual(c)?null:publicArmourVisual(c),
         sv:publicSocialVisual(c),
-        er:c.cls==='vanguard'&&c.equipped?.weapon==='electrical_combat_rod'
+        er:c.equipped?.weapon==='electrical_combat_rod'
           &&c.inventory.includes('electrical_combat_rod')?(c.electricalRodMode==='dual'?2:1):null,
         location:!c.initiationSeen?'Character Initiation':!c.pos||inDisconnectedRegion(c.pos.x,c.pos.z,4)
           ?zoneAt(WORLD.spawn.x,WORLD.spawn.z):zoneAt(c.pos.x,c.pos.z),

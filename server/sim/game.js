@@ -445,7 +445,7 @@ export class Game {
         m: p.maxHp,
         f: (p.dead ? 1 : 0) | (this.time < p.combatUntil ? 8 : 0),
         t: p.target,
-        ...(p.cls==='vanguard'&&p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:p.char.electricalRodMode==='dual'?2:1}:{}),
+        ...(p.char.equipped.weapon==='electrical_combat_rod'&&p.char.inventory.includes('electrical_combat_rod')?{er:p.char.electricalRodMode==='dual'?2:1}:{}),
         ...(p.production?{work:productionVisualState(this,p)}:{}),
         b: p.buffs.filter(b => b.k !== 'shield' || (b.v > 0 && b.until > this.time)).map((b) => b.k),
         ...(p.surveyKit?.rig ? { rig: { x: r2(p.surveyKit.rig.x), z: r2(p.surveyKit.rig.z), r: blastRadiusFor(p) } } : {}),

@@ -1118,7 +1118,7 @@ function onEvent(e) {
       const mine = e.s === S.myId || e.s === S.compId;
       // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
       // do not multiply weapon discharges; existing ability effects and damage are unchanged.
-      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
+      const rodImpact = ['auto','rending_arc'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
@@ -1203,7 +1203,7 @@ function onEvent(e) {
       const d = S.ents.get(e.d);
       if (!s) break;
       if (s.model.trigger) s.model.trigger('ability', e.ab);
-      if(s.meta.k==='p'&&s.meta.c==='vanguard'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&['rending_arc','kinetic_ward','discharge'].includes(e.ab))s.model.rodCharge?.();
+      if(s.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&e.ab&&e.ab!=='auto')s.model.rodCharge?.();
       if (rich() && s.placed && (!d || d.placed)) cvfx.cast(e.ab, s, d);
       if(e.ab==='hinge_field'&&d?.placed){authored('hinge-projection','aegis',{variant:'hinge',center:pointOf(d),radius:1.4,yaw:d.yaw,duration:1.2});fx.ring(d.pos.x,d.pos.z,1.5,0x7fd0ff,650,d.pos.y);}
       else if (e.ab === 'phase_transposition' && d) {

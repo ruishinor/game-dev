@@ -8,7 +8,7 @@ import { describeRequirements, tryEquip, tryUnequip } from '../../shared/build.j
 import { ATTRIBUTE_DISPLAY } from '../../shared/attributes.js';
 import { BLOOM_RELAY } from '../../shared/gadgets.js';
 import { WORLD, ZONES, COLLIDERS, RIFT_ANNEX, inRiftAnnex, sameTravelRegion, SEVERANCE_POCKET, inSeverancePocket } from '../../shared/world.js';
-import { conditionOf, weaponReach } from '../../shared/condition.js';
+import { conditionOf, weaponAutoProfile, weaponReach } from '../../shared/condition.js';
 import { ENTRIES } from './journal.js';
 import { renderLoadout, renderInventory, renderCodex } from './journal-ui.js';
 import { brineHint, FIELD_RECORDS } from '../../shared/survey.js';
@@ -2238,14 +2238,15 @@ export class UI {
     }
     const engaging = !!you.auto;
     const obstructed = !!target && you.losTarget === target.id && you.los === 0;
-    const effectiveReach=this.sheet?weaponReach(this.sheet):def.auto.range;
+    const auto=this.sheet?weaponAutoProfile(this.sheet):def.auto;
+    const effectiveReach=this.sheet?weaponReach(this.sheet):auto.range;
     const reach=Number(effectiveReach.toFixed(2));
-    const autoTitle=`${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${def.auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    const autoTitle=`${auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     if (this.autoButton.getAttribute('aria-pressed') !== String(engaging)) this.autoButton.setAttribute('aria-pressed', String(engaging));
     set(this.autoIndicator, 'text', engaging ? '●' : '○');
-    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${def.auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${def.auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
+    const autoText = me.dead ? 'Unavailable while defeated' : !engaging ? (autoTarget ? `${auto.kind === 'melee' ? 'Melee' : 'Ranged'} · ${reach}m · every ${auto.interval / 1000}s` : 'Select an enemy') : !autoTarget ? 'Disengaging…' : (target.row.f & 2) ? 'Target retreating' : obstructed ? 'Line of sight blocked' : distance > effectiveReach ? `Out of range (${distance.toFixed(1)}m / ${reach}m)` : you.autoCd > 100 ? `Next attack in ${(you.autoCd / 1000).toFixed(1)}s` : 'In range · attack ready';
     const title = `${autoText}. ${autoTitle}`;
     if (this.autoButton.title !== title) this.autoButton.title = title;
 

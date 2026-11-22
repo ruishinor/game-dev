@@ -189,7 +189,7 @@ function inCombat(game, p) {
 // Explicit configuration intent, not a toggle: replaying the same request is harmless.
 export function setElectricalRodMode(game,p,mode) {
   if(mode!=='rod'&&mode!=='dual')return {ok:false,reason:'Unknown electrical rod configuration.'};
-  if(p.cls!=='vanguard'||p.char.equipped.weapon!=='electrical_combat_rod'||!p.char.inventory.includes('electrical_combat_rod'))return {ok:false,reason:'Equip your Electrical Combat Rod first.'};
+  if(p.char.equipped.weapon!=='electrical_combat_rod'||!p.char.inventory.includes('electrical_combat_rod'))return {ok:false,reason:'Equip your Electrical Combat Rod first.'};
   if(p.dead||inCombat(game,p)||p.autoOn||p.inscription||p.production||p.jy>.05)return {ok:false,reason:'Disengage and finish your current action before changing configuration.'};
   if((p.char.electricalRodMode||'rod')===mode)return {ok:true};
   p.char.electricalRodMode=mode;
