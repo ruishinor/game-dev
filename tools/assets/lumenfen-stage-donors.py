@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Stage exact, audited GLB donor files from the quarantined source archive.
+"""Stage selected GLB donors into Attunement's production asset pipeline workspace.
 
-Donors remain *source-only*, outside client/assets and every runtime manifest.
+Donors are usable immediately for further composition and reconstruction.
 """
 import hashlib
 import json
@@ -16,7 +16,7 @@ def stage(destination: Path) -> None:
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
     archive = ROOT / spec["sourceArchive"]
     if not archive.is_file():
-        raise RuntimeError(f"Missing quarantined donor archive: {archive}")
+        raise RuntimeError(f"Missing owner GLB archive: {archive}")
     donors = spec["donors"]
     if len({d["id"] for d in donors}) != len(donors):
         raise ValueError("Duplicate Lumenfen donor IDs")
@@ -46,7 +46,7 @@ def stage(destination: Path) -> None:
     (destination / "sources.json").write_text(
         json.dumps({"status": spec["status"], "sources": records}, indent=2) + "\n", encoding="utf-8"
     )
-    print(f"Staged {len(records)} donor files in {destination}; no production promotion.")
+    print(f"Staged {len(records)} donor inputs in {destination}.")
     for r in records:
         print(f"{r['id']}: {r['bytes']} bytes sha256 {r['sha256'][:12]}")
 

@@ -1,9 +1,6 @@
-// Build a NON-RUNTIME inspection kit containing precisely selected donor nodes.
-//
-// This step is intentionally source-stage only. It never writes under
-// client/assets, edits a manifest, or asserts that the low-poly source is
-// visually acceptable for gameplay. Visual/geometry/material reconstruction
-// must happen before any production promotion.
+// Compose selected GLB donor nodes as a production-pipeline asset input.
+// Every archive donor is available to the pipeline; iterate materials, rigs,
+// geometry and effects normally, without a source-only output prohibition.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -14,17 +11,13 @@ import { mergeDocuments, getBounds, prune, unpartition } from '@gltf-transform/f
 import { readGltf, writeGlb, triangleCount } from './lib/gltf.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const stage = path.resolve(process.argv[2] || '.lumenfen-source-stage');
-const output = path.resolve(process.argv[3] || '.lumenfen-candidates');
-if (stage.startsWith(path.join(ROOT,'client','assets')+path.sep)
-  || output.startsWith(path.join(ROOT,'client','assets')+path.sep)) {
-  throw new Error('Source-donor inspection kit must not write into the runtime asset tree');
-}
+const stage = path.resolve(process.argv[2] || '.asset-cache/pipeline/lumenfen/stage');
+const output = path.resolve(process.argv[3] || '.asset-cache/pipeline/lumenfen/outputs');
 const spec = JSON.parse(fs.readFileSync(path.join(ROOT,'assets','lumenfen-donors.json'), 'utf8'));
 const sources = JSON.parse(fs.readFileSync(path.join(stage,'sources.json'), 'utf8')).sources;
 const doc = new Document();
 doc.createBuffer();
-const scene = doc.createScene('lumenfen-reference-only');
+const scene = doc.createScene('lumenfen-donor-composite');
 doc.getRoot().setDefaultScene(scene);
 const report = [];
 
@@ -52,7 +45,7 @@ for (const item of spec.donors) {
   assert.ok(triangles>0,`selected source ${item.id} has no renderable triangle geometry`);
   report.push({id:item.id,donor:entry.donor,sourceSha256:entry.sha256,selectedNode:item.node,
     boundingSize:size,triangles,requiredTreatment:item.requiredTreatment,
-    status:'SOURCE-ONLY. Needs substantive geometry, materials, rig and visual review; NOT PRODUCTION.'});
+    status:'pipeline donor; iterate geometry, materials, rig and VFX where needed'});
   // Drop other imported scenes; all unselected meshes are pruned below.
   for(const s of doc.getRoot().listScenes())if(s!==scene)s.dispose();
 }
@@ -60,15 +53,15 @@ await doc.transform(prune({keepLeaves:true}));
 // mergeDocuments preserves one buffer per donor; GLB requires a single BIN buffer.
 // Combine only after pruning unselected meshes so the source studies stay small.
 await doc.transform(unpartition());
-assert.equal(doc.getRoot().listBuffers().length, 1, 'GLB study output must have a single buffer');
+assert.equal(doc.getRoot().listBuffers().length, 1, 'GLB pipeline output must have a single buffer');
 fs.mkdirSync(output,{recursive:true});
-const file=path.join(output,'lumenfen-unapproved-donor-studies.glb');
+const file=path.join(output,'lumenfen-donor-composite.glb');
 const outBytes=await writeGlb(doc,file);
 assert.ok(outBytes>100);
 fs.writeFileSync(path.join(output,'lumenfen-source-candidates.json'),JSON.stringify({
-  warning:'DO NOT INCLUDE IN CLIENT MANIFEST OR GAMEPLAY; RAW DONOR STUDIES',
+  stage:'production-pipeline composite available for further processing and integration',
   composedKit: path.basename(file),outputSha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
   entries:report
 },null,2)+'\n');
-console.log(`Exported ${report.length} source-only donor nodes, ${outBytes} bytes; NO production promotion.`);
+console.log(`Composed ${report.length} pipeline GLB donor nodes, ${outBytes} bytes.`);
 for(const e of report)console.log(`${e.id}: ${e.triangles} tris; bounds [${e.boundingSize}]`);
