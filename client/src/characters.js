@@ -234,8 +234,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   let rodStow=null;
   if(rodBack){
     const probe=new THREE.Object3D();
-    probe.position.set(0,1.2,-.4);
-    probe.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(.45,1,0).normalize());
+    // Offset beyond the shoulder and clear of the rifle rather than inside the torso.
+    probe.position.set(.30,1.34,-.52);
+    probe.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(.50,1,0).normalize());
     inst.add(probe);probe.updateMatrixWorld(true);rodBack.attach(probe);
     rodStow={position:probe.position.clone(),quaternion:probe.quaternion.clone()};
     probe.removeFromParent();
