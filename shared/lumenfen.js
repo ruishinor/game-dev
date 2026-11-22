@@ -14,14 +14,14 @@ const P=LUMENFEN;
 // circles. Tree scatter must respect their physical footprints; only the
 // central built/solid mass is a player collider, not walkable piers/decking.
 export const FEN_SITES=Object.freeze([
-  ['veil-landing',18,-130,7,3],
-  ['mossbound-thicket',-80,-8,9,5],
-  ['glasswater-spring',106,61,10,2.6],
-  ['root-crown-hollow',-108,34,10,5.4],
-  ['tidal-weir',40,10,12,6],
-  ['luminous-canopy',26,114,10,5.5],
-].map(([id,u,v,clearance,core])=>Object.freeze({
-  id,x:P.x+u,z:P.z+v,clearance,core
+  ['veil-landing',18,-130,7],
+  ['mossbound-thicket',-80,-8,9],
+  ['glasswater-spring',106,61,10],
+  ['root-crown-hollow',-108,34,10],
+  ['tidal-weir',40,10,12],
+  ['luminous-canopy',26,114,10],
+].map(([id,u,v,clearance])=>Object.freeze({
+  id,x:P.x+u,z:P.z+v,clearance
 })));
 export const FEN_POOLS=Object.freeze([
   [-74,-51,31,18],[-25,39,25,20],[65,-44,30,23],
@@ -49,8 +49,27 @@ function makeTrees(){
   return Object.freeze(trees);
 }
 export const FEN_TREES=makeTrees();
-export const FEN_COLLIDERS=Object.freeze([...FEN_TREES,
-  ...FEN_SITES.map(s=>Object.freeze({type:'fen_site',x:s.x,z:s.z,r:s.core}))]);
+// Match only actual solid piers, trunks, stones and machinery: whole-site
+// radius blockers would make an otherwise traversable observatory or deck
+// inaccessible. All geometry here is in site-local horizontal coordinates.
+export const FEN_SITE_COLLIDERS=Object.freeze(FEN_SITES.flatMap(s=>{
+  const circle=(dx,dz,r)=>({type:'fen_site',site:s.id,x:s.x+dx,z:s.z+dz,r});
+  const box=(dx,dz,hw,hd)=>({type:'fen_site',site:s.id,x:s.x+dx,z:s.z+dz,hw,hd});
+  if(s.id==='veil-landing')
+    return Array.from({length:7},(_,i)=>{const a=i*Math.PI*2/7,r=4.4+.4*Math.sin(i*2);return circle(Math.cos(a)*r,Math.sin(a)*r,.9);});
+  if(s.id==='mossbound-thicket')
+    return Array.from({length:5},(_,i)=>{const a=i*2.399,r=2.7+(i%2)*1.9;return circle(Math.cos(a)*r,Math.sin(a)*r,.75);});
+  if(s.id==='glasswater-spring')
+    return [circle(7.5,-2.7,1.1),...[-8,-4,0,4,8].flatMap(j=>[-1.65,1.65].map(z=>circle(j*.78,z,.22)))];
+  if(s.id==='root-crown-hollow')
+    return Array.from({length:8},(_,i)=>{const a=i*Math.PI/4;return circle(Math.cos(a)*5.4,Math.sin(a)*5.4,.7);});
+  if(s.id==='tidal-weir')
+    return [box(-6.4,0,.85,4.1),box(6.4,0,.85,4.1),box(0,0,4.5,2.9),circle(8,0,2.2)];
+  if(s.id==='luminous-canopy')
+    return Array.from({length:7},(_,i)=>{const a=i*2.399,r=2.7+(i%3)*1.4;return circle(Math.cos(a)*r,Math.sin(a)*r,.66);});
+  return [];
+}).map(c=>Object.freeze(c)));
+export const FEN_COLLIDERS=Object.freeze([...FEN_TREES,...FEN_SITE_COLLIDERS]);
 export function inLumenfen(x,z,pad=0){
   return Math.abs(x-P.x)<=P.hw+pad && Math.abs(z-P.z)<=P.hd+pad;
 }
