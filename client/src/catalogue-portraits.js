@@ -86,6 +86,6 @@ for(const cls of ['vanguard','symbiotech','keeper','surveyor'])for(const slot of
  const item=cls+'_field_set_'+slot;
  if(Object.hasOwn(portraits,item))blueprints['blueprint_'+item]=schematic(portraits[item]);
 }
-const carried=Object.freeze(['electrical_combat_rod','field_emitter','tuned_emitter','dense_pulse_core','longpoint_emitter','survey_induction','survey_calibrator','brine_rescue_lattice','adrenal_shunt','myelin_lattice','servo_harness']);
+const carried=Object.freeze(['electrical_combat_rod','field_emitter','tuned_emitter','dense_pulse_core','longpoint_emitter','relay_carbine','bastion_rifle','survey_induction','survey_calibrator','brine_rescue_lattice','adrenal_shunt','myelin_lattice','servo_harness']);
 export function cataloguePortrait(id){return typeof id==='string'?(Object.hasOwn(portraits,id)?portraits[id]:Object.hasOwn(blueprints,id)?blueprints[id]:carried.includes(id)?refinedItemMotif(id):null):null;}
 export const PORTRAIT_IDS=Object.freeze([...Object.keys(portraits),...Object.keys(blueprints),...carried]);

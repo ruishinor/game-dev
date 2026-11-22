@@ -1720,7 +1720,7 @@ export class UI {
     if(this.buildLock)return this.error('Equipment changes are locked in combat or defeat.');
     const slot=ITEMS[id].slot, installed=s.equipped[slot]===id;
     if((action==='remove'&&!installed)||(action==='equip'&&installed))return;
-    const res=action==='remove'?tryUnequip(s,slot):tryEquip(s,id);
+    const res=action==='remove'?tryUnequip(s,slot,s.buildPreview):tryEquip(s,id,s.buildPreview);
     if(!res.ok)return this.error(res.reason);
     if(action==='remove')this.a.unequip(slot);
     else this.a.equip(id);
@@ -1739,7 +1739,7 @@ export class UI {
     this.contextAnchor=anchor;
     this.playerContext.replaceChildren(h('div','context-title',item.name));
     if (equipment) {
-      const res=installed?tryUnequip(s,item.slot):tryEquip(s,id);
+      const res=installed?tryUnequip(s,item.slot,s.buildPreview):tryEquip(s,id,s.buildPreview);
       const equip=h('button',null,installed?'Unequip':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
       equip.disabled=!!this.buildLock||!res.ok;
       equip.addEventListener('click',()=>{this.closePlayerContext();this.itemAction(id,installed?'remove':'equip');});
@@ -2018,6 +2018,7 @@ export class UI {
     // An acknowledgement updates the indicators without rebuilding the
     // control the player is currently hovering or focusing.
     if (previous && previous.inventoryRev === sheet.inventoryRev &&
+      JSON.stringify(previous.buildPreview) === JSON.stringify(sheet.buildPreview) &&
       Object.keys(sheet).every(key => key === 'unseenItems' || JSON.stringify(sheet[key]) === JSON.stringify(previous[key]))) {
       this.updateItemIndicators();
       return;
@@ -2070,12 +2071,15 @@ export class UI {
     for (const k of Object.keys(SKILL_NAMES)) {
       const base = def.skills[k] + (def.primary === k ? s.level - 1 : 0);
       const total = s.stats.skills[k];
+      const preview = s.buildPreview?.attributeBonus ?? 0;
+      const gear = total - base - preview;
+      const breakdown = `${base} base${preview ? ` + ${preview} preview` : ''}${gear ? ` + ${gear} equipment` : ''} = ${total}`;
       const row = h('div', 'stat');
       row.append(h('span', null, SKILL_NAMES[k] + (def.primary === k ? ' (primary)' : '')));
       const v = h('span', `val${total > base ? ' changed' : ''}`, total > base ? `${base} + ${total - base} = ${total}` : String(total));
-      v.title = total > base ? `${base} base + ${total - base} equipment = ${total} effective` : `${total} base / effective`;
+      v.title = breakdown;
       row.append(v);
-      explain(row, SKILL_NAMES[k], `${SKILL_INFO[k]} ${base} base + ${total - base} equipment = ${total}.`);
+      explain(row, SKILL_NAMES[k], `${SKILL_INFO[k]} ${breakdown}.`);
       c1.append(row);
     }
     c1.append(h('h3', null, 'Derived'));

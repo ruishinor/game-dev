@@ -46,13 +46,14 @@ function planner(ui,body){
   const setup=ui.plannedLoadout??={...s.equipped};
   const left=h('section','workshop-section');
   left.append(h('h3',null,'Proposed loadout'),h('p','muted','Compare equipment combinations without changing your live character.'));
+  if(s.buildPreview)left.append(h('p','muted','Active GM preview applies to this comparison.'));
   for(const slot of SLOTS){
     const label=h('label','planner-slot',SLOT_NAMES[slot]);
     const select=h('select');
     select.dataset.slot=slot;
     const empty=h('option',null,'Empty');empty.value='';select.append(empty);
     for(const [id,item] of Object.entries(ITEMS)){
-      if(item.slot!==slot||(item.cls&&item.cls!==s.cls))continue;
+      if(item.slot!==slot||(item.cls&&item.cls!==s.cls&&s.buildPreview?.classUnlocked!==true))continue;
       const option=h('option',null,item.name+(s.inventory.includes(id)?'':' · not owned'));
       option.value=id;select.append(option);
     }
@@ -63,7 +64,7 @@ function planner(ui,body){
   }
   left.append(btn('Reset to equipped',()=>{ui.plannedLoadout={...s.equipped};renderWorkshop(ui);}));
   const hypothetical={...s,inventory:[...new Set([...s.inventory,...Object.values(setup).filter(Boolean)])],equipped:setup};
-  const res=validateLoadout(hypothetical,setup),owned=validateLoadout(s,setup),stats=deriveStats(hypothetical);
+  const res=validateLoadout(hypothetical,setup,s.buildPreview),owned=validateLoadout(s,setup,s.buildPreview),stats=deriveStats(hypothetical,s.buildPreview);
   const right=h('section','workshop-section');
   right.append(h('h3',null,'Projected statistics'));
   const score=h('div','workshop-comparison');

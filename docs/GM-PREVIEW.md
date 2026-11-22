@@ -1,6 +1,6 @@
 # Owner-only GM preview — independent main-branch increment
 
-GM preview modifies **only the authenticated owner's active character**. There is no separate admin login, default privilege, client flag, script execution, account administration, other-player control or arbitrary inventory editing. Bounded catalogue grants affect only the authenticated owner's active character. Privilege is disabled unless the server process has an explicit account UUID allowlist. Keep this setting private. Browser-delivered code contains only the ordinary command entry point; privileged logic is server-only.
+GM preview modifies **only the authenticated owner's active character**. There is no separate admin login, default privilege, client-controlled permission, script execution, account administration, other-player control or arbitrary inventory editing. Bounded catalogue grants affect only the authenticated owner's active character. Privilege is disabled unless the server process has an explicit account UUID allowlist. Keep this setting private. The owner receives active preview values on their own character sheet to keep equipment controls accurate; these values do not grant permissions. The server independently authorizes all commands and validates equipment.
 
 ## Local PowerShell setup
 
@@ -38,6 +38,9 @@ Hosted deployment: set this key only in private server configuration, do not com
 - /gm weapons; one of every defined weapon to Inventory
 - /gm social clothing; one of every defined social-torso clothing item to Inventory
 - /gm speed 200; **+200%** movement speed (3× base), reset with /gm speed 0, accepted range 0–300%
+- /gm stats N; sets an additive session bonus of 0–100 to every registered base skill (Kinetics, Biotech, Instrumentation). Repeating replaces the previous bonus. /gm stats reset or /gm stats 0 clears it.
+- /gm class unlock; bypasses equipment class checks only. Ownership, slot, skill, attunement and action restrictions still apply. /gm class lock restores ordinary restrictions. No additional class abilities or foreign class set bonuses are granted.
+- /gm status reports both overrides. Reset/lock removes newly ineligible equipment, without deleting inventory; pending inscriptions are cancelled. Both effects expire on disconnect/reselection/restart, and periodic saves exclude preview-dependent equipment and excess HP. Ordinary gameplay rewards earned in preview still persist.
 
 Inventory items are unique IDs: granting a category twice retains the existing one rather than duplicating it. These commands grant **all catalogue items**, including items for other classes; they do not bypass normal equip requirements. All inventory and material changes persist; speed and invulnerability are session-only. The existing item-revision/unseen indicators update normally.
 

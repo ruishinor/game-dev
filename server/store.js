@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { CLASSES, ITEMS, SLOTS, DIRECTIVES, MAX_LEVEL, XP_TO_NEXT, ATTUNEMENT_NAMES, COMPANIONS, defaultLook, validLook, validCompanionName } from '../shared/content.js';
 import { resolveLoadout } from '../shared/build.js';
+import { persistentBuildRecord } from './gm-build.js';
 import { publicWeaponVisual } from '../shared/weapon-visual.js';
 import { publicArmourVisual } from '../shared/armour-visual.js';
 import { publicSocialVisual } from '../shared/social-visual.js';
@@ -368,7 +369,7 @@ export class CharacterStore {
       this.dirty = false;
       return false;
     }
-    const data = JSON.stringify({ version: 2, accounts: [...this.accounts.values()], characters: [...this.chars.values()] });
+    const data = JSON.stringify({ version: 2, accounts: [...this.accounts.values()], characters: [...this.chars.values()].map(persistentBuildRecord) });
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, data, { mode: 0o600 });

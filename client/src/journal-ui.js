@@ -87,7 +87,7 @@ export function itemArt(id) {
   return e;
 }
 function requirements(s,id) {
-  return describeRequirements(s,id).map(r=>{
+  return describeRequirements(s,id,s.buildPreview).map(r=>{
     const line=h('div','req '+(r.met?'met':'unmet'),(r.met?'✓ ':'✗ ')+r.text);
     if(r.detail){ line.title=r.detail; line.setAttribute('aria-label',r.text+'. '+r.detail); }
     return line;
@@ -171,7 +171,7 @@ function equipmentCard(ui,id,equipped,onSelect,showDescription=false) {
   const condition=conditionOf(s,id);
   if(condition!==null)card.append(h('div','item-summary','QL '+item.ql+' · Condition '+condition+'%'));
   card.append(...requirements(s,id));
-  const res=equipped?tryUnequip(s,item.slot):tryEquip(s,id);
+  const res=equipped?tryUnequip(s,item.slot,s.buildPreview):tryEquip(s,id,s.buildPreview);
   const btn=h('button',res.ok&&!equipped?'primary':'',equipped?'Remove':item.slot==='glyph'?'Inscribe':s.equipped[item.slot]?'Swap in':'Equip');
   btn.disabled=!res.ok||!!ui.buildLock;
   btn.addEventListener('click',e=>{

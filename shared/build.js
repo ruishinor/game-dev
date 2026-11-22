@@ -5,10 +5,12 @@ import { CLASSES, ITEMS, ARMOR_SETS, SLOTS, SKILL_NAMES, ATTUNEMENT_NAMES } from
 import { armorSetBonuses } from './armor-set-bonuses.js';
 
 /** Effective skills for a class/level with a given equipped loadout. */
-export function computeSkills(cls, level, equipped) {
+export function computeSkills(cls, level, equipped, options = {}) {
   const def = CLASSES[cls];
   const skills = { ...def.skills };
   skills[def.primary] += level - 1;
+  const bonus = options.attributeBonus ?? 0;
+  for (const key of Object.keys(SKILL_NAMES)) skills[key] += bonus;
   for (const slot of SLOTS) {
     const item = ITEMS[equipped[slot]];
     if (item && item.skills) {
@@ -22,11 +24,11 @@ export function computeSkills(cls, level, equipped) {
  * Derive combat stats from persistent character state.
  * `char` needs {cls, level, equipped}.
  */
-export function deriveStats(char) {
+export function deriveStats(char, options = {}) {
   const def = CLASSES[char.cls];
   const hasSetPiece = SLOTS.some(slot => ITEMS[char.equipped[slot]]?.setId);
-  const equipped = hasSetPiece ? resolveLoadout(char, char.equipped).equipped : char.equipped;
-  const skills = computeSkills(char.cls, char.level, equipped);
+  const equipped = hasSetPiece ? resolveLoadout(char, char.equipped, options).equipped : char.equipped;
+  const skills = computeSkills(char.cls, char.level, equipped, options);
   const mods = { healMul: 1, dmgMul: 1, hpMul: 1, hpAdd: 0, chargeMul: 1, dischargeRadius: 0, shieldMul: 1, barrierMul: 1, graftTicks: 0, relayRadius: 0, scanMs: 0, blastRadius: 0 };
   for (const slot of SLOTS) {
     const item = ITEMS[equipped[slot]];
@@ -85,7 +87,7 @@ function unmetRequirement(item, skills, attunements) {
 
 // Admit each item from permanent skills and already qualified gear. Nothing
 // in a closed dependency loop can contribute the first qualifying bonus.
-export function resolveLoadout(char, equipped) {
+export function resolveLoadout(char, equipped, options = {}) {
   const accepted = {};
   const pending = new Map();
   const rejected = new Map();
@@ -98,18 +100,18 @@ export function resolveLoadout(char, equipped) {
     else if (id==='survey_strider_link') rejected.set(slot,'Survey Strider deployment is learned, not equipped.');
     else if (item.slot !== slot) rejected.set(slot, `${item.name} does not fit that slot.`);
     else if (!char.inventory.includes(id)) rejected.set(slot, 'You do not own that item.');
-    else if (item.cls && item.cls !== char.cls) rejected.set(slot, `${item.name} cannot be used by your class.`);
+    else if (item.cls && item.cls !== char.cls && options.classUnlocked !== true) rejected.set(slot, `${item.name} cannot be used by your class.`);
     else pending.set(slot, id);
   }
 
-  let skills = computeSkills(char.cls, char.level, accepted);
+  let skills = computeSkills(char.cls, char.level, accepted, options);
   while (pending.size) {
     const previousSize = pending.size;
     for (const [slot, id] of pending) {
       if (unmetRequirement(ITEMS[id], skills, char.attunements)) continue;
       accepted[slot] = id;
       pending.delete(slot);
-      skills = computeSkills(char.cls, char.level, accepted);
+      skills = computeSkills(char.cls, char.level, accepted, options);
     }
     if (pending.size === previousSize) break;
   }
@@ -121,45 +123,46 @@ export function resolveLoadout(char, equipped) {
 }
 
 /** Check ownership, slots and permanent eligibility of a proposed loadout. */
-export function validateLoadout(char, equipped) {
-  const { rejected } = resolveLoadout(char, equipped);
+export function validateLoadout(char, equipped, options = {}) {
+  const { rejected } = resolveLoadout(char, equipped, options);
   for (const [slot, reason] of rejected) return { ok: false, reason, item: equipped[slot] };
   return { ok: true };
 }
 
 /** Result of equipping `itemId` into its slot. */
-export function tryEquip(char, itemId) {
+export function tryEquip(char, itemId, options = {}) {
   const item = Object.hasOwn(ITEMS, itemId) ? ITEMS[itemId] : null;
   if (!item) return { ok: false, reason: 'Unknown item.' };
   const equipped = { ...char.equipped, [item.slot]: itemId };
-  const res = validateLoadout(char, equipped);
+  const res = validateLoadout(char, equipped, options);
   return res.ok ? { ok: true, equipped } : res;
 }
 
 /** Return the selected item and any newly unsupported gear to carried inventory. */
-export function tryUnequip(char, slot) {
+export function tryUnequip(char, slot, options = {}) {
   if (!SLOTS.includes(slot)) return { ok: false, reason: 'Unknown slot.' };
   if (!char.equipped[slot]) return { ok: false, reason: 'Nothing is equipped there.' };
   const remaining = { ...char.equipped, [slot]: null };
-  const { equipped, rejected } = resolveLoadout(char, remaining);
+  const { equipped, rejected } = resolveLoadout(char, remaining, options);
   return { ok: true, equipped, alsoRemoved: [...rejected.keys()].map(key => remaining[key]) };
 }
 
 /** Human-readable requirement lines for UI: [{text, met}]. */
-export function describeRequirements(char, itemId) {
+export function describeRequirements(char, itemId, options = {}) {
   const item = ITEMS[itemId];
   const out = [];
   if (!item) return out;
-  if (item.cls) out.push({ text: `Class: ${CLASSES[item.cls].name}`, met: item.cls === char.cls });
+  if (item.cls) out.push({ text: `Class: ${CLASSES[item.cls].name}${options.classUnlocked === true && item.cls !== char.cls ? ' (preview override)' : ''}`, met: item.cls === char.cls || options.classUnlocked === true });
   if (item.req) {
-    const supporting = resolveLoadout(char, { ...char.equipped, [item.slot]: null }).equipped;
-    const skills = computeSkills(char.cls, char.level, supporting);
+    const supporting = resolveLoadout(char, { ...char.equipped, [item.slot]: null }, options).equipped;
+    const skills = computeSkills(char.cls, char.level, supporting, options);
     if (item.req.skills) {
       for (const k of Object.keys(item.req.skills)) {
         const base = CLASSES[char.cls].skills[k] + (CLASSES[char.cls].primary === k ? char.level - 1 : 0);
         const effective = skills[k] || 0;
-        const bonus = effective - base;
-        const breakdown = bonus ? `${base} base + ${bonus} equipment = ${effective}` : `${base} base`;
+        const preview = options.attributeBonus ?? 0;
+        const bonus = effective - base - preview;
+        const breakdown = `${base} base${preview ? ` + ${preview} preview` : ''}${bonus ? ` + ${bonus} equipment` : ''}${preview || bonus ? ` = ${effective}` : ''}`;
         out.push({
           text: `${SKILL_NAMES[k]} ${effective} / ${item.req.skills[k]}`,
           detail: `Qualifying skills: ${breakdown}. Minimum ${item.req.skills[k]} required.`,
