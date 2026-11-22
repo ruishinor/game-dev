@@ -183,6 +183,7 @@ const rich = () => !!cvfx && quality > 0;
 // Severance Expanse time-of-day review preview (?tod=day|dusk|night|dawn|loop|0..1). Off by default.
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
+world.attachReachFx?.(vfx);
 attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, vfx: () => (rich() ? vfx : null) });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
@@ -1983,7 +1984,10 @@ function updateEntities(dt, t, now) {
       mode: row ? row.md : undefined,
       act: row ? row.a : undefined,
       casting,
-      reducedMotion: motionPreference.matches || quality===0,
+      // Landmarks budget their own inexpensive shader layers at q=0.
+      // Do not silently treat lower graphics quality as an accessibility setting;
+      // other actors retain their existing low-quality motion simplification.
+      reducedMotion: motionPreference.matches || (quality===0 && ent.meta.c!=='obelisk' && !ent.model.group?.name?.startsWith('rift:')),
       effectsQuality: quality,
       rodClass: ent.meta.k==='p'?ent.meta.c:null,
       sitting: ent.meta.k==='p'&&!!(row?.f&16),

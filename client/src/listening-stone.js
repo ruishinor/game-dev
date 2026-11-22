@@ -1,12 +1,13 @@
 // The Listening Stone: an isolated artefact embedded in a basalt monolith.
 // Golden circuit inscriptions, an embedded medallion, counter-rotating ground
-// rings and tilted orbital arcs, orbiting debris and rising motes. Restrained
+// rings and tilted orbital arcs, orbiting debris and rising motes. Responsive
 // emission that strengthens as a character approaches (st.near, metres;
 // presentation only — it never affects attunement or any rule).
 //
 // Same model contract as models.js: { group, height, radius, hover, update(dt, st) }.
 import * as THREE from '/vendor/three/three.module.js';
 import { drawSigil } from './vfx/textures.js';
+import { listeningStonePresentation } from './listening-stone-presentation.js';
 
 const TAU = Math.PI * 2;
 const GOLD = 0xffb84a;
@@ -258,19 +259,20 @@ export function makeListeningStone() {
   const beam = new THREE.Mesh(own(new THREE.CylinderGeometry(0.16, 0.16, 80, 8, 1, true)), beamMat);
   beam.position.y = 46;
   group.add(beam);
-  const lamp = new THREE.PointLight(GOLD, 14, 9, 2);
+  // One bounded local light: more presence than the nine-metre falloff without
+  // returning to the original twenty-six-metre wash across the whole hollow.
+  const lamp = new THREE.PointLight(GOLD, 14, 13, 2);
   lamp.position.set(0, 2.6, 1.6);
   group.add(lamp);
 
-  // Resonance waves: thin inscribed rings that travel outward across the
-  // ground from the base while someone is near. Slow and sparse by design;
-  // at full intensity the cadence eases slightly rather than racing.
+  // Resonance waves: legible inscribed rings radiate from the base. The same
+  // geometry is reused at every quality, with one active wave on low spec.
   const WAVE_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
   const WAVE_FS = `uniform float k; uniform float t; uniform vec3 color; varying vec2 vUv;
     void main(){ vec2 p = vUv * 2.0 - 1.0; float r = length(p); float a = atan(p.y, p.x);
-      float band = smoothstep(0.86, 0.95, r) * (1.0 - smoothstep(0.95, 1.0, r));
+      float band = smoothstep(0.76, 0.90, r) * (1.0 - smoothstep(0.93, 1.0, r));
       float ticks = 0.55 + 0.45 * step(0.5, fract(a * 9.5492966));
-      float runes = 0.7 + 0.3 * sin(a * 48.0 + t * 0.6);
+      float runes = 0.62 + 0.38 * sin(a * 48.0 + t * 1.3);
       gl_FragColor = vec4(color * band * ticks * runes * k, 1.0); }`;
   const waves = Array.from({ length: 3 }, () => {
     const u = { k: { value: 0 }, t: { value: 0 }, color: { value: new THREE.Color(GOLD) } };
@@ -282,7 +284,7 @@ export function makeListeningStone() {
     group.add(m);
     return { m, u, age: Infinity };
   });
-  let waveIn = 1.5;
+  let waveIn = 0.6;
   // A soft column of light around the shaft, scrolling upward with the
   // inscriptions; it is the near-field echo of the sky beam.
   const COLUMN_FS = `uniform float k; uniform float t; varying vec2 vUv;
@@ -305,6 +307,7 @@ export function makeListeningStone() {
   let ringTime = null;
   let orbitTime = null;
   let medallionAngle = null;
+  let crescendo = 0;
   return {
     group,
     worldLight: lamp,
@@ -313,31 +316,37 @@ export function makeListeningStone() {
     hover: 0,
     update(dt, st) {
       const t = Number.isFinite(st?.t) ? st.t : 0;
+      const step = Math.max(0, Math.min(0.1, Number.isFinite(dt) ? dt : 0));
       const near = Number.isFinite(st?.near) ? st.near : Infinity;
-      // 0 far away -> 1 within ~3 m; eased so it never snaps.
+      // 0 far away -> 1 within ~3 m; smooth response does not snap.
       const want = Math.min(1, Math.max(0, (12 - near) / 9));
-      wake += (want - wake) * Math.min(1, (dt || 0) * 1.5);
-      const cast = st?.cast || 0;
-      const k = wake + cast;
+      wake += (want - wake) * (1 - Math.exp(-step * 2.1));
+      // Cast signal normally falls away in less than a second; hold the visual
+      // crescendo a little longer, with an exponential release, not a game buff.
+      const cast = Math.max(0, Math.min(1, Number.isFinite(st?.cast) ? st.cast : 0));
+      crescendo = Math.max(cast, crescendo * Math.exp(-step * 0.85));
       const calm = !!st?.reducedMotion;
-      // Integrate angular speed. Multiplying the whole elapsed time by the
-      // wake impulse made a late interaction jump much faster than an early one.
-      const motion = k / (1 + 0.18 * k);
-      const proximityMotion = wake / (1 + 0.18 * wake);
-      const angularMotion = calm ? proximityMotion : motion + 0.3 * (motion - proximityMotion);
-      ringTime = (ringTime ?? t) + dt * (1 + angularMotion * 2);
-      orbitTime = (orbitTime ?? t) + dt * (1 + angularMotion);
-      medallionAngle = (medallionAngle ?? t * 0.15) + dt * (0.15 + angularMotion * 0.4);
-      stoneMat.emissiveIntensity = 0.35 + 0.15 * Math.sin(t * 0.9) + k * 0.9;
-      if (stoneMat.emissiveMap) stoneMat.emissiveMap.offset.y = Math.sin(t * 0.15) * 0.01 * (1 + k);
-      gold.emissiveIntensity = 0.2 + k * 0.6;
-      discMat.opacity = 0.55 + 0.35 * k;
+      const profile = listeningStonePresentation({
+        wake, cast: crescendo, reducedMotion: calm, effectsQuality: st?.effectsQuality,
+      });
+      const k = profile.energy;
+      // Speeds are integrated; the late-cast jump from elapsed-time scaling
+      // remains fixed while the interaction can now build substantially.
+      ringTime = (ringTime ?? t) + step * profile.ringSpeed;
+      orbitTime = (orbitTime ?? t) + step * profile.orbitSpeed;
+      medallionAngle = (medallionAngle ?? t * 0.15) + step * profile.medallionSpeed;
+      stoneMat.emissiveIntensity = 0.38 + 0.13 * Math.sin(t * 1.2) + wake * 1.05 + crescendo * 1.55;
+      if (stoneMat.emissiveMap) stoneMat.emissiveMap.offset.y = Math.sin(t * 0.20) * 0.012 * (1 + k);
+      gold.emissiveIntensity = 0.22 + wake * 0.72 + crescendo * 1.22;
+      discMat.opacity = Math.min(1, 0.56 + wake * 0.21 + crescendo * 0.23);
       disc.rotation.z = -medallionAngle;
-      ringMat.opacity = 0.25 + 0.45 * k;
+      ringMat.opacity = Math.min(0.95, 0.27 + wake * 0.35 + crescendo * 0.32);
       rings.forEach((m, i) => (m.rotation.z = ringTime * (i % 2 ? -1 : 1) * (0.04 + 0.03 * i)));
       arcs.forEach((p, i) => (p.rotation.z = orbitTime * (0.12 + i * 0.07) * (i % 2 ? -1 : 1)));
-      arcMat.opacity = 0.35 + 0.45 * k;
-      lamp.intensity = 8 + 16 * k;
+      arcMat.opacity = Math.min(0.95, 0.38 + wake * 0.32 + crescendo * 0.25);
+      lamp.intensity = profile.lampIntensity;
+      beamMat.opacity = profile.beamOpacity;
+      beam.scale.x = beam.scale.z = 1 + 0.3 * crescendo;
       rocks.forEach((o, i) => {
         const a = o.a + orbitTime * o.w;
         pv.set(Math.cos(a) * o.R, o.y + Math.sin(t * 0.6 + o.ph) * 0.25 + k * 0.3, Math.sin(a) * o.R);
@@ -349,7 +358,7 @@ export function makeListeningStone() {
       debris.instanceMatrix.needsUpdate = true;
       for (let i = 0; i < MOTES; i++) {
         const m = motes[i];
-        m.y += dt * m.v * (1 + (calm ? proximityMotion : motion));
+        m.y += step * m.v * profile.moteSpeed;
         if (m.y > 6.5) m.y = 0;
         const a = m.a + t * 0.2;
         // Lazy curl drift layered on the orbit so motes eddy rather than march.
@@ -359,28 +368,35 @@ export function makeListeningStone() {
         motePos[i * 3 + 2] = Math.sin(a) * m.R + dz;
       }
       moteGeo.getAttribute('position').needsUpdate = true;
-      moteMat.opacity = 0.35 + 0.55 * k;
-      // Waves and column (reduced-motion players get the column only, still).
-      const kk = Math.min(1, k);
-      waveIn -= dt || 0;
-      if (!calm && kk > 0.25 && waveIn <= 0) {
-        const w = waves.find((x) => x.age > 2.8) || waves[0];
-        w.age = 0;
-        waveIn = 3.2 + 0.6 * kk;
+      moteGeo.setDrawRange(0, profile.moteCount);
+      moteMat.opacity = Math.min(1, 0.4 + wake * 0.34 + crescendo * 0.24);
+      // Graphics quality caps concurrent waves and motes; ONLY the user's
+      // actual reduced-motion preference suppresses outward travel.
+      waveIn -= step;
+      if (profile.waveCount && k > 0.22 && waveIn <= 0) {
+        const available = waves.slice(0, profile.waveCount);
+        const w = available.find(x => x.age >= profile.waveLifetime);
+        if (w) {
+          w.age = 0;
+          waveIn = profile.waveInterval;
+        } else {
+          // Never reset a still-travelling wave mid-flight on low presets.
+          waveIn = 0.08;
+        }
       }
-      for (const w of waves) {
-        w.age += dt || 0;
-        const life = 2.8;
-        w.m.visible = !calm && w.age < life;
+      for (let i = 0; i < waves.length; i++) {
+        const w = waves[i];
+        w.age += step;
+        w.m.visible = i < profile.waveCount && w.age < profile.waveLifetime;
         if (!w.m.visible) continue;
-        const p = w.age / life;
-        w.m.scale.setScalar(1.5 + 6 * (1 - Math.pow(1 - p, 2)));
-        w.u.k.value = Math.min(1, p * 6) * Math.pow(1 - p, 1.5) * (0.5 + 0.5 * kk);
-        w.u.t.value = t;
+        const p = w.age / profile.waveLifetime;
+        w.m.scale.setScalar(1.3 + 9 * (1 - Math.pow(1 - p, 2)));
+        w.u.k.value = Math.min(1.3, Math.min(1, p * 8) * Math.pow(1 - p, 1.1) * (0.6 + 0.45 * k));
+        w.u.t.value = calm ? 0 : t;
       }
-      columnU.k.value = kk * kk;
+      columnU.k.value = Math.min(1.3, 0.8 * wake + 1.0 * crescendo);
       columnU.t.value = calm ? 0 : t;
-      column.visible = kk > 0.02;
+      column.visible = k > 0.02;
     },
     dispose() {
       for (const x of owned) x.dispose?.();
