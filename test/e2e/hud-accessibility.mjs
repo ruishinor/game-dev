@@ -132,10 +132,12 @@ try{
      const box=s=>document.querySelector(s)?.getBoundingClientRect();
      const player=box('.frame.player'),portrait=box('.frame.player .unit-portrait');
      const map=box('.minimap'),action=box('.action-row');
+     const chat=box('.logwrap'),bars=box('.bars');
+     const chatHotbarOverlap=!!(chat&&bars&&chat.left<bars.right&&chat.right>bars.left&&chat.top<bars.bottom&&chat.bottom>bars.top);
      const width=window.innerWidth;
      return {width,playerRight:player?.right??0,portraitLeft:portrait?.left??0,
        mapLeft:map?.left??0,mapRight:map?.right??0,
-       actionLeft:action?.left??0,actionRight:action?.right??0};
+       actionLeft:action?.left??0,actionRight:action?.right??0,chatHotbarOverlap};
    });
    assert.ok(layout.playerRight<layout.mapLeft,'Unit strip and minimap must not overlap at '+viewport.width);
    assert.ok(layout.portraitLeft>=-2,'Portrait must remain visible at '+viewport.width);
@@ -143,6 +145,7 @@ try{
    const mapSize=await page.locator('.minimap').boundingBox();
    assert.ok(mapSize.width<=(viewport.width<=700?104:viewport.width>=1600?146:120),'Minimap must remain blueprint-scale at '+viewport.width);
    assert.ok(layout.actionLeft>=-2&&layout.actionRight<=layout.width+2,'Main hotbar must fit at '+viewport.width);
+   if(viewport.width>=1200)assert.equal(layout.chatHotbarOverlap,false,'Default chat must not obstruct centered combat controls at '+viewport.width);
    await page.screenshot({path:'test/e2e/out/hud-'+viewport.width+'x'+viewport.height+'.png'});
  }
  await page.setViewportSize({width:1280,height:860});

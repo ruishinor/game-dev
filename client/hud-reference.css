@@ -267,3 +267,9 @@
 #hud .ability-matrix-entry button{padding:5px 8px;font-size:11px}
 #hud .ability-matrix-entry button:last-child{grid-column:3}
 @media(max-width:580px){#hud .ability-matrix-entry{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#hud .ability-matrix-entry button:last-child{grid-column:2}}
+
+/* F01: Keep bottom-left chat clear of the centered combat/companion controls
+   at supported compact desktop widths. Retain full chat width on large TVs. */
+@media (min-width:1200px) and (max-width:1600px){
+  #hud .logwrap{width:min(380px,calc(50vw - 360px))}
+}
