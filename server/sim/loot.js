@@ -12,7 +12,7 @@ import {grantItem,grantSalvage} from './progress.js';
 
 // These explicitly classified enemies cannot grant equipment items. Their
 // existing material, goods and credit paths remain independent.
-export const NO_ITEM_REWARD_TYPES=Object.freeze(['severance_soldier']);
+export const NO_ITEM_REWARD_TYPES=Object.freeze(['severance_soldier', 'fen_lantern']); // Neutral Lumenfen fauna have no equipment drops.
 const LOOT_RANGE=5, CREDIT_RANGE=70;
 const fail=reason=>({ok:false,reason});
 const active=(game,e)=>e?.kind==='enemy'&&e.state==='dead'&&game.time-e.deadAt<=CORPSE_MS;
