@@ -7,6 +7,7 @@ import {migrateSurveyStrider} from './survey-strider.js';
 import { randomInt } from 'node:crypto';
 import { CLASSES, ENEMIES, SPAWNS, SURVEYOR } from '../../shared/content.js';
 import { deriveStats } from '../../shared/build.js';
+import { activeBuildPreview, buildPreviewOptions, reconcileBuildPreview } from '../gm-build.js';
 import { publicWeaponVisual } from '../../shared/weapon-visual.js';
 import { publicArmourVisual, sameArmourVisual } from '../../shared/armour-visual.js';
 import { publicSocialVisual } from '../../shared/social-visual.js';
@@ -171,6 +172,12 @@ export class Game {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
+    if (activeBuildPreview(p)) {
+      p.gmAttributeBonus = 0;
+      p.gmClassUnlocked = false;
+      reconcileBuildPreview(p);
+      this.refreshStats(p);
+    }
     this.syncChar(p);
     cancelInscription(this, p);
     stopProduction(this, p);
@@ -216,7 +223,7 @@ export class Game {
 
   /** Recompute derived stats after level or loadout changes. */
   refreshStats(p) {
-    p.stats = deriveStats(p.char);
+    p.stats = deriveStats(p.char, buildPreviewOptions(p));
     this.refreshPresentation(p);
     p.maxHp = p.stats.maxHp;
     if (p.hp > p.maxHp) p.hp = p.maxHp;
@@ -577,6 +584,8 @@ export class Game {
       survey: c.survey ?? null,
       brineStage: c.brineStage ?? 0,
       stats: p.stats,
+      // Private sheet only; these values describe active preview effects, never grant authority.
+      ...(activeBuildPreview(p) ? { buildPreview: buildPreviewOptions(p) } : {}),
     };
   }
 
