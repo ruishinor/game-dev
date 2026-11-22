@@ -6,6 +6,7 @@ import validator from 'gltf-validator';
 import * as T from 'three';
 import {WEAPON_MODELS,createWeaponCarry,shotProfile} from '../client/src/weapon-visuals.js';
 import {publicWeaponVisual} from '../shared/weapon-visual.js';
+import {migrateWeaponSlots} from '../shared/weapons.js';
 import {CLASSES} from '../shared/content.js';
 const ledger=JSON.parse(fs.readFileSync(new URL('../assets/weapon-sources.json',import.meta.url),'utf8'));
 test('three recovered CC0 meshes retain exact signed-off source bytes and self-contained geometry',async()=>{
@@ -27,11 +28,19 @@ test('public presentation token is only issued for carried, ranged, owned equipm
  const ranged=Object.keys(CLASSES).find(x=>CLASSES[x].auto?.kind==='bolt');
  assert.ok(ranged);
  for(const [item,expected] of [['field_emitter','field'],['tuned_emitter','tuned'],['longpoint_emitter','longpoint']]){
-  const c={cls:ranged,inventory:[item],equipped:{weapon:item}};
+  const c={cls:ranged,inventory:[item],equipped:{ranged:item},activeWeapon:'ranged'};
   assert.equal(publicWeaponVisual(c),expected,item);
   assert.equal(publicWeaponVisual({...c,inventory:[]}),null);
+  // The old single-slot saved state is migrated by the authoritative loader,
+  // never interpreted as an arbitrary client-visible item.
+  const legacy={weapon:item};
+  assert.equal(publicWeaponVisual({...c,equipped:legacy}),null);
+  assert.equal(publicWeaponVisual({...c,equipped:migrateWeaponSlots(legacy)}),expected);
+  assert.equal(publicWeaponVisual({...c,activeWeapon:'weapon'}),
+    item==='longpoint_emitter'?'longpoint-stowed':null,
+    'only the original rifle has a reviewed stowed model');
  }
- for(const bad of ['__proto__','constructor','toString',null])assert.equal(publicWeaponVisual({cls:ranged,equipped:{weapon:bad},inventory:[bad]}),null);
+ for(const bad of ['__proto__','constructor','toString',null])assert.equal(publicWeaponVisual({cls:ranged,equipped:{ranged:bad},activeWeapon:'ranged',inventory:[bad]}),null);
  assert.equal(publicWeaponVisual({cls:'vanguard',inventory:['dense_pulse_core'],equipped:{weapon:'dense_pulse_core'}}),null,'melee core must not become an unapproved pistol');
  assert.equal(Object.hasOwn(WEAPON_MODELS,'dense'),false);
  assert.equal(Object.hasOwn(WEAPON_MODELS,'longpoint'),false);

@@ -1,5 +1,6 @@
 // Server-only execution. Clients submit authenticated intent.
 import {sanitizeGoods} from '../../shared/goods.js';
+import {WEAPON_SLOTS,equippedWeapon} from '../../shared/weapons.js';
 import {conditionOf,sanitizeCondition,CONDITION_MAX} from '../../shared/condition.js';
 import {ITEMS} from '../../shared/content.js';
 const fail=reason=>({ok:false,reason});
@@ -22,7 +23,7 @@ export function useUtility(game,p,item,weapon,rev){
  if(item==='field_restorative'&&Number.isSafeInteger(rev)&&rev===p.utilityRev)return useRestorative(game,p);
  if(item!=='field_maintenance_kit'||!Number.isSafeInteger(rev)||rev!==p.utilityRev)return fail('Utility request expired or unavailable.');
  if(p.dead||game.time<p.combatUntil)return fail('Maintenance is unavailable during combat or defeat.');
- if(typeof weapon!=='string'||weapon!==p.char.equipped?.weapon)return fail('Equip the weapon you intend to maintain.');
+ if(typeof weapon!=='string'||!WEAPON_SLOTS.some(slot=>equippedWeapon(p.char,slot)===weapon))return fail('Equip the weapon you intend to maintain.');
  const current=conditionOf(p.char,weapon),goods=sanitizeGoods(p.char.goods);
  if(current===null||current===CONDITION_MAX||!goods[item])return fail('Carry a maintenance kit and equip a damaged repairable weapon.');
  const next=Math.min(CONDITION_MAX,current+25),condition=sanitizeCondition(p.char.condition,p.char.inventory);

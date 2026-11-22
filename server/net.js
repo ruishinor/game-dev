@@ -3,8 +3,9 @@
 // Nothing a client sends is trusted beyond "this is what I would like to do".
 
 import { useAbility, startAttack } from './sim/combat.js';
+import { setPosture } from './sim/posture.js';
 import { petCommand, renameCompanion, manageCompanion } from './sim/companion.js';
-import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance, setElectricalRodMode } from './sim/progress.js';
+import { equipItem, unequipSlot, interact, cancelInscription, changeInitiationAppearance, setElectricalRodMode, selectWeapon } from './sim/progress.js';
 import { markItemSeen } from './sim/inventory-seen.js';
 import { disposeItem } from './sim/disposal.js';
 import { beginProduction, stopProduction } from './sim/production.js';
@@ -373,8 +374,15 @@ export class NetServer {
         if (!isId(msg.id)) return this.strike(conn);
         game.setTarget(p, msg.id);
         break;
-      case 'use':
-        reply(useAbility(game, p, msg.a));
+      case 'use': {
+        const used = useAbility(game, p, msg.a);
+        if (used?.ok) p.sitting = null;
+        reply(used);
+        break;
+      }
+      case 'posture':
+        if (typeof msg.sit !== 'boolean') return this.strike(conn);
+        reply(setPosture(game, p, msg.sit));
         break;
       case 'atk':
         // Right-click (legacy atk) always engages; explicit on=0 disengages.
@@ -427,6 +435,10 @@ export class NetServer {
         if(!result.ok)p.outbox.push({e:'appearance_rejected',reason:result.reason});
         break;
       }
+      case 'weapon_select':
+        if(msg.slot!=='weapon'&&msg.slot!=='ranged')return this.strike(conn);
+        { const r = selectWeapon(game,p,msg.slot); if (r.ok) p.sitting = null; reply(r); }
+        break;
       case 'rod_mode':
         if(msg.mode!=='rod'&&msg.mode!=='dual')return this.strike(conn);
         reply(setElectricalRodMode(game,p,msg.mode));

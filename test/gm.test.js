@@ -83,7 +83,7 @@ test('GM catalogue grants each existing item once, marks inventory and preserves
   const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), other = g.addPlayer(makeChar('keeper'));
   const categories = [
     ['glyphs', ['glyph']], ['device', ['device']], ['implants', ['implant']],
-    ['gear', ['chest', 'gloves', 'greaves', 'boots']], ['weapons', ['weapon']],
+    ['gear', ['chest', 'gloves', 'greaves', 'boots']], ['weapons', ['weapon', 'ranged']],
     ['social clothing', ['social_torso']],
   ];
   for (const [command, slots] of categories) {
@@ -99,7 +99,7 @@ test('GM catalogue grants each existing item once, marks inventory and preserves
     assert.equal(p.char.inventory.length, count);
   }
   assert.equal(p.char.inventory.length, Object.keys(ITEMS)
-    .filter(id => ['glyph', 'device', 'implant', 'chest', 'gloves', 'greaves', 'boots', 'weapon', 'social_torso'].includes(ITEMS[id].slot)).length);
+    .filter(id => ['glyph', 'device', 'implant', 'chest', 'gloves', 'greaves', 'boots', 'weapon', 'ranged', 'social_torso'].includes(ITEMS[id].slot)).length);
   assert.equal(other.char.inventory.length, 0);
   assert.deepEqual(p.char.equipped, { device: null, implant: null, glyph: null });
 });
@@ -174,14 +174,16 @@ test('GM class override covers weapon, armour, device, implant, glyph; preserves
   const ids=['electrical_combat_rod','vanguard_field_set_chest','keeper_prism','keeper_resonator','glyph_hinge','field_emitter'];
   const p=g.addPlayer(makeChar('symbiotech',{inventory:ids}));
   const normal=structuredClone(p.stats);
-  assert.equal(equipItem(g,p,ids[0]).ok,false);
+  assert.equal(equipItem(g,p,ids[0]).ok,true,'universal rod needs no class override');
+  assert.equal(equipItem(g,p,ids[1]).ok,false,'foreign armour remains restricted');
   assert.equal(executeGm(g,p,'class unlock').ok,true);
   assert.equal(equipItem(g,p,ids[3]).ok,false,'skill requirement remains');
   assert.equal(equipItem(g,p,ids[4]).ok,false,'attunement remains');
   assert.equal(equipItem(g,p,'vanguard_field_set_gloves').ok,false,'ownership remains');
   assert.equal(executeGm(g,p,'stats 20').ok,true);
   assert.equal(executeGm(g,p,'unlock').ok,true);
-  for(const id of ids.slice(0,5)){
+  // The universal rod was already equipped before the override; exercise only the restricted items here.
+  for(const id of ids.slice(1,5)){
     assert.equal(tryEquip(g.sheet(p),id,g.sheet(p).buildPreview).ok,true,id);
     assert.equal(equipItem(g,p,id).ok,true,id);
     if(ITEMS[id].slot==='glyph'){g.time=p.inscription.until;tickInscription(g,p);}
@@ -191,15 +193,16 @@ test('GM class override covers weapon, armour, device, implant, glyph; preserves
   assert.equal(p.cls,'symbiotech');assert.equal(p.char.cls,'symbiotech');
   assert.equal(p.stats.glyph,'glyph_hinge');
   assert.equal(useAbility(g,p,'rending_arc').ok,false,'foreign ability remains unavailable');
-  assert.equal(describeRequirements(g.sheet(p),ids[0],buildPreviewOptions(p))[0].met,true);
+  assert.equal(describeRequirements(g.sheet(p),ids[1],buildPreviewOptions(p))[0].met,true);
   assert.equal(executeGm(g,p,'class lock').ok,true);
-  for(const id of ids.slice(0,5)){
+  for(const id of ids.slice(1,5)){
     assert.notEqual(p.char.equipped[ITEMS[id].slot],id);
     assert.ok(p.char.inventory.includes(id));
   }
   assert.equal(p.stats.maxHp,normal.maxHp);
   assert.equal(p.stats.power,deriveStats(p.char,{attributeBonus:20}).power);
-  assert.equal(equipItem(g,p,ids[0]).ok,false);
+  assert.equal(p.char.equipped.weapon,ids[0],'class lock retains universal rod');
+  assert.equal(equipItem(g,p,ids[1]).ok,false);
   assert.equal(equipItem(g,p,'field_emitter').ok,true);
   assert.equal(unequipSlot(g,p,'weapon').ok,true);
 });
@@ -216,7 +219,7 @@ test('GM dependent gear is removed on stats reset or reconnect; saves exclude pr
   // Changing mode interrupts an in-flight inscription.
   assert.equal(executeGm(g,p,'stats reset').ok,true);
   assert.equal(p.inscription,null);
-  assert.notEqual(p.char.equipped.weapon,'longpoint_emitter');
+  assert.notEqual(p.char.equipped.ranged,'longpoint_emitter');
   assert.notEqual(p.char.equipped.implant,'keeper_resonator');
   assert.equal(p.char.equipped.device,'keeper_prism','class override remains active');
   assert.equal(p.char.equipped.chest,'field_chest');

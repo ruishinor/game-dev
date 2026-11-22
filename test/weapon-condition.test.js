@@ -1,19 +1,27 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {ITEMS,CLASSES,AUTO_REFERENCE_MS} from '../shared/content.js';
-import {conditionOf,sanitizeCondition,weaponBonus} from '../shared/condition.js';
+import {conditionOf,sanitizeCondition,effectiveAuto} from '../shared/condition.js';
 import {dealDamage,tickPlayerCombat} from '../server/sim/combat.js';
 import {equipItem,unequipSlot,craftRecipe} from '../server/sim/progress.js';
 import {openVendor,tradeVendor,vendorState} from '../server/sim/vendor.js';
 import {makeGame,makeChar,place,enemyOf,isolate} from './helpers.js';
 import {CharacterStore} from '../server/store.js';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-test('condition is bounded, owned, opt-in, and alters only added weapon damage',()=>{
- const c=makeChar('vanguard',{inventory:['field_emitter','servo_harness'],equipped:{weapon:'field_emitter'},condition:{field_emitter:40,servo_harness:1,tuned_emitter:10}});
+test('condition is bounded, owned, opt-in, and scales weapon damage only down to the innate rate',()=>{
+ const c=makeChar('vanguard',{inventory:['field_emitter','servo_harness'],equipped:{ranged:'field_emitter'},condition:{field_emitter:40,servo_harness:1,tuned_emitter:10}});
  assert.deepEqual(sanitizeCondition(c.condition,c.inventory),{field_emitter:40});
  assert.equal(conditionOf(c,'servo_harness'),null);assert.equal(conditionOf(c,'constructor'),null);
- assert.equal(weaponBonus(c),.8);c.condition.field_emitter=0;assert.equal(weaponBonus(c),0);
+ // Vanguard innate ranged rate is 5/s; the Field Pulse Emitter defines 5.5 per 1 s hit.
+ const innate=CLASSES.vanguard.rangedAuto.dmg/CLASSES.vanguard.rangedAuto.interval*ITEMS.field_emitter.auto.interval;
+ assert.ok(Math.abs(effectiveAuto(c).dmg-(innate+(5.5-innate)*.4))<1e-9);
+ c.condition.field_emitter=0;assert.ok(Math.abs(effectiveAuto(c).dmg-innate)<1e-9,'a broken weapon falls back to the innate rate, never below');
  c.condition.field_emitter=-1;assert.equal(conditionOf(c,'field_emitter'),100);
- for(const cls of Object.keys(CLASSES))assert.equal(weaponBonus(makeChar(cls)),0);
+ for(const cls of Object.keys(CLASSES)){
+  assert.equal(effectiveAuto(makeChar(cls)).weapon,null,'no weapon: innate class attack');
+  // Weapon-defined: the same weapon gives every class the same auto-attack at full condition.
+  const armed=effectiveAuto(makeChar(cls,{inventory:['field_emitter'],equipped:{ranged:'field_emitter'}}));
+  assert.deepEqual({kind:armed.kind,range:armed.range,interval:armed.interval,dmg:armed.dmg},{kind:'bolt',...ITEMS.field_emitter.auto});
+ }
 });
 test('starter weapon acquisition, equipment, defeat wear, paid repair and QL upgrade are authoritative',()=>{
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{credits:50,materials:{mire_fibre:2,sentinel_alloy:3}}));
@@ -29,19 +37,29 @@ test('starter weapon acquisition, equipment, defeat wear, paid repair and QL upg
  const repair=req('repair','field_emitter');assert.ok(tradeVendor(g,p,repair).ok);assert.equal(p.char.credits,36);assert.equal(conditionOf(p.char,'field_emitter'),100);assert.equal(tradeVendor(g,p,repair).ok,false);
  assert.equal(tradeVendor(g,p,req('repair','field_emitter')).ok,false);
  assert.equal(tradeVendor(g,p,req('repair','wardstone_shard')).ok,false);
- const station=g.objects.find(o=>o.type==='sanctum_fabricator');place(p,station.x,station.z+2);assert.ok(unequipSlot(g,p,'weapon').ok);assert.ok(craftRecipe(g,p,'tune_emitter').ok);
+ const station=g.objects.find(o=>o.type==='sanctum_fabricator');place(p,station.x,station.z+2);assert.ok(unequipSlot(g,p,'ranged').ok);assert.ok(craftRecipe(g,p,'tune_emitter').ok);
  assert.ok(!p.char.inventory.includes('field_emitter'));assert.ok(p.char.inventory.includes('tuned_emitter'));assert.equal(ITEMS.tuned_emitter.ql,3);
- assert.ok(equipItem(g,p,'tuned_emitter').ok);assert.equal(weaponBonus(p.char),4);
+ assert.ok(equipItem(g,p,'tuned_emitter').ok);assert.equal(effectiveAuto(p.char).dmg,ITEMS.tuned_emitter.auto.dmg);
 });
-test('base auto-attacks are preserved; equipped weapon adds only its condition-scaled damage',()=>{
- const g=makeGame(),p=g.addPlayer(makeChar('vanguard',{inventory:['field_emitter'],equipped:{device:null,implant:null,glyph:null,weapon:'field_emitter'},condition:{field_emitter:50}}));
+test('the equipped weapon defines the auto-attack; without one the class attack is unchanged',()=>{
+ // Any class: the emitter's own condition-scaled profile is what lands.
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{inventory:['field_emitter'],equipped:{device:null,implant:null,glyph:null,ranged:'field_emitter'},condition:{field_emitter:50}}));
  const e=enemyOf(g,'skitter');isolate(g,e);place(p,e.x+1,e.z);p.target=e.id;p.autoOn=true;
- const before=e.hp;tickPlayerCombat(g,p,0);assert.equal(before-e.hp,Math.round((CLASSES.vanguard.auto.dmg+1*CLASSES.vanguard.auto.interval/AUTO_REFERENCE_MS)*p.stats.power*p.stats.dmgMul));
+ const before=e.hp;tickPlayerCombat(g,p,0);const innate=CLASSES.surveyor.auto.dmg/CLASSES.surveyor.auto.interval*ITEMS.field_emitter.auto.interval;
+ assert.equal(before-e.hp,Math.round((innate+(ITEMS.field_emitter.auto.dmg-innate)*.5)*p.stats.power*p.stats.dmgMul));
+ assert.equal(p.nextAuto,g.time+ITEMS.field_emitter.auto.interval,'the weapon sets the attack speed');
+ assert.equal(g.events.find(x=>x.e==='dmg'&&x.s===p.id).k,'bolt');
+ // Unarmed Vanguard keeps the unchanged class melee attack.
+ const g2=makeGame(),v=g2.addPlayer(makeChar('vanguard'));
+ const e2=enemyOf(g2,'skitter');isolate(g2,e2);place(v,e2.x+1,e2.z);v.target=e2.id;v.autoOn=true;
+ const hp2=e2.hp;tickPlayerCombat(g2,v,0);assert.equal(hp2-e2.hp,Math.round(CLASSES.vanguard.auto.dmg*v.stats.power*v.stats.dmgMul));
+ assert.equal(g2.events.find(x=>x.e==='dmg'&&x.s===v.id).k,'melee');
 });
 test('save hydration preserves valid weapon and condition, old loadout is unchanged',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'attune-weapon-')),file=path.join(dir,'characters.json');
  try{const store=new CharacterStore(file),{char,token}=store.create('Weapon Tester','vanguard');
   assert.deepEqual(char.equipped,{device:null,implant:null,glyph:null});char.inventory=['field_emitter'];char.equipped.weapon='field_emitter';char.condition={field_emitter:30};store.markDirty();store.flush();
-  const saved=new CharacterStore(file).authenticate(token);assert.equal(saved.equipped.weapon,'field_emitter');assert.deepEqual(saved.condition,{field_emitter:30});
+  // A legacy single-slot save migrates the emitter to the ranged slot.
+  const saved=new CharacterStore(file).authenticate(token);assert.equal(saved.equipped.ranged,'field_emitter');assert.equal(saved.equipped.weapon,undefined);assert.deepEqual(saved.condition,{field_emitter:30});
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
