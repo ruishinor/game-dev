@@ -1,6 +1,6 @@
-// Deterministic rifle-only GLB extraction from the quarantined owner archive.
-// Nothing under assets/source-archives is mounted; only two explicit, selected
-// and integrity-checked mesh groups may become browser-accessible.
+// Deterministic rifle GLB extraction into the owner's active production-pipeline workspace.
+// All archive donors are available to the production pipeline; this exporter
+// selects two equipment variants for the Warden visual integration.
 // Source meshes are NOT finished art: runtime renderer upgrades materials and
 // adds Attunement-specific receiver, sights, barrel details and restrained VFX.
 import fs from 'node:fs';
@@ -14,7 +14,7 @@ const ARCHIVE=path.join(ROOT,'assets/source-archives/glb-low-poly-models-buildin
 const SHA='a2e60f2a220ebf427f6211805d0a4aa11504205af91a62e2065ab18474977e43';
 const MEMBER='glb-low-poly-models-building-blocks/model - FPS Survival Forest Outpost.glb';
 export const WARDEN_RIFLE_NODES=Object.freeze({carbine:'097-weapon-scout-carbine',marksman:'098-weapon-marksman-rifle'});
-const OUTPUT=path.join(ROOT,'.asset-cache');
+const OUTPUT=path.join(ROOT,'.asset-cache','pipeline','warden_rifles');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const align=n=>(n+3)&~3;
 
