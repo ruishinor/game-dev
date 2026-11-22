@@ -782,13 +782,13 @@ test('disconnect mid-fight: enemies drop the player, companions are removed, oth
   }
 });
 
-test('store: corrupt or tampered files never crash or cross-contaminate characters', () => {
-  const file = tmpFile();
+test('store: corrupt files fail closed and valid records remain isolated', () => {
+  let file = tmpFile();
   fs.writeFileSync(file, '{ this is not json');
-  const s1 = new CharacterStore(file);
-  assert.equal(s1.chars.size, 0);
-  assert.ok(fs.readdirSync(path.dirname(file)).some((f) => f.includes('.corrupt-')), 'unreadable file is kept, not overwritten');
-
+  assert.throws(() => new CharacterStore(file), /recovery is required/);
+  assert.equal(fs.readFileSync(file, 'utf8'), '{ this is not json', 'damaged source remains available for recovery');
+  // A fresh save is explicitly a separate file, never an automatic overwrite.
+  file = tmpFile();
   const s2 = new CharacterStore(file);
   const { char, token } = s2.create('Honest', 'vanguard');
   const other = s2.create('Other', 'symbiotech');
