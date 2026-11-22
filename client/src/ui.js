@@ -30,7 +30,7 @@ import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas } from './world-atlas.js';
 import { reachMinimapArt } from './minimap-art.js';
 import { paintedAbilityArt } from './ability-art.js';
-import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,SPINDLE_SLOTS,WEAPON_ACTIONS,EMOTE_ACTIONS} from './hotkey-bindings.js';
+import {keyChord,PRIMARY_SLOTS,COMPANION_SLOTS,SPINDLE_SLOTS,WEAPON_ACTIONS,EMOTE_ACTIONS,MELEE_ACTIONS} from './hotkey-bindings.js';
 import {COMPANION_ACTION,defaultHotbar,loadHotbar,storeHotbar,editHotbar,normalizeHotbar} from './hotbar-layout.js';
 import {recoverySamples,recoveryRank,RECOVERY_MASTERY} from '../../shared/recovery.js';
 import {CRAFTING_DISCIPLINES,disciplineProgress} from '../../shared/crafting-disciplines.js';
@@ -846,6 +846,9 @@ export class UI {
       ['Click / Tab', 'Select an enemy, ally or companion / cycle enemies'],
       ['Right-click', 'Engage auto-attack on an enemy, or use an object / loot eligible remains'],
       ['R', 'Toggle auto-attack. Switching targets or clearing target stops it.'],
+      [this.a.bindings?.label('melee:light') || 'T', 'Deliberate melee: strike with the selected melee weapon. Three successive timed strikes form a chain.'],
+      [this.a.bindings?.label('melee:heavy') || 'Shift + T', 'Deliberate heavier strike: slower committed attack and recovery.'],
+      [this.a.bindings?.label('melee:guard') || 'Y', 'Brief frontal guard against melee, enabling a counterattack when struck.'],
       ['F1 / F2', 'Target yourself / select companion (Esc clears selection)'],
       ['1 – 9', 'Available abilities'],
       ['Shift + 1 – 5', 'Companion commands (depend on active companion)'],
@@ -959,7 +962,7 @@ export class UI {
     }
     set(this.pet,'hidden',!companionType);
     this.petBar.hidden=!companionType;
-    this.autoButton.title=`${def.auto.kind==='melee'?'Melee':'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval/1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    this.autoButton.title=`${def.auto.kind==='melee'?'Melee':'Ranged'} auto-attack: ${def.auto.range}m range, one attack every ${def.auto.interval/1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.${def.auto.kind==='melee'?' Deliberate melee: T light / Shift+T heavy / Y guard (remappable).':''}`;
     this.player.res.wrap.classList.toggle('charge',def.resource.id==='charge');
     this.refreshHotkeys();
   }
@@ -1149,6 +1152,8 @@ export class UI {
     addRows('Spindle utility bar','spindle',SPINDLE_SLOTS);
     panel.append(h('h3',null,'Weapon actions'));
     for(const [action,label] of Object.entries(WEAPON_ACTIONS))addRow(action,label,label);
+    panel.append(h('h3',null,'Melee combat'));
+    for(const [action,label] of Object.entries(MELEE_ACTIONS))addRow(action,label,label);
     panel.append(h('h3',null,'Emotes'));
     for(const [action,label] of Object.entries(EMOTE_ACTIONS))addRow(action,label,label);
     const reset=h('button',null,'Restore default hotkeys');
@@ -2403,7 +2408,8 @@ export class UI {
     const auto=(this.sheet&&effectiveAuto(this.sheet))||def.auto;
     const effectiveReach=this.sheet?weaponReach(this.sheet):auto.range;
     const reach=Number(effectiveReach.toFixed(2));
-    const autoTitle=`${auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.`;
+    const manual=auto.kind==='melee'? ` Manual melee: ${this.a.bindings?.label('melee:light')||'T'} light / ${this.a.bindings?.label('melee:heavy')||'Shift+T'} heavy / ${this.a.bindings?.label('melee:guard')||'Y'} guard.`:'';
+    const autoTitle=`${auto.kind === 'melee' ? 'Melee' : 'Ranged'} auto-attack: ${reach}m range, one attack every ${auto.interval / 1000}s while in range. Right-click and some hostile abilities engage; R toggles. There is no automatic chasing.${manual}`;
     const distance = autoTarget ? st.dist(target) : Infinity;
     this.autoButton.disabled = me.dead || (!autoTarget && !engaging);
     if (this.autoButton.getAttribute('aria-pressed') !== String(engaging)) this.autoButton.setAttribute('aria-pressed', String(engaging));
