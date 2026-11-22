@@ -135,12 +135,32 @@ try{
  const second=skitters.slice(1).sort((a,b)=>Math.hypot(b.x-enemy.x,b.z-enemy.z)-Math.hypot(a.x-enemy.x,a.z-enemy.z))[0];assert.ok(second);
  for(const e of server.game.enemies){if(e===enemy||e===second)continue;e.state='dead';e.deadAt=-1e9;e.respawnAt=Infinity;e.threat.clear();}
  for(const e of [enemy,second])e.maxHp=e.hp=Math.max(e.maxHp,600);
- // Fixture: end a fight through a real final hit, then let combat linger expire.
- const finish=async e=>{e.hp=1;e.respawnAt=Infinity;
-  await until(()=>window.__attune.state().you?.auto===1).catch(()=>{});
-  const t=Date.now();while(e.state!=='dead'&&Date.now()-t<30000)await new Promise(r=>setTimeout(r,100));
-  assert.equal(e.state,'dead','fight finished by a real hit');e.respawnAt=Infinity;
-  await until(()=>{const s=window.__attune.state(),me=s.ents.find(x=>x.id===s.myId);return me&&!(me.row?.f&8)&&!s.you?.auto;});};
+ // Hold pursuit only while checking initial ranged contact distance.
+ // The shot still uses authenticated input and authoritative damage.
+ server.game.aiHold=true;
+ // Fixture: restore an in-reach real auto-attack after slow software-GL
+ // captures. Do not force enemy death or bypass server damage authority.
+ const finish=async e=>{
+  p=await liveFixturePlayer(page,server,'Switch Tester');
+  assert.ok(!p.dead,'finishing player must be alive');
+  assert.equal(p.char.activeWeapon,'weapon','the rod remains selected for melee');
+  assert.notEqual(e.state,'evade','cannot finish an evading enemy');
+  const spot=clearCombatSpot(e,0,1.6);
+  p.x=spot.x;p.z=spot.z;p.yaw=Math.atan2(e.x-spot.x,e.z-spot.z);p.target=e.id;
+  e.hp=1;e.respawnAt=Infinity;server.game.markDirty(p);
+  const held=server.game.aiHold;server.game.aiHold=true;
+  try{
+   await until(([x,z])=>{const s=window.__attune.state();return s.you&&Math.hypot(s.you.x-x,s.you.z-z)<.5;},[spot.x,spot.z]);
+   if(!p.autoOn){
+    await view.focus();await page.keyboard.press('KeyR');
+    await until(()=>window.__attune.state().you?.auto===1);
+   }
+   const t=Date.now();while(e.state!=='dead'&&Date.now()-t<30000)await new Promise(r=>setTimeout(r,100));
+   assert.equal(e.state,'dead','fight finished by a real server hit');
+  }finally{server.game.aiHold=held;}
+  e.respawnAt=Infinity;
+  await until(()=>{const s=window.__attune.state(),me=s.ents.find(x=>x.id===s.myId);return me&&!(me.row?.f&8)&&!s.you?.auto;});
+ };
  const far=clearCombatSpot(enemy,0,10);
  p=await liveFixturePlayer(page,server,'Switch Tester');
  p.x=far.x;p.z=far.z;p.yaw=Math.atan2(enemy.x-far.x,enemy.z-far.z);
@@ -160,6 +180,7 @@ try{
  // authoritative damage event, rather than after asynchronous browser polling.
  assert.ok(shotEvent.hitDistance>CLASSES.vanguard.auto.range+2,
   'ranged hit must occur beyond melee reach; observed '+shotEvent.hitDistance.toFixed(2)+' m');
+ server.game.aiHold=false; // Resume enemy AI for subsequent combat.
  await shot('06-ranged-fire');
 
  // 8. Switch in combat; the next swing is delayed, not advanced (recovery timing is covered by Node tests).
