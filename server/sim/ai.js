@@ -5,6 +5,7 @@ import { levelHpMul } from './enemy-levels.js';
 import { ENEMIES } from '../../shared/content.js';
 import { dist, inSanctum, inSafeZone, resolveCollisions, hasLineOfSight, sinterSiteAt, sameTravelRegion } from '../../shared/world.js';
 import { addThreat, dealDamage, expireBuffs, getBuff } from './combat.js';
+import {COMBAT_LINGER_MS} from './game.js';
 import {resetWildlife,cancelWildHunt,tickWildPredator,tickWildHerd} from './sinter-wildlife.js';
 
 // Long patrols leash to the point where they broke off their route (their
@@ -353,6 +354,11 @@ export function tickEnemy(game, e, dt) {
     e.progressDist = Infinity;
   }
   e.target = target.id;
+  // An actively pursuing melee attacker is combat pressure even before its
+  // telegraphed first contact. Otherwise passive out-of-combat regeneration
+  // heals a low-HP target during the new windup and changes lethal outcomes.
+  if(def.attack.kind==='melee')
+    target.combatUntil=Math.max(target.combatUntil||0,game.time+COMBAT_LINGER_MS);
   if(e.form)e.ecologyMode=e.form==='shieldback'?'defend':'retaliate';
   if(e.type==='faultstalker')e.ecologyMode='hunt';
 
