@@ -79,6 +79,52 @@ test('real outside-safe-zone damage baseline proves session-only invulnerability
 });
 
 
+test('GM kill defeats only the selected living enemy through normal death handling without rewards', () => {
+  const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), bystander = g.addPlayer(makeChar('keeper'));
+  const enemy = g.enemies.find(e => e.state !== 'dead' && e.state !== 'evade');
+  assert.ok(enemy);
+  const baseline = { xp:p.char.xp, step:p.char.quest.step, progress:p.char.quest.progress,
+    otherXp:bystander.char.xp, otherProgress:bystander.char.quest.progress };
+  assert.match(GM_HELP,/\/gm kill/);
+  assert.equal(executeGm(g,p,'kill').ok,false,'nothing selected');
+  assert.equal(executeGm(g,p,'kill 123').ok,false,'cannot supply target id by chat');
+  assert.equal(executeGm(g,p,'kill all').ok,false,'cannot mass-kill');
+  assert.equal(executeGm(g,p,'kill extra').ok,false,'no ignored trailing arguments');
+  assert.equal(enemy.state !== 'dead',true);
+  g.setTarget(p,bystander.id);
+  assert.equal(executeGm(g,p,'kill').ok,false,'other players protected');
+  assert.equal(bystander.dead,false);
+  g.setTarget(p,enemy.id);
+  // Another combatant's existing threat never turns a GM test command into
+  // a reward/quest farming mechanism.
+  enemy.threat.set(p.id,10);enemy.threat.set(bystander.id,20);
+  const beforeEvents=g.events.length;
+  const result=executeGm(g,p,'kill');
+  assert.deepEqual(result,{ok:true,action:'kill',target:String(enemy.id)});
+  assert.equal(enemy.hp,0);
+  assert.equal(enemy.state,'dead');
+  assert.equal(enemy.deadAt,g.time);
+  assert.ok(enemy.respawnAt>g.time);
+  assert.equal(enemy.threat.size,0);
+  assert.equal(enemy.lootByPlayer.size,0);
+  assert.ok(g.events.slice(beforeEvents).some(e=>e.e==='die'&&e.id===enemy.id));
+  assert.deepEqual({ xp:p.char.xp, step:p.char.quest.step, progress:p.char.quest.progress,
+    otherXp:bystander.char.xp, otherProgress:bystander.char.quest.progress },baseline);
+  const deaths=g.events.filter(e=>e.e==='die'&&e.id===enemy.id).length;
+  assert.equal(executeGm(g,p,'kill').ok,false,'already dead');
+  assert.equal(g.events.filter(e=>e.e==='die'&&e.id===enemy.id).length,deaths,'no repeated kill');
+  enemy.state='evade';
+  assert.equal(executeGm(g,p,'kill').ok,false,'evading enemy cannot be killed');
+  // Re-establish a live enemy, but invalidate its location after selection.
+  enemy.state='idle';enemy.hp=enemy.maxHp;enemy.x=RIFT_ANNEX.x;enemy.z=RIFT_ANNEX.arrivalZ;
+  assert.equal(executeGm(g,p,'kill').ok,false,'cross-region selection rejected at execution time');
+  assert.equal(enemy.state,'idle');
+  // The command does not target the GM character even when god mode is enabled.
+  g.setTarget(p,p.id);assert.equal(executeGm(g,p,'god on').ok,true);
+  assert.equal(executeGm(g,p,'kill').ok,false);
+  assert.equal(p.dead,false);
+});
+
 test('GM catalogue grants each existing item once, marks inventory and preserves the other player', () => {
   const g = makeGame(), p = g.addPlayer(makeChar('vanguard')), other = g.addPlayer(makeChar('keeper'));
   const categories = [

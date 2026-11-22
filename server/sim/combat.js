@@ -245,7 +245,17 @@ export function repairAegis(game, healer, dst, base, sourceId) {
   return amount;
 }
 
-function killEnemy(game, e) {
+// GM-only preview transition. The WebSocket dispatcher must authorize the
+// requesting account before invoking this. Ignore a stale/forged entity and
+// preserve ordinary corpse/death rendering without XP, loot or quest credit.
+export function gmDefeatEnemy(game, enemy) {
+  if (!enemy || enemy.kind !== 'enemy' || game?.ents?.get(enemy.id) !== enemy ||
+      enemy.state === 'dead' || enemy.state === 'evade') return false;
+  killEnemy(game, enemy, []);
+  return true;
+}
+
+function killEnemy(game, e, creditedIds = [...e.threat.keys()]) {
   e.hp = 0;
   e.state = 'dead';
   e.deadAt = game.time;
@@ -254,7 +264,7 @@ function killEnemy(game, e) {
   e.target = 0;
   e.buffs = [];
   game.emitWorldEvent({ e: 'die', id: e.id });
-  const credited = [...e.threat.keys()];
+  const credited = creditedIds;
   e.threat.clear();
   e.fixate = null;
   onEnemyKilled(game, e, credited);
