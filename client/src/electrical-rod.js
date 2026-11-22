@@ -188,5 +188,14 @@ export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm
     left.quaternion.copy(qLocal).slerp(qJoined,k);
   };
   rod.update(0,{reducedMotion:true});
+  // Measured two-hand alignment in dual mode, across both humanoid frames.
+  // In joined mode the second hand may perform a separate strike animation.
+  rod.gripInfo=()=>{
+    if(!offHand)return {mode:'single-hand',supportError:null};
+    if(rod.progress>.02)return {mode:'joining',supportError:null};
+    const expected=offHand.localToWorld(offPalm.clone());
+    const actual=rod.anchor(1,'Grip');
+    return {mode:'dual',supportError:actual.distanceTo(expected)};
+  };
   return rod;
 }

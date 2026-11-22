@@ -33,6 +33,10 @@ try{
  await page.evaluate(yaw=>window.__attune.view({yaw,pitch:.22,dist:5.4,face:yaw}),yaw);
  await page.locator('#view').focus();await page.keyboard.press('Tab');
  await page.waitForFunction(id=>window.__attune.state().target===id,enemy.id);
+ // SwiftShader can monopolize Chromium while three rapid keyboard inputs must
+ // respect a 1.65 s server combo window. Pause only continuous DRAWING;
+ // network, authoritative simulation, event delivery and animation updates remain live.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  const events=[],sink=server.game.emitWorldEvent.bind(server.game);
  server.game.emitWorldEvent=(e)=>{if(e.s===p.id&&['melee_start','dmg','melee_miss'].includes(e.e))events.push({...e,at:server.game.time});return sink(e);};
  // Observe rendered clips without delaying the next input beyond the server's
@@ -49,7 +53,17 @@ try{
  let previous=enemy.hp;
  for(let stage=1;stage<=3;stage++){
    const initial=events.length;
-   await page.locator('#view').focus();await page.keyboard.press('KeyT');
+   if(stage===1)await page.locator('#view').focus();
+   if(stage>1){
+     const ready=Date.now();
+     while(server.game.time<(p.meleeState?.next||0)+20&&Date.now()-ready<1900)
+       await new Promise(r=>setTimeout(r,15));
+     assert.ok(server.game.time>=(p.meleeState?.next||0),
+       'authoritative recovery must complete before next deliberate strike');
+     assert.ok(server.game.time-(p.meleeState?.lastHit||0)<1450,
+       'fixture input delayed beyond the real combo budget');
+   }
+   await page.keyboard.press('KeyT');
    const started=Date.now();
    while(!events.slice(initial).some(x=>x.e==='melee_start')&&Date.now()-started<15000)await new Promise(r=>setTimeout(r,40));
    const start=events.slice(initial).find(x=>x.e==='melee_start');
@@ -64,11 +78,15 @@ try{
    assert.equal(hit.mv,String(stage));
    assert.ok(enemy.hp<previous,'target health reduced');
    previous=enemy.hp;
-   // Software WebGL screenshot encoding may consume several seconds: capture
-   // only after completing the time-sensitive chain, not between inputs.
-   if(stage===3)await page.screenshot({path:'melee-live-evidence/03-finisher.png'});
-   if(stage<3)await page.waitForTimeout(510);
+   // Never spend the server's combo window encoding a software-GL screenshot.
+   // Recovery/next-input timing is checked above using the real server clock.
  }
+ if(SOFTWARE_GL){
+   await page.evaluate(()=>window.__attune.pause(false));
+   const prior=await page.evaluate(()=>window.__attune.state().drawn);
+   await page.waitForFunction(n=>window.__attune.state().drawn>n,prior);
+ }
+ await page.screenshot({path:'melee-live-evidence/03-finisher.png'});
  const observed=await page.evaluate(()=>{
    clearInterval(window.__meleeClipSampler);
    return window.__meleeObservedClips;

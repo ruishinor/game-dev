@@ -56,6 +56,10 @@ try{
       &&!a.gfx.scene.getObjectByName('weapon-carry:'+(token==='field'?'tuned':'field')));
    },{id:p.id,token});
    await capture(page,label+'-'+token+'.png');
+   const pose=await page.evaluate(id=>window.__attune.state().ents.find(e=>e.id===id)?.weaponPose,p.id);
+   assert.equal(pose?.mode,'neutral',label+' '+token+' must remain socket-mounted when idle');
+   assert.equal(pose.parent,'hand_r',label+' '+token+' must be attached to the actual right hand');
+   assert.equal(pose.visible,true,label+' '+token+' must be visible');
   }
  }
  p.char.equipped.ranged=null;server.game.refreshStats(p);server.game.markDirty(p);
