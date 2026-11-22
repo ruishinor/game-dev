@@ -219,7 +219,9 @@ test('the corona reads at rest, escalates on pulse and in combat, and joined bur
   assert.equal(half.getObjectByName('ElectricalFilament0').rotation.y,rot);
   // Quality zero: no crackle and no outer halo, but the weapon still glows.
   settle({quality:0});
-  assert.equal(arcs(),0);assert.equal(half.getObjectByName('RodPlasmaHalo0').visible,false);assert.ok(tip().material.opacity>0);
+  assert.equal(arcs(),0);assert.equal(half.getObjectByName('RodPlasmaHalo0').visible,false);assert.ok(tip().material.opacity>=.5,
+    'low-tier energized emitter must remain legible in a dark environment');
+  assert.ok(sheath().material.opacity>.05,'low-tier rod retains its inexpensive persistent electrical sheath');
   rod.update(.1,{energized:false});assert.equal(half.getObjectByName('RodCorona0').visible,false);
   assert.ok(restSheath<.5,'idle sheath stays restrained');
  }finally{rod.dispose();}
@@ -291,4 +293,13 @@ test('every class has a complete, distinct rod colourway applied to model and co
   assert.equal(rod.halves[0].getObjectByName('RodEmitterGlow0').material.color.getHex(),ROD_PALETTES.surveyor.tip);
  }finally{rod.dispose();}
  const plain=createElectricalRod();try{assert.equal(plain.group.getObjectByName('RodRight_inlay').material.emissive.getHex(),DEFAULT_ROD_PALETTE.inlayGlow,'exports keep cobalt');}finally{plain.dispose();}
+});
+
+test('active rod animation is not incorrectly forced into reduced-motion mode', async () => {
+  const {readFileSync}=await import('node:fs');
+  const source=readFileSync('client/src/characters.js','utf8');
+  assert.doesNotMatch(source,/reducedMotion:\s*st\.reducedMotion\s*\|\|\s*active/,
+    'attacking used to suppress rod corona/crackle by treating activity as an accessibility preference');
+  assert.match(source,/reducedMotion:\s*!!st\.rodCalm\s*\|\|\s*st\.dead\s*\|\|\s*stowed/,
+    'only actual rod comfort preference, death or stow may reduce the rod animation');
 });
