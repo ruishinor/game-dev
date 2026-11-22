@@ -1158,7 +1158,7 @@ function onEvent(e) {
     case 'melee_deflect': {
       const s=S.ents.get(e.s),d=S.ents.get(e.d);
       s?.model.trigger?.('guard','deflect');
-      if(s?.placed&&d?.placed)fx.burst(s.chest,0x9adfff,5,.5);
+      if(s?.placed&&d?.placed){if(rich())cvfx.deflect(s,d);else fx.burst(s.chest,0x9adfff,5,.5);}
       break;
     }
     case 'melee_miss': {
@@ -1455,7 +1455,7 @@ function onEvent(e) {
       if (ent) ent.cast = { name: e.n, start: now, end: now + e.ms };
       // world anomalies show their own build-up; the enemy wind-up dome is for creatures
       if (ent?.model?.charge) ent.model.charge(e.ms);
-      else if (ent?.placed && rich()) cvfx.windup(ent, e.ms);
+      else if (ent?.placed && rich()) (e.k==='basic_melee'?cvfx.meleeWindup(ent,e.ms):cvfx.windup(ent,e.ms));
       // armoured enemies (the Severance squads) charge their channels through the wind-up
       ent?.model?.armourReact?.('ability', e.k);
       if (e.g) {
