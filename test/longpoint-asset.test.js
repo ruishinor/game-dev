@@ -49,7 +49,7 @@ test('Longpoint is shouldered forward rather than crossing the torso on both shi
     const grip=world(prop.getObjectByName('GripAnchor')),effect=world(prop.getObjectByName('EffectAnchor'));
     const forward=new THREE.Vector3(0,0,1).applyQuaternion(rig.getWorldQuaternion(new THREE.Quaternion()));
     const barrel=effect.sub(grip).normalize();
-    assert.ok(barrel.dot(forward)>.85,frame+' barrel points along character facing, not across torso');
+    assert.ok(barrel.dot(forward)>.85,`${frame} barrel forward dot=${barrel.dot(forward).toFixed(3)} yaw=${prop.rotation.y.toFixed(3)}, grip advance=${grip.clone().sub(shoulder).dot(forward).toFixed(3)}`);
     assert.ok(grip.clone().sub(shoulder).dot(forward)>.09,frame+' grip clears torso toward front');
     const target=rig.localToWorld(new THREE.Vector3(2,1,12));
     assert.equal(p.fire(target),true,frame+' confirmed shot fitted');
