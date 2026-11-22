@@ -64,14 +64,24 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     const neutral=aim.sub(gripLocal);
     const kick=recoilAmount(shotAge,false);
     if(Number.isFinite(dt)&&dt>0)shotAge+=Math.min(dt,.1);
-    const tryFit=offset=>{
-      prop.position.copy(neutral).addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset);
+    const tryFit=(offset,clearance)=>{
+      prop.position.copy(neutral)
+        .addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset)
+        .add(new T.Vector3(0,0,clearance));
       prop.updateWorldMatrix(true,true);
       const targets=[world(grip),world(support)];
       return arms.every((a,i)=>fit(a,targets[i]));
     };
-    // Never sacrifice the verified two-hand fit for a recoil pose.
-    if(!tryFit(kick)){restore();if(!kick||!tryFit(0)){restore();return false;}}
+    // Move the receiver forward of the torso, preserving only poses where
+    // both hands still reach their actual authored GLB attachment anchors.
+    let fitted=false;
+    for(const clearance of [.24,.18,.12,.06,0]){
+      if(tryFit(kick,clearance)){fitted=true;break;}
+      restore();
+      if(kick&&tryFit(0,clearance)){fitted=true;break;}
+      restore();
+    }
+    if(!fitted)return false;
     active=true;prop.visible=true;return true;
   }
   return { update, restore, fire(){if(!active||closed||!prop.visible)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
