@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {ensureWardenRifleGLB,WARDEN_RIFLE_NODES} from '../tools/assets/warden-rifle-source.mjs';
 
 function inspect(buf){
@@ -29,4 +30,18 @@ test('Warden rifles: exact archive submodels extracted, not entire outpost',()=>
 });
 test('Warden rifles: selector fails closed for unknown assets',()=>{
  assert.throws(()=>ensureWardenRifleGLB('../source-archives/foo'),/Unexpected/);
+});
+
+test('each extracted rifle donor loads through the actual Three.js GLTFLoader',async()=>{
+ const loader=new GLTFLoader();
+ for(const id of Object.keys(WARDEN_RIFLE_NODES)){
+  const file=ensureWardenRifleGLB(id);
+  const data=fs.readFileSync(file);
+  const gltf=await new Promise((resolve,reject)=>loader.parse(
+   data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),
+   '',resolve,reject));
+  let visibleMeshes=0;
+  gltf.scene.traverse(o=>{if(o.isMesh)visibleMeshes++;});
+  assert.ok(visibleMeshes>=2, id+' must construct visible GLTFLoader meshes');
+ }
 });
