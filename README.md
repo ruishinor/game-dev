@@ -31,6 +31,9 @@ See the [handoff](docs/HANDOFF.md) for verification and known limits.
 | Esc | Dismiss the active panel; open or close the corner menu when no panel is open (also clears current targeting) |
 | M | Open the World Atlas; press M again to close it (unless editing a map field) |
 | 1 – 9 | Available abilities (class dependent) |
+| Z | Switch weapon: melee ↔ ranged (every class; an empty slot uses the innate attack; works in combat) |
+| G | Electrical Combat Rod: joined ↔ dual batons (rod drawn, out of combat) |
+| X | Sit down / stand up (moving, attacking or abilities stand you up) |
 | Shift + 1 – 5 | Companion: Triage / Bond / Attack / Follow / Stay |
 | F | Interact |
 | V | Reset the camera behind you |

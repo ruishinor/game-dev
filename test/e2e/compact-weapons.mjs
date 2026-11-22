@@ -39,7 +39,11 @@ try{
  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id),p.id);
  for(const [item,token] of [['field_emitter','field'],['tuned_emitter','tuned']]){
   if(!p.char.inventory.includes(item))p.char.inventory.push(item);
-  p.char.equipped.weapon=item;
+  // These are ranged-slot items after the dual-weapon migration. Keep the
+  // owner in the real server-selected ranged mode; the observer gets only
+  // replicated cosmetic identity, never inventory or fixture state.
+  p.char.equipped.ranged=item;
+  p.char.activeWeapon='ranged';
   server.game.refreshStats(p);server.game.markDirty(p);
   for(const [page,label] of [[owner,'owner'],[observer,'witness']]){
    await page.bringToFront();
@@ -54,7 +58,7 @@ try{
    await capture(page,label+'-'+token+'.png');
   }
  }
- p.char.equipped.weapon=null;server.game.refreshStats(p);server.game.markDirty(p);
+ p.char.equipped.ranged=null;server.game.refreshStats(p);server.game.markDirty(p);
  for(const page of [owner,observer]){
   await page.bringToFront();
   await page.waitForFunction(id=>{

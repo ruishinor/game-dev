@@ -179,7 +179,12 @@ code { background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4
 
 /* --- action bars --- */
 .bars { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; width: 300px; }
-.actionbar, .petbar { display: flex; gap: 5px; }
+.actionbar, .petbar, .weaponbar { display: flex; gap: 5px; }
+.weaponbar { padding-left: 6px; margin-left: 1px; border-left: 1px solid var(--edge); }
+.weaponbar[hidden], .weapon-action[hidden] { display: none; }
+.slot.weapon-action .icon { color: #8fd8ff; }
+.slot.weapon-action[data-active="ranged"] .icon { color: var(--amber); }
+.slot.weapon-action:disabled { cursor: not-allowed; }
 .actionbar { max-width: min(342px, calc(100vw - 16px)); flex-wrap: wrap; justify-content: center; }
 .petbar { margin-bottom: 8px; }
 .action-row { display: flex; align-items: center; justify-content: center; gap: 5px; width: max-content; max-width: calc(100vw - 16px); }
@@ -490,7 +495,14 @@ kbd { font: inherit; font-size: 12px; background: rgba(255, 255, 255, 0.08); bor
 .panel.managed-window{display:flex;flex-direction:column;overflow:hidden;container-type:inline-size;}
 .panel.managed-window[data-window-custom="true"]:not(.producing){left:var(--window-x);top:var(--window-y);width:var(--window-w);height:var(--window-h);max-height:none;transform:none;right:auto;bottom:auto;}
 .window-controls{display:flex;flex-wrap:wrap;gap:5px;padding:0 0 8px;flex:none;}
-.window-controls button{font-size:11px;padding:4px 7px;}
+/* Window chrome is a primary keyboard/mouse control on desktop and TV.
+   Reserve an actual hit target: intrinsic icon widths collapsed to 16px on 4K. */
+.window-controls button{
+  display:inline-flex;align-items:center;justify-content:center;
+  box-sizing:border-box;flex:0 0 32px;min-width:32px;min-height:32px;
+  font-size:11px;padding:5px;
+}
+.window-controls button svg{width:18px;height:18px;flex:none;pointer-events:none;}
 .window-controls button:first-child,.window-controls button:nth-child(2){touch-action:none;cursor:grab;}
 .window-controls button:disabled{cursor:not-allowed;}
 .managed-window .workshop-body{min-height:0;overflow:auto;}

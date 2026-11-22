@@ -260,7 +260,7 @@ async function workshopPlaytest(){
   await page.evaluate(()=>window.__attune.pause(true));
   await page.keyboard.press('KeyC');
   await page.locator('.doll-tabs [data-tab="gear"]').click();
-  check('workshop UI: class-specific model-backed anatomy',await page.locator('.equipment-sketch img').count()===1);
+  check('workshop UI: clean selectable equipment anatomy',await page.locator('.equipment-sketch,.equipment-slot-grid img,.equipment-slot-grid .item-art').count()===0&&await page.locator('.equipment-slot-grid [data-slot="device"]').isVisible());
   await page.keyboard.press('KeyI');
   const source=page.locator('.inventory-window button.item-cell[aria-label="Sentinel Servo Harness"]');
   const device=page.locator('.equipment-slot-grid [data-slot="device"]');
@@ -884,6 +884,11 @@ try {
     await sleep(300);
     // killCurrent requires each browser to select the intended skitter.
     killed = await killCurrent(next);
+    if(!killed)note('Failed live shared skitter kill '+JSON.stringify({
+      id:next.id,state:next.state,hp:next.hp,maxHp:next.maxHp,
+      targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
+      auto:[serverPlayer('Brakka')?.autoOn,serverPlayer('Lumen')?.autoOn],
+      threat:[...next.threat.keys()]}));
     if(!killed)note('Live skitter kill failed '+JSON.stringify({
       id:next.id,state:next.state,hp:Math.ceil(next.hp),
       targets:[serverPlayer('Brakka')?.target,serverPlayer('Lumen')?.target],
@@ -967,8 +972,8 @@ try {
     // innerText is the rendered text, and the "Reserved slot" kicker is styled
     // uppercase (.kicker), so match without case.
     const detail=await B.page.locator('.loadout-detail').innerText();
-    const sketch=await B.page.locator('.equipment-sketch img').count()===1;
-    const faults=[!box&&'no slot box',box&&Math.abs(box.width-box.height)>=2&&`not square ${box.width}x${box.height}`,!selected&&'not selected',!sketch&&'no sketch',!/reserved slot/i.test(detail)&&'no reserved detail'].filter(Boolean);
+    const noRejectedPreview=await B.page.locator('.equipment-sketch,.equipment-slot-grid img,.equipment-slot-grid .item-art').count()===0;
+    const faults=[!box&&'no slot box',box&&Math.abs(box.width-box.height)>=2&&`not square ${box.width}x${box.height}`,!selected&&'not selected',!noRejectedPreview&&'rejected low-fidelity preview restored',!/reserved slot/i.test(detail)&&'no reserved detail'].filter(Boolean);
     if(faults.length)slotFaults.push(tab+': '+faults.join(', '));
     slotTabs=slotTabs&&!faults.length;
   }

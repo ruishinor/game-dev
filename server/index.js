@@ -78,7 +78,6 @@ function resolveStatic(urlPath) {
   if (urlPath === '/client/assets/sanctum_arch.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'sanctum_arch', 'outputs', 'sanctum_arch.glb');
   if (urlPath === '/client/assets/phase_scar.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'phase_scar', 'outputs', 'phase_scar.glb');
   if (urlPath === '/client/assets/foundry_kit.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'foundry_kit', 'outputs', 'foundry_kit.glb');
-  // Explicitly expose the single upgraded cache source; never mount the ZIP or other models.
   if (urlPath === '/client/assets/depths-recovery-cache.glb') {
     try { return ensureDepthsCacheGLB(); }
     catch (error) { console.error('[assets] Depths cache source unavailable:', error); return null; }

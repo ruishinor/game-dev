@@ -7,7 +7,8 @@ import { openVendor,tradeVendor,vendorState } from '../server/sim/vendor.js';
 import { craftRecipe,equipItem,unequipSlot } from '../server/sim/progress.js';
 import { previewRecipe,previewProduction,productionQuantities,productionTime,RECIPES } from '../shared/crafting.js';
 import { beginProduction,tickProduction } from '../server/sim/production.js';
-import { weaponBonus } from '../shared/condition.js';
+import { effectiveAuto } from '../shared/condition.js';
+import { ITEMS } from '../shared/content.js';
 import { cataloguePortrait } from '../client/src/catalogue-portraits.js';
 
 test('non-reserved Sentinel part, vendor housing and module fabrication produce the established weapon',()=>{
@@ -60,7 +61,7 @@ test('non-reserved Sentinel part, vendor housing and module fabrication produce 
  assert.ok(!p.char.materials.pulse_module&&!p.char.materials.pulse_housing);
  assert.equal(craftRecipe(g,p,'assemble_dense_core_modular').ok,false,'cannot recreate unique owned output');
  assert.ok(equipItem(g,p,'dense_pulse_core').ok);
- assert.equal(weaponBonus(p.char),6);
+ assert.equal(effectiveAuto(p.char).dmg,ITEMS.dense_pulse_core.auto.dmg);
  assert.deepEqual(RECIPES.longpoint_emitter.inputs,{resonance_fragment:1,sentinel_alloy:4,mire_fibre:2});
 });
 

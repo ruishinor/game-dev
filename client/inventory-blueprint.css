@@ -1,0 +1,100 @@
+/* Blueprint bag. Functional DOM controls, no flattened screenshots or new image assets. */
+.panel.inventory-window {
+  /* Preserve the original inventory's 368px/93vw width and 72vh height cap.
+     The reference artwork illustrates possible cells, not an expanded window. */
+  padding:46px 13px 12px;border:1px solid #387d91;
+  background:linear-gradient(155deg,rgba(8,35,45,var(--inventory-alpha,1)),rgba(5,22,31,var(--inventory-alpha,1)));
+  box-shadow:0 0 0 2px #07121ccc,inset 0 0 0 1px #397f9344,0 12px 34px #000b;
+}
+.inventory-window .journal-title{font-size:22px;top:11px;left:18px;font-weight:650;letter-spacing:.015em}
+.inventory-window .inventory-opacity{right:54px;top:8px}
+.inventory-window .inventory-search-row{height:34px;margin:0 0 8px}
+.inventory-window .inventory-search{
+  width:100%;height:32px;border:1px solid #446570;border-radius:4px;
+  background:#061a24;color:#e4f3f6;font:inherit;font-size:13px;
+  padding:6px 11px;outline-offset:2px
+}
+.inventory-window .inventory-search:focus-visible{outline:2px solid #65d6ec}
+.inventory-window .inventory-tabs{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:0 0 9px;flex-wrap:nowrap
+}
+.inventory-window .inventory-tabs button{
+  min-width:0;padding:7px 2px;font-size:11px;line-height:1.1;
+  white-space:nowrap;border-radius:4px;background:#092731
+}
+.inventory-window .inventory-tabs button.active{
+  color:#d5faff;border-color:#6bdeef;background:linear-gradient(#266578,#114657);
+  box-shadow:inset 0 0 8px #70e4ff2c
+}
+.inventory-window .inventory-body{display:flex;flex-direction:column;min-height:0;overflow-x:hidden;overflow-y:auto}
+.inventory-window .inventory-grid{
+  display:grid;grid-template-columns:repeat(9,minmax(0,1fr));
+  gap:3px;padding:5px;background:#061720;border:1px solid #41606a;border-radius:5px;
+  min-height:0;overflow:hidden
+}
+.inventory-window .item-cell{
+  min-width:0;min-height:0;padding:1px;border-radius:4px;aspect-ratio:1;
+  background:radial-gradient(ellipse at 50% 33%,#354653 0,#15232f 52%,#0a121a 100%);
+  border:1px solid #45545a;box-shadow:inset 0 1px 0 #bacdd11c,inset 0 -3px 6px #0009
+}
+.inventory-window .item-cell .item-art{width:100%;height:100%;border:0;border-radius:3px;background:transparent}
+.inventory-window .item-cell .item-art svg{
+  width:92%;height:92%;
+  filter:drop-shadow(0 2px 2px #000b) drop-shadow(0 0 2px #b5efff55)
+}
+.inventory-window .item-cell .item-art .item-render{
+  inset:1%;width:98%;height:98%;object-fit:contain;
+  filter:contrast(1.08) saturate(1.18) drop-shadow(0 2px 3px #000)
+}
+.inventory-window .item-cell.vacant{
+  opacity:1;border-color:#303b41;background:linear-gradient(135deg,#151d23,#0b1116)
+}
+.inventory-window .item-cell.active,.inventory-window .item-cell:focus-visible{
+  border-color:#8de8ff;outline:1px solid #7ce7f9;outline-offset:0;
+  box-shadow:0 0 6px #6dddf999,inset 0 0 9px #60d5e533
+}
+.inventory-window .item-cell[data-rarity="Rare"]{
+  border-color:#8274ad;box-shadow:inset 0 0 7px #9a78da70,0 0 1px #8665ba
+}
+.inventory-window .item-cell[data-rarity="Very rare"]{
+  border-color:#c7a35b;box-shadow:inset 0 0 8px #d1a04775,0 0 1px #d3a857
+}
+.inventory-window .item-cell .stack-quantity{
+  bottom:0;right:1px;padding:0 2px;font-size:11px;font-weight:700;
+  color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;background:#0a1118c9
+}
+.inventory-blueprint-footer{
+  display:flex;align-items:center;justify-content:flex-end;gap:12px;
+  min-height:34px;margin:6px 0 0;color:#dce8ec;font-size:12px;font-variant-numeric:tabular-nums
+}
+.inventory-blueprint-footer .inventory-wallet{
+  margin:0 auto 0 0;padding:0;border:0;background:transparent;color:#efd08a;font-size:13px
+}
+.inventory-blueprint-footer .inventory-capacity{color:#b9cfd5;white-space:nowrap}
+.inventory-blueprint-footer .inventory-pagination{
+  display:flex;align-items:center;gap:5px;white-space:nowrap
+}
+.inventory-blueprint-footer .inventory-pagination button{
+  min-width:25px;min-height:26px;padding:1px 5px;font-size:17px;
+  border:1px solid #446470;border-radius:5px
+}
+.inventory-window .inventory-count{font-size:10px;margin:3px 0 0}
+.inventory-window .inventory-detail{
+  margin-top:5px;padding:5px 8px;border:1px solid #325463;border-radius:4px
+}
+.inventory-window .inventory-detail p{font-size:11px;margin:3px 0}
+.inventory-window .inventory-detail button{font-size:11px;padding:4px 6px}
+.panel.build .equipment-slot-grid .doll-slot.installed .slot-installed-name{
+  display:block;max-width:100%;font-size:10px;font-weight:600;
+  line-height:1.2;color:#c6f2fb;text-align:center;overflow-wrap:anywhere
+}
+.panel.build .loadout-column .compact-item-label .iname{font-size:12px}
+.panel.build .loadout-column .compact-item{background:#10252d;border:1px solid #345661}
+.panel.build .loadout-column .compact-item .item-art{display:none}
+@media (max-height:780px) {
+  .panel.inventory-window{max-height:calc(100vh - 20px);padding-top:42px;padding-bottom:8px}
+  .inventory-window .inventory-tabs button{font-size:10px;padding:5px 2px}
+  .inventory-window .inventory-search-row{height:29px;margin-bottom:6px}
+  .inventory-window .inventory-search{height:27px}
+  .inventory-window .inventory-grid{gap:2px;padding:3px}
+}

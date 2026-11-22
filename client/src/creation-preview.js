@@ -117,7 +117,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
      const entry={model};
      models.push(entry);
      scene.add(model.group);
-     model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:choice.er===2?'dual':choice.er===1?'rod':null,reducedMotion:true});
+     model.update(.08,{t:1,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,rodClass:choice.c,electricalRod:choice.er===2?'dual':choice.er===1?'rod':choice.er===3?'stowed':null,reducedMotion:true});
      // Center the exact persisted character on the viewport axis.
      if(environment)model.group.position.x=0;
      model.group.updateMatrixWorld(true);
@@ -170,7 +170,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
     const distance=framing/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/zoom;
     camera.position.set(focus.x,focus.y+Math.sin(pitch)*distance,focus.z+Math.cos(pitch)*distance);
     camera.lookAt(focus);camera.updateProjectionMatrix();
-    if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,electricalRod:meta?.er===2?'dual':meta?.er===1?'rod':null,reducedMotion:motionPreference.matches});
+    if(!motionPreference.matches)model.update(step,{t:now/1000,speed:0,dead:false,attack:0,cast:0,hit:0,air:false,mode:'triage',act:'idle',casting:false,combat:false,charge:0,fwd:1,interval:0,rodClass:meta?.c,electricalRod:meta?.er===2?'dual':meta?.er===1?'rod':meta?.er===3?'stowed':null,reducedMotion:motionPreference.matches});
     renderer.render(scene,camera);
    }
    renderer.setScissorTest(false);

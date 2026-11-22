@@ -5,6 +5,7 @@ import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
 import {ITEMS} from '../../shared/content.js';
+import {INVENTORY_PAGE_SIZE,MAX_VISIBLE_VACANCIES,visibleVacancies} from '../../client/src/inventory-blueprint-page.js';
 const modes={desktop:[1280,800,1],hd:[1920,1080,1],qhd:[2560,1440,1],tv:[3840,2160,1],tvScaled:[2560,1440,1.5]};
 const mode=process.env.ATTUNEMENT_WINDOW_TEST_MODE||'desktop';
 assert.ok(Object.hasOwn(modes,mode));
@@ -54,12 +55,18 @@ try{
  await close(character);
  const inv=await open('KeyI','.inventory-window');
  await fits(inv,['.window-controls button','.inventory-tabs button','.inventory-grid','.inventory-pagination']);
- assert.ok(await inv.locator('.inventory-grid .item-cell:not(.vacant)').count()<=17);
- assert.ok(await inv.locator('.inventory-grid .vacant').count()>=1);
+ // The approved compact bag shows up to 36 carried stacks per page,
+ // at most five decorative vacant slots, and actual page navigation.
+ const filled=await inv.locator('.inventory-grid .item-cell:not(.vacant)').count();
+ const vacant=await inv.locator('.inventory-grid .vacant').count();
+ assert.ok(filled>0&&filled<=INVENTORY_PAGE_SIZE,'compact blueprint page size');
+ assert.ok(vacant<=MAX_VISIBLE_VACANCIES&&vacant===visibleVacancies(filled),'no fictitious storage capacity');
  const before=await inv.locator('.inventory-grid button').first().getAttribute('aria-label');
- await inv.getByRole('button',{name:'Next items'}).click();
+ const nextPage=inv.getByRole('button',{name:'Next page'});
+ assert.ok(await nextPage.isEnabled(),'fixture contains more than one compact bag page');
+ await nextPage.click();
  assert.notEqual(await inv.locator('.inventory-grid button').first().getAttribute('aria-label'),before);
- await inv.getByRole('button',{name:'Previous items'}).click();
+ await inv.getByRole('button',{name:'Previous page'}).click();
  assert.equal(await inv.locator('.inventory-grid button').first().getAttribute('aria-label'),before);
  const alpha=inv.locator('[data-window-action="opacity"]');await alpha.click();
  assert.equal(await inv.evaluate(el=>el.style.getPropertyValue('--inventory-alpha')),'0.8');

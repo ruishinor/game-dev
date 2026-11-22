@@ -1,6 +1,7 @@
 // Original Attunement hard-surface candidate. Units are game-space only.
 // Pure presentation: no inventory, attack, damage or stun authority.
 import * as THREE from 'three';
+import {DEFAULT_ROD_PALETTE} from './rod-palette.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {createRodCorona} from './vfx/rod-corona.js';
 export {createElectricalRodVfx} from './vfx/electrical-rod.js';
@@ -89,7 +90,7 @@ function makeHalfGeometry() {
   return merged;
 }
 
-export function createElectricalRod({independentEmission=false}={}) {
+export function createElectricalRod({independentEmission=false,palette=DEFAULT_ROD_PALETTE}={}) {
   const group=new THREE.Group();group.name='ElectricalCombatRod';
   const geometry=makeHalfGeometry();
   const mats={
@@ -99,8 +100,9 @@ export function createElectricalRod({independentEmission=false}={}) {
     gripRib:makeMaterial('Grip ridges',{color:0x3c4146,metalness:.2,roughness:.67}),
     steel:makeMaterial('Brushed alloy',{color:0x687781,metalness:.9,roughness:.29}),
     dark:makeMaterial('Recess seals',{color:0x12191d,metalness:.38,roughness:.56}),
-    blue:makeMaterial('Cobalt inlay',{color:0x1764aa,metalness:.47,roughness:.3,emissive:0x1464aa,emissiveIntensity:.29}),
-    inlay:makeMaterial('Energy channel',{color:0x4fa1bc,metalness:.33,roughness:.24,emissive:0x41bde8,emissiveIntensity:.65}),
+    // Class colourway (presentation only); cobalt by default and in exports.
+    blue:makeMaterial('Cobalt inlay',{color:palette.cobaltBase,metalness:.47,roughness:.3,emissive:palette.cobaltGlow,emissiveIntensity:.29}),
+    inlay:makeMaterial('Energy channel',{color:palette.inlayBase,metalness:.33,roughness:.24,emissive:palette.inlayGlow,emissiveIntensity:.65}),
   };
   // Export retains eight shared meshes; runtime opts into independent emissive material instances.
   const channels=independentEmission?[mats,{...mats,blue:mats.blue.clone(),inlay:mats.inlay.clone()}]:[mats,mats];
@@ -116,7 +118,7 @@ export function createElectricalRod({independentEmission=false}={}) {
     return h;
   });
   // Render-only detail, intentionally excluded from the structural GLB export.
-  const corona=independentEmission?createRodCorona(halves):null;
+  const corona=independentEmission?createRodCorona(halves,palette):null;
   let p=0,target=0,disposed=false,coronaEnergy=0;
   function apply(){
     const pose=rodPose(p);
@@ -127,14 +129,14 @@ export function createElectricalRod({independentEmission=false}={}) {
     if(mode!=='dual'&&mode!=='rod')throw Error('Unknown rod presentation mode');
     target=mode==='rod'?1:0;
   }
-  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion}={}){
+  function update(dt,{reducedMotion=false,energized=true,activity=0,quality=2,intensity=1,calm=false,coronaReducedMotion=reducedMotion,combat=false}={}){
     if(disposed)return;
     const step=Number.isFinite(dt)&&dt>0?dt/ROD.duration:0;
     p=reducedMotion?target:p+Math.sign(target-p)*Math.min(Math.abs(target-p),step);
     apply();
     const k=energized?1:0;
     for(const m of channels){m.inlay.emissiveIntensity=k*(independentEmission?2.2:.55)+k*.38*clamp(Number.isFinite(activity)?activity:0);m.blue.emissiveIntensity=k*(independentEmission?1.1:.24);}
-    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.58)/.42)),quality,intensity,calm,reducedMotion:coronaReducedMotion});
+    corona?.update(dt,{energized,activity:Math.max(activity,clamp((coronaEnergy-.66)/.34)),quality,intensity,calm,reducedMotion:coronaReducedMotion,combat,joined:p>=.95});
     if(!energized)coronaEnergy=0;
   }
   function setEnergy(right,left=right){
@@ -147,15 +149,17 @@ export function createElectricalRod({independentEmission=false}={}) {
     const marker=h.getObjectByName(h.name+name);if(!marker)throw Error('Unknown rod anchor');
     return marker.getWorldPosition(into);
   }
-  return {group,halves,setMode,update,setEnergy,anchor,get progress(){return p;},
+  // Brief weapon-local escalation (transform, draw, charge, contact). No-op without a corona.
+  function pulse(strength=1){if(!disposed)corona?.pulse(strength);}
+  return {group,halves,setMode,update,setEnergy,anchor,pulse,palette,get progress(){return p;},
     dispose(){if(disposed)return;disposed=true;corona?.dispose();group.removeFromParent();
       geometry.forEach(g=>g.dispose());new Set(channels.flatMap(Object.values)).forEach(m=>m.dispose());}};
 }
 
 // Joined field configuration. Grip is centered at the supplied palm in the
 // hand's local frame; existing character animation drives the attachment.
-export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3(),offHand=null,offAxis=new THREE.Vector3(0,0,1),offPalm=new THREE.Vector3()}={}){
-  const rod=createElectricalRod({independentEmission:true});
+export function createHeldElectricalRod(hand,{axis=new THREE.Vector3(0,0,1),palm=new THREE.Vector3(),offHand=null,offAxis=new THREE.Vector3(0,0,1),offPalm=new THREE.Vector3(),palette=DEFAULT_ROD_PALETTE}={}){
+  const rod=createElectricalRod({independentEmission:true,palette});
   rod.setMode('rod');rod.update(0,{reducedMotion:true});
   rod.group.name='HeldElectricalCombatRod';
   rod.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),axis.clone().normalize());

@@ -325,17 +325,33 @@ try {
   const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
   assert.equal(tabRows.length,6);
   assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
-  let blueprintSize,blueprintSrc;
+  // Default compact windows must surface the category controls and equipped
+  // melee/ranged slots without forcing a scroll through the character stat sheet.
+  await character.locator('.panel-body').evaluate(el=>el.scrollTop=el.scrollHeight);
+  await character.locator('.doll-tabs [data-tab="weapons"]').click();
+  const weaponLayout=await character.evaluate(el=>{
+    const body=el.querySelector('.panel-body'),tabs=el.querySelector('.doll-tabs'),grid=el.querySelector('.equipment-slot-grid');
+    const viewport=body.getBoundingClientRect(),top=tabs.getBoundingClientRect(),slots=grid.getBoundingClientRect();
+    return {scroll:body.scrollTop,top:top.top,slotsBottom:slots.bottom,viewportTop:viewport.top,viewportBottom:viewport.bottom,
+      secondaryOpen:!!el.querySelector('.character-stats[open]')};
+  });
+  assert.ok(weaponLayout.scroll<2&&weaponLayout.top>=weaponLayout.viewportTop-2&&weaponLayout.slotsBottom<=weaponLayout.viewportBottom+2&&!weaponLayout.secondaryOpen,
+    'Default Character & Loadout must expose both weapon slots before the optional detailed stats');
+  assert.ok(await character.locator('.doll-tabs [data-tab="weapons"]').evaluate(el=>document.activeElement===el),
+    'Switching equipment tabs preserves a keyboard focus target');
+  // The owner-approved loadout uses clean labelled slots, not the discarded
+  // low-detail paper-doll image. Retain real slot-selection regression checks.
   for(const tab of ['gear','implants','glyphs','weapons','social']){
     await character.locator('.doll-tabs [data-tab="'+tab+'"]').click();
-    const image=character.locator('.equipment-sketch img');
-    await image.waitFor({state:'visible'});
-    const src=await image.getAttribute('src'),box=await image.boundingBox();
-    assert.ok(src&&box?.width>0&&box?.height>0);
-    if(!blueprintSize){blueprintSize=box;blueprintSrc=src;}
-    assert.ok(src===blueprintSrc&&Math.abs(box.width-blueprintSize.width)<1&&Math.abs(box.height-blueprintSize.height)<1,'Blueprint asset and scale must not vary by equipment category');
-    assert.equal(await image.evaluate(el=>getComputedStyle(el).opacity),'0.32');
-    const slot=character.locator('.equipment-slot-grid .doll-slot').first();
+    const grid=character.locator('.equipment-slot-grid');
+    await grid.waitFor({state:'visible'});
+    assert.equal(await grid.locator('.equipment-sketch, img, .item-art').count(),0,
+      'Loadout must not reintroduce low-fidelity model or item thumbnails');
+    if(tab==='weapons'){
+      assert.equal(await grid.locator('[data-slot="weapon"]').count(),1,'Melee slot remains available');
+      assert.equal(await grid.locator('[data-slot="ranged"]').count(),1,'Ranged slot remains available');
+    }
+    const slot=grid.locator('.doll-slot').first();
     await slot.click();
     assert.equal(await slot.getAttribute('aria-pressed'),'true');
     if(tab==='gear'||tab==='glyphs')await page.screenshot({path:'preview-evidence/06c-character-'+tab+'.png'});

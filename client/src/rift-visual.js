@@ -278,19 +278,53 @@ void main(){
   if (k < 0.005) discard;
   gl_FragColor = vec4(vC * k, k);
 }`;
+// Ground contact is an inward-flowing, fractured field, NOT an enlarged
+// warning ring. The orange telegraph remains a separate authoritative layer.
 const POOL_FS = /* glsl */`
 ${COMMON}
-uniform vec3 uCalm; uniform vec3 uWild; uniform float uRadius;
+uniform vec3 uCalm; uniform vec3 uWild; uniform float uDetail;
 varying vec2 vUv;
 void main(){
   vec2 p = (vUv - 0.5) * 2.0;
   p.x *= 0.82;
-  float r = length(p);
-  float k = exp(-r * r * 3.6) * (0.6 + 0.4 * nz(p * 0.7 + uTime * 0.02));
-  float ring = exp(-pow((r - 0.62 - 0.05 * sin(uTime * 0.9)) * 14.0, 2.0)) * 0.35;
-  k = (k * (0.22 + 0.5 * uPhase + 0.6 * uFlare) + ring * uPhase) * smoothstep(1.0, 0.8, r);
-  vec3 c = mix(uCalm, uWild, uAgit) * k;
-  gl_FragColor = vec4(c, k);
+  float r = length(p), edge = 1.0 - smoothstep(0.72, 0.98, r);
+  float swell = 0.88 + 0.12 * sin(uTime * (0.9 + uAgit));
+  float k = exp(-r * r * 2.7) * (0.23 + 0.55 * uPhase + 0.48 * uFlare) * swell;
+  // The low preset retains one cheap luminous footprint with no extra pass.
+  if (uDetail > 0.5) {
+    float a = atan(p.y, p.x), depth = log(r + 0.16);
+    float spiral = sin(a * 4.0 + depth * 5.4 + uTime * (0.6 + uAgit));
+    float w = nz(p * 2.8 + vec2(uTime * 0.07, -uTime * 0.09));
+    float charged = pow(max(0.0, spiral), 16.0) * (0.5 + 0.5 * w);
+    k += charged * smoothstep(0.13, 0.3, r) * (0.2 + 0.38 * uPhase + 0.35 * uFlare);
+  }
+  k *= edge; // reversed smoothstep edges were undefined on some GLSL drivers
+  vec3 hue = mix(uCalm, uWild, clamp(uAgit * 0.8 + uFlare * 0.15, 0.0, 1.0));
+  gl_FragColor = vec4(hue * k * 1.3, clamp(k, 0.0, 0.92));
+}`;
+
+// Distinct from the Listening Stone's expanding rings: energy migrates along
+// paired ground seams into the two portal roots, rather than travelling out.
+const GROUND_THREADS_FS = /* glsl */`
+${COMMON}
+uniform vec3 uCalm; uniform vec3 uWild; uniform vec3 uHot;
+varying vec2 vUv;
+void main(){
+  vec2 p = (vUv - 0.5) * 2.0;
+  float r = length(p), x = abs(p.x);
+  float edge = 1.0 - smoothstep(0.75, 0.98, r);
+  float drift = uTime * (0.35 + 0.5 * uAgit);
+  float pathA = 0.12 * sin(p.x * 5.2 + drift * 0.75) - 0.13;
+  float pathB = -0.15 * sin(p.x * 6.1 - drift * 0.6) + 0.14;
+  float traces = exp(-pow((p.y - pathA) * 24.0, 2.0))
+               + exp(-pow((p.y - pathB) * 27.0, 2.0));
+  float roots = smoothstep(0.09, 0.32, x) * (1.0 - smoothstep(0.78, 0.98, x));
+  float crawl = 0.58 + 0.42 * pow(0.5 + 0.5 * sin(x * 31.0 + drift * 3.0), 4.0);
+  float k = traces * roots * edge * crawl * (0.16 + 0.62 * uPhase + 0.65 * uFlare);
+  if (k < 0.007) discard;
+  vec3 hue = mix(uCalm, uWild, uAgit);
+  hue = mix(hue, uHot, 0.15 + 0.25 * uFlare);
+  gl_FragColor = vec4(hue * k * 1.5, clamp(k, 0.0, 0.85));
 }`;
 
 // ----------------------------------------------------------------------------- builders
@@ -356,9 +390,14 @@ function createRiftField(T, group, site, ground, u, returning) {
   core.name = 'rift:profile-core'; core.rotation.y = Math.PI / 2; core.scale.set(1, 1, 1); core.renderOrder = 5;
   group.add(core);
 
-  const halo = new T.Mesh(groundDisc(T, 3.3, site, ground), new T.ShaderMaterial({ uniforms: { ...u, uRadius: { value: 3.3 } }, vertexShader: CORONA_VS, fragmentShader: POOL_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const halo = new T.Mesh(groundDisc(T, 3.3, site, ground), new T.ShaderMaterial({ uniforms: { ...u, uDetail: { value: 2 } }, vertexShader: CORONA_VS, fragmentShader: POOL_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 }));
   halo.name = 'rift:footprint-halo'; halo.renderOrder = 4;
   group.add(halo);
+  // One extra terrain-conforming emissive pass on medium/high presets.
+  // It adds no lights or colliders and never changes the rift foundation.
+  const threads = new T.Mesh(groundDisc(T, 3.3, site, ground), new T.ShaderMaterial({ uniforms: u, vertexShader: CORONA_VS, fragmentShader: GROUND_THREADS_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 }));
+  threads.name = 'rift:ground-threads'; threads.position.y = 0.018; threads.renderOrder = 4.1;
+  group.add(threads);
 
   const filaments = new T.Mesh(ribbonGeometry(T), new T.ShaderMaterial({ uniforms: u, vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }));
   filaments.name = 'rift:filaments'; filaments.frustumCulled = false; filaments.renderOrder = 8;
@@ -381,7 +420,12 @@ function createRiftField(T, group, site, ground, u, returning) {
   function update(t, phase, st, q) {
     const [level, , agit] = PHASES[phase] ?? PHASES.dormant;
     const motion = st.reducedMotion ? 0 : 1;
-    veil.visible = halo.visible = filaments.visible = core.visible = q > 0;
+    veil.visible = filaments.visible = core.visible = q > 0;
+    // Keep the inexpensive footprint on q=0. Higher quality adds inward
+    // energy filaments; only explicit reduced motion freezes their travel.
+    halo.visible = true;
+    halo.material.uniforms.uDetail.value = q;
+    threads.visible = q > 0;
     const count = q === 0 ? 0 : q === 1 ? 14 : RIFT_FIELD_LIMITS.motes;
     motes.count = count;
     // motes are drawn into the throat on a tightening spiral; agitation ejects some

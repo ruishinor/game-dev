@@ -7,8 +7,8 @@ import { makeListeningStone } from './listening-stone.js';
 import { buildSurveyTerminal } from './survey-terminal.js';
 import { buildRift,buildRiftControl } from './rift-visual.js';
 import { buildResonantVein } from './resonant-vein.js';
-import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { makeDepthsRecoveryCache } from './depths-cache.js';
+import { RIFT_SITE,groundHeight } from '../../shared/world.js';
 import { severanceLink } from './severance-gate.js';
 
 const std = (color, o = {}) =>

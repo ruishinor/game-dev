@@ -26,6 +26,8 @@ import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
 import {createWeaponCarry,WEAPON_MODELS} from './weapon-visuals.js';
+import { rodPalette } from './rod-palette.js';
+import { createSitPose } from './sit-pose.js';
 import { createSurveyStrider } from './survey-strider-model.js';
 import { createTurretDrone } from './turret-drone.js';
 import { createHaloConstruct, haloRoleFor, HALO_BUNDLE } from './halo-construct.js';
@@ -227,42 +229,90 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const offHand=inst.getObjectByName('hand_l');
   const offAxis=offHand?new THREE.Vector3(0,0,1).applyQuaternion(offHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
   const offPalm=offHand?.children.find(b=>b.isBone&&/^middle_/.test(b.name))?.position.clone().multiplyScalar(.55)??new THREE.Vector3();
-  let heldRod=null,rodEffects=null,rodEngine=null;
-  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;};
-  let weapon = null, visual = null, sidearm = null, lastWeaponAim = null;
+  // Stowed rod (ranged weapon active): diagonal across the back, clear of the
+  // Vanguard's dorsal stack. Bone-local transform captured once in bind pose.
+  const rodBack=inst.getObjectByName('spine_03')||inst.getObjectByName('spine_02');
+  let rodStow=null;
+  if(rodBack){
+    const probe=new THREE.Object3D();
+    // Offset beyond the shoulder and clear of the rifle rather than inside the torso.
+    probe.position.set(.30,1.34,-.52);
+    probe.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(.50,1,0).normalize());
+    inst.add(probe);probe.updateMatrixWorld(true);rodBack.attach(probe);
+    rodStow={position:probe.position.clone(),quaternion:probe.quaternion.clone()};
+    probe.removeFromParent();
+  }
+  let heldRod=null,rodEffects=null,rodEngine=null,rodHeld=null,rodStowed=false;
+  const releaseRod=()=>{rodEffects?.dispose();heldRod?.dispose();heldRod=null;rodEffects=null;rodEngine=null;rodHeld=null;rodStowed=false;};
+  function stowRod(stow){
+    if(!heldRod||stow===rodStowed)return;
+    rodStowed=stow;
+    const g=heldRod.group;
+    if(stow&&rodStow){rodBack.add(g);g.position.copy(rodStow.position);g.quaternion.copy(rodStow.quaternion);}
+    else if(!stow&&rodHeld){rodHand.add(g);g.position.copy(rodHeld.position);g.quaternion.copy(rodHeld.quaternion);}
+    g.name=stow?'StowedElectricalCombatRod':'HeldElectricalCombatRod';
+  }
+  let weapon = null, visual = null, stowedRifle = null, sidearm = null, lastWeaponAim = null;
+  // Stowed rifle: across the back, crossing the stowed rod's diagonal. The
+  // bone-local transform is captured once in bind pose (like the rod's).
+  let rifleStow = null;
+  if (rodBack) {
+    const probe = new THREE.Object3D();
+    probe.position.set(0, 1.22, -.46);
+    const x = new THREE.Vector3(-.5, 1, 0).normalize(), y = new THREE.Vector3(0, 0, -1);
+    y.addScaledVector(x, -y.dot(x)).normalize();
+    probe.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, new THREE.Vector3().crossVectors(x, y)));
+    inst.add(probe); probe.updateMatrixWorld(true); rodBack.attach(probe);
+    rifleStow = { position: probe.position.clone(), quaternion: probe.quaternion.clone() };
+    probe.removeFromParent();
+  }
   function setWeaponVisual(next) {
-    next = next === 'longpoint' || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
+    next = next === 'longpoint' || next === 'longpoint-stowed' || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
     if (next === visual) return;
-    weapon?.dispose(); weapon = null; visual = next;
+    weapon?.dispose(); weapon = null;
+    sidearm?.apply(null);
+    if (stowedRifle) { stowedRifle.removeFromParent(); disposeInstance(stowedRifle); stowedRifle = null; }
+    visual = next;
     sidearm?.apply(null);
     if (!next) return;
-    if (next === 'longpoint') {
-      // Preserve the authored original Longpoint mesh, two-hand fit and recoil.
-      const prop = assets.instance(next);
-      if (!prop) return;
-      weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
-      if (!weapon) disposeInstance(prop);
+    if (Object.hasOwn(WEAPON_MODELS,next)) {
+      // Keep #155's authored compact firearm models and muzzle/recoil pipeline.
+      // Selection is already server-authorized; this only presents the token.
+      if (!assets.weaponModels?.has(next)) return;
+      sidearm ??= createWeaponCarry(THREE, assets, inst);
+      sidearm.apply(next);
+      weapon = {
+        restore:()=>sidearm.restorePose(),
+        update(st,dt){
+          lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
+          sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
+        },
+        fire(){
+          const origin=inst.getWorldPosition(new THREE.Vector3());
+          const forward=new THREE.Vector3(0,0,1).applyQuaternion(inst.getWorldQuaternion(new THREE.Quaternion()));
+          return sidearm.fire(next,lastWeaponAim??origin.addScaledVector(forward,12));
+        },
+        origin:()=>sidearm.muzzle(),
+        dispose:()=>{sidearm.apply(null);lastWeaponAim=null;}
+      };
       return;
     }
-    if (!assets.weaponModels?.has(next)) return;
-    sidearm ??= createWeaponCarry(THREE, assets, inst);
-    sidearm.apply(next);
-    weapon = {
-      restore:()=>sidearm.restorePose(),
-      update(st,dt){
-        lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
-        sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
-      },
-      fire(){
-        const origin=inst.getWorldPosition(new THREE.Vector3());
-        const forward=new THREE.Vector3(0,0,1).applyQuaternion(inst.getWorldQuaternion(new THREE.Quaternion()));
-        return sidearm.fire(next,lastWeaponAim??origin.addScaledVector(forward,12));
-      },
-      origin:()=>sidearm.muzzle(),
-      dispose:()=>{sidearm.apply(null);lastWeaponAim=null;}
-    };
+    const prop = assets.instance('longpoint');
+    if (!prop) return;
+    if (next === 'longpoint-stowed') {
+      if (!rifleStow) { disposeInstance(prop); return; }
+      prop.scale.setScalar(.43); prop.name = 'StowedLongpoint';
+      prop.position.copy(rifleStow.position); prop.quaternion.copy(rifleStow.quaternion);
+      rodBack.add(prop); stowedRifle = prop;
+      return;
+    }
+    weapon = createLongpointPresentation(THREE, inst, prop, disposeInstance);
+    if (!weapon) disposeInstance(prop);
   }
   setWeaponVisual(opts.weaponVisual);
+  // Sit/stand emote: procedural seated pose layered on the sampled animation.
+  const sitPose = createSitPose(THREE, inst);
+  let sitBlend = 0;
   // Worn armour (presentation metadata `av`: slot -> item, or a legacy chest
   // id): each slot's piece is loaded on first use and bound to this skeleton.
   const armours = new Map();
@@ -314,10 +364,12 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, family: h.handle.fx?.family || null, hides: h.handle.hidden || [] }])),
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
-    rodCharge(){return !!(heldRod?.group.visible&&rodEffects?.charge());},
+    rodCharge(){return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.charge());},
     rodContact(at,ground,blocked=false){
-      return !!(heldRod?.group.visible&&rodEffects?.impact(at,{ground,blocked}));
+      return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
+    sitState:()=>({blend:sitBlend,available:!!sitPose}),
+    rodState:()=>heldRod?{stowed:rodStowed,name:heldRod.group.name,parent:heldRod.group.parent?.name||null,progress:heldRod.progress}:null,
     update(dt, st) {
       const working=work.canPose(st);if(!working)work.clear();
       if (st.dead !== dead) {
@@ -343,26 +395,39 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const step = throttle(lod, dt, st.interval);
       // Both cosmetic systems own the arm rotations. Restore before sampling
       // animation, and give fabrication exclusive priority over weapon carry.
+      const seated = !!st.sitting && !st.dead && !st.air;
+      sitBlend = st.reducedMotion ? (seated ? 1 : 0) : Math.max(0, Math.min(1, sitBlend + (seated ? 1 : -1) * dt / .5));
       if (step) {
         weapon?.restore();
         work.restorePose();
         anim.update(step);
         if (working) work.pose(st.work, st.t, st.reducedMotion);
+        else if (sitBlend > 0) sitPose?.apply(sitBlend * sitBlend * (3 - 2 * sitBlend));
       }
-      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy))
-        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy },step||dt);
-      if(st.electricalRod&&!heldRod&&rodHand){
-        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm});
-        heldRod.setMode(st.electricalRod);heldRod.update(0,{reducedMotion:true});
+      if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy || sitBlend > 0))
+        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy || sitBlend > 0 },step||dt);
+      const stowed=st.electricalRod==='stowed';
+      if(st.electricalRod&&!heldRod&&rodHand&&(!stowed||rodStow)){
+        heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm,palette:rodPalette(st.rodClass)});
+        heldRod.setMode(stowed?'rod':st.electricalRod);heldRod.update(0,{reducedMotion:true});
+        rodHeld={position:heldRod.group.position.clone(),quaternion:heldRod.group.quaternion.clone()};
+        // A rod first seen in hand needs no draw flourish; one first seen stowed starts stowed.
+        rodStowed=false;if(stowed)stowRod(true);
       }
-      if(!st.electricalRod&&heldRod)releaseRod();
+      if((!st.electricalRod||(stowed&&!rodStow))&&heldRod)releaseRod();
       if(heldRod){
-        const active=!st.dead&&st.attack>.2;
+        const drawn=rodStowed&&!stowed;
+        stowRod(stowed);
+        const active=!stowed&&!st.dead&&st.attack>.2;
+        const live=!stowed&&!st.dead&&!working;
         heldRod.group.visible=!st.dead&&!working;
-        heldRod.setMode(st.electricalRod);
-        heldRod.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm});
+        // A stowed rod keeps its saved configuration but is carried joined.
+        heldRod.setMode(stowed?'rod':st.electricalRod);
+        heldRod.update(dt,{energized:live,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead||stowed,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm,combat:!!st.combat});
+        if(stowed&&!st.dead)heldRod.setEnergy(.12);
         if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
-        rodEffects?.update(dt,{energized:!st.dead&&!working,activity:active?st.attack:0});
+        rodEffects?.update(dt,{energized:live,activity:active?st.attack:0,combat:!!st.combat});
+        if(drawn&&live)rodEffects?.draw?.();
       }
       flash(st.hit);
       if (ctx.coils.length) {
@@ -392,7 +457,10 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const combo = kind==='attack'&&id==='auto'&&!heldRod
         ? HUMANOID_MELEE_SEQUENCE[meleeIndex++%HUMANOID_MELEE_SEQUENCE.length] : null;
       const a = combo || (kind === 'cast' && id === 'auto' ? null : HUMANOID_ACTIONS[id]) || (kind === 'cast' ? HUMANOID_ACTIONS.bolt : HUMANOID_ACTIONS.auto);
-      anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: a.timeScale || 1, fadeOut: a.fadeOut ?? 0.2 });
+      // An in-hand rod snaps through its strike faster (presentation only;
+      // the server's attack interval and timing are unchanged).
+      const rodStrike = kind === 'attack' && heldRod && !rodStowed;
+      anim.play(a.clip, { kind: 'ability', upper: moving, start: a.start || 0, timeScale: (a.timeScale || 1) * (rodStrike ? 1.3 : 1), fadeOut: rodStrike ? 0.13 : a.fadeOut ?? 0.2 });
     },
     dispose() {
       releaseRod();
@@ -675,7 +743,6 @@ export function createModel(assets, meta, glb = true) {
 
 function buildModel(assets, meta, glb) {
   if(meta.c==='survey_strider')return createSurveyStrider();
-  // Dedicated world prop: GLB plus visual refit, independent of character LOD.
   if(meta.c==='foundry_cache')return makeDepthsRecoveryCache(THREE, assets?.loader);
   let model = null;
   const haloRole=haloRoleFor(meta);
