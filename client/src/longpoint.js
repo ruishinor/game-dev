@@ -24,7 +24,7 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
   const [grip,support,effect]=anchors;
   const v=()=>new T.Vector3(), q=()=>new T.Quaternion();
   const world=n=>n.getWorldPosition(v()), inBody=n=>humanoid.worldToLocal(world(n));
-  const saved=new Map();let active=false, closed=false, shotAge=Infinity, lastState=null;
+  const saved=new Map();let active=false, closed=false, shotAge=Infinity, lastState=null, fittedPlacement=-1, fittedYaw=NaN;
   prop.scale.setScalar(.43);prop.visible=false;humanoid.add(prop);poseLongpoint(prop,0);
   function restore(){if(!saved.size)return;for(const [bone,rotation] of saved)bone.quaternion.copy(rotation);saved.clear();humanoid.updateWorldMatrix(true,true);}
   function orient(bone,child,target){
@@ -70,13 +70,29 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
     }
     const kick=recoilAmount(shotAge,false);
     if(Number.isFinite(dt)&&dt>0)shotAge+=Math.min(dt,.1);
-    // Use the original authored two-hand pose only when more forward fits
-    // genuinely cannot reach on this rig/locomotion frame.
-    for(const [angle,forward] of [[yaw,.22],[yaw,.14],[-Math.PI/2+.68,.065]]){
+    // Search a small, bounded set of anatomically reachable shouldered grips.
+    // Different body frames/animation poses need subtly different offsets;
+    // never trade away barrel alignment merely to satisfy a hand anchor.
+    // Cache the winning placement so steady-state combat pays for one solve.
+    const placements=[
+      [yaw,.22,-.065,-.18],[yaw,.14,-.065,-.18],
+      [yaw,.10,-.065,-.18],[yaw,.13,-.03,-.14],
+      [yaw,.15,.01,-.13],[yaw,.12,-.10,-.13],
+      [yaw+.20,.16,-.065,-.18],[yaw+.28,.14,-.065,-.18],
+      [yaw+.35,.12,-.065,-.18],[yaw+.42,.12,-.065,-.18],
+      [yaw+.48,.12,-.065,-.18],[yaw+.50,.105,-.065,-.18],
+      [yaw+.50,.13,-.03,-.14],[yaw+.52,.12,.01,-.13],
+      [yaw+.52,.15,-.10,-.15],
+      [-Math.PI/2+.68,.065,-.065,-.18]
+    ];
+    const cached=Math.abs(yaw-fittedYaw)<.08&&fittedPlacement>=0;
+    const order=cached?[fittedPlacement,...placements.map((_,i)=>i).filter(i=>i!==fittedPlacement)]:placements.map((_,i)=>i);
+    for(const index of order){
+      const [angle,forward,lateral,down]=placements[index];
       restore();
       prop.rotation.set(0,angle,0);
       prop.position.set(0,0,0);prop.updateWorldMatrix(true,true);
-      const neutral=mid.clone().add(new T.Vector3(-.065,-.18,forward)).sub(inBody(grip));
+      const neutral=mid.clone().add(new T.Vector3(lateral,down,forward)).sub(inBody(grip));
       const tryFit=offset=>{
         prop.position.copy(neutral).addScaledVector(new T.Vector3(1,0,0).applyEuler(prop.rotation),-offset);
         prop.updateWorldMatrix(true,true);
@@ -84,9 +100,11 @@ export function createLongpointPresentation(T, humanoid, prop, release = () => {
         return arms.every((a,i)=>fit(a,targets[i]));
       };
       if(tryFit(kick)||(kick>0&&(restore(),tryFit(0)))){
+        fittedPlacement=index;fittedYaw=yaw;
         active=true;prop.visible=true;return true;
       }
     }
+    fittedPlacement=-1;
     restore();return false;
   }
   return { update, restore, fire(target=null){if(!active||closed||!prop.visible)return false;if(target?.isVector3&&lastState)update({...lastState,weaponAimAt:target},0);if(!active)return false;shotAge=0;prop.userData.longpointShotCount=(prop.userData.longpointShotCount??0)+1;return true;}, origin(){return active&&prop.visible?world(effect):null;}, dispose(){if(closed)return;restore();active=false;closed=true;prop.removeFromParent();release(prop);} };
