@@ -326,7 +326,7 @@ function weaponAssembly(ui,body){
  if(recipe.blueprint){
   const known=sheet.goods?.[recipe.blueprint]===1;
   details.append(h('div','assembly-requirement blueprint',known?'Blueprint recovered':'Rare blueprint required'));
-  details.append(h('p','muted',known?'Knowledge retained on your character.':'Recovered from displaced Sentinels in the Phase Annex; no guaranteed drop.'));
+  details.append(h('p','muted',known?'Knowledge retained on your character.':'Complete the Annex encounters, then claim the one-time Null Chamber recovery cache.'));
  }
  if(recipe.attune)details.append(row('Resonance attunement',sheet.attunements?.includes(recipe.attune)?'Known':'Missing',sheet.attunements?.includes(recipe.attune)));
  for(const [skill,level] of Object.entries(recipe.requires||{})){

@@ -4,6 +4,7 @@ import {ITEMS} from '../shared/content.js';
 import {MATERIALS,RECIPES,previewRecipe} from '../shared/crafting.js';
 import {GOODS} from '../shared/goods.js';
 import {blueprintDrop} from '../server/sim/loot-tables.js';
+import {interact} from '../server/sim/progress.js';
 import {publicWeaponVisual} from '../shared/weapon-visual.js';
 import {makeChar,makeGame,place} from './helpers.js';
 import {craftRecipe,equipItem} from '../server/sim/progress.js';
@@ -38,10 +39,28 @@ test('server rejects unavailable blueprints and atomically consumes modular comp
  assert.equal(publicWeaponVisual({...p.char,activeWeapon:'ranged'}),'longpoint');
  assert.equal(craftRecipe(g,p,'assemble_relay_arc_carbine').ok,false);
 });
-test('annex-specific rare knowledge roll is server-only and does not alter ordinary Sentinel distribution',()=>{
- assert.equal(blueprintDrop('sentinel',()=>.01,true),'blueprint_relay_arc_carbine');
- assert.equal(blueprintDrop('sentinel',()=>.04,true),'blueprint_relay_vest');
- assert.equal(blueprintDrop('sentinel',()=>.07,true),null);
- assert.equal(blueprintDrop('sentinel',()=>.01,false),'blueprint_relay_vest');
- assert.equal(blueprintDrop('warden',()=>.01,true),null);
+test('one-time Null Chamber recovery grants rare blueprint after both encounters, not on unearned interaction',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{level:8,annexProgress:0}));
+ const cache=g.objects.find(o=>o.type==='annex_cache');assert.ok(cache);
+ place(p,cache.x,cache.z+2);
+ assert.equal(interact(g,p,cache.id).ok,false);
+ assert.equal(p.char.goods?.blueprint_relay_arc_carbine,undefined);
+ p.char.annexProgress=3;
+ const result=interact(g,p,cache.id);
+ assert.equal(result.ok,true,JSON.stringify(result));
+ assert.equal(p.char.annexClaimed,true);
+ assert.equal(p.char.goods.blueprint_relay_arc_carbine,1);
+ assert.ok(p.char.materials.resonance_fragment>=3);
+ assert.equal(interact(g,p,cache.id).ok,false,'no duplicate blueprint or materials');
+});
+test('a full material stack prevents the whole cache claim; ordinary Sentinel loot distribution is unchanged',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('keeper',{level:8,annexProgress:3,materials:{resonance_fragment:98}}));
+ const cache=g.objects.find(o=>o.type==='annex_cache');place(p,cache.x,cache.z+2);
+ const before=JSON.stringify(p.char.materials);
+ assert.equal(interact(g,p,cache.id).ok,false);
+ assert.equal(JSON.stringify(p.char.materials),before);
+ assert.equal(p.char.goods?.blueprint_relay_arc_carbine,undefined);
+ assert.notEqual(p.char.annexClaimed,true);
+ assert.equal(blueprintDrop('sentinel',()=>.01),'blueprint_relay_vest');
+ assert.equal(blueprintDrop('warden',()=>.01),null);
 });
