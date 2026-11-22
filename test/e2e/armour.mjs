@@ -155,7 +155,16 @@ try {
   if (await page.locator('.inventory-window').isVisible()) await page.keyboard.press('KeyI');
   await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.12, dist: 3.4, face: Math.PI }));
   await capture(page, `${OUT}/cinderlock-worn.png`);
-  report.cinderlock = { worn: full.worn.armourWornAll, observerSees: full.seen.armourWornAll, fx };
+  const cinderLight = await page.evaluate(() => {
+    const root = window.__attune.gfx.scene;
+    const lights = [];
+    root.traverse(o => { if (o.name === 'CinderlockSet:local-light') lights.push(o); });
+    return lights.map(o => ({ intensity: o.intensity, distance: o.distance, shadow: o.castShadow }));
+  });
+  assert.equal(cinderLight.length, 1, 'complete worn Cinderlock uses one practical light per player');
+  assert.ok(cinderLight[0].intensity > 0 && cinderLight[0].intensity <= 5.2, 'bounded nighttime armor illumination');
+  assert.ok(cinderLight[0].distance <= 3.6 && !cinderLight[0].shadow, 'does not flood the arena or cast extra shadows');
+  report.cinderlock = { worn: full.worn.armourWornAll, observerSees: full.seen.armourWornAll, fx, light: cinderLight[0] };
   assert.deepEqual(Object.keys(full.seen.armourWornAll).sort(), [...ARMOUR_SLOTS].sort());
   // the other three class families: the same wearer re-classed by the
   // fixture, each four-piece set equipped through the server's own equip path;
@@ -187,6 +196,8 @@ try {
     await capture(page, `${OUT}/${cls}-worn.png`);
     report.families[cls] = { worn: got.worn.armourWornAll, observerSees: got.seen.armourWornAll, fx: got.worn.armourFx };
   }
+  assert.equal(await page.evaluate(() => !!window.__attune.gfx.scene.getObjectByName('CinderlockSet:local-light')), false,
+    'switching to a different four-piece family tears down the Cinderlock-only light');
   // removal (the server's own unequip, as the slot's Remove action does)
   // clears the piece for the wearer and the observer
   for (const slot of ARMOUR_SLOTS) if (p.char.equipped[slot]) assert.equal(unequipSlot(server.game, p, slot).ok, true);

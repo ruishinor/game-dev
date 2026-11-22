@@ -115,8 +115,8 @@ export function createRodCorona(halves,palette=DEFAULT_ROD_PALETTE){
    for(const [i,g] of groups.entries()){
     const {group,core,halo,strands,detail,arcs,spark,sheath,outer,sheathMat,outerMat,tip,tipMat}=g;
     group.visible=!!energized;
-    core.opacity=(low?.48:.96)*(.55+.45*level);
-    halo.opacity=low?.06:(.18+.24*power)*level;
+    core.opacity=(low?.73:.96)*(.55+.45*level);
+    halo.opacity=low?.12:(.22+.3*power)*level;
     for(const [j,strand] of strands.entries()){
      strand.visible=!!energized&&(j===0||!low);
      const envelope=quiet?1:1+power*.65*level;
@@ -125,15 +125,15 @@ export function createRodCorona(halves,palette=DEFAULT_ROD_PALETTE){
     }
     detail.visible=!!energized;
     // Sheath and emitter glow: present in every tier, static when quiet.
-    const k=low?.35:flicker;
-    sheathMat.opacity=clamp((quiet?.1:.07+.30*drive)*k*level);
+    const k=low?.58:flicker;
+    sheathMat.opacity=clamp((quiet?.1:.11+.37*drive)*k*level);
     outerMat.opacity=clamp((low?0:.025+.16*drive*drive)*k*level);
     sheath.visible=sheathMat.opacity>.004;outer.visible=!low&&outerMat.opacity>.004;
     const sheathScale=1+(quiet?0:power*.45);
     sheath.scale.set(sheathScale,1,sheathScale);outer.scale.set(sheathScale*1.08,1,sheathScale*1.08);
     if(!quiet)outer.rotation.y=-elapsed*1.3;
-    tipMat.opacity=clamp((low?.32:.36+.55*drive)*(low?1:flicker)*level);
-    const tipSize=(low?.13:.15+.30*drive+.22*surge)*(joined?1:.9);
+    tipMat.opacity=clamp((low?.52:.48+.48*drive)*(low?1:flicker)*level);
+    const tipSize=(low?.19:.19+.33*drive+.22*surge)*(joined?1:.9);
     tip.scale.set(tipSize,tipSize,1);
     // Crackle: a few prebuilt jagged strands re-chosen at 10-26 Hz.
     if(low){for(const a of arcs)a.visible=false;spark.opacity=0;continue;}

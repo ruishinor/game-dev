@@ -308,12 +308,30 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   // Worn armour (presentation metadata `av`: slot -> item, or a legacy chest
   // id): each slot's piece is loaded on first use and bound to this skeleton.
   const armours = new Map();
+  // One bounded, bone-anchored practical light per complete Cinderlock set.
+  // Only created for a wearer actually displaying all four authored pieces;
+  // unlike global exposure changes this does not brighten the entire zone.
+  let cinderlockSetLight = null;
   let disposed = false;
   // four worn pieces of one family light the set's restrained signature
   function armourSetSignature() {
     const counts = {};
     for (const h of armours.values()) if (h.handle?.fx) counts[h.handle.fx.family] = (counts[h.handle.fx.family] || 0) + 1;
     for (const h of armours.values()) h.handle?.fx?.setComplete?.(counts[h.handle.fx.family] >= 4);
+    const complete = (counts.CL || 0) >= 4;
+    if (complete && opts.socialCapable && !cinderlockSetLight) {
+      const chest = inst.getObjectByName('spine_03') || inst.getObjectByName('spine_02');
+      if (chest) {
+        cinderlockSetLight = new THREE.PointLight(0xff6748, 0, 3.6, 2);
+        cinderlockSetLight.name = 'CinderlockSet:local-light';
+        cinderlockSetLight.position.set(0, 0, 0.14);
+        cinderlockSetLight.castShadow = false;
+        chest.add(cinderlockSetLight);
+      }
+    } else if (!complete && cinderlockSetLight) {
+      cinderlockSetLight.removeFromParent();
+      cinderlockSetLight = null;
+    }
   }
   function setArmourVisual(next) {
     const want = typeof next === 'string' ? { chest: next } : next && typeof next === 'object' ? next : {};
@@ -354,6 +372,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     armourWornAll: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, h.handle.item])),
     // test/diagnostic summary: slots whose piece runs channel FX, and the body shells it hides
     armourFxInfo: () => Object.fromEntries([...armours].filter(([, h]) => h.handle).map(([s, h]) => [s, { fx: !!h.handle.fx, family: h.handle.fx?.family || null, hides: h.handle.hidden || [] }])),
+    cinderlockLightInfo: () => cinderlockSetLight ? { intensity: cinderlockSetLight.intensity, distance: cinderlockSetLight.distance, shadow: cinderlockSetLight.castShadow } : null,
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.charge());},
@@ -415,7 +434,9 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         heldRod.group.visible=!st.dead&&!working;
         // A stowed rod keeps its saved configuration but is carried joined.
         heldRod.setMode(stowed?'rod':st.electricalRod);
-        heldRod.update(dt,{energized:live,activity:active?st.attack:0,reducedMotion:st.reducedMotion||active||st.dead||stowed,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm,combat:!!st.combat});
+        // Attack readiness must intensify the weapon, not silently force
+        // reduced-motion mode. Only explicit comfort/death/stow states calm it.
+        heldRod.update(dt,{energized:live,activity:active?st.attack:0,reducedMotion:!!st.rodCalm||st.dead||stowed,quality:st.rodQuality,intensity:st.rodIntensity,calm:st.rodCalm,coronaReducedMotion:st.rodCalm,combat:!!st.combat});
         if(stowed&&!st.dead)heldRod.setEnergy(.12);
         if(st.electricalRodVfx!==rodEngine){rodEffects?.dispose();rodEngine=st.electricalRodVfx||null;rodEffects=rodEngine?createElectricalRodVfx(heldRod,rodEngine):null;}
         rodEffects?.update(dt,{energized:live,activity:active?st.attack:0,combat:!!st.combat});
@@ -429,6 +450,13 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       }
       if (gearUpdate) gearUpdate(st);
       for (const h of armours.values()) { h.handle?.setDistance?.(st.cameraDistance); h.handle?.fx?.update(dt, st); }
+      if (cinderlockSetLight) {
+        const near = Number.isFinite(st.cameraDistance) && st.cameraDistance < 18;
+        const event = Math.min(1, Math.max(0, Math.max(st.hit || 0, st.attack || 0)));
+        cinderlockSetLight.intensity = near && !st.dead && st.effectsQuality >= 1
+          ? 2.6 + (st.combat ? 1.5 : 0) + event * 1.1
+          : 0;
+      }
       if (face && (step || st.faceDetail)) face.update(step || dt, st);
       // Veyran tracery brightens with exertion and when struck.
       if (veyranMat) veyranMat.userData.face.trace.value = 0.18 + (st.combat ? 0.22 : 0) + (st.hit || 0) * 0.8;
@@ -461,6 +489,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       disposed = true;
       for (const h of armours.values()) h.handle?.dispose();
       armours.clear();
+      cinderlockSetLight?.removeFromParent();
+      cinderlockSetLight = null;
       socialTorso.dispose();
       anim.dispose();
       face?.dispose();

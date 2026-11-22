@@ -48,7 +48,13 @@ test('halos and embers hang on the wearer bones and respect quality and reduced 
   assert.equal(fx[0].material.userData.surge ?? 0, 0);
   quality = 0; reduced = false;
   h.update(0.016, { cameraDistance: 4 });
-  assert.ok(sprites.every((s) => !s.visible) && embers.every((e) => !e.visible), 'quality 0 keeps only the channels');
+  assert.ok(sprites.some(s => s.visible), 'low quality keeps the white-hot Cinderlock reactor');
+  assert.ok(sprites.filter(s => s.visible).length === 1, 'low quality shows only the existing core');
+  assert.ok(embers.every((e) => !e.visible), 'quality 0 still drops all particle emissions');
+  quality = 1;
+  h.update(0.016, { cameraDistance: 4 });
+  assert.equal(embers.filter(e => e.visible).length, 1, 'standard quality keeps only the bounded core ember emitter');
+  assert.ok(sprites.find(s => s.visible && s.material.color.getHex() === 0xffe7ce), 'Cinderlock core has its distinct white-hot identity');
   quality = 2;
   h.update(0.016, { cameraDistance: 40 });
   assert.ok(embers.every((e) => !e.visible), 'no embers at distance');
@@ -140,4 +146,18 @@ test('each family keeps its own energy language and answers its own class abilit
   vg.dispose();
   assert.equal(bone.children.length, 0);
   attachArmourFxEnv({ quality: () => 2, reducedMotion: () => false, intensity: () => 1, vfx: () => null });
+});
+
+test('complete Cinderlock Regalia has a brighter channel signature without changing other families', () => {
+  const {fx,anchors}=rig(),h=createArmourFx(fx,anchors);
+  const normal=h.material.onBeforeCompile;
+  const mk=()=>({uniforms:{},vertexShader:'#include <common>\n#include <uv_vertex>',fragmentShader:'#include <common>\n#include <color_fragment>'});
+  const shader=mk();
+  normal(shader);
+  const before=shader.uniforms.uBright.value;
+  h.setComplete(true);
+  assert.ok(shader.uniforms.uBright.value>before*1.3,'all-four Cinderlock channels brighten together');
+  h.setComplete(false);
+  assert.equal(shader.uniforms.uBright.value,before,'unequipping a piece cancels the set glow');
+  h.dispose();
 });
