@@ -14,6 +14,7 @@ import { buildContainmentVessel } from './containment-vessel.js';
 import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
+import { buildKestrelDeepVisuals } from './kestrel-deep-visuals.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
@@ -1480,6 +1481,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   }
 
   buildDeepArchitecture(scene);
+  const kestrelVisual = buildKestrelDeepVisuals(THREE, DEEP, kits ? assets : null, { detail, reducedMotion: opts.reducedMotion });
+  scene.add(kestrelVisual.group);
   // Separate industrial encounter deck; the authoritative rectangular limit
   // matches the visible perimeter, with flat walkable floor and clear lanes.
   const annex=RIFT_ANNEX,annexFloor=new THREE.Group();annexFloor.name='rift:annex-deck';
@@ -1578,7 +1581,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severance: severance.landmark,
     severancePocket: severance,
     foundry,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get kestrel() { return kestrelVisual.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
@@ -1593,6 +1596,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
      */
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
+      kestrelVisual.update(dt, t, focus);
       relayFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
