@@ -375,9 +375,14 @@ export function makeListeningStone() {
       waveIn -= step;
       if (profile.waveCount && k > 0.22 && waveIn <= 0) {
         const available = waves.slice(0, profile.waveCount);
-        const w = available.find(x => x.age >= profile.waveLifetime) || available[0];
-        w.age = 0;
-        waveIn = profile.waveInterval;
+        const w = available.find(x => x.age >= profile.waveLifetime);
+        if (w) {
+          w.age = 0;
+          waveIn = profile.waveInterval;
+        } else {
+          // Never reset a still-travelling wave mid-flight on low presets.
+          waveIn = 0.08;
+        }
       }
       for (let i = 0; i < waves.length; i++) {
         const w = waves[i];
