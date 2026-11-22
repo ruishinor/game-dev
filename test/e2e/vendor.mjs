@@ -176,45 +176,62 @@ try{
  // networking and animation updates continue; resume before visual evidence.
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  try{
-  await page.locator('#view').focus();await page.keyboard.press('KeyC');
+  // Reopening a transient menu is necessary after a world reset. Retry only
+  // on a confirmed replacement of the authenticated simulation entity;
+  // an ordinary failure with the original session remains a test failure.
+  const rodCharacterId=p.char.id;
   const loadout=page.getByRole('dialog',{name:'Character and loadout',exact:true});
-  await loadout.getByRole('button',{name:'Weapons',exact:true}).click();
   const installedRod=loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true});
-  await installedRod.hover();
-  await page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('electrical_combat_rod'));
-  // Exercise the documented keyboard context-menu path on the equipped slot.
-  // Pointer context menus are still exercised by both real inventory swaps.
-  await installedRod.press('Shift+F10');
   const context=page.locator('.player-context');
-  await context.waitFor({state:'visible'});
-  assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
-  // A software-renderer stall may terminate and resume the WebSocket.
-  // Reconnect creates a fresh live entity; require the same character and
-  // active authenticated session rather than obsolete entity identity.
-  const configured=await liveFixturePlayer(page,server,'Vendor Tester');
-  assert.equal(configured.char.id,p.char.id,'Rod configuration must preserve the authenticated character');
-  assert.equal(configured.char.equipped.weapon,'electrical_combat_rod','Rod equipment survives reconnect');
-  p=configured;
+  async function syncRodPlayer(){
+   const live=await liveFixturePlayer(page,server,'Vendor Tester');
+   assert.equal(live.char.id,rodCharacterId,'Rod configuration preserves authenticated character');
+   assert.equal(live.char.equipped.weapon,'electrical_combat_rod','Rod survives reconnect');
+   p=live;
+   return live;
+  }
+  async function verifyMode(mode,code){
+   await page.waitForFunction(({mode,code})=>{const s=window.__attune.state();return s.sheet?.electricalRodMode===mode&&s.ents.find(e=>e.id===s.myId)?.row?.er===code;},{mode,code},{timeout:30000});
+   const live=await syncRodPlayer();
+   assert.equal(live.char.electricalRodMode,mode);
+  }
   async function configure(label,mode,code){
-   const action=context.getByRole('button',{name:label,exact:true});
-   await action.focus();
-   await action.press('Enter');
-   try{
-    await page.waitForFunction(({mode,code})=>{const s=window.__attune.state();return s.sheet?.electricalRodMode===mode&&s.ents.find(e=>e.id===s.myId)?.row?.er===code;},{mode,code});
-   }catch(error){
-    const client=await page.evaluate(()=>{const s=window.__attune.state();return {id:s.myId,snaps:s.snaps,mode:s.sheet?.electricalRodMode,row:s.ents.find(e=>e.id===s.myId)?.row?.er,status:document.querySelector('#status')?.textContent,context:!document.querySelector('.player-context')?.hidden};}).catch(()=>null);
-    console.error('[rod configuration]',{mode,client,server:{mode:p.char.electricalRodMode,live:server.game.players.get(p.id)===p,dead:p.dead,combat:p.combatUntil-server.game.time,auto:p.autoOn,jump:p.jy},errors});
-    throw error;
+   let submitted=false;
+   for(let attempt=0;attempt<2;attempt++){
+    const original=await syncRodPlayer();
+    if(attempt>0&&submitted&&original.char.electricalRodMode===mode){await verifyMode(mode,code);return;}
+    assert.equal(original.char.electricalRodMode??'rod',mode==='dual'?'rod':'dual','Expected starting rod configuration');
+    try{
+     if(!(await loadout.isVisible())){
+      await page.locator('#view').focus();await page.keyboard.press('KeyC');
+     }
+     await loadout.getByRole('button',{name:'Weapons',exact:true}).click({timeout:30000});
+     await installedRod.hover({timeout:30000});
+     await page.waitForFunction(()=>!window.__attune.state().sheet.unseenItems.includes('electrical_combat_rod'),null,{timeout:30000});
+     // Exercise the keyboard context-menu path, not a direct server mutation.
+     await installedRod.press('Shift+F10',{timeout:30000});
+     await context.waitFor({state:'visible',timeout:30000});
+     assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
+     const action=context.getByRole('button',{name:label,exact:true});
+     await action.focus({timeout:30000});
+     submitted=true;
+     await action.press('Enter',{timeout:30000});
+     await page.waitForFunction(({mode,code,id})=>{const s=window.__attune.state();return (s.sheet?.electricalRodMode===mode&&s.ents.find(e=>e.id===s.myId)?.row?.er===code)||(s.myId&&s.myId!==id);},{mode,code,id:original.id},{timeout:30000});
+    }catch(error){
+     if(error.name!=='TimeoutError'||server.game.players.get(original.id)===original||attempt===1)throw error;
+    }
+    const live=await syncRodPlayer();
+    if(live.char.electricalRodMode===mode){assert.ok(submitted,'Mode changed without keyboard submission');await verifyMode(mode,code);return;}
+    assert.notEqual(live.id,original.id,'Command failed in the same authenticated session');
+    console.log('[rod configuration] retry after authenticated entity replacement',{previous:original.id,current:live.id,mode});
    }
+   assert.fail('Rod configuration did not persist after authenticated reconnect');
   }
   await configure('Separate into dual batons','dual',2);
   assert.equal(p.char.electricalRodMode,'dual');
-  await installedRod.press('Shift+F10');
-  await context.waitFor({state:'visible'});
-  assert.equal(await context.locator('.context-title').innerText(),'Electrical Combat Rod');
   await configure('Join into combat rod','rod',1);
   assert.equal(p.char.electricalRodMode,'rod');
-  await loadout.getByRole('button',{name:'Close',exact:true}).click();
+  if(await loadout.isVisible())await loadout.getByRole('button',{name:'Close',exact:true}).click();
  }finally{
   if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
  }
@@ -233,6 +250,10 @@ try{
  await page.waitForFunction(()=>{const a=window.__attune,s=a.state();return s.sheet.equipped.weapon==='field_emitter'&&!s.ents.find(e=>e.id===s.myId)?.row?.er&&!a.gfx.scene.getObjectByName('HeldElectricalCombatRod');});
  // Recover the social wardrobe independently of combat equipment through real purchases and equipment UI.
  await inventory.getByRole('button',{name:'Close inventory'}).click();
+ const wardrobePlayer=await liveFixturePlayer(page,server,'Vendor Tester');
+ assert.equal(wardrobePlayer.char.id,p.char.id,'Wardrobe fixture preserves authenticated character');
+ assert.equal(wardrobePlayer.char.equipped.weapon,'field_emitter');
+ p=wardrobePlayer;
  p.x=vendor.x;p.z=vendor.z+2;
  await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');await panel.waitFor({state:'visible'});
@@ -240,7 +261,7 @@ try{
  await social.getByRole('button',{name:'Preview',exact:true}).click();
  await social.locator('.social-preview').waitFor({state:'visible'});
  await social.getByRole('button',{name:'Buy 1',exact:true}).click();
- await page.waitForFunction(()=>window.__attune.state().sheet.inventory.includes('social_service_coat')&&window.__attune.state().sheet.credits===8);
+ await page.waitForFunction(()=>window.__attune.state().sheet?.inventory.includes('social_service_coat')&&window.__attune.state().sheet?.credits===8);
  const wearing=await liveFixturePlayer(page,server,'Vendor Tester');
  assert.equal(wearing.char.id,p.char.id,'Wardrobe purchase remains on the same character');
  p=wearing;

@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import { applyLongpointBlackFinish } from '../client/src/longpoint-finish.js';
+test('Longpoint black finish is local, retains surface maps and luminous channels',()=>{
+ const g=new T.Group(),source=new T.MeshStandardMaterial({name:'gunmetal',color:0x999999,metalness:.73,roughness:.43});
+ source.isShared=true;source.map=new T.Texture();
+ const optic=new T.MeshStandardMaterial({name:'optic',color:0x12aabb});
+ const light=new T.MeshStandardMaterial({name:'cyan',emissive:0x00ffff});
+ const geo=new T.BoxGeometry();
+ const a=new T.Mesh(geo,[source,optic]),b=new T.Mesh(geo,source),c=new T.Mesh(geo,light);
+ g.add(a,b,c);const other=g.clone(true);
+ applyLongpointBlackFinish(g);
+ assert.notEqual(a.material[0],source);assert.equal(a.material[0],b.material);
+ assert.ok(a.material[0].color.r<.05&&a.material[0].color.b<.05);
+ assert.equal(a.material[0].map,source.map);assert.equal(a.material[0].roughness,source.roughness);
+ assert.equal(a.material[0].metalness,source.metalness);assert.equal(a.material[0].isShared,false);
+ assert.equal(a.material[1],optic);assert.equal(c.material,light);
+ assert.equal(other.children[0].material[0],source);assert.ok(source.color.r>.1);
+ const painted=a.material[0];applyLongpointBlackFinish(g);assert.equal(a.material[0],painted);
+ painted.dispose();source.map.dispose();source.dispose();optic.dispose();light.dispose();geo.dispose();
+});

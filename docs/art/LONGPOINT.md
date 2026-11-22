@@ -28,3 +28,6 @@ Visual quality is materially improved relative to V1 but the requested World of 
 ## Upstream reconciliation
 
 The published candidate is reconciled with `e4454cf71f4576cd9447e621b7e4766a02c8dd24`. Fabrication presentation takes exclusive precedence over the held weapon; both cosmetic arm overlays restore their saved rotations before the base animation is sampled. Appearance changes still rebuild the current player model using the latest metadata, including visual identity. Unrelated upstream changes and the exact candidate GLB are retained. This merge candidate requires the hosted checks; earlier local results are not a substitute.
+
+## Owner black finish (2026-11-22)
+All runtime instances of the original rifle use the same blackened finish, including model inspection, held and stowed presentation. Named opaque materials receive a black/charcoal PBR colour and restrained reflectance variation; optical and emissive surfaces retain their original colour. The original geometry, textures, embedded donor material data, anchors and baked GLB hash remain unchanged. This is an intentional runtime material variant, not a replacement or rebake of the original source GLB.

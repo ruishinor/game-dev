@@ -11,6 +11,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { applyLongpointBlackFinish } from './longpoint-finish.js';
 
 const BASE = '/client/assets/';
 
@@ -140,6 +141,7 @@ export class Assets {
     const obj = skinned ? cloneSkinned(src) : src.clone(true);
     if (skinned) shareSkeletons(src, obj);
     obj.position.set(0, 0, 0);
+    if (bundleId === 'longpoint') applyLongpointBlackFinish(obj);
     return obj;
   }
 
