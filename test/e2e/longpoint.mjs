@@ -7,7 +7,10 @@ import {startServer} from '../../server/index.js';
 import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
 import {clearCombatSpot} from '../cover-setup.js';
-const out=path.resolve('longpoint-evidence');await fs.mkdir(out,{recursive:true});
+const family=process.env.ATTUNEMENT_RIFLE_TEST_FAMILY||'longpoint';
+const ids={longpoint:'longpoint_emitter','relay-carbine':'relay_carbine','bastion-rifle':'bastion_rifle'};
+assert.ok(Object.hasOwn(ids,family));
+const out=path.resolve('longpoint-evidence',family);await fs.mkdir(out,{recursive:true});
 const server=await startServer({port:0,dataFile:null});let browser;const errors=[];
 try{
  browser=await launchBrowser();
@@ -33,11 +36,17 @@ try{
  }
  const owner=await join('Longpoint Tester'),p=await liveFixturePlayer(owner,server,'Longpoint Tester'),observer=await join('Longpoint Witness');
  await observer.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id),p.id);
- p.char.inventory.push('longpoint_emitter');p.char.equipped.ranged='longpoint_emitter';server.game.refreshStats(p);server.game.markDirty(p);
- const mounted=id=>window.__attune.state().ents.some(e=>e.id===id&&e.weaponVisual==='longpoint'&&e.weaponVisible);
- for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(mounted,p.id);}
+ p.char.inventory.push(ids[family]);p.char.equipped.ranged=ids[family];server.game.refreshStats(p);server.game.markDirty(p);
+ const mounted=({id,family})=>window.__attune.state().ents.some(e=>e.id===id&&e.weaponVisual===family&&e.weaponVisible);
+ for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(mounted,{id:p.id,family});}
  await owner.bringToFront();await owner.evaluate(()=>window.__attune.view({yaw:2.2,pitch:.21,dist:4.5}));
  await capture(owner,'owner-equipped.png');await capture(observer,'observer-equipped.png');
+ await owner.bringToFront();await owner.locator('#view').focus();await owner.keyboard.press('KeyZ');
+ for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(({id,family})=>window.__attune.state().ents.some(e=>e.id===id&&e.weaponVisual===family+'-stowed'&&!e.weaponVisible),{id:p.id,family});}
+ await capture(owner,'owner-stowed.png');
+ await owner.bringToFront();await owner.waitForFunction(()=>!window.__attune.state().you?.weaponSwitchMs);
+ await owner.locator('#view').focus();await owner.keyboard.press('KeyZ');
+ for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(mounted,{id:p.id,family});}
  assert.ok((await liveFixturePlayer(owner,server,'Longpoint Tester'))===p,'Owner must remain connected');
  // Real input fires the currently mounted rifle. Fixture only stages distance
  // and isolates other enemies; no damage or animation is injected.
@@ -55,7 +64,7 @@ try{
  await owner.waitForFunction(id=>window.__attune.state().target===id,enemy.id);
  const before=enemy.hp;
  await owner.keyboard.press('KeyR');
- await owner.waitForFunction(()=>{let shots=0;window.__attune.gfx.scene.traverse(o=>{shots+=o.userData.longpointShotCount||0});return shots>0;});
+ await owner.waitForFunction(()=>{let shots=0;window.__attune.gfx.scene.traverse(o=>{shots+=o.userData.rifleShotCount||0});return shots>0;});
  assert.ok(enemy.hp<before,'authoritative auto attack caused damage');
  await owner.keyboard.press('KeyR');
  await owner.waitForFunction(()=>window.__attune.state().you.auto===0);
@@ -65,5 +74,5 @@ try{
  await owner.waitForFunction(()=>Math.hypot(window.__attune.state().you.x+2.25,window.__attune.state().you.z-8.2)<.5);
  p.char.equipped.ranged=null;server.game.refreshStats(p);server.game.markDirty(p);
  for(const page of [owner,observer]){await page.bringToFront();await page.waitForFunction(id=>window.__attune.state().ents.some(e=>e.id===id&&!e.weaponVisual&&!e.weaponVisible),p.id);}
- assert.deepEqual(errors,[]);console.log('PASS: two real clients receive and remove the equipped Longpoint presentation.');
+ assert.deepEqual(errors,[]);console.log('PASS: two real clients receive, fire, stow, draw and remove the equipped rifle:',family);
 }finally{await browser?.close();await server.close();}

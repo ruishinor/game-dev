@@ -11,6 +11,7 @@ import * as THREE from '/vendor/three/three.module.js';
 import { Assets } from './assets.js';
 import { createModel } from './characters.js';
 import { poseLongpoint } from './longpoint.js';
+import { createRifleFamily } from './rifle-families.js';
 import { makeEnvironment } from './scene.js';
 
 const q = new URLSearchParams(location.search);
@@ -47,6 +48,8 @@ function build(spec) {
     poseLongpoint(group, a === 'deployed' ? 1 : 0);
     return { group, kind: 'glb' };
   }
+  if (kind === 'relay-carbine' || kind === 'bastion-rifle') return {group:createRifleFamily(THREE,kind),kind:'procedural'};
+  if (kind === 'rifle-look' && ['relay-carbine','bastion-rifle'].includes(a)) return createModel(assets,{k:'p',c:'surveyor',wv:a});
   if (kind === 'longpoint-look') return createModel(assets, { k: 'p', c: 'surveyor', a, wv: 'longpoint' });
   if (kind === 'piece') {
     const obj = assets.instance(a, b);

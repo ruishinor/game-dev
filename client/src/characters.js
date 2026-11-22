@@ -25,6 +25,7 @@ import { createGearKit } from './gear-kit.js';
 import { createMenderPrototype } from './mender-prototype.js';
 import { createSpindle } from './spindle.js';
 import { createLongpointPresentation } from './longpoint.js';
+import { createRifleFamily, rifleFamily, isStowedRifle } from './rifle-families.js';
 import {createWeaponCarry,WEAPON_MODELS} from './weapon-visuals.js';
 import { rodPalette } from './rod-palette.js';
 import { createSitPose } from './sit-pose.js';
@@ -265,7 +266,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     probe.removeFromParent();
   }
   function setWeaponVisual(next) {
-    next = next === 'longpoint' || next === 'longpoint-stowed' || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
+    next = rifleFamily(next) || Object.hasOwn(WEAPON_MODELS,next) ? next : null;
     if (next === visual) return;
     weapon?.dispose(); weapon = null;
     sidearm?.apply(null);
@@ -295,11 +296,12 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       };
       return;
     }
-    const prop = assets.instance('longpoint');
+    const family=rifleFamily(next);
+    const prop = family==='longpoint'?assets.instance('longpoint'):createRifleFamily(THREE,family);
     if (!prop) return;
-    if (next === 'longpoint-stowed') {
+    if (isStowedRifle(next)) {
       if (!rifleStow) { disposeInstance(prop); return; }
-      prop.scale.setScalar(.43); prop.name = 'StowedLongpoint';
+      prop.scale.setScalar(.43); prop.name = family==='longpoint'?'StowedLongpoint':family==='relay-carbine'?'StowedRelayCarbine':'StowedBastionRifle';
       prop.position.copy(rifleStow.position); prop.quaternion.copy(rifleStow.quaternion);
       rodBack.add(prop); stowedRifle = prop;
       return;
@@ -463,6 +465,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     dispose() {
       releaseRod();
       weapon?.dispose();
+      if(stowedRifle){stowedRifle.removeFromParent();disposeInstance(stowedRifle);stowedRifle=null;}
       sidearm?.dispose();
       disposed = true;
       for (const h of armours.values()) h.handle?.dispose();

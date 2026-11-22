@@ -5,6 +5,9 @@ on:
       - 'client/assets/manifest.json'
       - 'client/assets/longpoint.glb'
       - 'client/src/longpoint.js'
+      - 'client/src/rifle-families.js'
+      - 'client/src/longpoint-finish.js'
+      - 'client/src/assets.js'
       - 'client/src/characters.js'
       - 'client/src/main.js'
       - 'client/src/vfx/**'
@@ -20,6 +23,10 @@ permissions:
   contents: read
 jobs:
   longpoint:
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [longpoint, relay-carbine, bastion-rifle]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -31,9 +38,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: node test/e2e/longpoint.mjs
+        env:
+          ATTUNEMENT_RIFLE_TEST_FAMILY: ${{ matrix.family }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: longpoint-evidence
+          name: rifle-evidence-${{ matrix.family }}
           path: longpoint-evidence/
           if-no-files-found: ignore
