@@ -64,3 +64,15 @@ test('a full material stack prevents the whole cache claim; ordinary Sentinel lo
  assert.equal(blueprintDrop('sentinel',()=>.01),'blueprint_relay_vest');
  assert.equal(blueprintDrop('warden',()=>.01),null);
 });
+
+test('legacy Annex cache completion recovers blueprint once without another fragment payout',()=>{
+ const g=makeGame(),p=g.addPlayer(makeChar('surveyor',{
+   level:8,annexProgress:3,annexClaimed:true,materials:{resonance_fragment:12}
+ }));
+ const cache=g.objects.find(o=>o.type==='annex_cache');place(p,cache.x,cache.z+2);
+ const before=JSON.stringify(p.char.materials);
+ assert.ok(interact(g,p,cache.id).ok);
+ assert.equal(p.char.goods.blueprint_relay_arc_carbine,1);
+ assert.equal(JSON.stringify(p.char.materials),before);
+ assert.equal(interact(g,p,cache.id).ok,false);
+});

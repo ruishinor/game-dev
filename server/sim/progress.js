@@ -449,8 +449,17 @@ export function interact(game, p, objectId) {
   if(obj.type==='foundry_cache')return claimFoundryCache(game,p,obj,{grantSalvage,inCombat});
   if(obj.type==='annex_cache'){
     if(!hasLineOfSight(p,obj)||inCombat(game,p)||p.autoOn)return {ok:false,reason:'Disengage and approach the recovery cache.'};
-    if(p.char.annexClaimed===true)return {ok:false,reason:'You have already recovered this expedition cache.'};
     if(p.char.annexProgress!==3)return {ok:false,reason:'Participate in an Annex encounter and defeat the Null Chamber Warden first.'};
+    // Existing saves may have claimed the fragment cache before this blueprint
+    // existed. Give them the one-time knowledge on revisit, never fragments.
+    if(p.char.annexClaimed===true){
+      const oldGoods=sanitizeGoods(p.char.goods);
+      if(oldGoods.blueprint_relay_arc_carbine===1)return {ok:false,reason:'You have already recovered this expedition cache.'};
+      oldGoods.blueprint_relay_arc_carbine=1;
+      p.char.goods=oldGoods;game.markDirty(p);
+      game.message(p,'gain','Recovered: Relay Arc Carbine blueprint (previous expedition claim).');
+      return {ok:true};
+    }
     // The level 13-15 Null Annex (behind the Null Breach) yields a larger cache.
     const count=game.severance?6:3,words=count===6?'six':'three';
     // Claim one unique blueprint as expedition knowledge, not a random corpse
