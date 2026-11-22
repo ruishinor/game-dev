@@ -40,15 +40,19 @@ export function requestMelee(game,p,action){
  const stage=action==='heavy'?0:(now-s.lastHit<=COMBO_WINDOW?s.combo%3:0);
  const counter=now<s.counterUntil;
  const spec=action==='heavy'?HEAVY:LIGHT;
+ // Later combo strikes have longer committed motion; the client receives
+ // only the resulting contact time, never authority over it.
+ const windup=spec.windup+(action==='light'?stage*70:0);
+ const recovery=spec.recovery+(action==='light'?stage*80:0);
  const style=counter?'counter':action==='heavy'?'heavy':String(stage+1);
- s.pending={targetId:target.id,kind:action,stage,style,counter,hitAt:now+spec.windup};
- s.next=now+spec.recovery;
+ s.pending={targetId:target.id,kind:action,stage,style,counter,hitAt:now+windup};
+ s.next=now+recovery;
  s.guardUntil=0;
  s.counterUntil=0;
  p.autoOn=false;
  p.nextAuto=Math.max(p.nextAuto,s.next);
  p.gcdUntil=Math.max(p.gcdUntil,now+(action==='heavy'?480:280));
- game.emitWorldEvent({e:'melee_start',s:p.id,d:target.id,style,ms:spec.windup,mode:p.char.electricalRodMode==='dual'?'dual':'rod'});
+ game.emitWorldEvent({e:'melee_start',s:p.id,d:target.id,style,ms:windup,mode:p.char.electricalRodMode==='dual'?'dual':'rod'});
  return {ok:true};
 }
 
