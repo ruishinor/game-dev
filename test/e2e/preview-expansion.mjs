@@ -325,6 +325,20 @@ try {
   const tabRows=await character.locator('.doll-tabs button').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
   assert.equal(tabRows.length,6);
   assert.ok(tabRows[0]===tabRows[1]&&tabRows[1]===tabRows[2]&&tabRows[3]===tabRows[4]&&tabRows[4]===tabRows[5]&&tabRows[0]!==tabRows[3],'Six character tabs form two equal rows');
+  // Default compact windows must surface the category controls and equipped
+  // melee/ranged slots without forcing a scroll through the character stat sheet.
+  await character.locator('.panel-body').evaluate(el=>el.scrollTop=el.scrollHeight);
+  await character.locator('.doll-tabs [data-tab="weapons"]').click();
+  const weaponLayout=await character.evaluate(el=>{
+    const body=el.querySelector('.panel-body'),tabs=el.querySelector('.doll-tabs'),grid=el.querySelector('.equipment-slot-grid');
+    const viewport=body.getBoundingClientRect(),top=tabs.getBoundingClientRect(),slots=grid.getBoundingClientRect();
+    return {scroll:body.scrollTop,top:top.top,slotsBottom:slots.bottom,viewportTop:viewport.top,viewportBottom:viewport.bottom,
+      secondaryOpen:!!el.querySelector('.character-stats[open]')};
+  });
+  assert.ok(weaponLayout.scroll<2&&weaponLayout.top>=weaponLayout.viewportTop-2&&weaponLayout.slotsBottom<=weaponLayout.viewportBottom+2&&!weaponLayout.secondaryOpen,
+    'Default Character & Loadout must expose both weapon slots before the optional detailed stats');
+  assert.ok(await character.locator('.doll-tabs [data-tab="weapons"]').evaluate(el=>document.activeElement===el),
+    'Switching equipment tabs preserves a keyboard focus target');
   // The owner-approved loadout uses clean labelled slots, not the discarded
   // low-detail paper-doll image. Retain real slot-selection regression checks.
   for(const tab of ['gear','implants','glyphs','weapons','social']){

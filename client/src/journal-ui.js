@@ -237,6 +237,10 @@ export function renderLoadout(ui,body,stats) {
       ui.loadoutTab=t.id;
       ui.loadoutSelection=ui.loadoutSlot=null;
       ui.renderBuild();
+      // An equipment-tab change must return the actual managed window to
+      // its primary slots, even when the previous view was scrolled down.
+      ui.panelBody.scrollTop=0;
+      ui.panelBody.querySelector('.doll-tabs [data-tab="'+t.id+'"]')?.focus({preventScroll:true});
     });
     tabs.append(btn);
   }
@@ -346,7 +350,15 @@ export function renderLoadout(ui,body,stats) {
       list.append(card);
     }
   }
-  body.append(stats,doll,column);
+  // Primary loadout controls must not be hidden beneath the long character
+  // stat sheet in the default compact desktop/TV window. Detailed statistics
+  // stay available on demand while equipment tabs keep both slots visible.
+  if(tab.id==='character')body.append(doll,column,stats);
+  else {
+    const more=h('details','character-secondary character-stats');
+    more.append(h('summary',null,'Skills, attributes & progression'),stats);
+    body.append(doll,column,more);
+  }
   renderDetail();
   ui.updateItemIndicators();
 }
