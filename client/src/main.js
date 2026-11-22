@@ -2065,12 +2065,16 @@ function updateEntities(dt, t, now) {
 
 function updatePlates(now) {
   const me = S.ents.get(S.myId);
-  // Only suppress overlapping calm wildlife labels, never active enemies,
-  // allies, objects or the currently selected target. Stable priority.
+  // Keep selected targets, nearby interactables and combat labels visible.
+  // At crowded hubs, distant static-object plates otherwise obscure each
+  // other despite the underlying NPCs and terminals being individually usable.
   const occupied=[];
+  const distance=e=>me?Math.hypot(e.pos.x-me.pos.x,e.pos.z-me.pos.z):Infinity;
+  const nearPlate=e=>e.meta.k==='o'&&distance(e)<=INTERACT_RANGE+.5;
   const entries=[...S.ents.values()].sort((a,b)=>{
-    const priority=e=>e.id===S.target?0:e.meta.neu&&!(e.row?.f&8)&&!e.dead?2:1;
-    return priority(a)-priority(b)||a.id-b.id;
+    const priority=e=>e.id===S.target?0:nearPlate(e)?1:e.meta.neu&&!(e.row?.f&8)&&!e.dead?3:e.meta.k==='o'?2:1;
+    const pa=priority(a),pb=priority(b);
+    return pa-pb || (a.meta.k==='o'&&b.meta.k==='o'?distance(a)-distance(b):a.id-b.id);
   });
   for (const ent of entries) {
     if (ent.id === S.myId) continue;
@@ -2095,7 +2099,8 @@ function updatePlates(now) {
       const half=Math.max(36,label.length*3.9);
       const rect={l:screen.x-half,r:screen.x+half,t:screen.y-30,b:screen.y};
       const calm=ent.meta.neu&&!(row.f&8)&&!ent.dead;
-      if(calm&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
+      const canDeclutter=calm||(k==='o'&&d>INTERACT_RANGE+.5);
+      if(canDeclutter&&ent.id!==S.target&&occupied.some(o=>rect.l<o.r&&rect.r>o.l&&rect.t<o.b&&rect.b>o.t))screen=null;
       if(screen)occupied.push(rect);
     }
     ui.placePlate(ent, screen, {
