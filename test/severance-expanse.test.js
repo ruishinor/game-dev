@@ -103,3 +103,21 @@ test('HTTP serves the kit GLB with immutable caching and not its sources', async
     for (const url of ['/client/assets/kit-metrics.json', '/client/assets/severance_kit_raw.glb', '/tools/asset-pipeline/assets/severance_kit/outputs/kit-metrics.json']) assert.equal((await fetch(base + url)).status, 404, url);
   } finally { await srv.close(); }
 });
+
+test('GLB failure fallback keeps large mineral clusters emissive with day/night progression', () => {
+  const group = new THREE.Group();
+  const kit = createExpanseKit(THREE, { group, loader: null, ground: () => 0 });
+  const c = SEVERANCE_CRYSTALS[0];
+  kit.update(0.1, 1, { x: c.x + 5, y: 2, z: c.z }, { night: 0 });
+  assert.equal(kit.status, 'fallback');
+  const crystals = [];
+  kit.root.traverse(n => { if (n.name === 'severance-kit:fallback-crystal') crystals.push(n); });
+  assert.equal(crystals.length, SEVERANCE_CRYSTALS.length);
+  assert.ok(crystals.every(n => n.material.isMeshStandardMaterial && n.material.emissiveIntensity > 0));
+  assert.ok(kit.root.getObjectByName('severance-kit:crystal-halos'));
+  const day = crystals[0].material.emissiveIntensity;
+  kit.update(0.1, 2, { x: c.x + 5, y: 2, z: c.z }, { night: 1 });
+  assert.ok(crystals[0].material.emissiveIntensity > day);
+  assert.equal(kit.root.children.filter(n => n.isLight).length, KIT_LIMITS.lights);
+  kit.dispose();
+});
