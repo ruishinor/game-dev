@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {LUMENFEN,inLumenfen,FEN_POOLS,FEN_TREES,FEN_SITES,fenHeight,fenArea} from '../shared/lumenfen.js';
+import {LUMENFEN,inLumenfen,FEN_POOLS,FEN_TREES,FEN_SITES,FEN_SITE_COLLIDERS,fenHeight,fenArea} from '../shared/lumenfen.js';
 import {LUMENFEN_ENTRY_SITE,OBJECTS,groundHeight,resolveCollisions,PLAYER_RADIUS,travelRegionAt,sameTravelRegion,hasLineOfSight,inDisconnectedRegion} from '../shared/world.js';
 import {makeGame,makeChar,place} from './helpers.js';
 import {interact} from '../server/sim/progress.js';
@@ -87,9 +87,17 @@ test('six Lumenfen landmark compositions are distinct, anchored and collision-al
    assert.ok(landmark&&landmark.children.some(c=>c.isInstancedMesh),
      'site must contain visible built/ecological geometry: '+site.id);
    assert.ok(landmark.position.distanceTo(new T.Vector3(site.x,fenHeight(site.x,site.z),site.z))<.001);
-   const moved=resolveCollisions({x:site.x,z:site.z},PLAYER_RADIUS);
-   assert.ok(Math.hypot(moved.x-site.x,moved.z-site.z)>=site.core+PLAYER_RADIUS-.01,
-     'built core must have matching authoritative collision: '+site.id);
+   assert.ok(FEN_SITE_COLLIDERS.some(c=>c.site===site.id),
+     'no shared physical footprints for: '+site.id);
+ }
+ // Collision uses individual solid geometry, never phantom whole-site discs.
+ for(const item of FEN_SITE_COLLIDERS){
+   const moved=resolveCollisions({x:item.x,z:item.z},PLAYER_RADIUS);
+   if(item.r!==undefined)
+     assert.ok(Math.hypot(moved.x-item.x,moved.z-item.z)>=item.r+PLAYER_RADIUS-.02,
+       'solid pillar/stone must block travel: '+item.site);
+   else assert.ok(Math.abs(moved.x-item.x)>=item.hw || Math.abs(moved.z-item.z)>=item.hd,
+       'sluice wall must block travel: '+item.site);
  }
  const wheel=sites.getObjectByName('lumenfen:weir:wheel');
  const dial=sites.getObjectByName('lumenfen:observatory:resonance-armillary');
