@@ -72,3 +72,12 @@ test('guard cannot block ranged hits or incoming attacks from behind',()=>{
  p2.yaw+=Math.PI;
  assert.equal(dealDamage(g2,e2,p2,20,'auto',{kind:'melee',melee:true}),20);
 });
+
+test('guard cannot be combined with immediate ability cast or retained after weapon swap',()=>{
+ const {g,p,e}=setup();assert.ok(requestMelee(g,p,'guard').ok);
+ assert.ok(p.gcdUntil>=p.meleeState.guardUntil,'guard occupies the ability recovery window');
+ const hp=p.hp;p.char.activeWeapon='ranged';
+ const damage=dealDamage(g,e,p,20,'auto',{kind:'melee',melee:true});
+ assert.equal(damage,20,'ranged mode cannot retain melee guard protection');
+ assert.equal(p.hp,hp-20);
+});
