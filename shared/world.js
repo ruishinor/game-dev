@@ -405,8 +405,17 @@ function wallSiteClear(x,z,spacing=6){
  return true;
 }
 function findRiftSite(){
- for(const [x,z] of reachWallCandidates())if(wallSiteClear(x,z,5.2))
-  return Object.freeze({x,z,r:8.5,hazard:5.5});
+ for(const [x,z] of reachWallCandidates()){
+  if(!wallSiteClear(x,z,5.2))continue;
+  // Reserve the second gate BEFORE selecting the primary site. Without this
+  // the first free patch could be too isolated and Rootglass would disappear.
+  const r=Math.hypot(x,z),angle=Math.atan2(x,z);
+  const buddy=[.21,-.21,.24,-.24,.28,-.28,.32,-.32,.38,-.38].some(step=>{
+   const a=angle+step,px=Math.round(r*Math.sin(a)*100)/100,pz=Math.round(r*Math.cos(a)*100)/100;
+   return wallSiteClear(px,pz,5.0)&&Math.hypot(px-x,pz-z)>13.3;
+  });
+  if(buddy)return Object.freeze({x,z,r:8.5,hazard:5.5});
+ }
  return null;
 }
 
