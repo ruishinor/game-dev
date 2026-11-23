@@ -6,6 +6,7 @@
 // one pre-created light, deterministic under the manual clock.
 import { EXPEDITION_OUTPOST as OP, OUTPOST_COLLIDERS } from '../../shared/severance-gate.js';
 import { buildOutpostStaging } from './severance-outpost-staging.js';
+import { buildOutpostTraining } from './outpost-training.js';
 import { noiseTexture, particleField } from './severance-gate.js';
 import { SEVERANCE_EXPANSE as E, SEVERANCE_GATE, pocketHeight } from '../../shared/severance-gate.js';
 
@@ -155,6 +156,8 @@ export function createExpeditionOutpost(T, o) {
 
   const staging=buildOutpostStaging(T,{ground:o.ground,assets:o.assets});
   root.add(staging.group);
+  const training = buildOutpostTraining(T, {ground:o.ground,loader:o.loader});
+  root.add(training.group);
   // ---- additive halos (lamps, counter, beacon) in one draw
   const halos = [];
   for (const l of OP.lamps) halos.push([l.x, o.ground(l.x, l.z) + 2.45, l.z, 1.4, 1.0, 0.62, 0.3]);
@@ -210,6 +213,7 @@ export function createExpeditionOutpost(T, o) {
       if (shelterFx.lamp) shelterFx.lamp.emissiveIntensity = (1.2 + 2.2 * night) * flick;
       if (shelterFx.strip) shelterFx.strip.emissiveIntensity = 0.8 + 1.4 * night;
       if (shelterFx.vent) shelterFx.vent.emissiveIntensity = (0.6 + 1.2 * night) * (0.75 + 0.25 * Math.sin(t * 1.3));
+      training.update(dt, t, eye);
       const fx = near < 90;
       for (const f of [haze, sparks, dust]) { f.mesh.visible = fx; f.mat.uniforms.uTime.value = t; f.mat.uniforms.uMotion.value = deterministic ? 0.6 : 1; }
       haze.mat.uniforms.uLevel.value = 0.35;
@@ -217,11 +221,12 @@ export function createExpeditionOutpost(T, o) {
       dust.mat.uniforms.uLevel.value = 0.25 + 0.35 * night;
       holo.update(t, near < 70, deterministic);
     },
-    stats() { return { visible: root.visible, halos: halos.length, lights: 1, staging:staging.stats, shelter: shelterStatus, holo: holo.group.visible }; },
+    stats() { return { visible: root.visible, halos: halos.length, lights: 1, staging:staging.stats, training:training.stats(), shelter: shelterStatus, holo: holo.group.visible }; },
     dispose() {
       shelterStatus = 'disposed';
       holo.dispose();
       staging.dispose();
+      training.dispose();
       root.traverse((n) => { n.geometry?.dispose?.(); });
       for (const m of Object.values(M)) m.dispose();
       haloMat.dispose(); noise.dispose();
