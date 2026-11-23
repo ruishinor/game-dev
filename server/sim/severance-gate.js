@@ -5,7 +5,7 @@
 // sequence) from that phase locally. Traversal emits one world cue; the full
 // response is throttled so a party walking through does not replay it per player.
 // Timings, presence radius and travel validation stay here.
-import { dist, hasLineOfSight } from '../../shared/world.js';
+import { dist, hasLineOfSight, reachPortalApproach } from '../../shared/world.js';
 import { openFoundry, foundryArrival } from './silent-foundry.js';
 import { regionEntryDenial } from './enemy-levels.js';
 import { inSeverancePocket, SEVERANCE_POCKET, GATE_THRESHOLD, GATE_FRONT, SEVERANCE_GATE } from '../../shared/severance-gate.js';
@@ -67,7 +67,7 @@ export function travelSeverance(game, p, obj) {
   if (obj === s.beacon) {
     if (dist(p, obj) > 5 || !hasLineOfSight(p, obj)) return deny('Approach the return beacon.');
     const scar = game.rift?.entry;
-    game.transferPlayer(p, scar ? { x: scar.x, z: scar.z - 3.6, yaw: Math.atan2(-scar.x,-scar.z) } : { x: 0, z: 7.5, yaw: Math.PI });
+    game.transferPlayer(p, scar ? reachPortalApproach(scar) : { x: 0, z: 7.5, yaw: Math.PI });
     game.message(p, 'info', 'You returned to the Reach.');
     return { ok: true };
   }
