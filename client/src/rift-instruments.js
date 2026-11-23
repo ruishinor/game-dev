@@ -86,8 +86,9 @@ export function buildPhaseInstrument(T, regulator) {
   // Layered instrument hull: real recessed cavity, exposed captive screws,
   // fluted heat exchanger, and ceramic anti-vibration stand-offs.
   // Unlike a texture-only upgrade these silhouettes remain readable on TV.
-  const recess=add(new T.CylinderGeometry(.337,.337,.42,48,1,true),m.basalt,0,.56,0,'rift:instrument-recessed-cavity');
-  recess.material.side=T.DoubleSide;
+  const cavityMaterial=m.basalt.clone();
+  cavityMaterial.side=T.DoubleSide;
+  const recess=add(new T.CylinderGeometry(.337,.337,.42,48,1,true),cavityMaterial,0,.56,0,'rift:instrument-recessed-cavity');
   for(let i=0;i<12;i++){
     const a=i*Math.PI/6,si=Math.sin(a),co=Math.cos(a);
     const fin=box(.065,.35,.13,m.iron,si*.42,.56,co*.42,'rift:instrument-machined-cooling-fin');
