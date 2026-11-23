@@ -22,12 +22,18 @@ let browser;
 const log = [];
 try {
   browser = await launchBrowser();
-  const page = await browser.newPage({ viewport: { width: Number(process.env.ATTUNEMENT_WIDTH) || 1280, height: Number(process.env.ATTUNEMENT_HEIGHT) || 800 } });
+  // Software GL at 1080p can starve the real WebSocket heartbeat before we
+  // even enter the dungeon. Initialise gameplay at the normal 1280x800
+  // fixture size; switch to requested resolution only once the GLB is ready.
+  const requestedViewport = { width: Number(process.env.ATTUNEMENT_WIDTH) || 1280, height: Number(process.env.ATTUNEMENT_HEIGHT) || 800 };
+  const softwareHighRes = SOFTWARE_GL && requestedViewport.width > 1280;
+  const initialViewport = softwareHighRes ? { width: 1280, height: 800 } : requestedViewport;
+  const page = await browser.newPage({ viewport: initialViewport });
   page.setDefaultTimeout(240000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1`);
+  await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1${softwareHighRes ? '&rfps=4' : ''}`);
   await page.click('#gate-guest-link');
   await page.fill('#name', 'Expanse Surveyor');
   await page.click('.classcard[data-cls="keeper"]');
@@ -108,6 +114,10 @@ try {
     }, null, { polling: 500, timeout: 90000 });
     const kit = await page.evaluate(() => window.__attune.state().world.foundry);
     if (kit.kit !== 'ready') throw Error('Foundry kit unavailable during visual inspection: ' + JSON.stringify(kit));
+    // The screenshots still render at the exact requested 1920x1080 pixels;
+    // throttling *software* GL frames changes neither quality nor resolution.
+    // It only avoids spending the entire heartbeat budget on discarded frames.
+    if (softwareHighRes) await page.setViewportSize(requestedViewport);
     const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
     await shot('20-foundry-fabrication-hall', f(0, 92), S, { yaw: S, pitch: 0.12, dist: 7 }, { tod: 'off' });
     await shot('21-foundry-cultivation-vault', f(0, 50), S, { yaw: S, pitch: 0.14, dist: 7 }, { tod: 'off' });
