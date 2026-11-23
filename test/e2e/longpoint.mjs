@@ -68,6 +68,23 @@ try{
  await owner.keyboard.press('KeyR');
  await owner.waitForFunction(()=>{let shots=0;window.__attune.gfx.scene.traverse(o=>{shots+=o.userData.longpointShotCount||0});return shots>0;});
  assert.ok(enemy.hp<before,'authoritative auto attack caused damage');
+ // P05: contact occurs on an actual server-approved shot, not a fixture
+ // animation invocation. The same authored grip markers must remain aligned
+ // during the fired pose, through recoil, and on both authenticated clients.
+ for(const [page,label] of [[owner,'owner'],[observer,'observer']]){
+  await page.bringToFront();
+  await page.waitForFunction(id=>{
+   const e=window.__attune.state().ents.find(e=>e.id===id);
+   return e?.weaponPose?.mode==='ready'&&Number.isFinite(e.weaponPose.gripError)&&
+     Number.isFinite(e.weaponPose.supportError);
+  },p.id);
+  const fit=await page.evaluate(id=>window.__attune.state().ents.find(e=>e.id===id)?.weaponPose,p.id);
+  assert.ok(fit.gripError<.035&&fit.supportError<.035,
+    label+' firing grip must stay on the Longpoint anchors: '+JSON.stringify(fit));
+  assert.ok(fit.failures>=0&&fit.attempts>0,'live pose solver executed for '+label);
+  await capture(page,label+'-fired.png');
+ }
+ await owner.bringToFront();
  await owner.keyboard.press('KeyR');
  await owner.waitForFunction(()=>window.__attune.state().you.auto===0);
  assert.ok((await liveFixturePlayer(owner,server,'Longpoint Tester'))===p,'Firing must preserve original player');
