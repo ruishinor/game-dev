@@ -57,6 +57,7 @@ export function tradeVendor(game,p,msg){
  if(!session||msg?.ticket!==session.ticket||msg.rev!==session.rev)return fail('Trade quote expired. Reopen or refresh the vendor.');
  if(!Number.isSafeInteger(msg.qty)||msg.qty<1||msg.qty>99||typeof msg.id!=='string')return fail('Invalid trade quantity or item.');
  const goods=sanitizeGoods(p.char.goods),materials=sanitizeMaterials(p.char.materials);
+ const previousGoods={...goods};
  const credits=sanitizeCredits(p.char.credits);
  const inventory=[...p.char.inventory],condition=sanitizeCondition(p.char.condition,inventory);
  const {materials:BUY,utilities:BUY_UTILITIES,equipment:BUY_EQUIPMENT}=stockOf(game.ents.get(session.id));
@@ -106,6 +107,17 @@ export function tradeVendor(game,p,msg){
  // Only commit after all checks. A replay with the same quote revision fails.
  p.char.goods=goods;p.char.materials=materials;p.char.credits=balance;p.char.inventory=inventory;p.char.condition=condition;
  session.buyback=receipts.slice(-BUYBACK_LIMIT);session.rev++;
+ // Observe committed trades only; use post-transaction stack deltas, not quotes.
+ game.economy?.observe('vendor_trades',p,1,msg.op);
+ if(delta>0)game.economy?.observe('credits_vendor_in',p,delta);
+ if(delta<0)game.economy?.observe('credits_vendor_out',p,-delta);
+ for(const id of new Set([...Object.keys(previousGoods),...Object.keys(goods)])){
+  const diff=(goods[id]||0)-(previousGoods[id]||0);
+  if(diff>0)game.economy?.observe('goods_granted',p,diff,id);
+  if(diff<0)game.economy?.observe('goods_spent',p,-diff,id);
+ }
+ if(msg.op==='buy' && Object.hasOwn(BUY,msg.id))game.economy?.observe('materials_granted',p,msg.qty,msg.id);
+ if(newItem)game.economy?.observe('items_granted',p,1,newItem);
  if(newItem)p.outbox.push({e:'loot',item:newItem});
  game.markDirty(p);game.message(p,'gain',label+' Balance: '+balance+' credits.');
  return {ok:true};

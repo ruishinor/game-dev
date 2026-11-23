@@ -1,6 +1,6 @@
-# This intentionally runs against the merged main SHA, not only a PR merge ref.
-# PR validation is limited to changes of this workflow; routine PR tests are
-# handled by node-tests.yml, publication-preflight.yml and scoped browser suites.
+# Every PR must generate the repository-ruleset-required status check
+# "Core Node and publication tests". Never filter it by changed paths.
+# Post-merge main remains separately verified at its exact pushed SHA.
 name: Main integration health
 
 on:
@@ -8,27 +8,6 @@ on:
     branches:
       - main
   pull_request:
-    # Keep this focused on the guest/appearance persistence contract; the
-    # full post-merge suite always runs on main regardless of changed paths.
-    paths:
-      - '.github/workflows/main-health.yml'
-      - 'test/e2e/initiation.mjs'
-      - 'client/index.html'
-      - 'client/src/creation-preview.js'
-      - 'client/src/creation-sections.js'
-      - 'client/src/characters.js'
-      # Lumenfen rendering changes must produce the required Core Node check.
-      # Without these paths a Lumenfen-only PR cannot satisfy branch rules.
-      - 'client/src/lumenfen-*.js'
-      - 'test/lumenfen-*.test.js'
-      - 'client/src/main.js'
-      - 'client/src/ui.js'
-      - 'server/index.js'
-      - 'server/store.js'
-      - 'shared/appearance.js'
-      - 'tools/browser.mjs'
-      - 'package.json'
-      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -56,31 +35,3 @@ jobs:
       - run: node --test test/publication-preflight.test.js
       - name: Verify core entry-point syntax
         run: node --check server/index.js && node --check server/net.js && node --check client/src/main.js && node --check client/src/ui.js && node --check test/e2e/initiation.mjs
-
-  guest-entry:
-    name: Real-browser guest entry and persistence
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Authenticate guest, enter world, and persist appearance through UI
-        shell: bash
-        run: |
-          set -o pipefail
-          node test/e2e/initiation.mjs 2>&1 | tee main-guest-entry.log
-      - name: Preserve test log on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: main-guest-entry-log
-          path: main-guest-entry.log
-          if-no-files-found: ignore
-          retention-days: 7

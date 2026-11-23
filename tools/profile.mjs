@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { startServer } from '../server/index.js';
 import { ZONES, SEVERANCE_EXPANSE as EX, SILENT_FOUNDRY as SF } from '../shared/world.js';
 import { gateToWorld } from '../shared/severance-gate.js';
+import { LUMENFEN } from '../shared/lumenfen.js';
 import { launchBrowser, describeGraphics, SOFTWARE_GL, activeBrowserPlayer } from './browser.mjs';
 import { withDeadline } from './profile-deadline.mjs';
 
@@ -46,6 +47,8 @@ const SCENES = [
   { name: 'exp-outpost', transfer: true, x: EX.outpost.x - 22, z: EX.outpost.z - 6, face: Math.PI / 2 + 0.25, view: { pitch: 0.18, dist: 8 } },
   { name: 'foundry-vault', transfer: true, x: SF.x, z: SF.z + 50, face: Math.PI, view: { pitch: 0.14, dist: 7 } },
   { name: 'foundry-harmonic', transfer: true, x: SF.x, z: SF.z - 4, face: Math.PI, view: { pitch: 0.2, dist: 8 } },
+  { name: 'fen-arrival', transfer: true, x: LUMENFEN.arrival.x, z: LUMENFEN.arrival.z, face: 0, view: { pitch: 0.2, dist: 10 } },
+  { name: 'fen-spring', transfer: true, x: LUMENFEN.springLanding.x, z: LUMENFEN.springLanding.z, face: Math.PI / 2, view: { pitch: 0.2, dist: 8 } },
 ];
 const only = (process.env.ATTUNEMENT_SCENES || '').split(',').filter(Boolean);
 const scenes = only.length ? SCENES.filter((s) => only.some((o) => s.name.startsWith(o))) : SCENES;
@@ -60,7 +63,7 @@ try {
   catch (cleanupError) { console.error('[profile] server cleanup failed:', String(cleanupError)); }
   throw error;
 }
-const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, shaderWarmup: SHADER_WARMUP, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [], failures: [] };
+const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, shaderWarmup: SHADER_WARMUP, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, startup: [], results: [], failures: [] };
 let failed = false;
 let timedOut = false;
 const output = path.join(ROOT, 'docs', 'evidence', `profile-${SOFTWARE_GL ? 'software' : 'gpu'}.json`);
@@ -126,8 +129,28 @@ try {
     await page.click('.classcard[data-cls="vanguard"]');
     await page.click('#enter');
     await bounded(`q${tier}: enter world`, () => page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().pos));
+    // Capture the first populated-world render separately: it can occur before
+    // any camera teleport and must not disappear from per-scene metrics.
+    await bounded(`q${tier}: first world draw`, () => page.waitForFunction(() => window.__attune?.state().drawn > 0));
+    const initial = await bounded(`q${tier}: startup diagnostics`, () => page.evaluate(() => {
+      const s = window.__attune.state();
+      return {
+        tier: s.quality,
+        shaderWarmup: s.shaderWarmup,
+        renderProbe: s.renderDiagnostics?.enabled ? {
+          stats: s.renderDiagnostics.stats,
+          context: s.renderDiagnostics.context,
+          events: s.renderDiagnostics.events.slice(-25),
+        } : null,
+      };
+    }));
+    report.startup.push(initial);
+    saveReport();
     for (const scene of scenes) {
       console.log(`[profile] q${tier}: scene ${scene.name}`);
+      // The window starts before the teleport, including its cold first render.
+      // Global startup and previous scenes retain independent diagnostic history.
+      await bounded(`q${tier}/${scene.name}: start render window`, () => page.evaluate(() => window.__attune.beginRenderWindow()));
       const player = await bounded(`q${tier}/${scene.name}: player`, () => activeBrowserPlayer(page, srv, name));
       if (scene.transfer) { player.char.level = Math.max(3, player.char.level); srv.game.transferPlayer(player, { x: scene.x, z: scene.z }); }
       player.x = scene.x;
@@ -184,9 +207,11 @@ try {
           // Captures live game-frame stalls, not the intrusive readPixels test below.
           shaderWarmup: s.shaderWarmup,
           renderProbe: s.renderDiagnostics?.enabled ? {
-            stats: s.renderDiagnostics.stats,
+            scope: 'scene-and-transition',
+            startedAtMs: s.renderDiagnostics.window.startedAtMs,
+            stats: s.renderDiagnostics.window.stats,
             context: s.renderDiagnostics.context,
-            events: s.renderDiagnostics.events.slice(-25),
+            events: s.renderDiagnostics.window.events.slice(-25),
           } : null,
         };
       }, { software: SOFTWARE_GL, frameCount: FRAME_COUNT, syncBench: SYNC_BENCH }));
