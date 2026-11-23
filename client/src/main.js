@@ -1045,6 +1045,7 @@ function onWelcome(m) {
   S.inspect = null;
   S.you = null;
   S.snaps = 0;
+  S.travelSerial = 0;
   local.pred = { x: m.x, z: m.z, jy: 0, vy: 0 };
   local.prev = { x: m.x, z: m.z, jy: 0 };
   local.pending = [];
@@ -1097,6 +1098,13 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  if(Number.isSafeInteger(y.tr) && y.tr > 0 && y.tr !== S.travelSerial && Number.isFinite(y.face)){
+    S.travelSerial=y.tr;
+    local.yaw=y.face;
+    local.sentYaw=y.face;
+    cam.reset(y.face);
+    local.pending.length=0; // inputs from the old region cannot move the arrival
+  }
   if (Number.isFinite(y.wc)) world.severancePocket?.timeOfDay.setLive(y.wc / 10000);
   if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
@@ -1332,6 +1340,21 @@ function onEvent(e) {
       if (!handled) fx = legacyFx;
       // Rich recipes supersede the ecology fallback only when handled.
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(e.k==='outpost_defense'){
+        // The authenticated defender shot has a different VFX family per
+        // affinity; this is a precise single-target trace, not a false AoE.
+        const d=S.ents.get(e.d);
+        if(s?.placed&&d?.placed){
+          const colour={arc:0x76d4ff,kinetic:0xffc071,thermal:0xff774d,resonance:0xc7a4ff}[e.af]||0x9edfff;
+          s.attack=1;
+          if(rich()&&!motionPreference.matches){
+            vfx.lightning({from:[s.chest.x,s.chest.y,s.chest.z],to:[d.chest.x,d.chest.y,d.chest.z],
+              color:colour,color2:0xf3f7ff,width:e.af==='kinetic'?.055:.025,life:.17,jag:e.af==='arc'?.2:.09,rate:.045,branches:e.af==='arc'?2:0});
+          }else fx.beam(chestOf(s),chestOf(d),colour,240,.055);
+          fx.burst(d.chest,colour,6,.65);
+        }
+        break;
+      }
       if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
         S.ents.get(e.s)?.model?.flare?.(e.k);

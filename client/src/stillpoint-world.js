@@ -5,7 +5,7 @@ import {stillpointPose} from '../../shared/stillpoint-roam.js';
 
 export const STILLPOINT_URL='/client/assets/stillpoint.glb?v=230506ecfb78';
 
-export async function loadStillpoint(T,loader,site){
+export async function loadStillpoint(T,loader,site,{poseAt=stillpointPose}={}){
   const gltf=await loader.loadAsync(STILLPOINT_URL);
   const root=gltf.scene;
   const clips=Object.fromEntries(['Idle','Walk','WeightShift'].map(name=>[name,gltf.animations.find(c=>c.name===name)]));
@@ -35,9 +35,9 @@ export async function loadStillpoint(T,loader,site){
     group.position.set(p.x,groundHeight(p.x,p.z)+.04,p.z);
     group.rotation.y=p.yaw;
   }
-  place(stillpointPose(0));
+  place(poseAt(0));
   return {group,update(dt,focus,reducedMotion=false,serverSeconds=0){
-    const pose=stillpointPose(serverSeconds);
+    const pose=poseAt(serverSeconds);
     place(pose);
     const near=Math.hypot(focus.x-pose.x,focus.z-pose.z)<40;
     group.visible=near;
@@ -52,5 +52,12 @@ export async function loadStillpoint(T,loader,site){
     // Keep ordinary creature locomotion and fade transitions coherent.
     mixer.update(Math.max(0,Math.min(.1,dt)));
     group.userData.stillpointClip=current;
+  },dispose(){
+    mixer.stopAllAction();
+    group.removeFromParent();
+    const materials=new Set(),geometries=new Set();
+    root.traverse(o=>{if(!o.isMesh)return;geometries.add(o.geometry);for(const m of [].concat(o.material))materials.add(m);});
+    for(const geo of geometries)geo?.dispose?.();
+    for(const m of materials)m?.dispose?.();
   }};
 }

@@ -232,6 +232,16 @@ const SHX = O.x + 3, SHZ = O.z + 1;
 export const EXPEDITION_OUTPOST = Object.freeze({
   name: 'Expedition Outpost', x: O.x, z: O.z, r: O.r,
   shelter: Object.freeze({ x: SHX, z: SHZ, yaw: -Math.PI / 2, front: -6.4, rear: 6.9, sledFront: -8.6, sledRear: 8.0, hw: 4.6, height: 3.86 }),
+  // Two supplementary open field shelters extend the existing operations
+  // shelter; they use real corner-post colliders but keep the approach open.
+  stillpointFollowers:Object.freeze([
+    Object.freeze({x:O.x-2.5,z:O.z+13,r:1.25,h:1.9}),
+    Object.freeze({x:O.x-13,z:O.z-1.5,r:1.25,h:1.9}),
+  ]),
+  auxiliaryShelters: Object.freeze([
+    Object.freeze({key:'north',x:O.x-7,z:O.z+11,w:4.8,d:3.8,height:2.9,yaw:-Math.PI/2}),
+    Object.freeze({key:'west',x:O.x-12,z:O.z-6,w:4.6,d:3.7,height:2.7,yaw:-Math.PI/2}),
+  ]),
   quartermaster: Object.freeze({ x: SHX - 1.0, z: SHZ, yaw: -Math.PI / 2 }),
   counter: Object.freeze({ x: SHX - 2.6, z: SHZ, hw: 0.45, hd: 2.0, h: 0.75 }),
   table: Object.freeze({ x: SHX - 4.4, z: SHZ + 2.7, r: 0.75, h: 0.95 }),
@@ -243,8 +253,30 @@ export const EXPEDITION_OUTPOST = Object.freeze({
     Object.freeze({ key: 'outpost_signaller', name: 'Signaller Maren Okafor', ...ox(-6.1, -7.2), yaw: -2.2 }),
   ]),
 });
+// Stationed defensive ring: two paired posts, two solo overwatch positions,
+// and a Halo Construct officer who commands from the middle. These are
+// neutral allied objects, not player-farmable enemy or quest NPCs.
+export const EXPEDITION_DEFENDERS=Object.freeze([
+ ...[
+  [-11,2,0,'Expanse Warden · North Pair','arc'],
+  [-11,5,1,'Expanse Warden · North Pair','kinetic'],
+  [-9,-9,2,'Expanse Warden · South Pair','resonance'],
+  [-6,-11,3,'Expanse Warden · South Pair','thermal'],
+  [10,5,4,'Expanse Warden · Eastern Watch','arc'],
+  [12,-8,5,'Expanse Warden · Basin Watch','resonance'],
+ ].map(([dx,dz,variant,name,affinity],i)=>Object.freeze({
+  key:'expanse_warden_'+(i+1),type:'outpost_warden',name,
+  x:O.x+dx,z:O.z+dz,r:.45,variant,affinity,
+  yaw:Math.atan2(dx,dz)
+ })),
+ Object.freeze({key:'expanse_security_officer',type:'outpost_commander',name:'Expedition Elite Security Officer',
+  x:O.x+1,z:O.z+8,r:.45,variant:0,affinity:'resonance',yaw:Math.PI}),
+]);
 const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
 export const OUTPOST_COLLIDERS = Object.freeze([
+  ...OP.auxiliaryShelters.flatMap(sh=>[-1,1].flatMap(sx=>[-1,1].map(sz=>Object.freeze({
+    type:'outpost_shelter_post',x:sh.x+sx*(sh.w/2-.22),z:sh.z+sz*(sh.d/2-.22),r:.17,h:sh.height
+  })))),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
   Object.freeze({ type: 'outpost_shell', x: SH.x + SH.rear - 0.3, z: SH.z, hw: 0.4, hd: SH.hw * 0.72, h: 2.8 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledFront - 6.2) / 2, z: SH.z + s * SH.hw * 0.92, hw: (6.2 + SH.sledFront) / -2, hd: 0.15, h: 3.6 })),

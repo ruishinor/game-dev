@@ -3,5 +3,8 @@
 // combat rod rather than inventing rifle attacks their AI cannot perform.
 export const SEVERANCE_SOLDIER_ROD=Object.freeze({mode:'rod',rodClass:'vanguard'});
 export function enemyWeaponPresentation(meta){
- return meta?.k==='e'&&meta?.c==='severance_soldier'?SEVERANCE_SOLDIER_ROD:null;
+ if(meta?.k!=='e'||meta?.c!=='severance_soldier')return null;
+ // Ranged Null soldiers actually carry the longpoint presentation.
+ if(meta.vx==='null_arc'||meta.vx==='null_resonance')return null;
+ return SEVERANCE_SOLDIER_ROD;
 }

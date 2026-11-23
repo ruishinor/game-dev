@@ -180,7 +180,9 @@ export function dealDamage(game, src, dst, base, ability, opts = {}) {
         }
       }
     }
-    if (dst.hp <= 0) killEnemy(game, dst);
+    // Allied outpost security owns its final blow. Even a player who tagged
+    // the target earlier receives no XP, corpse rewards or quest credit.
+    if (dst.hp <= 0) killEnemy(game, dst, src?.outpostDefender===true ? [] : undefined);
   } else {
     dst.combatUntil = game.time + COMBAT_LINGER_MS;
     gainCharge(dst, amt * 0.5);

@@ -6,6 +6,8 @@
 // one pre-created light, deterministic under the manual clock.
 import { EXPEDITION_OUTPOST as OP, OUTPOST_COLLIDERS } from '../../shared/severance-gate.js';
 import { buildOutpostStaging } from './severance-outpost-staging.js';
+import { loadStillpoint } from './stillpoint-world.js';
+import { outpostStillpointPose } from '../../shared/stillpoint-roam.js';
 import { noiseTexture, particleField } from './severance-gate.js';
 import { SEVERANCE_EXPANSE as E, SEVERANCE_GATE, pocketHeight } from '../../shared/severance-gate.js';
 
@@ -18,7 +20,7 @@ void main(){ vec4 mv = viewMatrix * vec4(aHalo.xyz, 1.0); mv.xy += position.xy *
 const HALO_FS = `uniform float uTime, uGain, uBlink; varying vec2 vQ; varying vec3 vT; varying float vI;
 void main(){ float r2 = dot(vQ, vQ); float k = exp(-r2 * 4.0) * uGain;
   // the last halo is the mast beacon: a slow double blink
-  if (vI > 10.5) { float t = fract(uTime * 0.5); k *= uBlink * (smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.08, 0.14, t)) + smoothstep(0.2, 0.23, t) * (1.0 - smoothstep(0.28, 0.34, t))); }
+  if (vI > 10.5) { float t = fract(uTime * 0.5); k *= 2.0 * uBlink * (smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.08, 0.14, t)) + smoothstep(0.2, 0.23, t) * (1.0 - smoothstep(0.28, 0.34, t))); }
   else k *= 0.9 + 0.1 * sin(uTime * 3.1 + vI * 1.7);
   if (k < 0.003) discard; gl_FragColor = vec4(vT * k, k); }`;
 
@@ -108,6 +110,46 @@ export function createExpeditionOutpost(T, o) {
     });
   }
 
+  // Two additional field shelters: pitched weather roofs, structural posts,
+  // fascia lighting, and no unseen solid walls. Each post's actual collider
+  // is registered in the authoritative shared outpost contract.
+  for(const sh of OP.auxiliaryShelters){
+    const y=o.ground(sh.x,sh.z);
+    const roof=box(T,M.roof,sh.w+.34,.17,sh.d+.38,sh.x,y+sh.height+.06,sh.z);
+    roof.name='severance-outpost:shelter-'+sh.key;
+    roof.rotation.z=.065;
+    root.add(roof);
+    const underside=box(T,M.panelDark,sh.w-.3,.055,sh.d-.2,sh.x,y+sh.height-.06,sh.z);
+    underside.name='severance-outpost:shelter-lining-'+sh.key;
+    root.add(underside);
+    for(const sign of [-1,1]){
+      root.add(box(T,M.frame,sh.w-.4,.09,.12,sh.x,y+sh.height-.2,sh.z+sign*(sh.d/2-.14)));
+      root.add(box(T,M.teal,sh.w*.72,.045,.035,sh.x,y+sh.height-.25,sh.z+sign*(sh.d/2+.18)));
+    }
+    const ridge=box(T,M.frame,.14,.18,sh.d+.25,sh.x,y+sh.height+.19,sh.z);
+    root.add(ridge);
+  }
+  // Stillpoints are noncombat camp followers using the existing skinned GLB
+  // and a deterministic presentation-only movement loop.
+  let followerStatus='idle';
+  let followers=[];
+  function startFollowers(){
+    if(followerStatus!=='idle')return;
+    followerStatus='loading';
+    if(!o.loader){followerStatus='unavailable';return;}
+    Promise.all(OP.stillpointFollowers.map((site,i)=>loadStillpoint(T,o.loader,site,{
+      poseAt:(seconds)=>outpostStillpointPose(i,seconds)
+    }))).then(models=>{
+      if(followerStatus==='disposed'){for(const m of models)m.dispose?.();return;}
+      followers=models;
+      models.forEach((m,i)=>{m.group.name='severance-outpost:stillpoint-'+(i+1);root.add(m.group);});
+      followerStatus='ready';
+    }).catch(err=>{
+      followerStatus='unavailable';
+      console.warn('[outpost] Stillpoint followers unavailable:',err?.message||err);
+    });
+  }
+
   // ---- holo-map table: the Expanse in miniature, routes traced, the gate marked
   const holo = buildHoloMap(T, o.ground, noise);
   holo.group.position.set(OP.table.x, o.ground(OP.table.x, OP.table.z), OP.table.z);
@@ -145,6 +187,9 @@ export function createExpeditionOutpost(T, o) {
       ped.position.set(c.x, y + (c.h - 0.1) / 2, c.z); root.add(ped);
       const ring = new T.Mesh(new T.TorusGeometry(c.r * 0.9, 0.025, 6, 32), M.teal);
       ring.rotation.x = Math.PI / 2; ring.position.set(c.x, y + c.h + 0.01, c.z); root.add(ring);
+    } else if(c.type==='outpost_shelter_post'){
+      root.add(box(T,M.frame,c.r*2,c.h,c.r*2,c.x,y+c.h/2,c.z));
+      root.add(box(T,M.brass||M.panel,.4,.14,.4,c.x,y+c.h-.07,c.z));
     } else if (c.type === 'outpost_lamp') {
       const post = new T.Mesh(new T.CylinderGeometry(0.05, 0.08, c.h, 5), M.frame);
       post.position.set(c.x, y + c.h / 2, c.z);
@@ -202,6 +247,8 @@ export function createExpeditionOutpost(T, o) {
       const near = eye ? Math.hypot(eye.x - OP.x, eye.z - OP.z) : Infinity;
       root.visible = near < 260;
       if (root.visible && shelterStatus === 'idle') loadShelter();
+      if(root.visible && followerStatus==='idle')startFollowers();
+      if(followerStatus==='ready' && eye)for(const m of followers)m.update(dt,eye,deterministic,t);
       haloMat.uniforms.uTime.value = t;
       haloMat.uniforms.uGain.value = 0.45 + 0.8 * night;
       light.intensity = near < 60 ? 6 + 16 * night : 0;
@@ -217,9 +264,11 @@ export function createExpeditionOutpost(T, o) {
       dust.mat.uniforms.uLevel.value = 0.25 + 0.35 * night;
       holo.update(t, near < 70, deterministic);
     },
-    stats() { return { visible: root.visible, halos: halos.length, lights: 1, staging:staging.stats, shelter: shelterStatus, holo: holo.group.visible }; },
+    stats() { return { visible: root.visible, halos: halos.length, lights: 1, staging:staging.stats, shelter: shelterStatus, shelters:1+OP.auxiliaryShelters.length, stillpoints:followers.length, holo: holo.group.visible }; },
     dispose() {
       shelterStatus = 'disposed';
+      followerStatus='disposed';
+      for(const m of followers)m.dispose?.();
       holo.dispose();
       staging.dispose();
       root.traverse((n) => { n.geometry?.dispose?.(); });

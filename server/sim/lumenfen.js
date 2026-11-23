@@ -1,6 +1,6 @@
 // Separate server-authoritative region access and encounters.
 import {LUMENFEN,inLumenfen} from '../../shared/lumenfen.js';
-import {travelRegionAt,hasLineOfSight,dist,resolveCollisions} from '../../shared/world.js';
+import {travelRegionAt,hasLineOfSight,dist,resolveCollisions,reachPortalApproach} from '../../shared/world.js';
 import {ENEMIES} from '../../shared/content.js';
 import {resetEnemy} from './ai.js';
 import {regionEntryDenial,ELITE} from './enemy-levels.js';
@@ -36,15 +36,15 @@ export function travelLumenfen(game,p,obj){
    if(region!=='reach')return deny('The Rootglass Tear is reached from the Verdigris Reach.');
    const denied=regionEntryDenial('lumenfen',p.char);if(denied)return deny(denied);
    if(!p.char.attunements?.includes('resonance'))return deny('Rootglass travel requires Resonance attunement.');
-   spawnLumenfenWildlife(game);to=P.arrival;
+   spawnLumenfenWildlife(game);to={...P.arrival,yaw:0};
  }else{
    if(region!=='lumenfen'||!inLumenfen(p.x,p.z))return deny('This threshold belongs to Lumenfen.');
    if(obj.type==='lumenfen_return'){
      const entry=game.objects.find(o=>o.type==='lumenfen_entry');
      if(!entry)return deny('The return anchor is missing.');
-     to={x:entry.x,z:entry.z-3.7};
-   }else if(obj.type==='lumenfen_spring')to=P.crownLanding;
-   else to=P.springLanding;
+     to=reachPortalApproach(entry,3.7);
+   }else if(obj.type==='lumenfen_spring')to={...P.crownLanding,yaw:0};
+   else to={...P.springLanding,yaw:Math.PI};
  }
  game.transferPlayer(p,to);
  game.message(p,'info',obj.type==='lumenfen_entry'?'Lumenfen. The Mirrorpools, Mossbound Thicket and Luminous Canopy lie beyond the Veil Landing. The return rift stands nearby.':obj.type==='lumenfen_return'?'You returned to the Verdigris Reach.':'You crossed a living rootglass threshold.');

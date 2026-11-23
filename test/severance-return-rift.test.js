@@ -60,7 +60,7 @@ test('return rift keeps the server travel contract and rejects invalid remote/lo
  p.autoOn=false;p.dead=true;assert.equal(interact(g,p,o.id).ok,false);
  p.dead=false;assert.equal(interact(g,p,o.id).ok,true);
  assert.equal(travelRegionAt(p.x,p.z),'reach');
- assert.ok(Math.hypot(p.x-g.rift.entry.x,p.z-(g.rift.entry.z-3.6))<1e-6);
+ assert.ok(Math.hypot(p.x-(g.rift.entry.x-g.rift.entry.x/Math.hypot(g.rift.entry.x,g.rift.entry.z)*3.6),p.z-(g.rift.entry.z-g.rift.entry.z/Math.hypot(g.rift.entry.x,g.rift.entry.z)*3.6))<1e-6);
 });
 
 

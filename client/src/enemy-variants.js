@@ -15,6 +15,11 @@ const VARIANTS = Object.freeze({
   salvage: { tint: 0x5a4c3c, mix: 0.45, rough: -0.08, vein: 0xd9893a, veinGain: 0.75, scale: 5.0, crystal: 0x7fe6ff, core: 0x062a36, shards: 4 },
   salvage_elite: { tint: 0x4a3a2a, mix: 0.55, rough: -0.12, vein: 0xffa040, veinGain: 1.25, scale: 5.5, crystal: 0x9ff4ff, core: 0x083646, shards: 8, size: 1.35 },
   foundry: { tint: 0x2f2b29, mix: 0.55, rough: -0.05, vein: 0xff5a14, veinGain: 1.9, scale: 3.4, crystal: 0x5ef2e2, core: 0x05302f, shards: 3 },
+  // Null Chamber affinity lenses read at a glance against the dungeon floor.
+  null_kinetic: { tint: 0x414556, mix: 0.48, rough: -0.05, vein: 0xf4a24f, veinGain: 1.6, scale: 3.8, crystal: 0xffca64, core: 0x37210a, shards: 4 },
+  null_thermal: { tint: 0x55403d, mix: 0.50, rough: 0.03, vein: 0xff653e, veinGain: 1.7, scale: 4.2, crystal: 0xff895a, core: 0x3b0a06, shards: 4 },
+  null_arc: { tint: 0x344d59, mix: 0.5, rough: -0.07, vein: 0x49bbef, veinGain: 1.8, scale: 3.9, crystal: 0x73dbff, core: 0x072e45, shards: 5 },
+  null_resonance: { tint: 0x514662, mix: 0.5, rough: -0.07, vein: 0xb28eff, veinGain: 1.7, scale: 3.5, crystal: 0xd2acff, core: 0x25083c, shards: 5 },
 });
 export const ENEMY_VARIANTS = Object.freeze(Object.keys(VARIANTS));
 

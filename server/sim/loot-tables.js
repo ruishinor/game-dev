@@ -4,6 +4,11 @@ import { ITEMS, ENEMIES } from '../../shared/content.js';
 const freezeDrops = drops => Object.freeze(drops.map(d => Object.freeze(d)));
 export const ENEMY_ITEM_DROPS = Object.freeze({
   sinter_grazer: freezeDrops([]),
+  // Soldiers can now yield recoverable field equipment (owner-approved).
+  severance_soldier: freezeDrops([
+    { item: 'field_vector_array', chance: 0.13 },
+    { item: 'conductive_membrane', chance: 0.17 },
+  ]),
   quarantine_custodian: freezeDrops([]),
   faultstalker: freezeDrops([{ item: 'sinter_laminate', chance: 0.45 }]),
   skitter: freezeDrops([]),
@@ -85,4 +90,33 @@ export function eliteUncommonDrop(e, char, rng) {
   const pool = eliteUncommonPool().filter((id) => !owned.has(id));
   if (!pool.length) return null;
   return pool[Math.min(pool.length - 1, Math.floor((n / ELITE_UNCOMMON_CHANCE) * pool.length))];
+}
+
+// Ten existing, obtainable Rare blueprints. Sources are authored per Null
+// patrol captain rather than tied to generic sentinel/warden loot tables.
+export const NULL_BLUEPRINT_POOL=Object.freeze([
+ 'blueprint_vanguard_field_set_chest','blueprint_vanguard_field_set_gloves','blueprint_vanguard_field_set_greaves',
+ 'blueprint_symbiotech_field_set_chest','blueprint_symbiotech_field_set_gloves','blueprint_symbiotech_field_set_greaves',
+ 'blueprint_keeper_field_set_chest','blueprint_keeper_field_set_gloves',
+ 'blueprint_surveyor_field_set_chest','blueprint_surveyor_field_set_gloves',
+]);
+export function nullBlueprintDrop(enemy,char,rng){
+ if(!enemy?.nullAnnex)return null;
+ // Each of two independent squad captains yields one random, still-unknown
+ // blueprint to each credited character. Other Null enemies have a low chance.
+ const chance=enemy.nullBlueprintSource?1:0.11;
+ const n=rng();
+ if(!Number.isFinite(n)||n<0||n>=chance)return null;
+ const pool=NULL_BLUEPRINT_POOL.filter(id=>(char.goods?.[id]||0)<1);
+ if(!pool.length)return null;
+ return pool[Math.min(pool.length-1,Math.floor((n/chance)*pool.length))];
+}
+export function nullEquipmentDrop(enemy,char,rng){
+ if(!enemy?.nullAnnex)return null;
+ const n=rng(),chance=isEliteEnemy(enemy)?0.44:0.29;
+ if(!Number.isFinite(n)||n<0||n>=chance)return null;
+ const owned=new Set(char?.inventory||[]);
+ const pool=Object.keys(ITEMS).filter(id=>['Uncommon','Rare'].includes(ITEMS[id].rarity)&&!owned.has(id)).sort();
+ if(!pool.length)return null;
+ return pool[Math.min(pool.length-1,Math.floor((n/chance)*pool.length))];
 }

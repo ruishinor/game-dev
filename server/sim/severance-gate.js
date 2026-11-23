@@ -5,7 +5,7 @@
 // sequence) from that phase locally. Traversal emits one world cue; the full
 // response is throttled so a party walking through does not replay it per player.
 // Timings, presence radius and travel validation stay here.
-import { dist, hasLineOfSight } from '../../shared/world.js';
+import { dist, hasLineOfSight, reachPortalApproach } from '../../shared/world.js';
 import { openFoundry, foundryArrival } from './silent-foundry.js';
 import { regionEntryDenial } from './enemy-levels.js';
 import { inSeverancePocket, SEVERANCE_POCKET, GATE_THRESHOLD, GATE_FRONT, SEVERANCE_GATE } from '../../shared/severance-gate.js';
@@ -50,11 +50,11 @@ export function severanceRow(game, obj) {
 
 /** Foundry (and legacy Annex) return destination: the foot of the gate's stairs. */
 export function gateFront() {
-  return { x: GATE_FRONT.x, z: GATE_FRONT.z };
+  return { x: GATE_FRONT.x, z: GATE_FRONT.z, yaw: 0 };
 }
 
 export function pocketArrival() {
-  return { x: SEVERANCE_POCKET.arrival.x, z: SEVERANCE_POCKET.arrival.z };
+  return { x: SEVERANCE_POCKET.arrival.x, z: SEVERANCE_POCKET.arrival.z, yaw: 0 };
 }
 
 /** Interaction with the gate threshold or the pocket's return beacon. */
@@ -67,7 +67,7 @@ export function travelSeverance(game, p, obj) {
   if (obj === s.beacon) {
     if (dist(p, obj) > 5 || !hasLineOfSight(p, obj)) return deny('Approach the return beacon.');
     const scar = game.rift?.entry;
-    game.transferPlayer(p, scar ? { x: scar.x, z: scar.z - 3.6 } : { x: 0, z: 7.5 });
+    game.transferPlayer(p, scar ? reachPortalApproach(scar) : { x: 0, z: 7.5, yaw: Math.PI });
     game.message(p, 'info', 'You returned to the Reach.');
     return { ok: true };
   }

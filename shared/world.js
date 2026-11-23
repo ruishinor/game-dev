@@ -11,7 +11,7 @@ export const GRAVITY = 22.0;
 export const PLAYER_RADIUS = 0.45;
 export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
-import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
+import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, EXPEDITION_DEFENDERS, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
 import { SILENT_FOUNDRY, FOUNDRY_COLLIDERS, inSilentFoundry, foundryArea, foundryHeight, clampToFoundry } from './silent-foundry.js';
 import { LUMENFEN, FEN_COLLIDERS, FEN_RIFTS, inLumenfen, clampToLumenfen, fenHeight, fenArea } from './lumenfen.js';
 export { LUMENFEN, inLumenfen, fenArea } from './lumenfen.js';
@@ -381,26 +381,60 @@ export const OBJECTS = [
 
 // A small additive site outside established zones. Never delete or relocate
 // existing props to make room. Ordered candidates keep placement deterministic.
+// Place the Reach thresholds against the inner face of the enclosing ridge.
+// Select along the same ~80m contour, not the open plaza. The last 2-3m
+// beyond the portal foundation lead directly into the rising mountain wall.
+function reachWallCandidates(){
+ const out=[];
+ for(const radius of [80.4,79.8,79.2,78.6])for(let i=0;i<=48;i++){
+  const angle=.66+i*.027;
+  out.push([Math.round(Math.sin(angle)*radius*100)/100,Math.round(Math.cos(angle)*radius*100)/100]);
+ }
+ return out;
+}
+function wallSiteClear(x,z,spacing=6){
+ if(Math.hypot(x,z)>WORLD.radius-11.3)return false;
+ if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+spacing))return false;
+ if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<spacing+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
+ const h=groundHeight(x,z),rad=Math.hypot(x,z),ix=x/rad,iz=z/rad;
+ // Verify the walk-in (inward) half, not the intentionally steep wall behind.
+ for(const forward of [2.8,5.2])for(const side of [-2.8,0,2.8]){
+  const sx=x-ix*forward-iz*side,sz=z-iz*forward+ix*side;
+  if(Math.abs(groundHeight(sx,sz)-h)>1.55)return false;
+ }
+ return true;
+}
 function findRiftSite(){
-  const preferred=[[30,46],[30,50],[34,48],[28,44],[32,52],[34,44]];
-  for(let z=40;z<=66;z+=2)for(let x=22;x<=58;x+=2)preferred.push([x,z]);
-  for(const [x,z] of preferred){
-    if(Math.hypot(x,z)>WORLD.radius-16)continue;
-    if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+8.6))continue;
-    if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<8.6+(o.r??Math.hypot(o.hw??0,o.hd??0))))continue;
-    const h=groundHeight(x,z),samples=[h];
-    for(let i=0;i<20;i++){const a=i*Math.PI/10;for(const rad of [2.2,6.2])samples.push(groundHeight(x+Math.cos(a)*rad,z+Math.sin(a)*rad));}
-    if(Math.max(...samples)-Math.min(...samples)>1.55)continue;
-    return Object.freeze({x,z,r:8.5,hazard:5.5});
-  }
-  return null;
+ for(const [x,z] of reachWallCandidates()){
+  if(!wallSiteClear(x,z,5.2))continue;
+  // Reserve the second gate BEFORE selecting the primary site. Without this
+  // the first free patch could be too isolated and Rootglass would disappear.
+  const r=Math.hypot(x,z),angle=Math.atan2(x,z);
+  const buddy=[.21,-.21,.24,-.24,.28,-.28,.32,-.32,.38,-.38].some(step=>{
+   const a=angle+step,px=Math.round(r*Math.sin(a)*100)/100,pz=Math.round(r*Math.cos(a)*100)/100;
+   return wallSiteClear(px,pz,5.0)&&Math.hypot(px-x,pz-z)>13.3;
+  });
+  if(buddy)return Object.freeze({x,z,r:8.5,hazard:5.5});
+ }
+ return null;
+}
+
+/** The approach side of a cliff-backed Reach portal always points to the
+ * basin centre. Fixed -Z offsets can otherwise eject players into the wall. */
+export function reachPortalApproach(portal,distance=3.6){
+ const radius=Math.hypot(portal.x,portal.z)||1;
+ return {
+  x:portal.x-portal.x/radius*distance,
+  z:portal.z-portal.z/radius*distance,
+  yaw:Math.atan2(-portal.x,-portal.z),
+ };
 }
 export const RIFT_SITE=findRiftSite();
 if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
-  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:PHASE_RIFT_RADIUS},
-    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-6.25,z,r:.65},
-    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+6.25,z,r:.65},
+  OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:PHASE_RIFT_RADIUS,yaw:Math.atan2(-x,-z)},
+    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-z/Math.hypot(x,z)*6.25,z:z+x/Math.hypot(x,z)*6.25,r:.65,yaw:Math.atan2(-x,-z)},
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+z/Math.hypot(x,z)*6.25,z:z-x/Math.hypot(x,z)*6.25,r:.65,yaw:Math.atan2(-x,-z)},
     {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
     {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
@@ -418,6 +452,7 @@ OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Sev
   {key:'null_breach',type:'null_breach',name:'Null Breach',x:SILENT_FOUNDRY.x-9,z:SILENT_FOUNDRY.z-99,r:PHASE_RIFT_RADIUS,yaw:0});
 OBJECTS.push({key:'expedition_quartermaster',type:'expedition_quartermaster',name:'Expedition Quartermaster',x:EXPEDITION_OUTPOST.quartermaster.x,z:EXPEDITION_OUTPOST.quartermaster.z,r:.5,yaw:EXPEDITION_OUTPOST.quartermaster.yaw});
 for(const c of EXPEDITION_OUTPOST.crew)OBJECTS.push({key:c.key,type:'outpost_crew',look:c.key,name:c.name,x:c.x,z:c.z,r:.45,yaw:c.yaw});
+OBJECTS.push(...EXPEDITION_DEFENDERS);
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 // Four Halo Construct wardens stand outside the Sanctum perimeter, one per
@@ -442,41 +477,22 @@ OBJECTS.push(...SANCTUM_GUARDS);
 // alignment and sufficient room for its Indexer/Regulator and player approach.
 // Recompute the shared location for both client and authoritative server.
 function findLumenfenEntry(){
- // The old nine-metre stand-off against every cosmetic prop arbitrarily
- // excluded the same portal plaza. Keep a six-metre interaction buffer plus
- // each actual object collider, and accept ordinary terrain undulation. The
- // threshold itself still remains a solid 2.45m gameplay footprint.
- const alignedClear=(x,z)=>{
-  if(Math.hypot(x,z)>WORLD.radius-14)return false;
-  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+6))return false;
-  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<6+(o.r??Math.hypot(o.hw??0,o.hd??0))))return false;
-  const samples=[groundHeight(x,z)];
-  for(let i=0;i<16;i++){const a=i*Math.PI/8;samples.push(groundHeight(x+Math.cos(a)*3.2,z+Math.sin(a)*3.2));}
-  return Math.max(...samples)-Math.min(...samples)<2.0;
- };
- // Prefer the same-Z portal row; when local props or uneven ground prevent
- // that, test a perpendicular same-X portal row before searching elsewhere.
- // Both alternatives keep the full safe-distance, terrain and zone checks.
- if(RIFT_SITE)for(const axis of ['x','z'])for(const offset of [13,-13,14,-14,15,-15,16,-16,17,-17,18,-18,19,-19,20,-20,21,-21,24,-24,27,-27,30,-30]){
-  const x=axis==='x'?RIFT_SITE.x+offset:RIFT_SITE.x;
-  const z=axis==='z'?RIFT_SITE.z+offset:RIFT_SITE.z;
-  if(alignedClear(x,z))return Object.freeze({x,z});
- }
- const candidates=[[-7,74],[16,72],[-25,66],[67,21],[-72,8],[64,-37]];
- for(let r=67;r<=77;r+=2)for(let k=0;k<48;k++){
-  const t=k*Math.PI*2/48;candidates.push([Math.round(Math.sin(t)*r),Math.round(Math.cos(t)*r)]);
- }
- for(const [x,z] of candidates){
-  if(Math.hypot(x,z)>WORLD.radius-14)continue;
-  if(Object.values(ZONES).some(a=>Math.hypot(x-a.x,z-a.z)<a.r+9))continue;
-  if([...PROPS,...OBJECTS].some(o=>Math.hypot(x-o.x,z-o.z)<9+(o.r??Math.hypot(o.hw??0,o.hd??0))))continue;
-  return Object.freeze({x,z});
+ if(!RIFT_SITE)return null;
+ // The second gate occupies the same ridge contour at least 14m along it;
+ // choosing along the arc keeps both backs against rock, unlike a straight
+ // X/Z row whose outer gate would sit far out in the open.
+ const r=Math.hypot(RIFT_SITE.x,RIFT_SITE.z),base=Math.atan2(RIFT_SITE.x,RIFT_SITE.z);
+ for(const step of [.21,-.21,.24,-.24,.28,-.28,.32,-.32,.38,-.38]){
+  const a=base+step,x=Math.round(r*Math.sin(a)*100)/100,z=Math.round(r*Math.cos(a)*100)/100;
+  if(wallSiteClear(x,z,5.0)&&Math.hypot(x-RIFT_SITE.x,z-RIFT_SITE.z)>13.3)
+   return Object.freeze({x,z});
  }
  return null;
 }
+
 export const LUMENFEN_ENTRY_SITE=findLumenfenEntry();
 if(LUMENFEN_ENTRY_SITE){
- OBJECTS.push({key:'lumenfen_entry',type:'lumenfen_entry',name:'Rootglass Tear',...LUMENFEN_ENTRY_SITE,r:PHASE_RIFT_RADIUS});
+ OBJECTS.push({key:'lumenfen_entry',type:'lumenfen_entry',name:'Rootglass Tear',...LUMENFEN_ENTRY_SITE,r:PHASE_RIFT_RADIUS,yaw:Math.atan2(-LUMENFEN_ENTRY_SITE.x,-LUMENFEN_ENTRY_SITE.z)});
  OBJECTS.push(...FEN_RIFTS);
 }
 const STATIC_COLLIDERS = COLLIDERS.concat(OBJECTS.filter(o => !o.embedded).map((o) => ({ x: o.x, z: o.z, r: o.r })));

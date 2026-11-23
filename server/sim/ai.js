@@ -178,7 +178,9 @@ function resolveSpecial(game, e) {
 }
 
 export function tickEnemy(game, e, dt) {
-  const def = ENEMIES[e.type];
+  // Individual Null soldiers carry different weapons and affinities. The
+  // authoritative instance profile changes combat, not its reusable mesh rig.
+  const def = e.combatDef || ENEMIES[e.type];
 
   if (e.state === 'dead') {
     if (game.time >= e.respawnAt) {

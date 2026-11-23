@@ -19,7 +19,7 @@ import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, inSafeZone, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, inSafeZone, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt, reachPortalApproach } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
@@ -30,6 +30,8 @@ import { createSeveranceGate, tickSeveranceGate, severanceRow, gateFront, pocket
 import { spawnSeverancePatrols } from './severance-patrols.js';
 import { spawnLumenfenWildlife } from './lumenfen.js';
 import { spawnSalvageCamp } from './severance-camps.js';
+import { spawnNullEncounters } from './null-encounters.js';
+import { tickOutpostDefense } from './outpost-defense.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
@@ -81,6 +83,10 @@ export class Game {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
       if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
       if (o.look) obj.look = o.look;
+      if(o.type==='outpost_warden'||o.type==='outpost_commander'){
+        obj.outpostDefender=true;obj.affinity=o.affinity;
+        obj.nextDefenseAt=0;
+      }
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -325,8 +331,8 @@ export class Game {
     if(entering&&this.severance)this.openExpanse();
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
     // The Annex arrival gate returns travellers to the foot of the Severance Gate.
-    const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
-      : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ, yaw: Math.PI })
+      : this.severance ? {...gateFront(),yaw:0} : reachPortalApproach(this.rift.entry);
     this.transferPlayer(p, destination);
     this.message(p,'info',entering?(this.severance?'Severance Expanse. Three routes cross the plain to the Severance Gate in the north: the Causeway of Sentinels, the Severed Pass and the Amber Flats. The Expedition Outpost east of the arrival is safe ground. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
@@ -343,19 +349,9 @@ export class Game {
   /** Persistent shared encounter, not an instance or a reset-on-entry farm. */
   openAnnex() {
     if(!this.annexOpened){
-      // With the Severance Expanse present, the Annex is the Null Annex behind
-      // the Foundry's Null Breach: level 13-15 content (REGION_LEVELS.null_annex),
-      // six of its ten guards elite, and the Null Chamber Warden at 15.
-      const heroic=!!this.severance;
-      for(const [type,dx,z,name,lvl,elite] of [
-        ['skitter',-9,17,'Threshold Skitter',13],['skitter',9,16,'Gallery Skitter',13],['skitter',-3,14,'Gallery Burrower',13,true],
-        ['sentinel',-6,2,'Displaced Sentinel',14,true],['skitter',6,-3,'Phase Skitter',14],['faultstalker',10,5,'Null Relay Stalker',14,true],['skitter',-8,-5,'Relay Burrower',14],
-        ['sentinel',7,-24,'Null Chamber Sentinel',15,true],['warden',-7,-25,'Null Chamber Warden',15],['faultstalker',8,-14,'Null Stalker',15,true],['skitter',-8,-17,'Null Burrower',15,true]
-      ]){
-        const def=ENEMIES[type],e={id:this.nextId++,kind:'enemy',type,name,level:heroic?lvl:def.level,radius:def.radius,home:{x:RIFT_ANNEX.x+dx,z},route:null,form:null,metaVer:1,annexEncounter:true,
-          ...(heroic?{nullAnnex:true}:{}),...(heroic&&elite?{elite:{hp:ELITE.hp,dmg:ELITE.dmg}}:{})};
-        resetEnemy(this,e);this.enemies.push(e);this.ents.set(e.id,e);
-      }
+      // The original threshold/gallery remains, augmented with two bounded
+      // mixed Severance/Scrapyard patrols and level-15 loot sources.
+      spawnNullEncounters(this,!!this.severance);
       this.annexOpened=true;
     }
   }
@@ -369,6 +365,9 @@ export class Game {
     p.target=0;p.autoOn=false;p.meleeState=null;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
     this.transit(p,destination.x,destination.z,'area crossing');
+    // Arrival is a doorway crossing: face the playable route, never the exit.
+    if(Number.isFinite(destination.yaw))p.yaw=destination.yaw;
+    p.travelSerial=(p.travelSerial||0)+1;
     resolveCollisions(p,PLAYER_RADIUS);
     this.syncChar(p);this.markDirty(p);
   }
@@ -439,6 +438,7 @@ export class Game {
     }
     tickRift(this);
     tickSeveranceGate(this);
+    if (!this.aiHold)tickOutpostDefense(this);
     // aiHold: server-side capture fixture only (never client reachable)
     if (!this.aiHold) for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
@@ -523,6 +523,7 @@ export class Game {
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       region: travelRegionAt(p.x, p.z),
+      tr:p.travelSerial||0, face:p.yaw,
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       spindleId:p.spindleCompanion?.id??0,
