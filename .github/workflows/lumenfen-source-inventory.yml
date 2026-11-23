@@ -70,7 +70,10 @@ jobs:
           python tools/assets/lumenfen-remesh.py \
             .asset-cache/pipeline/lumenfen/outputs/lumenfen-donor-composite.glb \
             .asset-cache/pipeline/lumenfen/remeshed
-      - name: Validate the remeshed binary GLBs, provenance and triangle counts
+      - name: Render front and side evidence from exported GLBs (Cycles CPU)
+        run: |
+          python tools/assets/lumenfen-remesh-evidence.py .asset-cache/pipeline/lumenfen/remeshed
+      - name: Validate GLB topology, geometry lineage and real rendered inspection views
         run: node tools/assets/lumenfen-remesh-verify.mjs .asset-cache/pipeline/lumenfen/remeshed
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
