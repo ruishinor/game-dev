@@ -36,7 +36,7 @@ test('real GLB geometry is fitted and instanced; rain changes only physical surf
  await result.ready;
  const stats=result.stats();
  assert.ok(stats.ready.length>=6);
- assert.equal(stats.missing.size,undefined);
+ assert.deepEqual(stats.missing,{});
  assert.ok(stats.batches>=6);
  assert.ok(stats.instances>=25);
  assert.ok(result.group.children.every(o=>o.isInstancedMesh&&o.count>0));
