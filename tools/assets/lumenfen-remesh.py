@@ -134,7 +134,10 @@ def refine_meshes(root, target):
             operations["skipped_skinned"] += 1
             continue
         n = len(obj.data.polygons)
-        if n < 8 or n > 4500:
+        # Flat-shaded boardwalk and machinery kits frequently use ordinary
+        # six-face boxes. Rejecting fewer than eight polygons accidentally
+        # skipped precisely those low-poly hard-surface primitives.
+        if n < 4 or n > 4500:
             continue
         select_only([obj])
         edge = [abs(float(x)) for x in obj.dimensions if abs(float(x)) > 0.001]
