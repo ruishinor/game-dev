@@ -1630,13 +1630,13 @@ export function buildWorld(scene, assets = null, opts = {}) {
       kestrelVisual.update(dt, t, focus);
       annexInterior.update(view?.eye??focus);
       relayFx?.update(dt, focus);
+      lumenfenSiteFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);
       severance.update(dt, t, view?.eye ?? focus);
       foundry.update(dt, t, view?.eye ?? focus);
       lumenfen.update(dt, t, view?.eye ?? focus);
-      lumenfenSiteFx?.update(dt, focus);
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
