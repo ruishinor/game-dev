@@ -1095,7 +1095,18 @@ function onSnapshot(m) {
 
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
+  const previousRegion = S.you?.region;
   S.you = y;
+  // The Annex entry is only 3.5m in front of its full-size return rift.
+  // Aim the initial third-person view diagonally down the Arrival Gallery
+  // so the portal behind the traveller doesn't fill the screen. Players
+  // retain full camera control from the next input onward.
+  if (y.region === 'phase_annex' && previousRegion && previousRegion !== y.region) {
+    cam.yaw = Math.PI - .68;
+    cam.pitch = .18;
+    cam.want = 6.7;
+    cam.dist = Math.min(cam.dist, 6.7);
+  }
   if (Number.isFinite(y.wc)) world.severancePocket?.timeOfDay.setLive(y.wc / 10000);
   if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
