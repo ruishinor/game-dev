@@ -2,7 +2,8 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE,fenBiomeDrops,FEN_BIOME_DROPS} from './loot-tables.js';
+import {lumenfenClimate} from '../../shared/lumenfen-climate.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
@@ -12,8 +13,9 @@ import {grantItem,grantSalvage} from './progress.js';
 
 // These explicitly classified enemies cannot grant equipment items. Their
 // existing material, goods and credit paths remain independent.
-// Lumenfen's new fauna have no bespoke equipment table. Keep the original
-// elite *material* grants; defer new equipment rewards to an authorized table review.
+// Lumenfen wildlife has a dedicated biome salvage, blueprint and specimen
+// table below. Only generic gear is excluded; player-authorized rare prints
+// and regional materials still roll independently, respecting inventory caps.
 export const NO_ITEM_REWARD_TYPES=Object.freeze(['severance_soldier', 'fen_lantern', 'fen_stalker']);
 const LOOT_RANGE=5, CREDIT_RANGE=70;
 const fail=reason=>({ok:false,reason});
@@ -29,6 +31,17 @@ export function distributeCorpseLoot(game,e,credited){
   // A corpse without salvage or another successful reward remains empty.
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
   for(const drop of allowItems?itemDrops(e.type):[])if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
+  // Independent biome RNG: no equipment/AI sequence perturbation, no
+  // duplicate value and no client-controlled climate or reward quantities.
+  if(e.type==='fen_lantern'||e.type==='fen_stalker'){
+    for(const drop of fenBiomeDrops(e.type,game.biomeRng,lumenfenClimate(game.clockNow?game.clockNow():game.wallNow()))){
+      const registry=drop.kind==='material'?MATERIALS:GOODS;
+      const cap=drop.kind==='material'?MATERIAL_CAP:goodsCap(drop.id);
+      const have=drop.kind==='material'?(p.char.materials?.[drop.id]||0):(p.char.goods?.[drop.id]||0);
+      if(Object.hasOwn(registry,drop.id)&&have<cap&&!entries.some(x=>x.id===drop.id))
+        entries.push(drop);
+    }
+  }
   if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<goodsCap(goods))entries.push({id:goods,kind:'goods',quantity:1});
   const credits=creditDrop(e.type);
   if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
@@ -90,7 +103,13 @@ function collectEntries(game,p,e,entries,item){
  let taken=0;
  for(const entry of selected){
   const ok=entry.kind==='material'?grantSalvage(game,p,entry.id,entry.quantity):entry.kind==='goods'?grantGoods(game,p,entry.id,entry.quantity):entry.kind==='item'?grantItem(game,p,entry.id):entry.kind==='credits'?collectCredits(game,p,entry.quantity):false;
-  if(ok){entries.splice(entries.indexOf(entry),1);taken++;}
+  if(ok){
+    entries.splice(entries.indexOf(entry),1);taken++;
+    // A collected server-authored regional drop emits a presentation cue.
+    // Client cannot replay or request this event as a reward command.
+    if(FEN_BIOME_DROPS[e.type]?.some(row=>row.id===entry.id))
+      p.outbox.push({e:'fen_loot',item:entry.id});
+  }
  }
  if(!entries.length){e.lootByPlayer.delete(p.id);if(p.lootTarget?.id===e.id)clearLoot(p);}
  return taken?{ok:true}:fail('Cannot collect this loot: already owned, storage full or wallet full.');

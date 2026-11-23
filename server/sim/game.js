@@ -31,6 +31,7 @@ import { spawnSeverancePatrols } from './severance-patrols.js';
 import { spawnLumenfenWildlife } from './lumenfen.js';
 import { spawnSalvageCamp } from './severance-camps.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
+import { lumenfenClimate } from '../../shared/lumenfen-climate.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
@@ -54,8 +55,9 @@ export const COMBAT_LINGER_MS = 6000;
 const r2 = (n) => Math.round(n * 100) / 100;
 
 export class Game {
-  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000, eliteRng=()=>randomInt(1000000)/1000000 } = {}) {
+  constructor({ rng = Math.random, wallNow = Date.now, relicRng=()=>randomInt(1000000)/1000000, blueprintRng=()=>randomInt(1000000)/1000000, classArmourRng=()=>randomInt(1000000)/1000000, eliteRng=()=>randomInt(1000000)/1000000, biomeRng=()=>randomInt(1000000)/1000000 } = {}) {
     this.eliteRng=eliteRng;
+    this.biomeRng=biomeRng;
     this.relicRng=relicRng;
     this.blueprintRng=blueprintRng;
     this.classArmourRng=classArmourRng;
@@ -544,6 +546,7 @@ export class Game {
       weaponSwitchMs: Math.max(0, Math.round((p.weaponSwitchReady || 0) - this.time)),
       safe: inSafeZone(p) ? 1 : 0,
       wc: Math.round(this.worldClock() * 10000),
+      ...(travelRegionAt(p.x,p.z)==='lumenfen'?{fenClimate:lumenfenClimate(this.clockNow?this.clockNow():this.wallNow())}:{}),
       workshop:workshopSite(p),
       kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),

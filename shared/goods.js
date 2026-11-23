@@ -5,6 +5,13 @@ import { classArmourGoods } from './class-armour.js';
 
 const itemNames = Object.fromEntries(Object.entries(ITEMS).map(([id, it]) => [id, it.name]));
 export const GOODS = Object.freeze({
+  // Wetland harvest/blueprints are real inventory goods with server caps,
+  // not fabricated equipment disguised as world decoration.
+  blueprint_fen_culture_ampoule:Object.freeze({name:'Blueprint: Fen Culture Ampoule',category:'blueprint',rarity:'Rare',cap:1,desc:'Research notes recovered from a mature Fen Lantern. Unlocks restorative culture fabrication from Lumenfen salvage.'}),
+  blueprint_tidal_service_cassette:Object.freeze({name:'Blueprint: Tidal Service Cassette',category:'blueprint',rarity:'Rare',cap:1,desc:'A waterproof maintenance design recovered from a Bog Stalker den; uses native carapace and rootglass fibre.'}),
+  rootglass_crown_shard:Object.freeze({name:'Rootglass Crown Shard',category:'relic',rarity:'Very rare',cap:1,desc:'A rare living-glass inclusion formed in Lumenfen monsoon waters. Retained as a field specimen; not a direct power upgrade.'}),
+  fen_molt_skin:Object.freeze({name:'Fen Molt Skin',category:'junk',rarity:'Common',desc:'Discarded marsh predator membrane suitable for specimen exchange; no direct combat bonus.'}),
+  mirrorpool_pearl:Object.freeze({name:'Glasswater Pearl',category:'relic',rarity:'Uncommon',desc:'Naturally tumbled glass and silt from the Mirrorpools, gathered in the wake of wetland wildlife.'}),
   ...classArmourGoods(itemNames),
   blueprint_relay_arc_carbine:Object.freeze({name:'Blueprint: Relay Arc Carbine',category:'blueprint',rarity:'Rare',cap:1,desc:'Recovered fabrication knowledge from the completed Null Chamber recovery cache. It unlocks extended-frame weapon assembly at commissioned Brineworks; the blueprint is retained and never consumed.'}),
   blueprint_relay_vest:Object.freeze({name:'Blueprint: Reinforced Relay Vest',category:'blueprint',rarity:'Rare',cap:1,desc:'Retained engineering knowledge. Recover this blueprint to learn its recipe. It cannot be traded or consumed.'}),

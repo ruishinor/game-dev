@@ -1,0 +1,69 @@
+{
+  "purpose": "Archive visual provenance for Lumenfen loot; no gameplay authority and no claim these sources are game-ready remeshes.",
+  "archive": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
+  "spec": "assets/lumenfen-donors.json",
+  "status": "source nodes mapped; high-quality GLB outputs require pipeline and visual acceptance",
+  "items": {
+    "fen_lantern_membrane": {
+      "donors": [
+        "cage_bloom",
+        "wetland_bird"
+      ],
+      "finish": "Folded translucent bioluminescent membrane, layered wet PBR and radial frills"
+    },
+    "bog_chitin": {
+      "donors": [
+        "six_limb_predator"
+      ],
+      "finish": "Articulated curved shell scute, keratin micro-normal and damp moss patina"
+    },
+    "rootglass_fibre": {
+      "donors": [
+        "rootglass_oak",
+        "rift_radial_mesh"
+      ],
+      "finish": "Branch-fibre bundled in refractive faceted glass with emissive micro veins"
+    },
+    "monsoon_silt": {
+      "donors": [
+        "tidal_boardwalk",
+        "weir_mechanism"
+      ],
+      "finish": "Collected mica-rich wet silt in a weathered sluice vessel"
+    },
+    "fen_molt_skin": {
+      "donors": [
+        "six_limb_predator"
+      ],
+      "finish": "Curled shed chitin skin with torn, translucent edges"
+    },
+    "mirrorpool_pearl": {
+      "donors": [
+        "rootglass_oak",
+        "cage_bloom"
+      ],
+      "finish": "Irregular water-smoothed glass pearl with internal pearlescence"
+    },
+    "blueprint_fen_culture_ampoule": {
+      "donors": [
+        "stone_guild",
+        "cage_bloom"
+      ],
+      "finish": "Hand-inked scientific folio with grown-glass ampoule diagram"
+    },
+    "blueprint_tidal_service_cassette": {
+      "donors": [
+        "stone_guild",
+        "weir_mechanism"
+      ],
+      "finish": "Weatherproof engineering folio with brass waterworks cutaway"
+    },
+    "rootglass_crown_shard": {
+      "donors": [
+        "rootglass_oak",
+        "rift_radial_mesh"
+      ],
+      "finish": "Asymmetric rootglass branch shard with layered luminous fracture planes"
+    }
+  }
+}
