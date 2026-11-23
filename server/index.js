@@ -11,6 +11,7 @@ import { ensureWardenRifleGLB } from '../tools/assets/warden-rifle-source.mjs';
 import { CharacterStore } from './store.js';
 import { NetServer } from './net.js';
 import { ensureDepthsCacheGLB } from '../tools/assets/extract-depths-cache.mjs';
+import { ensureLumenfenFidelityGLB, FEN_DONOR_IDS } from '../tools/assets/lumenfen-glb-refine.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TICK_MS = 50;
@@ -74,6 +75,10 @@ const GENERATED_MODELS = new Map([
   ['/client/assets/sanctum-warden-carbine.glb', () => ensureWardenRifleGLB('carbine')],
   ['/client/assets/sanctum-warden-marksman.glb', () => ensureWardenRifleGLB('marksman')],
 ]);
+// Export is performed once per server process and before accepting clients.
+ // Every URL is an exact allowlisted source-derived output, not a raw archive mount.
+for (const id of FEN_DONOR_IDS) GENERATED_MODELS.set(
+  '/client/assets/lumenfen-'+id+'.glb', () => ensureLumenfenFidelityGLB(id));
 const readyGeneratedModels = new Map();
 let generatedModelsPrepared = false;
 function prepareGeneratedModels() {
