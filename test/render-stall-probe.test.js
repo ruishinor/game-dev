@@ -96,3 +96,39 @@ test('render exceptions propagate while recording their elapsed time', () => {
   assert.equal(f.probe.get().stats.slowRenders, 1);
   f.probe.dispose();
 });
+
+test('profiling windows isolate scene render stalls without resetting session totals', () => {
+  const f = fixture();
+  f.probe.measure('world', 2, () => f.advance(500));
+  const startup = f.probe.get();
+  assert.equal(startup.stats.maxRenderMs, 500);
+  assert.equal(startup.window.stats.maxRenderMs, 500);
+  assert.equal(startup.window.events.length, 1);
+
+  f.advance(50);
+  assert.equal(f.probe.beginWindow(), true);
+  const reset = f.probe.get();
+  assert.equal(reset.window.stats.renders, 0);
+  assert.equal(reset.window.stats.maxRenderMs, 0);
+  assert.equal(reset.window.events.length, 0);
+  assert.equal(reset.stats.maxRenderMs, 500, 'session worst stays available');
+
+  f.probe.measure('world', 0, () => f.advance(160));
+  f.probe.frameGap(800, 0);
+  const scene = f.probe.get();
+  assert.equal(scene.window.stats.renders, 1);
+  assert.equal(scene.window.stats.slowRenders, 1);
+  assert.equal(scene.window.stats.maxRenderMs, 160);
+  assert.equal(scene.window.stats.longFrameGaps, 1);
+  assert.equal(scene.window.events.length, 2);
+  assert.equal(scene.stats.renders, 2);
+  assert.equal(scene.stats.maxRenderMs, 500);
+  assert.equal(startup.window.stats.maxRenderMs, 500, 'previous snapshot immutable');
+  f.probe.dispose();
+});
+
+test('disabled profiling cannot mutate the sampling window', () => {
+  const probe = createRenderStallProbe({ enabled: false, renderer: {} });
+  assert.equal(probe.beginWindow(), false);
+  assert.equal(probe.get().window.startedAtMs, null);
+});

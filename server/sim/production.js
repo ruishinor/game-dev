@@ -74,6 +74,7 @@ export function tickProduction(game, p, roll = game.productionRoll ?? (() => ran
       const materials = { ...p.char.materials };
       if (--materials[risk] === 0) delete materials[risk];
       p.char.materials = materials;
+      game.economy?.observe('materials_spent',p,1,risk);
       game.markDirty(p);
       p.production = null;
       notify(game, p, job, 'stop');
