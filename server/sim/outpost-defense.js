@@ -36,7 +36,9 @@ export function tickOutpostDefense(game){
   guard.nextDefenseAt=game.time+(officer?Math.round(profile.period*.75):profile.period);
   // An NPC victory deliberately carries ZERO player credit. Do not use
   // player threat as the credit basis for this final blow.
-  dealDamage(game,guard,target,officer?profile.base*1.35:profile.base,
+  const amount=dealDamage(game,guard,target,officer?profile.base*1.35:profile.base,
    profile.ability,{flat:true,kind:profile.kind});
+  if(amount>0)game.emitWorldEvent({e:'fx',k:'outpost_defense',s:guard.id,d:target.id,
+    af:guard.affinity,x:target.x,z:target.z,r:.7});
  }
 }
