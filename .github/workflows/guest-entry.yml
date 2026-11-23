@@ -1,0 +1,56 @@
+# Scoped live-browser guest and appearance contract. This is deliberately
+# separate from main-health.yml so the branch-ruleset-required Core Node check
+# is emitted on every PR without running a browser for unrelated changes.
+name: Focused guest-entry and appearance browser test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - '.github/workflows/guest-entry.yml'
+      - '.github/workflows/main-health.yml'
+      - 'test/e2e/initiation.mjs'
+      - 'client/index.html'
+      - 'client/src/creation-preview.js'
+      - 'client/src/creation-sections.js'
+      - 'client/src/characters.js'
+      - 'client/src/main.js'
+      - 'client/src/ui.js'
+      - 'server/index.js'
+      - 'server/store.js'
+      - 'shared/appearance.js'
+      - 'tools/browser.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guest-entry:
+    name: Real-browser guest entry and persistence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Authenticate guest, enter world, and persist appearance through UI
+        shell: bash
+        run: |
+          set -o pipefail
+          node test/e2e/initiation.mjs 2>&1 | tee main-guest-entry.log
+      - name: Preserve test log on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: main-guest-entry-log
+          path: main-guest-entry.log
+          if-no-files-found: ignore
+          retention-days: 7
