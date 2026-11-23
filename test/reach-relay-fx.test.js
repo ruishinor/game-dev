@@ -5,56 +5,58 @@ import { PROPS } from '../shared/world.js';
 import { buildRelayTower } from '../client/src/relay-tower.js';
 import { RELAY_FX_BUDGET, createReachRelayFx } from '../client/src/reach-relay-fx.js';
 
-function fixture() {
-  const prop = PROPS.find(p => p.type === 'relaytower');
-  assert.ok(prop);
-  const tower = buildRelayTower(THREE, prop);
-  tower.group.position.set(prop.x, 0, prop.z);
-  const calls = { arcs: [], bursts: [] };
-  const vfx = {
-    quality: 2, reducedMotion: false,
-    lightning(o) { calls.arcs.push(o); return { done: false }; },
-    burst(o) { calls.bursts.push(o); return o.count; },
-  };
-  const fx = createReachRelayFx(THREE, tower.group, vfx);
-  const focus = { x: prop.x, z: prop.z };
-  return { prop, tower, vfx, fx, calls, focus };
+function fixture(){
+ const prop=PROPS.find(p=>p.type==='relaytower');
+ assert.ok(prop);
+ const tower=buildRelayTower(THREE,prop);
+ tower.group.position.set(prop.x,0,prop.z);
+ const calls={arcs:0,bursts:0};
+ const vfx={quality:2,reducedMotion:false,
+   lightning(){calls.arcs++;},burst(){calls.bursts++;}};
+ const fx=createReachRelayFx(THREE,tower.group,vfx);
+ return {tower,fx,vfx,calls,focus:{x:prop.x,z:prop.z}};
 }
-
-test('Relay fault is localized to real cabinet contacts and strictly bounded', () => {
-  const { tower, fx, calls, focus } = fixture();
-  for (let i = 0; i < 25; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 1);
-  assert.equal(calls.bursts.length, 1);
-  assert.equal(calls.arcs[0].branches, 0);
-  assert.ok(calls.bursts[0].count <= RELAY_FX_BUDGET.sparks);
-  const [from, to] = [calls.arcs[0].from, calls.arcs[0].to];
-  for (const point of [from, to]) {
-    assert.ok(point.every(Number.isFinite));
-    assert.ok(Math.hypot(point[0]-focus.x, point[2]-focus.z) < 2);
-    assert.ok(point[1] > 0.5 && point[1] < 2);
-  }
-  for (let i = 0; i < 30; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 1, 'no per-frame discharge spam');
-  assert.equal(fx.stats().activations, 1);
-  fx.dispose(); fx.dispose(); tower.dispose();
+test('Relay fault is fitted to the actual service cabinet and never uses global VFX pools',()=>{
+ const {tower,fx,calls,focus}=fixture();
+ const group=tower.group.getObjectByName('relay:local-fault');
+ const arc=group?.getObjectByName('relay:contact-arc');
+ const sparks=group?.getObjectByName('relay:local-sparks');
+ assert.ok(group&&arc&&sparks);
+ assert.equal(group.parent,tower.group,'local effects must follow the actual cabinet');
+ assert.equal(sparks.isInstancedMesh,true);
+ assert.equal(sparks.count,RELAY_FX_BUDGET.sparks);
+ assert.equal(RELAY_FX_BUDGET.localDraws,2);
+ assert.equal(arc.material.depthWrite,false);
+ arc.geometry.computeBoundingBox();
+ const bounds=arc.geometry.boundingBox;
+ assert.ok(bounds.min.x>1.1&&bounds.max.x<1.6);
+ assert.ok(bounds.min.y>1.0&&bounds.max.y<1.7);
+ for(let i=0;i<25;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,1);
+ assert.equal(fx.stats().globalEmissions,0);
+ assert.equal(calls.arcs,0);
+ assert.equal(calls.bursts,0);
+ for(let i=0;i<30;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,1,'no per-frame fault spam');
+ fx.dispose();fx.dispose();tower.dispose();
+ assert.equal(tower.group.getObjectByName('relay:local-fault'),undefined);
 });
-
-test('Relay fault respects distance, low-quality, reduced motion and disposal', () => {
-  const { tower, fx, vfx, calls, focus } = fixture();
-  for (let i = 0; i < 30; i++) fx.update(.1, { x: focus.x+100, z: focus.z });
-  assert.equal(calls.arcs.length, 0);
-  vfx.quality = 0;
-  for (let i = 0; i < 30; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 0);
-  vfx.quality = 2; vfx.reducedMotion = true;
-  for (let i = 0; i < 30; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 0);
-  vfx.reducedMotion = false;
-  for (let i = 0; i < 25; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 1);
-  fx.dispose();
-  for (let i = 0; i < 100; i++) fx.update(.1, focus);
-  assert.equal(calls.arcs.length, 1);
-  tower.dispose();
+test('Relay preserves near, quality and reduced-motion gating without global emissions',()=>{
+ const {tower,fx,vfx,calls,focus}=fixture();
+ for(let i=0;i<30;i++)fx.update(.1,{x:focus.x+100,z:focus.z});
+ assert.equal(fx.stats().activations,0);
+ vfx.quality=0;
+ for(let i=0;i<30;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,0);
+ vfx.quality=2;vfx.reducedMotion=true;
+ for(let i=0;i<30;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,0);
+ vfx.reducedMotion=false;
+ for(let i=0;i<25;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,1);
+ assert.equal(calls.arcs+calls.bursts,0);
+ fx.dispose();
+ for(let i=0;i<50;i++)fx.update(.1,focus);
+ assert.equal(fx.stats().activations,1);
+ tower.dispose();
 });
