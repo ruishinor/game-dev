@@ -61,3 +61,14 @@ test('outside the Annex the camera retains its normal free orbit', () => {
   orbit.update({ x: 0, y: 0, z: 120 }, 1 / 60);
   assert.ok(orbit.dist > 7.5);
 });
+
+test('Annex camera still remains inside when the player presses the outer collision margin', () => {
+  const camera = new THREE.PerspectiveCamera();
+  const orbit = new ThirdPersonCamera(camera);
+  orbit.pitch = .12;
+  orbit.yaw = -Math.PI / 2;
+  orbit.want = orbit.dist = 10;
+  orbit.update({ x: RIFT_ANNEX.x + RIFT_ANNEX.hw - .5, y: 0, z: 0 }, .016);
+  assert.ok(camera.position.x <= RIFT_ANNEX.x + RIFT_ANNEX.hw - .54);
+  assert.ok(orbit.dist < 1, 'tight wall camera falls back to close framing');
+});
