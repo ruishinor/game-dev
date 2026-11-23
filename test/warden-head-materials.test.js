@@ -81,7 +81,7 @@ test('guard material adapter keeps vendor material untouched and separates the f
   assert.notEqual(body,ring);
   assert.notEqual(body,source);
   assert.notEqual(armour,source);
-  assert.equal(source.customProgramCacheKey(),'onBeforeCompile( /* shaderobject, renderer */ ) {}');
+  assert.equal(source.roughness,1,'source PBR material must not be mutated');
   assert.ok(body.onBeforeCompile!==source.onBeforeCompile);
   assert.ok(armour.customProgramCacheKey().includes('warden-ebony-v1'));
   inst.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});
