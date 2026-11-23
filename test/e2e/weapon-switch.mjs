@@ -201,7 +201,8 @@ try{
  // authoritative damage event, rather than after asynchronous browser polling.
  assert.ok(shotEvent.hitDistance>CLASSES.vanguard.auto.range+2,
   'ranged hit must occur beyond melee reach; observed '+shotEvent.hitDistance.toFixed(2)+' m');
- server.game.aiHold=false; // Resume enemy AI for subsequent combat.
+ // Hold hostile AI during software-rendered evidence capture; real server attack/damage remains active.
+ assert.equal(server.game.aiHold,true,'weapon-switch capture fixture keeps enemy retaliation paused');
  await combatShot('06-ranged-fire');
 
  // 8. Switch in combat; the next swing is delayed, not advanced (recovery timing is covered by Node tests).
