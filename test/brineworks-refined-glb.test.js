@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, existsSync} from 'node:fs';
 
 function readGlb(path,refined=false){
   const dir=refined?'../client/asset-derivatives/brineworks/':'../client/art-assets/';
@@ -21,6 +21,15 @@ function readGlb(path,refined=false){
   }
   return {b,doc,binOffset:bo+8};
 }
+test('remeshed Brineworks derivatives remain independent of both generated inventories',()=>{
+  for(const type of ['research','engineering']){
+    const filename=type+'_tabletop_module_refined.glb';
+    assert.equal(existsSync(new URL('../client/art-assets/'+filename,import.meta.url)),false,'do not mutate original-art inventory');
+    assert.equal(existsSync(new URL('../client/assets/brineworks-refined/'+filename,import.meta.url)),false,'do not bypass runtime asset manifest');
+    assert.ok(existsSync(new URL('../client/asset-derivatives/brineworks/'+filename,import.meta.url)),'published derivative must exist');
+  }
+});
+
 const cases=[
   ['research_tabletop_module.glb','research_tabletop_module_refined.glb',3044,27396,'c3ff18bf610d00bf742af1e5184afe88cdaccb96'],
   ['engineering_tabletop_module.glb','engineering_tabletop_module_refined.glb',3376,30384,'39962b22333f7959260c2155ce0916103cfdacc8']
