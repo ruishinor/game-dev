@@ -316,19 +316,26 @@ export function ensureLumenfenFidelityGLB(id){
    if(hash(zip)!==expected)throw Error('Owner archive SHA mismatch');
    const selected=unzipSelected(zip,new Set(SPEC.donors.map(d=>d.file)));
    fs.mkdirSync(OUTPUT,{recursive:true});
-   const report=[];
+   const report=[],failures=[];
    for(const item of SPEC.donors){
-     const raw=selected.get(item.file),sourceSha=hash(raw);
-     const target=path.join(OUTPUT,'lumenfen-'+item.id+'.glb');
-     const r=compile(decodeGlb(raw),item,sourceSha);
-     fs.writeFileSync(target+'.tmp-'+process.pid,r.buffer);fs.renameSync(target+'.tmp-'+process.pid,target);
-     report.push({id:item.id,file:path.basename(target),bytes:r.buffer.length,
-       sha256:hash(r.buffer),sourceSha256:sourceSha,...r.stats});
+     try{
+       const raw=selected.get(item.file),sourceSha=hash(raw);
+       const target=path.join(OUTPUT,'lumenfen-'+item.id+'.glb');
+       const r=compile(decodeGlb(raw),item,sourceSha);
+       fs.writeFileSync(target+'.tmp-'+process.pid,r.buffer);
+       fs.renameSync(target+'.tmp-'+process.pid,target);
+       report.push({id:item.id,file:path.basename(target),bytes:r.buffer.length,
+         sha256:hash(r.buffer),sourceSha256:sourceSha,...r.stats});
+     }catch(error){
+       failures.push({id:item.id,reason:String(error?.message||error)});
+     }
    }
    fs.writeFileSync(path.join(OUTPUT,'fidelity-report.json'),
-     JSON.stringify({version:FEN_FIDELITY_VERSION,archiveSha256:expected,models:report},null,2)+'\n');
+     JSON.stringify({version:FEN_FIDELITY_VERSION,archiveSha256:expected,models:report,failures},null,2)+'\n');
    cached=new Map(report.map(x=>[x.id,path.join(OUTPUT,x.file)]));
+   if(failures.length)console.warn('[assets] Lumenfen GLB remesh errors:',JSON.stringify(failures));
  }
+ if(!cached.has(id))throw Error('Lumenfen remesh unavailable for '+id+'; see fidelity-report.json');
  return cached.get(id);
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
