@@ -15,10 +15,9 @@ on:
 permissions:
   contents: read
 
-# Never cancel verification for an earlier main SHA when another PR merges.
-concurrency:
-  group: main-integration-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: false
+# Deliberately no workflow-level concurrency group: GitHub Actions can
+# replace an older PENDING run sharing a group even if cancel-in-progress is
+# false. Every merged main SHA must be independently validated.
 
 jobs:
   core-node:
