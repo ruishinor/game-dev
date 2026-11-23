@@ -43,6 +43,7 @@ test('P12: Lumenfen Bog Stalker XP per effective HP is competitive at levels 8-1
 test('P12: Lumenfen correction leaves the no-ordinary-loot contract intact', () => {
   assert.ok(NO_ITEM_REWARD_TYPES.includes('fen_stalker'));
   const game = makeGame();
+  game.biomeRng = () => 0; // Explicit guaranteed biome table test; default rates remain stochastic.
   const spawned = spawnLumenfenWildlife(game);
   const victim = spawned.find((e) => e.type === 'fen_stalker' && e.level === 8);
   assert.ok(victim);
@@ -53,7 +54,8 @@ test('P12: Lumenfen correction leaves the no-ordinary-loot contract intact', () 
   assert.equal(player.char.xp, 100);
   assert.equal(player.char.credits || 0, 0);
   assert.deepEqual(player.char.goods || {}, {});
-  assert.ok(!victim.lootByPlayer?.has(player.id), 'ordinary Bog Stalker corpses remain empty');
+  assert.ok(victim.lootByPlayer?.has(player.id), 'native Bog Stalker now rolls server-authored biome materials and research blueprints');
+  assert.ok(victim.lootByPlayer.get(player.id).every(x => x.kind !== 'item'), 'ordinary equipment remains excluded');
 });
 
 test('P12: repeatable fabrication and material conversion never create inputs for free', () => {
