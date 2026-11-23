@@ -1629,7 +1629,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);
       severance.update(dt, t, view?.eye ?? focus);
       foundry.update(dt, t, view?.eye ?? focus);
-      lumenfen.update(dt, t, view?.eye ?? focus);
+      lumenfen.update(dt, t, view?.eye ?? focus, view?.worldClock);
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);

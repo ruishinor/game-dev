@@ -74,6 +74,8 @@ export class Game {
     this.eventRegions = new WeakMap();
     /** Called with a character record whenever persistent state changes. */
     this.onCharChanged = () => {};
+    // Optional aggregate telemetry is injected by startServer; never a game-state authority.
+    this.economy = null;
 
     for (const o of OBJECTS) {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
@@ -121,6 +123,7 @@ export class Game {
       id: this.nextId++,
       kind: 'player',
       char,
+      economyStartedAt: this.wallNow(),
       name: char.name,
       cls: char.cls,
       radius: PLAYER_RADIUS,
@@ -177,6 +180,7 @@ export class Game {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
+    this.economy?.sessionEnded(p);
     if (activeBuildPreview(p)) {
       p.gmAttributeBonus = 0;
       p.gmClassUnlocked = false;
