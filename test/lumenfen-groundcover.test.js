@@ -42,7 +42,10 @@ test('dense cover shares instanced geometry, respects the low preset and dispose
     const scene=new T.Scene();
     const cover=buildLumenfenGroundcover(T,scene,{detail});
     const stats=cover.stats();
-    assert.equal(stats.count,planLumenfenGroundcover().cells.length);
+    assert.equal(stats.anchors,planLumenfenGroundcover().cells.length);
+    assert.equal(stats.count,stats.anchors+stats.satellites);
+    if(detail===0)assert.equal(stats.satellites,0,'low quality preserves exactly the essential coverage anchors');
+    else assert.ok(stats.satellites>1200,'high quality must add natural secondary clumps');
     assert.equal(Object.values(stats.counts).reduce((a,b)=>a+b,0),stats.count);
     assert.ok(stats.drawBatches<=330,'one batch per species per local cell chunk');
     assert.ok(stats.maxCoverageDistance<5);
