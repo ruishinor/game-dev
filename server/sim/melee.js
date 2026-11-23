@@ -57,7 +57,6 @@ export function requestMelee(game,p,action){
   game.emitWorldEvent({e:'melee_guard',s:p.id,ms:GUARD.active});
   return {ok:true};
  }
- const profile=effectiveAuto(p.char);
  const stage=action==='heavy'?0:(now-s.lastHit<=COMBO_WINDOW?s.combo%3:0);
  const counter=now<s.counterUntil;
  const spec=action==='heavy'?HEAVY:LIGHT;
@@ -96,7 +95,10 @@ export function tickMelee(game,p,damage,gainCharge){
  const s=p.meleeState,pending=s?.pending;
  if(!pending||game.time<pending.hitAt){drainBuffered(game,p);return;}
  s.pending=null;
- if(p.dead||p.sitting||activeWeaponSlot(p.char)!=='weapon')return;
+ if(p.dead||p.sitting||inSafeZone(p)||activeWeaponSlot(p.char)!=='weapon'){
+  s.combo=0;s.lastHit=-Infinity;
+  return;
+ }
  const target=game.ents.get(pending.targetId);
  const spec=pending.kind==='heavy'?HEAVY:LIGHT;
  if(!eligible(p,target,spec.reach)||!facing(p,target)){
