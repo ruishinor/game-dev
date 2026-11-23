@@ -106,6 +106,16 @@ export class ThirdPersonCamera {
 
     const d = this.dist;
     this.camera.position.set(px + dx * d, py + dy * d, pz + dz * d);
+    // When the player is pressed directly against a boundary, even the
+    // minimum orbit distance can cross its wall. Clamp that last few
+    // centimetres as well; never let the viewport leave the visible room.
+    if (inAnnex) {
+      const margin = .55;
+      this.camera.position.x = Math.max(RIFT_ANNEX.x - RIFT_ANNEX.hw + margin,
+        Math.min(RIFT_ANNEX.x + RIFT_ANNEX.hw - margin, this.camera.position.x));
+      this.camera.position.z = Math.max(RIFT_ANNEX.z - RIFT_ANNEX.hd + margin,
+        Math.min(RIFT_ANNEX.z + RIFT_ANNEX.hd - margin, this.camera.position.z));
+    }
     this.camera.lookAt(px, py + 0.1, pz);
   }
 }
