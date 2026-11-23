@@ -9,6 +9,7 @@
 import { applyEnemyVariant } from './enemy-variants.js';
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
+import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion } from './combat-presentation.js';
 import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
@@ -282,13 +283,14 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         restore:()=>sidearm.restorePose(),
         inspect:()=>sidearm.fitInfo(),
         update(st,dt){
-          lastWeaponAim=st.lookAt?.isVector3?st.lookAt.clone():null;
+          lastWeaponAim=weaponAimFromState(st);
           sidearm.update(dt,{...st,aimAt:lastWeaponAim,combat:!!st.combat},true);
         },
-        fire(){
+        fire(target){
           const origin=inst.getWorldPosition(new THREE.Vector3());
           const forward=new THREE.Vector3(0,0,1).applyQuaternion(inst.getWorldQuaternion(new THREE.Quaternion()));
-          return sidearm.fire(next,lastWeaponAim??origin.addScaledVector(forward,12));
+          const aim=confirmedWeaponAim(target,lastWeaponAim,()=>origin.addScaledVector(forward,12));
+          return sidearm.fire(next,aim);
         },
         origin:()=>sidearm.muzzle(),
         dispose:()=>{sidearm.apply(null);lastWeaponAim=null;}
@@ -431,19 +433,22 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         if(meleePose){
           meleePose.age+=step;
           const t=Math.min(1,meleePose.age/meleePose.duration);
-          const wave=Math.sin(Math.PI*t),sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
+          const {anticipation,release,recovery}=strikeMotion(meleePose.age,meleePose.duration);
+          const sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
           const sweep=meleePose.stance==='overhead'||meleePose.stance==='heavy'?.36:.53;
-          if(meleeSpine)meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,sign*sweep*wave));
-          if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,sign*.34*wave));
+          const torso=sign*(-.17*anticipation+sweep*release+.07*recovery);
+          const shoulder=sign*(-.13*anticipation+.34*release-.09*recovery);
+          if(meleeSpine)meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,torso));
+          if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,shoulder));
           if(meleeShoulderL&&['left','cross','heavy'].includes(meleePose.stance))
-            meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,-sign*.53*wave));
+            meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,-shoulder*1.45));
           if(t>=1)meleePose=null;
         }
         if (working) work.pose(st.work, st.t, st.reducedMotion);
         else if (sitBlend > 0) sitPose?.apply(sitBlend * sitBlend * (3 - 2 * sitBlend));
       }
       if (weapon && (step || working || st.dead || st.air || st.casting || anim.busy || sitBlend > 0))
-        weapon.update({ ...st, hideWeapon: working || st.casting || anim.busy || sitBlend > 0 },step||dt);
+        weapon.update({ ...st, hideWeapon: heldWeaponOccluded({ working, sitBlend }) },step||dt);
       const stowed=st.electricalRod==='stowed';
       if(st.electricalRod&&!heldRod&&rodHand&&(!stowed||rodStow)){
         heldRod=createHeldElectricalRod(rodHand,{axis:rodAxis,palm:rodPalm,offHand,offAxis:offAxis||undefined,offPalm,palette:rodPalette(st.rodClass)});
