@@ -28,7 +28,12 @@ test('bounded remesh shortlist prioritises actual range and weapon donors over u
   const selected = rankOutpostDonors(rows).map(x => x.path);
   assert.ok(selected[0].endsWith('/longpoint.glb'));
   assert.ok(selected[1].includes('FPS Guns and Shooting Range'));
-  assert.ok(selected.indexOf('Modular Survival Base Builder.glb') < selected.indexOf('Zombie Quarantine Streets.glb'));
-  assert.ok(selected.indexOf('Chain Link Fence Bay 4 m.glb') < selected.indexOf('Targeting rune ring'));
+  const position = (fragment) => selected.findIndex(name => name.includes(fragment));
+  assert.ok(position('Modular Survival Base Builder.glb') >= 0);
+  assert.ok(position('Zombie Quarantine Streets.glb') >= 0);
+  assert.ok(position('Chain Link Fence Bay 4 m.glb') >= 0);
+  assert.ok(position('Targeting rune ring') >= 0);
+  assert.ok(position('Modular Survival Base Builder.glb') < position('Zombie Quarantine Streets.glb'));
+  assert.ok(position('Chain Link Fence Bay 4 m.glb') < position('Targeting rune ring'));
   assert.equal(rows[0].path, 'modelpack - Zombie Quarantine Streets.glb', 'input order unchanged');
 });
