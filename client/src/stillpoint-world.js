@@ -37,7 +37,9 @@ export async function loadStillpoint(T,loader,site){
     throw new Error('Invalid Stillpoint bounds');
   // Respect the authored metre scale unless fitting requires reducing it.
   const scale=Math.min(1,site.r*.94/(Math.hypot(size.x,size.z)/2),site.h/size.y);
-  const group=new T.Group();group.name='rocky:stillpoint';
+  // Preserve the published scene identifier used by traversal and browser
+  // verification; Rocky is the visible name, Stillpoint remains its type.
+  const group=new T.Group();group.name='stillpoint:live';
   group.position.set(site.x,groundHeight(site.x,site.z)+.04,site.z);
   group.rotation.y=-.8;
   const fit=new T.Group();

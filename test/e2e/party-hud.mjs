@@ -20,6 +20,10 @@ try {
    await page.goto('http://127.0.0.1:'+server.port+'/?q=0&qlock=1&nolock=1&slot='+slot+(SOFTWARE_GL?'&rfps=0.25':''));
    await page.click('#gate-guest-link');await page.fill('#name',name);await page.click('#enter');
    const player=await liveFixturePlayer(page,server,name,65000);
+   // Two continuously rendered SwiftShader scenes can starve authenticated
+   // WebSocket snapshots. Pause only world drawing; DOM party HUD, networking,
+   // simulation and authoritative interaction still run on real clients.
+   if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
    return {page,player,ctx};
  }
  const first=await join('Party Vanguard','party-a'),second=await join('Party Healer','party-b');
