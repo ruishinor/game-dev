@@ -145,7 +145,7 @@ try {
   // five structural parts while asserting the new VFX is fitted locally.
   assert.ok(await page.evaluate(()=>{
     const mast=window.__attune.gfx.scene.getObjectByName('relay:structural-mast');
-    return mast?.children.length===6 && !!mast.getObjectByName('relay:local-fault');
+    return mast?.children.length===6 && mast.children.some(child=>child.name==='relay:local-fault');
   }));
   await capture('preview-evidence/01b-relay-mast.png');
   assert.ok(!p.dead,'Relay art capture must finish with a living player');
