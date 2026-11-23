@@ -86,7 +86,7 @@ export function enterNullBreach(game, p, obj) {
   if (levelDenial) return deny(levelDenial);
   if (p.char.foundryProgress !== 3) return deny('The breach is held shut while the Foundry Overseer stands.');
   game.openAnnex();
-  game.transferPlayer(p, { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ });
+  game.transferPlayer(p, { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ, yaw: Math.PI });
   game.message(p, 'info', 'Through the Null Breach: the Null Annex. Cross the Arrival Gallery and the Relay Workshop to the Null Chamber. The gate behind you returns to the Severance Gate.');
   return { ok: true };
 }
