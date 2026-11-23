@@ -8,6 +8,7 @@ on:
       - main
   pull_request:
     paths:
+      - '.github/workflows/guest-entry.yml'
       - '.github/workflows/main-health.yml'
       - 'test/e2e/initiation.mjs'
       - 'client/index.html'
