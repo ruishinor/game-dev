@@ -1,29 +1,35 @@
 // Deterministic heterogeneous wetland ecology, shoreline shelves and water.
 // Runtime quality and performance matter; no mesh format or donor-origin gate.
+import { fenStemGeometry, fenFoliageGeometry, fenSurfaceDetail, fenWaterShimmer } from './lumenfen-organics.js';
 export function buildLumenfenEcology(T,group,{center,trees,pools,height,detail=1}){
   const materials={
     bark:new T.MeshStandardMaterial({color:0x38473e,roughness:.93}),
     root:new T.MeshStandardMaterial({color:0x44594b,roughness:.86}),
-    hardwood:new T.MeshStandardMaterial({color:0x376452,roughness:.84,side:T.DoubleSide}),
-    cage:new T.MeshStandardMaterial({color:0x548879,roughness:.74,side:T.DoubleSide,emissive:0x183a31,emissiveIntensity:.3}),
-    willow:new T.MeshStandardMaterial({color:0x729b7f,roughness:.82,side:T.DoubleSide}),
+    hardwood:new T.MeshStandardMaterial({color:0x376452,roughness:.84,side:T.DoubleSide,vertexColors:true}),
+    cage:new T.MeshStandardMaterial({color:0x548879,roughness:.74,side:T.DoubleSide,vertexColors:true,emissive:0x183a31,emissiveIntensity:.3}),
+    willow:new T.MeshStandardMaterial({color:0x729b7f,roughness:.82,side:T.DoubleSide,vertexColors:true}),
     glass:new T.MeshStandardMaterial({color:0x83c6ad,roughness:.38,transparent:true,opacity:.68,
       depthWrite:false,emissive:0x266958,emissiveIntensity:.52,side:T.DoubleSide}),
     shallows:new T.MeshPhysicalMaterial({color:0x1e5258,roughness:.19,metalness:.1,transparent:true,
       opacity:.79,depthWrite:false,clearcoat:.73,clearcoatRoughness:.13,side:T.DoubleSide,
       emissive:0x102f30,emissiveIntensity:.21}),
     mud:new T.MeshStandardMaterial({vertexColors:true,roughness:.98,side:T.DoubleSide}),
-    reed:new T.MeshStandardMaterial({color:0x658a64,roughness:.87,side:T.DoubleSide}),
+    reed:new T.MeshStandardMaterial({color:0x658a64,roughness:.87,side:T.DoubleSide,vertexColors:true}),
   };
+  // Authored folded foliage and fluted wood replace the repeated toy crowns.
+  fenSurfaceDetail(materials.bark, 'bark');
+  fenSurfaceDetail(materials.root, 'bark');
+  fenSurfaceDetail(materials.mud, 'stone');
+  fenWaterShimmer(materials.shallows);
   const geometries={
-    trunk:new T.CylinderGeometry(.32,.54,1,10,3),
-    oak:new T.DodecahedronGeometry(1,1),
-    cage:new T.ConeGeometry(1,1,8,3),
-    willow:new T.ConeGeometry(1,1,9,3),
-    root:new T.CylinderGeometry(.09,.24,1,7),
+    trunk:fenStemGeometry(T),
+    oak:fenFoliageGeometry(T, 'oak'),
+    cage:fenFoliageGeometry(T, 'cage'),
+    willow:fenFoliageGeometry(T, 'willow'),
+    root:fenStemGeometry(T, true),
     vein:new T.TorusGeometry(1,.065,6,32),
     stem:new T.CylinderGeometry(.075,.11,1,6),
-    pod:new T.ConeGeometry(1,1,7),
+    pod:fenFoliageGeometry(T, 'cage'),
   };
   const batches=new Map(),objects=[];
   const place=(shape,mat,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>{
@@ -148,6 +154,7 @@ export function buildLumenfenEcology(T,group,{center,trees,pools,height,detail=1
     update(t,reducedMotion=false){
       // No source-format dependency or unnecessary full-geometry upload/frame.
       materials.glass.emissiveIntensity=reducedMotion?.52:.49+.06*Math.sin(t*.7);
+      materials.shallows.userData.fenWaterTime.value = reducedMotion ? 0 : t;
     },
     dispose(){
       for(const o of objects){o.removeFromParent();if(o.geometry&&!Object.values(geometries).includes(o.geometry))o.geometry.dispose();}
