@@ -1044,6 +1044,7 @@ function onWelcome(m) {
   S.inspect = null;
   S.you = null;
   S.snaps = 0;
+  S.travelSerial = 0;
   local.pred = { x: m.x, z: m.z, jy: 0, vy: 0 };
   local.prev = { x: m.x, z: m.z, jy: 0 };
   local.pending = [];
@@ -1096,6 +1097,13 @@ function onSnapshot(m) {
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
   S.you = y;
+  if(Number.isSafeInteger(y.tr) && y.tr > 0 && y.tr !== S.travelSerial && Number.isFinite(y.face)){
+    S.travelSerial=y.tr;
+    local.yaw=y.face;
+    local.sentYaw=y.face;
+    cam.reset(y.face);
+    local.pending.length=0; // inputs from the old region cannot move the arrival
+  }
   if (Number.isFinite(y.wc)) world.severancePocket?.timeOfDay.setLive(y.wc / 10000);
   if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
