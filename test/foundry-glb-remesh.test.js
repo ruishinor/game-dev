@@ -45,3 +45,16 @@ test('Khronos glTF validator accepts the actually committed Foundry GLB', async 
   const result = await validator.validateBytes(new Uint8Array(bytes), {maxIssues:100});
   assert.equal(result.issues.numErrors, 0, JSON.stringify(result.issues.messages, null, 2));
 });
+
+test('the real HTTP host serves the refined kit from its existing production alias', async () => {
+  const { startServer } = await import('../server/index.js');
+  const server = await startServer({ port: 0, dataFile: null });
+  try {
+    const response = await fetch('http://127.0.0.1:' + server.port + '/client/assets/foundry_kit.glb');
+    assert.equal(response.status, 200);
+    const actual = Buffer.from(await response.arrayBuffer());
+    assert.deepEqual(actual, bytes, 'the runtime alias must serve the exact committed remeshed binary');
+  } finally {
+    await server.close();
+  }
+});
