@@ -33,6 +33,29 @@ export function materialFinish(name, rgba = [1, 1, 1, 1]) {
   return { family: 'weathered-bronze', color: [.36, .27, .19, 1], metallic: .62, roughness: .61, emissive: [0, 0, 0] };
 }
 
+// Stage *relevant* source candidates before smaller but unrelated archive
+// objects. This is only a source-triage order, not proof of visual acceptance.
+export function outpostDonorPriority(entry) {
+  const name = path.basename(String(entry?.path || '')).toLowerCase();
+  const triangles = Math.max(0, Number(entry?.triangles) || 0);
+  let suitability = 0;
+  if (/longpoint/.test(name)) suitability = 120;
+  else if (/shooting range|firing range|range board|target practice/.test(name)) suitability = 115;
+  else if (/\b(guns|rifles|carbines|pistols|blasters)\b/.test(name)) suitability = 105;
+  else if (/fortified compound|survival base|field camp|outpost|antenna|salvage and repair/.test(name)) suitability = 80;
+  else if (/fence|gate|barricade|sandbag|barrier/.test(name)) suitability = 70;
+  else if (/armory|armoury|weapon pack|workshop|storage/.test(name)) suitability = 60;
+  else if (/zombie|rune|food|fantasy|tavern/.test(name)) suitability = -60;
+  // Don't spend the limited Blender run on enormous mixed scene kits first.
+  return suitability - Math.min(40, triangles / 5000);
+}
+export function rankOutpostDonors(findings) {
+  return [...findings].sort((a, b) =>
+    outpostDonorPriority(b) - outpostDonorPriority(a) ||
+    a.bytes - b.bytes ||
+    String(a.path).localeCompare(String(b.path)));
+}
+
 async function microMaps() {
   const size = 256;
   const orm = Buffer.alloc(size * size * 3), normal = Buffer.alloc(orm.length);
@@ -163,7 +186,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   const incoming = JSON.parse(fs.readFileSync(manifest, 'utf8'));
   if (!incoming.staged || !Array.isArray(incoming.findings)) throw Error('Run source archive staging before refinement');
   fs.mkdirSync(outputDir, { recursive: true });
-  const ordered = [...incoming.findings].sort((a, b) => a.bytes - b.bytes);
+  const ordered = rankOutpostDonors(incoming.findings);
   const selected = [], deferred = [];
   let bytes = 0;
   for (const entry of ordered) {
