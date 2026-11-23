@@ -92,6 +92,22 @@ export function buildPhaseInstrument(T, regulator) {
     dash.name = 'rift:instrument-etched-readout';
     console.add(dash);
   }
+  // Readable analog calibration scale: a continuous dial and five positive
+  // index teeth, set behind the protective bezel rather than floating text.
+  const dial=new T.Mesh(new T.RingGeometry(0.043,0.057,24),m.brass);
+  dial.position.set(0.304,0.055,0.119);
+  dial.name='rift:instrument-calibration-dial';
+  console.add(dial);
+  const pointer=new T.Mesh(new T.BoxGeometry(0.011,0.065,0.012),m.traced);
+  pointer.position.set(0.304,0.056,0.127);
+  pointer.name='rift:instrument-calibration-pointer';
+  console.add(pointer);
+  for(let i=0;i<5;i++){
+    const tooth=new T.Mesh(new T.BoxGeometry(0.009,0.036+(i%2)*.012,0.009),i%2?m.flux:m.ceramic);
+    tooth.position.set(-.304+i*.026,.088,0.119);
+    tooth.name='rift:instrument-reference-tooth';
+    console.add(tooth);
+  }
   for (const sign of [-1, 1]) {
     const handle = box(0.055, 0.21, 0.29, m.brass, sign * 0.45, 0.94, 0.13);
     handle.rotation.x = -0.27;
