@@ -162,6 +162,12 @@ export function buildOutpostTraining(T, { ground, loader } = {}) {
       });
       const scale = Math.min(1.72 / max, .30 / Math.max(dim.y, .01));
       fitted.scale.setScalar(scale);
+      // Recenter the fully transformed hierarchy, including off-origin meshes
+      // and inherited source transforms, rather than assuming root translation
+      // alone produces a centered world-space display.
+      fitted.updateMatrixWorld(true);
+      const fittedBounds = new T.Box3().setFromObject(fitted);
+      fitted.position.sub(fittedBounds.getCenter(new T.Vector3()));
       holder.add(fitted);
       holder.position.set(0, 2.14 - i * .49, -.40);
       // Weapon noses face the public aisle, clear of the locker backboard.
