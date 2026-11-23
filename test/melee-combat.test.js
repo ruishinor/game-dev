@@ -175,3 +175,20 @@ test('input time never extends the 1650ms hit-based combo window',()=>{
  assert.equal(g.events.filter(x=>x.e==='melee_start').at(-1).style,'1',
   'the buffer must not timestamp an attack or grant an expired combo stage');
 });
+
+test('interrupted contact cannot produce a hit or retain a stale combo',()=>{
+ for(const invalidate of [
+  p=>{p.sitting={x:p.x,z:p.z};},
+  p=>{p.char.activeWeapon='ranged';},
+ ]){
+  const {g,p,e}=setup(),hp=e.hp;
+  assert.ok(requestMelee(g,p,'light').ok);
+  advance(g,p,219);
+  invalidate(p);
+  advance(g,p,1);
+  assert.equal(e.hp,hp);
+  assert.equal(p.meleeState.pending,null);
+  assert.equal(p.meleeState.combo,0);
+  assert.equal(p.meleeState.lastHit,-Infinity);
+ }
+});
