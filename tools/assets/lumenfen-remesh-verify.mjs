@@ -46,7 +46,26 @@ export async function verifyLumenfenRemesh(dir) {
   }
   assert.equal(report.totalTriangles, total);
   assert.ok(total <= 360_000);
-  return { assets: report.assets.length, totalTriangles: total };
+  const evidenceFile = path.join(dir, 'evidence', 'evidence.json');
+  assert.ok(fs.existsSync(evidenceFile), 'missing exported-GLB camera review report');
+  const evidence = JSON.parse(fs.readFileSync(evidenceFile, 'utf8'));
+  assert.equal(evidence.source, 'actual exported GLBs');
+  assert.equal(evidence.views.length, STATIC_DONORS.length * 2,
+    'each remeshed donor needs a front and side render');
+  for (const donor of STATIC_DONORS) for (const view of ['front', 'side']) {
+    const filename = 'evidence/' + donor + '_' + view + '.png';
+    const entry = evidence.views.find(v => v.asset === donor && v.view === view);
+    assert.ok(entry && entry.file === filename, 'missing real Blender render: ' + filename);
+    assert.ok(entry.bounds?.flat().every(Number.isFinite), 'finite rendered bounds');
+    const content = fs.readFileSync(path.join(dir, filename));
+    assert.ok(content.length > 2000 && content.length === entry.bytes,
+      'nonempty reproducible inspection view: ' + filename);
+    assert.equal(content.toString('hex', 0, 8), '89504e470d0a1a0a',
+      'expected a real PNG render, not a textual placeholder');
+    assert.equal(content.readUInt32BE(16), 800, 'review viewport width');
+    assert.equal(content.readUInt32BE(20), 600, 'review viewport height');
+  }
+  return { assets: report.assets.length, totalTriangles: total, reviewImages: evidence.views.length };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
