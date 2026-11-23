@@ -24,9 +24,10 @@ The server writes an aggregate snapshot during normal saves and shutdown using a
 | `credits_looted` | Credit stack successfully collected from personal remains | Unclaimed corpse drops excluded |
 | `credits_vendor_in` / `credits_vendor_out` | Positive/negative wallet delta on a committed vendor transaction | No player-to-player economy; GM grants omitted |
 | `materials_granted` / `goods_granted` | A successful grant, vendor purchase, recovered vein or other explicitly instrumented source | Additional uninstrumented source paths may exist |
-| `materials_spent` / `materials_crafted`, `goods_crafted` | Ingredient consumption and output from a finished fabrication cycle | Does not count quotes, cancelled work or unmet requirements |
+| `materials_spent` / `materials_crafted`, `goods_crafted` | Ingredient consumption, at-risk failed fabrication losses, and output from finished fabrication cycles | Does not count quotes or unspent cancelled work |
 | `craft_cycles` / `vendor_trades` | Successful completed crafting cycle / committed trade | Not engagement, purchasing intent or buyer identity |
 | `items_granted` / `items_crafted` | Actually acquired unique item or completed output | Carried rare-item demand is not directly measured |
+| `goods_spent` / `items_consumed` | Actual utility use, junk sale/disposal, and consumed crafting donors | Other nonstandard use paths may still exist |
 
 Metrics are **aggregated at capture time** by UTC day, class and ending level band (1–4 / 5–7 / 8–11 / 12–15), with fixed allowlisted item/recipe/type breakdowns. Data contains **no account, character, IP, authentication token, exact location, name, chat message, event timestamp, or raw event stream**. The local JSON is still gameplay analytics and should be access-controlled; it is not publicly served or automatically uploaded. GM-assisted sessions are excluded from completed-session metrics once GM commands are issued; earlier activity before the command may already have been aggregated. Do not consider this a privacy or regulatory compliance certification.
 
