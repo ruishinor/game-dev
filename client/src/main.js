@@ -38,6 +38,7 @@ import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
 import { createRenderStallProbe } from './render-stall-probe.js';
+import { createShaderPrewarmer } from './shader-prewarm.js';
 import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
 import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
@@ -99,6 +100,14 @@ const spindleHaloMaterial = new THREE.MeshBasicMaterial({
 const params = new URLSearchParams(location.search);
 // Separate opt-in probe for graphics stalls (independent of network recovery).
 const renderProbe = createRenderStallProbe({ enabled: params.get('renderdiag') === '1', renderer, canvas });
+const shaderWarmup = createShaderPrewarmer({
+  renderer, scene, camera,
+  enabled: params.get('shaderwarmup') === '1',
+  onEvent: (event) => console.info('[shader-prewarm]', JSON.stringify(event)),
+});
+let titleWarmupStarted = false, titleWarmupReady = !shaderWarmup.enabled;
+let worldWarmupStarted = false, worldWarmupReady = !shaderWarmup.enabled;
+let worldWarmupGeneration = 0;
 const glbOnly = params.get('glb');
 const assets = new Assets();
 await assets.init();
@@ -1013,6 +1022,9 @@ const chestOf = (ent) => () => ent.chest;
 
 function onWelcome(m) {
   clearWorld();
+  worldWarmupGeneration++;
+  worldWarmupStarted = false;
+  worldWarmupReady = !shaderWarmup.enabled;
   ui.questTracker.useCharacter(m.charId);
   ui.setAbilityOwner(m.charId);
   ui.atlas.setOwner(m.charId);
@@ -2226,6 +2238,13 @@ function frame(now) {
     camera.position.set(Math.sin(a) * 34, 15, Math.cos(a) * 34);
     camera.lookAt(0, 5, 0);
     world.update(dt, time, { x: 0, y: 0, z: 0 });
+    if (!titleWarmupReady) {
+      if (!titleWarmupStarted) {
+        titleWarmupStarted = true;
+        void shaderWarmup.warm('title').then(() => { titleWarmupReady = true; });
+      }
+      return; // Only experimental URL mode waits before the first title render.
+    }
     if (renderProbe.enabled) renderProbe.measure('title', quality, () => renderer.render(scene, camera));
     else renderer.render(scene, camera);
     return;
@@ -2301,6 +2320,19 @@ function frame(now) {
       }
     }
   }
+  // Optional shader preparation after entities, lighting and camera exist.
+  // The world-entry curtain remains over the scene while this runs.
+  if (shaderWarmup.enabled && worldEntryPending && me?.placed && me.row && S.you && !worldWarmupReady) {
+    if (!worldWarmupStarted) {
+      worldWarmupStarted = true;
+      const generation = worldWarmupGeneration;
+      void shaderWarmup.warm('world').then(() => {
+        if (generation === worldWarmupGeneration) worldWarmupReady = true;
+      });
+    }
+    S.frames++;
+    return;
+  }
   // Game logic above runs every animation frame; drawing may be capped
   // (?rfps=N) or paused. Where drawing is very slow (software WebGL) that
   // keeps input, prediction and networking in real time.
@@ -2341,6 +2373,7 @@ window.__attune = {
       drawn: S.drawn,
       quality,
       renderDiagnostics: renderProbe.get(),
+      shaderWarmup: shaderWarmup.get(),
       target: S.target,
       followId:S.followId,
       inspected: S.inspect?.id || 0,
