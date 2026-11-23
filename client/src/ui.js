@@ -26,6 +26,7 @@ import { QuestTracker } from './quest-tracker-ui.js';
 import { VendorPanel } from './vendor-ui.js';
 import { enemyTargetStatus } from './target-status.js';
 import { npcProfile, starterFabrication } from './npc-interaction.js';
+import { isRockyPatCommand } from '../../shared/stillpoint-roam.js';
 import { placePartyMarker } from './minimap-party.js';
 import { WorldAtlas } from './world-atlas.js';
 import { reachMinimapArt } from './minimap-art.js';
@@ -425,6 +426,7 @@ export class UI {
         const command=/^\/([pv])(?:\s+(.*))?$/i.exec(text);
         const follow=/^\/follow(?:\s+(.+))?$/i.exec(text);
         if(follow){this.a.followChat((follow[1]||'').trim());this.resetChatTarget();return;}
+        if(/^\/pat(?:\s|$)/i.test(text)){if(isRockyPatCommand(text))this.a.patRocky();else this.error('Use /pat or /pat Rocky.');this.resetChatTarget();return;}
         if(/^\/gm(?:\s|$)/i.test(text)){this.a.gm(text.slice(3).trim());this.resetChatTarget();return;}
         if(/^\/unfollow$/i.test(text)){this.a.cancelMovement();this.resetChatTarget();return;}
         if(command){
@@ -839,6 +841,7 @@ export class UI {
       ['Num Lock', 'Toggle auto-run; movement keys or Esc stop it.'],
       ['Right-click player', 'On players, nameplates, target or party frames: invite, follow, stop following or whisper.'],
       ['/follow [name] · /unfollow', 'Follow the selected player or a nearby player by exact name; stop following.'],
+      ['/pat [Rocky]', 'Gently pat Rocky [Stillpoint] within 3.2 metres in Sanctum. Cosmetic interaction, no rewards.'],
       ['Wheel', 'Zoom'],
       [this.a.bindings?.label('weapon:switch') || 'Z', 'Switch weapon: melee ↔ ranged (every class; an empty slot uses your innate attack). Works in combat. Remap in Settings → Keybindings.'],
       [this.a.bindings?.label('weapon:config') || 'G', 'Electrical Combat Rod: joined rod ↔ dual batons, out of combat with the rod drawn.'],

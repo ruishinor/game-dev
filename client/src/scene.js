@@ -20,6 +20,7 @@ import { buildSinterHabitat } from './sinter-habitat.js';
 import { SPOREFIELD_COLONIES, planSporeMotes } from './sporefield-colonies.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
+import { rockyPatEligibility } from '../../shared/stillpoint-roam.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
@@ -1610,6 +1611,13 @@ export function buildWorld(scene, assets = null, opts = {}) {
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
+    patRocky(player){
+      const eligible=rockyPatEligibility(player?.row?{...player.row,dead:player.dead}:null,stillpoint?.group.position,stillpointStatus==='ready');
+      if(!eligible.ok)return eligible;
+      if(!stillpoint.pat())return {ok:false,message:'Give Rocky a moment before another pat.'};
+      const p=stillpoint.group.position;
+      return {ok:true,x:p.x,y:p.y,z:p.z};
+    },
     attachReachFx(engine) {
       relayFx?.dispose();
       relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;

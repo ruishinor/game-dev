@@ -508,6 +508,16 @@ const ui = new UI({
   unequip: (slot) => net.send({ t: 'unequip', slot }),
   respawn: () => net.send({ t: 'respawn' }),
   chat: (m, channel='vicinity') => net.send({ t: 'chat', m, channel }),
+  patRocky:()=>{
+    const result=world.patRocky(S.ents.get(S.myId));
+    if(!result.ok)return ui.error(result.message);
+    ui.toast('You gently pat Rocky.', 'npc');
+    ui.chatLine('Rocky [Stillpoint]','A low, pleased rumble.','npc');
+    if(vfx&&!motionPreference.matches&&quality>0)vfx.burst({
+      at:[result.x,result.y+1.15,result.z],shape:'sphere',radius:.32,
+      count:9,color:0xb7d6c5,color2:0xd5c8a1,speed:.28,life:.8,blend:'alpha'
+    });
+  },
   gm: line => net.send({ t: 'gm', line }),
   characters: () => openCharacterMenu(),
   signOut: () => net.signOut(),
