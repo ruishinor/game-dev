@@ -102,7 +102,7 @@ test('F-key on the marked firing line prioritizes practice targets over closer s
   const consoleObj = { id: 2, meta: { k: 'o', c: 'outpost_range_console' }, row: { ...R.console } };
   const targets = R.lanes.map((lane, i) => ({ id: i + 3, meta: { k: 'o', c: 'outpost_range_target' }, row: { ...lane } }));
   const entities = new Map([self, consoleObj, ...targets].map(e => [e.id, e]));
-  assert.equal(nearestPracticeTarget(entities, 1, centre)?.id, 3);
+  assert.equal(nearestPracticeTarget(entities, 1, centre)?.id, 4, 'closest firing target wins even when the console is nearer');
   assert.equal(nearestPracticeTarget(entities, 1, { ...R.console }), null, 'away from firing line F uses the normal interaction chooser');
   self.dead = true;
   assert.equal(nearestPracticeTarget(entities, 1, centre), null);
