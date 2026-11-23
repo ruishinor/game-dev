@@ -1,3 +1,5 @@
+import { createAnnexChamberDetail } from './annex-chamber-detail.js';
+
 // Three visually enclosed Phase Annex chambers. All meshes are presentation-only:
 // no new collider, portal, floor height or server-owned navigation changes.
 export const ANNEX_ROOMS = Object.freeze([
@@ -127,8 +129,12 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
       }
     }
   }
-  const stats={rooms:3,roofs:roofs.length,lights:lights.length,glbParts,colliderChanges:0};
-  return {group,stats,update(eye){
+  const chamberDetail = createAnnexChamberDetail(T, annex, ANNEX_ROOMS);
+  group.add(chamberDetail.group);
+  const stats={rooms:3,roofs:roofs.length,lights:lights.length,glbParts,
+    detail:chamberDetail.stats,colliderChanges:0};
+  return {group,stats,update(eye,t=0,reducedMotion=false){
+    chamberDetail.update(t,reducedMotion);
     const inside=!!eye&&Math.abs(eye.x-annex.x)<annex.hw+32
       &&Math.abs(eye.z-annex.z)<annex.hd+25;
     group.visible=inside;
@@ -143,6 +149,7 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
       roof.material.depthWrite=roof.material.opacity===1;
     }
   },dispose(){
+    chamberDetail.dispose();
     group.removeFromParent();
     for(const x of new Set(owned))x.dispose();
     for(const m of new Set(materials))m.dispose();
