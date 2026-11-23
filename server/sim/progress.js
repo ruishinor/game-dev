@@ -27,6 +27,7 @@ import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
 import {creditDiscipline} from './crafting-disciplines.js';
+import { claimClassArmourArchive } from './class-armour-sources.js';
 import {containmentAlarm} from './kestrel-alarm.js';
 import {startVeinHarvest} from './severance-veins.js';
 
@@ -443,6 +444,10 @@ export function interact(game, p, objectId) {
     game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
     return {ok:true};
   }
+  // Archived class armour knowledge is optional and never overrides normal
+  // Brineworks commissioning, Stone attunement or rift calibration.
+  const archive = claimClassArmourArchive(game,p,obj);
+  if(archive)return archive;
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
   if(['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown'].includes(obj.type))return travelLumenfen(game,p,obj);
