@@ -7,11 +7,13 @@ import { fenFoliageGeometry, fenSurfaceDetail } from './lumenfen-organics.js';
 // selects only dorsal/torso triangles so static source legs never appear beside
 // the live six-hip articulated creature rig. No hitbox/AI authority changes.
 let stalkerSurface=null;
-export async function preloadFenStalkerSurface(T,loader){
+export async function preloadFenStalkerSurface(T,loader,assetURL){
  if(stalkerSurface)return true;
- if(!T?.Box3||!loader?.loadAsync)return false;
+ // Optional GLBs must be present in the published runtime manifest. Avoid
+ // fetching archive-derived filenames that were never built or shipped (404).
+ if(!assetURL || typeof assetURL !== 'string' || !assetURL.startsWith('/client/assets/') || !T?.Box3 || !loader?.loadAsync)return false;
  try{
-  const gltf=await loader.loadAsync('/client/assets/lumenfen-six_limb_predator.glb');
+  const gltf=await loader.loadAsync(assetURL);
   const root=gltf?.scene;
   if(!root?.traverse)return false;
   root.updateMatrixWorld(true);

@@ -121,8 +121,8 @@ await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets
 });
 // Reconstructed predator anatomy is optional. It never replaces the active
 // procedural leg joints; if the source GLB is absent, the rig remains intact.
-if(glbOnly!=='none'&&params.get('q')!=='0')
-  await preloadFenStalkerSurface(THREE,assets.loader);
+if(glbOnly!=='none'&&params.get('q')!=='0'&&assets.entry('lumenfen-six_limb_predator'))
+  await preloadFenStalkerSurface(THREE,assets.loader,assets.url('lumenfen-six_limb_predator'));
 // Three existing licensed compact firearm meshes; Longpoint remains the authored original.
 if(glbOnly!=='none')await Promise.all([loadWeaponModels(assets),loadWardenRifles(assets)]);
 // The Sanctum's carved architecture kit; the generic kit remains the fallback.

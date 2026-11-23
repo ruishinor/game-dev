@@ -95,6 +95,13 @@ test('native fen fauna use biologic windup and death VFX while keeping danger ar
 });
 
 
+test('unpublished optional fauna GLBs cannot trigger missing-runtime requests',async()=>{
+ const loader={loadAsync:()=>{throw Error('unexpected request for unregistered GLB');}};
+ assert.equal(await preloadFenStalkerSurface(T,loader,null),false);
+ assert.equal(await preloadFenStalkerSurface(T,loader,''),false);
+ assert.equal(await preloadFenStalkerSurface(T,loader,'https://example.org/donor.glb'),false);
+});
+
 test('real GLB donor dorsal geometry attaches to the articulated stalker without duplicate static limbs', async()=>{
  const root=new T.Group(),sourceGeo=new T.SphereGeometry(1,28,20),
    sourceMat=new T.MeshPhysicalMaterial({color:0x577c62,roughness:.4});
@@ -104,7 +111,7 @@ test('real GLB donor dorsal geometry attaches to the articulated stalker without
    assert.equal(path,'/client/assets/lumenfen-six_limb_predator.glb');
    return {scene:root};
  }};
- assert.equal(await preloadFenStalkerSurface(T,loader),true);
+ assert.equal(await preloadFenStalkerSurface(T,loader,'/client/assets/lumenfen-six_limb_predator.glb'),true);
  const m=makeFenStalker(T);
  const overlay=m.group.getObjectByName('lumenfen:stalker:archive-dorsal-rig');
  assert.ok(overlay);
