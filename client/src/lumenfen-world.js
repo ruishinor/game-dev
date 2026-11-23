@@ -3,6 +3,8 @@
 import {LUMENFEN,FEN_TREES,FEN_POOLS,fenHeight,inLumenfen} from '../../shared/lumenfen.js';
 import {buildLumenfenSites} from './lumenfen-sites.js';
 import {buildLumenfenEcology} from './lumenfen-ecology.js';
+import {buildLumenfenMoonMirrors} from './lumenfen-moon-mirrors.js';
+import {buildFenMonsoonBloom,createFenMonsoonFx} from './lumenfen-monsoon.js';
 export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMotion=()=>false}={}){
  const P=LUMENFEN,group=new T.Group();group.name='lumenfen:landscape';group.visible=false;scene.add(group);
  const soil=new T.MeshStandardMaterial({vertexColors:true,roughness:.95});
@@ -24,10 +26,19 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    center:P,trees:FEN_TREES,pools:FEN_POOLS,height:fenHeight,detail
  });
  const sites=buildLumenfenSites(T);group.add(sites.group);
+ const moonMirrors=buildLumenfenMoonMirrors(T,group,{detail,textureSize:detail>=2?768:512});
+ const monsoonBloom=buildFenMonsoonBloom(T,group);
+ const waterMaterial=group.children.find(o=>o.name==='lumenfen:mirrorpool')?.material;
  const glowLight=new T.PointLight(0x64ba9e,3.0,34,2);glowLight.position.set(P.x+20,7,P.z-22);group.add(glowLight);
- let prior=null,clock=0;
+ let prior=null,clock=0,climate=null,monsoonFx=null;
  const active=eye=>!!eye&&inLumenfen(eye.x,eye.z,35);
- return {group,stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:ecology.stats().spores,landmarks:sites.stats(),ecology:ecology.stats()}),
+ return {
+  group,
+  setClimate(state){climate=state&&Number.isFinite(state.rain)&&Number.isFinite(state.phase)?state:null;},
+  attachVfx(vfx){monsoonFx?.dispose();monsoonFx=vfx?createFenMonsoonFx(vfx):null;},
+  stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:ecology.stats().spores,
+    landmarks:sites.stats(),ecology:ecology.stats(),
+    monsoon:monsoonBloom.stats(),mirrors:moonMirrors.stats()}),
   update(dt,t,eye){
    const inside=active(eye);group.visible=inside;
    if(inside){
@@ -39,7 +50,21 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
     clock+=Math.max(0,dt||0);
     sites.update(dt,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
     ecology.update(clock,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
+    // Weather is interpolated from a server-published climate state, and
+    // never touches authoritative movement, collision or enemy simulation.
+    monsoonBloom.update(climate);
+    moonMirrors.update(eye,climate?.phase,climate);
+    const rain=climate?.rain??0;
+    soil.roughness=.95-rain*.29;
+    if(waterMaterial){
+      waterMaterial.roughness=.045+rain*.30;
+      waterMaterial.clearcoatRoughness=.035+rain*.25;
+    }
+    monsoonFx?.update(dt,eye,climate,
+      typeof reducedMotion==='function'?reducedMotion():!!reducedMotion);
    }else if(prior){
+    moonMirrors.update(null,null,null);
+    monsoonBloom.update(null);
     if(prior.fog&&scene.fog){scene.fog.color.setHex(prior.fog.color);scene.fog.near=prior.fog.near;scene.fog.far=prior.fog.far;}
     if(sky&&prior.sky)sky.position.copy(prior.sky);
     if(ambient&&Number.isFinite(prior.ambient))ambient.intensity=prior.ambient;
@@ -48,6 +73,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }
   },
   dispose(){
+   monsoonFx?.dispose();moonMirrors.dispose();monsoonBloom.dispose();
    sites.dispose();ecology.dispose();
    floor.dispose();soil.dispose();
    group.removeFromParent();
