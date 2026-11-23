@@ -1,5 +1,8 @@
 # HUD, character selection and cartography delivery register
 
+> **Current-status correction (2026-11-23):** See the [canonical delivery register](../DELIVERY-REGISTER.md) for current HUD, MAP, CHAR and VAL evidence. The 2026-11-20/21 PR status tables below are historical snapshots; in particular #180 (selection), #198 (cinematic login), #199/#201 (Atlas corrections), #169/#172 (HUD work) are no longer open candidates. Retain the owner reference compositions, but distinguish merged code, tests, in-game visual evaluation and final acceptance. Desktop/TV constraints in current [AGENTS.md](../../AGENTS.md) take precedence over old phone release gates.
+
+
 Owner direction, 2026-11-19. Visual targets, not implementation evidence. This register extends the canonical development roadmap. Existing server authority, account ownership and reserved Expanse/Silent Foundry workstream remain unchanged.
 
 ## Concept register
