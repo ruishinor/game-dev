@@ -212,6 +212,11 @@ export function createWardenRifle(assets,inst,variant,optic){
    // Bounded low-ready placements, keeping the barrel forward and under the
    // head ring. Each candidate is accepted only if BOTH hands actually reach.
    const positions=[
+    // Priority: settle the receiver toward the actual trigger shoulder,
+    // keeping the support fore-end reachable. Old verified placements remain
+    // as deterministic fallbacks if a particular watch phase cannot reach.
+    [rightSign*.085,-.235,.34,.30,rightSign*.045],
+    [rightSign*.065,-.25,.31,.31,rightSign*.06],
     [0,-.22,.32,.34,0],
     [rightSign*.025,-.27,.29,.40,rightSign*.09],
     [0,-.19,.40,.30,-rightSign*.10],
@@ -249,12 +254,14 @@ export function createWardenRifle(assets,inst,variant,optic){
       const shoulder=local(a.upper),elbow=local(a.lower);
       return Math.abs(elbow.x-shoulder.x);
      });
+     const butt=made.group.getObjectByName('warder:buttstock');
+     const stockToShoulder=butt?world(butt).distanceTo(world(arms[0].upper)):null;
      root.visible=true;
      if(!wasReady&&failures)recoveries++;
      wasReady=true;lastCandidate=i;
      last={mode:'ready',gripError,supportError,rifle:id,failures,recoveries,candidate:i,
       wristAppliedDeg:wrist.map(w=>w.appliedDeg),
-      wristResidualDeg:wrist.map(w=>w.residualDeg),elbowFlare};
+      wristResidualDeg:wrist.map(w=>w.residualDeg),elbowFlare,stockToShoulder};
      return true;
     }
    }
