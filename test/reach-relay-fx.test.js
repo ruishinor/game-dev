@@ -27,7 +27,8 @@ test('Relay fault is fitted to the actual service cabinet and never uses global 
  assert.equal(sparks.count,RELAY_FX_BUDGET.sparks);
  assert.equal(RELAY_FX_BUDGET.localDraws,2);
  assert.equal(arc.material.depthWrite,false);
- const bounds=new THREE.Box3().setFromObject(arc);
+ arc.geometry.computeBoundingBox();
+ const bounds=arc.geometry.boundingBox;
  assert.ok(bounds.min.x>1.1&&bounds.max.x<1.6);
  assert.ok(bounds.min.y>1.0&&bounds.max.y<1.7);
  for(let i=0;i<25;i++)fx.update(.1,focus);
