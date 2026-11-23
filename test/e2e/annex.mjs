@@ -3,6 +3,7 @@
 // prior boss-credit setup are explicit; they are not a claim of earned progress.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import sharp from 'sharp';
 import { startServer } from '../../server/index.js';
 import { launchBrowser, SOFTWARE_GL, describeGraphics } from '../../tools/browser.mjs';
 import { liveFixturePlayer } from './live-fixture.mjs';
@@ -47,6 +48,10 @@ try {
   await page.waitForFunction(() => window.__attune.state().you?.region === 'phase_annex', null,
     { timeout: 30000, polling: 100 });
   assert.ok(inRiftAnnex(player.x, player.z), 'authoritative crossing places character inside Annex');
+  const arrivalView = await page.evaluate(() => window.__attune.state());
+  assert.ok(Math.abs(arrivalView.camYaw - (Math.PI - .68)) < .12,
+    'Annex entry must frame away from the return-portal obstruction');
+  assert.ok(arrivalView.camWant <= 6.75, 'Annex entry uses a bounded initial camera distance');
   const spawned = server.game.enemies.filter((e) => e.annexEncounter);
   assert.equal(spawned.length, 11, 'Annex has its live enemy and boss roster');
   assert.ok(spawned.some((e) => e.type === 'warden'), 'Null Chamber boss is present');
@@ -71,6 +76,10 @@ try {
       stableMembrane: portal.getObjectByName('rift:interference-membrane')?.material.uniforms.uStable.value === 1,
       falseExteriorWarning: !!portal.getObjectByName('rift:persistent-warning'),
       hasNullCache: !!scene.getObjectByName('annex:null-recovery-cache'),
+      instrumentDetail: !!root.getObjectByName('annex:architectural-detail'),
+      surveyArray: !!root.getObjectByName('annex:arrival-survey-rails'),
+      relayBus: !!root.getObjectByName('annex:relay-live-busbars'),
+      nullOculus: !!root.getObjectByName('annex:null-oculus-sensor'),
     };
   });
   assert.equal(architecture.rooms.length, 3);
@@ -80,6 +89,9 @@ try {
   assert.equal(architecture.stableMembrane, true);
   assert.equal(architecture.falseExteriorWarning, false);
   assert.equal(architecture.hasNullCache, true);
+  assert.ok(architecture.instrumentDetail && architecture.surveyArray
+    && architecture.relayBus && architecture.nullOculus,
+    'the distinct three-chamber instruments must actually load in the playable scene');
 
   // After verifying actual spawn, suppress encounter AI for repeatable camera
   // evidence and an unimpeded, out-of-combat *real* F return. No production
@@ -91,6 +103,7 @@ try {
   for (const [i, room] of ANNEX_ROOMS.entries()) {
     player = await liveFixturePlayer(page, server, 'Annex Tester');
     server.game.transferPlayer(player, { x: RIFT_ANNEX.x, z: room.center });
+    await page.evaluate(() => window.__attune.view({ yaw: Math.PI - .62, pitch: .20, dist: 6, face: Math.PI }));
     const previous = await page.evaluate(() => window.__attune.state().drawn);
     await page.waitForFunction(({ z, count }) => {
       const s = window.__attune.state();
@@ -103,13 +116,27 @@ try {
   player = await liveFixturePlayer(page, server, 'Annex Tester');
   server.game.transferPlayer(player, { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ });
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.evaluate(() => window.__attune.view({ yaw: Math.PI - .62, pitch: .20, dist: 6, face: Math.PI }));
   const before = await page.evaluate(() => window.__attune.state().drawn);
   await page.waitForFunction((count) => {
     const s = window.__attune.state();
     return s.you?.region === 'phase_annex' && s.drawn > count
       && Math.abs(s.you.z - 27) < 0.8;
   }, before, { timeout: 90000, polling: 250 });
-  await page.screenshot({ path: 'annex-evidence/04-arrival-and-return-1920x1080.png' });
+  const largeScreenshot = await page.screenshot({ path: 'annex-evidence/04-arrival-and-return-1920x1080.png' });
+  const imageStats = await sharp(largeScreenshot)
+    .extract({ left: 384, top: 230, width: 1152, height: 600 }).stats();
+  const sceneContrast = imageStats.channels.slice(0, 3)
+    .reduce((sum, channel) => sum + channel.stdev, 0) / 3;
+  assert.ok(sceneContrast > 12,
+    '1920x1080 camera must show readable chamber detail, not an opaque wall (contrast ' + sceneContrast + ')');
+  const viewInside = await page.evaluate(() => {
+    const camera = window.__attune.gfx.camera.position;
+    return { x: camera.x, z: camera.z };
+  });
+  assert.ok(Math.abs(viewInside.x - RIFT_ANNEX.x) < RIFT_ANNEX.hw - .3
+    && Math.abs(viewInside.z - RIFT_ANNEX.z) < RIFT_ANNEX.hd - .3,
+    '1920x1080 capture camera must remain inside enclosed chamber');
   player.combatUntil = 0;
   player.autoOn = false;
   await page.locator('#view').focus();
