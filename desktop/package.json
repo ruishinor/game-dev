@@ -1,0 +1,10 @@
+{
+  "name": "attunement-desktop-tooling",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Owner-only build tooling; not included in the packaged application.",
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  }
+}
