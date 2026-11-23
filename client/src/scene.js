@@ -24,6 +24,7 @@ import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
 import { buildLumenfenGlbAccents } from './lumenfen-glb-accents.js';
+import { buildLumenfenFidelityFixtures } from './lumenfen-fidelity-fixtures.js';
 import { buildSilentFoundry } from './silent-foundry.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
@@ -1534,9 +1535,19 @@ export function buildWorld(scene, assets = null, opts = {}) {
   // kit; the site structures and authoritative collision do not depend on it.
   const lumenfenGlbAccents = buildLumenfenGlbAccents(THREE, kits ? assets : null);
   lumenfen.group.add(lumenfenGlbAccents.group);
+  // Genuine high-density archive remeshes are fitted into the existing
+  // environment without new collision footprints or gameplay authority.
+  const lumenfenProduction = buildLumenfenFidelityFixtures(THREE, assets?.loader ?? null,
+    {quality:detail>=.75?2:0});
+  lumenfen.group.add(lumenfenProduction.group);
+  const originalFenClimate=lumenfen.setClimate?.bind(lumenfen);
+  if(originalFenClimate)lumenfen.setClimate=(climate)=>{
+    originalFenClimate(climate);lumenfenProduction.update(climate);
+  };
   const disposeLumenfen = lumenfen.dispose?.bind(lumenfen);
   if (disposeLumenfen) lumenfen.dispose = () => {
     lumenfenGlbAccents.dispose();
+    lumenfenProduction.dispose();
     disposeLumenfen();
   };
   // Flush, noninteractive surface details on the excavated flat floor.
@@ -1606,7 +1617,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats(),productionGLBs:lumenfenProduction.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
