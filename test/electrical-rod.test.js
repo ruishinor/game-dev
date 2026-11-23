@@ -321,7 +321,9 @@ test('server-started rod windup has restrained tip wake but no phantom contact i
   assert.equal(calls.filter(c=>c[0]==='trail').length,1);
   assert.equal(calls.filter(c=>['shock','flash','burst'].includes(c[0])).length,0,'no hit-contact flare before authoritative damage');
   assert.equal(rod.group.userData.rodContactCount||0,0);
-  fx.update(.2,{energized:true,combat:true});
+  // Controller caps each update at 100 ms; two frames must pass to clear
+  // the 160 ms sweep cooldown without weakening the runtime limit.
+  fx.update(.1,{energized:true,combat:true});fx.update(.1,{energized:true,combat:true});
   assert.equal(fx.swing('2',290),true,'later combo stage may move the other emitter');
   assert.equal(calls.filter(c=>c[0]==='trail').length,2);
   vfx.reducedMotion=true;fx.update(.2);
