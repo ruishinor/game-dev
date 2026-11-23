@@ -1,6 +1,7 @@
 // Third-person orbit camera with terrain and obstacle avoidance.
 
-import { COLLIDERS, groundHeight, DEEP, deepRoofAt } from '../../shared/world.js';
+import { COLLIDERS, groundHeight, DEEP, deepRoofAt, RIFT_ANNEX } from '../../shared/world.js';
+import { ANNEX_SHELL_HEIGHT } from './annex-interior.js';
 
 const MIN_DIST = 2.5;
 const MAX_DIST = 24;
@@ -20,6 +21,12 @@ function blocked(x, y, z) {
   // Allow clearance from hanging ribs, ducts and strip lighting as well
   // as the roof slab itself (lowest fixture is 0.52m below its underside).
   if (deepRoofAt(x, z, 0.18) && y > DEEP.roofBottom - 0.78 && y < DEEP.roofTop + 0.25) return true;
+  // The Annex's three roof slabs share a single height. Stop the camera
+  // below their fixtures instead of allowing an orbit through the ceiling.
+  // Presentation-only clearance: player movement and server colliders stay intact.
+  if (Math.abs(x - RIFT_ANNEX.x) < RIFT_ANNEX.hw + 0.45
+    && Math.abs(z - RIFT_ANNEX.z) < RIFT_ANNEX.hd + 0.45
+    && y > ANNEX_SHELL_HEIGHT - 0.78 && y < ANNEX_SHELL_HEIGHT + 0.45) return true;
   for (let i = 0; i < BLOCKERS.length; i++) {
     const c = BLOCKERS[i];
     if (y > c.top) continue;
