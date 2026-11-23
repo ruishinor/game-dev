@@ -77,6 +77,8 @@ const AEGIS = [
   } },
 ];
 
+const fenWildlife = ent => ent?.meta?.c === 'fen_lantern' || ent?.meta?.c === 'fen_stalker';
+
 export class CombatVfx {
   constructor(vfx) {
     this.v = vfx;
@@ -135,6 +137,13 @@ export class CombatVfx {
       color:PALETTE.hostile,sweep:1.65,tilt:.25,life,alpha:.56});
     this.v.burst({at,count:4,cell:CELL.streak,color:PALETTE.hostileHot,color2:PALETTE.hostile,
       size:[.025,.065],life:[.18,.32],speed:[.3,.9],drag:2.7,alpha:.55});
+    // Retain the red attack warning, but let native wetland fauna shed
+    // spores/leaf flecks rather than looking like armed industrial enemies.
+    if (fenWildlife(ent)) this.v.burst({
+      at,shape:'sphere',radius:.4,count:5,cell:[CELL.spore,CELL.petal],
+      color:0xa9d4ac,color2:0x4f9275,size:[.06,.12],sizeEnd:.02,
+      life:[.34,.65],speed:[.2,.55],alpha:.62,drag:1.5
+    });
   }
 
   /** Any damage event (auto-attacks and abilities); `kind` from the server. */
@@ -159,7 +168,7 @@ export class CombatVfx {
   impact(d, s, e) {
     const at = d.chest.clone();
     const hostile = s?.meta?.k === 'e';
-    const c = e.sh ? PALETTE.aegis : hostile ? PALETTE.hostile : this.colour(s);
+    const c = e.sh ? PALETTE.aegis : hostile ? (fenWildlife(s) ? 0x80b89d : PALETTE.hostile) : this.colour(s);
     const dir = s ? [d.pos.x - s.pos.x, 0.4, d.pos.z - s.pos.z] : null;
     const heavy = ['rending_arc', 'discharge', 'core_bore', 'resonant_reversal', 'seismic_slam', 'survey_blast', 'controlled_blast'].includes(e.ab);
     if (!e.sh || e.a > 0) this.sparks(at, e.sh && hostile ? PALETTE.hostile : c, heavy ? 1.4 : e.k === 'bolt' ? 0.7 : 1, dir);
@@ -181,7 +190,7 @@ export class CombatVfx {
       const mountedTip=s.model?.rodMeleeOrigin?.();
       this.v.arc({ at: mountedTip?.isVector3?mountedTip:s.chest, yaw: this.yawTo(s, d), radius: heavy?2.05:1.6, color: hot(c, heavy?.38:.2), sweep: heavy?2.8:2.0, tilt: variant==='3'?.65:variant==='2'?-.4:.12, life: heavy?.34:.24, alpha: heavy?.9:.75, reverse: variant==='2' });
     } else if (e.k === 'melee' && hostile) {
-      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1, this.radiusOf(s) * 1.1), color: PALETTE.hostile, sweep: 1.5, tilt: 0.6, life: 0.22, alpha: 0.4 });
+      this.v.arc({ at: s.chest, yaw: this.yawTo(s, d), radius: Math.max(1, this.radiusOf(s) * 1.1), color: fenWildlife(s) ? 0x9fc3a4 : PALETTE.hostile, sweep: 1.5, tilt: 0.6, life: 0.22, alpha: 0.4 });
     }
     if (heavy) this.v.flash({ at, color: c, intensity: 10, life: 0.22 });
   }
@@ -688,6 +697,16 @@ export class CombatVfx {
     }
     if (ent.meta?.k !== 'e') return;
     const at = ent.chest.clone();
+    if (fenWildlife(ent)) {
+      this.v.burst({at,shape:'sphere',radius:.55,count:14,blend:'alpha',
+        cell:[CELL.spore,CELL.dust],color:0x769c83,color2:0x344f48,
+        size:[.16,.32],sizeEnd:[.4,.7],life:[.7,1.2],speed:[.25,.8],
+        alpha:.38,dir:[0,1,0],spread:1.4,turb:.3,drag:1});
+      this.v.burst({at,count:16,cell:[CELL.petal,CELL.spore],color:0x9dc8a7,
+        color2:0x4d725f,size:[.06,.12],sizeEnd:.02,life:[.5,1.1],
+        speed:[.8,2],dir:[0,1,0],spread:1.7,gravity:.8,drag:1.8});
+      return;
+    }
     this.v.burst({ at, shape: 'sphere', radius: 0.4, count: 12, blend: 'alpha', cell: CELL.smoke, color: 0x4a4048, color2: 0x2a2428, size: [0.5, 0.8], sizeEnd: [1.2, 1.8], life: [0.9, 1.4], speed: [0.3, 1], dir: [0, 1, 0], spread: 1.2, alpha: 0.5, drag: 1 });
     this.v.burst({ at, count: 16, cell: CELL.shard, color: 0xffb080, color2: 0x804030, size: [0.08, 0.16], life: [0.5, 0.9], speed: [2, 5], dir: [0, 1, 0], spread: 1.3, gravity: 12, spin: [-8, 8] });
     this.sparks(at, PALETTE.hostile, 1.1);
