@@ -1339,6 +1339,21 @@ function onEvent(e) {
       if (!handled) fx = legacyFx;
       // Rich recipes supersede the ecology fallback only when handled.
       if (handled && ['fault_shear','sinter_pounce','sinter_repel','sinter_alarm','sinter_guard','sinter_molt'].includes(e.k)) break;
+      if(e.k==='outpost_defense'){
+        // The authenticated defender shot has a different VFX family per
+        // affinity; this is a precise single-target trace, not a false AoE.
+        const d=S.ents.get(e.d);
+        if(s?.placed&&d?.placed){
+          const colour={arc:0x76d4ff,kinetic:0xffc071,thermal:0xff774d,resonance:0xc7a4ff}[e.af]||0x9edfff;
+          s.attack=1;
+          if(rich()&&!motionPreference.matches){
+            vfx.lightning({from:[s.chest.x,s.chest.y,s.chest.z],to:[d.chest.x,d.chest.y,d.chest.z],
+              color:colour,color2:0xf3f7ff,width:e.af==='kinetic'?.055:.025,life:.17,jag:e.af==='arc'?.2:.09,rate:.045,branches:e.af==='arc'?2:0});
+          }else fx.beam(chestOf(s),chestOf(d),colour,240,.055);
+          fx.burst(d.chest,colour,6,.65);
+        }
+        break;
+      }
       if(e.k==='severance_traverse'){world.severance?.traverse(e);break;}
       if(['rift_open','rift_pulse','rift_stabilize','rift_collapse'].includes(e.k)){
         S.ents.get(e.s)?.model?.flare?.(e.k);
