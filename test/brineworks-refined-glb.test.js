@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-function readGlb(path){
-  const b=readFileSync(new URL('../client/art-assets/'+path,import.meta.url));
+function readGlb(path,refined=false){
+  const dir=refined?'../client/assets/brineworks-refined/':'../client/art-assets/';
+  const b=readFileSync(new URL(dir+path,import.meta.url));
   assert.equal(b.toString('ascii',0,4),'glTF');
   assert.equal(b.readUInt32LE(4),2);
   assert.equal(b.readUInt32LE(8),b.length);
@@ -26,7 +27,7 @@ const cases=[
 ];
 for(const [original,refined,baseline,expected,sourceSha] of cases){
  test(refined+' is a genuinely remeshed, indexed, textured GLB',()=>{
-   const old=readGlb(original),hi=readGlb(refined),g=hi.doc;
+   const old=readGlb(original),hi=readGlb(refined,true),g=hi.doc;
    assert.equal(g.asset.extras.sourceBlobSha,sourceSha);
    assert.match(g.asset.generator,/PN cubic remesher/);
    assert.ok(g.extensionsUsed.includes('KHR_materials_clearcoat'));
