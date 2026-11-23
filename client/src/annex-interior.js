@@ -89,12 +89,16 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
           box(place,dark,.22,2.5,2.2,x,2.65,z,'annex:relay-service-bay');
           box(place,lens,.12,.85,.72,x-side*.14,2.8,z,'annex:relay-readout');
         }else{
-          for(const dy of [2.25,3.1,3.9]){
-            const hoop=add(place,new T.TorusGeometry(.96,.065,8,32),dy===3.1?lens:trim,
-              x-side*.21,dy,z,'annex:null-containment-arc');
-            hoop.rotation.y=Math.PI/2;
-          }
+          // A visibly sealed, instrumented containment rack. Earlier glowing
+          // concentric wall rings resembled usable rifts despite having no
+          // travel trigger, creating a false portal cue in the boss chamber.
           box(place,dark,.16,3.25,1.8,x,2.9,z,'annex:null-service-column');
+          for(const dy of [2.25,3.1,3.9])
+            box(place,dy===3.1?lens:trim,.11,.085,1.55,
+              x-side*.22,dy,z,'annex:null-containment-busbar');
+          for(const dz of [-.72,.72])
+            box(place,ceramic,.16,2.4,.12,
+              x-side*.24,3.12,z+dz,'annex:null-containment-mount');
         }
       }
     }
