@@ -39,7 +39,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    center:P,trees:FEN_TREES,pools:FEN_POOLS,height:fenHeight,detail
  });
  const sites=buildLumenfenSites(T);group.add(sites.group);
- const moonMirrors=buildLumenfenMoonMirrors(T,group,{detail,textureSize:detail>=2?768:512});
+ const moonMirrors=buildLumenfenMoonMirrors(T,group,{detail,textureSize:detail>=2?1024:512});
  const monsoonBloom=buildFenMonsoonBloom(T,group);
  const monsoonFlood=buildFenMonsoonFlood(T,group);
  const waterMaterial=group.children.find(o=>o.name==='lumenfen:mirrorpool')?.material;
