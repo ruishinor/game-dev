@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Game } from './sim/game.js';
+import { EconomyMetrics } from './sim/economy-metrics.js';
 import { ensureWardenRifleGLB } from '../tools/assets/warden-rifle-source.mjs';
 import { CharacterStore } from './store.js';
 import { NetServer } from './net.js';
@@ -185,6 +186,17 @@ export function startServer(opts = {}) {
 
   const store = new CharacterStore(dataFile);
   const game = new Game({ rng: opts.rng });
+  // Explicit opt-in: no economic observation files are written by default.
+  const metricsFile = Object.hasOwn(opts, 'economyMetricsFile') ? opts.economyMetricsFile : process.env.ATTUNEMENT_ECONOMY_METRICS_FILE;
+  if (metricsFile) {
+    const target = path.resolve(metricsFile);
+    // JSON files under these static mounts are publicly retrievable by HTTP.
+    for (const exposed of [path.join(ROOT, 'client'), path.join(ROOT, 'shared')]) {
+      if (target === exposed || target.startsWith(exposed + path.sep))
+        throw new Error('Economy telemetry file must be outside HTTP-served client/shared directories.');
+    }
+    game.economy = new EconomyMetrics(target);
+  }
   if (typeof opts.productionRoll === 'function') game.productionRoll = opts.productionRoll;
   const server = http.createServer(handleHttp);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
@@ -218,6 +230,7 @@ export function startServer(opts = {}) {
     } catch (err) {
       console.error('[store] save failed', err);
     }
+    game.economy?.flush();
     const saveMs = performance.now() - saveStart;
     if (saveMs > 100) console.warn('[perf] slow-save', JSON.stringify({ saveMs: Math.round(saveMs) }));
   }, SAVE_INTERVAL_MS);
@@ -238,6 +251,7 @@ export function startServer(opts = {}) {
       } catch (err) {
         console.error('[store] save failed', err);
       }
+      game.economy?.flush();
       wss.close();
       server.close(() => resolve());
       server.closeAllConnections?.();

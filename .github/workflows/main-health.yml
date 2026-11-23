@@ -1,5 +1,6 @@
-# Validate each PR with the same required core job, then verify merged main separately.
-# Path filters on this required check leave unrelated PRs permanently blocked.
+# Every PR must generate the repository-ruleset-required status check
+# "Core Node and publication tests". Never filter it by changed paths.
+# Post-merge main remains separately verified at its exact pushed SHA.
 name: Main integration health
 
 on:
@@ -34,31 +35,3 @@ jobs:
       - run: node --test test/publication-preflight.test.js
       - name: Verify core entry-point syntax
         run: node --check server/index.js && node --check server/net.js && node --check client/src/main.js && node --check client/src/ui.js && node --check test/e2e/initiation.mjs
-
-  guest-entry:
-    name: Real-browser guest entry and persistence
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Authenticate guest, enter world, and persist appearance through UI
-        shell: bash
-        run: |
-          set -o pipefail
-          node test/e2e/initiation.mjs 2>&1 | tee main-guest-entry.log
-      - name: Preserve test log on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: main-guest-entry-log
-          path: main-guest-entry.log
-          if-no-files-found: ignore
-          retention-days: 7

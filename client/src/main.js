@@ -2300,7 +2300,7 @@ function frame(now) {
     // Whatever stands between the camera and the player or their target fades.
     viewPoints[0] = me.chest;
     viewPoints[1] = target && target.placed && !target.dead ? target.chest : null;
-    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints, serverSeconds: Math.max(0,(now+(S.timeOffset??-now)-INTERP_MS)/1000) });
+    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints, worldClock: S.you?.wc ?? null, serverSeconds: Math.max(0,(now+(S.timeOffset??-now)-INTERP_MS)/1000) });
   }
   if (target && target.placed && !(target.meta.k === 'e' && target.dead)) {
     ring.visible = true;
