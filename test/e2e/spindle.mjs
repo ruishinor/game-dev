@@ -72,10 +72,16 @@ try {
           .map(e=>({id:e.id,kind:e.c,model:e.model}))};
     }).catch(e=>({diagnosticError:String(e)}));
     const c=p.companion;
+    const conn=server.net.sessions.get(p.char.id);
+    // No tokens, privileged character data, private message bodies or
+    // undisclosed reward payloads may enter public CI logs.
     throw new Error('Spindle summon / GLB projection not observed: '+
-      JSON.stringify({client,server:{id:p.id,connected:!!p.ws&&p.ws.readyState===1,
+      JSON.stringify({client,server:{id:p.id,
+        readyState:conn?.ws.readyState??null,
+        missedPongs:conn?.missedPongs??null,
+        closeCause:conn?.closeCause??null,
         companion:c&&{id:c.id,owner:c.owner,type:c.type},
-        outbox:p.outbox?.slice(-4)},reason:String(error)}),{cause:error});
+        outboxTypes:p.outbox?.slice(-4).map(m=>m.e)},reason:String(error)}),{cause:error});
   }
   assert.equal(p.companion.owner,p.id);
   const id=p.companion.id;
