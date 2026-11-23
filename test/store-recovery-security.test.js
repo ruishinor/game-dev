@@ -113,3 +113,18 @@ test('observational benchmark: synchronous 500-character snapshots', (t) => {
   console.info('[store-perf] characters=500 bytes=' + bytes +
     ' medianMs=' + samples[3].toFixed(2) + ' pMaxMs=' + samples[6].toFixed(2));
 });
+
+
+test('duplicate session hashes across different accounts cannot authorize the wrong owner', async (t) => {
+  const file = isolatedSave(t);
+  const store = new CharacterStore(file);
+  assert.ok((await store.registerAccount('AccountOne', 'StrongPasswordForAccountOne!')).account);
+  assert.ok((await store.registerAccount('AccountTwo', 'StrongPasswordForAccountTwo!')).account);
+  store.flush();
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  saved.accounts[1].sessions[0] = saved.accounts[0].sessions[0];
+  const source = JSON.stringify(saved);
+  fs.writeFileSync(file, source);
+  assert.throws(() => new CharacterStore(file), /duplicate account session: recovery is required/);
+  assert.equal(fs.readFileSync(file, 'utf8'), source);
+});
