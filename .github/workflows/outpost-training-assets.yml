@@ -48,9 +48,12 @@ jobs:
           python3 -m py_compile tools/asset-pipeline/asset_pipeline/blender/outpost_range_donors.py
           if ! command -v blender >/dev/null 2>&1; then
             sudo apt-get -o Acquire::Retries=3 update -qq
-            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends blender
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends blender python3-numpy
           fi
           blender --version
+          # The distro Blender glTF importer requires NumPy; verify it inside
+          # Blender's interpreter, not only in the runner's system Python.
+          blender --background --factory-startup --python-expr "import numpy; print('Blender NumPy:', numpy.__version__)"
       - name: Rebuild donor mesh bevels, edge normals and GLB geometry
         run: |
           blender --background --factory-startup --threads 2 --python tools/asset-pipeline/asset_pipeline/blender/outpost_range_donors.py -- tools/asset-pipeline/.asset-cache/pipeline/outpost-training-refined/refinement-report.json tools/asset-pipeline/.asset-cache/pipeline/outpost-training-remeshed
