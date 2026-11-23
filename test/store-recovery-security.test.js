@@ -88,3 +88,28 @@ test('interrupted final rename preserves prior save and permits a later retry', 
   assert.equal(store.flush(), true, 'a subsequent flush retries successfully');
   assert.equal(new CharacterStore(file).authenticate(token).credits, 67);
 });
+
+
+test('observational benchmark: synchronous 500-character snapshots', (t) => {
+  const file = isolatedSave(t);
+  const store = new CharacterStore(file);
+  for (let i = 0; i < 500; i++) {
+    const suffix = String.fromCharCode(65 + Math.floor(i / 26), 65 + i % 26);
+    assert.ok(store.create('Bench' + suffix, 'vanguard').char);
+  }
+  assert.equal(store.flush(), true);
+  const bytes = fs.statSync(file).size;
+  const samples = [];
+  const character = store.byName.get('benchaa');
+  for (let i = 0; i < 7; i++) {
+    character.credits = i + 1;
+    store.markDirty();
+    const start = performance.now();
+    assert.equal(store.flush(), true);
+    samples.push(performance.now() - start);
+  }
+  samples.sort((a, b) => a - b);
+  // Observational only: CI runner latency is not a production SLO.
+  console.info('[store-perf] characters=500 bytes=' + bytes +
+    ' medianMs=' + samples[3].toFixed(2) + ' pMaxMs=' + samples[6].toFixed(2));
+});
