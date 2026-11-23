@@ -441,6 +441,8 @@ export function interact(game, p, objectId) {
   // Existing server range/death checks apply; neutral Wardens never offer combat or inventory actions.
   if (obj.type === 'sanctum_guard') {
     game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
+    // Only the authorised observer receives the cosmetic head-recognition cue.
+    p.outbox.push({e:'warden_observe',id:obj.id});
     return {ok:true};
   }
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
