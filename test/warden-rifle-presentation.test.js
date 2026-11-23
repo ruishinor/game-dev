@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {syncWardenWeapon,alignWardenWrist} from '../client/src/warden-rifles.js';
+import {syncWardenWeapon,alignWardenWrist,restoreWardenWristIfUnanimated} from '../client/src/warden-rifles.js';
 
 test('rifle remains visible only when it can fit, with a retained visible stave',()=>{
  const rifle={group:{visible:true},update:()=>true},stave={visible:true};
@@ -55,4 +55,18 @@ test('missing or degenerate finger data never rotates the wrist',()=>{
  assert.deepEqual(alignWardenWrist(hand,finger,new THREE.Vector3(0,0,0)),
   {appliedDeg:0,residualDeg:null});
  assert.equal(hand.quaternion.angleTo(new THREE.Quaternion()),0);
+});
+
+
+test('watch frames restore only their own previous wrist offset, not a fresh mixer pose',()=>{
+ const hand=new THREE.Bone();
+ const authored=new THREE.Quaternion().setFromEuler(new THREE.Euler(.1,.2,-.07));
+ const corrected=new THREE.Quaternion().setFromEuler(new THREE.Euler(.31,.2,-.07));
+ hand.quaternion.copy(corrected);
+ assert.equal(restoreWardenWristIfUnanimated(hand,authored,corrected),true);
+ assert.ok(hand.quaternion.angleTo(authored)<1e-6,'no cumulative wrist rotation across idle frames');
+ const freshlyAnimated=new THREE.Quaternion().setFromEuler(new THREE.Euler(-.2,.1,.04));
+ hand.quaternion.copy(freshlyAnimated);
+ assert.equal(restoreWardenWristIfUnanimated(hand,authored,corrected),false);
+ assert.ok(hand.quaternion.angleTo(freshlyAnimated)<1e-6,'preserves updated watch animation');
 });
