@@ -5,6 +5,8 @@ on:
     paths:
       - 'tools/assets/lumenfen-*'
       - 'assets/lumenfen-donors.json'
+      - 'assets/lumenfen-loot-donors.json'
+      - 'tools/assets/lumenfen-loot-donors-check.mjs'
       - '.github/workflows/lumenfen-source-inventory.yml'
       - 'assets/source-archives/**'
   workflow_dispatch:
@@ -25,6 +27,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Validate Lumenfen loot-to-source asset lineage
+        run: node tools/assets/lumenfen-loot-donors-check.mjs
       - name: Verify 138 production-pipeline donor GLBs and report geometry
         run: python3 tools/assets/lumenfen-source-inventory.py
       - name: Stage eight selected cross-genre donors in the pipeline workspace
