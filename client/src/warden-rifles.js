@@ -1,10 +1,11 @@
 // Attunement visual reconstruction of two owner-archive rifle donors.
 // Read-only source GLBs live behind the server's exact-path extraction gate.
 // Stock source geometry is materially rebuilt with higher-resolution receiver,
-// rail, optic, vent and muzzle details and authored graphite PBR finishes.
+// rail, optic, vent and muzzle details with ebony, ceramic and bronze finishes.
 // No combat simulation, firing or authorization is attached to Sanctum Wardens.
 import * as THREE from 'three';
 import { solveArm } from './weapon-pose.js';
+import { createWardenRifleFx } from './warden-rifle-fx.js';
 
 export const WARDEN_RIFLES=Object.freeze({
  carbine:{file:'sanctum-warden-carbine.glb',length:0.93},
@@ -48,10 +49,10 @@ export function restoreWardenWristIfUnanimated(hand,authored,corrected){
  return true;
 }
 
-const STEEL=new THREE.MeshStandardMaterial({color:0x21282e,roughness:0.36,metalness:0.82});
-const CERAMIC=new THREE.MeshStandardMaterial({color:0x363e43,roughness:0.53,metalness:0.53});
-const RUBBER=new THREE.MeshStandardMaterial({color:0x111719,roughness:0.81,metalness:0.06});
-const BRONZE=new THREE.MeshStandardMaterial({color:0x897452,roughness:0.43,metalness:0.70});
+const STEEL=new THREE.MeshStandardMaterial({color:0x101315,roughness:0.32,metalness:0.82});
+const CERAMIC=new THREE.MeshStandardMaterial({color:0x9b9588,roughness:0.57,metalness:0.12});
+const RUBBER=new THREE.MeshStandardMaterial({color:0x111313,roughness:0.82,metalness:0.05});
+const BRONZE=new THREE.MeshStandardMaterial({color:0x94744a,roughness:0.36,metalness:0.82});
 for(const m of [STEEL,CERAMIC,RUBBER,BRONZE])m.isShared=true;
 
 // One download per source asset. Three's loader shares geometry across copies.
@@ -82,7 +83,7 @@ function barrel(radius,len,mat,x,y,z,name){
  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,len,16,1),mat);
  mesh.rotation.x=Math.PI/2;mesh.position.set(x,y,z);mesh.name=name;mesh.castShadow=true;return mesh;
 }
-function reconstruct(source,spec,optic){
+function reconstruct(source,spec,optic,id){
  const model=source.clone(true);
  const group=new THREE.Group();group.name='warden:rifle-reconstruction';
  const bounds=new THREE.Box3().setFromObject(model);
@@ -104,9 +105,9 @@ function reconstruct(source,spec,optic){
   const paints=old.map((m,i)=>{
    const painted=m.clone();
    painted.isShared=false;
-   painted.color.setHex(i%3===0?0x171e23:i%3===1?0x353b40:0x51575a);
-   painted.metalness=i%3===0?0.64:0.78;
-   painted.roughness=i%3===2?0.55:0.39;
+   painted.color.setHex(i%3===0?0x171513:i%3===1?0x968b74:0x55402e);
+   painted.metalness=i%3===1?0.16:0.78;
+   painted.roughness=i%3===1?0.60:0.39;
    painted.emissive?.setHex(0x000000);
    return painted;
   });
@@ -140,7 +141,9 @@ function reconstruct(source,spec,optic){
  }));
  sight.name='warden:resonance-sight';sight.position.set(0,.173,L*.048);
  sight.rotation.x=-Math.PI/2;group.add(sight);
- const status=new THREE.Mesh(new THREE.BoxGeometry(.014,.012,.048),sight.material);
+ const statusMaterial=sight.material.clone();statusMaterial.isShared=false;
+ statusMaterial.emissiveIntensity=id==='marksman'?.30:.20;
+ const status=new THREE.Mesh(new THREE.BoxGeometry(.014,.012,.048),statusMaterial);
  status.position.set(.11,.035,-L*.13);status.name='warden:status-emitter';group.add(status);
  // Explicit contact points are part of the authored rifle, not guessed from the
  // mesh centre or attached to the pelvis. Positions use the rebuilt +Z axis.
@@ -150,7 +153,8 @@ function reconstruct(source,spec,optic){
  // Long marksman foregrip is closer to the receiver for reachable low-ready carry.
  support.position.set(0,-.055,L*(L>1?.13:.19));
  group.add(grip,support);
- return {group,sightMaterial:sight.material,origin:source,grip,support};
+ const instrument=createWardenRifleFx(group,{id,length:L,optic});
+ return {group,sightMaterial:sight.material,statusMaterial,instrument,origin:source,grip,support};
 }
 
 /** Keep the fallback visible whenever the rifle cannot be posed, including after
@@ -173,7 +177,7 @@ export function createWardenRifle(assets,inst,variant,optic){
  const id=variant%4===2?'marksman':'carbine';
  const source=assets.wardenRifles?.get(id);
  if(!source)return null;
- const made=reconstruct(source,WARDEN_RIFLES[id],optic);
+ const made=reconstruct(source,WARDEN_RIFLES[id],optic,id);
  const root=new THREE.Group();root.name='warden:equipped-'+id;
  root.add(made.group);
  inst.add(root);
@@ -212,7 +216,11 @@ export function createWardenRifle(assets,inst,variant,optic){
   inspect(){return {...last};},
   update(dt,st={}){
    const time=Number.isFinite(st.t)?st.t:0;
-   made.sightMaterial.emissiveIntensity=.32+.14*(.5+.5*Math.sin(time*2.1+variant*1.5));
+   // Different readouts for the rapid-response carbine and calibrated marksman.
+   const beat=id==='marksman'?1.25:2.15;
+   made.sightMaterial.emissiveIntensity=(id==='marksman'?.28:.32)+.10*(.5+.5*Math.sin(time*beat+variant));
+   made.statusMaterial.emissiveIntensity=id==='marksman'?.26:.17;
+   made.instrument.update(dt,st);
    // The authoritative guard watch animation has already updated this frame.
    // Work on these animated joints; do not change combat state or NPC facing.
    inst.updateMatrixWorld(true);
