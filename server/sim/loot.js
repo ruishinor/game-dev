@@ -34,7 +34,7 @@ export function distributeCorpseLoot(game,e,credited){
   // Independent biome RNG: no equipment/AI sequence perturbation, no
   // duplicate value and no client-controlled climate or reward quantities.
   if(e.type==='fen_lantern'||e.type==='fen_stalker'){
-    for(const drop of fenBiomeDrops(e.type,game.biomeRng,lumenfenClimate(game.wallNow()))){
+    for(const drop of fenBiomeDrops(e.type,game.biomeRng,lumenfenClimate(game.clockNow?game.clockNow():game.wallNow()))){
       const registry=drop.kind==='material'?MATERIALS:GOODS;
       const cap=drop.kind==='material'?MATERIAL_CAP:goodsCap(drop.id);
       const have=drop.kind==='material'?(p.char.materials?.[drop.id]||0):(p.char.goods?.[drop.id]||0);
