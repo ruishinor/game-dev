@@ -5,6 +5,8 @@ import { fenStemGeometry, fenFoliageGeometry, fenSurfaceDetail, fenWaterShimmer 
 import { buildLumenfenSites } from '../client/src/lumenfen-sites.js';
 import { finishLumenfenSites } from '../client/src/lumenfen-site-finishing.js';
 import { makeFenLantern, makeFenStalker } from '../client/src/lumenfen-creatures.js';
+import { CombatVfx } from '../client/src/vfx/combat.js';
+import { CELL } from '../client/src/vfx/textures.js';
 
 test('Lumenfen vegetation uses sculpted indexed blades and fluted bark, not cones or balls', () => {
   for(const habit of ['oak','cage','willow']) {
@@ -66,3 +68,18 @@ test('Lumenfen creature silhouette uses biological geometry and supports animati
   lantern.dispose();stalker.dispose();
 });
 
+
+test('native fen fauna use biologic windup and death VFX while keeping danger arcs', () => {
+  const emitted=[],arcs=[];
+  const vfx={burst(o){emitted.push(o);return 1;},arc(o){arcs.push(o);}};
+  const combat=new CombatVfx(vfx);
+  const creature={meta:{k:'e',c:'fen_stalker'},chest:new T.Vector3(3,1,4),
+    yaw:0,model:{radius:.9}};
+  combat.meleeWindup(creature,500);
+  assert.ok(arcs.length>0,'danger windup arc retained');
+  assert.ok(emitted.some(o=>Array.isArray(o.cell)&&o.cell.includes(CELL.spore)));
+  emitted.length=0;
+  combat.die(creature);
+  assert.equal(emitted.length,2,'natural death layers instead of industrial shards');
+  assert.ok(emitted.some(o=>Array.isArray(o.cell)&&o.cell.includes(CELL.petal)));
+});
