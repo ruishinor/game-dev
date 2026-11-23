@@ -25,6 +25,11 @@ try {
   await page.click('.classcard[data-cls="vanguard"]');
   await page.click('#enter');
   await page.waitForFunction(() => { const s = window.__attune?.state(); return s?.myId && s.drawn >= 2; });
+  // SwiftShader can monopolize the browser main thread during continuous
+  // Sanctum rendering, starving WebSocket pongs and invalidating the real
+  // authenticated fixture. Keep simulation/networking live; render only when
+  // capturing evidence, as in the shared integrated-browser harness.
+  if (SOFTWARE_GL) await page.evaluate(() => window.__attune.pause(true));
   report.graphics = await describeGraphics(page);
   // Diagnose HTTP source and decoder failures separately from rig/attachment
   // mismatches; no bypass of the requirement that all wardens visibly equip.
@@ -105,8 +110,13 @@ try {
     assert.ok(outward > 0.999, `${def.key} faces away from the Sanctum centre (cos ${outward.toFixed(4)})`);
     // Save a normal third-person frame separately from close inspection
     // views. This is player-camera evidence, not a posed art render.
-    const regularDrawn=await page.evaluate(()=>window.__attune.state().drawn);
-    await page.waitForFunction(n=>window.__attune.state().drawn>n+1,regularDrawn);
+    const regularDrawn=await page.evaluate(software=>{
+      const n=window.__attune.state().drawn;
+      if (software) window.__attune.pause(false);
+      return n;
+    },SOFTWARE_GL);
+    await page.waitForFunction(n=>window.__attune.state().drawn>n,regularDrawn);
+    if (SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(true));
     await page.screenshot({path:`${OUT}/${def.key}-gameplay.png`});
     // Earlier 'front' captures actually framed the local player's back and
     // occasionally hid the warden entirely. Position the review camera
@@ -149,7 +159,7 @@ try {
       },{x:def.x,z:def.z,azimuth});
       await page.screenshot({ path: `${OUT}/${def.key}-${view}.png` });
     }
-    await page.evaluate(()=>window.__attune.pause(false));
+    if (!SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(false));
     report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, primary: mine.halo.primary, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
   }
 
@@ -170,8 +180,13 @@ try {
   // --- overview: all four from above the Sanctum
   await teleport(0, 7.5);
   await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 1.05, dist: 30 }));
-  let d0 = await page.evaluate(() => window.__attune.state().drawn);
-  await page.waitForFunction((n) => window.__attune.state().drawn > n + 3, d0);
+  let d0 = await page.evaluate(software => {
+    const n=window.__attune.state().drawn;
+    if (software) window.__attune.pause(false);
+    return n;
+  },SOFTWARE_GL);
+  await page.waitForFunction((n) => window.__attune.state().drawn > n, d0);
+  if (SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(true));
   await page.screenshot({ path: `${OUT}/overview.png` });
   const st = await page.evaluate(() => { const s = window.__attune.state(); return { draw: s.draw, halo: s.ents.filter((e) => e.halo).map((e) => ({ c: e.c, role: e.halo.role, inView: e.inView })) }; });
   report.perf.overview = st.draw;
@@ -186,8 +201,13 @@ try {
   assert.ok(vendor.halo.meshes.includes('vendor') && vendor.halo.meshes.includes('ring_vertical_paint') && vendor.halo.meshes.includes('body_paint'));
   assert.ok(Math.hypot(vendor.x - qm.x, vendor.z - qm.z) < 0.05, 'vendor at the established quartermaster position');
   await page.evaluate(() => window.__attune.view({ yaw: Math.PI, pitch: 0.16, dist: 4.2, face: Math.PI }));
-  d0 = await page.evaluate(() => window.__attune.state().drawn);
-  await page.waitForFunction((n) => window.__attune.state().drawn > n + 3, d0);
+  d0 = await page.evaluate(software => {
+    const n=window.__attune.state().drawn;
+    if (software) window.__attune.pause(false);
+    return n;
+  },SOFTWARE_GL);
+  await page.waitForFunction((n) => window.__attune.state().drawn > n, d0);
+  if (SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(true));
   await page.screenshot({ path: `${OUT}/vendor-at-post.png` });
   report.vendor = { x: vendor.x, z: vendor.z, meshes: vendor.halo.meshes, anim: vendor.anim };
   report.perf.vendor = (await page.evaluate(() => window.__attune.state().draw));
