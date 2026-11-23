@@ -46,7 +46,7 @@ function bellGeometry(T) {
   }
   for(let j=0;j<rings;j++)for(let i=0;i<sides;i++){
     const a=j*sides+i,b=j*sides+(i+1)%sides,c=a+sides,d=b+sides;
-    indices.push(a,c,b,b,c,d);
+    indices.push(a,b,c,b,d,c);
   }
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(verts,3));
   g.setIndex(indices);g.computeVertexNormals();return g;
@@ -124,7 +124,7 @@ export function makeFenLantern(T){
 export function makeFenStalker(T) {
   const group=new T.Group();group.name='lumenfen:bog-stalker';
   const skin=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x354e43,roughness:.72,metalness:0,clearcoat:.24,clearcoatRoughness:.48}), 'hide');
-  const shell=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x607963,roughness:.67,metalness:.03,clearcoat:.18,clearcoatRoughness:.43}), 'hide');
+  const shell=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x607963,roughness:.67,metalness:.03,clearcoat:.18,clearcoatRoughness:.43,side:T.DoubleSide}), 'hide');
   const underside=new T.MeshStandardMaterial({color:0x243d38,roughness:.95});
   const eyes=new T.MeshStandardMaterial({color:0x8be1b4,emissive:0x4eae84,emissiveIntensity:1.5,roughness:.38});
   const body=new T.Mesh(loft(T,[
@@ -192,7 +192,7 @@ export function makeFenStalker(T) {
         hip.rotation.z=side*(.04+.04*speed);
       });
       tail.rotation.y=Math.sin((st.t||0)*1.3)*.2*active;
-      eyes.emissiveIntensity=1.05+(st.attack?.4:.25)+active*.17*Math.sin((st.t||0)*1.7);
+      eyes.emissiveIntensity=1.05+(st.attack ? .4 : .25)+active*.17*Math.sin((st.t||0)*1.7);
       body.rotation.z=Math.sin(gait*.5)*.025*speed*active;
     },
     dispose(){disposeModel(group,[skin,shell,underside,eyes]);}
