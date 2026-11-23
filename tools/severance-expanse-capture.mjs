@@ -22,7 +22,7 @@ let browser;
 const log = [];
 try {
   browser = await launchBrowser();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.ATTUNEMENT_WIDTH) || 1280, height: Number(process.env.ATTUNEMENT_HEIGHT) || 800 } });
   page.setDefaultTimeout(240000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -51,7 +51,7 @@ try {
     await page.waitForTimeout(settle);
     const file = path.join(out, name + '.png');
     await page.screenshot({ path: file });
-    const s = await page.evaluate(() => { const s = window.__attune.state(); return { draw: s.draw, kit: s.world.severanceKit, gate: s.world.severance?.band, fps: s.fps, pos: s.pos }; });
+    const s = await page.evaluate(() => { const s = window.__attune.state(); return { draw: s.draw, kit: s.world.severanceKit, foundry: s.world.foundry, gate: s.world.severance?.band, fps: s.fps, pos: s.pos, camera: window.__attune.gfx.camera.position.toArray() }; });
     log.push({ name, file, at, face, cam, tod, ...s });
     console.log(name, tod, 'calls', s.draw.calls, 'tris', s.draw.triangles, JSON.stringify(s.kit));
   }
@@ -105,6 +105,12 @@ try {
     await shot('22-foundry-harmonic-chamber', f(0, -4), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('23-foundry-excavation-depths', f(0, -54), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('24-foundry-vats-close', f(5, 20), W + 0.4, { yaw: W + 0.4, pitch: 0.1, dist: 5 }, { tod: 'off' });
+    // Intentionally steep/max-distance third-person views exercise roof and
+    // hanging-truss occlusion in every chamber rather than only normal traversal.
+    await shot('26-foundry-fabrication-high-orbit', f(0, 76), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('27-foundry-cultivation-high-orbit', f(0, 26), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('28-foundry-harmonic-high-orbit', f(8, -26), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('29-foundry-depths-high-orbit', f(0, -78), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
     // the Overseer's attacks, as real world events in the Depths
     const boss = game.enemies.find((e) => e.overseer);
     const watch = f(0, -66);
@@ -115,6 +121,14 @@ try {
       await page.evaluate(() => window.__attune.view({ face: Math.PI, yaw: Math.PI, pitch: 0.22, dist: 7 }));
       await page.waitForTimeout(1200);
       const at = k === 'overseer_press_slam' ? { x: boss.x + 2, z: boss.z + 6 } : { x: boss.x, z: boss.z };
+      // Capture the authoritative hostile-warning event separately from the
+      // subsequent combat effect: readable impact art alone is not evidence
+      // that the player can see a telegraph in time to react.
+      game.emitWorldEvent({ e: 'tele', id: boss.id, k, n: k, x: at.x, z: at.z, r, ms: 2400, g: 0 });
+      await page.waitForTimeout(480);
+      const warningFile = path.join(out, `25-${k}-telegraph.png`);
+      await page.screenshot({ path: warningFile });
+      log.push({ name: `25-${k}-telegraph`, file: warningFile, radius: r, windupMs: 2400 });
       game.emitWorldEvent({ e: 'fx', k, s: boss.id, x: at.x, z: at.z, r });
       await page.waitForTimeout(settle);
       const file = path.join(out, `25-${k}.png`);
