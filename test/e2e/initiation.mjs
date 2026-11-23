@@ -21,10 +21,22 @@ try{
   const creation=page.locator('#creation-preview');
   await creation.locator('canvas').scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.model==='glb');
-  await creation.getByRole('button',{name:'Compare frames'}).click();
-  await page.waitForFunction(()=>document.querySelector('#creation-preview')?.dataset.mode==='frames');
-  assert.deepEqual(await creation.locator('[data-preview-frames] button').allTextContents(),['Masculine','Feminine']);
-  assert.equal(await creation.locator('[data-preview-frames] [aria-pressed="true"]').count(),1);
+  // Creation is now a tabbed single-character preview. The old "Compare frames"
+  // camera button was deliberately removed from this screen; test the actual
+  // body-frame UI and the same live GLB preview instead of a retired selector.
+  await page.getByRole('tab',{name:'2. Body'}).click();
+  const frames=page.locator('#ap-frame button');
+  assert.deepEqual(await frames.allTextContents(),['Masculine','Feminine']);
+  const selected=await page.locator('#ap-frame [aria-pressed="true"]').getAttribute('data-value');
+  assert.ok(selected==='m'||selected==='f','a real body frame is selected');
+  const alternate=selected==='m'?'f':'m';
+  await page.locator('#ap-frame [data-value="'+alternate+'"]').click();
+  await page.waitForFunction(frame=>
+    document.querySelector('#creation-preview')?.dataset.appearance?.startsWith(frame+'.'),
+    alternate);
+  assert.equal(await page.locator('#ap-frame [aria-pressed="true"]').getAttribute('data-value'),alternate);
+  assert.equal(await creation.locator('[data-preview-frames]').isHidden(),true,
+    'character creation preserves its approved single-model preview');
   await page.click('#enter');
 
   const player=await liveFixturePlayer(page,server,'Arrival Tester',45000);

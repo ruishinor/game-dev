@@ -1,3 +1,4 @@
+import { buildKestrelRegulatorGallery } from './kestrel-regulator-gallery.js';
 // Kestrel's recognisable pressure-machine complex. These parts sit inside
 // existing vessel/wall/roof footprints: no new solid gameplay obstacles.
 export const KESTREL_PLANT_LIMITS=Object.freeze({dynamos:2,lights:0});
@@ -69,6 +70,10 @@ export function buildKestrelPressurePlant(T,assets=null){
  rotor.rotation.x=Math.PI/2;
  const lens=add(new T.SphereGeometry(.38,20,14),coil,'kestrel:manifold-sensor',-4.1,4.16,0);
  lens.castShadow=false;
+ // Paired wall-mounted regulator bays complete the physical path from the
+ // overhead feeds to relief risers; all elements remain cosmetic.
+ const regulators=buildKestrelRegulatorGallery(T);
+ group.add(regulators.group);
  // Reuse registered GLB machinery rather than shipping an all-primitives
  // replacement. These are restrained to the existing west wall/roof zone.
  let glbParts=0;
@@ -85,13 +90,14 @@ export function buildKestrelPressurePlant(T,assets=null){
   group.add(obj);glbParts++;
  }catch(err){console.warn('[kestrel] optional plant GLB unavailable',name,err);}
  return {
-  group,stats:{dynamos:motors.length,glbParts,colliderChanges:0,newLights:0},
+  group,stats:{dynamos:motors.length,glbParts,regulatorBays:regulators.stats.bays,colliderChanges:0,newLights:0},
   update(t,{reducedMotion=false}={}){
    for(let i=0;i<motors.length;i++)motors[i].rotation.z=reducedMotion?0:Math.sin(t*.3+i)*.16;
    coil.emissiveIntensity=reducedMotion?0.9:1+.12*Math.sin(t*.8);
   },
   dispose(){
    group.removeFromParent();
+   regulators.dispose();
    for(const g of new Set(geometries))g.dispose();
    for(const m of new Set(materials))m.dispose();
   },
