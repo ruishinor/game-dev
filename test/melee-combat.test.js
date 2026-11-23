@@ -6,6 +6,8 @@ import {makeGame,makeChar,enemyOf,isolate,place} from './helpers.js';
 import {requestMelee} from '../server/sim/melee.js';
 import {tickPlayerCombat,dealDamage} from '../server/sim/combat.js';
 import {clearCombatSpot} from './cover-setup.js';
+import {equipItem,unequipSlot} from '../server/sim/progress.js';
+import {setPosture} from '../server/sim/posture.js';
 
 function setup(){
  const g=makeGame(),p=g.addPlayer(makeChar('vanguard'));
@@ -191,4 +193,74 @@ test('interrupted contact cannot produce a hit or retain a stale combo',()=>{
   assert.equal(p.meleeState.combo,0);
   assert.equal(p.meleeState.lastHit,-Infinity);
  }
+});
+
+test('a committed heavy attack blocks equipping and unequipping before the first hit',()=>{
+ const {g,p,e}=setup(),rod='electrical_combat_rod';
+ p.char.inventory.push(rod);
+ assert.ok(equipItem(g,p,rod).ok);
+ const hp=e.hp;
+ assert.ok(requestMelee(g,p,'heavy').ok);
+ assert.equal(p.combatUntil,0,'attack has not damaged or aggroed anything yet');
+ assert.equal(unequipSlot(g,p,'weapon').ok,false,'cannot swap the item during windup');
+ advance(g,p,439);
+ assert.equal(e.hp,hp,'not yet at contact');
+ advance(g,p,1);
+ assert.ok(e.hp<hp,'unchanged weapon completes a valid contact');
+});
+
+test('a missed attack still protects its recovery from a mid-action loadout change',()=>{
+ const {g,p,e}=setup(),rod='electrical_combat_rod',hp=e.hp;
+ p.char.inventory.push(rod);
+ assert.ok(requestMelee(g,p,'heavy').ok);
+ place(p,e.x+20,e.z);
+ advance(g,p,440);
+ assert.equal(e.hp,hp);
+ assert.equal(p.combatUntil,0,'a whiff does not set the normal combat linger');
+ assert.equal(equipItem(g,p,rod).ok,false,'recovery is still a committed action');
+ advance(g,p,789);
+ assert.equal(equipItem(g,p,rod).ok,false,'last millisecond of recovery is protected');
+ advance(g,p,1);
+ assert.equal(equipItem(g,p,rod).ok,true,'equipping resumes as soon as recovery ends');
+});
+
+test('contact rejects a forged mid-windup weapon identity change',()=>{
+ const {g,p,e}=setup(),rod='electrical_combat_rod',hp=e.hp;
+ assert.ok(requestMelee(g,p,'heavy').ok,'innate swing starts');
+ // Simulate a privileged or errant path bypassing the ordinary equipment gate.
+ p.char.inventory.push(rod);
+ p.char.equipped.weapon=rod;
+ advance(g,p,440);
+ assert.equal(e.hp,hp,'the rod cannot upgrade the committed innate strike');
+ assert.equal(p.meleeState.pending,null,'committed attack resolves only once');
+ assert.equal(p.meleeState.combo,0);
+ assert.equal(p.meleeState.lastHit,-Infinity);
+});
+
+test('active guard cannot be combined with sitting or protect a seated player',()=>{
+ const {g,p,e}=setup();
+ assert.ok(requestMelee(g,p,'guard').ok);
+ assert.equal(p.combatUntil,0,'guard itself has not caused damage');
+ assert.equal(setPosture(g,p,true).ok,false,'cannot sit through active guard');
+ assert.equal(p.sitting,null);
+ // A stale/forged seated state must never grant guard's mitigation.
+ p.sitting={x:p.x,z:p.z};
+ const before=p.hp,landed=dealDamage(g,e,p,20,'auto',{kind:'melee',melee:true});
+ assert.equal(landed,20);
+ assert.equal(p.hp,before-20);
+ assert.equal(g.events.filter(x=>x.e==='melee_deflect').length,0);
+});
+
+test('early combo buffer prevents unrelated equipment changes even if no combat linger',()=>{
+ const {g,p,e}=setup(),rod='electrical_combat_rod';
+ p.char.inventory.push(rod);
+ assert.ok(requestMelee(g,p,'light').ok);
+ advance(g,p,220);
+ // Control the combat-linger flag to isolate the melee queue's own gating.
+ p.combatUntil=0;
+ advance(g,p,310);
+ assert.equal(requestMelee(g,p,'light').queued,true);
+ assert.equal(equipItem(g,p,rod).ok,false,'queued attack still owns the melee window');
+ advance(g,p,160);
+ assert.equal(g.events.filter(x=>x.e==='melee_start').at(-1).style,'2');
 });
