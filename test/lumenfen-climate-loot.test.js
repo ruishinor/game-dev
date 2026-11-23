@@ -14,6 +14,7 @@ import {moonAboveFen,buildLumenfenMoonMirrors} from '../client/src/lumenfen-moon
 import {buildLumenfenWorld} from '../client/src/lumenfen-world.js';
 import {buildFenMonsoonBloom,createFenMonsoonFx} from '../client/src/lumenfen-monsoon.js';
 import {emitFenLootFx,FEN_LOOT_VFX_IDS} from '../client/src/lumenfen-loot-fx.js';
+import {validateLumenfenLootDonors} from '../tools/assets/lumenfen-loot-donors-check.mjs';
 import {FEN_POOLS,LUMENFEN} from '../shared/lumenfen.js';
 
 const atDay=n=>n*WORLD_CLOCK.periodMs;
@@ -168,4 +169,11 @@ test('gathering VFX maps only real biome loot identifiers to pooled organic visu
   assert.equal(emitFenLootFx(vfx,{x:2,y:1,z:3},'nonexistent-item'),false);
   assert.equal(emitFenLootFx({quality:0,burst(){throw Error('quality zero unexpectedly emitted');}},
     {x:2,y:1,z:3},'rootglass_crown_shard'),false);
+});
+
+test('every loot and blueprint has verified owner-archive node mapping',()=>{
+ const provenance=validateLumenfenLootDonors();
+ assert.equal(provenance.lootItems,FEN_LOOT_VFX_IDS.length);
+ assert.ok(provenance.distinctDonors>=6);
+ assert.ok(provenance.donorNodesReferenced>=12);
 });
