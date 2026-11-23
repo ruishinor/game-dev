@@ -84,6 +84,9 @@ try {
       assert.ok(!mine.halo.meshes.includes('warden-combat-rod:energized'),
         `${def.key} must not carry a second primary weapon`);
       assert.equal(mine.halo.fit?.mode,'ready',`${def.key} rifle grips must be fitted`);
+      assert.equal(mine.halo.fit?.instrument?.kind,id,`${def.key} must equip its distinct local instrument`);
+      assert.equal(mine.halo.fit?.instrument?.draws,1,'each rifle instrument should use one local mesh');
+      assert.equal(mine.halo.fit?.instrument?.emitsProjectiles,false,'neutral Warden instruments must not emit projectiles');
       assert.ok(mine.halo.fit.gripError < .035 && mine.halo.fit.supportError < .035,
         `${def.key} both rifle hand-to-grip errors <35mm`);
       assert.equal(mine.halo.fit?.failures,0,`${def.key} no transient rifle-fit failures`);

@@ -202,6 +202,7 @@ const rich = () => !!cvfx && quality > 0;
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 world.attachReachFx?.(vfx);
+world.attachLumenfenFx?.(vfx);
 world.attachBrineworksFx?.(vfx);
 attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, vfx: () => (rich() ? vfx : null) });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
@@ -2274,7 +2275,7 @@ function frame(now) {
 
   if(hallPreview){
     if(!hallPreview.root.isConnected||hallPreview.root.closest('[hidden]')||!S.ents.get(S.myId)){hallPreview.preview.destroy();hallPreview=null;}
-    else if(!S.paused)hallPreview.preview.update(now,dt);
+    else hallPreview.preview.update(now,dt,S.paused);
   }
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
@@ -2425,6 +2426,8 @@ window.__attune = {
     const ent = S.ents.get(id);
     return ent ? toScreen(ent.chest) : null;
   },
+  /** Reset only the opt-in profiler window; session-wide diagnostics remain intact. */
+  beginRenderWindow() { return renderProbe.beginWindow(); },
   /** Stop or resume drawing (the game keeps running). Lets a capture script render one client at a time. */
   pause(on) {
     S.paused = !!on;

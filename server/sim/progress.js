@@ -20,6 +20,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { meleeBusy } from './melee.js';
 import { WEAPON_SWITCH, activeWeaponSlot, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS, sanitizeGoods } from '../../shared/goods.js';
@@ -27,6 +28,7 @@ import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
 import {creditDiscipline} from './crafting-disciplines.js';
+import { claimClassArmourArchive } from './class-armour-sources.js';
 import {containmentAlarm} from './kestrel-alarm.js';
 import {startVeinHarvest} from './severance-veins.js';
 
@@ -201,7 +203,7 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
 }
 
 function inCombat(game, p) {
-  return game.time < p.combatUntil;
+  return game.time < p.combatUntil || meleeBusy(game,p);
 }
 
 // Explicit configuration intent, not a toggle: replaying the same request is harmless.
@@ -458,6 +460,10 @@ export function interact(game, p, objectId) {
     game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
     return {ok:true};
   }
+  // Class-specific knowledge is an optional one-time interaction; normal
+  // service-station, attunement and calibration actions remain available.
+  const archive = claimClassArmourArchive(game,p,obj);
+  if(archive)return archive;
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
   if(['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown'].includes(obj.type))return travelLumenfen(game,p,obj);
