@@ -4,7 +4,7 @@ import * as T from 'three';
 import { fenStemGeometry, fenFoliageGeometry, fenSurfaceDetail, fenWaterShimmer } from '../client/src/lumenfen-organics.js';
 import { buildLumenfenSites } from '../client/src/lumenfen-sites.js';
 import { finishLumenfenSites } from '../client/src/lumenfen-site-finishing.js';
-import { makeFenLantern, makeFenStalker } from '../client/src/lumenfen-creatures.js';
+import { makeFenLantern, makeFenStalker, preloadFenStalkerSurface } from '../client/src/lumenfen-creatures.js';
 import { CombatVfx } from '../client/src/vfx/combat.js';
 import { CELL } from '../client/src/vfx/textures.js';
 
@@ -92,4 +92,29 @@ test('native fen fauna use biologic windup and death VFX while keeping danger ar
   combat.die(creature);
   assert.equal(emitted.length,2,'natural death layers instead of industrial shards');
   assert.ok(emitted.some(o=>Array.isArray(o.cell)&&o.cell.includes(CELL.petal)));
+});
+
+
+test('real GLB donor dorsal geometry attaches to the articulated stalker without duplicate static limbs', async()=>{
+ const root=new T.Group(),sourceGeo=new T.SphereGeometry(1,28,20),
+   sourceMat=new T.MeshPhysicalMaterial({color:0x577c62,roughness:.4});
+ const donor=new T.Mesh(sourceGeo,sourceMat);
+ root.add(donor);
+ const loader={loadAsync:async(path)=>{
+   assert.equal(path,'/client/assets/lumenfen-six_limb_predator.glb');
+   return {scene:root};
+ }};
+ assert.equal(await preloadFenStalkerSurface(T,loader),true);
+ const m=makeFenStalker(T);
+ const overlay=m.group.getObjectByName('lumenfen:stalker:archive-dorsal-rig');
+ assert.ok(overlay);
+ assert.ok(overlay.children.some(child=>child.name==='lumenfen:stalker:remeshed-source-carapace'));
+ assert.equal(m.group.children.filter(x=>x.name==='lumenfen:stalker:leg').length,6,
+   'the original six animated limbs must be preserved');
+ m.update(.016,{t:2,speed:3,attack:true});
+ assert.ok(overlay.children.every(x=>x.isMesh));
+ m.dispose();
+ assert.ok(sourceGeo.attributes.position.count>100,
+   'disposing one enemy must not dispose the cached GLB template');
+ sourceGeo.dispose();sourceMat.dispose();
 });
