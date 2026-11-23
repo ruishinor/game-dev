@@ -213,7 +213,7 @@ export function createWardenRifle(assets,inst,variant,optic){
  let warned=false;
  return {
   id,group:root,material:made.sightMaterial,
-  inspect(){return {...last};},
+  inspect(){return {...last,instrument:made.instrument.inspect()};},
   update(dt,st={}){
    const time=Number.isFinite(st.t)?st.t:0;
    // Different readouts for the rapid-response carbine and calibrated marksman.
