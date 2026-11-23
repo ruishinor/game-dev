@@ -22,6 +22,7 @@ export function recoverField(game,p,obj){
  const previous=recoverySamples(p.char.recoverySamples),next=Math.min(RECOVERY_MASTERY,previous+1);
  p.char.materials={...materials,sinter_flake:count+1};
  p.char.recoverySamples=next;p.char.recoveryReadyAt=now+RECOVERY_DELAY;
+ game.economy?.observe('materials_granted',p,1,'sinter_flake');
  game.markDirty(p);
  game.message(p,'gain','Recovered: Loose sinter flake.');
  if(recoveryRank(next)>recoveryRank(previous))game.message(p,'gain','Field Recovery rank 2: maintenance cassette reconditioning available at the Workshop.');
