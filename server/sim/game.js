@@ -321,8 +321,8 @@ export class Game {
     if(entering&&this.severance)this.openExpanse();
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
     // The Annex arrival gate returns travellers to the foot of the Severance Gate.
-    const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ })
-      : this.severance ? gateFront() : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6 };
+    const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ, yaw: Math.PI })
+      : this.severance ? {...gateFront(),yaw:0} : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6, yaw: Math.atan2(-this.rift.entry.x,-this.rift.entry.z) };
     this.transferPlayer(p, destination);
     this.message(p,'info',entering?(this.severance?'Severance Expanse. Three routes cross the plain to the Severance Gate in the north: the Causeway of Sentinels, the Severed Pass and the Amber Flats. The Expedition Outpost east of the arrival is safe ground. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
@@ -365,6 +365,9 @@ export class Game {
     p.target=0;p.autoOn=false;p.meleeState=null;p.jy=0;p.vy=0;p.brineTrial=null;
     if(p.surveyKit){p.surveyKit.rig=null;p.surveyKit.mark=null;}
     this.transit(p,destination.x,destination.z,'area crossing');
+    // Arrival is a doorway crossing: face the playable route, never the exit.
+    if(Number.isFinite(destination.yaw))p.yaw=destination.yaw;
+    p.travelSerial=(p.travelSerial||0)+1;
     resolveCollisions(p,PLAYER_RADIUS);
     this.syncChar(p);this.markDirty(p);
   }
@@ -519,6 +522,7 @@ export class Game {
     const barrier=p.buffs.find(b=>b.k==='shield'&&b.v>0&&b.until>this.time);
     const y = {
       region: travelRegionAt(p.x, p.z),
+      tr:p.travelSerial||0, face:p.yaw,
       ack: p.lastSeq,
       comp:p.companion?.id??0,
       spindleId:p.spindleCompanion?.id??0,
