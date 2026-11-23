@@ -2,7 +2,7 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE,fenBiomeDrops} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE,fenBiomeDrops,FEN_BIOME_DROPS} from './loot-tables.js';
 import {lumenfenClimate} from '../../shared/lumenfen-climate.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
@@ -103,7 +103,13 @@ function collectEntries(game,p,e,entries,item){
  let taken=0;
  for(const entry of selected){
   const ok=entry.kind==='material'?grantSalvage(game,p,entry.id,entry.quantity):entry.kind==='goods'?grantGoods(game,p,entry.id,entry.quantity):entry.kind==='item'?grantItem(game,p,entry.id):entry.kind==='credits'?collectCredits(game,p,entry.quantity):false;
-  if(ok){entries.splice(entries.indexOf(entry),1);taken++;}
+  if(ok){
+    entries.splice(entries.indexOf(entry),1);taken++;
+    // A collected server-authored regional drop emits a presentation cue.
+    // Client cannot replay or request this event as a reward command.
+    if(FEN_BIOME_DROPS[e.type]?.some(row=>row.id===entry.id))
+      p.outbox.push({e:'fen_loot',item:entry.id});
+  }
  }
  if(!entries.length){e.lootByPlayer.delete(p.id);if(p.lootTarget?.id===e.id)clearLoot(p);}
  return taken?{ok:true}:fail('Cannot collect this loot: already owned, storage full or wallet full.');
