@@ -142,11 +142,15 @@ try {
       deltaCalls:enabled.calls-disabled.calls,
       deltaTriangles:enabled.triangles-disabled.triangles};
   });
-  console.log('KESTREL_PERFORMANCE '+JSON.stringify({
+  const performanceEvidence={
     graphics,viewport:{width:1280,height:800},
     cameraEvidence,isolated,
-    qualification:'SwiftShader software rendering; wall time includes browser/server scheduling, not real-GPU frame time',
-  }));
+    qualification:SOFTWARE_GL
+      ? 'SwiftShader software rendering; wall time includes browser/server scheduling, not real-GPU frame time'
+      : 'GPU execution requested; inspect actual WebGL renderer and host hardware before interpreting wall time',
+  };
+  console.log('KESTREL_PERFORMANCE '+JSON.stringify(performanceEvidence));
+  fs.writeFileSync('kestrel-evidence/performance.json',JSON.stringify(performanceEvidence,null,2)+'\\n');
   // Check layout/readiness at large display sizes without another expensive
   // software-GL encode or inventing a frame-rate measurement.
   for(const [width,height] of [[1920,1080],[2560,1440]]) {
