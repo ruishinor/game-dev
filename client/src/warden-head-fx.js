@@ -80,18 +80,19 @@ uniform float uTime;
 uniform float uPhase;
 uniform float uAttention;
 uniform float uRecognition;
+uniform float uScan;
 uniform float uMotion;
 uniform float uQuality;
 varying float vAngle;
 varying float vLayer;
 float around(float a,float b){return abs(atan(sin(a-b),cos(a-b)));}
 void main(){
-  float theta=mod(uPhase+uTime*0.58,6.2831853);
+  float theta=mod(uPhase+uTime*3.8,6.2831853);
   float focus=exp(-pow(around(vAngle,theta)/0.20,2.0));
   float echo=exp(-pow(around(vAngle,theta+0.33)/0.09,2.0));
   float light=0.0;
   if(vLayer<0.5){
-    light=0.065+uMotion*(0.22+0.36*uAttention+0.22*uRecognition)*(focus+0.30*echo);
+    light=0.065+uMotion*uScan*(0.24+0.20*uAttention+0.10*uRecognition)*(focus+0.30*echo);
   }else if(vLayer<1.5){
     light=0.036+uMotion*(0.034+0.06*uAttention)*(0.5+0.5*cos(vAngle*12.0-uTime*0.6));
   }else{
@@ -115,7 +116,7 @@ export function createWardenHeadFx(inst,{variant=0,optic=[.75,.85,.9]}={}) {
     uniforms:{
       uColor:{value:new THREE.Color().setRGB(...optic)},
       uTime:{value:0},uPhase:{value:variant*1.07},uAttention:{value:0},
-      uRecognition:{value:0},uMotion:{value:1},uQuality:{value:1},
+      uRecognition:{value:0},uScan:{value:0},uMotion:{value:1},uQuality:{value:1},
     },
     vertexShader:VERTEX,fragmentShader:FRAGMENT,
     transparent:true,depthWrite:false,depthTest:true,
@@ -127,24 +128,33 @@ export function createWardenHeadFx(inst,{variant=0,optic=[.75,.85,.9]}={}) {
   mesh.receiveShadow=false;
   mesh.frustumCulled=false; // Attached to a small animated head, not the bind-pose bounds.
   head.add(mesh);
-  let clock=0,attention=0,recognition=0,closed=false;
+  let clock=0,attention=0,recognition=0,scanWindow=0,scanCooldown=2+variant*.65,wasNear=false,closed=false;
   return {
     mesh,
     inspect:()=>({fitted:true,halfWidth:bounds.halfWidth,halfHeight:bounds.halfHeight,
-      attention,recognition,local:true}),
-    observe(){recognition=1;},
+      attention,recognition,scanning:scanWindow>0,local:true}),
+    observe(){recognition=1;scanWindow=1.15;},
     update(dt,st={}){
       if(closed)return;
       const step=clamp(Number.isFinite(dt)?dt:0,0,.3);
       clock+=step;
       const near=Number.isFinite(st.near)&&st.near<=6&&!st.dead;
       attention+=((near?1:0)-attention)*Math.min(1,step*3);
+      if(near&&!wasNear){scanWindow=1.15;scanCooldown=8+variant*1.6;}
+      else if(near){
+        scanCooldown-=step;
+        if(scanCooldown<=0){scanWindow=1.15;scanCooldown=8+variant*1.6;}
+      }
+      if(!near)scanCooldown=2+variant*.65;
+      wasNear=!!near;
+      scanWindow=Math.max(0,scanWindow-step);
       recognition=Math.max(0,recognition-step*.65);
       const quality=Number.isFinite(st.effectsQuality)?clamp(st.effectsQuality,0,2):2;
       const calm=!!st.reducedMotion||quality===0;
       material.uniforms.uTime.value=clock;
       material.uniforms.uAttention.value=attention;
       material.uniforms.uRecognition.value=recognition;
+      material.uniforms.uScan.value=Math.min(1,scanWindow/.38);
       material.uniforms.uMotion.value=calm?0:1;
       material.uniforms.uQuality.value=quality/2;
       // At distance a static face signal is retained, but moving scan is culled.
