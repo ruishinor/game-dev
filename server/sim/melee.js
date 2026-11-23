@@ -9,8 +9,12 @@ const LIGHT=Object.freeze({windup:220,recovery:690,reach:2.85});
 const HEAVY=Object.freeze({windup:440,recovery:1230,reach:3.05});
 const GUARD=Object.freeze({active:640,recovery:990,damageMul:.48,counterWindow:1150});
 const COMBO_WINDOW=1650;
+// One server-received intent may be buffered close to the end of recovery.
+// Neither client timestamps nor the buffer extend the real combo window.
+const INPUT_BUFFER_MS=180;
+const INPUT_GRACE_MS=120;
 const deny=reason=>({ok:false,reason});
-const state=p=>(p.meleeState??={next:0,pending:null,combo:0,lastHit:-Infinity,guardUntil:0,counterUntil:0});
+const state=p=>(p.meleeState??={next:0,pending:null,combo:0,lastHit:-Infinity,guardUntil:0,counterUntil:0,buffered:null});
 const eligible=(p,t,reach)=>t?.kind==='enemy'&&t.state!=='dead'&&t.state!=='evade'&&sameTravelRegion(p,t)&&
  dist(p,t)-t.radius<=reach&&hasLineOfSight(p,t);
 const facing=(p,t)=>{
@@ -24,7 +28,26 @@ export function requestMelee(game,p,action){
  if(p.dead||p.sitting||inSafeZone(p))return deny('Cannot fight in this state.');
  if(activeWeaponSlot(p.char)!=='weapon')return deny('Select your melee weapon first.');
  const s=state(p),now=game.time;
- if(s.pending||now<s.next||now<p.gcdUntil)return deny('Recover from the previous action first.');
+ // Validate an early input before storing it. Legality is checked again when
+ // the server executes the buffered action, never trusted from this snapshot.
+ const target=action==='guard'?null:game.ents.get(p.target);
+ if(action!=='guard'){
+  const profile=effectiveAuto(p.char);
+  if(!profile||profile.kind!=='melee'||!eligible(p,target,(action==='heavy'?HEAVY:LIGHT).reach))
+   return deny('Select a reachable hostile target.');
+  if(!facing(p,target))return deny('Face your target.');
+ }
+ if(s.buffered&&now>s.buffered.expiresAt)s.buffered=null;
+ if(s.buffered)return deny('A melee action is already buffered.');
+ const readyAt=Math.max(s.next,p.gcdUntil||0,s.pending?.hitAt||0);
+ if(s.pending||now<readyAt){
+  if(now<readyAt&&readyAt-now<=INPUT_BUFFER_MS){
+   s.buffered={action,targetId:target?.id??null,readyAt,expiresAt:readyAt+INPUT_GRACE_MS};
+   p.autoOn=false; // Do not sneak an automatic hit in before the buffered strike.
+   return {ok:true,queued:true};
+  }
+  return deny('Recover from the previous action first.');
+ }
  if(action==='guard'){
   s.guardUntil=now+GUARD.active;
   s.next=now+GUARD.recovery;
@@ -34,10 +57,7 @@ export function requestMelee(game,p,action){
   game.emitWorldEvent({e:'melee_guard',s:p.id,ms:GUARD.active});
   return {ok:true};
  }
- const target=game.ents.get(p.target),profile=effectiveAuto(p.char);
- if(!profile||profile.kind!=='melee'||!eligible(p,target,(action==='heavy'?HEAVY:LIGHT).reach))
-  return deny('Select a reachable hostile target.');
- if(!facing(p,target))return deny('Face your target.');
+ const profile=effectiveAuto(p.char);
  const stage=action==='heavy'?0:(now-s.lastHit<=COMBO_WINDOW?s.combo%3:0);
  const counter=now<s.counterUntil;
  const spec=action==='heavy'?HEAVY:LIGHT;
@@ -57,10 +77,24 @@ export function requestMelee(game,p,action){
  return {ok:true};
 }
 
+/** Consume at most one queued intent, only on the server's recovery tick.
+ * A delayed tick or changed target/ability/weapon invalidates the request.
+ * Never re-buffer during execution, and never grant combo credit from input time.
+ */
+function drainBuffered(game,p){
+ const s=p.meleeState,q=s?.buffered;
+ if(!q||s.pending||game.time<q.readyAt)return;
+ s.buffered=null;
+ if(game.time>q.expiresAt||(q.targetId!==null&&p.target!==q.targetId))return;
+ if(game.time<Math.max(s.next,p.gcdUntil||0))return;
+ const result=requestMelee(game,p,q.action);
+ if(!result.ok&&result.reason)game.message(p,'err',result.reason);
+}
+
 /** Resolve exactly once, at the weapon's contact phase. */
 export function tickMelee(game,p,damage,gainCharge){
  const s=p.meleeState,pending=s?.pending;
- if(!pending||game.time<pending.hitAt)return;
+ if(!pending||game.time<pending.hitAt){drainBuffered(game,p);return;}
  s.pending=null;
  if(p.dead||p.sitting||activeWeaponSlot(p.char)!=='weapon')return;
  const target=game.ents.get(pending.targetId);
