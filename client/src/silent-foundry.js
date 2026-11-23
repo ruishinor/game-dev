@@ -14,6 +14,7 @@ const CEILING = 15;
 const FOG = { color: 0x161b20, near: 24, far: 150 };
 export const FOUNDRY_VISIBILITY = Object.freeze({
   ambientInside:1.1, guideWidth:.09, guideOpacity:.60, guideDraws:1,
+  thresholdOpacity:.52, thresholdDraws:1,
   maxLocalLights:FOUNDRY_LIMITS.lights,
 });
 
@@ -68,7 +69,24 @@ export function buildSilentFoundry(T, scene, o = {}) {
   scene.add(group);
   const noise = noiseTexture(T, 128, 113);
   const U = (v) => ({ value: v });
-  const fogU = () => ({ fogColor: U(new T.Color()), fogNear: U(1), fogFar: U(2000) });
+  // Custom ShaderMaterials implement fog themselves; fog:true alone does not
+  // populate their bespoke uniforms. Keep the glass, culture, resonator and
+  // mineral depth cues consistent with the local scene fog.
+  const fogUniformSets = [];
+  const fogU = () => {
+    const u = { fogColor: U(new T.Color()), fogNear: U(1), fogFar: U(2000) };
+    fogUniformSets.push(u);
+    return u;
+  };
+  const syncFog = () => {
+    const fog = scene.fog;
+    if (!fog) return;
+    for (const u of fogUniformSets) {
+      u.fogColor.value.copy(fog.color);
+      u.fogNear.value = fog.near;
+      u.fogFar.value = fog.far;
+    }
+  };
   const time = U(0);
   const at = (u, v) => ({ x: F.x + u, z: F.z + v });
   const mats = [];
@@ -248,6 +266,31 @@ export function buildSilentFoundry(T, scene, o = {}) {
   if(routeGuides.instanceColor)routeGuides.instanceColor.needsUpdate=true;
   group.add(routeGuides);
 
+  // Low, non-pulsing threshold markings distinguish chamber transitions
+  // without competing with orange hostile telegraphs. These sit on the
+  // walkable floor and introduce no collisions, lights or new materials maps.
+  const thresholdVs = [52, 0, -52];
+  const thresholdMat = M(new T.MeshBasicMaterial({
+    color: 0xffffff, toneMapped: false, transparent: true,
+    opacity: FOUNDRY_VISIBILITY.thresholdOpacity, depthWrite: false,
+  }));
+  const thresholds = new T.InstancedMesh(
+    new T.BoxGeometry(F.door * 1.7, .025, .18), thresholdMat, thresholdVs.length,
+  );
+  thresholds.name = 'foundry:door-thresholds';
+  thresholds.castShadow = false;
+  thresholds.receiveShadow = false;
+  for (let i = 0; i < thresholdVs.length; i++) {
+    const v = thresholdVs[i];
+    guideDummy.position.set(F.x, yAt(0, v) + .065, F.z + v);
+    guideDummy.updateMatrix();
+    thresholds.setMatrixAt(i, guideDummy.matrix);
+    thresholds.setColorAt(i, guideColor.setHex(guideColors[i + 1]));
+  }
+  thresholds.instanceMatrix.needsUpdate = true;
+  if (thresholds.instanceColor) thresholds.instanceColor.needsUpdate = true;
+  group.add(thresholds);
+
   // ---- entering / leaving: lighting, fog and the sky are restored on exit
   let saved = null;
   function enter() {
@@ -337,6 +380,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
       if (inside && !saved) enter();
       else if (!inside && saved) leave();
       if (!inside) return;
+      syncFog();
       if (kitState.status === 'idle') loadKit();
       t += manual ? 0 : dt;
       for (const m of glow.FK_Hot) m.emissiveIntensity = 4 + 2.2 * Math.sin(t * 2.3);
@@ -356,7 +400,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
       });
     },
     get kitStatus() { return kitState.status; },
-    stats() { return { inside: !!saved, lights: lights.length, guideInstances:routeGuides.count, guideDraws:1, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
+    stats() { return { inside: !!saved, lights: lights.length, guideInstances:routeGuides.count, guideDraws:1, thresholdInstances:thresholds.count, thresholdDraws:1, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
     dispose() {
       kitState.status = 'disposed';
       if (saved) leave();
