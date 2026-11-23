@@ -40,14 +40,16 @@ try {
   await page.goto('http://127.0.0.1:' + srv.port + '/?q=2&qlock=1&nolock=1' + (SOFTWARE_GL ? '&rfps=1' : ''));
   await page.waitForFunction(() => !!window.__attune);
   await page.click('#gate-guest-link');
-  await page.fill('#name', 'Range Geometry Inspector');
+  // Guest names are normalized to 16 characters by server authority; use a
+  // short, stable name so the real authenticated fixture matches exactly.
+  await page.fill('#name', 'Range Inspector');
   await page.click('.classcard[data-cls="vanguard"]');
   await page.click('#enter');
   await page.waitForFunction(() => {
     const s = window.__attune?.state();
     return s?.myId && s.sheet && s.drawn >= 2 && s.snaps > 0;
   });
-  const p = await liveFixturePlayer(page, srv, 'Range Geometry Inspector');
+  const p = await liveFixturePlayer(page, srv, 'Range Inspector');
   const consoleObj = srv.game.objects.find(o => o.type === 'outpost_range_console');
   assert.ok(consoleObj, 'production world has a range console');
   p.hp = p.maxHp;
