@@ -6,6 +6,8 @@ on:
       - 'tools/assets/kestrel-source-inventory.mjs'
       - 'assets/source-archives/glb-low-poly-models-building-blocks.zip'
       - 'client/src/kestrel-deep-visuals.js'
+      - 'client/src/kestrel-pressure-plant.js'
+      - 'client/src/kestrel-regulator-gallery.js'
       - '.github/workflows/kestrel-source-inventory.yml'
   workflow_dispatch:
 
