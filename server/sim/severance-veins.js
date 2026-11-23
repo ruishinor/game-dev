@@ -85,6 +85,7 @@ export function tickVein(game, p) {
   p.char.materials = m;
   const now = game.wallNow();
   p.char.veinReadyAt = { ...sanitizeVeinReady(p.char.veinReadyAt, now), [g.obj.key]: now + REPLENISH_MS };
+  game.economy?.observe('materials_granted',p,YIELD.count,YIELD.id);
   game.markDirty(p);
   game.message(p, 'gain', 'Extracted: ' + MATERIALS[YIELD.id].name + '.');
   game.emitWorldEvent({ e: 'fx', k: 'vein_harvest', s: p.id, o: g.obj.id });

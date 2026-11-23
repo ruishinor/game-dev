@@ -164,6 +164,12 @@ export class CharacterStore {
         if (fs.existsSync(`${this.file}.bak`)) {
           throw new Error('Character store missing while a backup exists: recovery is required before starting the server');
         }
+        // The first ever flush has no .bak. If it is interrupted after
+        // fsyncing the temp file but before rename, that temp is the only
+        // surviving checkpoint. Starting an empty world would truncate it.
+        if (fs.existsSync(`${this.file}.tmp`)) {
+          throw new Error('Character store missing while an interrupted save exists: recovery is required before starting the server');
+        }
         return;
       }
       throw err;
