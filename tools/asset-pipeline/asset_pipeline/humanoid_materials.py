@@ -225,7 +225,7 @@ def synthesize(paths, cfg, kit_points, landmarks=None):
     # The fill is the local average of the surrounding ivory (normalised
     # convolution in UV space), so tone still varies gently across the body.
     # Genuine mechanism (joint couplings, neck column, soles) is repainted as
-    # one clean graphite with only gentle shading kept, so it reads as a
+    # one clean ebony with only gentle shading kept, so it reads as a
     # deliberate seam rather than grime.
     shell_clean = np.zeros(pos.shape[:2], np.float32)
     mech_w = np.zeros(pos.shape[:2], np.float32)
@@ -255,7 +255,7 @@ def synthesize(paths, cfg, kit_points, landmarks=None):
         dark = np.maximum(dark, cv2.GaussianBlur(dark, (0, 0), 1.5) * 1.6).clip(0, 1)
         shell_clean = soft_mask(target, 2.0) * dark
         out = out * (1 - shell_clean[..., None]) + fill * shell_clean[..., None]
-        # mechanism: uniform graphite, gentle shading only
+        # mechanism: warm ebony, gentle shading only
         mcol = np.asarray(mc.get("color", [0.16, 0.14, 0.13]), np.float32)
         Lk = Lo[keep & ~optic_keep]
         kmed = max(float(np.median(Lk)), 1e-3) if Lk.size else 0.2
