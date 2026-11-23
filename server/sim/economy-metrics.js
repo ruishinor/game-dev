@@ -2,7 +2,7 @@
 // identity, IP, token, name, position, chat content or raw session history.
 import fs from 'node:fs';
 import path from 'node:path';
-import { CLASSES, ITEMS } from '../../shared/content.js';
+import { CLASSES, ITEMS, ENEMIES } from '../../shared/content.js';
 import { MATERIALS, RECIPES } from '../../shared/crafting.js';
 import { GOODS } from '../../shared/goods.js';
 
@@ -19,6 +19,9 @@ const DETAIL = Object.freeze({
   goods_granted: GOODS, goods_crafted: GOODS, goods_spent: GOODS,
   items_granted: ITEMS, items_crafted: ITEMS, items_consumed: ITEMS,
   craft_cycles: RECIPES,
+  kills: ENEMIES,
+  xp_awarded: Object.freeze({enemy:true, directive:true, quest:true, other:true}),
+  vendor_trades: Object.freeze({buy:true, sell:true, sell_junk:true, buyback:true, repair:true}),
 });
 const MAX_DAYS = 90;
 const BAND = level => level < 5 ? '1-4' : level < 8 ? '5-7' : level < 12 ? '8-11' : '12-15';
