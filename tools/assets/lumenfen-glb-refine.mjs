@@ -283,6 +283,14 @@ function compile(doc,item,sourceSha){
  for(const b of chunks){b.copy(out,p);p+=align(b.length);}
  return {buffer:out,stats};
 }
+// Small synthetic fixtures exercise the exact public remesher without reading
+// the 94MB archive; full archive source-lineage is checked in CI separately.
+export function reconstructLumenfenGLB(raw,id){
+ const item=SPEC.donors.find(x=>x.id===id);
+ if(!item)throw Error('Unknown source donor '+id);
+ const bytes=Buffer.from(raw);
+ return compile(decodeGlb(bytes),item,hash(bytes));
+}
 let cached=null;
 export function ensureLumenfenFidelityGLB(id){
  if(!FEN_DONOR_IDS.includes(id))throw Error('Unexpected wetland donor '+id);
