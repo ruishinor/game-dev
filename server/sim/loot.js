@@ -2,7 +2,7 @@
 // Client requests may only collect extant, server-authored entries.
 import {ITEMS} from '../../shared/content.js';
 import {MATERIALS,MATERIAL_CAP} from '../../shared/crafting.js';
-import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE} from './loot-tables.js';
+import {itemDrops,SALVAGE,TRADE_SALVAGE,relicDrop,creditDrop,blueprintDrop,classArmourBlueprintDrop,isEliteEnemy,eliteUncommonDrop,ELITE_RESOURCE,nullBlueprintDrop,nullEquipmentDrop} from './loot-tables.js';
 import {sanitizeCredits,walletAfter} from './wallet.js';
 import {GOODS,goodsCap} from '../../shared/goods.js';
 import {grantGoods} from './goods.js';
@@ -10,11 +10,9 @@ import {dist,hasLineOfSight,deepLineClear,sameTravelRegion} from '../../shared/w
 import {CORPSE_MS} from './game.js';
 import {grantItem,grantSalvage} from './progress.js';
 
-// These explicitly classified enemies cannot grant equipment items. Their
-// existing material, goods and credit paths remain independent.
-// Lumenfen's new fauna have no bespoke equipment table. Keep the original
-// elite *material* grants; defer new equipment rewards to an authorized table review.
-export const NO_ITEM_REWARD_TYPES=Object.freeze(['severance_soldier', 'fen_lantern', 'fen_stalker']);
+// Only fauna without bespoke equipment profiles remain excluded; Severance
+// soldiers and Scrapyard combatants may drop field gear.
+export const NO_ITEM_REWARD_TYPES=Object.freeze(['fen_lantern', 'fen_stalker']);
 const LOOT_RANGE=5, CREDIT_RANGE=70;
 const fail=reason=>({ok:false,reason});
 const active=(game,e)=>e?.kind==='enemy'&&e.state==='dead'&&game.time-e.deadAt<=CORPSE_MS;
@@ -30,7 +28,7 @@ export function distributeCorpseLoot(game,e,credited){
   if(Object.hasOwn(MATERIALS,material)&&(p.char.materials?.[material]||0)<MATERIAL_CAP)entries.push({id:material,kind:'material',quantity:1});
   for(const drop of allowItems?itemDrops(e.type):[])if(Object.hasOwn(ITEMS,drop.item)&&!p.char.inventory.includes(drop.item)&&game.rng()<drop.chance)entries.push({id:drop.item,kind:'item',quantity:1});
   if(Object.hasOwn(GOODS,goods)&&(p.char.goods?.[goods]||0)<goodsCap(goods))entries.push({id:goods,kind:'goods',quantity:1});
-  const credits=creditDrop(e.type);
+  const credits=e.nullAnnex ? 3+Math.min(4,Math.max(0,e.level-12)) : creditDrop(e.type);
   if(credits>0&&walletAfter(sanitizeCredits(p.char.credits),credits)!==null)entries.push({id:'credits',kind:'credits',quantity:credits});
   const relic=relicDrop(e.type,game.relicRng);
   if(relic&&(p.char.goods?.[relic]||0)<goodsCap(relic))entries.push({id:relic,kind:'goods',quantity:1});
@@ -40,10 +38,17 @@ export function distributeCorpseLoot(game,e,credited){
    const r=ELITE_RESOURCE,have=p.char.materials?.[r.id]||0,same=entries.find(x=>x.kind==='material'&&x.id===r.id);
    const q=Math.min(r.quantity,MATERIAL_CAP-have-(same?.quantity||0));
    if(q>0){if(same)same.quantity+=q;else entries.push({id:r.id,kind:'material',quantity:q});}
-   // Owner decision (2026-11-21): the Severance squads, sergeants included, drop no items.
+   // Every elite may yield Uncommon equipment independent of materials.
    const uncommon=allowItems?eliteUncommonDrop(e,p.char,game.eliteRng):null;
    if(uncommon&&Object.hasOwn(ITEMS,uncommon)&&!entries.some(x=>x.id===uncommon))entries.push({id:uncommon,kind:'item',quantity:1});
   }
+  // Additional Null rolls apply to all enemy archetypes in the encounter,
+  // without changing general-world tables or depleting another player's odds.
+  const nullItem=nullEquipmentDrop(e,p.char,game.eliteRng);
+  if(nullItem&&Object.hasOwn(ITEMS,nullItem)&&!entries.some(x=>x.id===nullItem))entries.push({id:nullItem,kind:'item',quantity:1});
+  const nullPrint=nullBlueprintDrop(e,p.char,game.blueprintRng);
+  if(nullPrint&&Object.hasOwn(GOODS,nullPrint)&&(p.char.goods?.[nullPrint]||0)<goodsCap(nullPrint)&&!entries.some(x=>x.id===nullPrint))
+    entries.push({id:nullPrint,kind:'goods',quantity:1});
   const armourPrint=classArmourBlueprintDrop(e.type,p.char,game.classArmourRng);
   if(armourPrint&&Object.hasOwn(GOODS,armourPrint)&&(p.char.goods?.[armourPrint]||0)<goodsCap(armourPrint))entries.push({id:armourPrint,kind:'goods',quantity:1});
   if(entries.length)e.lootByPlayer.set(id,entries);
