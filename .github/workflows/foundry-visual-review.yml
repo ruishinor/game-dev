@@ -47,6 +47,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
+          import sharp from 'sharp';
           for (const [size, prefix, minimum] of [['1280x800',  '20-', 15], ['1920x1080', '20-', 10]]) {
             const dir = path.join('foundry-review', size);
             const log = JSON.parse(fs.readFileSync(path.join(dir, 'capture-log.json'), 'utf8'));
@@ -59,6 +60,32 @@ jobs:
             }
             if (!views.every(view => view.foundry?.kit === 'ready')) {
               throw Error(size + ': Foundry GLB kit did not reach ready state');
+            }
+            // A screenshot file and healthy draw count do not prove the camera
+            // can see the encounter. Pre-fix captures in all four chambers were
+            // near-black because the orbit camera escaped above the 15m roof.
+            const highOrbits = views.filter(view => /^(26|27|28|29)-/.test(view.name));
+            const expectedHighOrbits = size === '1280x800' ? 4 : 2;
+            if (highOrbits.length !== expectedHighOrbits) {
+              throw Error(size + ': expected ' + expectedHighOrbits + ' high-orbit views');
+            }
+            for (const view of highOrbits) {
+              const eyeY = view.camera?.[1];
+              if (!Number.isFinite(eyeY) || eyeY >= 13.4) {
+                throw Error(view.name + ': camera escaped beneath/through the 15m roof: y=' + eyeY);
+              }
+              const png = path.join(dir, view.name + '.png');
+              const { data, info } = await sharp(png).resize(160, 100).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+              let lit = 0;
+              for (let n = 0; n < data.length; n += info.channels) {
+                const luminance = .2126 * data[n] + .7152 * data[n + 1] + .0722 * data[n + 2];
+                if (luminance > 24) lit++;
+              }
+              const ratio = lit / (info.width * info.height);
+              if (ratio < 0.01) {
+                throw Error(view.name + ': almost entirely black/featureless gameplay frame (' + ratio.toFixed(3) + ' lit)');
+              }
+              console.log(view.name, 'camera Y:', eyeY.toFixed(2), 'lit fraction:', ratio.toFixed(3));
             }
             for (const k of ['overseer_press_slam', 'overseer_slag_wave', 'overseer_resonant_overload']) {
               if (!files.includes('25-' + k + '-telegraph.png') || !files.includes('25-' + k + '.png')) {
