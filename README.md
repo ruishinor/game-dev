@@ -11,7 +11,7 @@ npm start
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080). `PORT`, `HOST` and `DATA_FILE` override the defaults. Use a second browser context or a different `?slot=NAME` to test multiplayer locally. Character creation offers cosmetic appearances such as Red Rucker.
 
-See the [handoff](docs/HANDOFF.md) for verification and known limits.
+See the [handoff](docs/HANDOFF.md) for verification and known limits. For current SHA-pinned roadmap, requirement ownership, test evidence and acceptance gaps, use the [canonical delivery register](docs/DELIVERY-REGISTER.md); older roadmap checkpoints are historical.
 
 ## Controls
 
