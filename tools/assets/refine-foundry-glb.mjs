@@ -72,7 +72,7 @@ function Geometry(){
     const rr=R+r*cb;vertex([x+rr*ca,y+r*sb,z+rr*sa],[ca*cb,sb,sa*cb],col);
    }
   }
-  for(let k=0;k<major;k++)for(let t=0;t<minor;t++){const a=first+k*(minor+1)+t,b=a+minor+1;i.push(a,b,a+1,b,b+1,a+1);}
+  for(let k=0;k<major;k++)for(let t=0;t<minor;t++){const a=first+k*(minor+1)+t,b=a+minor+1;i.push(a,a+1,b,b,a+1,b+1);}
  };
  const fastenerZ=(x,y,z,r,col='bronze')=>{
    const count=12,front=z+0.035,base=p.length/3;
