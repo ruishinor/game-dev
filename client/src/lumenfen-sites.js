@@ -1,6 +1,7 @@
 // Site-specific, collision-aligned landmark composition for Lumenfen.
 // Real structures and ecological identity, independent of mesh provenance.
 import { FEN_SITES, fenHeight } from '../../shared/lumenfen.js';
+import { addLumenfenSiteHydrology } from './lumenfen-hydrology.js';
 
 export function buildLumenfenSites(T) {
   const group = new T.Group();
@@ -15,6 +16,11 @@ export function buildLumenfenSites(T) {
       transparent: true, opacity: .77, depthWrite: false, emissive: 0x2b756a, emissiveIntensity: .28,
       side: T.DoubleSide }),
     leaf: new T.MeshStandardMaterial({ color: 0x557e65, roughness: .85, side: T.DoubleSide }),
+    water: new T.MeshPhysicalMaterial({ color: 0xb1d8cc, vertexColors: true, roughness: .19,
+      metalness: .07, clearcoat: .72, clearcoatRoughness: .16, transparent: true,
+      opacity: .82, depthWrite: false, side: T.DoubleSide }),
+    sediment: new T.MeshStandardMaterial({ color: 0xc3c8b7, vertexColors: true,
+      roughness: .97, side: T.DoubleSide }),
   };
   const geometry = {
     box: new T.BoxGeometry(1, 1, 1),
@@ -23,6 +29,7 @@ export function buildLumenfenSites(T) {
     leaf: new T.ConeGeometry(1, 1, 5),
   };
   const moving = [], siteNames = [];
+  const hydrology = { waterSurfaces: 0, shoreSurfaces: 0 };
   const matrix = new T.Matrix4();
   const position = new T.Vector3(), quaternion = new T.Quaternion(), scale = new T.Vector3();
   for (const site of FEN_SITES) {
@@ -78,9 +85,6 @@ export function buildLumenfenSites(T) {
     } else if (site.id === 'glasswater-spring') {
       // A coherent working crossing: leveled decking, supported piers, simple
       // channel instrumentation and a recognizable local water mirror.
-      const water = new T.Mesh(new T.CircleGeometry(1,48),mats.glass);
-      water.rotation.x = -Math.PI/2; water.scale.set(8,1,5.3); water.position.y=.11;
-      water.name='lumenfen:spring:water';root.add(water);
       for(let j=-8;j<=8;j++){
         box(j%4===0?'pale':'wood',j*.78,.34,0,.68,.2,3.7);
         if(j%4===0){
@@ -164,6 +168,11 @@ export function buildLumenfenSites(T) {
       }
       for(let i=0;i<10;i++)reeds(Math.cos(i*1.8)*8,Math.sin(i*1.8)*8,6);
     }
+    // Rebuilt water and terrain-following shores occupy visual space only.
+    // Existing bridge, sluice and portal collision remain server/shared-owned.
+    const hydro = addLumenfenSiteHydrology(T, root, site, fenHeight, mats);
+    hydrology.waterSurfaces += hydro.waterSurfaces;
+    hydrology.shoreSurfaces += hydro.shoreSurfaces;
     // Draw repeated beams/stones/foliage in a small number of calls per site.
     for(const key of new Set(batches.map(b=>b.geo+'|'+b.material))){
       const [geo,material]=key.split('|'), entries=batches.filter(b=>b.geo===geo&&b.material===material);
@@ -180,7 +189,8 @@ export function buildLumenfenSites(T) {
     }
   }
   return {
-    group, stats:()=>({sites:siteNames.slice(),movingMechanisms:moving.length}),
+    group, stats:()=>({sites:siteNames.slice(),movingMechanisms:moving.length,
+      hydrology:{...hydrology}}),
     update(dt,reducedMotion=false){
       if(reducedMotion)return;
       const step=Math.max(0,Math.min(.05,dt||0));
