@@ -1,6 +1,7 @@
 # This intentionally runs against the merged main SHA, not only a PR merge ref.
-# PR validation is limited to changes of this workflow; routine PR tests are
-# handled by node-tests.yml, publication-preflight.yml and scoped browser suites.
+# The repository ruleset requires the Core Node and publication tests context
+# on EVERY PR. Do not path-filter this workflow: missing required contexts
+# block independently validated PRs even when their scoped suites are green.
 name: Main integration health
 
 on:
@@ -8,23 +9,6 @@ on:
     branches:
       - main
   pull_request:
-    # Keep this focused on the guest/appearance persistence contract; the
-    # full post-merge suite always runs on main regardless of changed paths.
-    paths:
-      - '.github/workflows/main-health.yml'
-      - 'test/e2e/initiation.mjs'
-      - 'client/index.html'
-      - 'client/src/creation-preview.js'
-      - 'client/src/creation-sections.js'
-      - 'client/src/characters.js'
-      - 'client/src/main.js'
-      - 'client/src/ui.js'
-      - 'server/index.js'
-      - 'server/store.js'
-      - 'shared/appearance.js'
-      - 'tools/browser.mjs'
-      - 'package.json'
-      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
