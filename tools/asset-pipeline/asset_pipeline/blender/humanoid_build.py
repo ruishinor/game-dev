@@ -273,6 +273,7 @@ def op_clean(p):
 MATERIALS = {
     # name: base colour, worn-edge colour, metallic, roughness, noise scale, weave
     "bronze_plate": ((0.40, 0.26, 0.13), (0.72, 0.55, 0.33), 0.85, 0.36, 18.0, False),
+    "ceramic_plate": ((0.76, 0.70, 0.59), (0.84, 0.78, 0.69), 0.04, 0.63, 23.0, False),
     "graphite_plate": ((0.085, 0.09, 0.095), (0.40, 0.40, 0.41), 0.70, 0.44, 22.0, False),\n    "ebony_plate": ((0.035, 0.032, 0.030), (0.18, 0.14, 0.095), 0.72, 0.38, 25.0, False),
     "leather": ((0.17, 0.11, 0.07), (0.30, 0.21, 0.14), 0.0, 0.62, 40.0, False),
     "brass": ((0.70, 0.52, 0.25), (0.86, 0.72, 0.45), 1.0, 0.28, 30.0, False),
