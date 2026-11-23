@@ -7,6 +7,11 @@ on:
       - 'assets/lumenfen-donors.json'
       - 'assets/lumenfen-loot-donors.json'
       - 'tools/assets/lumenfen-loot-donors-check.mjs'
+      - 'tools/assets/lumenfen-glb-refine.mjs'
+      - 'tools/assets/lumenfen-glb-verify.mjs'
+      - 'client/src/lumenfen-fidelity-fixtures.js'
+      - 'shared/lumenfen-fidelity.js'
+      - 'server/index.js'
       - '.github/workflows/lumenfen-source-inventory.yml'
       - 'assets/source-archives/**'
   workflow_dispatch:
@@ -37,6 +42,17 @@ jobs:
         run: node tools/assets/lumenfen-compose-donors.mjs .asset-cache/pipeline/lumenfen/stage .asset-cache/pipeline/lumenfen/outputs
       - name: Verify exported GLB composite geometry, buffers and source lineage
         run: node tools/assets/lumenfen-verify-source-study.mjs .asset-cache/pipeline/lumenfen/outputs
+      - name: Rebuild genuine high-density and PBR-authored GLB asset derivatives
+        run: node tools/assets/lumenfen-glb-refine.mjs --force
+      - name: Validate exported gameplay GLB meshes, archive lineage and embedded textures
+        run: node tools/assets/lumenfen-glb-verify.mjs
+      - name: Upload production Lumenfen remeshes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lumenfen-fidelity-glb-production
+          path: .asset-cache/pipeline/lumenfen/fidelity/
+          if-no-files-found: error
+          retention-days: 7
       - name: Owner-authorized GLB pipeline composition artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
