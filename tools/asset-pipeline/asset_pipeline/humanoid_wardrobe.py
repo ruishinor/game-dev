@@ -356,7 +356,7 @@ def lower_security(body, side):
                       lambda ph, t: 0.014 + 0.006 * np.maximum(0, np.cos(ph))**4 * (1 - 0.35*t),
                       closed=False, max_r=0.16)
     pieces.append({"name": "greave_front_" + side, "set": "security", "core": True,
-                   "mat": "ebony_plate", "skin": "transfer", "V": V, "F": F,
+                   "mat": "ceramic_plate", "skin": "transfer", "V": V, "F": F,
                    "thickness": 0.005, "bevel": 0.002})
     V, F = limb_panel(body, region, a, b, rows[1:-1], back, 0.010,
                       closed=False, max_r=0.16)
@@ -377,7 +377,7 @@ def lower_security(body, side):
     V, F = ribbon(body, path, width=lambda t: 0.120 * (1 - 0.35*t),
                   offset=0.012, n=34)
     pieces.append({"name": "boot_vamp_" + side, "set": "security", "core": True,
-                   "mat": "ebony_plate", "skin": "transfer", "V": V, "F": F,
+                   "mat": "ceramic_plate", "skin": "transfer", "V": V, "F": F,
                    "thickness": 0.004, "bevel": 0.002})
     return pieces
 
@@ -405,7 +405,7 @@ def design_security(body):
         return param_panel(body, 14, 34, fn, x_limit=0.19)
     for name, front in (("cuirass_front", True), ("cuirass_back", False)):
         V, F = cuirass(front)
-        pieces.append({"name": name, "set": "security", "core": True, "mat": "bronze_plate", "skin": "rigid:spine_03",
+        pieces.append({"name": name, "set": "security", "core": True, "mat": "ceramic_plate", "skin": "rigid:spine_03",
                        "V": V, "F": F, "thickness": 0.006, "bevel": 0.002})
     # chest insignia: ring motif on the left chest
     th, y = deg(28), 1.385
@@ -417,7 +417,7 @@ def design_security(body):
     for s in ("l", "r"):
         for k, (t0, t1, half, off) in enumerate(((-0.42, 0.42, 1.75, 0.016), (-0.42, 0.12, 1.45, 0.03))):
             V, F = pauldron(body, s, t0, t1, half, off)
-            pieces.append({"name": f"pauldron_{s}{k}", "set": "security", "core": True, "mat": "ebony_plate" if k == 0 else "bronze_plate",
+            pieces.append({"name": f"pauldron_{s}{k}", "set": "security", "core": True, "mat": "ceramic_plate" if k == 0 else "bronze_plate",
                            "skin": "rigid:upperarm_" + s, "V": V, "F": F, "thickness": 0.005, "bevel": 0.002})
         a, b = L["lowerarm_" + s], L["hand_" + s]
         V, F = limb_panel(body, "arm_" + s, a, b, np.linspace(0.18, 0.86, 9), np.linspace(-np.pi, np.pi, 28, endpoint=False), 0.009)
