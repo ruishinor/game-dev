@@ -414,8 +414,8 @@ export const RIFT_SITE=findRiftSite();
 if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
   OBJECTS.push({key:'phase_scar',type:'phase_scar',name:'Phase Scar',x,z,r:PHASE_RIFT_RADIUS,yaw:Math.atan2(-x,-z)},
-    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-z/Math.hypot(x,z)*6.25,z:z+x/Math.hypot(x,z)*6.25,r:.65},
-    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+z/Math.hypot(x,z)*6.25,z:z-x/Math.hypot(x,z)*6.25,r:.65},
+    {key:'rift_indexer',type:'rift_indexer',name:'Phase Indexer',x:x-z/Math.hypot(x,z)*6.25,z:z+x/Math.hypot(x,z)*6.25,r:.65,yaw:Math.atan2(-x,-z)},
+    {key:'rift_regulator',type:'rift_regulator',name:'Counterphase Regulator',x:x+z/Math.hypot(x,z)*6.25,z:z-x/Math.hypot(x,z)*6.25,r:.65,yaw:Math.atan2(-x,-z)},
     {key:'rift_return',type:'rift_return',name:'Return to the Reach',x:RIFT_ANNEX.x,z:RIFT_ANNEX.exitZ,r:PHASE_RIFT_RADIUS,yaw:Math.PI},
     {key:'annex_cache',type:'annex_cache',name:'Null Chamber Recovery Cache',x:RIFT_ANNEX.x,z:-30,r:.9});
 }
