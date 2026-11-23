@@ -25,7 +25,6 @@ import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
 import { buildLumenfenGlbAccents } from './lumenfen-glb-accents.js';
 import { finishLumenfenSites } from './lumenfen-site-finishing.js';
-import { createLumenfenAmbientVfx } from './lumenfen-ambient-vfx.js';
 import { buildSilentFoundry } from './silent-foundry.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
@@ -1590,7 +1589,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
 
   const relayStructure = scene.getObjectByName('relay:structural-mast');
   let relayFx = null;
-  let fenFx = null;
   const points = [];
   const coverRange = 30 + 55 * detail;
   // Static Reach dressing, hidden while the camera is inside the Severance
@@ -1610,15 +1608,13 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats(),siteFinishing:lumenfenSiteFinish,ambientFx:fenFx?.stats()??null}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats(),siteFinishing:lumenfenSiteFinish}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
     attachReachFx(engine) {
       relayFx?.dispose();
       relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;
-      fenFx?.dispose();
-      fenFx = engine ? createLumenfenAmbientVfx(engine) : null;
     },
     /**
      * @param focus the player's feet
@@ -1636,7 +1632,6 @@ export function buildWorld(scene, assets = null, opts = {}) {
       severance.update(dt, t, view?.eye ?? focus);
       foundry.update(dt, t, view?.eye ?? focus);
       lumenfen.update(dt, t, view?.eye ?? focus);
-      fenFx?.update(dt, view?.eye ?? focus, opts.reducedMotion?.()??false);
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
