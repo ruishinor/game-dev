@@ -54,7 +54,9 @@ test('packaged runtime uses staged assets and rejects forged Host and WebSocket 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attunement-desktop-test-'));
   // Dummy files are enough here: this test checks routing and trust boundaries, not GLB decoding.
   for (const name of ['depths-recovery-cache.glb', 'sanctum-warden-carbine.glb',
-    'sanctum-warden-marksman.glb', 'phase_scar.glb']) {
+    'sanctum-warden-marksman.glb', 'stillpoint.glb', 'severance_gate.glb',
+    'severance_kit.glb', 'outpost_shelter.glb', 'salvage_camp.glb',
+    'resonant_vein.glb', 'sanctum_arch.glb', 'phase_scar.glb', 'foundry_kit.glb']) {
     fs.writeFileSync(path.join(dir, name), Buffer.alloc(28));
   }
   process.env.ATTUNEMENT_DESKTOP_RUNTIME_DIR = dir;
