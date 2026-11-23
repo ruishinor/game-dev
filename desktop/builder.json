@@ -1,0 +1,54 @@
+{
+  "appId": "no.attunement.desktop",
+  "productName": "Attunement",
+  "electronVersion": "45.4.1",
+  "asar": true,
+  "directories": {
+    "output": "dist/desktop"
+  },
+  "files": [
+    "package.json",
+    "desktop/main.cjs",
+    "client/**/*",
+    "server/**/*",
+    "shared/**/*",
+    "tools/assets/warden-rifle-source.mjs",
+    "tools/assets/extract-depths-cache.mjs",
+    "node_modules/ws/**/*",
+    "node_modules/three/**/*",
+    "!**/*.zip",
+    "!**/*.7z",
+    "!**/*.rar",
+    "!**/*.tar",
+    "!**/*.gz",
+    "!**/*.blend",
+    "!**/*.blend1",
+    "!**/*.fbx",
+    "!**/*.obj",
+    "!**/*.psd",
+    "!**/*.test.js",
+    "!**/*.spec.js",
+    "!**/test/**",
+    "!**/docs/**"
+  ],
+  "extraResources": [
+    {
+      "from": "dist/desktop-runtime",
+      "to": "runtime-models",
+      "filter": [
+        "**/*.glb"
+      ]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "${productName}-${version}-${arch}-portable.${ext}"
+  }
+}
