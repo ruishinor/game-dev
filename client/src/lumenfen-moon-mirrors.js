@@ -12,7 +12,7 @@ export function moonAboveFen(phase){
 }
 export function buildLumenfenMoonMirrors(T,group,{detail=1,textureSize=512}={}){
   const waters=group.children.filter(o=>o.name==='lumenfen:mirrorpool');
-  const enabled=detail>=.75;
+  const enabled=detail>=.75; // high-quality planar capture is opt-in by quality
   const reflections=[];
   if(enabled)for(let i=0;i<Math.min(waters.length,FEN_POOLS.length);i++){
     const source=waters[i],pool=FEN_POOLS[i];
