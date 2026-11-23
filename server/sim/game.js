@@ -31,6 +31,7 @@ import { spawnSeverancePatrols } from './severance-patrols.js';
 import { spawnLumenfenWildlife } from './lumenfen.js';
 import { spawnSalvageCamp } from './severance-camps.js';
 import { spawnNullEncounters } from './null-encounters.js';
+import { tickOutpostDefense } from './outpost-defense.js';
 import { worldClockPhase } from '../../shared/world-clock.js';
 import {fieldQuestProjection} from './field-quests.js';
 import {fieldReceiptProjection} from './field-receipts.js';
@@ -80,6 +81,10 @@ export class Game {
       const obj = { id: this.nextId++, kind: 'object', key: o.key, type: o.type, name: o.name, x: o.x, z: o.z, metaVer: 1 };
       if (o.yaw !== undefined) { obj.yaw = o.yaw; obj.variant = o.variant; }
       if (o.look) obj.look = o.look;
+      if(o.type==='outpost_warden'||o.type==='outpost_commander'){
+        obj.outpostDefender=true;obj.affinity=o.affinity;
+        obj.nextDefenseAt=0;
+      }
       this.objects.push(obj);
       this.ents.set(obj.id, obj);
     }
@@ -429,6 +434,7 @@ export class Game {
     }
     tickRift(this);
     tickSeveranceGate(this);
+    if (!this.aiHold)tickOutpostDefense(this);
     // aiHold: server-side capture fixture only (never client reachable)
     if (!this.aiHold) for (const e of this.enemies) tickEnemy(this, e, dt);
     for (const c of this.companions) tickCompanion(this, c, dt);
