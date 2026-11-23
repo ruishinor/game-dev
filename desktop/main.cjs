@@ -11,6 +11,26 @@ let gameServer = null;
 let window = null;
 let stopping = false;
 let logFile = null;
+let gpuInfoReady = false;
+let gpuInfoRecorded = false;
+
+// Electron's GPU status is not valid until the first gpu-info-update event.
+// Capture the status once after Chromium has initialized GPU diagnostics.
+function recordGpuInfo() {
+  if (!logFile || !gpuInfoReady || gpuInfoRecorded) return;
+  gpuInfoRecorded = true;
+  log('gpu-feature-status-ready', JSON.stringify(app.getGPUFeatureStatus()));
+  app.getGPUInfo('basic').then((info) => {
+    log('gpu-info-basic', JSON.stringify({
+      softwareRendering: info?.auxAttributes?.softwareRendering ?? null,
+      gpuDevices: (info?.gpuDevice || []).map((device) => ({
+        active: !!device.active,
+        vendorId: device.vendorId,
+        deviceId: device.deviceId,
+      })),
+    }));
+  }).catch((error) => log('gpu-info-unavailable', String(error.message || error)));
+}
 
 function log(event, detail = '') {
   const line = '[' + new Date().toISOString() + '] ' + event + (detail ? ' ' + detail : '') + '\n';
@@ -26,6 +46,7 @@ async function launch() {
   fs.mkdirSync(path.join(userData, 'logs'), { recursive: true });
   fs.mkdirSync(path.join(userData, 'saves'), { recursive: true });
   logFile = path.join(userData, 'logs', 'desktop.log');
+  recordGpuInfo();
 
   // The packaged build serves only previously generated runtime GLBs.
   // This disables archive extraction and all other source-model generation at startup.
@@ -45,7 +66,6 @@ async function launch() {
   });
 
   const origin = 'http://127.0.0.1:' + gameServer.port;
-  log('gpu-feature-status', JSON.stringify(app.getGPUFeatureStatus()));
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
     const fromGame = contents === window?.webContents && contents.getURL().startsWith(origin + '/');
     callback(Boolean(fromGame && ['pointerLock', 'fullscreen', 'clipboard-sanitized-write'].includes(permission)));
@@ -100,6 +120,10 @@ async function launch() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  app.on('gpu-info-update', () => {
+    gpuInfoReady = true;
+    recordGpuInfo();
+  });
   app.on('second-instance', () => {
     if (!window) return;
     if (window.isMinimized()) window.restore();
