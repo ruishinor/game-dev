@@ -17,6 +17,10 @@ on:
       - 'client/src/creation-preview.js'
       - 'client/src/creation-sections.js'
       - 'client/src/characters.js'
+      # Lumenfen rendering changes must produce the required Core Node check.
+      # Without these paths a Lumenfen-only PR cannot satisfy branch rules.
+      - 'client/src/lumenfen-*.js'
+      - 'test/lumenfen-*.test.js'
       - 'client/src/main.js'
       - 'client/src/ui.js'
       - 'server/index.js'
