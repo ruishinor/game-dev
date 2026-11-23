@@ -5,8 +5,10 @@ on:
     paths:
       - 'client/src/kestrel-deep-visuals.js'
       - 'client/src/kestrel-pressure-plant.js'
+      - 'client/src/kestrel-production-machinery.js'
       - 'client/src/kestrel-regulator-gallery.js'
       - 'test/kestrel-regulators.test.js'
+      - 'test/kestrel-production-machinery.test.js'
       - 'client/src/scene.js'
       - 'test/e2e/kestrel-visual.mjs'
       - '.github/workflows/kestrel-visual.yml'
