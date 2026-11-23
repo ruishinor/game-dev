@@ -19,7 +19,7 @@ import { sanitizeGoods } from '../../shared/goods.js';
 import { sanitizeCredits } from './wallet.js';
 import { sanitizeCondition } from '../../shared/condition.js';
 import {vendorState,tickVendor} from './vendor.js';
-import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, inSafeZone, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt } from '../../shared/world.js';
+import { WORLD, OBJECTS, MOVE_HZ, MOVE_DT, RUN_SPEED, dist, hasLineOfSight, stepMove, resolveCollisions, inSanctum, inSafeZone, PLAYER_RADIUS, RIFT_ANNEX, inRiftAnnex, inDisconnectedRegion, sameTravelRegion, travelRegionAt, reachPortalApproach } from '../../shared/world.js';
 import { tickEnemy, resetEnemy } from './ai.js';
 import {
   tickCompanion, companionRoster, canCommissionSpindle, restoreCompanion,
@@ -328,7 +328,7 @@ export class Game {
     // Phase Scar -> Severance Expanse (gate approach) -> Severance Gate -> Annex.
     // The Annex arrival gate returns travellers to the foot of the Severance Gate.
     const destination = entering ? (this.severance ? pocketArrival() : { x: RIFT_ANNEX.x, z: RIFT_ANNEX.arrivalZ, yaw: Math.PI })
-      : this.severance ? {...gateFront(),yaw:0} : { x: this.rift.entry.x, z: this.rift.entry.z - 3.6, yaw: Math.atan2(-this.rift.entry.x,-this.rift.entry.z) };
+      : this.severance ? {...gateFront(),yaw:0} : reachPortalApproach(this.rift.entry);
     this.transferPlayer(p, destination);
     this.message(p,'info',entering?(this.severance?'Severance Expanse. Three routes cross the plain to the Severance Gate in the north: the Causeway of Sentinels, the Severed Pass and the Amber Flats. The Expedition Outpost east of the arrival is safe ground. The return rift beside the arrival terrace returns to the Reach.':'Phase Annex: Arrival Gallery. Cross the Relay Workshop to reach the Null Chamber. Return through the arrival gate outside combat.'):(this.severance?'You emerge before the Severance Gate.':'You returned to the Reach.'));
     return {ok:true};
