@@ -21,7 +21,9 @@ test('confirmed ranged target takes priority over stale selection; invalid targe
   assert.deepEqual([actual.x,actual.y,actual.z],[15,1,2]);
   assert.notEqual(actual,eventTarget);
   assert.equal(calls,0);
-  assert.deepEqual(confirmedWeaponAim(vec(Infinity,0,0),previous,forward),previous);
+  const recovered=confirmedWeaponAim(vec(Infinity,0,0),previous,forward);
+  assert.deepEqual([recovered.x,recovered.y,recovered.z],[previous.x,previous.y,previous.z]);
+  assert.notEqual(recovered,previous,'also clone cached aim to avoid snapshot mutation');
   assert.equal(calls,0);
   assert.equal(confirmedWeaponAim(null,null,forward),fallback);
   assert.equal(calls,1);
