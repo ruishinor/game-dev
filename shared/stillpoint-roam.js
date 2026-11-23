@@ -25,3 +25,21 @@ export function stillpointPose(seconds){
  // Authored GLB faces +Z. Tangent is (-sin(a), cos(a)).
  return {x:CX+R*Math.cos(a),z:CZ+R*Math.sin(a),yaw:Math.atan2(-Math.sin(a),Math.cos(a)),speed,clip};
 }
+
+// Two civilian camp followers wander short independent loops, keeping clear of
+// the outpost's physical shelter structures and the Expedition security posts.
+// Deterministic scene animation only; never a client-side gameplay authority.
+import { EXPEDITION_OUTPOST as OP } from './severance-gate.js';
+export function outpostStillpointPose(index,seconds){
+ const site=OP.stillpointFollowers[index];
+ if(!site)return stillpointPose(seconds);
+ const t=(Number.isFinite(seconds)?seconds:0)*0.28+index*2.9;
+ const radius=.46;
+ return {
+  x:site.x+Math.cos(t)*radius,
+  z:site.z+Math.sin(t)*radius,
+  yaw:-t,
+  speed:.13,
+  clip:(Math.floor(t*1.8)%7===0?'WeightShift':'Walk'),
+ };
+}
