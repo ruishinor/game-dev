@@ -2414,6 +2414,8 @@ window.__attune = {
     const ent = S.ents.get(id);
     return ent ? toScreen(ent.chest) : null;
   },
+  /** Reset only the opt-in profiler window; session-wide diagnostics remain intact. */
+  beginRenderWindow() { return renderProbe.beginWindow(); },
   /** Stop or resume drawing (the game keeps running). Lets a capture script render one client at a time. */
   pause(on) {
     S.paused = !!on;
