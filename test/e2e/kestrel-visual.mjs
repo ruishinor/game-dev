@@ -48,10 +48,14 @@ try {
       if(node.isMesh){meshes++;if(node.isInstancedMesh)instanced++;}
       if(node.name.startsWith('kestrel:glb:')){glb++;names.push(node.name);}
     });
+    const regulator=root?.getObjectByName('kestrel:pressure-regulator-gallery');
+    const regulatorInlets=regulator?.children.filter(n=>n.name==='kestrel:regulator-pressure-inlet').length||0;
+    const regulatorReturns=regulator?.children.filter(n=>n.name==='kestrel:regulator-roof-relief').length||0;
+    const regulatorBatches=regulator?.children.filter(n=>n.isInstancedMesh).length||0;
     const floor=root?.getObjectByName('kestrel:machined-floor-tiles');
     const light=root?.getObjectByName('kestrel:pressure-glow');
     const opening=scene.getObjectByName('kestrel:architecture');
-    return {meshes,glb,instanced,kitNames:names,
+    return {meshes,glb,instanced,kitNames:names,regulatorInlets,regulatorReturns,regulatorBatches,
       floorTiles:floor?.count||0,lightIntensity:light?.intensity,
       hasRoof:!!opening?.getObjectByName('kestrel:roof'),active:root?.visible};
   });
@@ -60,6 +64,9 @@ try {
   assert.ok(evidence.instanced>=7,'Architecture must use batched geometry');
   assert.ok(evidence.floorTiles>=45);
   assert.ok(evidence.hasRoof,'Preserve the existing roof');
+  assert.equal(evidence.regulatorInlets,2,'Both vessel feed connections must render');
+  assert.equal(evidence.regulatorReturns,2,'Both pressure-relief pipes must render');
+  assert.equal(evidence.regulatorBatches,10,'Regulator components must remain instanced');
   assert.ok(evidence.kitNames.includes('kestrel:glb:Prop_Computer'));
   assert.ok(evidence.kitNames.includes('kestrel:glb:Prop_Vent_Big'));
   assert.ok(Number.isFinite(evidence.lightIntensity));

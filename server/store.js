@@ -50,9 +50,9 @@ export function validName(name) {
 /** Coerce a loaded record into a valid character, or return null. */
 function sanitize(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  if (typeof raw.id !== 'string') return null;
+  if (typeof raw.id !== 'string' || !raw.id) return null;
   const accountId = typeof raw.accountId === 'string' ? raw.accountId : null;
-  if (!accountId && typeof raw.tokenHash !== 'string') return null;
+  if (!accountId && (typeof raw.tokenHash !== 'string' || !/^[0-9a-f]{64}$/.test(raw.tokenHash))) return null;
   if (!validName(raw.name) || !Object.hasOwn(CLASSES, raw.cls)) return null;
   const int = (v, lo, hi, d) => (Number.isInteger(v) && v >= lo && v <= hi ? v : d);
   const level = int(raw.level, 1, MAX_LEVEL, 1);
@@ -158,7 +158,14 @@ export class CharacterStore {
     try {
       text = fs.readFileSync(this.file, 'utf8');
     } catch (err) {
-      if (err.code === 'ENOENT') return;
+      if (err.code === 'ENOENT') {
+        // A vanished primary with a retained backup is not a new world.
+        // Starting empty would overwrite the recoverable state on the next flush.
+        if (fs.existsSync(`${this.file}.bak`)) {
+          throw new Error('Character store missing while a backup exists: recovery is required before starting the server');
+        }
+        return;
+      }
       throw err;
     }
     let data;
@@ -172,26 +179,41 @@ export class CharacterStore {
     // A syntactically valid but structurally unusable document is not an
     // empty new world. Retain existing legacy saves with a characters array.
     if (!data || typeof data !== 'object' || Array.isArray(data) ||
+        (data.version !== undefined && ![1, 2].includes(data.version)) ||
         (!Array.isArray(data.characters) && !Array.isArray(data.accounts)) ||
         (data.characters !== undefined && !Array.isArray(data.characters)) ||
         (data.accounts !== undefined && !Array.isArray(data.accounts))) {
       throw new Error('Character store has an invalid structure: recovery is required before starting the server');
     }
     for (const a of Array.isArray(data?.accounts) ? data.accounts : []) {
-      if (!a || typeof a.id !== 'string' || typeof a.handle !== 'string' || !HANDLE_RE.test(a.handle)) continue;
-      if (typeof a.salt !== 'string' || !/^[0-9a-f]{32}$/.test(a.salt)) continue;
-      if (typeof a.passwordHash !== 'string' || !/^[0-9a-f]{128}$/.test(a.passwordHash)) continue;
-      if (this.accounts.has(a.id) || this.byHandle.has(a.handle.toLowerCase())) continue;
+      if (!a || typeof a.id !== 'string' || !a.id || typeof a.handle !== 'string' || !HANDLE_RE.test(a.handle) ||
+          typeof a.salt !== 'string' || !/^[0-9a-f]{32}$/.test(a.salt) ||
+          typeof a.passwordHash !== 'string' || !/^[0-9a-f]{128}$/.test(a.passwordHash) ||
+          this.accounts.has(a.id) || this.byHandle.has(a.handle.toLowerCase())) {
+        throw new Error('Character store contains an invalid or duplicate account: recovery is required before starting the server');
+      }
       const account = {
         id: a.id, handle: a.handle, salt: a.salt, passwordHash: a.passwordHash,
         sessions: Array.isArray(a.sessions) ? [...new Set(a.sessions.filter((t) => typeof t === 'string' && /^[0-9a-f]{64}$/.test(t)))].slice(-MAX_ACCOUNT_SESSIONS) : [],
       };
+      if (account.sessions.some((digest) => this.byAccountToken.has(digest))) {
+        throw new Error('Character store contains a duplicate account session: recovery is required before starting the server');
+      }
       this.indexAccount(account);
     }
     for (const raw of Array.isArray(data?.characters) ? data.characters : []) {
-      const c = sanitize(raw);
-      if (c?.accountId && !this.accounts.has(c.accountId)) continue;
-      if (c && !this.chars.has(c.id) && !this.byName.has(c.name.toLowerCase())) this.index(c);
+      let c;
+      try {
+        c = sanitize(raw);
+      } catch (cause) {
+        throw new Error('Character store contains an unreadable character: recovery is required before starting the server', { cause });
+      }
+      if (!c || (c.accountId && !this.accounts.has(c.accountId)) ||
+          this.chars.has(c.id) || this.byName.has(c.name.toLowerCase()) ||
+          (c.tokenHash && this.byToken.has(c.tokenHash))) {
+        throw new Error('Character store contains an invalid, orphaned or duplicate character: recovery is required before starting the server');
+      }
+      this.index(c);
     }
   }
 
