@@ -306,7 +306,8 @@ export function ensureLumenfenFidelityGLB(id){
        if(previous.version===FEN_FIDELITY_VERSION&&previous.archiveSha256===expected
          &&previous.models?.length===SPEC.donors.length
          &&SPEC.donors.every(item=>previous.models.some(x=>x.id===item.id&&
-           x.bytes>1024&&fs.statSync(path.join(OUTPUT,x.file)).size===x.bytes))){
+           x.bytes>1024&&fs.statSync(path.join(OUTPUT,x.file)).size===x.bytes
+           &&hash(fs.readFileSync(path.join(OUTPUT,x.file)))===x.sha256))){
           cached=new Map(previous.models.map(x=>[x.id,path.join(OUTPUT,x.file)]));
        }
      }catch{/* missing or partial cache: revalidate from archive and rebuild */}
