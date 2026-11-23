@@ -40,9 +40,13 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
     box(group,wall,annex.hw*2+.55,ANNEX_SHELL_HEIGHT-4.5,.55,
       0,(ANNEX_SHELL_HEIGHT+4.5)/2,z,'annex:upper-endwall');
   }
-  // Headers span *over* the existing six-metre offset walk-throughs.
-  // Nothing new occupies their movement or sightline clearance below y=4.5.
+  // The shared authoritative partitions end at 4.5m. Fill the *upper*
+  // half of each inter-room wall to the roof; otherwise all three chambers
+  // remain visually open to each other above the apparently short bulkheads.
+  // The two offset passages remain open for their full 4.5m clearance.
   for(const [z,gap] of [[12,6],[-9,-6]]){
+    box(group,wall,annex.hw*2+.55,ANNEX_SHELL_HEIGHT-4.5,.72,
+      0,(ANNEX_SHELL_HEIGHT+4.5)/2,z,'annex:upper-partition');
     box(group,rib,6.8,.45,.9,gap,4.62,z,'annex:door-header');
     for(const dx of [-3.05,3.05])
       box(group,ceramic,.18,.65,.92,gap+dx,4.94,z,'annex:door-upper-jamb');
