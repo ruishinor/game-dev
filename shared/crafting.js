@@ -28,6 +28,9 @@ export const MATERIALS={
   culture_matrix:{name:'Culture matrix',desc:'A stabilized living scaffold for restorative signal transfer.',source:'Research fabrication'},
 };
 export const RECIPES={
+  fen_culture_ampoules:{name:'Culture Fen Restoratives',discipline:'Research',blueprint:'blueprint_fen_culture_ampoule',inputs:{fen_lantern_membrane:2,rootglass_fibre:1},output:{goods:'field_restorative',count:2}},
+  tidal_service_cassettes:{name:'Fabricate Tidal Service Kits',discipline:'Engineering',blueprint:'blueprint_tidal_service_cassette',inputs:{bog_chitin:2,rootglass_fibre:1},output:{goods:'field_maintenance_kit',count:2}},
+  monsoon_culture_ampoules:{name:'Concentrate Monsoon Fen Restoratives',discipline:'Research',blueprint:'blueprint_fen_culture_ampoule',inputs:{fen_lantern_membrane:1,monsoon_silt:1},output:{goods:'field_restorative',count:2}},
   field_emitter:{name:'Assemble field pulse emitter',discipline:'Engineering',inputs:{mire_fibre:1,sentinel_alloy:1},output:{item:'field_emitter'}},
   // Independent component graph for the Patrol sidearm and Relay Arc Carbine.
   machine_pulse_housing:{name:'Fabricate field housing',discipline:'Engineering',inputs:{sentinel_alloy:2},output:{material:'pulse_housing',count:1}},
