@@ -36,6 +36,18 @@ export function alignWardenWrist(hand,finger,desired,maxRadians=.28){
   residualDeg:THREE.MathUtils.radToDeg(Math.max(0,radians-applied))};
 }
 
+// If an idle clip does not key a hand joint, the previous wrist correction
+// would otherwise become next frame's baseline and accumulate past the cap.
+// Restore the source pose only when the mixer has left our prior result intact;
+// preserve any fresh animated rotation written by the mixer.
+export function restoreWardenWristIfUnanimated(hand,authored,corrected){
+ if(!hand||!authored||!corrected)return false;
+ if(hand.quaternion.angleTo(corrected)>1e-4)return false;
+ hand.quaternion.copy(authored);
+ hand.updateWorldMatrix(false,true);
+ return true;
+}
+
 const STEEL=new THREE.MeshStandardMaterial({color:0x21282e,roughness:0.36,metalness:0.82});
 const CERAMIC=new THREE.MeshStandardMaterial({color:0x363e43,roughness:0.53,metalness:0.53});
 const RUBBER=new THREE.MeshStandardMaterial({color:0x111719,roughness:0.81,metalness:0.06});
@@ -193,6 +205,7 @@ export function createWardenRifle(assets,inst,variant,optic){
  const fingers=arms.map(a=>a.hand.children.find(b=>b.isBone&&/^middle_/.test(b.name)));
  let last={mode:'unfitted',gripError:null,supportError:null,failures:0,recoveries:0,candidate:null};
  let failures=0,recoveries=0,wasReady=false,lastCandidate=0;
+ let lastAuthoredWrists=[null,null],lastCorrectedWrists=[null,null];
  let warned=false;
  return {
   id,group:root,material:made.sightMaterial,
@@ -202,6 +215,11 @@ export function createWardenRifle(assets,inst,variant,optic){
    made.sightMaterial.emissiveIntensity=.32+.14*(.5+.5*Math.sin(time*2.1+variant*1.5));
    // The authoritative guard watch animation has already updated this frame.
    // Work on these animated joints; do not change combat state or NPC facing.
+   inst.updateMatrixWorld(true);
+   for(let side=0;side<2;side++){
+    restoreWardenWristIfUnanimated(arms[side].hand,
+     lastAuthoredWrists[side],lastCorrectedWrists[side]);
+   }
    inst.updateMatrixWorld(true);
    const midpoint=local(arms[0].upper).add(local(arms[1].upper)).multiplyScalar(.5);
    const saved=arms.flatMap(a=>[a.upper,a.lower].map(b=>[b,b.quaternion.clone()]));
@@ -244,12 +262,15 @@ export function createWardenRifle(assets,inst,variant,optic){
      // unarmed watch clip. Align the knuckle direction toward a trigger grip
      // and underside support, without changing either contact anchor.
      const rifleWorld=made.group.getWorldQuaternion(new THREE.Quaternion());
+     const authoredWrists=arms.map(a=>a.hand.quaternion.clone());
      const wrist=[
       alignWardenWrist(arms[0].hand,fingers[0],
        new THREE.Vector3(rightSign*.12,-.95,.24).applyQuaternion(rifleWorld)),
       alignWardenWrist(arms[1].hand,fingers[1],
        new THREE.Vector3(-rightSign*.10,-.80,.47).applyQuaternion(rifleWorld)),
      ];
+     lastAuthoredWrists=authoredWrists;
+     lastCorrectedWrists=arms.map(a=>a.hand.quaternion.clone());
      const elbowFlare=arms.map(a=>{
       const shoulder=local(a.upper),elbow=local(a.lower);
       return Math.abs(elbow.x-shoulder.x);
@@ -267,6 +288,7 @@ export function createWardenRifle(assets,inst,variant,optic){
    }
    // Fail visibly in the diagnostic, not as a rifle hovering across the legs.
    restore();
+   lastAuthoredWrists=[null,null];lastCorrectedWrists=[null,null];
    root.visible=false;wasReady=false;failures++;
    last={mode:'unfitted',gripError:null,supportError:null,rifle:id,failures,recoveries,candidate:null};
    if(!warned){warned=true;console.warn('[wardens] rifle grips cannot reach both Halo hands: '+id+' variant='+variant);}
