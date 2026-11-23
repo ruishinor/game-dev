@@ -68,7 +68,8 @@ test('packaged runtime uses staged assets and rejects forged Host and WebSocket 
     const host = '127.0.0.1:' + server.port;
     assert.equal(await request(server.port, host), 200);
     assert.equal(await request(server.port, 'attacker.example'), 403);
-    assert.equal(await socketResult(server.port, 'https://attacker.example'), 403);
+    // ws synchronous verifyClient rejection is HTTP 401 by default.
+    assert.equal(await socketResult(server.port, 'https://attacker.example'), 401);
     assert.equal(await socketResult(server.port, 'http://' + host), 'open');
 
     const assetResponse = await fetch('http://' + host + '/client/assets/phase_scar.glb');
