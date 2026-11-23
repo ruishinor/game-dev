@@ -204,14 +204,31 @@ try {
         def.key+' must retain a valid posed skeleton');
       report.watchSamples.push({key:def.key,seconds:sampleIndex*2.5,...sample});
       if(sampleIndex===2||sampleIndex===4){
-        const count=await page.evaluate(software=>{
-          const n=window.__attune.state().drawn;
-          if(software)window.__attune.pause(false);
-          return n;
-        },SOFTWARE_GL);
-        await page.waitForFunction(n=>window.__attune.state().drawn>n,count);
-        if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
-        await page.screenshot({path:`${OUT}/${def.key}-watch-${sampleIndex*2.5}s.png`});
+        // Render the *live* skinned guard at two different animation times
+        // from near enough to inspect shoulder plates, elbows and wrist/glove
+        // overlap. Ordinary gameplay frames are already saved above.
+        const view=sampleIndex===2?'front':'side';
+        await page.evaluate(({x,z,side})=>{
+          const api=window.__attune,{scene,camera,renderer}=api.gfx;
+          api.pause(true);
+          let parent=null,point=null,best=Infinity;
+          scene.traverse(o=>{
+            if(o.name!=='halo_construct:guard')return;
+            const at=o.getWorldPosition(camera.position.clone());
+            const distance=Math.hypot(at.x-x,at.z-z);
+            if(distance<best){best=distance;parent=o;point=at;}
+          });
+          if(!parent||best>.5)throw Error('Cannot find live Warden watch model for capture');
+          const guard=api.state().ents.find(e=>e.c==='sanctum_guard'&&Math.hypot(e.x-x,e.z-z)<.05);
+          if(!guard)throw Error('Cannot find authoritative guard at capture time');
+          const angle=guard.halo.yaw+(side?Math.PI/2:0);
+          camera.position.set(point.x+1.9*Math.sin(angle),point.y+1.35,point.z+1.9*Math.cos(angle));
+          camera.lookAt(point.x,point.y+.95,point.z);
+          camera.updateMatrixWorld(true);
+          for(let node=parent;node&&node!==scene;node=node.parent)node.visible=true;
+          renderer.render(scene,camera);
+        },{x:def.x,z:def.z,side:sampleIndex===4});
+        await page.screenshot({path:`${OUT}/${def.key}-watch-${sampleIndex*2.5}s-${view}.png`});
       }
     }
   }
