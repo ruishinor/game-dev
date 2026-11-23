@@ -62,8 +62,18 @@ test('Lumenfen creature silhouette uses biological geometry and supports animati
   assert.equal(stalker.group.children.filter(o=>o.name==='lumenfen:stalker:leg').length,6);
   assert.equal(stalker.group.children.filter(o=>o.name==='lumenfen:stalker:keratin-frill').length,7);
   assert.ok(stalker.group.getObjectByName('lumenfen:stalker:splayed-foot'));
+  assert.equal(stalker.group.children.filter(o=>o.name==='lumenfen:stalker:leg').length,6);
+  const hinges=stalker.group.children.filter(o=>o.name==='lumenfen:stalker:leg');
+  assert.ok(hinges.every(h=>h.getObjectByName('lumenfen:stalker:knee-membrane')));
+  assert.equal(stalker.group.getObjectByName('lumenfen:stalker:tail-vane')?.isMesh,true);
   lantern.update(.016,{t:2});
   stalker.update(.016,{t:2,speed:3,attack:true});
+  const during=hinges.map(h=>h.rotation.x);
+  assert.ok(during.some(x=>x>.04)&&during.some(x=>x<-.04),
+    'the two opposing leg tripods must alternate rather than slide together');
+  stalker.update(.016,{t:2,speed:0,attack:false});
+  assert.ok(hinges.every(h=>Math.abs(h.rotation.x)<1e-8),
+    'idle gait resets to a neutral pose without accumulating rotation');
   assert.ok(Number.isFinite(mantle.rotation.y));
   lantern.dispose();stalker.dispose();
 });
