@@ -14,6 +14,7 @@ const CEILING = 15;
 const FOG = { color: 0x161b20, near: 24, far: 150 };
 export const FOUNDRY_VISIBILITY = Object.freeze({
   ambientInside:1.1, guideWidth:.09, guideOpacity:.60, guideDraws:1,
+  thresholdOpacity:.52, thresholdDraws:1,
   maxLocalLights:FOUNDRY_LIMITS.lights,
 });
 
@@ -248,6 +249,31 @@ export function buildSilentFoundry(T, scene, o = {}) {
   if(routeGuides.instanceColor)routeGuides.instanceColor.needsUpdate=true;
   group.add(routeGuides);
 
+  // Low, non-pulsing threshold markings distinguish chamber transitions
+  // without competing with orange hostile telegraphs. These sit on the
+  // walkable floor and introduce no collisions, lights or new materials maps.
+  const thresholdVs = [52, 0, -52];
+  const thresholdMat = M(new T.MeshBasicMaterial({
+    color: 0xffffff, toneMapped: false, transparent: true,
+    opacity: FOUNDRY_VISIBILITY.thresholdOpacity, depthWrite: false,
+  }));
+  const thresholds = new T.InstancedMesh(
+    new T.BoxGeometry(F.door * 1.7, .025, .18), thresholdMat, thresholdVs.length,
+  );
+  thresholds.name = 'foundry:door-thresholds';
+  thresholds.castShadow = false;
+  thresholds.receiveShadow = false;
+  for (let i = 0; i < thresholdVs.length; i++) {
+    const v = thresholdVs[i];
+    guideDummy.position.set(F.x, yAt(0, v) + .065, F.z + v);
+    guideDummy.updateMatrix();
+    thresholds.setMatrixAt(i, guideDummy.matrix);
+    thresholds.setColorAt(i, guideColor.setHex(guideColors[i + 1]));
+  }
+  thresholds.instanceMatrix.needsUpdate = true;
+  if (thresholds.instanceColor) thresholds.instanceColor.needsUpdate = true;
+  group.add(thresholds);
+
   // ---- entering / leaving: lighting, fog and the sky are restored on exit
   let saved = null;
   function enter() {
@@ -356,7 +382,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
       });
     },
     get kitStatus() { return kitState.status; },
-    stats() { return { inside: !!saved, lights: lights.length, guideInstances:routeGuides.count, guideDraws:1, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
+    stats() { return { inside: !!saved, lights: lights.length, guideInstances:routeGuides.count, guideDraws:1, thresholdInstances:thresholds.count, thresholdDraws:1, fields: fields.filter((f) => f.mesh.visible).length, kit: kitState.status, instances: kitState.instances, draws: kitState.draws }; },
     dispose() {
       kitState.status = 'disposed';
       if (saved) leave();
