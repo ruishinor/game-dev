@@ -17,6 +17,7 @@ test('Brineworks GLB tabletop mounts and detailed gauges remain decorative',asyn
   await b.ready;
   assert.deepEqual(paths.sort(),BRINEWORKS_MODULES.map(s=>'/client/art-assets/'+s.file).sort());
   assert.deepEqual(b.stats().modules,{research:'ready',engineering:'ready'});
+  assert.deepEqual(b.stats().sources,{research:'remeshed',engineering:'remeshed'});
   assert.equal(b.stats().gauges,2);
   assert.ok(b.stats().detailMeshes>25);
   for(const s of BRINEWORKS_MODULES){
@@ -34,7 +35,11 @@ test('Brineworks GLB tabletop mounts and detailed gauges remain decorative',asyn
   }
   for(const s of BRINEWORKS_GAUGES)assert.ok(b.group.getObjectByName('brineworks:gauge:'+s.id));
   assert.ok(b.group.children.every(obj=>!obj.userData?.collider));
-  b.update(.016,17);
+  const bursts=[];b.attachVfx({burst:request=>bursts.push(request)});
+  b.update(.016,17,{x:43,z:-36});b.update(.016,17.4,{x:43,z:-36});
+  assert.equal(bursts.length,1,'VFX rate-limited near the workstation');
+  b.update(.016,20,{x:43,z:-36});assert.equal(bursts.length,2);
+  b.update(.016,24,{x:143,z:136});assert.equal(bursts.length,2,'VFX culled at range');
   b.dispose();b.dispose();assert.equal(b.group.parent,null);
 });
 test('Brineworks keeps base stations if tabletop GLBs are missing',async()=>{
@@ -48,5 +53,20 @@ test('reduced-detail preference introduces no GLB download or decorative meshes'
   const b=buildBrineworksDetail(THREE,{loadAsync:()=>{throw Error('should not be requested')}},()=>0,{enabled:false});
   await b.ready;assert.equal(b.stats().detailMeshes,0);
   assert.deepEqual(b.stats().modules,{});
+  b.dispose();
+});
+
+test('refined model load failure retains original GLB rather than only procedural fallback',async()=>{
+  const attempts=[];
+  const loader={loadAsync:async url=>{
+    attempts.push(url);
+    if(url.endsWith('_refined.glb'))throw Error('refined unavailable');
+    const scene=new THREE.Group();scene.add(new THREE.Mesh(new THREE.BoxGeometry(.5,.4,.3),new THREE.MeshStandardMaterial()));
+    return {scene};
+  }};
+  const b=buildBrineworksDetail(THREE,loader,()=>0);await b.ready;
+  assert.equal(attempts.length,4);
+  assert.deepEqual(b.stats().modules,{research:'ready',engineering:'ready'});
+  assert.deepEqual(b.stats().sources,{research:'original-fallback',engineering:'original-fallback'});
   b.dispose();
 });

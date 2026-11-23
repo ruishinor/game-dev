@@ -1621,6 +1621,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
       const p=stillpoint.group.position;
       return {ok:true,x:p.x,y:p.y,z:p.z};
     },
+    attachBrineworksFx(engine){brineworksDetail.attachVfx(engine);},
     attachReachFx(engine) {
       relayFx?.dispose();
       relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;
@@ -1633,7 +1634,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       kestrelVisual.update(dt, t, focus);
-      brineworksDetail.update(dt,t);
+      brineworksDetail.update(dt,t,focus);
       annexInterior.update(view?.eye??focus);
       relayFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);

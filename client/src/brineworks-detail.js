@@ -1,8 +1,8 @@
 // Brineworks visual enrichment. No simulated world props or collision changes.
 // The two tabletop GLBs are already shipped, unlike raw ZIP building blocks.
 export const BRINEWORKS_MODULES=Object.freeze([
-  Object.freeze({id:'research',file:'research_tabletop_module.glb',x:38,z:-39,w:1.7,d:.92,h:.54}),
-  Object.freeze({id:'engineering',file:'engineering_tabletop_module.glb',x:49,z:-39,w:1.65,d:.92,h:.55})
+  Object.freeze({id:'research',file:'research_tabletop_module_refined.glb',fallbackFile:'research_tabletop_module.glb',x:38,z:-39,w:1.7,d:.92,h:.54}),
+  Object.freeze({id:'engineering',file:'engineering_tabletop_module_refined.glb',fallbackFile:'engineering_tabletop_module.glb',x:49,z:-39,w:1.65,d:.92,h:.55})
 ]);
 export const BRINEWORKS_GAUGES=Object.freeze([
   Object.freeze({id:'pressure',x:43,z:-37.58,y:1.95}),
@@ -11,7 +11,8 @@ export const BRINEWORKS_GAUGES=Object.freeze([
 export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotion=()=>false}={}){
  const group=new T.Group();group.name='brineworks:detail';
  const ownedGeometry=[],ownedMaterials=[],donors=[],needles=[],fluids=[];
- const status={modules:{},gauges:0,detailMeshes:0};
+ const status={modules:{},sources:{},triangles:{},gauges:0,detailMeshes:0};
+ let vfxEngine=null,nextVfxAt=-Infinity;
  let disposed=false;
  function material(color,roughness,metalness,clearcoat=0){
    const m=new T.MeshPhysicalMaterial({color,roughness,metalness,clearcoat,clearcoatRoughness:.24});
@@ -82,7 +83,13 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
  for(const s of enabled?BRINEWORKS_MODULES:[]){
    status.modules[s.id]='loading';
    if(!loader?.loadAsync){status.modules[s.id]='fallback';continue;}
-   pending.push(Promise.resolve().then(()=>loader.loadAsync('/client/art-assets/'+s.file)).then(gltf=>{
+   pending.push(Promise.resolve().then(async()=>{
+     try {return {gltf:await loader.loadAsync('/client/art-assets/'+s.file),source:'remeshed'};}
+     catch(refinedError){
+       console.warn('[brineworks] '+s.id+' refined GLB unavailable; using original:',refinedError.message||refinedError);
+       return {gltf:await loader.loadAsync('/client/art-assets/'+s.fallbackFile),source:'original-fallback'};
+     }
+   }).then(({gltf,source})=>{
      if(disposed)return;
      const root=gltf?.scene;if(!root)throw Error('Missing model scene');
      root.updateMatrixWorld(true);
@@ -97,13 +104,16 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
            color:old?.color?.clone()??new T.Color(0xb0b3a8),
            map:old?.map??null,normalMap:old?.normalMap??null,
            roughnessMap:old?.roughnessMap??null,metalnessMap:old?.metalnessMap??null,
+           aoMap:old?.aoMap??null,aoMapIntensity:old?.aoMapIntensity??1,
+           normalScale:old?.normalScale?.clone?.()??new T.Vector2(1,1),
            emissiveMap:old?.emissiveMap??null,
            emissive:old?.emissive?.clone()??new T.Color(0),
            emissiveIntensity:Math.min(1,old?.emissiveIntensity??1),
-           roughness:Math.min(.81,Math.max(.34,old?.roughness??.65)),
-           metalness:Math.min(.62,Math.max(.1,old?.metalness??.28)),
-           clearcoat:.15,clearcoatRoughness:.27,
-           side:old?.side??T.FrontSide,transparent:!!old?.transparent,opacity:old?.opacity??1
+           roughness:Math.min(.94,Math.max(.2,old?.roughness??.65)),
+           metalness:Math.min(.96,Math.max(.03,old?.metalness??.28)),
+           clearcoat:old?.clearcoat??.14,clearcoatRoughness:old?.clearcoatRoughness??.24,
+           side:old?.side??T.FrontSide,transparent:!!old?.transparent,opacity:old?.opacity??1,
+           alphaTest:old?.alphaTest??0,depthWrite:old?.depthWrite??true
          });
          ownedMaterials.push(out);return out;
        };
@@ -118,6 +128,10 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
      holder.position.set(s.x,height(s.x,s.z)+1.12,s.z-.04);
      holder.add(fitted);group.add(holder);donors.push(root);
      status.modules[s.id]='ready';
+     status.sources[s.id]=source;
+     let triangles=0;
+     root.traverse(obj=>{if(obj.isMesh){const geom=obj.geometry;triangles+=(geom.index?.count??geom.attributes.position?.count??0)/3;}});
+     status.triangles[s.id]=triangles;
    }).catch(err=>{
      status.modules[s.id]='fallback';
      console.warn('[brineworks] '+s.id+' tabletop donor failed; preserving station: '+(err.message||err));
@@ -125,13 +139,23 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
  }
  return {
    group,ready:Promise.all(pending),
-   stats:()=>({...status,modules:{...status.modules}}),
-   update(dt,t){
+   stats:()=>({...status,modules:{...status.modules},sources:{...status.sources},triangles:{...status.triangles}}),
+   attachVfx(engine){vfxEngine=engine;},
+   update(dt,t,focus){
      if(disposed||!enabled)return;
      const calm=!!reducedMotion?.();
      for(let i=0;i<needles.length;i++)needles[i].rotation.z=calm?0:Math.sin(t*.75+i)*.28;
      signal.emissiveIntensity=calm?.48:.59+.12*Math.sin(t*1.15);
      for(let i=0;i<fluids.length;i++)fluids[i].scale.y=calm?1:.9+.1*Math.sin(t*.82+i);
+     // Local condensation/microdroplets: budgeted by the shared VFX engine,
+     // distance-capped, low-frequency, and suppressed by reduced-motion preferences.
+     if(vfxEngine?.burst&&!calm&&Number.isFinite(t)&&focus&&
+        Math.hypot(focus.x-43,focus.z+36)<24&&t>=nextVfxAt){
+       nextVfxAt=t+2.6;
+       vfxEngine.burst({at:[43,height(43,-37.58)+2.10,-37.58],shape:'sphere',radius:.12,
+         count:5,color:0x9bc8bc,color2:0xd6e3d7,blend:'alpha',
+         speed:[.045,.19],dir:[0,1,0],spread:1.2,life:[.6,1.15],size:[.018,.048]});
+     }
    },
    dispose(){
      if(disposed)return;
