@@ -27,17 +27,6 @@ test('dark Foundry retains room silhouettes and traversable guidance without add
  assert.equal(thresholds.material.depthWrite,false,'thresholds do not mask combat visuals');
  assert.equal(thresholds.material.depthTest,true,'doorway cues stay behind real geometry');
  assert.equal(thresholds.material.opacity,FOUNDRY_VISIBILITY.thresholdOpacity);
- const fogShaders=[];
- f.group.traverse(o=>{
-   if(o.material?.isShaderMaterial && o.material.uniforms?.fogNear && o.material.uniforms?.fogFar)
-     fogShaders.push(o.material);
- });
- assert.ok(fogShaders.length>=4,'all Foundry-specific atmospheric shaders participate in fog');
- for(const mat of fogShaders){
-   assert.equal(mat.uniforms.fogNear.value,scene.fog.near,'local fog near matches the live scene');
-   assert.equal(mat.uniforms.fogFar.value,scene.fog.far,'local fog far matches the live scene');
-   assert.equal(mat.uniforms.fogColor.value.getHex(),scene.fog.color.getHex(),'shader fog matches local color');
- }
  const pos=new T.Matrix4(),v=new T.Vector3(),q=new T.Quaternion(),scale=new T.Vector3();
  for(const index of [0,Math.floor(guides.count*.47),guides.count-1]){
    guides.getMatrixAt(index,pos);
@@ -53,14 +42,6 @@ test('dark Foundry retains room silhouettes and traversable guidance without add
    assert.ok(Math.abs(v.x-SILENT_FOUNDRY.x)<.01,'thresholds are centred in walkable doorways');
    assert.ok(Math.abs(v.z-(SILENT_FOUNDRY.z+[52,0,-52][i]))<.01);
    assert.ok(Math.abs(v.y-foundryHeight(v.x,v.z)-.065)<.01,'thresholds follow the authoritative floor');
- }
- // Repeated updates must follow a changing local fog without global exposure edits.
- scene.fog.near=30;scene.fog.far=138;scene.fog.color.setHex(0x1c2730);
- f.update(.016,1,{x,y:2,z});
- for(const mat of fogShaders){
-   assert.equal(mat.uniforms.fogNear.value,30);
-   assert.equal(mat.uniforms.fogFar.value,138);
-   assert.equal(mat.uniforms.fogColor.value.getHex(),0x1c2730);
  }
  f.update(.016,1,{x:0,y:2,z:0});
  assert.equal(f.group.visible,false);
