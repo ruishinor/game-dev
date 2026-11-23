@@ -14,9 +14,11 @@ test('carbine and marksman signals are different, bounded and strictly rifle-loc
    assert.ok(fx.group.name.includes(id==='carbine'?'Carbine':'Marksman'));
    const p=fx.group.geometry.getAttribute('position');
    for(let i=0;i<p.count;i++){
-     assert.ok(Math.abs(p.getX(i))<.10,'conduits lie within existing rail');
-     assert.ok(p.getZ(i)<L*.35,'not a muzzle flash or muzzle-mounted ring');
-     assert.ok(p.getZ(i)>-L*.25);
+     assert.ok(Math.abs(p.getX(i))<.065,'conduits lie within the 0.13m-wide top rail');
+     if(fx.group.geometry.getAttribute('aLane').getX(i)===0)
+       assert.ok(Math.abs(p.getX(i))>.0475,'power conduits clear the 0.095m-wide optic housing');
+     assert.ok(p.getZ(i)<=L*.24,'conduits stop at the actual rail end, not a floating muzzle ornament');
+     assert.ok(p.getZ(i)>-L*.20,'conduits start inside the actual rail');
    }
    fx.update(.2,{effectsQuality:2,cameraDistance:4});
    assert.equal(fx.group.material.uniforms.uMotion.value,1);
