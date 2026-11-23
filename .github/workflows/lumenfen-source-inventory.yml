@@ -72,6 +72,8 @@ jobs:
           python tools/assets/lumenfen-remesh.py \
             .asset-cache/pipeline/lumenfen/outputs/lumenfen-donor-composite.glb \
             .asset-cache/pipeline/lumenfen/remeshed
+      - name: Build two geometry LODs per refined donor and validate their GLB exports
+        run: node tools/assets/lumenfen-remesh-lods.mjs .asset-cache/pipeline/lumenfen/remeshed
       - name: Render front and side evidence from exported GLBs (Cycles CPU)
         run: |
           python tools/assets/lumenfen-remesh-evidence.py .asset-cache/pipeline/lumenfen/remeshed
