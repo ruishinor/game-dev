@@ -140,14 +140,20 @@ try {
       await page.evaluate(() => window.__attune.view({ face: Math.PI, yaw: Math.PI, pitch: 0.22, dist: 7 }));
       await page.waitForTimeout(1200);
       const at = k === 'overseer_press_slam' ? { x: boss.x + 2, z: boss.z + 6 } : { x: boss.x, z: boss.z };
-      // Capture the authoritative hostile-warning event separately from the
-      // subsequent combat effect: readable impact art alone is not evidence
-      // that the player can see a telegraph in time to react.
-      game.emitWorldEvent({ e: 'tele', id: boss.id, k, n: k, x: at.x, z: at.z, r, ms: 2400, g: 0 });
+      // Reproduce the actual server-owned warning, including windup time and
+      // target/self/all ground-marker semantics. Previous review screenshots
+      // incorrectly forced g=0 for every special, hiding the marked ground.
+      const special = boss.specials?.find((sp) => sp.id === k);
+      if (!special || special.radius !== r) throw Error('Foundry Overseer special mismatch: ' + k);
+      const warning = { e: 'tele', id: boss.id, k, n: special.name,
+        x: at.x, z: at.z, r: special.radius, ms: special.windup,
+        g: special.at === 'all' ? 0 : 1 };
+      game.emitWorldEvent(warning);
       await page.waitForTimeout(480);
       const warningFile = path.join(out, `25-${k}-telegraph.png`);
       await page.screenshot({ path: warningFile });
-      log.push({ name: `25-${k}-telegraph`, file: warningFile, radius: r, windupMs: 2400 });
+      log.push({ name: `25-${k}-telegraph`, file: warningFile,
+        radius: special.radius, windupMs: special.windup, groundMarker: !!warning.g });
       game.emitWorldEvent({ e: 'fx', k, s: boss.id, x: at.x, z: at.z, r });
       await page.waitForTimeout(settle);
       const file = path.join(out, `25-${k}.png`);
