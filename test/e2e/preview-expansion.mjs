@@ -141,7 +141,12 @@ try {
   }
   await moveTo(45, -5);
   await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.46,dist:14,face:0}));
-  assert.ok(await page.evaluate(()=>window.__attune.gfx.scene.getObjectByName('relay:structural-mast')?.children.length===5));
+  // The localized relay fault is a sixth, cabinet-owned child; retain the
+  // five structural parts while asserting the new VFX is fitted locally.
+  assert.ok(await page.evaluate(()=>{
+    const mast=window.__attune.gfx.scene.getObjectByName('relay:structural-mast');
+    return mast?.children.length===6 && !!mast.getObjectByName('relay:local-fault');
+  }));
   await capture('preview-evidence/01b-relay-mast.png');
   assert.ok(!p.dead,'Relay art capture must finish with a living player');
   assert.ok(relayGuards.every(guard=>!guard.threat.has(p.id)),'Relay art staging unexpectedly drew guard aggro');
