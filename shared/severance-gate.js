@@ -234,6 +234,10 @@ export const EXPEDITION_OUTPOST = Object.freeze({
   shelter: Object.freeze({ x: SHX, z: SHZ, yaw: -Math.PI / 2, front: -6.4, rear: 6.9, sledFront: -8.6, sledRear: 8.0, hw: 4.6, height: 3.86 }),
   // Two supplementary open field shelters extend the existing operations
   // shelter; they use real corner-post colliders but keep the approach open.
+  stillpointFollowers:Object.freeze([
+    Object.freeze({x:O.x-2.5,z:O.z+13,r:1.25,h:1.9}),
+    Object.freeze({x:O.x-13,z:O.z-1.5,r:1.25,h:1.9}),
+  ]),
   auxiliaryShelters: Object.freeze([
     Object.freeze({key:'north',x:O.x-7,z:O.z+11,w:4.8,d:3.8,height:2.9,yaw:-Math.PI/2}),
     Object.freeze({key:'west',x:O.x-12,z:O.z-6,w:4.6,d:3.7,height:2.7,yaw:-Math.PI/2}),
