@@ -196,6 +196,9 @@ export class CharacterStore {
         id: a.id, handle: a.handle, salt: a.salt, passwordHash: a.passwordHash,
         sessions: Array.isArray(a.sessions) ? [...new Set(a.sessions.filter((t) => typeof t === 'string' && /^[0-9a-f]{64}$/.test(t)))].slice(-MAX_ACCOUNT_SESSIONS) : [],
       };
+      if (account.sessions.some((digest) => this.byAccountToken.has(digest))) {
+        throw new Error('Character store contains a duplicate account session: recovery is required before starting the server');
+      }
       this.indexAccount(account);
     }
     for (const raw of Array.isArray(data?.characters) ? data.characters : []) {
