@@ -1,6 +1,6 @@
 // Separate server-authoritative region access and encounters.
 import {LUMENFEN,inLumenfen} from '../../shared/lumenfen.js';
-import {travelRegionAt,hasLineOfSight,dist,resolveCollisions} from '../../shared/world.js';
+import {travelRegionAt,hasLineOfSight,dist,resolveCollisions,reachPortalApproach} from '../../shared/world.js';
 import {ENEMIES} from '../../shared/content.js';
 import {resetEnemy} from './ai.js';
 import {regionEntryDenial,ELITE} from './enemy-levels.js';
@@ -42,7 +42,7 @@ export function travelLumenfen(game,p,obj){
    if(obj.type==='lumenfen_return'){
      const entry=game.objects.find(o=>o.type==='lumenfen_entry');
      if(!entry)return deny('The return anchor is missing.');
-     to={x:entry.x,z:entry.z-3.7,yaw:Math.atan2(-entry.x,-entry.z)};
+     to=reachPortalApproach(entry,3.7);
    }else if(obj.type==='lumenfen_spring')to={...P.crownLanding,yaw:0};
    else to={...P.springLanding,yaw:Math.PI};
  }
