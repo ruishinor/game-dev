@@ -183,3 +183,22 @@ export function buildOutpostTraining(T, { ground, loader } = {}) {
     },
   };
 }
+
+// F-key routing while standing on the marked line: other nearby outpost
+// services may physically be closer than a target, but target practice is
+// unambiguous here. Pure presentation choice; the server revalidates intent.
+export function nearestPracticeTarget(entities, selfId, you, range = 5) {
+  const self = entities.get(selfId);
+  if (!self || self.dead || !Number.isFinite(you?.x) || !Number.isFinite(you?.z) || !(range > 0)) return null;
+  if (you.x < R.line.x - 1.6 || you.x > R.line.x + .15 ||
+      Math.abs(you.z - R.line.z) > 2.15) return null;
+  let closest = null, best = range;
+  for (const ent of entities.values()) {
+    if (ent.meta?.c !== 'outpost_range_target' || ent.meta.k !== 'o') continue;
+    const row = ent.row;
+    if (!Number.isFinite(row?.x) || !Number.isFinite(row?.z)) continue;
+    const d = Math.hypot(row.x - you.x, row.z - you.z);
+    if (d < best || (d === best && (!closest || ent.id < closest.id))) { closest = ent; best = d; }
+  }
+  return closest;
+}

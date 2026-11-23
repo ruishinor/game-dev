@@ -7,7 +7,7 @@ import { OUTPOST_TRAINING as R, EXPEDITION_OUTPOST as OP, OUTPOST_COLLIDERS } fr
 import { inSafeZone, hasLineOfSight } from '../shared/world.js';
 import { RANGE_SHOTS, RANGE_COOLDOWN_MS } from '../server/sim/outpost-training.js';
 import { createExpeditionOutpost } from '../client/src/severance-outpost.js';
-import { makeRangeTarget, makeRangeConsole, makeArmoryAnchor } from '../client/src/outpost-training.js';
+import { makeRangeTarget, makeRangeConsole, makeArmoryAnchor, nearestPracticeTarget } from '../client/src/outpost-training.js';
 
 function setup() {
   const g = makeGame(), p = g.addPlayer(makeChar('vanguard', { credits: 12 }));
@@ -94,4 +94,16 @@ test('armory and range models retain interactive geometry and bounded rendering 
   assert.deepEqual(op.stats().training.lanes, R.lanes.length);
   assert.equal(op.stats().training.lights, 0);
   op.dispose();
+});
+
+test('F-key on the marked firing line prioritizes practice targets over closer services', () => {
+  const centre = { x: R.line.x - .7, z: R.line.z };
+  const self = { id: 1, dead: false };
+  const consoleObj = { id: 2, meta: { k: 'o', c: 'outpost_range_console' }, row: { ...R.console } };
+  const targets = R.lanes.map((lane, i) => ({ id: i + 3, meta: { k: 'o', c: 'outpost_range_target' }, row: { ...lane } }));
+  const entities = new Map([self, consoleObj, ...targets].map(e => [e.id, e]));
+  assert.equal(nearestPracticeTarget(entities, 1, centre)?.id, 3);
+  assert.equal(nearestPracticeTarget(entities, 1, { ...R.console }), null, 'away from firing line F uses the normal interaction chooser');
+  self.dead = true;
+  assert.equal(nearestPracticeTarget(entities, 1, centre), null);
 });

@@ -44,6 +44,7 @@ import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
 import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { nearestInteractable } from './interact-target.js';
+import { nearestPracticeTarget } from './outpost-training.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 import {createCreationPreview} from './creation-preview.js';
@@ -1662,7 +1663,7 @@ function pick(x, y, kinds, allowLoot=false) {
 }
 
 function nearestObject() {
-  return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
+  return nearestPracticeTarget(S.ents,S.myId,S.you,INTERACT_RANGE) || nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
 function nextEnemy(reverse = false) {
