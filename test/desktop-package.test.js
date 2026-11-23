@@ -76,6 +76,11 @@ test('packaged runtime uses staged assets and rejects forged Host and WebSocket 
     assert.equal(assetResponse.status, 200);
     assert.equal(assetResponse.headers.get('content-type'), 'model/gltf-binary');
     await assetResponse.arrayBuffer();
+
+    const sourceResponse = await fetch('http://' + host + '/assets/source-archives/glb-low-poly-models-building-blocks.zip');
+    assert.equal(sourceResponse.status, 404);
+    const pipelineResponse = await fetch('http://' + host + '/tools/asset-pipeline/assets/phase_scar/outputs/phase_scar.glb');
+    assert.equal(pipelineResponse.status, 404);
   } finally {
     if (server) await server.close();
     delete process.env.ATTUNEMENT_DESKTOP_RUNTIME_DIR;
