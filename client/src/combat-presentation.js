@@ -40,3 +40,23 @@ export function strikeMotion(age, duration) {
     recovery: smooth(0.52, 0.75, t) * (1 - smooth(0.78, 1, t)),
   };
 }
+
+
+// A dedicated rod overlay, independent of the authoritative strike outcome.
+// Joined rod uses a larger lever and a left-hand counterbrace; split batons
+// emphasize alternating hands. Deliberate attacks start in anticipation;
+// confirmed auto attacks enter at release, avoiding a second phantom windup.
+export function rodChoreography(stance, age, duration, dual=false) {
+  const {anticipation:a,release:r,recovery:f}=strikeMotion(age,duration);
+  const left=stance==='left',reverse=left||stance==='backhand'||stance==='right'||stance==='counter';
+  const overhead=stance==='overhead'||stance==='heavy';
+  const sign=reverse?-1:1, leverage=dual?.72:1;
+  return {
+    torsoYaw:sign*leverage*(-.21*a+(overhead?.32:.51)*r+.07*f),
+    torsoPitch:overhead?(-.13*a+.20*r-.06*f):(-.055*a+.08*r-.02*f),
+    rightShoulder:sign*leverage*(-.24*a+(left?.13:.45)*r-.10*f),
+    leftShoulder:-sign*(dual?(left?.48:.27):.30)*(-.18*a+.68*r-.14*f),
+    rightWrist:sign*leverage*(-.15*a+(overhead?.30:.23)*r-.07*f),
+    leftWrist:dual?-sign*(-.08*a+.19*r-.04*f):0,
+  };
+}
