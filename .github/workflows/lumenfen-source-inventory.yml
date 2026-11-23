@@ -25,6 +25,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Check Blender authoring script syntax before expensive mesh jobs
+        run: python3 -m py_compile tools/assets/lumenfen-remesh.py tools/assets/lumenfen-remesh-evidence.py
       - name: Verify 138 production-pipeline donor GLBs and report geometry
         run: python3 tools/assets/lumenfen-source-inventory.py
       - name: Stage eight selected cross-genre donors in the pipeline workspace
