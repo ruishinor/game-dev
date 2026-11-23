@@ -12,7 +12,7 @@ import {dealDamage} from '../server/sim/combat.js';
 import {lootState,openLoot,takeLoot} from '../server/sim/loot.js';
 import {moonAboveFen,buildLumenfenMoonMirrors} from '../client/src/lumenfen-moon-mirrors.js';
 import {buildLumenfenWorld} from '../client/src/lumenfen-world.js';
-import {buildFenMonsoonBloom,createFenMonsoonFx} from '../client/src/lumenfen-monsoon.js';
+import {buildFenMonsoonBloom,buildFenMonsoonFlood,createFenMonsoonFx} from '../client/src/lumenfen-monsoon.js';
 import {emitFenLootFx,FEN_LOOT_VFX_IDS} from '../client/src/lumenfen-loot-fx.js';
 import {validateLumenfenLootDonors} from '../tools/assets/lumenfen-loot-donors-check.mjs';
 import {FEN_POOLS,LUMENFEN} from '../shared/lumenfen.js';
@@ -151,6 +151,8 @@ test('Lumenfen world keeps graphics and gameplay separate during climate updates
   const x=LUMENFEN.x,z=LUMENFEN.z;
   world.update(.016,1,{x,z,y:2});
   assert.ok(world.stats().monsoon.visible);
+  assert.ok(world.stats().floodplain.visible);
+  assert.equal(world.stats().floodplain.bankSheets,FEN_POOLS.length);
   world.update(.016,1,{x:0,z:0,y:2});
   assert.equal(world.group.visible,false);
   world.dispose();
@@ -176,4 +178,16 @@ test('every loot and blueprint has verified owner-archive node mapping',()=>{
  assert.equal(provenance.lootItems,FEN_LOOT_VFX_IDS.length);
  assert.ok(provenance.distinctDonors>=6);
  assert.ok(provenance.donorNodesReferenced>=12);
+});
+
+test('monsoon expands real shallow bank surfaces without new terrain collision',()=>{
+ const group=new T.Group(),flood=buildFenMonsoonFlood(T,group);
+ assert.equal(flood.stats().bankSheets,FEN_POOLS.length);
+ assert.ok(flood.group.children.every(m=>m.geometry.attributes.position.count>250));
+ assert.ok(flood.group.children.every(m=>m.geometry.index.count>1000));
+ flood.update({flood:.85,wind:.72});
+ assert.equal(flood.stats().visible,true);
+ flood.update({flood:0,wind:0});
+ assert.equal(flood.stats().visible,false);
+ flood.dispose();assert.equal(flood.group.parent,null);
 });
