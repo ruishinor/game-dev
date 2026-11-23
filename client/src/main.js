@@ -27,6 +27,7 @@ import { SPINDLE_LIGHT, activeSpindleLights } from './spindle-light.js';
 import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
+import { CombatAudio } from './combat-audio.js';
 import { LiveAegis } from './live-aegis.js';
 import { LiveCasts } from './live-casts.js';
 import { createVfx } from './vfx/engine.js';
@@ -210,6 +211,12 @@ const cam = new ThirdPersonCamera(camera);
 // ?nolock=1 keeps the cursor free while steering (fallback for setups where
 // pointer lock misbehaves, and for automated input).
 const input = new Input(canvas, { lock: params.get('nolock') !== '1' });
+// Web Audio starts only on a genuine user gesture. Sound is optional and
+// derived from replicated server events, never from speculative local attacks.
+const combatAudio = new CombatAudio();
+const unlockCombatAudio = () => combatAudio.unlock();
+window.addEventListener('pointerdown', unlockCombatAudio, {passive:true});
+window.addEventListener('keydown', unlockCombatAudio);
 
 const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.02, 40), new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
 ring.rotation.x = -Math.PI / 2;
@@ -437,6 +444,7 @@ const ui = new UI({
   switchWeapon: () => switchWeapon(),
   cycleRodConfig: () => cycleRodConfig(),
   alarmAudio:()=>kestrelAlarm.enabled,setAlarmAudio:value=>kestrelAlarm.setEnabled(value),
+   combatAudio:()=>combatAudio.enabled,setCombatAudio:value=>combatAudio.setEnabled(value),
   portrait: portraits,
   terrainForAtlas:region=>captureStaticAtlas(renderer,scene,atlasStaticRoots,region,{lowSpec:params.get('q')==='0'}),
   bindings,
@@ -1014,6 +1022,7 @@ function clearWorld() {
   for (const ent of [...S.ents.values()]) removeEntity(ent);
   liveAegis.clear();
   liveCasts.clear();
+  combatAudio.stop();
   vfx?.clear();
   svfx?.clear();
   fx.clearFauna();
@@ -1175,6 +1184,8 @@ function onEvent(e) {
       if(s){s.attack=1;s.meleeStartAt=now;
         if(d){s.faceTo=d.id;s.faceUntil=now+900;}
         s.model.trigger?.('melee',e.style,null,e.ms);
+        s.model.rodWindup?.(e.style,e.ms);
+        combatAudio.playEvent(e,s,S.ents.get(S.myId),document.hidden);
       }
       break;
     }
@@ -1199,6 +1210,7 @@ function onEvent(e) {
       // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
       // do not multiply weapon discharges; existing ability effects and damage are unchanged.
       const rodImpact = ['auto','rending_arc','melee_light','melee_heavy'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
+      combatAudio.playEvent(e,s,S.ents.get(S.myId),document.hidden);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
