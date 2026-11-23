@@ -1,3 +1,4 @@
+import { makeRangeTarget, makeRangeConsole, makeArmoryAnchor } from './outpost-training.js';
 // Procedural, original character models and their animation.
 // Each factory returns {group, height, radius, hover, update(dt, st)} where
 // `st` carries presentation state: speed, t, dead, attack, cast, hit, air…
@@ -905,6 +906,9 @@ export const MODEL_FACTORIES = {
   quartermaster: makeArchivist,
   expedition_quartermaster: makeArchivist,
   outpost_crew: makeArchivist,
+  outpost_range_console: () => makeRangeConsole(THREE),
+  outpost_range_target: () => makeRangeTarget(THREE),
+  outpost_armory: () => makeArmoryAnchor(THREE),
   sanctum_guard: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
   initiation_terminal:()=>({group:new THREE.Group(),height:1.45,radius:.55,hover:0,update(){}}),

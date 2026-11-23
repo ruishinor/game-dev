@@ -1,0 +1,77 @@
+name: Outpost firing range and armory source pack
+
+on:
+  pull_request:
+    paths:
+      - 'tools/assets/outpost-archive-selection.mjs'
+      - 'tools/assets/outpost-refine-pack.mjs'
+      - 'tools/assets/outpost-remesh-validate.mjs'
+      - 'tools/asset-pipeline/asset_pipeline/blender/outpost_range_donors.py'
+      - 'test/outpost-archive-selection.test.js'
+      - 'client/src/outpost-training.js'
+      - 'client/src/severance-outpost.js'
+      - 'assets/source-archives/glb-low-poly-models-building-blocks.zip'
+      - '.github/workflows/outpost-training-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Select and stage relevant original GLB donors
+        run: node tools/assets/outpost-archive-selection.mjs --stage > outpost-source-candidates.json
+      - name: Check pack provenance, geometry, coverage and print donor list
+        run: |
+          node --input-type=module -e "
+          import fs from 'node:fs';
+          const d=JSON.parse(fs.readFileSync('outpost-source-candidates.json','utf8'));
+          if(!d.staged || d.selected!==d.findings.length ||
+             d.findings.some(x=>!x.bytes || !x.sha256 || !x.staged))process.exit(1);
+          console.log('SELECTED SOURCE GLBs',JSON.stringify(d.findings.map(x=>({path:x.path,groups:x.groups,triangles:x.triangles,materials:x.materials}))));
+          "
+      - name: Build refined working GLBs and validate source integrity
+        run: node tools/assets/outpost-refine-pack.mjs outpost-source-candidates.json
+      - name: Install Blender for real geometry reconstruction
+        run: |
+          python3 -m py_compile tools/asset-pipeline/asset_pipeline/blender/outpost_range_donors.py
+          sudo apt-get -o Acquire::Retries=3 update -qq
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends python3-numpy
+          if ! command -v blender >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends blender
+          fi
+          blender --version
+          # The distro Blender glTF importer requires NumPy; verify it inside
+          # Blender's interpreter, not only in the runner's system Python.
+          blender --background --factory-startup --python-expr "import numpy; print('Blender NumPy:', numpy.__version__)"
+      - name: Rebuild donor mesh bevels, edge normals and GLB geometry
+        run: |
+          blender --background --factory-startup --threads 2 --python tools/asset-pipeline/asset_pipeline/blender/outpost_range_donors.py -- tools/asset-pipeline/.asset-cache/pipeline/outpost-training-refined/refinement-report.json tools/asset-pipeline/.asset-cache/pipeline/outpost-training-remeshed
+      - name: Validate rebuilt GLBs and source provenance
+        run: node tools/assets/outpost-remesh-validate.mjs
+      - name: Validate archive and range source-selection tests
+        run: node --test test/outpost-archive-selection.test.js test/outpost-training.test.js test/outpost-refine-pack.test.js
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4.6.2
+        if: always()
+        with:
+          name: severance-outpost-range-weapon-source-donors
+          path: |
+            outpost-source-candidates.json
+            tools/asset-pipeline/.asset-cache/pipeline/outpost-training-source/*.glb
+            tools/asset-pipeline/.asset-cache/pipeline/outpost-training-refined/*.glb
+            tools/asset-pipeline/.asset-cache/pipeline/outpost-training-refined/refinement-report.json
+            tools/asset-pipeline/.asset-cache/pipeline/outpost-training-remeshed/*.glb
+            tools/asset-pipeline/.asset-cache/pipeline/outpost-training-remeshed/*.json
+          if-no-files-found: error
+          retention-days: 14
