@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The runner's preinstalled Python 3 is enough: the tests do not need Blender (bpy) or pycolmap.
       - run: python3 -m venv .venv && .venv/bin/pip install --quiet -r tools/asset-pipeline/requirements-test.txt
+      - name: Compile the complete Python asset pipeline before unit tests
+        run: .venv/bin/python -m compileall -q tools/asset-pipeline/asset_pipeline
       - name: Ensure FFmpeg and FFprobe are available
         timeout-minutes: 25
         run: |
