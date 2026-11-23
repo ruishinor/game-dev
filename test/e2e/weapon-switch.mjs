@@ -60,6 +60,8 @@ try{
  assert.equal(await switchBtn.locator('.key').innerText(),'Z');assert.equal(await configBtn.locator('.key').innerText(),'G');
 
  // 2. Ownership fixture, then equip both through the regular loadout UI.
+ // A reconnect can briefly clear the projected sheet. Wait for the complete
+ // server-owned equipment state instead of throwing on an intermediate null.
  p.char.inventory.push('electrical_combat_rod','field_emitter');server.game.markDirty(p);
  await until(()=>window.__attune.state().sheet.inventory.includes('field_emitter'));
  await view.focus();await page.keyboard.press('KeyC');
@@ -69,9 +71,9 @@ try{
  await loadout.getByRole('button',{name:'Ranged: Empty',exact:true}).waitFor();
  await loadout.getByRole('button',{name:'Weapon: Empty',exact:true}).waitFor();
  await loadout.locator('.compact-item').filter({hasText:'Electrical Combat Rod'}).getByRole('button',{name:'Equip',exact:true}).click();
- await until(()=>window.__attune.state().sheet.equipped.weapon==='electrical_combat_rod');
+ await until(()=>window.__attune.state().sheet?.equipped?.weapon==='electrical_combat_rod');
  await loadout.locator('.compact-item').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Equip',exact:true}).click();
- await until(()=>window.__attune.state().sheet.equipped.ranged==='field_emitter');
+ await until(()=>window.__attune.state().sheet?.equipped?.ranged==='field_emitter');
  await loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true}).waitFor();
  await loadout.getByRole('button',{name:'Ranged: Field Pulse Emitter',exact:true}).waitFor();
  assert.deepEqual({weapon:p.char.equipped.weapon,ranged:p.char.equipped.ranged},{weapon:'electrical_combat_rod',ranged:'field_emitter'});
