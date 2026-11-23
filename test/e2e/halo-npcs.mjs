@@ -229,6 +229,9 @@ try {
           renderer.render(scene,camera);
         },{x:def.x,z:def.z,side:sampleIndex===4});
         await page.screenshot({path:`${OUT}/${def.key}-watch-${sampleIndex*2.5}s-${view}.png`});
+        // Real-GPU acceptance runs must resume continuous rendering after
+        // the close inspection frame; only SwiftShader stays paused.
+        if(!SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
       }
     }
   }
