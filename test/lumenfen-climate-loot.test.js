@@ -111,7 +111,8 @@ test('mirror activation requires moon above the marsh, still water and a nearby 
     water.name='lumenfen:mirrorpool';parent.add(water);
   }
   const m=buildLumenfenMoonMirrors(T,parent,{detail:2,textureSize:256});
-  assert.equal(m.stats().poolMirrors,FEN_POOLS.length);
+  assert.equal(m.stats().poolMirrors,1,'only one planar render target is allocated');
+  assert.equal(m.stats().eligiblePools,FEN_POOLS.length);
   const near=FEN_POOLS[0];
   m.update({x:near.x,z:near.z},.5,{rain:0});
   assert.equal(m.stats().activeMirror,0);
