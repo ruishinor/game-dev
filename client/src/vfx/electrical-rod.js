@@ -23,7 +23,7 @@ export const ROD_VFX=Object.freeze({
 export function createElectricalRodVfx(rod,vfx){
  // Class colourway carried by the rod model (cobalt by default).
  const C=rod.palette??DEFAULT_ROD_PALETTE;
- let cooldown=0,contactCooldown=0,transformCooldown=0,drawCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true,sequence=null;
+ let cooldown=0,contactCooldown=0,transformCooldown=0,drawCooldown=0,swingCooldown=0,energy=0,previous=rod.progress,closed=false,visible=true,sequence=null;
  let combat=false,residual=0,residualClock=0,flicker=1;
  const handles=new Set(),idleLayers=new Set();
  const remember=h=>{if(!h)return;for(const old of handles)if(old.done||old.age>=old.life)handles.delete(old);
@@ -121,6 +121,18 @@ export function createElectricalRodVfx(rod,vfx){
   // Joined only: a full-length discharge across the seam.
   if(layered&&long)arc(0,'Mid',1,'Mid',{width:.05,life:.6,alpha:.98,branches:1,jag:.24});
  }
+ // Accepted deliberate melee windup: a restrained tip-following wake. It has
+ // no hit spark, destination beam or area marker; those require confirmed dmg.
+ function swing(style,ms){
+  if(!rich()||swingCooldown>0)return false;
+  swingCooldown=.16;
+  const i=style==='2'||style==='left'||style==='backhand'?1:0;
+  const life=Math.min(.62,Math.max(.2,(Number(ms)||220)/1000));
+  remember(vfx.trail?.({follow:at(i,'Tip'),length:.18,life:life+.16,fade:.20,
+   width:joined()?.105:.075,color:C.blue,color2:C.ice,alpha:.57,style:0}));
+  pulse(.35);
+  return true;
+ }
  function contactDischarge(p,{ground=null,blocked=false}={}){
   if(!enabled()||!finite(p)||contactCooldown>0)return false;
   contactCooldown=ROD_VFX.contactCooldown;strikeWake();
@@ -156,12 +168,12 @@ export function createElectricalRodVfx(rod,vfx){
  }
  function stop(){clearIdle();sequence?.cancel();sequence=null;for(const h of handles)h.done=true;handles.clear();energy=0;residual=0;}
  return {
-  charge:chargeSurge,impact:contactDischarge,draw,
+  charge:chargeSurge,impact:contactDischarge,draw,swing,
   update(dt,{energized=true,activity=0,combat:inCombat=false}={}){
    if(closed||!Number.isFinite(dt)||dt<0)return;
    const step=Math.min(dt,.1);
    combat=!!inCombat;
-   cooldown=Math.max(0,cooldown-step);contactCooldown=Math.max(0,contactCooldown-step);transformCooldown=Math.max(0,transformCooldown-step);drawCooldown=Math.max(0,drawCooldown-step);
+   cooldown=Math.max(0,cooldown-step);contactCooldown=Math.max(0,contactCooldown-step);transformCooldown=Math.max(0,transformCooldown-step);drawCooldown=Math.max(0,drawCooldown-step);swingCooldown=Math.max(0,swingCooldown-step);
    const moving=Math.abs(rod.progress-previous)>1e-5,locked=previous<.995&&rod.progress>=.995,unlocked=previous>.005&&rod.progress<=.005;
    previous=rod.progress;
    visible=!!energized&&rod.group.visible;
