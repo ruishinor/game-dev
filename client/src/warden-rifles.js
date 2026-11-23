@@ -10,6 +10,32 @@ export const WARDEN_RIFLES=Object.freeze({
  carbine:{file:'sanctum-warden-carbine.glb',length:0.93},
  marksman:{file:'sanctum-warden-marksman.glb',length:1.09},
 });
+// Retain the authored two-bone elbow positions; rotate only the terminal wrist
+// to give the rigid finger/claw silhouettes a believable receiver/foregrip
+// orientation. The bounded rotation cannot change a hand's grip position.
+export function alignWardenWrist(hand,finger,desired,maxRadians=.28){
+ if(!hand||!finger||!desired||desired.lengthSq()<1e-10)
+  return {appliedDeg:0,residualDeg:null};
+ hand.updateWorldMatrix(true,true);
+ const wrist=hand.getWorldPosition(new THREE.Vector3());
+ const current=finger.getWorldPosition(new THREE.Vector3()).sub(wrist);
+ if(current.lengthSq()<1e-10)return {appliedDeg:0,residualDeg:null};
+ current.normalize();
+ const target=desired.clone().normalize();
+ const radians=current.angleTo(target);
+ const applied=Math.min(radians,Math.max(0,Math.min(.28,maxRadians)));
+ if(applied>1e-6){
+  const correction=new THREE.Quaternion().setFromUnitVectors(current,target);
+  const small=new THREE.Quaternion().slerp(correction,applied/radians);
+  const world=hand.getWorldQuaternion(new THREE.Quaternion()).premultiply(small);
+  if(hand.parent)world.premultiply(hand.parent.getWorldQuaternion(new THREE.Quaternion()).invert());
+  hand.quaternion.copy(world);
+  hand.updateWorldMatrix(false,true);
+ }
+ return {appliedDeg:THREE.MathUtils.radToDeg(applied),
+  residualDeg:THREE.MathUtils.radToDeg(Math.max(0,radians-applied))};
+}
+
 const STEEL=new THREE.MeshStandardMaterial({color:0x21282e,roughness:0.36,metalness:0.82});
 const CERAMIC=new THREE.MeshStandardMaterial({color:0x363e43,roughness:0.53,metalness:0.53});
 const RUBBER=new THREE.MeshStandardMaterial({color:0x111719,roughness:0.81,metalness:0.06});
@@ -155,10 +181,16 @@ export function createWardenRifle(assets,inst,variant,optic){
  const rightSign=Math.sign(local(arms[0].upper).x-local(arms[1].upper).x)||-1;
  made.grip.position.x=rightSign*.09;
  made.support.position.x=-rightSign*.065;
- const poleFor=sign=>{
+ // The trigger-side elbow should fall below the shoulder rather than jut
+ // sideways; the support elbow follows the lower fore-end. Both targets are
+ // directions in the animated rig's frame, not absolute world-space poles.
+ const poleFor=(sign,support=false)=>{
   const centre=inst.localToWorld(new THREE.Vector3());
-  return inst.localToWorld(new THREE.Vector3(sign*.8,-.55,-.3)).sub(centre);
+  return inst.localToWorld(new THREE.Vector3(
+   sign*(support?.59:.62),support?-.66:-.73,support?-.02:-.18
+  )).sub(centre);
  };
+ const fingers=arms.map(a=>a.hand.children.find(b=>b.isBone&&/^middle_/.test(b.name)));
  let last={mode:'unfitted',gripError:null,supportError:null,failures:0,recoveries:0,candidate:null};
  let failures=0,recoveries=0,wasReady=false,lastCandidate=0;
  let warned=false;
@@ -199,14 +231,30 @@ export function createWardenRifle(assets,inst,variant,optic){
     inst.updateMatrixWorld(true);
     const g=world(made.grip),s=world(made.support);
     const right=solveArm(THREE,arms[0].upper,arms[0].lower,arms[0].hand,g,poleFor(rightSign));
-    const left=solveArm(THREE,arms[1].upper,arms[1].lower,arms[1].hand,s,poleFor(-rightSign));
+    const left=solveArm(THREE,arms[1].upper,arms[1].lower,arms[1].hand,s,poleFor(-rightSign,true));
     const gripError=right?right.distanceTo(g):Infinity;
     const supportError=left?left.distanceTo(s):Infinity;
     if(gripError<=.035&&supportError<=.035){
+     // The IK solver positions the wrists but leaves them rotated as in the
+     // unarmed watch clip. Align the knuckle direction toward a trigger grip
+     // and underside support, without changing either contact anchor.
+     const rifleWorld=made.group.getWorldQuaternion(new THREE.Quaternion());
+     const wrist=[
+      alignWardenWrist(arms[0].hand,fingers[0],
+       new THREE.Vector3(rightSign*.12,-.95,.24).applyQuaternion(rifleWorld)),
+      alignWardenWrist(arms[1].hand,fingers[1],
+       new THREE.Vector3(-rightSign*.10,-.80,.47).applyQuaternion(rifleWorld)),
+     ];
+     const elbowFlare=arms.map(a=>{
+      const shoulder=local(a.upper),elbow=local(a.lower);
+      return Math.abs(elbow.x-shoulder.x);
+     });
      root.visible=true;
      if(!wasReady&&failures)recoveries++;
      wasReady=true;lastCandidate=i;
-     last={mode:'ready',gripError,supportError,rifle:id,failures,recoveries,candidate:i};
+     last={mode:'ready',gripError,supportError,rifle:id,failures,recoveries,candidate:i,
+      wristAppliedDeg:wrist.map(w=>w.appliedDeg),
+      wristResidualDeg:wrist.map(w=>w.residualDeg),elbowFlare};
      return true;
     }
    }
