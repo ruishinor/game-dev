@@ -1528,6 +1528,10 @@ function onEvent(e) {
     case 'chat':
       ui.chatLine('['+(e.channel==='party'?'Party':'Vicinity')+'] '+e.n,e.m,e.channel==='party'?'party-chat':'chatline');
       break;
+    case 'warden_observe':
+      // A non-combat acknowledgement: the ring briefly recognises the observer.
+      S.ents.get(e.id)?.model.trigger?.('observe');
+      break;
     case 'msg':
       if (e.k === 'err') ui.error(e.m);
       else {
