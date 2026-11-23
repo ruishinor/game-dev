@@ -53,10 +53,11 @@ export function createWardenCombatRod(inst,variant=1){
  // The shared ability-grade corona deliberately exaggerates its strands and
  // emitter sprites for player combat. Neutral sentries retain both powered
  // halves, but locally narrow these display layers so the shaft reads.
- const filaments=[],emitters=[];
+ const filaments=[],emitters=[],outerHalos=[];
  rod.group.traverse(node=>{
   if(/^ElectricalFilament[01]$/.test(node.name))filaments.push(node);
   if(/^RodEmitterGlow[01]$/.test(node.name))emitters.push(node);
+  if(/^RodPlasmaHalo[01]$/.test(node.name))outerHalos.push(node);
  });
  const world=n=>n.getWorldPosition(V());
  const poseTargets=[
@@ -112,8 +113,12 @@ export function createWardenCombatRod(inst,variant=1){
   rod.setEnergy(1,1);
   // Apply after the VFX controller repositions these layers each frame.
   // No shared geometry/material mutation: player effects remain unchanged.
-  for(const node of filaments){node.scale.x*=.74;node.scale.z*=.74;}
-  for(const node of emitters){node.scale.x*=.72;node.scale.y*=.72;}
+  // Idempotent caps: multiplying every frame collapses the filaments to zero.
+  for(const node of filaments){node.scale.x=Math.min(node.scale.x,.74);node.scale.z=Math.min(node.scale.z,.74);}
+  for(const node of emitters){node.scale.x=Math.min(node.scale.x,.24);node.scale.y=Math.min(node.scale.y,.24);}
+  // setEnergy(1,1) correctly keeps full charge, which raises the shared
+  // corona's activity floor to 1. Restrict only the neutral NPC outer halo.
+  for(const node of outerHalos){node.material.opacity=Math.min(node.material.opacity,.065);}
   rod.group.visible=true;
   const measured=world(rod.group.getObjectByName('RodRightGrip'))
    .distanceTo(hand.localToWorld(palm.clone()));
