@@ -4,7 +4,7 @@ import {LUMENFEN,FEN_TREES,FEN_POOLS,fenHeight,inLumenfen} from '../../shared/lu
 import {buildLumenfenSites} from './lumenfen-sites.js';
 import {buildLumenfenEcology} from './lumenfen-ecology.js';
 import {buildLumenfenMoonMirrors,moonAboveFen} from './lumenfen-moon-mirrors.js';
-import {buildFenMonsoonBloom,createFenMonsoonFx} from './lumenfen-monsoon.js';
+import {buildFenMonsoonBloom,buildFenMonsoonFlood,createFenMonsoonFx} from './lumenfen-monsoon.js';
 // The server publishes one integer world-clock phase (0..9999) in player snapshots.
 // This palette is deliberately distinct from the Severance Expanse: tidal haze,
 // legible marsh vegetation, cool lunar fill and bounded low-light bioluminescence.
@@ -41,6 +41,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
  const sites=buildLumenfenSites(T);group.add(sites.group);
  const moonMirrors=buildLumenfenMoonMirrors(T,group,{detail,textureSize:detail>=2?768:512});
  const monsoonBloom=buildFenMonsoonBloom(T,group);
+ const monsoonFlood=buildFenMonsoonFlood(T,group);
  const waterMaterial=group.children.find(o=>o.name==='lumenfen:mirrorpool')?.material;
  const glowLight=new T.PointLight(0x64ba9e,3.0,34,2);glowLight.position.set(P.x+20,7,P.z-22);group.add(glowLight);
  let prior=null,clock=0,climate=null,monsoonFx=null;
@@ -113,7 +114,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
   attachVfx(vfx){monsoonFx?.dispose();monsoonFx=vfx?createFenMonsoonFx(vfx):null;},
   stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:ecology.stats().spores,
     landmarks:sites.stats(),ecology:ecology.stats(),
-    monsoon:monsoonBloom.stats(),mirrors:moonMirrors.stats()}),
+    monsoon:monsoonBloom.stats(),floodplain:monsoonFlood.stats(),mirrors:moonMirrors.stats()}),
   update(dt,t,eye,worldClock=null){
    const inside=active(eye);group.visible=inside;
    if(inside){
@@ -129,6 +130,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
     sites.update(dt,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
     ecology.update(clock,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
     monsoonBloom.update(climate);
+    monsoonFlood.update(climate);
     moonMirrors.update(eye,climate?.phase??(Number.isFinite(worldClock)?worldClock/10000:null),climate);
     const rain=climate?.rain??0;
     soil.roughness=.95-rain*.29;
@@ -141,11 +143,12 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }else if(prior){
     moonMirrors.update(null,null,null);
     monsoonBloom.update(null);
+    monsoonFlood.update(null);
     restore();
    }
   },
   dispose(){
-   restore();monsoonFx?.dispose();moonMirrors.dispose();monsoonBloom.dispose();
+   restore();monsoonFx?.dispose();moonMirrors.dispose();monsoonBloom.dispose();monsoonFlood.dispose();
    sites.dispose();ecology.dispose();
    floor.dispose();soil.dispose();
    group.removeFromParent();
