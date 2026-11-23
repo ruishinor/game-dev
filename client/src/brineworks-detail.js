@@ -4,11 +4,12 @@ export const BRINEWORKS_MODULES=Object.freeze([
   Object.freeze({id:'research',file:'research_tabletop_module_refined.glb',fallbackFile:'research_tabletop_module.glb',x:38,z:-39,w:1.7,d:.92,h:.54}),
   Object.freeze({id:'engineering',file:'engineering_tabletop_module_refined.glb',fallbackFile:'engineering_tabletop_module.glb',x:49,z:-39,w:1.65,d:.92,h:.55})
 ]);
+export const BRINEWORKS_STREAM_RADIUS=42;
 export const BRINEWORKS_GAUGES=Object.freeze([
   Object.freeze({id:'pressure',x:43,z:-37.58,y:1.95}),
   Object.freeze({id:'tower',x:51,z:-30.54,y:2.06})
 ]);
-export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotion=()=>false}={}){
+export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotion=()=>false,streamModels=false}={}){
  const group=new T.Group();group.name='brineworks:detail';
  const ownedGeometry=[],ownedMaterials=[],donors=[],needles=[],fluids=[];
  const status={modules:{},sources:{},triangles:{},gauges:0,detailMeshes:0};
@@ -72,6 +73,7 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
    status.gauges++;
  }
  const pending=[];
+ let streamRequested=false;
  if(enabled){
    for(const s of BRINEWORKS_MODULES)workstation(s);
    for(const s of BRINEWORKS_GAUGES)gauge(s);
@@ -80,7 +82,12 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
    tube(group,[[41.3,py+1.14,-39.5],[41.45,py+1.73,-39.5],[42.2,py+1.77,-39.25]],bronze,.06,'pressure-distribution');
    tube(group,[[52.6,ty+2.71,-32.3],[52.5,ty+1.9,-32.3],[51.95,ty+1.5,-32.3]],steel,.064,'tower-distribution');
  }
- for(const s of enabled?BRINEWORKS_MODULES:[]){
+ // Defer expensive 58k-triangle GLB decoding and upload until the player
+ // approaches Brineworks. Procedural equipment remains visible at distance.
+ function startModuleLoads(){
+   if(streamRequested||disposed||!enabled)return;
+   streamRequested=true;
+   for(const s of BRINEWORKS_MODULES){
    status.modules[s.id]='loading';
    if(!loader?.loadAsync){status.modules[s.id]='fallback';continue;}
    pending.push(Promise.resolve().then(async()=>{
@@ -136,13 +143,18 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
      status.modules[s.id]='fallback';
      console.warn('[brineworks] '+s.id+' tabletop donor failed; preserving station: '+(err.message||err));
    }));
+   }
  }
+ if(streamModels&&enabled)for(const s of BRINEWORKS_MODULES)status.modules[s.id]='dormant';
+ if(!streamModels)startModuleLoads();
  return {
-   group,ready:Promise.all(pending),
+   group,get ready(){return Promise.all(pending);},
    stats:()=>({...status,modules:{...status.modules},sources:{...status.sources},triangles:{...status.triangles}}),
    attachVfx(engine){vfxEngine=engine;},
    update(dt,t,focus){
      if(disposed||!enabled)return;
+     if(streamModels&&!streamRequested&&focus&&Number.isFinite(focus.x)&&Number.isFinite(focus.z)&&
+        Math.hypot(focus.x-44,focus.z+36)<=BRINEWORKS_STREAM_RADIUS)startModuleLoads();
      const calm=!!reducedMotion?.();
      for(let i=0;i<needles.length;i++)needles[i].rotation.z=calm?0:Math.sin(t*.75+i)*.28;
      signal.emissiveIntensity=calm?.48:.59+.12*Math.sin(t*1.15);

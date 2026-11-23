@@ -1566,7 +1566,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
   for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
   scene.add(serviceDeck);
   scene.add(buildSiteMarkings(THREE,deckY).group);
-  const brineworksDetail=buildBrineworksDetail(THREE,assets?.loader,groundHeight,{enabled:detail>=.8,reducedMotion:opts.reducedMotion});
+  const brineworksDetail=buildBrineworksDetail(THREE,assets?.loader,groundHeight,{enabled:detail>=.8,reducedMotion:opts.reducedMotion,streamModels:true});
   scene.add(brineworksDetail.group);
 
   scene.add(buildSinterHabitat(THREE));

@@ -70,3 +70,26 @@ test('refined model load failure retains original GLB rather than only procedura
   assert.deepEqual(b.stats().sources,{research:'original-fallback',engineering:'original-fallback'});
   b.dispose();
 });
+
+test('proximity streaming defers refined GLBs until Brineworks approach',async()=>{
+  const paths=[];
+  const loader={loadAsync:async url=>{
+    paths.push(url);
+    const scene=new THREE.Group();
+    scene.add(new THREE.Mesh(new THREE.BoxGeometry(.5,.35,.25),new THREE.MeshStandardMaterial()));
+    return {scene};
+  }};
+  const b=buildBrineworksDetail(THREE,loader,()=>0,{streamModels:true});
+  assert.deepEqual(b.stats().modules,{research:'dormant',engineering:'dormant'});
+  b.update(.016,1,{x:0,z:0});
+  await b.ready;
+  assert.equal(paths.length,0,'Sanctum startup must not preload remote Brineworks models');
+  b.update(.016,2,{x:44,z:-36});
+  await b.ready;
+  assert.equal(paths.length,2);
+  assert.deepEqual(b.stats().sources,{research:'remeshed',engineering:'remeshed'});
+  b.update(.016,3,{x:44,z:-36});
+  await b.ready;
+  assert.equal(paths.length,2,'streaming should load each model only once');
+  b.dispose();
+});
