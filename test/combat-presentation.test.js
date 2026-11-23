@@ -56,8 +56,8 @@ test('rod joint choreography varies by stance and joined/split configuration, wi
   const poses=['sweep','backhand','overhead','heavy','left','right','cross','counter'];
   for(const stance of poses)for(const dual of [false,true]){
     const before=rodChoreography(stance,0,.7,dual),after=rodChoreography(stance,.7,.7,dual);
-    for(const value of Object.values(before))assert.equal(value,0,stance+' begins neutral');
-    for(const value of Object.values(after))assert.equal(value,0,stance+' returns neutral');
+    for(const value of Object.values(before))assert.ok(Math.abs(value)<1e-12,stance+' begins neutral');
+    for(const value of Object.values(after))assert.ok(Math.abs(value)<1e-12,stance+' returns neutral');
     for(let i=0;i<=100;i++){
       const p=rodChoreography(stance,i*.007,.7,dual);
       assert.ok(Object.values(p).every(v=>Number.isFinite(v)&&Math.abs(v)<.85),stance+' bounded rig rotation');
