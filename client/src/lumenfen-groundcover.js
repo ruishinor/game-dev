@@ -188,6 +188,10 @@ export function buildLumenfenGroundcover(T, parent, {detail=1}={}) {
       const x=cell.x+Math.cos(angle)*rad,z=cell.z+Math.sin(angle)*rad;
       if(Math.abs(x-LUMENFEN.x)>LUMENFEN.hw||
         Math.abs(z-LUMENFEN.z)>LUMENFEN.hd||nearest(PORTALS,x,z)<12)continue;
+      // Satellite lily pads must remain over their parent pool's actual water,
+      // not hover above nearby exposed shore.
+      if(cell.water&&!FEN_POOLS.some(w=>
+        ((x-w.x)/(w.rx*.96))**2+((z-w.z)/(w.rz*.96))**2<1))continue;
       const kind=cell.water?'lily':
         noise(cell.col+i,cell.row,31)>.80?'moss':cell.kind;
       placements.push({...cell,x,z,kind,portal:false,
