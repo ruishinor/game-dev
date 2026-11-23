@@ -46,6 +46,28 @@ export async function verifyLumenfenRemesh(dir) {
     assert.ok([...bounds.min, ...bounds.max].every(Number.isFinite), 'finite exported bounds');
     assert.ok(bounds.max.some((x, i) => x - bounds.min[i] > 0.2));
     assert.ok(document.getRoot().listMaterials().length >= 2, 'surface and detailed PBR materials survive export');
+    assert.equal(asset.lods?.length, 2, 'both geometry LOD levels must be exported');
+    let priorTriangles = tris;
+    for (const [i, lod] of asset.lods.entries()) {
+      assert.equal(lod.level, i + 1);
+      assert.equal(lod.file, asset.id + '_lod' + lod.level + '.glb');
+      const filename = path.join(dir, lod.file);
+      const buffer = fs.readFileSync(filename);
+      assert.equal(buffer.toString('ascii', 0, 4), 'glTF');
+      assert.equal(buffer.length, lod.bytes);
+      assert.ok(lod.bytes > 1000 && lod.bytes < 25_000_000);
+      assert.equal(crypto.createHash('sha256').update(buffer).digest('hex'), lod.sha256);
+      const result = await validator.validateBytes(new Uint8Array(buffer), {maxIssues:40});
+      assert.equal(result.issues.numErrors, 0, 'LOD'+lod.level+' Khronos errors: '+lod.file);
+      const sceneDoc = await readGltf(filename);
+      assert.equal(triangleCount(sceneDoc.getRoot().getDefaultScene()), lod.triangles,
+        'LOD geometry report must match the exported binary');
+      assert.ok(lod.triangles > 0 && lod.triangles < priorTriangles,
+        'LOD levels must reduce geometry, not add or preserve full geometry');
+      assert.ok(sceneDoc.getRoot().listMaterials().length >= 2,
+        'optimized LODs must retain original surface material classes');
+      priorTriangles = lod.triangles;
+    }
     total += tris;
   }
   assert.equal(report.totalTriangles, total);
