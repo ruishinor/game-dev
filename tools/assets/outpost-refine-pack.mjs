@@ -164,8 +164,19 @@ export async function refineDonor(file, outFile, meta, mapBytes) {
     if (!mat.getEmissiveTexture() && finish.family === 'instrument') mat.setEmissiveFactor(finish.emissive);
     families[finish.family] = (families[finish.family] || 0) + 1;
   }
+  // NodeIO has decoded Meshopt-compressed source buffers. Blender's glTF
+  // importer cannot read EXT_meshopt_compression, so export this *authoring*
+  // intermediate uncompressed. Runtime compression belongs to publication.
+  doc.disposeExtension('EXT_meshopt_compression');
   await writeGlb(doc, outFile);
   const bytes = fs.readFileSync(outFile);
+  const jsonLength = bytes.readUInt32LE(12);
+  const exported = JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength));
+  if (exported.extensionsUsed?.includes('EXT_meshopt_compression') ||
+      exported.extensionsRequired?.includes('EXT_meshopt_compression')) {
+    fs.unlinkSync(outFile);
+    throw Error('Blender source GLB still contains unsupported Meshopt compression');
+  }
   const report = await validator.validateBytes(new Uint8Array(bytes), { maxIssues: 20 });
   if (report.issues.numErrors) {
     fs.unlinkSync(outFile);
