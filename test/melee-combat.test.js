@@ -83,3 +83,95 @@ test('guard cannot be combined with immediate ability cast or retained after wea
  assert.equal(damage,20,'ranged mode cannot retain melee guard protection');
  assert.equal(p.hp,hp-20);
 });
+
+
+test('one near-recovery keyboard intent starts on the server clock, not on arrival',()=>{
+ const {g,p,e}=setup();
+ assert.ok(requestMelee(g,p,'light').ok);
+ advance(g,p,220);
+ const hp=e.hp;
+ advance(g,p,310); // 160ms remain of the 690ms recovery.
+ const accepted=requestMelee(g,p,'light');
+ assert.deepEqual(accepted,{ok:true,queued:true});
+ assert.equal(requestMelee(g,p,'light').ok,false,'replayed packets cannot stack');
+ assert.equal(g.events.filter(x=>x.e==='melee_start').length,1);
+ advance(g,p,159);
+ assert.equal(g.events.filter(x=>x.e==='melee_start').length,1);
+ advance(g,p,1);
+ const starts=g.events.filter(x=>x.e==='melee_start');
+ assert.equal(starts.length,2);
+ assert.equal(starts[1].style,'2','server computes combo stage when it starts');
+ assert.equal(e.hp,hp,'buffer acceptance and strike start do not cause damage');
+ advance(g,p,289);
+ assert.equal(e.hp,hp,'windup must finish before contact');
+ advance(g,p,1);
+ assert.ok(e.hp<hp);
+ assert.equal(g.events.filter(x=>x.e==='dmg'&&x.ab==='melee_light').length,2);
+});
+
+test('too-early intents and delayed server ticks never turn into free strikes',()=>{
+ const {g,p}=setup();
+ assert.ok(requestMelee(g,p,'light').ok);
+ advance(g,p,220);
+ advance(g,p,289); // 181ms before ready: outside the buffer.
+ assert.equal(requestMelee(g,p,'light').ok,false);
+ advance(g,p,21); // 160ms before ready: inside the buffer.
+ assert.deepEqual(requestMelee(g,p,'heavy'),{ok:true,queued:true});
+ advance(g,p,281); // 121ms after ready: expired, even if tick was stalled.
+ assert.equal(g.events.filter(x=>x.e==='melee_start').length,1);
+ assert.equal(p.meleeState.buffered,null);
+ assert.ok(requestMelee(g,p,'heavy').ok,'a stale buffer cannot lock combat');
+});
+
+test('buffered attacks recheck target, position, facing and weapon on execution',()=>{
+ for(const invalidate of [
+  (p,e)=>{p.target=0;},
+  (p,e)=>{p.x=e.x+15;},
+  (p,e)=>{p.yaw+=Math.PI;},
+  (p,e)=>{p.char.activeWeapon='ranged';},
+ ]){
+  const {g,p,e}=setup();
+  assert.ok(requestMelee(g,p,'light').ok);
+  advance(g,p,220);
+  advance(g,p,310);
+  assert.equal(requestMelee(g,p,'light').queued,true);
+  const hp=e.hp;
+  invalidate(p,e);
+  advance(g,p,160);
+  assert.equal(g.events.filter(x=>x.e==='melee_start').length,1);
+  advance(g,p,500);
+  assert.equal(e.hp,hp,'queued request never bypasses current legality');
+ }
+});
+
+test('a buffered guard activates only after recovery; auto attacks cannot double-fire',()=>{
+ const {g,p,e}=setup();
+ assert.ok(requestMelee(g,p,'light').ok);
+ advance(g,p,220);
+ advance(g,p,310);
+ p.autoOn=true;
+ const q=requestMelee(g,p,'guard');
+ assert.deepEqual(q,{ok:true,queued:true});
+ assert.equal(p.autoOn,false);
+ const before=p.hp;
+ const immediate=dealDamage(g,e,p,10,'auto',{kind:'melee',melee:true});
+ assert.equal(immediate,10,'guard cannot mitigate before server activation');
+ assert.equal(p.hp,before-10);
+ advance(g,p,160);
+ assert.equal(g.events.filter(x=>x.e==='melee_guard').length,1);
+ const blocked=dealDamage(g,e,p,10,'auto',{kind:'melee',melee:true});
+ assert.ok(blocked<10);
+ assert.equal(g.events.filter(x=>x.e==='melee_deflect').length,1);
+});
+
+test('input time never extends the 1650ms hit-based combo window',()=>{
+ const {g,p}=setup();
+ assert.ok(requestMelee(g,p,'light').ok);
+ advance(g,p,220);
+ advance(g,p,1620); // 30ms before combo expiry, but GCD postpones action.
+ p.gcdUntil=g.time+70;
+ assert.deepEqual(requestMelee(g,p,'light'),{ok:true,queued:true});
+ advance(g,p,70);
+ assert.equal(g.events.filter(x=>x.e==='melee_start').at(-1).style,'1',
+  'the buffer must not timestamp an attack or grant an expired combo stage');
+});
