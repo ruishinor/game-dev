@@ -1,3 +1,5 @@
+import { meleeBusy } from './melee.js';
+
 // Sit / stand emote. Session-only presentation state owned by the server; the
 // client sends the desired posture, never a pose. Any action that implies
 // standing (moving, jumping, attacking, abilities, combat, switching weapons,
@@ -10,6 +12,7 @@ export function setPosture(game, p, sit) {
   if (!sit) { p.sitting = null; return { ok: true }; }
   if (p.dead) return { ok: false, reason: 'You are defeated.' };
   if (combat(game, p)) return { ok: false, reason: "You can't sit down in combat." };
+  if (meleeBusy(game,p)) return { ok: false, reason: 'Finish your current melee action before sitting.' };
   if (p.jy > MOVE_EPSILON) return { ok: false, reason: 'Land before sitting down.' };
   if (p.inscription || p.production) return { ok: false, reason: 'Finish your current work first.' };
   if (p.followId) return { ok: false, reason: 'Stop following first.' };

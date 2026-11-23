@@ -12,9 +12,12 @@ const V = () => new THREE.Vector3();
 const Q = () => new THREE.Quaternion();
 const UP = new THREE.Vector3(0,1,0);
 const GRIP = new THREE.Vector3(0,.13,0);
+// A charged neutral sentry is not attacking. Keep the joined rod at full
+// electrical energy, but avoid an attack-level corona obscuring its silhouette
+// during a ten-second watch loop. This does not change player rod VFX.
 const FULL_POWER = Object.freeze({
-  energized:true, activity:.3, quality:2, intensity:1,
-  reducedMotion:false, calm:false, combat:true,
+  energized:true, activity:0, quality:2, intensity:.72,
+  reducedMotion:false, calm:false, combat:false,
 });
 
 /**
@@ -47,6 +50,15 @@ export function createWardenCombatRod(inst,variant=1){
  rod.setMode('rod');
  rod.update(0,{...FULL_POWER,reducedMotion:true});
  rod.setEnergy(1,1);
+ // The shared ability-grade corona deliberately exaggerates its strands and
+ // emitter sprites for player combat. Neutral sentries retain both powered
+ // halves, but locally narrow these display layers so the shaft reads.
+ const filaments=[],emitters=[],outerHalos=[];
+ rod.group.traverse(node=>{
+  if(/^ElectricalFilament[01]$/.test(node.name))filaments.push(node);
+  if(/^RodEmitterGlow[01]$/.test(node.name))emitters.push(node);
+  if(/^RodPlasmaHalo[01]$/.test(node.name))outerHalos.push(node);
+ });
  const world=n=>n.getWorldPosition(V());
  const poseTargets=[
   [-.08,-.30,.26],[.00,-.32,.31],[-.12,-.35,.22],
@@ -99,6 +111,14 @@ export function createWardenCombatRod(inst,variant=1){
    ...FULL_POWER,quality,calm,reducedMotion:calm,
   });
   rod.setEnergy(1,1);
+  // Apply after the VFX controller repositions these layers each frame.
+  // No shared geometry/material mutation: player effects remain unchanged.
+  // Idempotent caps: multiplying every frame collapses the filaments to zero.
+  for(const node of filaments){node.scale.x=Math.min(node.scale.x,.74);node.scale.z=Math.min(node.scale.z,.74);}
+  for(const node of emitters){node.scale.x=Math.min(node.scale.x,.24);node.scale.y=Math.min(node.scale.y,.24);}
+  // setEnergy(1,1) correctly keeps full charge, which raises the shared
+  // corona's activity floor to 1. Restrict only the neutral NPC outer halo.
+  for(const node of outerHalos){node.material.opacity=Math.min(node.material.opacity,.065);}
   rod.group.visible=true;
   const measured=world(rod.group.getObjectByName('RodRightGrip'))
    .distanceTo(hand.localToWorld(palm.clone()));

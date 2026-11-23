@@ -12,6 +12,7 @@ function useRestorative(game,p){
  if(game.time<(p.restorativeReadyAt||0))return fail('The last dose is still settling.');
  if(--goods.field_restorative===0)delete goods.field_restorative;
  p.char.goods=goods;p.utilityRev++;p.restorativeReadyAt=game.time+RESTORATIVE.recoveryMs;
+ game.economy?.observe('goods_spent',p,1,'field_restorative');
  const per=Math.ceil(p.maxHp*RESTORATIVE.fraction/RESTORATIVE.ticks);
  const i=p.buffs.findIndex(b=>b.k==='restorative'),buff={k:'restorative',until:game.time+RESTORATIVE.ticks*1000+50,next:game.time+1000,per,src:p.id};
  if(i>=0)p.buffs[i]=buff;else p.buffs.push(buff);
@@ -30,6 +31,7 @@ export function useUtility(game,p,item,weapon,rev){
  if(next===CONDITION_MAX)delete condition[weapon];else condition[weapon]=next;
  if(--goods[item]===0)delete goods[item];
  p.char.goods=goods;p.char.condition=condition;p.utilityRev++;
+ game.economy?.observe('goods_spent',p,1,'field_maintenance_kit');
  game.markDirty(p);game.message(p,'gain',ITEMS[weapon].name+' restored to '+next+'% condition.');
  game.emitWorldEvent({e:'fx',k:'field_maintenance',s:p.id});
  return {ok:true};
