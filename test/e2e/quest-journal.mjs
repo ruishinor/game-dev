@@ -143,7 +143,7 @@ try{
  await page.locator('#view').focus();await page.keyboard.press('Escape');
  // Material fixture only; exercise real Inventory, Codex and Workshop controls.
  p.char.materials.kinetic_coupler=1;server.game.markDirty(p);
- await page.waitForFunction(()=>window.__attune.state().sheet.materials.kinetic_coupler===1);
+ await page.waitForFunction(()=>window.__attune.state().sheet?.materials?.kinetic_coupler===1);
  await page.keyboard.press('KeyI');
  const inventory=page.getByRole('dialog',{name:'Inventory',exact:true});
  await inventory.locator('[data-material="kinetic_coupler"]').click();
