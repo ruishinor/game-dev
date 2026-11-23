@@ -12,14 +12,19 @@ const extract = process.argv.includes('--stage');
 const directory = resolve('tools/asset-pipeline/.asset-cache/pipeline/outpost-training-source');
 if (extract) mkdirSync(directory, { recursive: true });
 const patterns = [
-  { name: 'firing-range', pattern: /firing|range|target|shoot|practice|training|dummy|barricade|shooting|barrier|backstop/i },
-  { name: 'weapons-and-armory', pattern: /weapon|gun|rifle|pistol|carbine|armory|armoury|armament|magazine|ammo|rack|arsenal/i },
+  { name: 'firing-range', pattern: /firing|range|target|shoot|practice|training|dummy|barricade|shooting|barrier|backstop|console|bulwark|sandbag|bunker/i },
+  { name: 'weapons-and-armory', pattern: /weapon|gun|rifle|pistol|carbine|armory|armoury|armament|magazine|ammo|rack|arsenal|blaster|emitter|storage|cabinet|gunstock|barrel/i },
 ];
 const findings = [];
 for (const { name, raw } of zipMembers(archive)) {
-  const match = patterns.filter(({ pattern }) => pattern.test(name));
-  if (!match.length) continue;
   const gltf = readGltf(raw); // Reject invalid candidates before staging.
+  // ZIP member names are often opaque. Also inspect actual node/mesh/material
+  // labels to avoid excluding usable original weapon/range building blocks.
+  const labels = [name, ...(gltf.nodes || []).map(o => o.name || ''),
+    ...(gltf.meshes || []).map(o => o.name || ''),
+    ...(gltf.materials || []).map(o => o.name || '')].join(' ');
+  const match = patterns.filter(({ pattern }) => pattern.test(labels));
+  if (!match.length) continue;
   const digest = createHash('sha256').update(raw).digest('hex');
   const data = { path: name, sha256: digest, bytes: raw.length, groups: match.map(x => x.name), ...summarizeGltf(gltf) };
   if (extract) {
