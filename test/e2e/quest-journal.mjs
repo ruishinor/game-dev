@@ -14,6 +14,18 @@ try{
  await page.click('#gate-guest-link');await page.fill('#name','Journal Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard';});
  const p=await liveFixturePlayer(page,server,'Journal Tester');
+ // Render once per evidence capture on software GL; keep client simulation,
+ // WebSocket heartbeat and authoritative quest progression running throughout.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ const capture=async path=>{
+  if(SOFTWARE_GL){
+   await page.evaluate(()=>window.__attune.pause(false));
+   const n=await page.evaluate(()=>window.__attune.state().drawn);
+   await page.waitForFunction(n=>window.__attune.state().drawn>n,n);
+  }
+  await page.screenshot({path});
+  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+ };
  // Exercise the authoritative completion transition with the prerequisite fixture.
  p.char.quest={step:0,progress:3};checkDirective(server.game,p);
  assert.equal(p.char.quest.step,1);
@@ -48,7 +60,7 @@ try{
  assert.ok(await page.locator('.quest-tracker-group [data-tracked-id=""]').last().isHidden());
  await journal.getByRole('button',{name:'Track quest',exact:true}).click();
  assert.ok(await page.locator('.quest-tracker-group [data-tracked-id="brine:investigation"]').isVisible());
- await page.screenshot({path:'quest-evidence/01-journal.png'});
+ await capture('quest-evidence/01-journal.png');
  p.char.survey='signal_done';p.char.brineStage=1;server.game.markDirty(p);
  await journal.locator('[data-quest="brine:commissioning"]').waitFor({state:'visible'});
  assert.equal(await journal.locator('[data-quest="brine:investigation"]').getAttribute('data-status'),'completed');
@@ -89,7 +101,7 @@ try{
  await layoutPanel.getByRole('button',{name:'Reset layout',exact:true}).click();
  assert.equal(await layoutPanel.getAttribute('data-window-custom'),null);
  await page.locator('#view').focus();await page.keyboard.press('Escape');
- await page.screenshot({path:'quest-evidence/02-tracker.png'});
+ await capture('quest-evidence/02-tracker.png');
  // Eligible setup only. Venn, both field instruments and the final report
  // use the ordinary authoritative interaction path. Existing content remains.
  p.char.level=3;p.char.attunements=['resonance'];p.char.inventory.push('sinter_laminate');server.game.refreshStats(p);server.game.markDirty(p);
@@ -124,7 +136,7 @@ try{
  assert.match(await journal.locator('.quest-rewards').innerText(),/Culture matrix/i);
  assert.match(await journal.locator('.quest-rewards').innerText(),/Received at completion/);
  assert.match(await journal.locator('.quest-rewards').innerText(),/55 XP credited/);
- await page.screenshot({path:'quest-evidence/03-residual-traces.png'});
+ await capture('quest-evidence/03-residual-traces.png');
  await journal.getByRole('button',{name:'Close Quest Journal'}).click();
  await page.locator('#view').focus();await page.keyboard.press('KeyJ');
  assert.ok(await page.getByRole('dialog',{name:'Codex',exact:true}).isVisible());

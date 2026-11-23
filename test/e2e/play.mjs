@@ -570,7 +570,7 @@ try {
     const actorTurn = wrap(s.yaw - start.actor);
     const cameraTurn = wrap(s.camYaw - start.camera);
     return actorTurn < -0.4 && Math.abs(wrap(cameraTurn - actorTurn)) < 0.05;
-  }, headingBefore, 3000, 'character and camera turn together from D');
+  }, headingBefore, SOFTWARE_GL ? 15000 : 3000, 'character and camera turn together from D');
   await A.page.keyboard.up('KeyD');
   sa = await state(A);
   check('2. D turns the character and the camera follows', turned,
