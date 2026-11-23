@@ -67,7 +67,6 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }else if(prior){
     moonMirrors.update(null,null,null);
     monsoonBloom.update(null);
-    if(moon&&prior.moonVisible!==undefined)moon.visible=prior.moonVisible;
     if(prior.fog&&scene.fog){scene.fog.color.setHex(prior.fog.color);scene.fog.near=prior.fog.near;scene.fog.far=prior.fog.far;}
     if(sky&&prior.sky)sky.position.copy(prior.sky);
     if(moon&&prior.moonVisible!==undefined)moon.visible=prior.moonVisible;
@@ -77,6 +76,14 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }
   },
   dispose(){
+   if(prior){
+     if(prior.fog&&scene.fog){scene.fog.color.setHex(prior.fog.color);scene.fog.near=prior.fog.near;scene.fog.far=prior.fog.far;}
+     if(sky&&prior.sky)sky.position.copy(prior.sky);
+     if(moon&&prior.moonVisible!==undefined)moon.visible=prior.moonVisible;
+     if(ambient&&Number.isFinite(prior.ambient))ambient.intensity=prior.ambient;
+     if(sun&&Number.isFinite(prior.sun))sun.intensity=prior.sun;
+     prior=null;
+   }
    monsoonFx?.dispose();moonMirrors.dispose();monsoonBloom.dispose();
    sites.dispose();ecology.dispose();
    floor.dispose();soil.dispose();
