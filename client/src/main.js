@@ -202,6 +202,7 @@ const rich = () => !!cvfx && quality > 0;
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 world.attachReachFx?.(vfx);
+world.attachLumenfenFx?.(vfx);
 attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, vfx: () => (rich() ? vfx : null) });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
