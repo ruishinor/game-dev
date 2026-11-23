@@ -161,11 +161,12 @@ try {
     }
     if (!SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(false));
     report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, primary: mine.halo.primary, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
-    // Follow a whole ten-second guard-watch loop in the actual running scene,
-    // not a bind-pose frame. Render stays paused under SwiftShader between
-    // captures, while animation, WebSocket and authenticated state remain live.
-    // Bone-centre distances are *clearance proxies*, not mesh-penetration proof.
-    for(let sampleIndex=1;sampleIndex<=4;sampleIndex++){
+    // Sample for 12.5 real seconds: at the slowest 0.94x variant tempo this
+    // spans 11.75 seconds of the ten-second Guard_Watch_Loop, ensuring full
+    // cycle coverage despite per-guard desynchronization. Rendering stays
+    // paused in SwiftShader between captures; network/game simulation runs.
+    // Joint-centre distances are NOT skinned mesh-penetration proof.
+    for(let sampleIndex=1;sampleIndex<=5;sampleIndex++){
       await page.waitForTimeout(2500);
       const sample=await page.evaluate(({x,z})=>{
         const api=window.__attune,st=api.state();
