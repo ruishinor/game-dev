@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { ThirdPersonCamera } from '../client/src/camera.js';
 import { FOUNDRY_CEILING_HEIGHT } from '../client/src/silent-foundry.js';
 import { SILENT_FOUNDRY as F, FOUNDRY_AREAS, foundryHeight } from '../shared/silent-foundry.js';
+import { WORLD, groundHeight } from '../shared/world.js';
 
 test('Foundry third-person camera stays below overhead structure throughout all four rooms', () => {
   for (const room of FOUNDRY_AREAS) {
@@ -42,6 +43,11 @@ test('Foundry camera clearance does not impose a ceiling outside the region', ()
   orbit.yaw = 0;
   orbit.want = 20;
   orbit.dist = 20;
-  orbit.update({ x: 400, y: 0, z: 400 }, 1 / 60);
-  assert.ok(orbit.dist > 19, 'unrelated terrain must not inherit the Foundry ceiling clamp');
+  // Use a real traversable Reach position, not (400,400) far outside the
+  // world radius, where the authored rim rises several kilometres and
+  // correctly makes any camera ray collide with terrain.
+  const x = 60, z = 55;
+  assert.ok(Math.hypot(x,z) < WORLD.radius, 'test fixture must be within playable Reach terrain');
+  orbit.update({ x, y: groundHeight(x,z), z }, 1 / 60);
+  assert.ok(orbit.dist > 19, 'normal Reach terrain must not inherit the Foundry ceiling clamp');
 });
