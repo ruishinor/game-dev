@@ -228,7 +228,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const meleeShoulderR=inst.getObjectByName('upperarm_r');
   const meleeShoulderL=inst.getObjectByName('upperarm_l');
   const meleeSpine=inst.getObjectByName('spine_02');
-  const motionAxis=new THREE.Vector3(0,1,0),motionRoll=new THREE.Vector3(0,0,1);
+  const motionAxis=new THREE.Vector3(0,1,0),motionRoll=new THREE.Vector3(0,0,1),motionPitch=new THREE.Vector3(1,0,0),motionQuat=new THREE.Quaternion();
   // Capture the grip direction in bind pose, not an arbitrary live frame.
   const rodHand=inst.getObjectByName('hand_r');
   const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
@@ -440,23 +440,23 @@ export function makeHumanoid(assets, lookId, opts = {}) {
             // carry the actual palm-attached weapon and preserve shared rigs.
             const p=rodChoreography(meleePose.stance,meleePose.age,meleePose.duration,meleePose.dual);
             if(meleeSpine){
-              meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,p.torsoYaw));
-              meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),p.torsoPitch));
+              meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionAxis,p.torsoYaw));
+              meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.torsoPitch));
             }
-            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,p.rightShoulder));
-            if(meleeShoulderL)meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,p.leftShoulder));
-            if(rodHand)rodHand.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),p.rightWrist));
-            if(offHand&&meleePose.dual)offHand.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),p.leftWrist));
+            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,p.rightShoulder));
+            if(meleeShoulderL)meleeShoulderL.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,p.leftShoulder));
+            if(rodHand)rodHand.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.rightWrist));
+            if(offHand&&meleePose.dual)offHand.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.leftWrist));
           }else{
             const {anticipation,release,recovery}=strikeMotion(meleePose.age,meleePose.duration);
             const sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
             const sweep=meleePose.stance==='overhead'||meleePose.stance==='heavy'?.36:.53;
             const torso=sign*(-.17*anticipation+sweep*release+.07*recovery);
             const shoulder=sign*(-.13*anticipation+.34*release-.09*recovery);
-            if(meleeSpine)meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,torso));
-            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,shoulder));
+            if(meleeSpine)meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionAxis,torso));
+            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,shoulder));
             if(meleeShoulderL&&['left','cross','heavy'].includes(meleePose.stance))
-              meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,-shoulder*1.45));
+              meleeShoulderL.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,-shoulder*1.45));
           }
           if(t>=1)meleePose=null;
         }
