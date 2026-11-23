@@ -9,11 +9,10 @@ remote-server client packaging model is required before public/Steam distributio
 
 ```powershell
 git status --short
-npm ci
-npm install --prefix desktop --no-audit --no-fund
-node desktop/prepare.mjs
+& ".\desktop\build-windows.ps1"
+
+# Optional: launch the unpackaged desktop shell after a successful dependency install
 & ".\desktop\node_modules\.bin\electron.cmd" .
-& ".\desktop\node_modules\.bin\electron-builder.cmd" --win portable --config desktop/builder.json
 ```
 
 If port 48763 is occupied, the application reports startup failure rather than silently
