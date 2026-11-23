@@ -243,6 +243,10 @@ async function workshopPlaytest(){
   check('workshop UI: compact NPC bust and authoritative dialogue',npcVisible&&talk&&!!bounds&&bounds.width<=350&&bounds.height<=280);
   await shot(P,'npc-01-dialogue.png');
   await teleport(P,npc.x+8,npc.z+3);
+  // Teleport updates the isolated authoritative fixture, not the browser's
+  // current snapshot. First confirm the client received the new position,
+  // then require the real NPC access guard to close the dialogue.
+  await settle(P,npc.x+8,npc.z+3);
   await page.locator('.npc-panel').waitFor({state:'hidden',timeout:10000});
   check('NPC conversation closes when the player leaves range',await page.locator('.npc-panel').isHidden());
   await teleport(P,npc.x,npc.z+3);
