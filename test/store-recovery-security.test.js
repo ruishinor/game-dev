@@ -169,3 +169,18 @@ test('stale unreadable temp-only store blocks startup without destroying evidenc
   assert.throws(() => new CharacterStore(file), /recovery is required/);
   assert.equal(fs.readFileSync(file + '.tmp', 'utf8'), '{ incomplete checkpoint');
 });
+
+
+test('an interrupted later write does not hide a valid primary checkpoint', (t) => {
+  const file = isolatedSave(t);
+  const original = new CharacterStore(file);
+  const { token } = original.create('OlderCheckpoint', 'vanguard');
+  original.flush();
+  const primary = fs.readFileSync(file, 'utf8');
+  fs.writeFileSync(file + '.tmp', '{ interrupted newer write');
+  const loaded = new CharacterStore(file);
+  assert.equal(loaded.authenticate(token)?.name, 'OlderCheckpoint');
+  assert.equal(fs.readFileSync(file, 'utf8'), primary, 'valid primary retained');
+  assert.equal(fs.readFileSync(file + '.tmp', 'utf8'), '{ interrupted newer write',
+    'read-only startup does not overwrite the candidate checkpoint');
+});
