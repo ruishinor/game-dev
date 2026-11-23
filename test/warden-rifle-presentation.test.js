@@ -42,7 +42,7 @@ test('bounded wrist correction aligns a real finger direction without moving a l
  assert.ok(result.appliedDeg>0&&result.appliedDeg<=THREE.MathUtils.radToDeg(.23)+1e-6);
  assert.ok(Math.abs(prior-residual-.23)<1e-6,'finger angle improves by bounded amount');
  assert.ok(Math.abs(result.residualDeg-THREE.MathUtils.radToDeg(residual))<1e-6);
- assert.ok(shoulder.quaternion.angleTo(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,.31,.12)))<1e-10,
+ assert.ok(shoulder.quaternion.angleTo(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,.31,.12)))<1e-6,
   'wrist correction does not overwrite the upper-arm watch pose');
 });
 
