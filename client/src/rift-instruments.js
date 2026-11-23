@@ -8,12 +8,26 @@ export function buildPhaseInstrument(T, regulator) {
   group.name = regulator ? 'rift:regulator' : 'rift:indexer';
   const std = (color, metalness, roughness, emissive = 0x000000, emissiveIntensity = 0) =>
     new T.MeshStandardMaterial({ color, metalness, roughness, emissive, emissiveIntensity });
+  // Fine-grained PBR roughness breakup, applied in material space. No
+  // external textures or new world lights; supports both quality tiers.
+  // Deliberately affects only machined surfaces, not the optical glass.
+  const machined=(material,grain=0.08)=>{
+    material.onBeforeCompile=shader=>{
+      shader.fragmentShader=shader.fragmentShader.replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+         float grain = fract(sin(dot(floor(vViewPosition.xyz*215.0),vec3(12.9898,78.233,37.719)))*43758.5453);
+         roughnessFactor = clamp(roughnessFactor + (grain-0.5)*${grain.toFixed(3)},0.12,0.98);`);
+    };
+    material.customProgramCacheKey=()=>`rift-machined-v1-${grain}`;
+    return material;
+  };
   const m = {
-    basalt: std(0x303b3d, 0.10, 0.91),
-    iron: std(0x55676b, 0.69, 0.39),
-    dark: std(0x172d32, 0.53, 0.57),
-    brass: std(0x9e8662, 0.74, 0.42),
-    ceramic: std(0x9fb3ac, 0.22, 0.35),
+    basalt: machined(std(0x303b3d, 0.10, 0.86),0.12),
+    iron: machined(std(0x55676b, 0.73, 0.37),0.11),
+    dark: machined(std(0x172d32, 0.62, 0.49),0.09),
+    brass: machined(std(0xb39b72, 0.78, 0.34),0.07),
+    ceramic: machined(std(0xb2c2ba, 0.12, 0.31),0.06),
     glass: std(0x648c95, 0.16, 0.23, 0x315e67, 0.6),
     traced: std(0x689a9d, 0.38, 0.3, 0x4baac2, 1),
     flux: std(0xa08cbd, 0.24, 0.26, 0x7851ba, 0.8),
@@ -67,6 +81,31 @@ export function buildPhaseInstrument(T, regulator) {
     box(0.068, 0.41, 0.023, m.brass, sign * 0.445, 0.57, 0.05);
     rod([[sign * 0.34, 0.27, -0.27], [sign * 0.46, 0.51, -0.25], [sign * 0.36, 0.87, -0.14]], 0.035, m.dark);
     rod([[sign * 0.34, 0.30, -0.23], [sign * 0.43, 0.52, -0.22], [sign * 0.34, 0.81, -0.13]], 0.012, m.traced);
+  }
+
+  // Layered instrument hull: real recessed cavity, exposed captive screws,
+  // fluted heat exchanger, and ceramic anti-vibration stand-offs.
+  // Unlike a texture-only upgrade these silhouettes remain readable on TV.
+  const recess=add(new T.CylinderGeometry(.337,.337,.42,48,1,true),m.basalt,0,.56,0,'rift:instrument-recessed-cavity');
+  recess.material.side=T.DoubleSide;
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI/6,si=Math.sin(a),co=Math.cos(a);
+    const fin=box(.065,.35,.13,m.iron,si*.42,.56,co*.42,'rift:instrument-machined-cooling-fin');
+    fin.rotation.y=a;
+    const seam=box(.012,.28,.028,m.traced,si*.47,.56,co*.47,'rift:instrument-lit-conduit');
+    seam.rotation.y=a;
+    for(const y of [.36,.78]){
+      const stud=add(new T.SphereGeometry(.018,12,8),m.brass,si*.44,y,co*.44,'rift:instrument-captive-fastener');
+      stud.castShadow=false;
+    }
+  }
+  const liveMarkers=[];
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    const led=add(new T.BoxGeometry(.045,.022,.026),i%2?m.flux:m.traced,
+      Math.sin(a)*.52,.165,Math.cos(a)*.52,'rift:instrument-phase-index');
+    led.rotation.y=a;
+    liveMarkers.push(led);
   }
 
   // Angled operating lectern: layered face, retained keyed-rune ticks, tactile
@@ -166,6 +205,12 @@ export function buildPhaseInstrument(T, regulator) {
       m.glass.emissiveIntensity = 0.25 + charge * 1.75;
       m.traced.emissiveIntensity = 0.25 + charge * 1.65;
       m.flux.emissiveIntensity = 0.18 + charge * 1.25;
+      // Charge travels around the circumferential scale instead of turning
+      // the entire station into a uniform glowing blob.
+      for(let i=0;i<liveMarkers.length;i++){
+        const active=(Math.floor(spin*3)+i)%liveMarkers.length<Math.ceil(charge*5);
+        liveMarkers[i].visible=active;
+      }
       if (!st.reducedMotion && st.effectsQuality !== 0 && Number.isFinite(dt) && dt > 0) {
         spin = (spin + Math.min(dt, 0.1) * (0.12 + charge * 0.42)) % (Math.PI * 2);
         for (const { rotor, sign } of rotors) {
