@@ -21,6 +21,10 @@ export const MATERIALS={
   sentinel_alloy:{name:'Sentinel alloy',desc:'Recoverable actuator alloy and contact assemblies.',source:'Rogue Sentinel'},
   resonance_fragment:{name:'Resonance fragment',desc:'An inert resonance-bearing fragment recovered from the Vault Warden or field calibration.',source:'Vault Warden; Phase Scar calibration'},
   kinetic_coupler:{name:'Kinetic coupler',desc:'Machined interface for controlled Charge transfer.',source:'Engineering fabrication'},
+  fen_lantern_membrane:{name:'Lantern membrane',desc:'Iridescent light-bearing membrane recovered from Fen Lanterns; modeled after the alien plant and wetland creature donors.',source:'Lumenfen Fen Lantern'},
+  bog_chitin:{name:'Bog chitin',desc:'Layered plating from the six-limbed Bog Stalker; retains its moisture-resistant structure.',source:'Lumenfen Bog Stalker'},
+  rootglass_fibre:{name:'Rootglass fibre',desc:'Sinuous mineralized filament integrated into Lumenfen root systems.',source:'Lumenfen wildlife, especially during monsoon'},
+  monsoon_silt:{name:'Monsoon conductive silt',desc:'Micaceous residue concentrated in Lumenfen during monsoon flooding.',source:'Lumenfen monsoon wildlife salvage'},
   culture_matrix:{name:'Culture matrix',desc:'A stabilized living scaffold for restorative signal transfer.',source:'Research fabrication'},
 };
 export const RECIPES={
