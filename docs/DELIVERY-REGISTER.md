@@ -18,7 +18,7 @@ The evidence column cites GitHub PR numbers, paths on the pinned tree, or histor
 - **Asset origin:** no GLB/procedural/manual/archive-origin test, publication or merge veto solely because of origin, and no fabricated blanket license hold. Evaluate real quality, integrity, provenance and evidenced rights conflicts. `AGENTS.md` supersedes older notes; #272 implemented an origin-gate correction. No exemption from security or meaningful visual review.
 - **Rifts:** owner approval of the exterior Phase Scar/Severance *construction* is scoped and does not cover missing exterior ground VFX or rejected interior/Null Annex thresholds. #273 and #274 are merged reconstruction increments, not full acceptance.
 - **Armour:** #214 records scoped owner acceptance of four rare armour families and revised Halo vendor presentation. This does **not** erase previously reported Cinderlock mesh-fit results, performance budgets or general in-game acceptance. Preserve 2026-11-20 technical reservations and 2026-11-21 owner art approval as different statements.
-- **PR state:** at this baseline the five open PRs are #91, #92, #93, #96 and #228 (the last targets a non-main recovery branch). Do not present #180, #193, #196, #198, #236, #273, #293, #299 or #302 as still open. Do not imply closing an old recovery PR means it merged.
+- **PR state (historical snapshot at baseline, 2026-11-23 ~01:26 UTC):** the five then-open PRs were #91, #92, #93, #96 and #228. **Follow-on update:** #91/#92/#93/#96 were subsequently closed as superseded **without merging**; #228 remained open against a non-main branch at the later 08:08 UTC checkpoint. New parallel PRs now exist, and [P03 #312](https://github.com/ruishinor/game-dev/pull/312) remains an open documentation PR; see the dated current-main checkpoint below. Do not present #180, #193, #196, #198, #236, #273, #293, #299 or #302 as still open. Closure of an old recovery PR is not integration evidence.
 - **Scope/acceptance:** desktop/TV are supported design targets. Open issues #185, #251, #265, #266, #271, #278, #294 and #298 document specific outstanding defects/acceptance or test/performance work. `main` is not a release certification.
 
 ## Requirement-to-evidence matrix
@@ -32,7 +32,7 @@ All existing plan IDs remain stable. The following preserves original identifier
 | INT-01 | Branch and PR audit | partially implemented | yes | source | unknown | no | #68; historical inventory incomplete at this baseline |
 | INT-02 | Pointer lock, skitter, capture | partially implemented | yes | source | unknown | no | #66; docs/PLAYTEST-VALIDATION.md |
 | INT-03 | Appearance recovery | partially implemented | yes | source | unknown | no | shared/appearance.js; #209; visual gaps #185 |
-| INT-04 | Legacy branch retention and delta disposition | partially implemented | partial | unknown | n/a | no | #91–#93/#96 and #228 still open; equivalence not fully inventoried |
+| INT-04 | Legacy branch retention and delta disposition | partially implemented | partial | unknown | n/a | no | #91/#92/#93/#96 closed unmerged as superseded 2026-11-23; #228 remains open; #315 preserves unresolved old blueprint-source choice |
 | INT-05 | Advanced fabrication and weapon quality | partially implemented | yes | source | unknown | no | #285; test/weapon-assembly-graph.test.js |
 | INT-06 | Metaphysical abilities | partially implemented | partial | unknown | unknown | no | docs/DEVELOPMENT-ROADMAP.md §2; full casts not checked |
 | INT-07 | Strider and ground navigation | partially implemented | yes | source | unknown | no | server/sim/companion.js; test/companion-transit.test.js |
@@ -83,16 +83,16 @@ All existing plan IDs remain stable. The following preserves original identifier
 | EQ-09 | Modular fabrication/acquisition chain | partially implemented | yes | source | unknown | no | #285; test/weapon-assembly-graph.test.js; old #93 still open |
 | CB-01 | Weapon-specific attack/animation/VFX | partially implemented | yes | source | unknown | no | #259/#260/#290; tests/player-weapon-presentation.test.js |
 | CB-02 | Class/weapon/attunement specializations | partially implemented | partial | unknown | unknown | no | test/weapon-specialization.test.js; full progression not shown |
-| DEL-01 | Independent delivery reconciliation | partially implemented | yes | unknown | n/a | no | five PRs open at baseline; #91/#92/#93/#96/#228 |
+| DEL-01 | Independent delivery reconciliation | partially implemented | yes | unknown | n/a | no | Baseline had five open #91/#92/#93/#96/#228; four are now closed unmerged; #228 remains, and P03 #312 requires CI reconciliation |
 | DEL-02 | Four-class energized rod VFX | partially implemented | yes | source | unknown | no | #264/#293; test/e2e/rod-live-vfx.mjs |
 | DEL-03 | Desktop window management and fit | partially implemented | yes | source | unknown | no | #262; test/e2e/desktop-windows.mjs; TV inspection outstanding |
 | DEL-04 | Natural Stillpoint movement | unverified | unknown | unknown | unknown | no | #133 historical claim; recent natural movement evidence not inspected |
-| REC-01 | Recover unique modular weapon chain | partially implemented | yes | source | unknown | no | #285; old #93 not disposed by delta-equivalence |
+| REC-01 | Recover unique modular weapon chain | partially implemented | yes | source | unknown | no | #285 merged assembly graph; old #93 closed as superseded, but distinct blueprint-source design decision tracked by #315 |
 | REC-02 | Sustained fabrication and animations | partially implemented | yes | source | unknown | no | docs/art/LIVE-FABRICATOR.md; no visual sign-off |
 | REC-03 | Replace spherical ranged VFX | partially implemented | yes | source | unknown | no | #290; owner screenshot quality acceptance not established |
 | REC-04 | Family-specific recoil/grip and carry | partially implemented | yes | source | unknown | no | #268/#290; test/player-weapon-presentation.test.js |
 | REC-05 | Hand-origin class casting | unverified | unknown | unknown | unknown | no | roadmap §10; no all-class live capture established |
-| REC-06 | Retire legacy stacks only after delta comparison | partially implemented | partial | unknown | n/a | no | #91/#92/#93/#96 remain open; #228 targets obsolete base |
+| REC-06 | Retire legacy stacks only after delta comparison | partially implemented | partial | unknown | n/a | no | #91/#92/#93/#96 now closed unmerged; #315 remains as explicit residual; #228 still open against obsolete non-main base |
 
 ### Narrative, region and progression
 
@@ -209,7 +209,22 @@ Other committed docs/art feature notes (for example Lumenfen world expansion, Ke
 - **Visual:** actual gameplay-capture comparisons remain needed for interior rifts, Phase Annex/Foundry readability, weapon grips/VFX, character models, HUD/Atlas/TV UI and Lumenfen. The owner has explicitly rejected some of these; no inference from GLB presence.
 - **Reliability:** #265/#266/#298 browser test instability and #294 desktop render stalls remain open notwithstanding separately merged mitigations #269/#292/#295/#299/#301/#302.
 - **Publication:** public Git history cannot be made confidential by moving modules server-side or limiting scanners. Access-control decisions outside this documentation scope remain.
-- **Legacy PR disposition:** #91/#92/#93/#96/#228 need a line-level delta-equivalence audit against current main or separate work. Do not merge obsolete branches wholesale based on their titles.
+- **Legacy PR disposition:** #91/#92/#93/#96 closed **without merge** as superseded after a later current-main scope check; distinct #93 acquisition source is retained in issue #315 rather than silently erased. #228 remains open against an obsolete non-main branch and requires its own equivalence/retarget decision. Do not wholesale merge old branches from their titles.
+
+## Follow-on verification checkpoint — 2026-11-23 (08:08 UTC, **newer than initial baseline**)
+
+**Inspected main SHA:** [`283ffe97d369eecbb0aa8a7dcabeacb59b1e05ce`](https://github.com/ruishinor/game-dev/commit/283ffe97d369eecbb0aa8a7dcabeacb59b1e05ce). This checkpoint is **not** a retroactive change to the `b0df1672` initial baseline or blanket feature acceptance. It supplements the initial requirement rows with verified new evidence. [Executable verification and visual-acceptance gates](VERIFICATION-GATES.md) cover the five priority areas; no existing IDs were removed.
+
+- **Actual post-merge tests:** [Main health run 45136104065](https://github.com/ruishinor/game-dev/actions/runs/45136104065) completed successfully **on the SHA above**. The `npm test` suite passed **776/776** Node tests (including XP progression, region gates, economic invariants, appearance, equipment), standalone publication-preflight tests passed **7/7**, and the real-browser guest-entry/persistence job succeeded. This establishes successful *covered checks* at the stated SHA; it does not prove a natural level-15 journey or all feature workflows.
+- **Natural progression:** `PROG-15` is **partially implemented**, not fully accepted. Unit tests cover cap 15 and selective server-sim XP/persistence/region gates; `test/e2e/annex.mjs` intentionally uses server fixtures and disables encounters for visual captures. A full legitimately earned and persisted 1→15 player journey remains **unverified**, specifically tracked in [#327](https://github.com/ruishinor/game-dev/issues/327).
+- **Equipment and economy:** `EQ-01..09` and `SYS-02/03/09/10` have successful automated unit coverage at the newer SHA, but full legitimate acquisition→fabrication→equipment→combat→repair→reconnect across classes and failure/replay paths is **not established**. [#328](https://github.com/ruishinor/game-dev/issues/328) owns that proof; historical #93 blueprint source still requires scoped decision in [#315](https://github.com/ruishinor/game-dev/issues/315).
+- **Character art:** appearance migration and browser UI tests exist, but final in-world head/face, gear clearance, rigging and NPC quality require owner review; see #185/#251/#271. The #214 scoped armour aesthetic approval is **not** a blanket fit/performance acceptance.
+- **Interior dungeon:** live `test/e2e/annex.mjs` verifies three room models and portal composition and captures 1280×800/1920×1080; because it bypasses natural entry progression and suppresses combat AI for screenshots, it does not validate full play/telegraph readability or owner-rejected interior visual quality. Issues #317 and live [PR #306](https://github.com/ruishinor/game-dev/pull/306) concern the active Foundry/camera gate.
+- **Accessibility:** `test/e2e/character-roster.mjs` and `test/e2e/desktop-windows.mjs` contain desktop/TV overflow, focus and controls checks, including five window modes up to 4K/1.5× scaling. These separate browser suites were **not independently verified as green on this exact main SHA**; real large-display legibility and human acceptance remain open. Do not promote phone-only test cases to release requirements.
+- **P03 CI issue:** [#312](https://github.com/ruishinor/game-dev/pull/312) initial head `8bd1bc88` passed the publication scan but failed one keyboard camera-turn assertion in [integrated playtest run 45094822591](https://github.com/ruishinor/game-dev/actions/runs/45094822591) (**77/78**). [#321](https://github.com/ruishinor/game-dev/pull/321) is a separate pending fixture-only correction and must pass exact-head integration before being considered resolved; no waiver for #312.
+- **Dated active PR snapshot:** at inspection the seven open PRs were #228, #306, #308, #312, #318, #319 and #321. This inventory will drift; **re-fetch** before future merges.
+
+**Acceptance policy:** existing cells marked `source` indicate tests present at the *initial* pinned baseline; the 776-test pass applies to **this later SHA**, not automatically to every historical row. Verify the exact applicable browser/visual/audit gate before changing `V` or `A`. P03 retains sole edit ownership of the canonical status register; other workstreams deliver evidence in their PR/issue discussions.
 
 ## Low-friction maintenance protocol
 
@@ -221,4 +236,5 @@ Other committed docs/art feature notes (for example Lumenfen world expansion, Ke
 
 ## Change log
 
+- **2026-11-23 (P03 evidence update, main `283ffe97d369`):** corrected stale superseded PR claims, recorded actual 776/776 Node and guest browser main-health evidence and #312 camera failure, introduced five-track verification gates and linked #327/#328; original baseline unchanged.
 - **2026-11-23 (P03 baseline b0df1672d4ac):** source-pinned consolidated register; unified delivery terminology and assurance axes; reconciled 15/20 cap, current region ownership, asset-origin rules, narrow visual approvals, recently merged PRs and outstanding legacy stacks. This is a documentation audit, not a gameplay or release certification.
