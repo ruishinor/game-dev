@@ -87,6 +87,11 @@ let generatedModelsPrepared = false;
 function prepareGeneratedModels() {
   if (generatedModelsPrepared) return;
   if (DESKTOP_RUNTIME_MODELS) {
+    for (const name of DESKTOP_PIPELINE_EXPORTS) {
+      const file = path.join(DESKTOP_RUNTIME_MODELS, name);
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile())
+        throw new Error('Missing packaged runtime model: ' + name);
+    }
     for (const url of GENERATED_MODELS.keys()) {
       const file = path.join(DESKTOP_RUNTIME_MODELS, path.posix.basename(url));
       if (!fs.existsSync(file) || !fs.statSync(file).isFile())
