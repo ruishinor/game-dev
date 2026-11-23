@@ -8,6 +8,8 @@ on:
       - 'client/src/vfx/**'
       - 'shared/silent-foundry.js'
       - 'tools/severance-expanse-capture.mjs'
+      - 'tools/asset-pipeline/assets/foundry_kit/outputs/foundry_kit.glb'
+      - 'tools/assets/refine-foundry-glb.mjs'
       - '.github/workflows/foundry-visual-review.yml'
   workflow_dispatch:
 
