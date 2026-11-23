@@ -9,7 +9,7 @@ import { SILENT_FOUNDRY as F, FOUNDRY_LAYOUT as L, FOUNDRY_AREAS, inSilentFoundr
 import { noiseTexture, particleField } from './severance-gate.js';
 
 export const FOUNDRY_LIMITS = Object.freeze({ lights: 4, motes: 4 * 120 });
-export const FOUNDRY_KIT_URL = '/client/assets/foundry_kit.glb?v=c95f58b44395';
+export const FOUNDRY_KIT_URL = '/client/assets/foundry_kit.glb?v=08c209d3d495';
 const CEILING = 15;
 const FOG = { color: 0x161b20, near: 24, far: 150 };
 export const FOUNDRY_VISIBILITY = Object.freeze({
