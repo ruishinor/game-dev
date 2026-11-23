@@ -4,6 +4,7 @@
 // generated Geometry/Material ownership is held until dispose.
 import {FEN_SITES,FEN_POOLS,fenHeight,LUMENFEN} from '../../shared/lumenfen.js';
 import {FEN_DONOR_IDS} from '../../shared/lumenfen-fidelity.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const PROFILE=Object.freeze({
  rootglass_oak:{sites:['mossbound-thicket','luminous-canopy'],count:4,height:11,angle:.37},
@@ -42,7 +43,7 @@ export const FEN_PRODUCTION_PLACEMENTS=plan();
 
 export function buildLumenfenFidelityFixtures(T,loader,{quality=1}={}){
  const group=new T.Group();group.name='lumenfen:production-remeshed-glbs';
- const batches=[],owned=new Set(),ready=new Set(),missing=new Map();
+ const batches=[],owned=new Set(),mergedOwned=new Set(),ready=new Set(),missing=new Map();
  const sourceResources=[];
  let disposed=false,wetness=0;
  const stats=()=>({ready:[...ready],missing:Object.fromEntries(missing),
@@ -67,37 +68,84 @@ export function buildLumenfenFidelityFixtures(T,loader,{quality=1}={}){
    if(!Number.isFinite(ratio)||ratio<=0||ratio>200)throw Error('Unsafe GLB fit transform');
    fit.makeTranslation(-center.x,-bounds.min.y,-center.z);
    sourceResources.push(source);
+   const children=[];
    source.traverse(child=>{
-    if(!child.isMesh||child.isSkinnedMesh||!child.geometry)return;
-    const srcM=Array.isArray(child.material)?child.material:[child.material];
-    const materials=srcM.map(m=>{
-     if(!m)return new T.MeshStandardMaterial();
-     const upgraded=new T.MeshPhysicalMaterial({
-      color:m.color?.clone()||0xffffff,map:m.map,normalMap:m.normalMap,
-      normalScale:m.normalScale?.clone(),roughness:m.roughness??.65,
-      roughnessMap:m.roughnessMap,metalness:m.metalness??.03,
-      metalnessMap:m.metalnessMap,emissive:m.emissive?.clone()||0x000000,
-      emissiveMap:m.emissiveMap,emissiveIntensity:m.emissiveIntensity||1,
-      side:m.side,transparent:m.transparent,opacity:m.opacity,
-      alphaTest:m.alphaTest,clearcoat:.18,clearcoatRoughness:.23,
-     });
-     owned.add(upgraded);return upgraded;
-    });
-    const mesh=new T.InstancedMesh(child.geometry,
-      Array.isArray(child.material)?materials:materials[0],pts.length);
-    mesh.name='lumenfen:production:'+id+':'+(child.name||'mesh');
-    mesh.castShadow=false;mesh.receiveShadow=true;
-    for(let i=0;i<pts.length;i++){
-      const p=pts[i];
-      dummy.set(p.x,fenHeight(p.x,p.z),p.z);
-      euler.set(0,p.angle,0);rotation.setFromEuler(euler);size.setScalar(ratio);
-      placement.compose(dummy,rotation,size);
-      matrix.multiplyMatrices(placement,fit).multiply(child.matrixWorld);
-      mesh.setMatrixAt(i,matrix);
-    }
-    mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();
-    group.add(mesh);batches.push(mesh);
+     if(child.isMesh&&!child.isSkinnedMesh&&child.geometry)children.push(child);
    });
+   if(!children.length)throw Error('Source GLB lacks renderable rigid triangle meshes');
+   // All reconstructed primitives use the same archived-donor PBR map. Bake
+   // their original hierarchy transforms once, then merge into one indexed
+   // instanced geometry so an entire wetland site donor costs ONE draw call.
+   const transformed=children.map(child=>{
+     const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);
+     return geometry;
+   });
+   let merged=null;
+   if(children.every(o=>!Array.isArray(o.material)&&o.material===children[0].material))
+     merged=mergeGeometries(transformed,false);
+   if(merged){
+     for(const geo of transformed)geo.dispose();
+     mergedOwned.add(merged);
+     const sourceMaterial=children[0].material;
+     const upgraded=new T.MeshPhysicalMaterial({
+       color:sourceMaterial.color?.clone()||0xffffff,
+       map:sourceMaterial.map,normalMap:sourceMaterial.normalMap,
+       normalScale:sourceMaterial.normalScale?.clone(),
+       roughness:sourceMaterial.roughness??.65,
+       roughnessMap:sourceMaterial.roughnessMap,
+       metalness:sourceMaterial.metalness??.03,
+       metalnessMap:sourceMaterial.metalnessMap,
+       emissive:sourceMaterial.emissive?.clone()||0x000000,
+       emissiveMap:sourceMaterial.emissiveMap,
+       emissiveIntensity:sourceMaterial.emissiveIntensity??1,
+       side:sourceMaterial.side,clearcoat:.18,clearcoatRoughness:.23,
+     });
+     owned.add(upgraded);
+     const mesh=new T.InstancedMesh(merged,upgraded,pts.length);
+     mesh.name='lumenfen:production:'+id+':merged-remeshed';
+     mesh.castShadow=false;mesh.receiveShadow=true;
+     for(let i=0;i<pts.length;i++){
+       const p=pts[i];
+       dummy.set(p.x,fenHeight(p.x,p.z),p.z);
+       euler.set(0,p.angle,0);rotation.setFromEuler(euler);
+       size.setScalar(ratio);placement.compose(dummy,rotation,size);
+       matrix.multiplyMatrices(placement,fit);
+       mesh.setMatrixAt(i,matrix);
+     }
+     mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();
+     group.add(mesh);batches.push(mesh);
+   }else{
+     for(const geo of transformed)geo.dispose();
+     // Incompatible donor primitives retain their original material grouping,
+     // never lose visibly important geometry merely to meet a draw-call cap.
+     for(const child of children){
+       const sourceMaterial=child.material;
+       const mats=Array.isArray(sourceMaterial)?sourceMaterial:[sourceMaterial];
+       const upgraded=mats.map(m=>{
+         const out=new T.MeshPhysicalMaterial({
+           color:m?.color?.clone()||0xffffff,map:m?.map,
+           normalMap:m?.normalMap,normalScale:m?.normalScale?.clone(),
+           roughness:m?.roughness??.65,roughnessMap:m?.roughnessMap,
+           metalness:m?.metalness??.03,metalnessMap:m?.metalnessMap,
+           emissive:m?.emissive?.clone()||0x000000,
+           emissiveMap:m?.emissiveMap,clearcoat:.18,clearcoatRoughness:.23,
+         });owned.add(out);return out;
+       });
+       const mesh=new T.InstancedMesh(child.geometry,
+         Array.isArray(sourceMaterial)?upgraded:upgraded[0],pts.length);
+       mesh.name='lumenfen:production:'+id+':'+(child.name||'mesh');
+       mesh.castShadow=false;mesh.receiveShadow=true;
+       for(let i=0;i<pts.length;i++){
+         const p=pts[i];dummy.set(p.x,fenHeight(p.x,p.z),p.z);
+         euler.set(0,p.angle,0);rotation.setFromEuler(euler);
+         size.setScalar(ratio);placement.compose(dummy,rotation,size);
+         matrix.multiplyMatrices(placement,fit).multiply(child.matrixWorld);
+         mesh.setMatrixAt(i,matrix);
+       }
+       mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();
+       group.add(mesh);batches.push(mesh);
+     }
+   }
    ready.add(id);missing.delete(id);
   }catch(error){missing.set(id,String(error?.message||error));}
  };
@@ -116,6 +164,7 @@ export function buildLumenfenFidelityFixtures(T,loader,{quality=1}={}){
    disposed=true;group.removeFromParent();
    for(const b of batches)b.dispose?.();
    batches.length=0;
+   for(const g of mergedOwned)g.dispose();mergedOwned.clear();
    // GLB meshes and their maps are owned here; no global asset bundle used.
    for(const source of sourceResources)source.traverse(o=>{
      if(!o.isMesh)return;
