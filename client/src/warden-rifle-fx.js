@@ -9,7 +9,7 @@ export function buildWardenRifleConduits(length,id){
   const add=(x,z0,z1,width,kind)=>{
     const n=pos.length/3;
     // +Y is the actual top face of the rebuilt rifle's existing top rail.
-    const y=.134;
+    const y=.134; // 2mm above rail top; depth-tested, not detached geometry
     for(const [z,p] of [[z0,0],[z1,1]]){
       for(const dx of [-width*.5,width*.5]){
         pos.push(x+dx,y,z);progress.push(p);lane.push(kind);
@@ -18,9 +18,11 @@ export function buildWardenRifleConduits(length,id){
     indices.push(n,n+1,n+3,n,n+3,n+2);
   };
   const long=id==='marksman';
-  const start=-length*(long?.15:.09),end=length*(long?.27:.13);
-  add(-.052,start,end,.008,0);
-  add(.052,start,end,.008,0);
+  // The top rail extends from -0.20L to +0.24L. Keep sensors
+  // completely on its surface and outside the 0.095m-wide optic housing.
+  const start=-length*(long?.15:.09),end=length*(long?.215:.13);
+  add(-.056,start,end,.006,0);
+  add(.056,start,end,.006,0);
   // The marksman has paired calibration ticks; the carbine has a compact
   // receiver readiness marker. These share the same draw and material.
   if(long){
