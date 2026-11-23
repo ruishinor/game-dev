@@ -3,7 +3,7 @@
 import {LUMENFEN,FEN_TREES,FEN_POOLS,fenHeight,inLumenfen} from '../../shared/lumenfen.js';
 import {buildLumenfenSites} from './lumenfen-sites.js';
 import {buildLumenfenEcology} from './lumenfen-ecology.js';
-import {buildLumenfenMoonMirrors} from './lumenfen-moon-mirrors.js';
+import {buildLumenfenMoonMirrors,moonAboveFen} from './lumenfen-moon-mirrors.js';
 import {buildFenMonsoonBloom,createFenMonsoonFx} from './lumenfen-monsoon.js';
 export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMotion=()=>false}={}){
  const P=LUMENFEN,group=new T.Group();group.name='lumenfen:landscape';group.visible=false;scene.add(group);
@@ -31,6 +31,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
  const waterMaterial=group.children.find(o=>o.name==='lumenfen:mirrorpool')?.material;
  const glowLight=new T.PointLight(0x64ba9e,3.0,34,2);glowLight.position.set(P.x+20,7,P.z-22);group.add(glowLight);
  let prior=null,clock=0,climate=null,monsoonFx=null;
+ const moon=sky?.children?.find(o=>o.isMesh&&o.geometry?.type==='SphereGeometry'&&o.geometry?.parameters?.radius===9)||null;
  const active=eye=>!!eye&&inLumenfen(eye.x,eye.z,35);
  return {
   group,
@@ -43,10 +44,11 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    const inside=active(eye);group.visible=inside;
    if(inside){
     if(!prior){prior={fog:scene.fog?{color:scene.fog.color.getHex(),near:scene.fog.near,far:scene.fog.far}:null,
-       sky:sky?.position.clone(),ambient:ambient?.intensity,sun:sun?.intensity};}
+       sky:sky?.position.clone(),moonVisible:moon?.visible,ambient:ambient?.intensity,sun:sun?.intensity};}
     if(scene.fog){scene.fog.color.setHex(0x1d3436);scene.fog.near=36;scene.fog.far=200;}
     if(ambient)ambient.intensity=.85;if(sun)sun.intensity=1.1;
     if(sky)sky.position.set(eye.x,0,eye.z);
+    if(moon)moon.visible=moonAboveFen(climate?.phase)&&(climate?.rain??0)<.55;
     clock+=Math.max(0,dt||0);
     sites.update(dt,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
     ecology.update(clock,typeof reducedMotion==='function' ? reducedMotion() : !!reducedMotion);
@@ -65,8 +67,10 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }else if(prior){
     moonMirrors.update(null,null,null);
     monsoonBloom.update(null);
+    if(moon&&prior.moonVisible!==undefined)moon.visible=prior.moonVisible;
     if(prior.fog&&scene.fog){scene.fog.color.setHex(prior.fog.color);scene.fog.near=prior.fog.near;scene.fog.far=prior.fog.far;}
     if(sky&&prior.sky)sky.position.copy(prior.sky);
+    if(moon&&prior.moonVisible!==undefined)moon.visible=prior.moonVisible;
     if(ambient&&Number.isFinite(prior.ambient))ambient.intensity=prior.ambient;
     if(sun&&Number.isFinite(prior.sun))sun.intensity=prior.sun;
     prior=null;
