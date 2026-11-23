@@ -8,8 +8,23 @@ on:
     branches:
       - main
   pull_request:
+    # Keep this focused on the guest/appearance persistence contract; the
+    # full post-merge suite always runs on main regardless of changed paths.
     paths:
       - '.github/workflows/main-health.yml'
+      - 'test/e2e/initiation.mjs'
+      - 'client/index.html'
+      - 'client/src/creation-preview.js'
+      - 'client/src/creation-sections.js'
+      - 'client/src/characters.js'
+      - 'client/src/main.js'
+      - 'client/src/ui.js'
+      - 'server/index.js'
+      - 'server/store.js'
+      - 'shared/appearance.js'
+      - 'tools/browser.mjs'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
