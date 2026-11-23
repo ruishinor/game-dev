@@ -11,7 +11,7 @@ export const GRAVITY = 22.0;
 export const PLAYER_RADIUS = 0.45;
 export const PHASE_RIFT_RADIUS = 2.45; // shared foundation / movement footprint
 
-import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
+import { SEVERANCE_POCKET, SEVERANCE_VEINS, SEVERANCE_PROPS, GATE_THRESHOLD, EXPEDITION_OUTPOST, OUTPOST_TRAINING, inSeverancePocket, clampToPocket, pocketHeight, pocketArea, inExpeditionOutpost } from './severance-gate.js';
 import { SILENT_FOUNDRY, FOUNDRY_COLLIDERS, inSilentFoundry, foundryArea, foundryHeight, clampToFoundry } from './silent-foundry.js';
 import { LUMENFEN, FEN_COLLIDERS, FEN_RIFTS, inLumenfen, clampToLumenfen, fenHeight, fenArea } from './lumenfen.js';
 export { LUMENFEN, inLumenfen, fenArea } from './lumenfen.js';
@@ -418,6 +418,11 @@ OBJECTS.push({key:'foundry_return',type:'foundry_return',name:'Return to the Sev
   {key:'null_breach',type:'null_breach',name:'Null Breach',x:SILENT_FOUNDRY.x-9,z:SILENT_FOUNDRY.z-99,r:PHASE_RIFT_RADIUS,yaw:0});
 OBJECTS.push({key:'expedition_quartermaster',type:'expedition_quartermaster',name:'Expedition Quartermaster',x:EXPEDITION_OUTPOST.quartermaster.x,z:EXPEDITION_OUTPOST.quartermaster.z,r:.5,yaw:EXPEDITION_OUTPOST.quartermaster.yaw});
 for(const c of EXPEDITION_OUTPOST.crew)OBJECTS.push({key:c.key,type:'outpost_crew',look:c.key,name:c.name,x:c.x,z:c.z,r:.45,yaw:c.yaw});
+// Embedded anchors use the scene's real range/rack meshes, never duplicate
+// combat enemies or expose simulated scoring in shared client content.
+OBJECTS.push({key:'outpost_range_console',type:'outpost_range_console',name:'Range calibration console',...OUTPOST_TRAINING.console,r:0,embedded:true});
+OBJECTS.push({key:'outpost_armory',type:'outpost_armory',name:'Field armory',...OUTPOST_TRAINING.armory,r:0,embedded:true});
+for(const lane of OUTPOST_TRAINING.lanes)OBJECTS.push({key:lane.key,type:'outpost_range_target',name:lane.name,x:lane.x,z:lane.z,r:0,embedded:true});
 // Interaction anchor uses the existing terrain-conforming mineral bed. No added collider or duplicate art.
 OBJECTS.push({key:'sinter_recovery',type:'sinter_recovery',name:'Loose mineral shedding',x:SINTER_SITES.mineral.x,z:SINTER_SITES.mineral.z,r:0,embedded:true});
 // Four Halo Construct wardens stand outside the Sanctum perimeter, one per

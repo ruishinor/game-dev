@@ -244,7 +244,21 @@ export const EXPEDITION_OUTPOST = Object.freeze({
   ]),
 });
 const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
+// All coordinates are tied to the existing shelter shell and rear wall.
+// The simulator is a safe-area exhibition, not live hostile combat.
+export const OUTPOST_TRAINING = Object.freeze({
+  line: Object.freeze({ x: SH.x + 3.4, z: SH.z - .62 }),
+  console: Object.freeze({ x: SH.x + 1.8, z: SH.z + 1.6 }),
+  armory: Object.freeze({ x: SH.x + 4.15, z: SH.z + 3.50 }),
+  backstop: Object.freeze({ x: SH.x + 6.08, z: SH.z - .55, hw: .16, hd: 2.25 }),
+  lanes: Object.freeze([
+    Object.freeze({ key: 'range_lane_north', name: 'Calibration Target A', x: SH.x + 5.39, z: SH.z + .25 }),
+    Object.freeze({ key: 'range_lane_south', name: 'Calibration Target B', x: SH.x + 5.39, z: SH.z - 1.35 }),
+  ]),
+});
 export const OUTPOST_COLLIDERS = Object.freeze([
+  Object.freeze({ type: 'outpost_training_backstop', ...OUTPOST_TRAINING.backstop, h: 2.5 }),
+  Object.freeze({ type: 'outpost_armory_rack', ...OUTPOST_TRAINING.armory, hw: .77, hd: .32, h: 2.45 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
   Object.freeze({ type: 'outpost_shell', x: SH.x + SH.rear - 0.3, z: SH.z, hw: 0.4, hd: SH.hw * 0.72, h: 2.8 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledFront - 6.2) / 2, z: SH.z + s * SH.hw * 0.92, hw: (6.2 + SH.sledFront) / -2, hd: 0.15, h: 3.6 })),

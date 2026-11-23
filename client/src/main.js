@@ -1596,6 +1596,15 @@ function onEvent(e) {
       ui.appearanceApplied(e.appearance);break;
     case 'appearance_rejected':
       ui.appearanceRejected(e.reason);break;
+    case 'range_shot': {
+      const target = S.ents.get(e.d);
+      if (e.hit && target?.placed) {
+        target.model.trigger?.('hit');
+        if (!motionPreference.matches && quality > 0) fx.burst(target.chest, 0x8bd7d0, Math.min(6, quality * 3), .35);
+      }
+      ui.toast(`Calibration ${e.shots}/${e.total}: ${e.hit ? e.score + ' points' : 'miss'}`, e.hit ? 'gain' : 'warn');
+      break;
+    }
     case 'say':
       if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');
