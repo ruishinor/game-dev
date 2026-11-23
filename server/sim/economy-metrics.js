@@ -25,13 +25,14 @@ const DETAIL = Object.freeze({
 });
 const MAX_DAYS = 90;
 const BAND = level => level < 5 ? '1-4' : level < 8 ? '5-7' : level < 12 ? '8-11' : '12-15';
-const validNumber = n => Number.isSafeInteger(n) && n >= 0 && n <= 1_000_000_000;
+const validNumber = n => Number.isSafeInteger(n) && n >= 0;
+// A single observed transaction remains bounded; day aggregates can exceed the per-event cap.
 const bounded = n => Math.min(Number.MAX_SAFE_INTEGER, n);
 const emptyDay = () => ({ totals: {}, byClass: {}, byLevel: {}, byDetail: {} });
 const record = (bucket, event, amount) => {
   bucket[event] = bounded((bucket[event] || 0) + amount);
 };
-const validCount = (n) => validNumber(n) && n > 0;
+const validCount = (n) => validNumber(n) && n > 0 && n <= 1_000_000_000;
 const validDay = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const sanitizeBucket = raw => {
   const out = {};
