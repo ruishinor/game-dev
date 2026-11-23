@@ -5,7 +5,7 @@ import {reconstructLumenfenGLB} from '../tools/assets/lumenfen-glb-refine.mjs';
 import fs from 'node:fs';
 const spec=JSON.parse(fs.readFileSync(new URL('../assets/lumenfen-donors.json',import.meta.url),'utf8'));
 
-function tinyDonor(nodeName) {
+function tinyDonor(nodeName, opposingFaces=false) {
  // Intentionally low-density source cone; rebuilding must create *new*
  // topology and embed three physically meaningful texture atlases.
  const rings=5,sides=14;
@@ -18,6 +18,9 @@ function tinyDonor(nodeName) {
   const a=j*sides+i,b=j*sides+(i+1)%sides,c=a+sides,d=b+sides;
   indices.push(a,c,b,b,c,d);
  }
+ // Opposing coincident triangles cancel averaged vertex normals, as seen
+ // in the stone_guild source. The remesher must preserve valid unit normals.
+ if(opposingFaces){const copy=indices.slice();for(let k=0;k<copy.length;k+=3)indices.push(copy[k],copy[k+2],copy[k+1]);}
  const pos=Buffer.from(new Float32Array(vertices).buffer);
  const ind=Buffer.from(new Uint16Array(indices).buffer);
  const bin=Buffer.concat([pos,ind]);
@@ -65,6 +68,14 @@ test('the real refinement function subdivides source triangles into high-density
  const errors=validation.issues.messages.filter(m=>m.severity===0);
  assert.equal(errors.length,0,JSON.stringify(errors.slice(0,5)));
 });
+test('opposing donor faces cannot generate zero-length glTF normals',async()=>{
+ const item=spec.donors.find(x=>x.id==='stone_guild');
+ const {buffer}=reconstructLumenfenGLB(tinyDonor(item.node,true),item.id);
+ const report=await validateBytes(new Uint8Array(buffer),{uri:'opposing-normals.glb',maxIssues:100});
+ const errors=report.issues.messages.filter(m=>m.severity===0);
+ assert.equal(errors.length,0,JSON.stringify(errors.slice(0,8)));
+});
+
 test('unknown donor ID and malformed GLB data fail closed, never silently copy unrefined source',()=>{
  assert.throws(()=>reconstructLumenfenGLB(Buffer.alloc(12),'unregistered'));
  assert.throws(()=>reconstructLumenfenGLB(Buffer.alloc(12),'stone_guild'),/Invalid source GLB/);
