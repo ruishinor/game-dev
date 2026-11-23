@@ -572,6 +572,13 @@ export function makeCreature(assets, type) {
     m.emissive.set(spec.emissive);
     m.emissiveMap = null;
     if (spec.metalness !== undefined) m.metalness = spec.metalness; // scales the metalness map
+    if(type==='skitter'||type==='sentinel'){
+      // The donor meshes are rigged GLBs; remove the faceted lighting
+      // treatment without increasing the polygon count or deforming the rig.
+      m.flatShading=false;
+      m.roughness=Math.max(.28,Math.min(.76,m.roughness??.56));
+      m.needsUpdate=true;
+    }
   }
   inst.traverse((o) => {
     if (o.isMesh) o.frustumCulled = false;
@@ -601,6 +608,49 @@ export function makeCreature(assets, type) {
     mesh(new THREE.SphereGeometry(.075,16,10),sensor,.08,.82,-.07);
     inst.add(kit);kit.updateMatrixWorld(true);if(body)body.attach(kit);
     extras.push(st=>{sensor.emissiveIntensity=.55+(st.act==='surveying'? .65+.3*Math.sin(st.t*6):.08);});
+  }
+  // High-fidelity kit for the actual GLB creatures around the Reach rifts.
+  // Attach to the rig's Body bone to inherit animation and avoid static
+  // world-space decorations that detach as the creature moves.
+  if((type==='skitter'||type==='sentinel')&&body){
+    const kit=new THREE.Group();kit.name='creature:machined-detail-kit';
+    const shell=new THREE.MeshStandardMaterial({color:type==='skitter'?0x887b8c:0x8a9297,metalness:.24,roughness:.46});
+    const dark=new THREE.MeshStandardMaterial({color:0x2a333c,metalness:.55,roughness:.49});
+    const edge=new THREE.MeshStandardMaterial({color:0xb79e77,metalness:.73,roughness:.32});
+    const optic=new THREE.MeshStandardMaterial({color:type==='skitter'?0xe8a4ff:0xff987a,
+      emissive:type==='skitter'?0x8a3dbd:0xe64d30,emissiveIntensity:.65,roughness:.22,metalness:.26});
+    const add=(geo,mat,x,y,z,name)=>{
+      const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.castShadow=true;o.name=name;kit.add(o);return o;
+    };
+    const rings=type==='skitter'?3:5;
+    for(let i=0;i<rings;i++){
+      const y=type==='skitter'?1.12+i*.16:1.25+i*.17;
+      const radius=type==='skitter'?.23+i*.012:.29+i*.017;
+      const collar=add(new THREE.TorusGeometry(radius,.017,8,32),i%2?edge:dark,0,y,-.12,
+        'creature:segmented-dorsal-collar');
+      collar.rotation.x=Math.PI/2-.15;
+      for(const side of [-1,1]){
+        const plate=add(new THREE.SphereGeometry(.085,16,10),shell,side*(radius+.035),y,-.08,
+          'creature:overlapping-ceramic-plate');
+        plate.scale.set(.75,1.45,.52);
+        const pin=add(new THREE.CylinderGeometry(.017,.017,.014,12),edge,side*(radius+.07),y+.02,-.04,
+          'creature:captive-fastener');
+        pin.rotation.z=Math.PI/2;
+      }
+    }
+    for(const side of [-1,1]){
+      const conduit=add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+        new THREE.Vector3(side*.12,1.22,.2),
+        new THREE.Vector3(side*.26,1.46,.08),
+        new THREE.Vector3(side*.21,1.72,-.09),
+      ]),24,.012,8,false),optic,0,0,0,'creature:powered-sensory-conduit');
+      conduit.castShadow=false;
+      const lens=add(new THREE.SphereGeometry(.056,20,12),optic,side*.19,1.73,.03,
+        'creature:compound-sensor');
+      lens.scale.set(1.1,.75,.35);lens.castShadow=false;
+    }
+    inst.add(kit);kit.updateMatrixWorld(true);body.attach(kit);
+    extras.push(st=>{optic.emissiveIntensity=st.dead?.05:st.casting?1.6:st.combat?1.05:.4+.12*Math.sin(st.t*2.4);});
   }
   if (spec.sacs && body) {
     const mat = new THREE.MeshBasicMaterial({ color: spec.sacs });
