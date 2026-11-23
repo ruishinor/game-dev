@@ -33,7 +33,7 @@ export function fenStemGeometry(T, root = false) {
   for (let j = 0; j < rings; j++) for (let i = 0; i < sides; i++) {
     const a = j * sides + i, b = j * sides + (i + 1) % sides;
     const c = a + sides, d = b + sides;
-    ix.push(a, b, c, b, d, c);
+    ix.push(a, c, b, b, c, d);
   }
   return geometry(T, v, ix);
 }
