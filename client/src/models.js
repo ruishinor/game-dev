@@ -906,6 +906,8 @@ export const MODEL_FACTORIES = {
   expedition_quartermaster: makeArchivist,
   outpost_crew: makeArchivist,
   sanctum_guard: makeArchivist,
+  outpost_warden: makeArchivist,
+  outpost_commander: makeArchivist,
   // Embedded stations reuse their existing world mesh; the entity supplies the interaction/label.
   initiation_terminal:()=>({group:new THREE.Group(),height:1.45,radius:.55,hover:0,update(){}}),
   sanctum_fabricator: () => ({group:new THREE.Group(),height:2.7,radius:0.5,hover:0,update(){}}),
