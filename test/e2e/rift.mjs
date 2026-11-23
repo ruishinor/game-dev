@@ -133,14 +133,14 @@ try{
  // The gate wakes only when someone approaches it (the arrival is ~270 m away).
  const {gateToWorld}=await import('../../shared/severance-gate.js');
  assert.equal(server.game.severance.phase,'dormant','the gate sleeps while travellers are at the distant arrival terrace');
- {const approach=gateToWorld(0,-40);p.x=approach.x;p.z=approach.z;}
+ {const approach=gateToWorld(0,-40);await move(approach,0);}
  await page.waitForFunction(()=>window.__attune.state().ents.find(e=>e.c==='severance_gate')?.row.gp==='active',null,{timeout:30000,polling:250});
  await page.waitForFunction(()=>window.__attune.state().world.severance?.phase==='active',null,{polling:250});
  await page.screenshot({path:'rift-evidence/04-severance-expanse.png'});
  assert.ok(!server.game.enemies.some(e=>e.name==='Displaced Sentinel'),'the Annex is not opened by entering the expanse');
  // Walk the last metres into the passage with real input, then use the portal.
- const landing=gateToWorld(0,-5.5),inside=gateToWorld(0,0.2).z;p.x=landing.x;p.z=landing.z;
- await page.waitForFunction(([x,z])=>{const s=window.__attune.state();return Math.hypot(s.pos.x-x,s.pos.z-z)<.6;},[landing.x,landing.z],{polling:250});
+ const landing=gateToWorld(0,-5.5),inside=gateToWorld(0,0.2).z;
+ await move(landing,0);
  await page.evaluate(()=>window.__attune.view({yaw:0,pitch:.1,dist:4,face:0}));
  await page.locator('#view').focus();await page.keyboard.down('KeyW');
  await page.waitForFunction(z=>{const s=window.__attune.state();return s.you&&s.you.z>z;},inside,{timeout:60000,polling:100});
