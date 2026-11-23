@@ -89,6 +89,7 @@ export class NetServer {
       lastChat: 0,
       alive: true,
       missedPongs: 0,
+      connectedAt: performance.now(),
       authTimer: setTimeout(() => {
         // An authenticated account may remain at character selection without a live player.
         if (!conn.player && !conn.account) ws.close(4000, 'auth timeout');
@@ -96,7 +97,7 @@ export class NetServer {
     };
     this.conns.add(conn);
     ws.on('message', (data, isBinary) => this.onMessage(conn, data, isBinary));
-    ws.on('close', () => this.onClose(conn));
+    ws.on('close', (code) => this.onClose(conn, code));
     ws.on('error', () => {});
     ws.on('pong', () => {
       conn.alive = true;
@@ -104,8 +105,20 @@ export class NetServer {
     });
   }
 
-  onClose(conn) {
+  onClose(conn, code) {
     clearTimeout(conn.authTimer);
+    // Emit only bounded transport metadata. Never log bearer tokens, account
+    // objects, player data, remote addresses or snapshot contents.
+    if (code !== 1000 || conn.closeCause) {
+      console.warn('[net] socket-closed', JSON.stringify({
+        code, cause: conn.closeCause || 'remote-or-transport',
+        connectedMs: Math.round(performance.now() - conn.connectedAt),
+        bufferedBytes: conn.ws.bufferedAmount,
+        stallMs: conn.stalledSince === null ? null : Math.round(performance.now() - conn.stalledSince),
+        missedPongs: conn.missedPongs, strikes: conn.strikes,
+        hadPlayer: !!conn.player,
+      }));
+    }
     this.conns.delete(conn);
     this.detach(conn);
   }
@@ -158,7 +171,7 @@ export class NetServer {
     conn.tokens = Math.min(RATE_BURST, conn.tokens + ((now - conn.lastRefill) / 1000) * RATE_PER_SEC);
     conn.lastRefill = now;
     if (conn.tokens < 1) {
-      if (++conn.strikes > MAX_STRIKES) conn.ws.close(4002, 'rate limited');
+      if (++conn.strikes > MAX_STRIKES) { conn.closeCause = 'rate-limited'; conn.ws.close(4002, 'rate limited'); }
       return;
     }
     conn.tokens -= 1;
@@ -194,7 +207,7 @@ export class NetServer {
 
   strike(conn) {
     conn.strikes += 10;
-    if (conn.strikes > MAX_STRIKES) conn.ws.close(4002, 'malformed traffic');
+    if (conn.strikes > MAX_STRIKES) { conn.closeCause = 'malformed-traffic'; conn.ws.close(4002, 'malformed traffic'); }
   }
 
   /** Limit password guesses and scrypt work even across new connections. */
@@ -575,10 +588,12 @@ export class NetServer {
       const region = travelRegionAt(p.x, p.z);
       const { rows, ids: liveIds, events, rowsJson, evJson } = regions.get(region);
       // Replaceable position snapshots may be skipped; private messages are retained.
-      if(p.outbox.length>PRIVATE_EVENT_LIMIT){conn.ws.terminate();continue;}
+      if(p.outbox.length>PRIVATE_EVENT_LIMIT){conn.closeCause='private-event-overflow';conn.ws.terminate();continue;}
       if(conn.ws.bufferedAmount>SNAPSHOT_BACKPRESSURE){
-        conn.stalledSince??=game.time;
-        if(game.time-conn.stalledSince>STALL_LIMIT_MS){conn.ws.terminate();continue;}
+        // Congestion policy is elapsed wall time, not clamped simulation time.
+        const now = performance.now();
+        conn.stalledSince??=now;
+        if(now-conn.stalledSince>STALL_LIMIT_MS){conn.closeCause='snapshot-backpressure';conn.ws.terminate();continue;}
         conn.pendingVisual=recentVisual([...conn.pendingVisual.filter(item=>item.region===region),...events.filter(replayable).map(event=>({time:game.time,region,event}))],game.time);
         continue;
       }
@@ -605,9 +620,9 @@ export class NetServer {
       }
       out += '}';
       try{
-        conn.ws.send(out,error=>{if(error)conn.ws.terminate();});
+        conn.ws.send(out,error=>{if(error){conn.closeCause='snapshot-send-failed';conn.ws.terminate();}});
       }catch{
-        conn.ws.terminate();continue;
+        conn.closeCause='snapshot-send-threw';conn.ws.terminate();continue;
       }
       // Socket accepted the payload, not an application-level acknowledgement.
       p.sheetDirty=false;

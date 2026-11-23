@@ -191,21 +191,35 @@ export function startServer(opts = {}) {
   const net = new NetServer(wss, game, store);
 
   let last = performance.now();
+  let lastSlowTickNotice = -Infinity;
   const loop = setInterval(() => {
     const now = performance.now();
+    const schedulerGapMs = now - last;
     // Clamp so a stalled process cannot produce one enormous step.
-    const dt = Math.min(250, now - last);
+    const dt = Math.min(250, schedulerGapMs);
     last = now;
     game.tick(dt);
+    const simMs = performance.now() - now;
     net.broadcast();
+    const workMs = performance.now() - now;
+    if ((schedulerGapMs > 250 || workMs > 100) && now - lastSlowTickNotice > 10000) {
+      lastSlowTickNotice = now;
+      console.warn('[perf] slow-server-tick', JSON.stringify({
+        schedulerGapMs: Math.round(schedulerGapMs), simulationMs: Math.round(simMs),
+        broadcastMs: Math.round(workMs - simMs), connections: net.conns.size,
+      }));
+    }
   }, TICK_MS);
   const saver = setInterval(() => {
     net.syncAll();
+    const saveStart = performance.now();
     try {
       store.flush();
     } catch (err) {
       console.error('[store] save failed', err);
     }
+    const saveMs = performance.now() - saveStart;
+    if (saveMs > 100) console.warn('[perf] slow-save', JSON.stringify({ saveMs: Math.round(saveMs) }));
   }, SAVE_INTERVAL_MS);
   const heart = setInterval(() => net.heartbeat(), 15000);
 

@@ -925,3 +925,22 @@ test('heartbeat: unauthenticated silence still closes on the first missed probe'
     await srv.close();
   }
 });
+
+test('snapshot backpressure terminates a chronically congested peer with an explicit cause', async () => {
+  const srv = await startServer({ port: 0, dataFile: null });
+  const a = new Client(srv.port);
+  try {
+    const welcome = await a.create('Congested Peer', 'keeper');
+    assert.equal(welcome.t, 'welcome');
+    const player = srv.game.players.get(welcome.id);
+    const conn = srv.net.sessions.get(player.char.id);
+    Object.defineProperty(conn.ws, 'bufferedAmount', { configurable: true, value: 600000 });
+    conn.stalledSince = performance.now() - 6000;
+    srv.net.broadcast();
+    await a.until(() => a.closed !== null, 2500, 'backpressure disconnect');
+    assert.equal(conn.closeCause, 'snapshot-backpressure');
+    assert.equal(srv.net.sessions.has(player.char.id), false);
+  } finally {
+    await srv.close();
+  }
+});

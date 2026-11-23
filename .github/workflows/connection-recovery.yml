@@ -1,0 +1,34 @@
+name: Connection recovery browser regression
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/net.js'
+      - 'client/src/main.js'
+      - 'client/src/connection-diagnostics.js'
+      - 'server/net.js'
+      - 'server/index.js'
+      - 'test/client-net-recovery.test.js'
+      - 'test/e2e/network-health.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node test/e2e/network-health.mjs

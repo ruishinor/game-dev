@@ -22,7 +22,7 @@ test('skipped snapshots retain private messages without disclosure or duplicates
 test('expired cues are discarded and prolonged stalls and outbox overflow terminate',()=>{
  const {game,net,a,b}=setup();a.conn.ws.bufferedAmount=600000;
  game.emitWorldEvent({e:'cast',s:a.p.id,ab:'test'});net.broadcast();game.time+=1000;a.conn.ws.bufferedAmount=0;net.broadcast();assert.deepEqual(a.messages[0].ev,[]);
- a.conn.ws.bufferedAmount=600000;net.broadcast();game.time+=5001;net.broadcast();assert.equal(a.conn.ws.terminated,true);
+ a.conn.ws.bufferedAmount=600000;net.broadcast();a.conn.stalledSince=performance.now()-5001;net.broadcast();assert.equal(a.conn.ws.terminated,true);assert.equal(a.conn.closeCause,'snapshot-backpressure');
  for(let i=0;i<257;i++)game.message(b.p,'info','bounded');net.broadcast();assert.equal(b.conn.ws.terminated,true);
 });
 

@@ -36,6 +36,17 @@ export function saveAccountToken(token) {
   } catch { /* Private-window storage can be disabled. */ }
 }
 
+// Bounded jitter prevents a group of stalled clients from retrying in lockstep.
+export function reconnectDelay(attempt, random = Math.random) {
+  const base = Math.min(12000, 1000 * 2 ** Math.min(Math.max(0, attempt), 4));
+  return Math.min(12000, Math.round(base * (0.85 + 0.3 * random())));
+}
+
+export function reconnectEligible(state) {
+  return !!(state.entered || state.pendingCreate || state.pendingAccount ||
+    state.pendingGuest || state.accountToken || state.token);
+}
+
 export class Net {
   /**
    * @param {object} h handlers: onWelcome, onSnapshot, onAuthFail,
@@ -56,11 +67,54 @@ export class Net {
     this.entered = false;
     this.closedForGood = false;
     this.retry = null;
+    this.reconnectAttempts = 0;
+    this.reconnects = 0;
+    this.openedAt = 0;
+    this.lastSnapshotAt = 0;
+    this.lastPongAt = 0;
+    this.lastClose = null;
+    this.diagnosticEvents = [];
     this.ping = 0;
     this.latency = null;
     setInterval(() => {
       if (this.entered && this.ws && this.ws.readyState === 1) this.send({ t: 'ping', c: performance.now() });
     }, 2000);
+  }
+
+  recordConnection(kind, details = {}) {
+    // No authentication tokens, passwords, player identifiers or addresses.
+    const event = { kind, at: Date.now(), ...details };
+    this.diagnosticEvents.push(event);
+    if (this.diagnosticEvents.length > 40) this.diagnosticEvents.shift();
+    this.h.onDiagnostic?.(event);
+  }
+
+  getDiagnostics() {
+    const now = performance.now();
+    return {
+      socketState: this.ws?.readyState ?? 3,
+      connected: this.ws?.readyState === 1,
+      entered: this.entered,
+      reconnectAttempts: this.reconnectAttempts,
+      reconnects: this.reconnects,
+      latencyMs: this.latency,
+      snapshotAgeMs: this.lastSnapshotAt ? Math.round(now - this.lastSnapshotAt) : null,
+      pongAgeMs: this.lastPongAt ? Math.round(now - this.lastPongAt) : null,
+      lastClose: this.lastClose,
+      events: this.diagnosticEvents.slice(),
+    };
+  }
+
+  scheduleReconnect() {
+    if (this.closedForGood || !reconnectEligible(this)) return null;
+    clearTimeout(this.retry);
+    const delay = reconnectDelay(this.reconnectAttempts++);
+    this.retry = setTimeout(() => {
+      this.retry = null;
+      this.connect();
+    }, delay);
+    this.recordConnection('retry-scheduled', { attempt: this.reconnectAttempts, delayMs: delay });
+    return delay;
   }
 
   url() {
@@ -71,10 +125,19 @@ export class Net {
   connect() {
     clearTimeout(this.retry);
     if (this.closedForGood || this.ws) return;
-    const ws = new WebSocket(this.url());
+    let ws;
+    try { ws = new WebSocket(this.url()); }
+    catch {
+      this.recordConnection('socket-construction-failed');
+      this.h.onStatus('Unable to open connection. Retrying…');
+      this.scheduleReconnect();
+      return;
+    }
     this.ws = ws;
     ws.onopen = () => {
       if (this.ws !== ws) return;
+      this.openedAt = performance.now();
+      this.recordConnection('socket-open');
       if (this.pendingGuest) this.send({ t: 'resume', token: this.pendingGuest });
       else if (this.pendingAccount) this.send(this.pendingAccount);
       else if (this.accountToken) this.send({ t: 'account_resume', token: this.accountToken });
@@ -91,6 +154,7 @@ export class Net {
       }
       switch (m.t) {
         case 's':
+          this.lastSnapshotAt = performance.now();
           this.h.onSnapshot(m);
           break;
         case 'welcome':
@@ -102,6 +166,9 @@ export class Net {
           this.pendingGuest = null;
           this.pendingCreate = null;
           this.entered = true;
+          if (this.reconnectAttempts) this.reconnects++;
+          this.reconnectAttempts = 0;
+          this.recordConnection('world-welcome');
           this.h.onStatus(null);
           this.h.onWelcome(m);
           break;
@@ -111,6 +178,9 @@ export class Net {
             saveAccountToken(m.token);
           }
           this.accountLogged = true;
+          if (this.reconnectAttempts) this.reconnects++;
+          this.reconnectAttempts = 0;
+          this.recordConnection('account-ready');
           this.pendingAccount = null;
           this.entered = false;
           this.h.onStatus(null);
@@ -152,7 +222,9 @@ export class Net {
           this.h.onCreateFail(m.reason);
           break;
         case 'pong':
-          this.latency = Math.round(performance.now() - m.c);
+          if (!Number.isFinite(m.c)) break;
+          this.lastPongAt = performance.now();
+          this.latency = Math.round(this.lastPongAt - m.c);
           break;
         default:
           break;
@@ -161,6 +233,15 @@ export class Net {
     ws.onclose = (ev) => {
       if (this.ws !== ws) return;
       this.ws = null;
+      this.latency = null; // A cached last-good RTT is not current connectivity.
+      this.lastClose = {
+        code: ev.code,
+        reason: String(ev.reason || '').slice(0, 96),
+        wasClean: !!ev.wasClean,
+        openForMs: this.openedAt ? Math.round(performance.now() - this.openedAt) : null,
+        snapshotAgeMs: this.lastSnapshotAt ? Math.round(performance.now() - this.lastSnapshotAt) : null,
+      };
+      this.recordConnection('socket-close', this.lastClose);
       if (this.logoutPending) {
         this.finishSignOut();
         return;
@@ -170,13 +251,15 @@ export class Net {
         this.h.onReplaced();
         return;
       }
-      if (this.entered || this.pendingCreate || this.accountToken) {
+      const delay = this.scheduleReconnect();
+      if (delay !== null) {
         const why = ev.code === 4002 ? 'Disconnected for sending too much traffic.' : ev.code === 4003 ? 'The world is full.' : 'Connection lost.';
-        this.h.onStatus(`${why} Reconnecting…`);
-        this.retry = setTimeout(() => this.connect(), 2000);
+        this.h.onStatus(`${why} Code ${ev.code}; reconnecting in ${(delay / 1000).toFixed(1)}s…`);
       }
     };
-    ws.onerror = () => {};
+    ws.onerror = () => {
+      if (this.ws === ws) this.recordConnection('socket-error');
+    };
   }
 
   create(name, cls, look, appearance) {

@@ -37,6 +37,7 @@ import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Net, saveToken } from './net.js';
+import { createGameDiagnostics } from './connection-diagnostics.js';
 import { createRenderStallProbe } from './render-stall-probe.js';
 import { createShaderPrewarmer } from './shader-prewarm.js';
 import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
@@ -98,6 +99,9 @@ const spindleHaloMaterial = new THREE.MeshBasicMaterial({
 // bundle is missing, the affected entities use their procedural stand-ins.
 // ?glb=none|vanguard,skitter,… limits which entity types use GLB models.
 const params = new URLSearchParams(location.search);
+// Opt-in network and frame timing, separately from render/stall profiling.
+const diagnostics = createGameDiagnostics(params.get('netdiag') === '1');
+diagnostics.observeLongTasks();
 // Separate opt-in probe for graphics stalls (independent of network recovery).
 const renderProbe = createRenderStallProbe({ enabled: params.get('renderdiag') === '1', renderer, canvas });
 const shaderWarmup = createShaderPrewarmer({
@@ -375,6 +379,7 @@ const net = new Net({
     $('login-error').textContent = reason;
     $('enter').disabled = false;
   },
+  onDiagnostic: (event) => diagnostics.record('socket', event),
   onStatus: (text) => {
     if (text) {
       stopAutomaticMovement();
@@ -1021,7 +1026,11 @@ const chestOf = (ent) => () => ent.chest;
 // --- network handlers ----------------------------------------------------------
 
 function onWelcome(m) {
+  const resettingAt = performance.now();
+  const previousEntities = S.ents.size;
+  const reconnecting = !!S.myId;
   clearWorld();
+  diagnostics.worldReset(performance.now() - resettingAt, previousEntities, reconnecting);
   worldWarmupGeneration++;
   worldWarmupStarted = false;
   worldWarmupReady = !shaderWarmup.enabled;
@@ -1137,6 +1146,7 @@ function onSnapshot(m) {
   ui.syncNpc();
   for (const e of m.ev) onEvent(e);
   if (m.pv) for (const e of m.pv) onEvent(e);
+  diagnostics.snapshot(performance.now() - now, m.ents.length);
 }
 
 const EXTRA_NAMES = { melee_light:'Melee strike', melee_heavy:'Heavy strike', kinetic_discharge: 'Kinetic Discharge', auto: 'attack', sting: 'sting', carapace: 'Carapace', rending_echo: 'Rending Echo', arc_pulse: 'Arc Pulse', fault_shear: 'Fault Shear', containment_sweep: 'Containment Sweep', seismic_slam: 'Seismic Slam', resonance_burst: 'Resonance Burst', hurl: 'hurled stone', triage: 'mend', shared_pulse: 'Shared Pulse', bond: 'bond' };
@@ -2202,6 +2212,7 @@ function advanceEffects(dt) {
 
 function frame(now) {
   requestAnimationFrame(frame);
+  const gapMs = now - last;
   if (renderProbe.enabled) renderProbe.frameGap(now - last, quality, document.hidden);
   const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
   last = now;
@@ -2336,9 +2347,12 @@ function frame(now) {
   // Game logic above runs every animation frame; drawing may be capped
   // (?rfps=N) or paused. Where drawing is very slow (software WebGL) that
   // keeps input, prediction and networking in real time.
+  let drawMs = 0;
   if (!S.paused && now - lastDraw >= drawGap) {
+    const drawStart = performance.now();
     if (renderProbe.enabled) renderProbe.measure('world', quality, () => renderer.render(scene, camera));
     else renderer.render(scene, camera);
+    drawMs = performance.now() - drawStart;
     lastDraw = now;
     S.drawn++;
     if(worldEntryPending&&me?.placed&&me.row&&S.you){
@@ -2356,6 +2370,7 @@ function frame(now) {
   }
   S.frames++;
   S.frameMs += (performance.now() - now - S.frameMs) * 0.2;
+  diagnostics.frame(gapMs, performance.now() - now, drawMs);
 }
 requestAnimationFrame(frame);
 
@@ -2368,6 +2383,8 @@ window.__attune = {
       compId: S.compId,
       snaps: S.snaps,
       fps: S.fps,
+      network: net.getDiagnostics(),
+      diagnostics: diagnostics.get(),
       frameMs: Math.round(S.frameMs),
       frames: S.frames,
       drawn: S.drawn,
