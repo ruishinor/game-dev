@@ -245,7 +245,7 @@ export const ENEMIES = {
    name:'Bog Stalker',level:8,hp:205,speed:4.1,radius:.83,
    aggro:9,social:4,leash:28,
    attack:{range:2.8,interval:1850,dmg:14,kind:'melee'},
-   xp:64,respawn:32000,
+   xp:100,respawn:32000,
   },
   sinter_grazer: {
     name: 'Sinter Grazer',

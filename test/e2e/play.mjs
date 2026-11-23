@@ -105,7 +105,10 @@ async function until(p, fn, arg, ms, label) {
   try {
     await p.page.waitForFunction(fn, arg, { timeout: ms, polling: 100 });
     return true;
-  } catch {
+  } catch (error) {
+    // Do not mislabel page crashes, malformed predicates or client failures as
+    // mere scheduling timeouts; they require distinct investigation.
+    if (error.name !== 'TimeoutError') throw error;
     console.log(`      (timed out waiting for: ${label})`);
     return false;
   }
@@ -207,6 +210,17 @@ async function settle(p, x, z) {
   if (!reached) {
     const { pos, you, myId, snaps } = await state(p);
     const actor = serverPlayer(p.name);
+    // A software-WebGL polling task can expire while an authoritative
+    // snapshot arrives between the last poll and failure diagnostics.
+    // Re-evaluate the *same* position tolerance on that final snapshot,
+    // including the actual server actor; never teleport or accept an
+    // unconfirmed client position just to make the test green.
+    const near = ({ x: px, z: pz }) =>
+      Number.isFinite(px) && Number.isFinite(pz) && Math.hypot(px - x, pz - z) < 1.5;
+    if (actor && you && pos && near(actor) && near(you) && near(pos)) {
+      note(`late authoritative snapshot confirmed for ${p.name} after polling timeout`);
+      return;
+    }
     throw Error(`Fixture position failed for ${p.name}: ${JSON.stringify({
       expected: { x, z }, actor: actor && { id: actor.id, x: actor.x, z: actor.z },
       client: { myId, snaps, pos, authoritative: you && { x: you.x, z: you.z } },
@@ -243,6 +257,10 @@ async function workshopPlaytest(){
   check('workshop UI: compact NPC bust and authoritative dialogue',npcVisible&&talk&&!!bounds&&bounds.width<=350&&bounds.height<=280);
   await shot(P,'npc-01-dialogue.png');
   await teleport(P,npc.x+8,npc.z+3);
+  // Teleport updates the isolated authoritative fixture, not the browser's
+  // current snapshot. First confirm the client received the new position,
+  // then require the real NPC access guard to close the dialogue.
+  await settle(P,npc.x+8,npc.z+3);
   await page.locator('.npc-panel').waitFor({state:'hidden',timeout:10000});
   check('NPC conversation closes when the player leaves range',await page.locator('.npc-panel').isHidden());
   await teleport(P,npc.x,npc.z+3);
@@ -566,7 +584,7 @@ try {
     const actorTurn = wrap(s.yaw - start.actor);
     const cameraTurn = wrap(s.camYaw - start.camera);
     return actorTurn < -0.4 && Math.abs(wrap(cameraTurn - actorTurn)) < 0.05;
-  }, headingBefore, 3000, 'character and camera turn together from D');
+  }, headingBefore, SOFTWARE_GL ? 15000 : 3000, 'character and camera turn together from D');
   await A.page.keyboard.up('KeyD');
   sa = await state(A);
   check('2. D turns the character and the camera follows', turned,

@@ -20,6 +20,13 @@ test('dark Foundry retains room silhouettes and traversable guidance without add
  assert.ok(guides.count>=50);
  assert.equal(f.stats().guideDraws,1);
  assert.equal(f.stats().lights,FOUNDRY_LIMITS.lights);
+ const thresholds=f.group.getObjectByName('foundry:door-thresholds');
+ assert.ok(thresholds?.isInstancedMesh,'doorway depth cues remain one batched draw');
+ assert.equal(thresholds.count,FOUNDRY_AREAS.length-1);
+ assert.equal(f.stats().thresholdDraws,FOUNDRY_VISIBILITY.thresholdDraws);
+ assert.equal(thresholds.material.depthWrite,false,'thresholds do not mask combat visuals');
+ assert.equal(thresholds.material.depthTest,true,'doorway cues stay behind real geometry');
+ assert.equal(thresholds.material.opacity,FOUNDRY_VISIBILITY.thresholdOpacity);
  const pos=new T.Matrix4(),v=new T.Vector3(),q=new T.Quaternion(),scale=new T.Vector3();
  for(const index of [0,Math.floor(guides.count*.47),guides.count-1]){
    guides.getMatrixAt(index,pos);
@@ -29,6 +36,13 @@ test('dark Foundry retains room silhouettes and traversable guidance without add
    assert.ok(Math.abs(v.z-SILENT_FOUNDRY.z)<=SILENT_FOUNDRY.hd);
  }
  assert.equal(FOUNDRY_AREAS.length,4);
+ for(let i=0;i<thresholds.count;i++){
+   thresholds.getMatrixAt(i,pos);
+   pos.decompose(v,q,scale);
+   assert.ok(Math.abs(v.x-SILENT_FOUNDRY.x)<.01,'thresholds are centred in walkable doorways');
+   assert.ok(Math.abs(v.z-(SILENT_FOUNDRY.z+[52,0,-52][i]))<.01);
+   assert.ok(Math.abs(v.y-foundryHeight(v.x,v.z)-.065)<.01,'thresholds follow the authoritative floor');
+ }
  f.update(.016,1,{x:0,y:2,z:0});
  assert.equal(f.group.visible,false);
  assert.equal(ambient.intensity,1.7);

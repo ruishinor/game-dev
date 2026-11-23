@@ -804,6 +804,14 @@ test('store: corrupt files fail closed and valid records remain isolated', () =>
   data.characters.push({ ...data.characters.find((c) => c.id === other.char.id), id: 'dupe', name: 'OTHER' });
   data.characters.push({ id: 'broken' }, null, 7);
   fs.writeFileSync(file, JSON.stringify(data));
+  const damaged = fs.readFileSync(file, 'utf8');
+  assert.throws(() => new CharacterStore(file), /recovery is required/,
+    'do not silently discard characters with missing, duplicate or conflicting identities');
+  assert.equal(fs.readFileSync(file, 'utf8'), damaged, 'startup does not rewrite the damaged save');
+  // Remove only the demonstrably malformed identities. The remaining tampered
+  // but structurally identifiable character is still sanitized defensively.
+  data.characters = data.characters.slice(0, 2);
+  fs.writeFileSync(file, JSON.stringify(data));
   const s3 = new CharacterStore(file);
   assert.equal(s3.chars.size, 2);
   const loaded = s3.authenticate(token);
