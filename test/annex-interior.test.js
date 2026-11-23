@@ -8,10 +8,11 @@ import {makeAnnexRecoveryCache} from '../client/src/annex-cache.js';
 test('Phase Annex owns three enclosed and structurally different chamber identities',()=>{
  const before=COLLIDERS.length,partitions=ANNEX_PARTITIONS.length;
  const visual=createAnnexInterior(T,RIFT_ANNEX);
- const roofs=[],rooms=[],names=new Set();
+ const roofs=[],rooms=[],upperPartitions=[],names=new Set();
  visual.group.traverse(o=>{
    names.add(o.name);
    if(o.name.startsWith('annex:roof:'))roofs.push(o);
+   if(o.name==='annex:upper-partition')upperPartitions.push(o);
    if(o.name.startsWith('annex:room:'))rooms.push(o);
  });
  assert.equal(visual.stats.rooms,3);
@@ -20,6 +21,15 @@ test('Phase Annex owns three enclosed and structurally different chamber identit
  assert.equal(COLLIDERS.length,before);
  assert.equal(ANNEX_PARTITIONS.length,partitions);
  assert.equal(rooms.length,3);
+ assert.equal(upperPartitions.length,2,'both inter-room bulkheads close against the roof');
+ for(const upper of upperPartitions){
+   const bottom=upper.position.y-upper.geometry.parameters.height/2;
+   const top=upper.position.y+upper.geometry.parameters.height/2;
+   assert.ok(Math.abs(bottom-4.5)<.001,'the upper wall starts above the walk-throughs');
+   assert.ok(Math.abs(top-ANNEX_SHELL_HEIGHT)<.001,'the wall meets the ceiling');
+   assert.ok(upper.geometry.parameters.width>RIFT_ANNEX.hw*2,
+     'upper partition spans the full chamber width');
+ }
  assert.deepEqual(ANNEX_ROOMS.map(r=>r.name),['Arrival Gallery','Relay Workshop','Null Chamber']);
  for(const key of ['annex:arrival-arched-bay','annex:relay-pressure-line','annex:null-containment-busbar','annex:door-header','annex:upper-perimeter']){
    assert.ok(names.has(key),'Missing '+key);
