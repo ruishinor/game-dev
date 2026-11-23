@@ -1,5 +1,8 @@
 # ATTUNEMENT — Development roadmap and delivery register
 
+> **Current-status authority (2026-11-23):** [Canonical delivery register](DELIVERY-REGISTER.md) is the SHA-pinned, evidence-graded current status index. This document preserves the original requirements and historical checkpoints **as recorded at their dates**. Its earlier `MAX_LEVEL = 5`, unmerged PR, exclusive Claude-region ownership and blanket GLB-source/publication assumptions are superseded where the register and current [AGENTS.md](../AGENTS.md) document newer evidence or owner decisions. Do not erase dated decisions; do not infer present delivery status from them.
+
+
 ## Cinematic Character Selection and World Entry — 2026-11-20
 
 See [the complete owner-directed cinematic selection delivery roadmap](art/CINEMATIC-CHARACTER-SELECTION-ROADMAP.md) and [the original composition blueprint](art/concepts/cinematic-character-selection.svg). An isolated branch replaces the rejected beige/gray selection treatment with full-viewport cold material architecture and a live **persisted** gameplay model. Reuses authoritative account/character ownership, six-slot limit, character creation/initiation, deletion and world-entry contracts. Account-only projection now includes supported equipment visuals and true character-owned metadata. Focused validation is added; runtime screenshots, GPU profiling, full race/equipment visual acceptance, and PR checks must be verified before production promotion. Keep Expanse/Silent Foundry owner-isolated.
