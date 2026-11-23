@@ -173,13 +173,22 @@ def refine_meshes(root, target):
         else:
             # Worked planks, frame joints, fittings: physically bevel the mesh
             # rather than merely changing flat-shaded normals.
-            if scale < 0.012:
+            if scale < 0.012 and target != "weir_mechanism":
                 continue
             bevel = obj.modifiers.new("lumenfen_worked_edges", "BEVEL")
-            bevel.width = max(0.003, min(0.045, scale * 0.034))
-            bevel.segments = 3
-            bevel.limit_method = "ANGLE"
-            bevel.angle_limit = 0.28
+            if target == "weir_mechanism":
+                # The imported weir has rounded, mostly low-angle parts: an
+                # angle-only bevel left every source mesh unchanged. Refine
+                # actual shaft/plate contours with smaller all-edge bevels.
+                # Keep the width tied to local thickness to avoid overhangs.
+                bevel.width = max(0.0006, min(0.012, scale * 0.023))
+                bevel.segments = 2
+                bevel.limit_method = "NONE"
+            else:
+                bevel.width = max(0.003, min(0.045, scale * 0.034))
+                bevel.segments = 3
+                bevel.limit_method = "ANGLE"
+                bevel.angle_limit = 0.28
             before = triangle_count([obj])
             try:
                 bpy.ops.object.modifier_apply(modifier=bevel.name)
