@@ -11,12 +11,13 @@ import * as THREE from 'three';
 import { Animator } from './animator.js';
 import { disposeInstance } from './assets.js';
 import { createWardenRifle, hasWardenRifle, syncWardenWeapon } from './warden-rifles.js';
+import { WARDEN_PRIMARY_WEAPONS, createWardenCombatRod, syncWardenCombatRod } from './warden-combat-rod.js';
 
 export const HALO_BUNDLE = 'halo_construct';
 
 // Mesh names authored by tools/asset-pipeline (rig stage).
 const ROLES = {
-  // Sanctum Wardens: open vertical ring, fitted security uniform and rebuilt archive rifles (stave fallback).
+  // Sanctum Wardens: vertical ring, security uniform, alternating rifle and energized combat rod.
   guard: { meshes: ['body', 'ring_vertical', 'security'], idle: 'Guard_Watch_Loop', lookAt: false, height: 1.85 },
   // Vendors (owner direction 2026-11-21): the guard body and vertical ring in
   // the painted livery (white shell, ebony mechanism) with a blue sash only;
@@ -28,9 +29,9 @@ const ROLES = {
 // Deliberately restrained; all four read as the same institution.
 const GUARD_VARIANTS = [
   { equip: ['equip_pouches', 'equip_radio'], optic: [0.62, 0.86, 0.95], phase: 0.0, tempo: 1.0 },
-  { equip: ['equip_pouches', 'equip_baton'], optic: [0.95, 0.72, 0.38], phase: 2.7, tempo: 0.94 },
+  { equip: ['equip_pouches'], optic: [0.95, 0.72, 0.38], phase: 2.7, tempo: 0.94 },
   { equip: ['equip_radio', 'equip_baton'], optic: [0.7, 0.92, 0.78], phase: 5.1, tempo: 1.06 },
-  { equip: ['equip_pouches', 'equip_radio', 'equip_baton'], optic: [0.98, 0.84, 0.6], phase: 7.6, tempo: 0.97 },
+  { equip: ['equip_pouches', 'equip_radio'], optic: [0.98, 0.84, 0.6], phase: 7.6, tempo: 0.97 },
 ];
 const VENDOR_OPTIC = [0.95, 0.72, 0.38];
 const HEAD_TURN_MAX = 0.9; // rad, vendor attention
@@ -50,7 +51,8 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   if (!inst) throw new Error('halo_construct bundle is not loaded');
   const v = role === 'guard' ? GUARD_VARIANTS[((variant % GUARD_VARIANTS.length) + GUARD_VARIANTS.length) % GUARD_VARIANTS.length] : null;
   const guardIndex = v ? GUARD_VARIANTS.indexOf(v) : -1;
-  const armed = !!v && hasWardenRifle(assets, guardIndex);
+  const primary = v ? WARDEN_PRIMARY_WEAPONS[guardIndex] : null;
+  const armed = primary === 'rifle' && hasWardenRifle(assets, guardIndex);
   // Keep one existing anchored stave as a hidden emergency presentation fallback.
   // A valid download does not guarantee the rifle can be fitted every frame.
   const keep = new Set([...spec.meshes, ...(v ? v.equip : []), ...(v ? ['stave'] : [])]);
@@ -79,6 +81,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   group.add(inst);
   const stave = v ? inst.getObjectByName('stave') : null;
   const rifle = armed ? createWardenRifle(assets, inst, guardIndex, v.optic) : null;
+  const combatRod = primary === 'combat-rod' ? createWardenCombatRod(inst,guardIndex) : null;
   const clips = assets.clips(HALO_BUNDLE);
   const anim = new Animator(inst, clips);
   if (!anim.has(spec.idle)) throw new Error(`halo_construct has no clip ${spec.idle}`);
@@ -86,7 +89,9 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   // Evaluate the base clip even at phase zero. Previously the first Warden
   // was fitted against the unanimated bind pose and emitted a false failure.
   anim.update(v?.phase ?? 0);
-  let weaponPresentation = v ? syncWardenWeapon(rifle,stave,0,{t:v.phase}) : null;
+  let weaponPresentation = v ? (primary === 'combat-rod'
+    ? syncWardenCombatRod(combatRod,stave,0,{t:v.phase})
+    : syncWardenWeapon(rifle,stave,0,{t:v.phase})) : null;
   const head = inst.getObjectByName('Head');
   const neck = inst.getObjectByName('neck_01');
   const lod = { acc: 0 };
@@ -105,8 +110,10 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     height: spec.height,
     radius: 0.42,
     hover: 0,
-    meshes: [...keep, ...(rifle ? ['warden-rifle:' + rifle.id] : [])],
-    weaponFit: () => rifle?.inspect() ?? null,
+    meshes: [...keep, ...(rifle ? ['warden-rifle:' + rifle.id] : []),
+      ...(combatRod ? ['warden-combat-rod:energized'] : [])],
+    weaponPrimary: () => primary,
+    weaponFit: () => rifle?.inspect() ?? combatRod?.inspect() ?? null,
     weaponPresentation: () => weaponPresentation,
     update(dt, st) {
       if (spec.talk) {
@@ -122,7 +129,9 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       const step = lod.acc;
       lod.acc = 0;
       anim.update(step);
-      if(v)weaponPresentation=syncWardenWeapon(rifle,stave,step,st);
+      if(v)weaponPresentation=primary === 'combat-rod'
+        ? syncWardenCombatRod(combatRod,stave,step,st)
+        : syncWardenWeapon(rifle,stave,step,st);
       // Vendor attention: turn the ring toward a nearby customer (presentation only).
       const target = spec.lookAt && st.lookAt && !st.dead ? st.lookAt : null;
       attention += ((target ? 1 : 0) - attention) * Math.min(1, step * 4);
@@ -144,6 +153,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     },
     dispose() {
       anim.dispose();
+      combatRod?.dispose();
       disposeInstance(group);
     },
   };
