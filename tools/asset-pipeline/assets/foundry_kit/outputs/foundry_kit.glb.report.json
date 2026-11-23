@@ -1,14 +1,15 @@
 {
  "file": "assets/foundry_kit/outputs/foundry_kit.glb",
- "bytes": 707756,
+ "bytes": 1579160,
  "inputBytes": 9222356,
- "triangles": 3028,
- "meshes": 11,
+ "triangles": 29224,
+ "meshes": 18,
  "materials": [
   "FK_Strip",
   "FK_Foundry",
   "FK_Hot",
-  "FK_Lamp"
+  "FK_Lamp",
+  "FK_RefinedHardSurface"
  ],
  "textures": [
   {
@@ -49,9 +50,19 @@
   "EXT_meshopt_compression"
  ],
  "validator": {
-  "errors": 0,
-  "warnings": 0,
-  "infos": 16,
+  "status": "pending-exact-head-CI",
+  "errors": null,
+  "warnings": null,
+  "infos": null,
   "messages": []
+ },
+ "refinement": {
+  "type": "added hard-surface reauthored glTF mesh topology",
+  "revision": 1,
+  "addedMeshes": 7,
+  "addedTriangles": 26196,
+  "preservedBaseMeshes": 11,
+  "source": "tools/assets/refine-foundry-glb.mjs",
+  "note": "Existing meshopt-compressed geometry, authored UV atlas, glow meshes and kit node names preserved; adds one instanced detail mesh per piece"
  }
 }
