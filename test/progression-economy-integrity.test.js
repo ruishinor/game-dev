@@ -34,9 +34,9 @@ test('P12: Lumenfen Bog Stalker XP per effective HP is competitive at levels 8-1
   assert.equal(ENEMIES.fen_stalker.xp, 100);
   for (const level of [8, 9, 10, 11]) {
     const fen = xpPerHp('fen_stalker', level);
-    const similarly_mobile = xpPerHp('faultstalker', level);
-    assert.ok(fen >= 0.8 * similarly_mobile, 'level ' + level + ': Lumenfen XP/HP should not fall below 80% of comparable Faultstalker');
-    assert.ok(fen < xpPerHp('sentinel', level), 'level ' + level + ': no new dominant XP-per-HP strategy');
+    const faultstalkerRate = xpPerHp('faultstalker', level);
+    assert.ok(fen >= 0.8 * faultstalkerRate, 'level ' + level + ': Lumenfen XP/HP should not fall below 80% of comparable Faultstalker');
+    assert.ok(fen < xpPerHp('sentinel', level), 'level ' + level + ': relative reward stays below a level-matched Sentinel');
   }
 });
 
