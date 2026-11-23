@@ -16,6 +16,8 @@ Their next technical stage is extraction to the private pipeline cache, visual/m
 
 ## Verification and limitations
 
+The immutable originals inventory remains independently checked. The two remeshed derivatives are now served from a separate directory with their original binary blob IDs preserved; the runtime loader and GLB inspection tests use the relocated paths. CI must still validate this exact head before release.
+
 Node tests check module requests, finite fitting, PBR adapted material mounting, no new collision, both refined-to-original and missing-source fallbacks, reduced-detail disablement, VFX throttling, frame update and idempotent cleanup. Binary GLB tests validate the real on-disk output, 9× triangle count, accessor and index range integrity, material/texture preservation, and source blob provenance. Validate the new assembly in live gameplay at 1280×800, 1920×1080, 2560×1440, along with reduced-motion and low-light conditions, before artistic acceptance. CI/Node green does **not** establish photorealism, PBR texture resolution, real hardware GPU cost, or satisfactory upscale of ZIP donors.
 
 Authority: client-side presentation only; no new server action, economic/reward state, persistent state or privileged operation. The existing two tabletop GLBs were already browser-served; archive contents remain a development input, never a new browser mount.
