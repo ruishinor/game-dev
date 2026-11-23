@@ -71,6 +71,7 @@ try {
     root.traverse((n) => { if (n.name.startsWith('annex:room:')) rooms.push(n.name); });
     return {
       rooms, roofs: [0, 1, 2].map((i) => !!root.getObjectByName('annex:roof:' + i)),
+      upperPartitions: root.children.filter((n) => n.name === 'annex:upper-partition').length,
       hasReturnFoundation: !!portal.getObjectByName('rift:foundation'),
       fallbackHidden: portal.getObjectByName('rift:fallback-frame')?.visible === false,
       stableMembrane: portal.getObjectByName('rift:interference-membrane')?.material.uniforms.uStable.value === 1,
@@ -86,6 +87,8 @@ try {
   });
   assert.equal(architecture.rooms.length, 3);
   assert.ok(architecture.roofs.every(Boolean));
+  assert.equal(architecture.upperPartitions, 2,
+    'each adjoining chamber must have an enclosed upper wall, not an open ceiling');
   assert.equal(architecture.hasReturnFoundation, true);
   assert.equal(architecture.fallbackHidden, true);
   assert.equal(architecture.stableMembrane, true);
