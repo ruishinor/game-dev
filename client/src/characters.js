@@ -807,6 +807,10 @@ export const CHARACTER_BUNDLES = ['humanoid_m', 'humanoid_f', 'creatures', 'spin
  */
 export function createModel(assets, meta, glb = true) {
   const model = buildModel(assets, meta, glb);
+  // The Null Chamber's authoritative ranged soldier profiles must carry
+  // actual rifles, not the standard Severance melee rod presentation.
+  if(meta.c==='severance_soldier'&&['null_arc','null_resonance'].includes(meta.vx))
+    model.setWeaponVisual?.('longpoint');
   return meta.vx ? applyEnemyVariant(THREE, model, meta.vx) : model;
 }
 
