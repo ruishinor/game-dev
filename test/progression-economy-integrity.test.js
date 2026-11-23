@@ -14,7 +14,7 @@ const xpPerHp = (type, level) => {
   return killXp(enemy, level) / (ENEMIES[type].hp * levelHpMul(enemy));
 };
 
-test('P12: character XP milestones and five-region entry ladder remain coherent', () => {
+test('P12: character XP milestones and four-region entry ladder remain coherent', () => {
   assert.equal(MAX_LEVEL, 15);
   assert.deepEqual([5, 8, 12, 15].map(experienceTo), [1150, 3910, 11510, 21200]);
   assert.deepEqual(
@@ -39,6 +39,7 @@ test('P12: Lumenfen Bog Stalker XP per effective HP is competitive at levels 8-1
     assert.ok(fen < xpPerHp('sentinel', level), 'level ' + level + ': no new dominant XP-per-HP strategy');
   }
 });
+
 test('P12: Lumenfen correction leaves the no-ordinary-loot contract intact', () => {
   assert.ok(NO_ITEM_REWARD_TYPES.includes('fen_stalker'));
   const game = makeGame();
