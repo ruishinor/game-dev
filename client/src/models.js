@@ -312,11 +312,12 @@ export function makeMender() {
 
 export function makeSkitter() {
   const group = new THREE.Group();
-  const hide = std(0x5a2f66, { rough: 0.6 });
-  const plate = std(0x2e1838, { rough: 0.5, metal: 0.2 });
+  const hide = new THREE.MeshStandardMaterial({color:0x76527d,roughness:.62,metalness:.05});
+  const plate = new THREE.MeshStandardMaterial({color:0x4e3458,roughness:.38,metalness:.3});
+  const smoothShell=new THREE.SphereGeometry(1,32,24);
   const body = pivot(0, 0.48, 0);
-  body.add(part(SPH, hide, 0.55, 0.3, 0.75));
-  body.add(part(SPH, plate, 0.42, 0.26, 0.5, 0, 0.1, -0.12));
+  body.add(part(smoothShell, hide, 0.55, 0.3, 0.75));
+  body.add(part(smoothShell, plate, 0.42, 0.26, 0.5, 0, 0.1, -0.12));
   body.add(part(SPH, plate, 0.3, 0.2, 0.3, 0, 0, 0.62));
   const eyes = lit(0xff5ad1);
   for (const s of [-1, 1]) {
@@ -373,10 +374,17 @@ export function makeSkitter() {
 
 export function makeSentinel() {
   const group = new THREE.Group();
-  const hull = std(0x6b6e72, { metal: 0.7, rough: 0.35 });
-  const dark = std(0x26282c, { metal: 0.6, rough: 0.5 });
+  const hull = new THREE.MeshStandardMaterial({color:0x87949a,metalness:.68,roughness:.37});
+  const dark = new THREE.MeshStandardMaterial({color:0x343e47,metalness:.58,roughness:.48});
   const body = pivot(0, 0, 0);
-  body.add(part(OCT, hull, 0.55, 0.7, 0.55));
+  const sculptedHull=new THREE.SphereGeometry(1,32,24);
+  body.add(part(sculptedHull, hull, 0.55, 0.7, 0.55));
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3;
+    const seam=part(new THREE.TorusGeometry(.48,.013,8,32),dark,1,1,1,0,0,0);
+    seam.rotation.set(Math.PI/2,a,0);
+    body.add(seam);
+  }
   body.add(part(CYL, dark, 0.3, 0.3, 0.3, 0, 0, 0));
   const eyeMat = lit(0xff5a4a);
   const eye = part(SPH, eyeMat, 0.14, 0.14, 0.14, 0, 0.05, 0.42);
