@@ -13,7 +13,7 @@ const OUT = 'halo-evidence';
 fs.mkdirSync(OUT, { recursive: true });
 const server = await startServer({ port: 0, dataFile: null });
 let browser;
-const report = { guards: [], vendor: null, perf: {}, pageErrors: [], consoleErrors: [], consoleWarnings: [], rifleSources: [] };
+const report = { guards: [], vendor: null, perf: {}, watchSamples: [], pageErrors: [], consoleErrors: [], consoleWarnings: [], rifleSources: [] };
 try {
   browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -161,6 +161,59 @@ try {
     }
     if (!SOFTWARE_GL) await page.evaluate(()=>window.__attune.pause(false));
     report.guards.push({ key: def.key, x: def.x, z: def.z, yaw: def.yaw, drawnYaw: mine.halo.yaw, outwardCos: outward, variant: mine.halo.variant, primary: mine.halo.primary, meshes: mine.halo.meshes, presentation: mine.halo.presentation, fit: mine.halo.fit, anim: mine.anim });
+    // Follow a whole ten-second guard-watch loop in the actual running scene,
+    // not a bind-pose frame. Render stays paused under SwiftShader between
+    // captures, while animation, WebSocket and authenticated state remain live.
+    // Bone-centre distances are *clearance proxies*, not mesh-penetration proof.
+    for(let sampleIndex=1;sampleIndex<=4;sampleIndex++){
+      await page.waitForTimeout(2500);
+      const sample=await page.evaluate(({x,z})=>{
+        const api=window.__attune,st=api.state();
+        const guard=st.ents.find(e=>e.c==='sanctum_guard'&&Math.hypot(e.x-x,e.z-z)<.05);
+        if(!guard)throw Error('Guard left the authoritative sampled position');
+        let inst=null,nearest=Infinity;
+        api.gfx.scene.traverse(node=>{
+          if(node.name!=='halo_construct:guard')return;
+          const p=node.getWorldPosition(node.position.clone());
+          const distance=Math.hypot(p.x-x,p.z-z);
+          if(distance<nearest){nearest=distance;inst=node;}
+        });
+        if(!inst||nearest>.5)throw Error('Cannot find skinned guard rig for watch assessment');
+        const names=['upperarm_r','lowerarm_r','hand_r','upperarm_l','lowerarm_l','hand_l'];
+        const bones=names.map(n=>inst.getObjectByName(n));
+        if(bones.some(n=>!n))throw Error('Guard watch rig missing arm joint');
+        const world=node=>node.getWorldPosition(inst.position.clone());
+        const coords=bones.map(n=>world(n));
+        const chest=coords[0].clone().add(coords[3]).multiplyScalar(.5);
+        return {primary:guard.halo.primary,presentation:guard.halo.presentation,
+          base:guard.anim?.base,fit:guard.halo.fit,
+          elbowToShoulder: [coords[1].distanceTo(coords[0]),coords[4].distanceTo(coords[3])],
+          elbowToChest: [coords[1].distanceTo(chest),coords[4].distanceTo(chest)],
+          wristToChest: [coords[2].distanceTo(chest),coords[5].distanceTo(chest)]};
+      },{x:def.x,z:def.z});
+      assert.equal(sample.base,'Guard_Watch_Loop',def.key+' must use authored watch clip');
+      assert.equal(sample.presentation,expectedPrimary,def.key+' must not lose its equipped weapon during animation');
+      assert.equal(sample.fit?.failures,0,def.key+' must not lose a grip mid-watch');
+      if(expectedPrimary==='rifle'){
+        assert.ok(sample.fit?.gripError<.035&&sample.fit?.supportError<.035,
+          def.key+' must preserve both real hand contacts throughout the watch');
+        assert.ok(sample.fit?.wristAppliedDeg?.every(v=>Number.isFinite(v)&&v<=16.05),
+          def.key+' must not snap either wrist past the bounded pose correction');
+      }
+      assert.ok([...sample.elbowToShoulder,...sample.elbowToChest,...sample.wristToChest].every(Number.isFinite),
+        def.key+' must retain a valid posed skeleton');
+      report.watchSamples.push({key:def.key,seconds:sampleIndex*2.5,...sample});
+      if(sampleIndex===2||sampleIndex===4){
+        const count=await page.evaluate(software=>{
+          const n=window.__attune.state().drawn;
+          if(software)window.__attune.pause(false);
+          return n;
+        },SOFTWARE_GL);
+        await page.waitForFunction(n=>window.__attune.state().drawn>n,count);
+        if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+        await page.screenshot({path:`${OUT}/${def.key}-watch-${sampleIndex*2.5}s.png`});
+      }
+    }
   }
 
   // A successful final grip state does not excuse a rifle vanishing at an
@@ -212,6 +265,38 @@ try {
   report.vendor = { x: vendor.x, z: vendor.z, meshes: vendor.halo.meshes, anim: vendor.anim };
   report.perf.vendor = (await page.evaluate(() => window.__attune.state().draw));
   report.assets = await page.evaluate(() => window.__attune.state().assets);
+  // Desktop and large-TV presentation: the live scene, renderer and HUD, not
+  // an offline render. Record CPU render submission and draw counters. Hosted
+  // SwiftShader is NOT an integrated GPU benchmark; 4K checks UI at native
+  // viewport with 0.5 pixel ratio to avoid an artificial 8MP software load.
+  const desktopAndTv=[
+    {name:'desktop-1280x800',width:1280,height:800,ratio:1},
+    {name:'desktop-1920x1080',width:1920,height:1080,ratio:1},
+    {name:'desktop-2560x1440',width:2560,height:1440,ratio:SOFTWARE_GL?.75:1},
+    {name:'tv-3840x2160-layout',width:3840,height:2160,ratio:SOFTWARE_GL?.5:1},
+  ];
+  report.perf.viewportSamples=[];
+  for(const settings of desktopAndTv){
+    await page.setViewportSize({width:settings.width,height:settings.height});
+    // Allow the real resize handler to update the camera and HUD first.
+    await page.waitForTimeout(150);
+    const frame=await page.evaluate(({ratio})=>{
+      const api=window.__attune,{renderer,scene,camera}=api.gfx;
+      api.pause(true);
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(window.innerWidth,window.innerHeight,false);
+      const t=performance.now();
+      renderer.render(scene,camera);
+      const cpuRenderMs=performance.now()-t;
+      const state=api.state();
+      return {cpuRenderMs,draw:state.draw,frameMs:state.frameMs,
+        backingWidth:renderer.domElement.width,backingHeight:renderer.domElement.height,
+        pixelRatio:renderer.getPixelRatio(),rendererKind:state.renderDiagnostics};
+    },settings);
+    report.perf.viewportSamples.push({...settings,...frame,
+      graphics:report.graphics?.renderer,metric:'single CPU render wall time, not GPU frame time'});
+    await page.screenshot({path:`${OUT}/viewport-${settings.name}.png`,timeout:120000});
+  }
   assert.deepEqual(report.pageErrors, [], 'no page errors');
   report.ok = true;
 } catch (err) {
