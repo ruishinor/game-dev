@@ -42,6 +42,14 @@ test('a Warden rod is always joined and fully energized, anchored to the live pa
   assert.equal(weapon.group.parent?.name,'hand_r');
   assert.equal(weapon.group.visible,true);
   assert.equal(stave.visible,false);
+  // Fully powered does not require an attacking corona on a neutral NPC:
+  // retain visible sheath/filaments while avoiding an opaque plasma halo.
+  for(const half of [0,1]){
+   const sheath=weapon.group.getObjectByName('RodPlasmaSheath'+half);
+   const halo=weapon.group.getObjectByName('RodPlasmaHalo'+half);
+   assert.ok(sheath?.visible && sheath.material.opacity>.10,'energized shaft sheath remains visible');
+   assert.ok(halo && halo.material.opacity<.08,'idle plasma halo must not overwhelm the shaft');
+  }
   root.position.set(1,0,-2);
   root.rotation.y=.55;
   root.updateMatrixWorld(true);
