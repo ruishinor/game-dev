@@ -258,7 +258,7 @@ export const OUTPOST_TRAINING = Object.freeze({
 });
 export const OUTPOST_COLLIDERS = Object.freeze([
   Object.freeze({ type: 'outpost_training_backstop', ...OUTPOST_TRAINING.backstop, h: 2.5 }),
-  Object.freeze({ type: 'outpost_armory_rack', ...OUTPOST_TRAINING.armory, hw: .77, hd: .32, h: 2.45 }),
+  Object.freeze({ type: 'outpost_armory_rack', ...OUTPOST_TRAINING.armory, hw: 1.28, hd: .45, h: 2.45 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
   Object.freeze({ type: 'outpost_shell', x: SH.x + SH.rear - 0.3, z: SH.z, hw: 0.4, hd: SH.hw * 0.72, h: 2.8 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledFront - 6.2) / 2, z: SH.z + s * SH.hw * 0.92, hw: (6.2 + SH.sledFront) / -2, hd: 0.15, h: 3.6 })),
