@@ -33,6 +33,7 @@ import { createVfx } from './vfx/engine.js';
 import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
+import {emitFenLootFx} from './lumenfen-loot-fx.js';
 import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
@@ -1546,6 +1547,11 @@ function onEvent(e) {
     case 'loot':
       acquired();
       break;
+    case 'fen_loot': {
+      const me=S.ents.get(S.myId);
+      if(me?.placed)emitFenLootFx(vfx,me.pos,e.item);
+      break;
+    }
     case 'attributes':
       ui.attributeToast(e.item, e.changes);
       break;
