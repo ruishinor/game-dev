@@ -172,6 +172,9 @@ export function buildOutpostTraining(T, { ground, loader } = {}) {
       holder.position.set(0, 2.14 - i * .49, -.40);
       // Weapon noses face the public aisle, clear of the locker backboard.
       rackRoot.add(holder);
+      // Donor loads can settle before the first frame; refresh the translated
+      // rack ancestor as well as descendants for correct world-space bounds.
+      rackRoot.updateWorldMatrix(true, true);
       models.push(holder);
       ready++;
     })).then(results => {
