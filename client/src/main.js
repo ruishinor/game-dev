@@ -36,6 +36,7 @@ import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
+import { annexPlateUnobstructed } from './annex-label-visibility.js';
 import { Net, saveToken } from './net.js';
 import { createGameDiagnostics } from './connection-diagnostics.js';
 import { createRenderStallProbe } from './render-stall-probe.js';
@@ -2119,7 +2120,8 @@ function updatePlates(now) {
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
-    const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
+    const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max)
+      || !annexPlateUnobstructed(me?.pos,ent.pos,k);
     let screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
