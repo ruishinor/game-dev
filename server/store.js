@@ -164,12 +164,18 @@ export class CharacterStore {
     let data;
     try {
       data = JSON.parse(text);
-    } catch {
-      // Never overwrite a file we could not understand: keep it for recovery.
-      const backup = `${this.file}.corrupt-${Date.now()}`;
-      fs.renameSync(this.file, backup);
-      console.error(`[store] character file was unreadable; moved to ${backup}`);
-      return;
+    } catch (error) {
+      // Do not rename the corrupt file and silently start an empty world:
+      // the next save would otherwise replace valuable player state.
+      throw new Error('Character store unreadable: recovery is required before starting the server', { cause: error });
+    }
+    // A syntactically valid but structurally unusable document is not an
+    // empty new world. Retain existing legacy saves with a characters array.
+    if (!data || typeof data !== 'object' || Array.isArray(data) ||
+        (!Array.isArray(data.characters) && !Array.isArray(data.accounts)) ||
+        (data.characters !== undefined && !Array.isArray(data.characters)) ||
+        (data.accounts !== undefined && !Array.isArray(data.accounts))) {
+      throw new Error('Character store has an invalid structure: recovery is required before starting the server');
     }
     for (const a of Array.isArray(data?.accounts) ? data.accounts : []) {
       if (!a || typeof a.id !== 'string' || typeof a.handle !== 'string' || !HANDLE_RE.test(a.handle)) continue;
@@ -372,7 +378,28 @@ export class CharacterStore {
     const data = JSON.stringify({ version: 2, accounts: [...this.accounts.values()], characters: [...this.chars.values()].map(persistentBuildRecord) });
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, data, { mode: 0o600 });
+    // Flush the complete new document before replacing the live save.
+    const fd = fs.openSync(tmp, 'w', 0o600);
+    try {
+      fs.writeFileSync(fd, data);
+      fs.fsyncSync(fd);
+    } finally { fs.closeSync(fd); }
+    if (fs.existsSync(this.file)) {
+      // Keep the previous complete save. Hard links avoid copying a large
+      // save on the simulation thread; copying is a portable fallback.
+      const backup = `${this.file}.bak`;
+      const backupTmp = `${backup}.tmp-${process.pid}-${crypto.randomBytes(6).toString('hex')}`;
+      try {
+        try { fs.linkSync(this.file, backupTmp); }
+        catch (err) {
+          if (!['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV'].includes(err.code)) throw err;
+          fs.copyFileSync(this.file, backupTmp, fs.constants.COPYFILE_EXCL);
+        }
+        fs.renameSync(backupTmp, backup);
+      } finally {
+        if (fs.existsSync(backupTmp)) fs.unlinkSync(backupTmp);
+      }
+    }
     fs.renameSync(tmp, this.file);
     this.dirty = false;
     return true;
