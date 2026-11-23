@@ -28,6 +28,7 @@ import { fieldRigDevice } from './gear-recipes.js';
 import { animationInterval } from './animator.js';
 import { Fx } from './fx.js';
 import { CombatAudio } from './combat-audio.js';
+import { fullyBlockedContact } from './combat-presentation.js';
 import { LiveAegis } from './live-aegis.js';
 import { LiveCasts } from './live-casts.js';
 import { createVfx } from './vfx/engine.js';
@@ -1209,12 +1210,12 @@ function onEvent(e) {
       const mine = e.s === S.myId || e.s === S.compId;
       // Confirmed primary melee attacks energize the equipped rod. Echo/AoE secondary hits
       // do not multiply weapon discharges; existing ability effects and damage are unchanged.
-      const rodImpact = ['auto','rending_arc','melee_light','melee_heavy'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,!!e.sh);
+      const rodImpact = ['auto','rending_arc','melee_light','melee_heavy'].includes(e.ab)&&e.k==='melee'&&s?.meta.k==='p'&&[1,2].includes(s.row?.er)&&s.placed&&s.inView&&d?.placed&&d.inView&&(e.a>0||e.sh>0)&&s.model.rodContact?.(d.chest,d.pos,fullyBlockedContact(e));
       combatAudio.playEvent(e,s,S.ents.get(S.myId),document.hidden);
       if (d) {
         if(e.a>0){d.hit=1;if(d.model.trigger)d.model.trigger('hit');}
         // A fully absorbed attack is a shield impact, not a body hit.
-        const blocked=e.a===0&&e.sh>0;
+        const blocked=fullyBlockedContact(e);
         const cls = blocked?'shield':e.d === S.myId ? 'dmg-me' : mine ? 'dmg-mine' : 'dmg-other';
         ui.floatText(toScreen(d.head), blocked?`Blocked ${e.sh}`:e.sh ? `${e.a} (${e.sh} absorbed)` : String(e.a), cls);
         

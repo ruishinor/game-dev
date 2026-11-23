@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion, rodChoreography } from '../client/src/combat-presentation.js';
+import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion, rodChoreography, fullyBlockedContact } from '../client/src/combat-presentation.js';
 
 const vec = (x,y,z) => ({ isVector3: true, x, y, z, clone(){ return vec(this.x, this.y, this.z); } });
 
@@ -66,4 +66,12 @@ test('rod joint choreography varies by stance and joined/split configuration, wi
   assert.notDeepEqual(rodChoreography('sweep',.35,.7,false),rodChoreography('backhand',.35,.7,false));
   assert.notDeepEqual(rodChoreography('sweep',.35,.7,false),rodChoreography('sweep',.35,.7,true));
   assert.notEqual(rodChoreography('left',.35,.7,true).leftShoulder,rodChoreography('right',.35,.7,true).leftShoulder);
+});
+
+test('rod contact classifies only fully absorbed damage as shield-blocked',()=>{
+ assert.equal(fullyBlockedContact({a:0,sh:12}),true,'a completely absorbed hit has no health contact');
+ assert.equal(fullyBlockedContact({a:7,sh:5}),false,'partial shield absorption still damages the target');
+ assert.equal(fullyBlockedContact({a:7}),false,'unshielded damage is not a block');
+ assert.equal(fullyBlockedContact({a:0,sh:0}),false,'a zero event without absorption is not a block');
+ assert.equal(fullyBlockedContact(null),false,'missing events fail closed');
 });

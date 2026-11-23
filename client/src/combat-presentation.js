@@ -19,6 +19,11 @@ export function confirmedWeaponAim(target, lastAim, forwardFallback) {
 // Weapons must not blink out for ordinary casting/attack clips. Fabrication and
 // the sit transition intentionally reserve the arms. Death/air are handled by
 // each weapon adapter's existing visibility contract.
+// A shield may absorb some damage while health still takes the same hit.
+// Only a wholly absorbed contact suppresses rod target-ground discharge.
+// The event values originate from the authoritative server damage result.
+export const fullyBlockedContact = event => event?.a === 0 && event?.sh > 0;
+
 export function heldWeaponOccluded({ working = false, sitBlend = 0 } = {}) {
   return !!working || sitBlend > 0;
 }
