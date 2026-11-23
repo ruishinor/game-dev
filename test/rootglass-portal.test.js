@@ -10,10 +10,21 @@ test('Reach rootglass threshold shares Phase Scar portal axis without colliding 
  assert.ok(entry);
  assert.equal(entry.x,LUMENFEN_ENTRY_SITE.x);
  assert.equal(entry.z,LUMENFEN_ENTRY_SITE.z);
- // Aligned plaza placement is preferable to arbitrary separated clearings.
- const dx=Math.abs(entry.x-RIFT_SITE.x),dz=Math.abs(entry.z-RIFT_SITE.z);
- assert.ok((dx<.001 && dz>=12.9)||(dz<.001 && dx>=12.9),
-   `portal row must share an exact axis with safe separation: Phase Scar (${RIFT_SITE.x},${RIFT_SITE.z}), Rootglass (${entry.x},${entry.z})`);
+ // Each entrance sits against the same mountain-wall contour, with its
+ // outward/back side almost touching the rising rim. No open corridor remains
+ // behind the portal; the playable approach is toward the Reach's centre.
+ for(const portal of [OBJECTS.find(o=>o.type==='phase_scar'),entry]){
+  const r=Math.hypot(portal.x,portal.z);
+  assert.ok(r>=78.5&&r<=80.6,'portal foundation belongs to the cliff toe');
+  assert.ok(Math.hypot(Math.sin(portal.yaw)+portal.x/r,Math.cos(portal.yaw)+portal.z/r)<.001,
+    'the entrance must face inward, with its back against the wall');
+  const rearClearance=83-(r+2.45);
+  assert.ok(rearClearance>=-.2&&rearClearance<=2.1,'almost no space behind the portal');
+ }
+ const separation=Math.hypot(entry.x-RIFT_SITE.x,entry.z-RIFT_SITE.z);
+ assert.ok(separation>13.3,'thresholds must not overlap');
+ assert.ok(Math.abs(Math.hypot(entry.x,entry.z)-Math.hypot(RIFT_SITE.x,RIFT_SITE.z))<0.5,
+   'the two rifts follow the mountain contour, not a plaza grid');
  for(const x of [entry.x-3.5,entry.x+3.5]){
   const at={x,z:entry.z-3.5};
   resolveCollisions(at,PLAYER_RADIUS);
