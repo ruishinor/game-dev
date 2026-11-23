@@ -419,6 +419,16 @@ function findRiftSite(){
  return null;
 }
 
+/** The approach side of a cliff-backed Reach portal always points to the
+ * basin centre. Fixed -Z offsets can otherwise eject players into the wall. */
+export function reachPortalApproach(portal,distance=3.6){
+ const radius=Math.hypot(portal.x,portal.z)||1;
+ return {
+  x:portal.x-portal.x/radius*distance,
+  z:portal.z-portal.z/radius*distance,
+  yaw:Math.atan2(-portal.x,-portal.z),
+ };
+}
 export const RIFT_SITE=findRiftSite();
 if(RIFT_SITE){
   const {x,z}=RIFT_SITE;
