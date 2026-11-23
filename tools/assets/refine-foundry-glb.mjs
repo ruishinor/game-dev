@@ -184,7 +184,7 @@ export function refineFoundryGlb(base64) {
   if(geom.p.length!==geom.n.length||geom.c.length/4!==geom.p.length/3||geom.i.some(x=>x>=geom.p.length/3))throw Error('Invalid '+piece+' topology');
   const bounds=[[Infinity,Infinity,Infinity],[-Infinity,-Infinity,-Infinity]];
   for(let i=0;i<geom.p.length;i+=3)for(let k=0;k<3;k++){
-    const v=geom.p[i+k];if(!Number.isFinite(v))throw Error('Nonfinite '+piece+' vertex');
+    const v=Math.fround(geom.p[i+k]);if(!Number.isFinite(v))throw Error('Nonfinite '+piece+' vertex');
     bounds[0][k]=Math.min(bounds[0][k],v);bounds[1][k]=Math.max(bounds[1][k],v);
   }
   const bvPos=addData(floats(geom.p),34962);
