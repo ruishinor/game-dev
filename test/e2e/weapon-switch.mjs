@@ -23,7 +23,14 @@ try{
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2;});
  let p=await liveFixturePlayer(page,server,'Switch Tester');
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
- const state=()=>page.evaluate(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return {active:s.sheet.activeWeapon??null,weapon:s.sheet.equipped.weapon??null,ranged:s.sheet.equipped.ranged??null,mode:s.sheet.electricalRodMode??null,er:me?.row?.er??null};});
+ // Reconnection temporarily withdraws the server-projected sheet. Wait for a
+ // complete authoritative projection, then assert actual equipment as before.
+ // A persistent disconnect still fails with an explicit timeout rather than a
+ // misleading TypeError from dereferencing the intermediate null sheet.
+ const state=async()=>{
+  await page.waitForFunction(()=>{const s=window.__attune?.state();return !!(s?.myId&&s.sheet?.equipped&&s.ents?.some(e=>e.id===s.myId));},null,{timeout:15000});
+  return page.evaluate(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return {active:s.sheet.activeWeapon??null,weapon:s.sheet.equipped.weapon??null,ranged:s.sheet.equipped.ranged??null,mode:s.sheet.electricalRodMode??null,er:me?.row?.er??null};});
+ };
  const until=(fn,arg)=>page.waitForFunction(fn,arg);
  // Software GL: draws are paused throughout (simulation, networking and models
  // continue) so a slow frame cannot stall the connection; resume only to capture.
