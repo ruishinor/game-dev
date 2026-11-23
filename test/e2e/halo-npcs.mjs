@@ -295,10 +295,11 @@ try {
   await page.evaluate(yaw=>window.__attune.view({
     yaw:yaw+Math.PI,pitch:.16,dist:5.2,face:yaw+Math.PI
   }),profiledGuard.yaw);
-  const profiledState=await page.evaluate(key=>{
+  const profiledState=await page.evaluate(({x,z})=>{
     const s=window.__attune.state();
-    return s.ents.find(e=>e.k===key||e.halo?.role==='guard'&&e.k===key);
-  },profiledGuard.key);
+    return s.ents.find(e=>e.c==='sanctum_guard'&&e.halo?.role==='guard'&&
+      Math.hypot(e.x-x,e.z-z)<.05);
+  },{x:profiledGuard.x,z:profiledGuard.z});
   assert.equal(profiledState?.halo?.primary,'rifle','desktop/TV evidence must target the armed Warden');
   report.perf.profiledWarden=profiledGuard.key;
   // Desktop and large-TV presentation: the live scene, renderer and HUD, not
