@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { readGltf, triangleCount } from './lib/gltf.mjs';
 import { getBounds } from '@gltf-transform/functions';
+import validator from 'gltf-validator';
 
 export const STATIC_DONORS = Object.freeze([
   'rootglass_oak', 'cage_bloom', 'stone_guild',
@@ -32,6 +33,9 @@ export async function verifyLumenfenRemesh(dir) {
     assert.ok(buffer.length > 1000 && buffer.length < 25_000_000);
     assert.equal(crypto.createHash('sha256').update(buffer).digest('hex'), asset.sha256);
     assert.equal(buffer.length, asset.bytes);
+    const validated = await validator.validateBytes(new Uint8Array(buffer), {maxIssues: 40});
+    assert.equal(validated.issues.numErrors, 0,
+      'Khronos glTF errors in '+asset.file+': '+validated.issues.messages.map(x=>x.code).join(','));
     const document = await readGltf(path.join(dir, asset.file));
     assert.equal(document.getRoot().listAnimations().length, 0, 'static scene should not ship animation data');
     const scene = document.getRoot().getDefaultScene();
