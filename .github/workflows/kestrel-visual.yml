@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'client/src/kestrel-deep-visuals.js'
+      - 'client/src/kestrel-pressure-plant.js'
+      - 'client/src/kestrel-regulator-gallery.js'
+      - 'test/kestrel-regulators.test.js'
       - 'client/src/scene.js'
       - 'test/e2e/kestrel-visual.mjs'
       - '.github/workflows/kestrel-visual.yml'
