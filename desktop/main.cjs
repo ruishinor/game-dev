@@ -37,13 +37,15 @@ async function launch() {
 
   const { startServer } = await import('../server/index.js');
   gameServer = await startServer({
-    port: 0,
+    // Stable loopback origin preserves localStorage tokens across restarts.
+    port: 48763,
     host: '127.0.0.1',
     desktopLocal: true,
     dataFile: path.join(userData, 'saves', 'characters.json'),
   });
 
   const origin = 'http://127.0.0.1:' + gameServer.port;
+  log('gpu-feature-status', JSON.stringify(app.getGPUFeatureStatus()));
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
     const fromGame = contents === window?.webContents && contents.getURL().startsWith(origin + '/');
     callback(Boolean(fromGame && ['pointerLock', 'fullscreen', 'clipboard-sanitized-write'].includes(permission)));
