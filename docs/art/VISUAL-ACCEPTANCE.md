@@ -1,5 +1,8 @@
 # Visual acceptance matrix (2026-11-18)
 
+> **Historical measurement only:** These scores describe the explicitly dated 2026-11-18 captures, not current production quality or owner approval after later merges. Refer to the [canonical delivery register](../DELIVERY-REGISTER.md) and current [AGENTS.md](../../AGENTS.md) for today's acceptance scope, including owner-approved exterior portals, still-rejected interior thresholds and separate 3D armour/design vs geometry gates.
+
+
 This is a structured review aid, not a measurement. The scale runs 0 to 5:
 
 - 0: broken
