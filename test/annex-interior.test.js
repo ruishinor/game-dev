@@ -21,7 +21,7 @@ test('Phase Annex owns three enclosed and structurally different chamber identit
  assert.equal(ANNEX_PARTITIONS.length,partitions);
  assert.equal(rooms.length,3);
  assert.deepEqual(ANNEX_ROOMS.map(r=>r.name),['Arrival Gallery','Relay Workshop','Null Chamber']);
- for(const key of ['annex:arrival-arched-bay','annex:relay-pressure-line','annex:null-containment-arc','annex:door-header','annex:upper-perimeter']){
+ for(const key of ['annex:arrival-arched-bay','annex:relay-pressure-line','annex:null-containment-busbar','annex:door-header','annex:upper-perimeter']){
    assert.ok(names.has(key),'Missing '+key);
  }
  for(const roof of roofs){
