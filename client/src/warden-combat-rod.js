@@ -12,9 +12,12 @@ const V = () => new THREE.Vector3();
 const Q = () => new THREE.Quaternion();
 const UP = new THREE.Vector3(0,1,0);
 const GRIP = new THREE.Vector3(0,.13,0);
+// A charged neutral sentry is not attacking. Keep the joined rod at full
+// electrical energy, but avoid an attack-level corona obscuring its silhouette
+// during a ten-second watch loop. This does not change player rod VFX.
 const FULL_POWER = Object.freeze({
-  energized:true, activity:.3, quality:2, intensity:1,
-  reducedMotion:false, calm:false, combat:true,
+  energized:true, activity:0, quality:2, intensity:.72,
+  reducedMotion:false, calm:false, combat:false,
 });
 
 /**
