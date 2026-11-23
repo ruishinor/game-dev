@@ -104,7 +104,13 @@ const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
-const norm=(a)=>{const l=Math.hypot(...a)||1;return a.map(x=>x/l)};
+// Mirrored and coincident donor faces can cancel their area-weighted normals.
+// A zero-length exported NORMAL is invalid glTF. Prefer the local face normal,
+// then world-up only for an actually degenerate triangle.
+const norm=(a,fallback=[0,1,0])=>{
+ const l=Math.hypot(...a);
+ return Number.isFinite(l)&&l>1e-12?a.map(x=>x/l):fallback;
+};
 const key=p=>p.map(x=>x.toFixed(5)).join(',');
 function smoothNormals(triangles){
  const map=new Map();
@@ -157,13 +163,16 @@ function texturedMesh(doc,prim,profile){
  const amplitude=steps?Math.min(extent*.004,.05):0;
  const vertices=[],normals=[],uv=[],indices=[];
  let v=0;
- for(const tri of triangles)for(const p of tri){
-   const n=norm(nmap.get(key(p))||[0,1,0]);
+ for(const tri of triangles){
+  const face=norm(cross(sub(tri[1],tri[0]),sub(tri[2],tri[0])));
+  for(const p of tri){
+   const n=norm(nmap.get(key(p))||face,face);
    const disp=amplitude*micro(p,profile.grain*.63,3.7/extent);
    vertices.push(p[0]+n[0]*disp,p[1]+n[1]*disp,p[2]+n[2]*disp);
    normals.push(...n);
    uv.push((p[0]-min[0])/extent*3.6+(p[2]-min[2])/extent*.21,(p[1]-min[1])/extent*3.2+(p[2]-min[2])/extent*1.3);
    indices.push(v++);
+  }
  }
  return {vertices:new Float32Array(vertices),normals:new Float32Array(normals),
   uv:new Float32Array(uv),indices:new Uint32Array(indices),before,after:triangles.length,steps};
