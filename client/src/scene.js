@@ -15,6 +15,7 @@ import { buildStorageCase } from './storage-case.js';
 import { buildPressurePlant } from './pressure-plant.js';
 import { buildDeepServicePipes } from './service-pipes.js';
 import { buildKestrelDeepVisuals } from './kestrel-deep-visuals.js';
+import { createAnnexInterior } from './annex-interior.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
 import { SPOREFIELD_COLONIES, planSporeMotes } from './sporefield-colonies.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
@@ -1522,6 +1523,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   // Wide, collision-free floor markings guide the offset route.
   for(const [x,z] of [[6,12],[-6,-9]])for(let i=-2;i<=2;i++)annexFloor.add(mesh(new THREE.BoxGeometry(.24,.035,2.2),mat(0xb9a36b,{rough:.9}),ax+x+i*.8,.035,z,false));
   scene.add(annexFloor);
+  const annexInterior=createAnnexInterior(THREE,annex,{assets:kits?assets:null});
+  scene.add(annexInterior.group);
   // Severance Gate and its (provisional) approach pocket: a separate region.
   const severance = buildSeverancePocket(THREE, scene, { assets: kits ? assets : null, ground: groundHeight, rockGeo: (seed) => rockGeos[seed % rockGeos.length],
     lighting: { sky: skyGroup, ambient, sun, dir } });
@@ -1603,7 +1606,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
@@ -1619,6 +1622,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       kestrelVisual.update(dt, t, focus);
+      annexInterior.update(view?.eye??focus);
       relayFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();

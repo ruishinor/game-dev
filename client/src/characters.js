@@ -39,6 +39,7 @@ import {createRodBackMount} from './rod-stow.js';
 import { MODEL_FACTORIES as PROCEDURAL, RIFT_KINDS, riftModel } from './models.js';
 import { buildResonantVein } from './resonant-vein.js';
 import { makeDepthsRecoveryCache } from './depths-cache.js';
+import { makeAnnexRecoveryCache } from './annex-cache.js';
 import { HUMANOID_BASE as HB, HUMANOID_ACTIONS, HUMANOID_MELEE_SEQUENCE, HUMANOID_ROD_SEQUENCE, HUMANOID_DUAL_SEQUENCE, HUMANOID_HEAVY_STRIKE, HUMANOID_COUNTER_STRIKE, CREATURES, MENDER_CLIPS as MC } from './anim-tables.js';
 
 const WHITE = new THREE.Color(0xffffff);
@@ -808,6 +809,7 @@ function buildModel(assets, meta, glb) {
   if(meta.c==='survey_strider')return createSurveyStrider();
   // Dedicated world prop: GLB plus visual refit, independent of character LOD.
   if(meta.c==='foundry_cache')return makeDepthsRecoveryCache(THREE, assets?.loader);
+  if(meta.c==='annex_cache')return makeAnnexRecoveryCache(THREE, assets?.loader);
   let model = null;
   const haloRole=haloRoleFor(meta);
   if (glb) try {
