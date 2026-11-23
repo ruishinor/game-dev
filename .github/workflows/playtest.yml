@@ -12,7 +12,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/playtest.yml'
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,9 @@ concurrency:
 
 jobs:
   playtest:
+    # Revalidate on a changed PR base (edited event), but do not burn an
+    # expensive browser runner merely because the PR title/body was edited.
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
