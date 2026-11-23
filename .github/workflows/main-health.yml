@@ -7,24 +7,10 @@ on:
   push:
     branches:
       - main
+  # The repository ruleset requires the "Core Node and publication tests"
+  # check on EVERY PR. A paths-filtered workflow leaves unrelated PRs with
+  # an impossible expected check and blocks merges even when all scoped CI passes.
   pull_request:
-    # Keep this focused on the guest/appearance persistence contract; the
-    # full post-merge suite always runs on main regardless of changed paths.
-    paths:
-      - '.github/workflows/main-health.yml'
-      - 'test/e2e/initiation.mjs'
-      - 'client/index.html'
-      - 'client/src/creation-preview.js'
-      - 'client/src/creation-sections.js'
-      - 'client/src/characters.js'
-      - 'client/src/main.js'
-      - 'client/src/ui.js'
-      - 'server/index.js'
-      - 'server/store.js'
-      - 'shared/appearance.js'
-      - 'tools/browser.mjs'
-      - 'package.json'
-      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -54,6 +40,10 @@ jobs:
         run: node --check server/index.js && node --check server/net.js && node --check client/src/main.js && node --check client/src/ui.js && node --check test/e2e/initiation.mjs
 
   guest-entry:
+    # Browser guest/persistence coverage is a mandatory post-merge smoke test.
+    # Scoped PR browser workflows already cover the affected feature surfaces;
+    # do not enqueue this 25-minute test for every unrelated PR.
+    if: github.event_name != 'pull_request'
     name: Real-browser guest entry and persistence
     runs-on: ubuntu-24.04
     timeout-minutes: 25
