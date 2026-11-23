@@ -13,7 +13,7 @@ const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const SPEC=JSON.parse(fs.readFileSync(path.join(ROOT,'assets/lumenfen-donors.json'),'utf8'));
 const ARCHIVE=path.join(ROOT,SPEC.sourceArchive);
 const OUTPUT=path.join(ROOT,'.asset-cache/pipeline/lumenfen/fidelity');
-export const FEN_FIDELITY_VERSION='lumenfen-mesh-rebuild-v3';
+export const FEN_FIDELITY_VERSION='lumenfen-mesh-rebuild-v4';
 export const FEN_DONOR_IDS=Object.freeze(SPEC.donors.map(x=>x.id));
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const align=x=>(x+3)&~3;
@@ -210,11 +210,12 @@ function compile(doc,item,sourceSha){
    const start=offset,vi=dst.bufferViews.length;dst.bufferViews.push({buffer:0,byteOffset:start,byteLength:data.length,...(target?{target}:{})});
    chunks.push(data);offset+=align(data.length);return vi;};
  const texture=(type)=>{
-   const vi=append(png(256,palette,type));
+   const vi=append(png(mapSize,palette,type));
    const img=dst.images.length,tex=dst.textures.length;
    dst.images.push({bufferView:vi,mimeType:'image/png',name:item.id+'-'+type});
    dst.textures.push({sampler:0,source:img});return tex;
  };
+ const mapSize=item.id==='six_limb_predator'?1024:(item.id==='rootglass_oak'||item.id==='cage_bloom'?512:256);
  const albedo=texture('albedo'),normal=texture('normal'),orm=texture('orm');
  dst.materials.push({
   name:'lumenfen:'+item.id+':reconstructed-wet-surface',
