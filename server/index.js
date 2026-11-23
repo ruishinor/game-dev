@@ -39,7 +39,7 @@ const MOUNTS = [
 // Vendor mounts serve only the exact files the client imports.
 const VENDOR_ALLOW = {
   '/vendor/three/': new Set(['three.module.js', 'three.core.js']),
-  '/vendor/three-addons/': new Set(['loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'utils/SkeletonUtils.js', 'libs/meshopt_decoder.module.js']),
+  '/vendor/three-addons/': new Set(['loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'utils/SkeletonUtils.js', 'libs/meshopt_decoder.module.js', 'objects/Reflector.js']),
 };
 
 // The page maps the bare "three" specifier used by the three.js loader modules
