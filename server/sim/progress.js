@@ -20,6 +20,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { meleeBusy } from './melee.js';
 import { WEAPON_SWITCH, activeWeaponSlot, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS, sanitizeGoods } from '../../shared/goods.js';
@@ -201,7 +202,7 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
 }
 
 function inCombat(game, p) {
-  return game.time < p.combatUntil;
+  return game.time < p.combatUntil || meleeBusy(game,p);
 }
 
 // Explicit configuration intent, not a toggle: replaying the same request is harmless.
