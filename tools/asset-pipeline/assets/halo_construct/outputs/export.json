@@ -1,8 +1,8 @@
 {
  "file": "client/assets/halo_construct.glb",
- "bytes": 2113936,
- "inputBytes": 22329060,
- "triangles": 83950,
+ "bytes": 2320596,
+ "inputBytes": 22853932,
+ "triangles": 98050,
  "meshes": 10,
  "materials": [
   "halo_body",
@@ -18,7 +18,7 @@
     1024,
     1024
    ],
-   "bytes": 169914
+   "bytes": 158192
   },
   {
    "name": "body_orm",
@@ -27,7 +27,7 @@
     1024,
     1024
    ],
-   "bytes": 190076
+   "bytes": 180982
   },
   {
    "name": "body_normal",
@@ -36,7 +36,7 @@
     1024,
     1024
    ],
-   "bytes": 68490
+   "bytes": 66388
   },
   {
    "name": "body_emissive",
@@ -45,7 +45,7 @@
     512,
     512
    ],
-   "bytes": 1434
+   "bytes": 1378
   },
   {
    "name": "body_basecolor_paint",
@@ -54,7 +54,7 @@
     1024,
     1024
    ],
-   "bytes": 155800
+   "bytes": 149556
   },
   {
    "name": "security_basecolor",
@@ -63,7 +63,7 @@
     1024,
     1024
    ],
-   "bytes": 127762
+   "bytes": 169336
   },
   {
    "name": "security_orm",
@@ -72,7 +72,7 @@
     1024,
     1024
    ],
-   "bytes": 147568
+   "bytes": 208888
   },
   {
    "name": "security_normal",
@@ -81,7 +81,7 @@
     1024,
     1024
    ],
-   "bytes": 21888
+   "bytes": 29088
   },
   {
    "name": "vendor_basecolor",
@@ -90,7 +90,7 @@
     1024,
     1024
    ],
-   "bytes": 66138
+   "bytes": 62958
   },
   {
    "name": "vendor_orm",
@@ -99,7 +99,7 @@
     1024,
     1024
    ],
-   "bytes": 61438
+   "bytes": 60048
   },
   {
    "name": "vendor_normal",
@@ -108,7 +108,7 @@
     1024,
     1024
    ],
-   "bytes": 222824
+   "bytes": 203694
   }
  ],
  "skins": [
@@ -741,5 +741,5 @@
    "W MESH_PRIMITIVE_GENERATED_TANGENT_SPACE /meshes/9/primitives/0/material Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations."
   ]
  },
- "sha256": "f3afd21e6f0a4de788382fcce4526213259f1d68b749cdc9ef846ab3336ae51b"
+ "sha256": "9b5b3dcc4d1437c0c3bb80f5c39d62240323b0336d223c6679ad8b9ca2d2048f"
 }
