@@ -40,3 +40,16 @@ test('marksman carries longer calibration markings than carbine without extra dr
  assert.ok(m.index.count>c.index.count);
  c.dispose();m.dispose();
 });
+
+test('rifle-local effects reject invalid frame deltas and enforce the 24m visibility boundary',()=>{
+  const root=new THREE.Group();
+  const fx=createWardenRifleFx(root,{id:'carbine',length:.93,optic:[.7,.8,.9]});
+  fx.update(Number.POSITIVE_INFINITY,{cameraDistance:24,effectsQuality:2});
+  assert.equal(fx.inspect().clock,0,'nonfinite frame delta does not advance time');
+  assert.equal(fx.group.visible,false,'no effect allocation beyond the bounded viewing radius');
+  fx.update(1,{cameraDistance:23.999,effectsQuality:2});
+  assert.equal(fx.inspect().clock,.3,'long stalls are time-clamped for stable instrumentation');
+  assert.equal(fx.group.visible,true,'local contact marking appears only when in range');
+  fx.dispose();
+  assert.equal(root.children.length,0);
+});
