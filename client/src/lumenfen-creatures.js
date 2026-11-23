@@ -91,13 +91,13 @@ export function makeFenLantern(T){
   // Fine gill threads reveal a living filter-feeder in silhouette.
   const gillMat=new T.MeshPhysicalMaterial({color:0x8dd1b7,transparent:true,opacity:.62,
     depthWrite:false,roughness:.32,side:T.DoubleSide,emissive:0x2e715c,emissiveIntensity:.45});
-  const gillGeo=leafGeometry(T);
+  const gillGeo=leafGeometry(T),gills=[];
   for(let i=0;i<9;i++){
     const a=i*2*Math.PI/9;
     const gill=new T.Mesh(gillGeo,gillMat);
     gill.scale.set(.38,.4,.5);gill.position.set(Math.sin(a)*.17,.76,Math.cos(a)*.17);
     gill.rotation.set(Math.PI+.22,a,-.15);gill.name='lumenfen:lantern:filter-gill';
-    group.add(gill);
+    group.add(gill);gills.push(gill);
   }
   const whiskers=[];
   for(let i=0;i<4;i++){
@@ -115,8 +115,21 @@ export function makeFenLantern(T){
       group.position.y=.21+active*.12*Math.sin(t*1.4);
       bell.rotation.y+=Math.max(0,dt||0)*.14*active;
       glow.emissiveIntensity=1.35+active*.24*Math.sin(t*1.1);
-      fins.forEach((f,i)=>{f.rotation.z=Math.sin(t*1.7+i*1.13)*.17*active;});
-      whiskers.forEach((w,i)=>{w.rotation.z=Math.sin(t*1.25+i*1.4)*.11*active;});
+      fins.forEach((f,i)=>{
+        const phase=t*1.7+i*1.13;
+        // Paired radial fin joints flex in two axes and remain centred at
+        // their original roots; no accumulated rotations.
+        f.rotation.z=Math.sin(phase)*.19*active;
+        f.rotation.x=Math.cos(phase*.73)*.13*active;
+      });
+      gills.forEach((g,i)=>{
+        g.rotation.z=-.15+.085*Math.sin(t*1.4+i*.67)*active;
+        g.scale.y=.4*(1+Math.sin(t*1.27+i*.84)*.085*active);
+      });
+      whiskers.forEach((w,i)=>{
+        w.rotation.z=Math.sin(t*1.25+i*1.4)*.11*active;
+        w.rotation.x=Math.cos(t*.96+i*.81)*.07*active;
+      });
     },
     dispose(){disposeModel(group,[skin,glow,membrane,dark,gillMat]);}
   };
