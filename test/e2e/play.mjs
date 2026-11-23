@@ -105,7 +105,10 @@ async function until(p, fn, arg, ms, label) {
   try {
     await p.page.waitForFunction(fn, arg, { timeout: ms, polling: 100 });
     return true;
-  } catch {
+  } catch (error) {
+    // Do not mislabel page crashes, malformed predicates or client failures as
+    // mere scheduling timeouts; they require distinct investigation.
+    if (error.name !== 'TimeoutError') throw error;
     console.log(`      (timed out waiting for: ${label})`);
     return false;
   }
@@ -207,6 +210,17 @@ async function settle(p, x, z) {
   if (!reached) {
     const { pos, you, myId, snaps } = await state(p);
     const actor = serverPlayer(p.name);
+    // A software-WebGL polling task can expire while an authoritative
+    // snapshot arrives between the last poll and failure diagnostics.
+    // Re-evaluate the *same* position tolerance on that final snapshot,
+    // including the actual server actor; never teleport or accept an
+    // unconfirmed client position just to make the test green.
+    const near = ({ x: px, z: pz }) =>
+      Number.isFinite(px) && Number.isFinite(pz) && Math.hypot(px - x, pz - z) < 1.5;
+    if (actor && you && pos && near(actor) && near(you) && near(pos)) {
+      note(`late authoritative snapshot confirmed for ${p.name} after polling timeout`);
+      return;
+    }
     throw Error(`Fixture position failed for ${p.name}: ${JSON.stringify({
       expected: { x, z }, actor: actor && { id: actor.id, x: actor.x, z: actor.z },
       client: { myId, snaps, pos, authoritative: you && { x: you.x, z: you.z } },
