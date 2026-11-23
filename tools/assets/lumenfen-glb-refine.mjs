@@ -287,6 +287,22 @@ export function ensureLumenfenFidelityGLB(id){
  if(!FEN_DONOR_IDS.includes(id))throw Error('Unexpected wetland donor '+id);
  if(!cached){
    const expected=JSON.parse(fs.readFileSync(path.join(ROOT,'tools/asset-pipeline/assets/glb_archive/asset.json'),'utf8')).archive.sha256;
+   // Warm startup must not read/remesh the 138-entry ZIP again. Validate a
+   // complete production report, archive fingerprint, version and output sizes.
+   // CLI --force is for CI and deliberate asset rebuilds.
+   const reportFile=path.join(OUTPUT,'fidelity-report.json');
+   if(!process.argv.includes('--force')&&fs.existsSync(reportFile)){
+     try{
+       const previous=JSON.parse(fs.readFileSync(reportFile,'utf8'));
+       if(previous.version===FEN_FIDELITY_VERSION&&previous.archiveSha256===expected
+         &&previous.models?.length===SPEC.donors.length
+         &&SPEC.donors.every(item=>previous.models.some(x=>x.id===item.id&&
+           x.bytes>1024&&fs.statSync(path.join(OUTPUT,x.file)).size===x.bytes))){
+          cached=new Map(previous.models.map(x=>[x.id,path.join(OUTPUT,x.file)]));
+       }
+     }catch{/* missing or partial cache: revalidate from archive and rebuild */}
+   }
+   if(cached)return cached.get(id);
    const zip=fs.readFileSync(ARCHIVE);
    if(hash(zip)!==expected)throw Error('Owner archive SHA mismatch');
    const selected=unzipSelected(zip,new Set(SPEC.donors.map(d=>d.file)));
@@ -296,7 +312,7 @@ export function ensureLumenfenFidelityGLB(id){
      const raw=selected.get(item.file),sourceSha=hash(raw);
      const target=path.join(OUTPUT,'lumenfen-'+item.id+'.glb');
      const r=compile(decodeGlb(raw),item,sourceSha);
-     fs.writeFileSync(target+'.tmp',r.buffer);fs.renameSync(target+'.tmp',target);
+     fs.writeFileSync(target+'.tmp-'+process.pid,r.buffer);fs.renameSync(target+'.tmp-'+process.pid,target);
      report.push({id:item.id,file:path.basename(target),bytes:r.buffer.length,
        sha256:hash(r.buffer),sourceSha256:sourceSha,...r.stats});
    }
