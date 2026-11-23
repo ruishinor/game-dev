@@ -69,24 +69,7 @@ export function buildSilentFoundry(T, scene, o = {}) {
   scene.add(group);
   const noise = noiseTexture(T, 128, 113);
   const U = (v) => ({ value: v });
-  // Custom ShaderMaterials implement fog themselves; fog:true alone does not
-  // populate their bespoke uniforms. Keep the glass, culture, resonator and
-  // mineral depth cues consistent with the local scene fog.
-  const fogUniformSets = [];
-  const fogU = () => {
-    const u = { fogColor: U(new T.Color()), fogNear: U(1), fogFar: U(2000) };
-    fogUniformSets.push(u);
-    return u;
-  };
-  const syncFog = () => {
-    const fog = scene.fog;
-    if (!fog) return;
-    for (const u of fogUniformSets) {
-      u.fogColor.value.copy(fog.color);
-      u.fogNear.value = fog.near;
-      u.fogFar.value = fog.far;
-    }
-  };
+  const fogU = () => ({ fogColor: U(new T.Color()), fogNear: U(1), fogFar: U(2000) });
   const time = U(0);
   const at = (u, v) => ({ x: F.x + u, z: F.z + v });
   const mats = [];
@@ -380,7 +363,6 @@ export function buildSilentFoundry(T, scene, o = {}) {
       if (inside && !saved) enter();
       else if (!inside && saved) leave();
       if (!inside) return;
-      syncFog();
       if (kitState.status === 'idle') loadKit();
       t += manual ? 0 : dt;
       for (const m of glow.FK_Hot) m.emissiveIntensity = 4 + 2.2 * Math.sin(t * 2.3);
