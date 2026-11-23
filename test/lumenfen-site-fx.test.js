@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FEN_SITES, fenHeight } from '../shared/lumenfen.js';
 import { createLumenfenSiteFx, LUMENFEN_SITE_FX_BUDGET } from '../client/src/lumenfen-site-fx.js';
+import { CELL } from '../client/src/vfx/textures.js';
 
 const site = id => {
   const found = FEN_SITES.find(s => s.id === id);
@@ -22,6 +23,14 @@ const tick = (fx, focus, count = 90) => {
 };
 
 test('site atmosphere is localized to six actual world landmarks, bounded and distinct', () => {
+  const ecologySprites = {
+    'veil-landing': [CELL.dust, CELL.spore],
+    'mossbound-thicket': [CELL.spore, CELL.petal],
+    'glasswater-spring': [CELL.smoke, CELL.bubble],
+    'root-crown-hollow': [CELL.spore, CELL.petal],
+    'tidal-weir': [CELL.bubble, CELL.smoke],
+    'luminous-canopy': [CELL.petal, CELL.spore],
+  };
   for (const id of FEN_SITES.map(s => s.id)) {
     const { fx, calls } = fixture();
     const p = site(id);
@@ -31,6 +40,9 @@ test('site atmosphere is localized to six actual world landmarks, bounded and di
     for (const b of calls.bursts) {
       assert.ok(b.count > 0 && b.count <= LUMENFEN_SITE_FX_BUDGET.maxParticlesPerBurst);
       assert.equal(b.blend, 'alpha');
+      assert.deepEqual(b.cell, ecologySprites[id], 'site uses appropriate existing atlas textures');
+      assert.ok(!b.cell.includes(CELL.flare) && !b.cell.includes(CELL.ember),
+        'wetland atmosphere must not resemble electrical or combustion impacts');
       assert.ok(b.size[1] < 0.05 && b.alpha < 0.5, 'no white-ball large glow sprites');
       assert.ok(b.at.every(Number.isFinite));
       assert.ok(Math.hypot(b.at[0] - p.x, b.at[2] - p.z) < 9, 'emit at site machinery');
