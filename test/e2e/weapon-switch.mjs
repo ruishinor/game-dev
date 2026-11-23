@@ -69,9 +69,9 @@ try{
  await loadout.getByRole('button',{name:'Ranged: Empty',exact:true}).waitFor();
  await loadout.getByRole('button',{name:'Weapon: Empty',exact:true}).waitFor();
  await loadout.locator('.compact-item').filter({hasText:'Electrical Combat Rod'}).getByRole('button',{name:'Equip',exact:true}).click();
- await until(()=>window.__attune.state().sheet.equipped.weapon==='electrical_combat_rod');
+ await until(()=>window.__attune.state().sheet?.equipped?.weapon==='electrical_combat_rod');
  await loadout.locator('.compact-item').filter({hasText:'Field Pulse Emitter'}).getByRole('button',{name:'Equip',exact:true}).click();
- await until(()=>window.__attune.state().sheet.equipped.ranged==='field_emitter');
+ await until(()=>window.__attune.state().sheet?.equipped?.ranged==='field_emitter');
  await loadout.getByRole('button',{name:'Weapon: Electrical Combat Rod',exact:true}).waitFor();
  await loadout.getByRole('button',{name:'Ranged: Field Pulse Emitter',exact:true}).waitFor();
  assert.deepEqual({weapon:p.char.equipped.weapon,ranged:p.char.equipped.ranged},{weapon:'electrical_combat_rod',ranged:'field_emitter'});
@@ -96,9 +96,9 @@ try{
  assert.match(await tip.innerText(),/Rod configuration \(G\)[\s\S]*Current: Dual batons/);
  // The hotbar button itself also works (pointer path) and returns to joined.
  await configBtn.click();
- await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
+ await until(()=>window.__attune.state().sheet?.electricalRodMode==='rod');
  await view.focus();await page.keyboard.press('KeyG');
- await until(()=>window.__attune.state().sheet.electricalRodMode==='dual');
+ await until(()=>window.__attune.state().sheet?.electricalRodMode==='dual');
 
  // 5. Text entry focus: typing the hotkeys into chat does not fire combat actions.
  await view.focus();await page.keyboard.press('Enter');
@@ -229,7 +229,7 @@ try{
  // simulating; restore health so slow evidence frames cannot decide the fight.
  p.hp=p.maxHp;
  await page.keyboard.press('KeyG');
- await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
+ await until(()=>window.__attune.state().sheet?.electricalRodMode==='rod');
  await page.waitForTimeout(1200);
  const near2=clearCombatSpot(second,0,1.6);p.x=near2.x;p.z=near2.z;p.yaw=Math.atan2(second.x-near2.x,second.z-near2.z);
  await until(([x,z])=>{const s=window.__attune.state();return s.you&&Math.hypot(s.you.x-x,s.you.z-z)<.5;},[near2.x,near2.z]);

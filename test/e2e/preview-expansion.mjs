@@ -102,15 +102,23 @@ try {
   await hallPreview.scrollIntoViewIfNeeded();
   await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.model==='glb');
   const savedAppearance=p.char.appearance;
-  await hall.getByRole('combobox',{name:'Body frame'}).selectOption('m');
-  await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.appearance?.startsWith('m.'));
-  assert.equal(p.char.appearance,savedAppearance,'Draft does not mutate the world character');
-  const hallAppearance=await hallPreview.getAttribute('data-appearance');
-  await hall.getByRole('button',{name:'Apply appearance'}).click();
-  await page.waitForFunction(a=>window.__attune.state().sheet.appearance===a,hallAppearance);
-  assert.equal(p.char.appearance,hallAppearance);
+  // Pause only continuous software-GL world drawing during real UI/server
+  // appearance editing: preserve the DOM, network, authority and assertions.
+  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+  let hallAppearance;
+  try {
+    await hall.getByRole('combobox',{name:'Body frame'}).selectOption('m');
+    await page.waitForFunction(()=>document.querySelector('.hall-preview')?.dataset.appearance?.startsWith('m.'));
+    assert.equal(p.char.appearance,savedAppearance,'Draft does not mutate the world character');
+    hallAppearance=await hallPreview.getAttribute('data-appearance');
+    await hall.getByRole('button',{name:'Apply appearance'}).click();
+    await page.waitForFunction(a=>window.__attune.state().sheet.appearance===a,hallAppearance);
+    assert.equal(p.char.appearance,hallAppearance);
+  } finally {
+    if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+  }
   assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('arrival:floor')&&!!window.__attune.gfx.scene.getObjectByName('arrival:threshold-arch')));
-  await page.screenshot({path:'preview-evidence/01b-arrival-appearance.png'});
+  await capture('preview-evidence/01b-arrival-appearance.png');
   await currentFixture('Appearance application');
   const closeRecord=hall.getByRole('button',{name:'Close field record'});
   if(!(await closeRecord.isVisible())) {

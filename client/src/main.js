@@ -2267,7 +2267,7 @@ function frame(now) {
 
   if(hallPreview){
     if(!hallPreview.root.isConnected||hallPreview.root.closest('[hidden]')||!S.ents.get(S.myId)){hallPreview.preview.destroy();hallPreview=null;}
-    else if(!S.paused)hallPreview.preview.update(now,dt);
+    else hallPreview.preview.update(now,dt,S.paused);
   }
   stepLocal(input.sample(), now, dt);
   updateEntities(dt, time, now);
