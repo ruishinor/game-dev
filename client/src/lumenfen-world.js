@@ -3,6 +3,7 @@
 import {LUMENFEN,FEN_TREES,FEN_POOLS,fenHeight,inLumenfen} from '../../shared/lumenfen.js';
 import {buildLumenfenSites} from './lumenfen-sites.js';
 import {buildLumenfenEcology} from './lumenfen-ecology.js';
+import {buildLumenfenGroundcover} from './lumenfen-groundcover.js';
 export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMotion=()=>false}={}){
  const P=LUMENFEN,group=new T.Group();group.name='lumenfen:landscape';group.visible=false;scene.add(group);
  const soil=new T.MeshStandardMaterial({vertexColors:true,roughness:.95});
@@ -24,10 +25,12 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    center:P,trees:FEN_TREES,pools:FEN_POOLS,height:fenHeight,detail
  });
  const sites=buildLumenfenSites(T);group.add(sites.group);
+ // Always cover the entire traversable watershed, not only its six landmarks.
+ const groundcover=buildLumenfenGroundcover(T,group,{detail});
  const glowLight=new T.PointLight(0x64ba9e,3.0,34,2);glowLight.position.set(P.x+20,7,P.z-22);group.add(glowLight);
  let prior=null,clock=0;
  const active=eye=>!!eye&&inLumenfen(eye.x,eye.z,35);
- return {group,stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:ecology.stats().spores,landmarks:sites.stats(),ecology:ecology.stats()}),
+ return {group,stats:()=>({trees:FEN_TREES.length,pools:FEN_POOLS.length,spores:ecology.stats().spores,landmarks:sites.stats(),ecology:ecology.stats(),groundcover:groundcover.stats()}),
   update(dt,t,eye){
    const inside=active(eye);group.visible=inside;
    if(inside){
@@ -48,7 +51,7 @@ export function buildLumenfenWorld(T,scene,{sky,ambient,sun,detail=1,reducedMoti
    }
   },
   dispose(){
-   sites.dispose();ecology.dispose();
+   sites.dispose();ecology.dispose();groundcover.dispose();
    floor.dispose();soil.dispose();
    group.removeFromParent();
   }
