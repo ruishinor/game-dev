@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validateBytes} from 'gltf-validator';
 import {reconstructLumenfenGLB} from '../tools/assets/lumenfen-glb-refine.mjs';
-import spec from '../assets/lumenfen-donors.json' with {type:'json'};
+import fs from 'node:fs';
+const spec=JSON.parse(fs.readFileSync(new URL('../assets/lumenfen-donors.json',import.meta.url),'utf8'));
 
 function tinyDonor(nodeName) {
  // Intentionally low-density source cone; rebuilding must create *new*
