@@ -546,7 +546,7 @@ export class Game {
       weaponSwitchMs: Math.max(0, Math.round((p.weaponSwitchReady || 0) - this.time)),
       safe: inSafeZone(p) ? 1 : 0,
       wc: Math.round(this.worldClock() * 10000),
-      ...(travelRegionAt(p.x,p.z)==='lumenfen'?{fenClimate:lumenfenClimate(this.wallNow())}:{})
+      ...(travelRegionAt(p.x,p.z)==='lumenfen'?{fenClimate:lumenfenClimate(this.wallNow())}:{}),
       workshop:workshopSite(p),
       kestrelAlarm:kestrelAlarmFor(this,p),
       party: partyState(this, p),
