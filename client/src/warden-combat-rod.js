@@ -50,6 +50,14 @@ export function createWardenCombatRod(inst,variant=1){
  rod.setMode('rod');
  rod.update(0,{...FULL_POWER,reducedMotion:true});
  rod.setEnergy(1,1);
+ // The shared ability-grade corona deliberately exaggerates its strands and
+ // emitter sprites for player combat. Neutral sentries retain both powered
+ // halves, but locally narrow these display layers so the shaft reads.
+ const filaments=[],emitters=[];
+ rod.group.traverse(node=>{
+  if(/^ElectricalFilament[01]$/.test(node.name))filaments.push(node);
+  if(/^RodEmitterGlow[01]$/.test(node.name))emitters.push(node);
+ });
  const world=n=>n.getWorldPosition(V());
  const poseTargets=[
   [-.08,-.30,.26],[.00,-.32,.31],[-.12,-.35,.22],
@@ -102,6 +110,10 @@ export function createWardenCombatRod(inst,variant=1){
    ...FULL_POWER,quality,calm,reducedMotion:calm,
   });
   rod.setEnergy(1,1);
+  // Apply after the VFX controller repositions these layers each frame.
+  // No shared geometry/material mutation: player effects remain unchanged.
+  for(const node of filaments){node.scale.x*=.74;node.scale.z*=.74;}
+  for(const node of emitters){node.scale.x*=.72;node.scale.y*=.72;}
   rod.group.visible=true;
   const measured=world(rod.group.getObjectByName('RodRightGrip'))
    .distanceTo(hand.localToWorld(palm.clone()));
