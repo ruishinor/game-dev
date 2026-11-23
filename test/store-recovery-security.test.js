@@ -128,3 +128,44 @@ test('duplicate session hashes across different accounts cannot authorize the wr
   assert.throws(() => new CharacterStore(file), /duplicate account session: recovery is required/);
   assert.equal(fs.readFileSync(file, 'utf8'), source);
 });
+
+
+test('first-save rename interruption retains the only recoverable checkpoint', (t) => {
+  const file = isolatedSave(t);
+  const store = new CharacterStore(file);
+  const { token } = store.create('FirstCheckpoint', 'vanguard');
+  // The first flush has no live file or .bak to fall back to.
+  const realRename = fs.renameSync;
+  fs.renameSync = (from, to, ...rest) => {
+    if (from === file + '.tmp' && to === file) {
+      const error = new Error('injected first-save rename interruption');
+      error.code = 'EIO';
+      throw error;
+    }
+    return realRename(from, to, ...rest);
+  };
+  try {
+    assert.throws(() => store.flush(), /injected first-save rename interruption/);
+  } finally {
+    fs.renameSync = realRename;
+  }
+  assert.equal(fs.existsSync(file), false, 'first primary was never committed');
+  assert.equal(fs.existsSync(file + '.bak'), false, 'no previous save was present');
+  const checkpoint = fs.readFileSync(file + '.tmp', 'utf8');
+  assert.equal(JSON.parse(checkpoint).characters.length, 1);
+  assert.throws(() => new CharacterStore(file), /recovery is required/,
+    'startup must not silently begin a fresh world with a recoverable temp file');
+  assert.equal(fs.readFileSync(file + '.tmp', 'utf8'), checkpoint,
+    'failed startup leaves the only checkpoint untouched');
+
+  // Explicit operator restoration, not automatic fallback to an unverified file.
+  fs.renameSync(file + '.tmp', file);
+  assert.equal(new CharacterStore(file).authenticate(token)?.name, 'FirstCheckpoint');
+});
+
+test('stale unreadable temp-only store blocks startup without destroying evidence', (t) => {
+  const file = isolatedSave(t);
+  fs.writeFileSync(file + '.tmp', '{ incomplete checkpoint');
+  assert.throws(() => new CharacterStore(file), /recovery is required/);
+  assert.equal(fs.readFileSync(file + '.tmp', 'utf8'), '{ incomplete checkpoint');
+});
