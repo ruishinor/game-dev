@@ -81,13 +81,21 @@ export class ThirdPersonCamera {
     const dx = -Math.sin(this.yaw) * cp;
     const dy = Math.sin(this.pitch);
     const dz = -Math.cos(this.yaw) * cp;
+    // The enclosed Annex perimeter has visual walls but no wall-shaped static
+    // colliders. Keep the camera inside the shell when orbiting near an edge.
+    // This applies only when the focus is already inside the Annex.
+    const inAnnex = Math.abs(px - RIFT_ANNEX.x) <= RIFT_ANNEX.hw
+      && Math.abs(pz - RIFT_ANNEX.z) <= RIFT_ANNEX.hd;
+    const perimeterClear = (x, z) => Math.abs(x - RIFT_ANNEX.x) < RIFT_ANNEX.hw - .55
+      && Math.abs(z - RIFT_ANNEX.z) < RIFT_ANNEX.hd - .55;
 
     // March outward from the head; stop short of the first obstruction.
     let allowed = this.want;
     const steps = Math.ceil(this.want / 0.25);
     for (let i = 2; i <= steps; i++) {
       const t = (i * this.want) / steps;
-      if (blocked(px + dx * t, py + dy * t, pz + dz * t)) {
+      if ((inAnnex && !perimeterClear(px + dx * t, pz + dz * t))
+        || blocked(px + dx * t, py + dy * t, pz + dz * t)) {
         allowed = Math.max(0.6, t - 0.45);
         break;
       }
