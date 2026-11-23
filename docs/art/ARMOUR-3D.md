@@ -1,5 +1,8 @@
 # Armour: from vector inventory art to rendered 3D assets
 
+> **Current-status reconciliation (2026-11-23):** [Canonical register ART-10/EQ-08](../DELIVERY-REGISTER.md) supersedes the earlier blanket “owner visual acceptance pending” status below. [#214](https://github.com/ruishinor/game-dev/pull/214) records the owner's **scoped visual acceptance** of four rare armour families and the revised Halo vendor on 2026-11-21. That does not waive the technical mesh-fit failures, LOD/tangent/performance work, runtime pose verification or new/rejected character-art concerns. The phase-by-phase text is preserved as historical evidence.
+
+
 Owner direction (2026-11-19): turn the armour illustrations, which until now
 existed only as vector inventory artwork (`client/src/catalogue-portraits.js`,
 ART-07), into finished, rendered 3D armour assets with the same Blender-based
