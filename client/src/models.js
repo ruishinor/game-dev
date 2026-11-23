@@ -369,6 +369,14 @@ export function makeSkitter() {
       group.scale.y = 1 - deadK * 0.35;
       flash(st.hit);
     },
+    dispose() {
+      // These high-resolution fallback meshes are unique to this instance.
+      smoothShell.dispose();
+      hide.dispose();
+      plate.dispose();
+      eyes.dispose();
+      for (const sac of sacs) sac.material.dispose();
+    },
   };
 }
 
@@ -378,10 +386,13 @@ export function makeSentinel() {
   const dark = new THREE.MeshStandardMaterial({color:0x343e47,metalness:.58,roughness:.48});
   const body = pivot(0, 0, 0);
   const sculptedHull=new THREE.SphereGeometry(1,32,24);
+  const seamGeometries=[];
   body.add(part(sculptedHull, hull, 0.55, 0.7, 0.55));
   for(let i=0;i<6;i++){
     const a=i*Math.PI/3;
-    const seam=part(new THREE.TorusGeometry(.48,.013,8,32),dark,1,1,1,0,0,0);
+    const seamGeometry=new THREE.TorusGeometry(.48,.013,8,32);
+    seamGeometries.push(seamGeometry);
+    const seam=part(seamGeometry,dark,1,1,1,0,0,0);
     seam.rotation.set(Math.PI/2,a,0);
     body.add(seam);
   }
@@ -425,6 +436,13 @@ export function makeSentinel() {
       if (st.dead) eyeMat.color.setHex(0x2a2a2a);
       eye.scale.setScalar(0.14 * (st.casting ? 1.6 : 1));
       flash(st.hit);
+    },
+    dispose() {
+      sculptedHull.dispose();
+      for (const geometry of seamGeometries) geometry.dispose();
+      hull.dispose();
+      dark.dispose();
+      eyeMat.dispose();
     },
   };
 }
