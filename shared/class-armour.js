@@ -32,11 +32,17 @@ const ROWS = {
     sources: { chest: 'Faultstalker', gloves: 'Turret Drone', greaves: 'Sinter Grazer', boots: 'Brineworks Engineering Cache' } },
 };
 
-/**
- * Named sources that are not yet in the world. Their blueprints are listed
- * but not obtainable until the source ships (docs/art/ARMOUR-3D.md).
- */
-export const PENDING_SOURCES = Object.freeze(['Brineworks Research Cache', 'Resonance Echo', 'Phase Scar Archive', 'Brineworks Engineering Cache']);
+// Named archive sources use existing interactable sites, not random corpse
+// rolls. Each is a one-time, class-specific grant of retained knowledge.
+// Exact eligibility is validated by the authoritative server.
+export const CLASS_ARMOUR_ARCHIVES = Object.freeze({
+  'Brineworks Research Cache': Object.freeze({cls:'symbiotech', slot:'boots', objectType:'brine_research', level:8, hint:'A · Research Station after Brineworks commissioning'}),
+  'Resonance Echo': Object.freeze({cls:'keeper', slot:'greaves', objectType:'obelisk', level:8, hint:'The Listening Stone after Resonance attunement'}),
+  'Phase Scar Archive': Object.freeze({cls:'keeper', slot:'boots', objectType:'rift_regulator', level:8, hint:'Counterphase Regulator after Phase Scar calibration'}),
+  'Brineworks Engineering Cache': Object.freeze({cls:'surveyor', slot:'boots', objectType:'brine_engineering', level:8, hint:'B · Engineering Station after Brineworks commissioning'}),
+});
+// All sixteen blueprint sources now have a gameplay acquisition route.
+export const PENDING_SOURCES = Object.freeze([]);
 
 export const classArmourItem = (cls, slot) => `${cls}_field_set_${slot}`;
 export const classArmourBlueprint = (cls, slot) => `blueprint_${cls}_field_set_${slot}`;
@@ -47,10 +53,11 @@ export function classArmourGoods(names) {
   for (const [cls, row] of Object.entries(ROWS)) for (const slot of ARMOR_SET_SLOTS) {
     const source = row.sources[slot];
     const pending = PENDING_SOURCES.includes(source);
+    const archive = CLASS_ARMOUR_ARCHIVES[source];
     out[classArmourBlueprint(cls, slot)] = Object.freeze({
       name: 'Blueprint: ' + names[classArmourItem(cls, slot)], category: 'blueprint', rarity: 'Rare', cap: 1,
       cls, item: classArmourItem(cls, slot), source, pending,
-      desc: `Retained ${row.discipline.toLowerCase()} knowledge for a class armour piece. Recovered from: ${source}${pending ? ' (not yet in the field)' : ''}. It cannot be traded or consumed.`,
+      desc: `Retained ${row.discipline.toLowerCase()} knowledge for a class armour piece. Recovered from: ${source}${archive ? ' (' + archive.hint + ')' : ''}${pending ? ' (not yet in the field)' : ''}. It cannot be traded or consumed.`,
     });
   }
   return out;

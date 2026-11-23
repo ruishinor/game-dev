@@ -13,6 +13,9 @@ try{
  await page.click('#gate-guest-link');await page.fill('#name','Strider Tester');await page.click('.classcard[data-cls="surveyor"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='surveyor'&&s.drawn>=2;});
  const p=await liveFixturePlayer(page,server,'Strider Tester');
+ // SwiftShader's continuous scene draws can starve WebSocket heartbeat and
+ // simulation messages. Pause rendering only; leave networking and input live.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  // Fixture unlocks requirements, grants inputs and stages station only.
  p.char.level=4;p.char.attunements=['resonance'];p.char.survey='signal_done';p.char.brineStage=3;
  p.char.materials={sentinel_alloy:4,mire_fibre:2,resonance_fragment:1};p.x=49;p.z=-36.5;
@@ -37,7 +40,13 @@ try{
  assert.ok(await page.evaluate(()=>!!window.__attune.gfx.scene.getObjectByName('strider:original-tripod')));
  await page.getByRole('button',{name:'Emergency screen',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='screen'));
+ if(SOFTWARE_GL){
+  await page.evaluate(()=>window.__attune.pause(false));
+  const drawn=await page.evaluate(()=>window.__attune.state().drawn);
+  await page.waitForFunction(n=>window.__attune.state().drawn>n,drawn);
+ }
  await page.screenshot({path:'strider-evidence/01-strider.png'});
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
  // Actual command click; its scan logic and cover are separately unit tested.
  await page.getByRole('button',{name:'Analyze target',exact:true}).click();
  await page.waitForFunction(()=>window.__attune.state().ents.some(e=>e.id===window.__attune.state().compId&&e.row.md==='assist'));
