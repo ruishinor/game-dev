@@ -7,6 +7,8 @@ import { EconomyMetrics } from '../server/sim/economy-metrics.js';
 import { makeChar, makeGame, place, isolate, enemyOf } from './helpers.js';
 import { grantXp, grantSalvage, craftRecipe, interact } from '../server/sim/progress.js';
 import { tradeVendor } from '../server/sim/vendor.js';
+import { useUtility } from '../server/sim/utility.js';
+import { disposeItem } from '../server/sim/disposal.js';
 import { dealDamage } from '../server/sim/combat.js';
 import { openLoot, lootState, takeLoot } from '../server/sim/loot.js';
 
@@ -122,4 +124,29 @@ test('restored snapshot strips unknown identifiers, events and item keys', t => 
   const scrubbed = JSON.stringify(restored.snapshot());
   for (const secret of ['private-id','private-name','password','__fictional__']) assert.equal(scrubbed.includes(secret), false);
   assert.equal(count(dayOf(restored), 'credits_looted'), 10);
+});
+
+test('real utility use and item disposal are accounted as sinks, never forged or rejected intents', t => {
+  const { game, metrics } = fixture(t);
+  const p = game.addPlayer(makeChar('vanguard', {
+    level: 8,
+    goods: { field_restorative: 1, field_maintenance_kit: 1, mire_husk: 2 },
+    inventory: ['field_emitter', 'tuned_emitter'],
+    equipped: {device:null,implant:null,glyph:null,ranged:'field_emitter'},
+    condition: { field_emitter: 55 },
+  }));
+  assert.equal(useUtility(game, p, 'field_maintenance_kit', 'tuned_emitter', p.utilityRev).ok, false);
+  assert.equal(dayOf(metrics), undefined);
+  assert.ok(useUtility(game, p, 'field_restorative', null, p.utilityRev).ok);
+  assert.ok(useUtility(game, p, 'field_maintenance_kit', 'field_emitter', p.utilityRev).ok);
+  assert.equal(useUtility(game, p, 'field_restorative', null, p.utilityRev - 1).ok, false);
+  assert.equal(count(dayOf(metrics), 'goods_spent'), 2);
+  assert.equal(dayOf(metrics).byDetail.goods_spent.field_restorative, 1);
+  assert.equal(dayOf(metrics).byDetail.goods_spent.field_maintenance_kit, 1);
+  assert.ok(disposeItem(game, p, {action:'salvage',item:'tuned_emitter',rev:p.inventoryRev}, () => 0).ok);
+  assert.equal(count(dayOf(metrics), 'items_consumed'), 1);
+  assert.equal(dayOf(metrics).byDetail.items_consumed.tuned_emitter, 1);
+  assert.equal(dayOf(metrics).byDetail.materials_granted.sentinel_alloy, 1);
+  assert.ok(disposeItem(game, p, {action:'destroy',item:'mire_husk',rev:p.inventoryRev}).ok);
+  assert.equal(dayOf(metrics).byDetail.goods_spent.mire_husk, 1);
 });
