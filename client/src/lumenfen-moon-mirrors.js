@@ -3,7 +3,7 @@
 // Reflectors are deliberately excluded during monsoon downpours; rough wet
 // water is a different physical state from a glass-still night.
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { FEN_POOLS } from '../../shared/lumenfen.js';
+import { FEN_POOLS, fenHeight } from '../../shared/lumenfen.js';
 
 export function moonAboveFen(phase){
   if(!Number.isFinite(phase))return false;
@@ -15,16 +15,21 @@ export function buildLumenfenMoonMirrors(T,group,{detail=1,textureSize=512}={}){
   const enabled=detail>=.75;
   const reflections=[];
   if(enabled)for(let i=0;i<Math.min(waters.length,FEN_POOLS.length);i++){
-    const source=waters[i],geo=source.geometry.clone();
-    // Water meshes already carry world-space X/Z coordinates. The reflector
-    // expects its local +Z to point toward the reflected half-space (+Y).
+    const source=waters[i],pool=FEN_POOLS[i];
+    const waterY=fenHeight(pool.x,pool.z)+.09;
+    const geo=source.geometry.clone();
+    // The source vertices contain world-space X, Y and Z. Flatten only
+    // their tiny local ripples and place the reflection plane at the actual
+    // pond's surface elevation, not the global origin.
+    const pos=geo.attributes.position;
+    for(let v=0;v<pos.count;v++)pos.setY(v,0);
     geo.rotateX(Math.PI/2);
     const mirror=new Reflector(geo,{
       clipBias:.003,textureWidth:textureSize,textureHeight:textureSize,
       color:0xc7dfd7,multisample:0,
     });
     mirror.rotation.x=-Math.PI/2;
-    mirror.position.y=.021;
+    mirror.position.y=waterY+.025;
     mirror.name='lumenfen:moonlit-planar-reflection';
     mirror.visible=false;mirror.renderOrder=3;
     group.add(mirror);reflections.push(mirror);
