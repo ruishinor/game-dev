@@ -99,6 +99,15 @@ try {
     game.aiHold = true;   // the encounter stands still for the review views
     game.transferPlayer(p, { ...SF.arrival });
     await page.waitForFunction(() => window.__attune.state().you?.region === 'silent_foundry', null, { polling: 250 });
+    // Entering a disconnected region does not imply its asynchronous GLB kit
+    // has finished loading. Capture only after the player-camera scene and kit
+    // both resolve, rather than accepting a misleading procedural placeholder.
+    await page.waitForFunction(() => {
+      const f = window.__attune.state().world.foundry;
+      return f?.inside && (f.kit === 'ready' || f.kit === 'fallback');
+    }, null, { polling: 500, timeout: 90000 });
+    const kit = await page.evaluate(() => window.__attune.state().world.foundry);
+    if (kit.kit !== 'ready') throw Error('Foundry kit unavailable during visual inspection: ' + JSON.stringify(kit));
     const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
     await shot('20-foundry-fabrication-hall', f(0, 92), S, { yaw: S, pitch: 0.12, dist: 7 }, { tod: 'off' });
     await shot('21-foundry-cultivation-vault', f(0, 50), S, { yaw: S, pitch: 0.14, dist: 7 }, { tod: 'off' });
