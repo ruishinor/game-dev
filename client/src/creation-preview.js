@@ -102,7 +102,9 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   const w=Math.max(1,Math.round(canvas.clientWidth)),h=Math.max(1,Math.round(canvas.clientHeight));
   const resized=canvas.width!==Math.floor(w*(renderer?.getPixelRatio()||1))
    ||canvas.height!==Math.floor(h*(renderer?.getPixelRatio()||1));
-  // During deliberate world pause, redraw only when the preview actually changes.
+  // When the world is intentionally paused for inspection, update only on
+  // actual preview changes; never run continuous SwiftShader frames that can
+  // starve the authenticated WebSocket while applying appearance.
   if(changesOnly&&!dirty&&!resized&&next===keyState&&renderer)return true;
   if(!dirty&&!resized&&next===keyState&&renderer&&(motionPreference.matches||now-lastDraw<1000/15))return true;
   try{

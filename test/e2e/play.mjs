@@ -80,7 +80,9 @@ async function openPlayer(slot, name, cls, look, viewport={width:960,height:600}
     }
   }
   await page.click('#enter');
-  await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: 20000 });
+  // The late third guest competes with two SwiftShader contexts; allow a
+  // bounded additional startup window without accepting missing server state.
+  await page.waitForFunction(() => window.__attune && window.__attune.state().myId && window.__attune.state().sheet && window.__attune.state().pos, null, { timeout: SOFTWARE_GL ? 60000 : 20000 });
   // The entry curtain lifts on the first drawn frame of the placed character.
   // Callers may pause drawing next, so wait here until the world is revealed.
   await page.waitForFunction(()=>{const c=document.getElementById('world-entry-curtain');return !c||c.hidden||c.classList.contains('dismissed');},null,{timeout:60000});

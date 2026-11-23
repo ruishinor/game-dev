@@ -202,6 +202,7 @@ const rich = () => !!cvfx && quality > 0;
 world.severancePocket?.timeOfDay.configure(parseTimeOfDay(location.search));
 world.severance?.attach({ vfx, quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, calm: () => !!vfx?.calmFlashes });
 world.attachReachFx?.(vfx);
+world.attachLumenfenFx?.(vfx);
 attachArmourFxEnv({ quality: () => quality, reducedMotion: () => motionPreference.matches, intensity: () => vfx?.intensity ?? 1, vfx: () => (rich() ? vfx : null) });
 const recoveryVisuals=createRecoveryVisuals(THREE,scene,groundHeight);
 // Inside onEvent the legacy primitives are muted while the engine is active.
@@ -1529,7 +1530,7 @@ function onEvent(e) {
       ui.chatLine('['+(e.channel==='party'?'Party':'Vicinity')+'] '+e.n,e.m,e.channel==='party'?'party-chat':'chatline');
       break;
     case 'warden_observe':
-      // A non-combat acknowledgement: the ring briefly recognises the observer.
+      // A neutral Warden acknowledges only the authorised observer.
       S.ents.get(e.id)?.model.trigger?.('observe');
       break;
     case 'msg':
@@ -2293,7 +2294,7 @@ function frame(now) {
     // Whatever stands between the camera and the player or their target fades.
     viewPoints[0] = me.chest;
     viewPoints[1] = target && target.placed && !target.dead ? target.chest : null;
-    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints, serverSeconds: Math.max(0,(now+(S.timeOffset??-now)-INTERP_MS)/1000) });
+    world.update(dt, time, me.pos, { eye: camera.position, points: viewPoints, worldClock: S.you?.wc ?? null, serverSeconds: Math.max(0,(now+(S.timeOffset??-now)-INTERP_MS)/1000) });
   }
   if (target && target.placed && !(target.meta.k === 'e' && target.dead)) {
     ring.visible = true;
@@ -2418,6 +2419,8 @@ window.__attune = {
     const ent = S.ents.get(id);
     return ent ? toScreen(ent.chest) : null;
   },
+  /** Reset only the opt-in profiler window; session-wide diagnostics remain intact. */
+  beginRenderWindow() { return renderProbe.beginWindow(); },
   /** Stop or resume drawing (the game keeps running). Lets a capture script render one client at a time. */
   pause(on) {
     S.paused = !!on;

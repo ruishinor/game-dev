@@ -60,6 +60,8 @@ try{
  assert.equal(await switchBtn.locator('.key').innerText(),'Z');assert.equal(await configBtn.locator('.key').innerText(),'G');
 
  // 2. Ownership fixture, then equip both through the regular loadout UI.
+ // A reconnect can briefly clear the projected sheet. Wait for the complete
+ // server-owned equipment state instead of throwing on an intermediate null.
  p.char.inventory.push('electrical_combat_rod','field_emitter');server.game.markDirty(p);
  await until(()=>window.__attune.state().sheet.inventory.includes('field_emitter'));
  await view.focus();await page.keyboard.press('KeyC');
@@ -96,9 +98,9 @@ try{
  assert.match(await tip.innerText(),/Rod configuration \(G\)[\s\S]*Current: Dual batons/);
  // The hotbar button itself also works (pointer path) and returns to joined.
  await configBtn.click();
- await until(()=>window.__attune.state().sheet?.electricalRodMode==='rod');
+ await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
  await view.focus();await page.keyboard.press('KeyG');
- await until(()=>window.__attune.state().sheet?.electricalRodMode==='dual');
+ await until(()=>window.__attune.state().sheet.electricalRodMode==='dual');
 
  // 5. Text entry focus: typing the hotkeys into chat does not fire combat actions.
  await view.focus();await page.keyboard.press('Enter');
@@ -229,7 +231,7 @@ try{
  // simulating; restore health so slow evidence frames cannot decide the fight.
  p.hp=p.maxHp;
  await page.keyboard.press('KeyG');
- await until(()=>window.__attune.state().sheet?.electricalRodMode==='rod');
+ await until(()=>window.__attune.state().sheet.electricalRodMode==='rod');
  await page.waitForTimeout(1200);
  const near2=clearCombatSpot(second,0,1.6);p.x=near2.x;p.z=near2.z;p.yaw=Math.atan2(second.x-near2.x,second.z-near2.z);
  await until(([x,z])=>{const s=window.__attune.state();return s.you&&Math.hypot(s.you.x-x,s.you.z-z)<.5;},[near2.x,near2.z]);
