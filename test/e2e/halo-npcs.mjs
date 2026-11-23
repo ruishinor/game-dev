@@ -285,6 +285,22 @@ try {
   report.vendor = { x: vendor.x, z: vendor.z, meshes: vendor.halo.meshes, anim: vendor.anim };
   report.perf.vendor = (await page.evaluate(() => window.__attune.state().draw));
   report.assets = await page.evaluate(() => window.__attune.state().assets);
+  // Desktop/TV evidence must profile the armed Warden, NOT the quartermaster
+  // visited just above. Use the same real third-person player position as the
+  // individual guard gameplay capture, facing into the outward-facing post.
+  const profiledGuard = SANCTUM_GUARDS[0];
+  const profileRadius = Math.hypot(profiledGuard.x,profiledGuard.z);
+  await teleport(profiledGuard.x+(profiledGuard.x/profileRadius)*4.5,
+    profiledGuard.z+(profiledGuard.z/profileRadius)*4.5);
+  await page.evaluate(yaw=>window.__attune.view({
+    yaw:yaw+Math.PI,pitch:.16,dist:5.2,face:yaw+Math.PI
+  }),profiledGuard.yaw);
+  const profiledState=await page.evaluate(key=>{
+    const s=window.__attune.state();
+    return s.ents.find(e=>e.k===key||e.halo?.role==='guard'&&e.k===key);
+  },profiledGuard.key);
+  assert.equal(profiledState?.halo?.primary,'rifle','desktop/TV evidence must target the armed Warden');
+  report.perf.profiledWarden=profiledGuard.key;
   // Desktop and large-TV presentation: the live scene, renderer and HUD, not
   // an offline render. Record CPU render submission and draw counters. Hosted
   // SwiftShader is NOT an integrated GPU benchmark; 4K checks UI at native
