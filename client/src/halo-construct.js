@@ -12,6 +12,8 @@ import { Animator } from './animator.js';
 import { disposeInstance } from './assets.js';
 import { createWardenRifle, hasWardenRifle, syncWardenWeapon } from './warden-rifles.js';
 import { WARDEN_PRIMARY_WEAPONS, createWardenCombatRod, syncWardenCombatRod } from './warden-combat-rod.js';
+import { createWardenHeadFx } from './warden-head-fx.js';
+import { applyWardenMaterials } from './warden-materials.js';
 
 export const HALO_BUNDLE = 'halo_construct';
 
@@ -65,17 +67,21 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
     o.removeFromParent();
     o.skeleton?.dispose(); // the clone made one per mesh; geometry and materials stay shared
   }
-  // Per-instance optic tint: one cloned body material shared by body and ring.
-  let bodyMat = null;
-  inst.traverse((o) => {
-    if (!o.isMesh || !(o.name === 'body' || o.name === 'body_paint' || o.name.startsWith('ring_'))) return;
-    if (!bodyMat) {
-      bodyMat = o.material.clone();
-      bodyMat.isShared = false;
-      bodyMat.emissive.setRGB(...(v ? v.optic : VENDOR_OPTIC));
-    }
-    o.material = bodyMat;
-  });
+  // Security uses Warden-only ceramic/bronze/ebony finishing and independent
+  // head optics. The civilian vendor retains its accepted white-and-sash livery.
+  if (v) applyWardenMaterials(inst, v.optic);
+  else {
+    let bodyMat = null;
+    inst.traverse((o) => {
+      if (!o.isMesh || !(o.name === 'body_paint' || o.name.startsWith('ring_'))) return;
+      if (!bodyMat) {
+        bodyMat = o.material.clone();
+        bodyMat.isShared = false;
+        bodyMat.emissive.setRGB(...VENDOR_OPTIC);
+      }
+      o.material = bodyMat;
+    });
+  }
   const group = new THREE.Group();
   group.name = `halo_construct:${role}`;
   group.add(inst);
@@ -89,6 +95,9 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
   // Evaluate the base clip even at phase zero. Previously the first Warden
   // was fitted against the unanimated bind pose and emitted a false failure.
   anim.update(v?.phase ?? 0);
+  // Compute the instrumentation from the *animated skinned ring* itself.
+  // It remains rigidly head-local and does not use global VFX pools.
+  const headFx = v ? createWardenHeadFx(inst, { variant: guardIndex, optic: v.optic }) : null;
   let weaponPresentation = v ? (primary === 'combat-rod'
     ? syncWardenCombatRod(combatRod,stave,0,{t:v.phase})
     : syncWardenWeapon(rifle,stave,0,{t:v.phase})) : null;
@@ -114,6 +123,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       ...(combatRod ? ['warden-combat-rod:energized'] : [])],
     weaponPrimary: () => primary,
     weaponFit: () => rifle?.inspect() ?? combatRod?.inspect() ?? null,
+    headSensor: () => headFx?.inspect() ?? null,
     weaponPresentation: () => weaponPresentation,
     update(dt, st) {
       if (spec.talk) {
@@ -129,6 +139,7 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       const step = lod.acc;
       lod.acc = 0;
       anim.update(step);
+      headFx?.update(step,st);
       if(v)weaponPresentation=primary === 'combat-rod'
         ? syncWardenCombatRod(combatRod,stave,step,st)
         : syncWardenWeapon(rifle,stave,step,st);
@@ -148,12 +159,15 @@ export function createHaloConstruct(assets, role, { variant = 0 } = {}) {
       }
     },
     trigger(kind) {
-      // Vendors acknowledge an interaction with the shared gesture; wardens never react.
+      // Server-authorised observation can pulse the optical ring; no hostility,
+      // dialogue or facing changes are implied by a cosmetic acknowledgement.
+      if (role === 'guard' && kind === 'observe') headFx?.observe();
       if (role === 'vendor' && kind === 'interact' && anim.has('Interact')) anim.play('Interact', { kind: 'ability', fadeOut: 0.3 });
     },
     dispose() {
       anim.dispose();
       combatRod?.dispose();
+      headFx?.dispose();
       disposeInstance(group);
     },
   };
