@@ -44,6 +44,7 @@ import { UI, companionCommandKeys, SPINDLE_UTILITY_COMMANDS } from './ui.js';
 import {ActionBindings} from './hotkey-bindings.js';
 import { activeWeaponSlot, canSwitchWeapons, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { nearestInteractable } from './interact-target.js';
+import { nearestPracticeTarget } from './outpost-training.js';
 import { npcAccess, npcProfile } from './npc-interaction.js';
 import { makePortraits } from './portraits.js';
 import {createCreationPreview} from './creation-preview.js';
@@ -1597,6 +1598,15 @@ function onEvent(e) {
       ui.appearanceApplied(e.appearance);break;
     case 'appearance_rejected':
       ui.appearanceRejected(e.reason);break;
+    case 'range_shot': {
+      const target = S.ents.get(e.d);
+      if (e.hit && target?.placed) {
+        target.model.trigger?.('hit');
+        if (!motionPreference.matches && quality > 0) fx.burst(target.chest, 0x8bd7d0, Math.min(6, quality * 3), .35);
+      }
+      ui.toast(`Calibration ${e.shots}/${e.total}: ${e.hit ? e.score + ' points' : 'miss'}`, e.hit ? 'gain' : 'warn');
+      break;
+    }
     case 'say':
       if(!ui.showNpcDialogue(e.id,e.m))ui.toast(`${e.n}: “${e.m}”`, 'npc');
       ui.chatLine(e.n, e.m, 'npc');
@@ -1654,7 +1664,7 @@ function pick(x, y, kinds, allowLoot=false) {
 }
 
 function nearestObject() {
-  return nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
+  return nearestPracticeTarget(S.ents,S.myId,S.you,INTERACT_RANGE) || nearestInteractable(S.ents,S.myId,S.you,INTERACT_RANGE);
 }
 
 function nextEnemy(reverse = false) {
