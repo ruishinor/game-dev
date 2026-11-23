@@ -29,7 +29,7 @@ const record = (bucket, event, amount) => {
   bucket[event] = bounded((bucket[event] || 0) + amount);
 };
 const validCount = (n) => validNumber(n) && n > 0;
-const validDay = s => /^\\d{4}-\\d{2}-\\d{2}$/.test(s);
+const validDay = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const sanitizeBucket = raw => {
   const out = {};
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) for (const event of EVENTS) {
@@ -88,7 +88,7 @@ export class EconomyMetrics {
         !Number.isSafeInteger(player.char?.level) || player.char.level < 1 || player.char.level > 15) return false;
     if (detail !== null && (!DETAIL[event] || !Object.hasOwn(DETAIL[event], detail))) return false;
     const timestamp = this.now();
-    if (!Number.isFinite(timestamp)) return false;
+    if (!Number.isSafeInteger(timestamp) || timestamp < 0 || timestamp > 8.64e15) return false;
     const day = new Date(timestamp).toISOString().slice(0, 10);
     if (!validDay(day)) return false;
     const bucket = this.days[day] ||= emptyDay();
