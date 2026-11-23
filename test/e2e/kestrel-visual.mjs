@@ -150,7 +150,7 @@ try {
       : 'GPU execution requested; inspect actual WebGL renderer and host hardware before interpreting wall time',
   };
   console.log('KESTREL_PERFORMANCE '+JSON.stringify(performanceEvidence));
-  fs.writeFileSync('kestrel-evidence/performance.json',JSON.stringify(performanceEvidence,null,2)+'\\n');
+  fs.writeFileSync('kestrel-evidence/performance.json',JSON.stringify(performanceEvidence,null,2));
   // Check layout/readiness at large display sizes without another expensive
   // software-GL encode or inventing a frame-rate measurement.
   for(const [width,height] of [[1920,1080],[2560,1440]]) {
