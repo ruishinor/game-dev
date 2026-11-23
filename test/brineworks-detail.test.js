@@ -8,7 +8,9 @@ test('Brineworks GLB tabletop mounts and detailed gauges remain decorative',asyn
   const loader={loadAsync:async url=>{
     paths.push(url);
     const scene=new THREE.Group();
-    scene.add(new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.35),new THREE.MeshStandardMaterial({color:0x888888,roughness:1})));
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.35),new THREE.MeshStandardMaterial({color:0x888888,roughness:1}));
+    // An off-origin model must still fit, rather than translating its centre outside the workstation.
+    mesh.position.set(4.2,2.6,-3.3);scene.add(mesh);
     return {scene};
   }};
   const b=buildBrineworksDetail(THREE,loader,()=>0);
@@ -22,6 +24,12 @@ test('Brineworks GLB tabletop mounts and detailed gauges remain decorative',asyn
     assert.ok(holder,'missing mounted '+s.id+' GLB');
     assert.equal(holder.position.x,s.x);
     assert.equal(holder.position.z,s.z-.04);
+    const box=new THREE.Box3().setFromObject(holder);
+    const center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3());
+    assert.ok(Math.abs(center.x-s.x)<.001);
+    assert.ok(Math.abs(center.z-(s.z-.04))<.001);
+    assert.ok(Math.abs(box.min.y-1.12)<.001);
+    assert.ok(size.x<=s.w+.001 && size.y<=s.h+.001 && size.z<=s.d+.001);
     holder.traverse(obj=>{if(obj.isMesh){assert.ok(obj.material.isMeshPhysicalMaterial);assert.ok(obj.castShadow);}});
   }
   for(const s of BRINEWORKS_GAUGES)assert.ok(b.group.getObjectByName('brineworks:gauge:'+s.id));

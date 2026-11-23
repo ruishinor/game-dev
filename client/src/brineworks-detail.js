@@ -109,11 +109,14 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
        };
        obj.material=Array.isArray(obj.material)?obj.material.map(finish):finish(obj.material);
      });
+     // Normalize the GLB in its native coordinates *before* applying fit scale.
+     // Scaling root while translating it independently displaced off-origin donors.
      root.position.set(-center.x,-bounds.min.y,-center.z);
-     root.scale.setScalar(scale);
+     const fitted=new T.Group();fitted.name='brineworks:fit:'+s.id;
+     fitted.scale.setScalar(scale);fitted.add(root);
      const holder=new T.Group();holder.name='brineworks:refined-glb:'+s.id;
      holder.position.set(s.x,height(s.x,s.z)+1.12,s.z-.04);
-     holder.add(root);group.add(holder);donors.push(root);
+     holder.add(fitted);group.add(holder);donors.push(root);
      status.modules[s.id]='ready';
    }).catch(err=>{
      status.modules[s.id]='fallback';
