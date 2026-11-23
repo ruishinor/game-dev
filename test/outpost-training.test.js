@@ -81,6 +81,20 @@ test('range and armory reject invalid or unsafe interactions without altering in
   assert.equal(interact(g, p, targets[0].id).ok, false, 'cannot shoot past the firing line');
 });
 
+test('front-aisle cabinet access and console sightlines enforce physical outpost cover', () => {
+  const { g, p, obj } = setup();
+  const console = obj('outpost_range_console'), armory = obj('outpost_armory');
+  // Inside the safe zone but on the opposite side of the solid shelter wall.
+  place(p, console.x, OP.shelter.z + OP.shelter.hw + .72);
+  assert.ok(Math.hypot(p.x-console.x, p.z-console.z) < 5);
+  assert.equal(interact(g, p, console.id).ok, false, 'north wall blocks remote console activation');
+  // Cabinet is mounted facing south; operating through its back is refused.
+  place(p, R.armory.x, R.armory.z + 1.1);
+  assert.equal(interact(g, p, armory.id).ok, false, 'cannot interact from behind rack');
+  place(p, R.armory.x, R.armory.z - 1.1);
+  assert.ok(interact(g, p, armory.id).ok, 'front aisle remains usable');
+});
+
 test('armory and range models retain interactive geometry and bounded rendering budgets', () => {
   for (const build of [makeRangeTarget, makeRangeConsole, makeArmoryAnchor]) {
     const model = build(THREE);

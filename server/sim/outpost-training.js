@@ -1,13 +1,16 @@
 // Server-owned, deliberately non-rewarding weapon calibration at the Expanse outpost.
 // The client only requests an interaction with a real world object; it never
 // supplies hits, scores, session state, items, or shot results.
-import { inExpeditionOutpost, EXPEDITION_OUTPOST as OP } from '../../shared/severance-gate.js';
+import { inExpeditionOutpost, EXPEDITION_OUTPOST as OP, OUTPOST_TRAINING as R } from '../../shared/severance-gate.js';
 import { activeWeaponSlot } from '../../shared/weapons.js';
-import { hasLineOfSight, sameTravelRegion } from '../../shared/world.js';
+import { COLLIDERS, hasLineOfSight, sameTravelRegion } from '../../shared/world.js';
 
 export const RANGE_SHOTS = 5;
 export const RANGE_COOLDOWN_MS = 650;
 const fail = (reason) => ({ ok: false, reason });
+// The cabinet is itself a collision obstacle. Do not mistake its physical
+// backing board for occlusion of the front-mounted interaction anchor.
+const ARMORY_VIEW = COLLIDERS.filter(c => c.type !== 'outpost_armory_rack');
 
 export function interactOutpostTraining(game, p, obj) {
   if (!['outpost_range_console', 'outpost_range_target', 'outpost_armory'].includes(obj?.type)) {
@@ -18,10 +21,14 @@ export function interactOutpostTraining(game, p, obj) {
     return fail('Disengage and stand still before operating the range.');
   }
   if (obj.type === 'outpost_armory') {
+    if (p.z >= R.armory.z - .45 || !hasLineOfSight(p, obj, ARMORY_VIEW)) {
+      return fail('Inspect the armory from the front aisle, not through the shelter wall.');
+    }
     game.message(p, 'info', 'Field armory: inspect the Longpoint, field, tuned and dense training patterns. Exhibition equipment is secured; no weapons or ammunition are issued here. Equip your own ranged weapon for calibration.');
     return { ok: true };
   }
   if (obj.type === 'outpost_range_console') {
+    if (!hasLineOfSight(p, obj)) return fail('Approach the range console through the shelter entrance.');
     if (p.outpostTraining?.active) {
       const { shots, hits, score } = p.outpostTraining;
       p.outpostTraining = null;
