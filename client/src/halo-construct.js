@@ -39,7 +39,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 /** Which role a world object presents as, or null if it is not a Halo Construct. */
 export function haloRoleFor(meta) {
-  if (meta.c === 'sanctum_guard') return 'guard';
+  if (meta.c === 'sanctum_guard'||meta.c==='outpost_warden'||meta.c==='outpost_commander') return 'guard';
   if (meta.c === 'quartermaster') return 'vendor';
   return null;
 }
