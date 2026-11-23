@@ -192,3 +192,5 @@ Phase 1 merged in [#136](https://github.com/ruishinor/game-dev/pull/136) (`7af55
 - Completion requires an enforceable mesh-fit/strain check or explicitly authorized and evidenced exception, the already listed LOD/tangent work, real-GPU sampling, in-game animation evidence on both supported bodies, and owner artistic review. Preserve the accepted design direction; do not restart or discard valid assets.
 - The three other armour family VFX modes are code-supported; worn GLB/model coverage, corresponding icons, acquisition path and human acceptance are still separate deliverables.
 
+
+**Integration checkpoint (23 November 2026):** The class-armour archive acquisition changes were reconciled with the merged server-side economy-observability hooks and the current required-check workflow. This describes code integration only; earned gameplay routes, current-head regression checks and visual acceptance remain separate evidence requirements.
