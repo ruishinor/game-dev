@@ -1,6 +1,75 @@
 // Lumenfen wildlife silhouettes and six-legged locomotion.
 // Authored runtime geometry is not restricted by asset source or file format.
 import { fenFoliageGeometry, fenSurfaceDetail } from './lumenfen-organics.js';
+
+// Optional genuine archive-derived dorsal surface. The source GLB is remeshed
+// and physically textured by tools/assets/lumenfen-glb-refine.mjs; this adaptor
+// selects only dorsal/torso triangles so static source legs never appear beside
+// the live six-hip articulated creature rig. No hitbox/AI authority changes.
+let stalkerSurface=null;
+export async function preloadFenStalkerSurface(T,loader){
+ if(stalkerSurface)return true;
+ if(!T?.Box3||!loader?.loadAsync)return false;
+ try{
+  const gltf=await loader.loadAsync('/client/assets/lumenfen-six_limb_predator.glb');
+  const root=gltf?.scene;
+  if(!root?.traverse)return false;
+  root.updateMatrixWorld(true);
+  const bound=new T.Box3().setFromObject(root),size=bound.getSize(new T.Vector3());
+  if(![size.x,size.y,size.z].every(n=>Number.isFinite(n)&&n>.00001))return false;
+  let faces=0;
+  root.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry?.attributes?.position)faces++;});
+  if(!faces)return false;
+  stalkerSurface={root,bound,size};
+  return true;
+ }catch{return false;}
+}
+function fitStalkerDorsal(T,group) {
+ if(!stalkerSurface)return {meshCount:0,materials:[],mount:null};
+ const {root,bound,size}=stalkerSurface;
+ const mount=new T.Group();mount.name='lumenfen:stalker:archive-dorsal-rig';
+ // Source meshes are already transformed into the selected donor root.
+ // Limit to the upper central surface; discard static legs/feet.
+ const center=bound.getCenter(new T.Vector3()),materials=[];
+ const forwardX=size.x>size.z;
+ const scaleX=(forwardX?2.9:1.18)/size.x;
+ const scaleY=.57/size.y,scaleZ=(forwardX?1.18:2.9)/size.z;
+ let meshCount=0;
+ root.traverse(o=>{
+  if(meshCount>=8||!o.isMesh||o.isSkinnedMesh||!o.geometry?.attributes?.position)return;
+  const geo=o.geometry.clone();geo.applyMatrix4(o.matrixWorld);
+  const position=geo.attributes.position,index=geo.index;
+  const count=index?index.count:position.count;
+  const ix=[],top=bound.min.y+size.y*.57;
+  for(let i=0;i<count-2;i+=3){
+   const a=index?index.getX(i):i,b=index?index.getX(i+1):i+1,
+     d=index?index.getX(i+2):i+2;
+   const x=(position.getX(a)+position.getX(b)+position.getX(d))/3;
+   const y=(position.getY(a)+position.getY(b)+position.getY(d))/3;
+   const z=(position.getZ(a)+position.getZ(b)+position.getZ(d))/3;
+   if(y<top||Math.abs(x-center.x)>size.x*.36||Math.abs(z-center.z)>size.z*.43)continue;
+   ix.push(a,b,d);
+  }
+  if(ix.length<30){geo.dispose();return;}
+  geo.setIndex(ix);geo.computeBoundingSphere();
+  const donorMaterials=(Array.isArray(o.material)?o.material:[o.material])
+    .map(m=>m?.clone?.()??new T.MeshPhysicalMaterial({color:0x658c70,roughness:.55}));
+  materials.push(...donorMaterials);
+  const shell=new T.Mesh(geo,Array.isArray(o.material)?donorMaterials:donorMaterials[0]);
+  shell.name='lumenfen:stalker:remeshed-source-carapace';
+  shell.castShadow=false;shell.receiveShadow=true;
+  mount.add(shell);meshCount++;
+ });
+ if(!meshCount){return {meshCount:0,materials,mount:null};}
+ // Keep live hip, knee, foot and tail joints independent of the donor surface.
+ mount.scale.set(scaleX,scaleY,scaleZ);
+ mount.position.set(-center.x*scaleX,1.39-(bound.min.y+size.y*.70)*scaleY,
+    -center.z*scaleZ);
+ if(forwardX)mount.rotation.y=Math.PI/2;
+ group.add(mount);
+ return {meshCount,materials,mount};
+}
+
 function disposeModel(group, materials) {
   const geometries = new Set();
   group.traverse(o => { if (o.isMesh && o.geometry) geometries.add(o.geometry); });
@@ -168,6 +237,7 @@ export function makeFenStalker(T) {
     ridge.position.set(0,1.46+(i%2)*.05,1.03-i*.36);
     ridge.rotation.x=-.26;ridge.name='lumenfen:stalker:keratin-frill';group.add(ridge);
   }
+  const donorCarapace=fitStalkerDorsal(T,group);
   const legs=[];
   for(let pair=0;pair<3;pair++){
     const z=.94-pair*.88;
@@ -237,7 +307,9 @@ export function makeFenStalker(T) {
       jaw.position.y=.78-(attack?.065:0);
       eyes.emissiveIntensity=1.05+(st.attack ? .4 : .25)+active*.17*Math.sin((st.t||0)*1.7);
       body.rotation.z=Math.sin(gait*.5)*.025*speed*active;
+      if(donorCarapace.mount){donorCarapace.mount.rotation.z=body.rotation.z;
+        donorCarapace.mount.rotation.x=(st.attack?.035:0);}
     },
-    dispose(){disposeModel(group,[skin,shell,underside,eyes]);}
+    dispose(){disposeModel(group,[skin,shell,underside,eyes,...donorCarapace.materials]);}
   };
 }
