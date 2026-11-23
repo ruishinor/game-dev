@@ -31,3 +31,33 @@ test('low-angle interior camera is not forced into a ceiling-distance clamp', ()
   assert.ok(camera.position.y < ANNEX_SHELL_HEIGHT - 1);
   assert.ok(orbit.dist > 3, 'ordinary over-shoulder framing remains usable');
 });
+
+test('Annex outer visual walls prevent orbiting into opaque room exteriors', () => {
+  const cases = [
+    { label: 'east', x: RIFT_ANNEX.x + RIFT_ANNEX.hw - 2.5, z: 0, yaw: -Math.PI / 2 },
+    { label: 'west', x: RIFT_ANNEX.x - RIFT_ANNEX.hw + 2.5, z: 0, yaw: Math.PI / 2 },
+    { label: 'north', x: RIFT_ANNEX.x - 8, z: RIFT_ANNEX.hd - 2.5, yaw: Math.PI },
+    { label: 'south', x: RIFT_ANNEX.x + 8, z: -RIFT_ANNEX.hd + 2.5, yaw: 0 },
+  ];
+  for (const { label, x, z, yaw } of cases) {
+    const camera = new THREE.PerspectiveCamera();
+    const orbit = new ThirdPersonCamera(camera);
+    orbit.pitch = .15;
+    orbit.yaw = yaw;
+    orbit.want = orbit.dist = 12;
+    orbit.update({ x, z, y: 0 }, 1 / 60);
+    assert.ok(orbit.dist < 4, label + ': wall must shorten camera orbit');
+    assert.ok(Math.abs(camera.position.x - RIFT_ANNEX.x) < RIFT_ANNEX.hw - .3);
+    assert.ok(Math.abs(camera.position.z - RIFT_ANNEX.z) < RIFT_ANNEX.hd - .3);
+  }
+});
+
+test('outside the Annex the camera retains its normal free orbit', () => {
+  const camera = new THREE.PerspectiveCamera();
+  const orbit = new ThirdPersonCamera(camera);
+  orbit.yaw = Math.PI / 2;
+  orbit.pitch = .15;
+  orbit.dist = orbit.want = 8;
+  orbit.update({ x: 0, y: 0, z: 120 }, 1 / 60);
+  assert.ok(orbit.dist > 7.5);
+});
