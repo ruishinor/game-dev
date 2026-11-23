@@ -139,6 +139,11 @@ def refine_meshes(root, target):
         # skipped precisely those low-poly hard-surface primitives.
         if n < 4 or n > 4500:
             continue
+        # Imported composite donors may share a Blender mesh datablock.
+        # Applying subdivision/bevel to multi-user mesh data raises an error;
+        # isolate the selected static object's datablock before modifying it.
+        if obj.data.users > 1:
+            obj.data = obj.data.copy()
         select_only([obj])
         edge = [abs(float(x)) for x in obj.dimensions if abs(float(x)) > 0.001]
         scale = min(edge) if edge else 0.1
