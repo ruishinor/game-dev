@@ -243,6 +243,25 @@ export const EXPEDITION_OUTPOST = Object.freeze({
     Object.freeze({ key: 'outpost_signaller', name: 'Signaller Maren Okafor', ...ox(-6.1, -7.2), yaw: -2.2 }),
   ]),
 });
+// Stationed defensive ring: two paired posts, two solo overwatch positions,
+// and a Halo Construct officer who commands from the middle. These are
+// neutral allied objects, not player-farmable enemy or quest NPCs.
+export const EXPEDITION_DEFENDERS=Object.freeze([
+ ...[
+  [-11,2,0,'Expanse Warden · North Pair','arc'],
+  [-11,5,1,'Expanse Warden · North Pair','kinetic'],
+  [-9,-9,2,'Expanse Warden · South Pair','resonance'],
+  [-6,-11,3,'Expanse Warden · South Pair','thermal'],
+  [10,5,4,'Expanse Warden · Eastern Watch','arc'],
+  [12,-8,5,'Expanse Warden · Basin Watch','resonance'],
+ ].map(([dx,dz,variant,name,affinity],i)=>Object.freeze({
+  key:'expanse_warden_'+(i+1),type:'outpost_warden',name,
+  x:O.x+dx,z:O.z+dz,r:.45,variant,affinity,
+  yaw:Math.atan2(dx,dz)
+ })),
+ Object.freeze({key:'expanse_security_officer',type:'outpost_commander',name:'Expedition Elite Security Officer',
+  x:O.x+1,z:O.z+8,r:.45,variant:0,affinity:'resonance',yaw:Math.PI}),
+]);
 const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
 export const OUTPOST_COLLIDERS = Object.freeze([
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
