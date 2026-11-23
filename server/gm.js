@@ -118,6 +118,8 @@ function refreshPreviewBuild(game, p) {
 export function executeGm(game, p, line) {
   if (typeof line !== 'string' || line.length > 120 || /[\u0000-\u001f\u007f]/.test(line) || !p?.char)
     return deny('Invalid GM request.');
+  // Exclude the rest of any GM-assisted session from normal-play economy samples.
+  p.economyExcluded = true;
   const parts = line.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!parts.length || (parts[0] === 'help' && parts.length === 1)) {
     game.message(p, 'info', GM_HELP);
