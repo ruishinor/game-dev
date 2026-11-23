@@ -13,6 +13,7 @@ import {lootState,openLoot,takeLoot} from '../server/sim/loot.js';
 import {moonAboveFen,buildLumenfenMoonMirrors} from '../client/src/lumenfen-moon-mirrors.js';
 import {buildLumenfenWorld} from '../client/src/lumenfen-world.js';
 import {buildFenMonsoonBloom,createFenMonsoonFx} from '../client/src/lumenfen-monsoon.js';
+import {emitFenLootFx,FEN_LOOT_VFX_IDS} from '../client/src/lumenfen-loot-fx.js';
 import {FEN_POOLS,LUMENFEN} from '../shared/lumenfen.js';
 
 const atDay=n=>n*WORLD_CLOCK.periodMs;
@@ -73,6 +74,10 @@ test('corpses authorize independent personal region salvage; collection respects
   assert.ok(takeLoot(g,p,e.id,e.lootGeneration,null).ok);
   assert.equal(p.char.materials.bog_chitin,1);
   assert.equal(p.char.goods.blueprint_tidal_service_cassette,1);
+  assert.ok(p.outbox.some(m=>m.e==='fen_loot'&&m.item==='bog_chitin'),
+    'collected personal materials trigger the matching private VFX event');
+  assert.ok(!stranger.outbox.some(m=>m.e==='fen_loot'));
+
   assert.equal(lootState(g,p).loot,null);
   assert.equal(openLoot(g,p,e.id,e.lootGeneration).ok,false,'corpse cannot roll again');
 });
@@ -129,6 +134,7 @@ test('monsoon content and pooled VFX never create colliders or emitter storms',(
   const emissions=[],vfx={quality:2,burst:e=>emissions.push(e)};
   const fx=createFenMonsoonFx(vfx);
   fx.update(.2,{x:LUMENFEN.x,z:LUMENFEN.z},{rain:.9,wind:.9});
+  fx.update(.2,{x:LUMENFEN.x,z:LUMENFEN.z},{rain:.9,wind:.9});
   assert.ok(emissions.length>=1);
   assert.ok(emissions.every(e=>e.count<=30));
   const emitted=emissions.length;
@@ -148,4 +154,18 @@ test('Lumenfen world keeps graphics and gameplay separate during climate updates
   assert.equal(world.group.visible,false);
   world.dispose();
   assert.equal(world.group.parent,null);
+});
+
+test('gathering VFX maps only real biome loot identifiers to pooled organic visuals',()=>{
+  const specimens=new Set(Object.values(FEN_BIOME_DROPS).flat().map(d=>d.id));
+  assert.deepEqual([...FEN_LOOT_VFX_IDS].sort(),[...specimens].sort());
+  const emitted=[],sigils=[],vfx={quality:2,burst:x=>emitted.push(x),sigil:x=>sigils.push(x)};
+  assert.equal(emitFenLootFx(vfx,{x:2,y:1,z:3},'bog_chitin'),true);
+  assert.equal(emitted.length,1);
+  assert.equal(sigils.length,0,'common salvage should not generate rare sigil');
+  assert.equal(emitFenLootFx(vfx,{x:2,y:1,z:3},'rootglass_crown_shard'),true);
+  assert.ok(sigils.length>=1,'rare monsoon specimen should have a distinct luminous response');
+  assert.equal(emitFenLootFx(vfx,{x:2,y:1,z:3},'nonexistent-item'),false);
+  assert.equal(emitFenLootFx({quality:0,burst(){throw Error('quality zero unexpectedly emitted');}},
+    {x:2,y:1,z:3},'rootglass_crown_shard'),false);
 });
