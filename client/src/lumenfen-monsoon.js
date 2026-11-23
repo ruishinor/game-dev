@@ -121,3 +121,54 @@ export function createFenMonsoonFx(vfx){
   dispose(){disposed=true;}
  };
 }
+
+
+// Six reversible floodplain sheets: water spreads into root and reed beds
+// without moving the authoritative terrain or introducing phantom colliders.
+// Each ring follows the actual deterministic bank height.
+export function buildFenMonsoonFlood(T,group){
+ const root=new T.Group();root.name='lumenfen:monsoon-floodplain';
+ root.visible=false;group.add(root);
+ const material=new T.MeshPhysicalMaterial({
+   color:0x3e8587,metalness:.11,roughness:.22,clearcoat:.72,
+   clearcoatRoughness:.12,transparent:true,opacity:.0,depthWrite:false,
+   side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,
+ });
+ const strips=[];
+ for(const pool of FEN_POOLS){
+   const vertices=[],indices=[],N=96,rings=[1.005,1.09,1.18,1.29];
+   for(const rad of rings)for(let i=0;i<N;i++){
+     const a=i*TAU/N;
+     const wave=1+.029*Math.sin(a*7+pool.seed)+.017*Math.sin(a*13-pool.seed*.19);
+     const x=pool.x+Math.cos(a)*pool.rx*rad*wave;
+     const z=pool.z+Math.sin(a)*pool.rz*rad*wave;
+     vertices.push(x,fenHeight(x,z)+.045,z);
+   }
+   for(let j=0;j<rings.length-1;j++)for(let i=0;i<N;i++){
+     const a=j*N+i,b=j*N+(i+1)%N,c=(j+1)*N+i,d=(j+1)*N+(i+1)%N;
+     indices.push(a,c,b,b,c,d);
+   }
+   const geo=new T.BufferGeometry();
+   geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+   geo.setIndex(indices);geo.computeVertexNormals();
+   const mesh=new T.Mesh(geo,material);
+   mesh.name='lumenfen:monsoon:bank-flood';mesh.receiveShadow=true;
+   root.add(mesh);strips.push(mesh);
+ }
+ let flood=0;
+ return {
+  group:root,
+  update(state){
+   flood=Number.isFinite(state?.flood)?Math.max(0,Math.min(1,state.flood)):0;
+   root.visible=flood>.15;
+   material.opacity=.08+flood*.30;
+   material.roughness=.15+(state?.wind||0)*.23;
+  },
+  stats:()=>({flood,bankSheets:strips.length,visible:root.visible}),
+  dispose(){
+    root.removeFromParent();
+    for(const mesh of strips)mesh.geometry.dispose();
+    material.dispose();strips.length=0;
+  }
+ };
+}
