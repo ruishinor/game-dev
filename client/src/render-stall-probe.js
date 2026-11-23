@@ -1,3 +1,5 @@
+import { snapshotShaderPrograms, describeNewShaderPrograms } from './shader-program-signatures.js';
+
 // Opt-in, bounded browser render diagnostics. This measures synchronous
 // renderer.render() wall time, not GPU execution time; it makes no claim that
 // long calls are caused by a specific shader, model, or driver.
@@ -74,6 +76,7 @@ export function createRenderStallProbe({
     if (!enabled) return draw();
     const began = now();
     const programsBefore = programCount();
+    const shaderProgramsBefore = snapshotShaderPrograms(renderer);
     try {
       return draw();
     } finally {
@@ -84,11 +87,13 @@ export function createRenderStallProbe({
       if (duration >= slowRenderMs) {
         stats.slowRenders++;
         const metrics = safeMetrics();
+        const newShaderPrograms = describeNewShaderPrograms(shaderProgramsBefore, renderer.info?.programs);
         record('slow-render', {
           stage, quality, beganAtMs: round(began), renderMs: duration,
           programsBefore,
-          programsAdded: programsBefore === null || metrics.programs === null
-            ? null : metrics.programs - programsBefore,
+          programsAdded: newShaderPrograms?.count ?? (programsBefore === null || metrics.programs === null
+            ? null : metrics.programs - programsBefore),
+          newShaderPrograms,
           ...metrics,
         });
       }

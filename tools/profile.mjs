@@ -30,6 +30,7 @@ const HEIGHT = Number(process.env.ATTUNEMENT_HEIGHT) || 800;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const STEP_MS = Number(process.env.ATTUNEMENT_PROFILE_STEP_TIMEOUT_MS) || 45000;
 const FRAME_COUNT = Number(process.env.ATTUNEMENT_PROFILE_FRAMES) || (SOFTWARE_GL ? 6 : 90);
+const SHADER_WARMUP = process.env.ATTUNEMENT_PROFILE_WARMUP === '1';
 // Synchronized readPixels is opt-in on real GPUs because it can amplify stalls.
 const SYNC_BENCH = (process.env.ATTUNEMENT_PROFILE_SYNC ?? (SOFTWARE_GL ? '1' : '0')) === '1';
 const bounded = (label, operation, ms = STEP_MS) => withDeadline(label, operation, ms);
@@ -59,7 +60,7 @@ try {
   catch (cleanupError) { console.error('[profile] server cleanup failed:', String(cleanupError)); }
   throw error;
 }
-const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [], failures: [] };
+const report = { when: new Date().toISOString(), softwareRendering: SOFTWARE_GL, shaderWarmup: SHADER_WARMUP, viewport: `${WIDTH}x${HEIGHT}`, graphics: null, results: [], failures: [] };
 let failed = false;
 let timedOut = false;
 const output = path.join(ROOT, 'docs', 'evidence', `profile-${SOFTWARE_GL ? 'software' : 'gpu'}.json`);
@@ -113,7 +114,7 @@ try {
       }
     }
     const t0 = Date.now();
-    await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1`));
+    await bounded(`q${tier}: navigate`, () => page.goto(`http://127.0.0.1:${srv.port}/?nolock=1&qlock=1&q=${tier}&slot=p${tier}&renderdiag=1&shaderwarmup=${SHADER_WARMUP ? '1' : '0'}`));
     // The cinematic account gate intentionally hides the guest form until
     // the user selects "Play as a guest". Never wait for hidden #enter here.
     await bounded(`q${tier}: login UI ready`, () => page.waitForSelector('#account-register:not([disabled])'));
@@ -181,6 +182,7 @@ try {
           entities: { total: s.ents.length, inView: s.ents.filter((e) => e.inView).length, animated: s.ents.filter((e) => e.anim).length },
           world: s.world,
           // Captures live game-frame stalls, not the intrusive readPixels test below.
+          shaderWarmup: s.shaderWarmup,
           renderProbe: s.renderDiagnostics?.enabled ? {
             stats: s.renderDiagnostics.stats,
             context: s.renderDiagnostics.context,
