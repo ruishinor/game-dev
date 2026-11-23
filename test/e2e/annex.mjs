@@ -80,6 +80,8 @@ try {
       surveyArray: !!root.getObjectByName('annex:arrival-survey-rails'),
       relayBus: !!root.getObjectByName('annex:relay-live-busbars'),
       nullOculus: !!root.getObjectByName('annex:null-oculus-sensor'),
+      sealedNullRacks: !!root.getObjectByName('annex:null-containment-busbar'),
+      falseNullWallPortals: !!root.getObjectByName('annex:null-containment-arc'),
     };
   });
   assert.equal(architecture.rooms.length, 3);
@@ -89,6 +91,8 @@ try {
   assert.equal(architecture.stableMembrane, true);
   assert.equal(architecture.falseExteriorWarning, false);
   assert.equal(architecture.hasNullCache, true);
+  assert.equal(architecture.sealedNullRacks,true,'Null Chamber containment is instrumented');
+  assert.equal(architecture.falseNullWallPortals,false,'non-interactive Null wall rings must not resemble travel portals');
   assert.ok(architecture.instrumentDetail && architecture.surveyArray
     && architecture.relayBus && architecture.nullOculus,
     'the distinct three-chamber instruments must actually load in the playable scene');
