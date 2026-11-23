@@ -242,7 +242,7 @@ test('active guard cannot be combined with sitting or protect a seated player',(
  assert.ok(requestMelee(g,p,'guard').ok);
  assert.equal(p.combatUntil,0,'guard itself has not caused damage');
  assert.equal(setPosture(g,p,true).ok,false,'cannot sit through active guard');
- assert.equal(p.sitting,null);
+ assert.ok(!p.sitting,'rejected sit request leaves the player standing (null or unset)');
  // A stale/forged seated state must never grant guard's mitigation.
  p.sitting={x:p.x,z:p.z};
  const before=p.hp,landed=dealDamage(g,e,p,20,'auto',{kind:'melee',melee:true});
