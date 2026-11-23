@@ -2,7 +2,7 @@
 
 ## Implemented presentation layer
 
-The two remeshed derivative GLBs are stored under `client/assets/brineworks-refined/`, outside the immutable generated `client/art-assets/` originals inventory. Source originals remain unchanged and are still verified by their authoring manifest.
+The two remeshed derivative GLBs are stored under `client/asset-derivatives/brineworks/`, outside the immutable generated `client/art-assets/` originals inventory. Source originals remain unchanged and are still verified by their authoring manifest.
 
 `client/src/brineworks-detail.js` mounts actual indexed 3x3 crease-aware PN-triangle remesh derivatives `research_tabletop_module_refined.glb` and `engineering_tabletop_module_refined.glb` at the two established service stations. The original GLBs are retained as load-failure fallbacks. Each is bounded to the work surface and receives a physically based material adaptation that retains donor textures and normal maps. The surrounding equipment gains contained fluid samples, brazed connection hardware, tube runs, instrument rail details, and two readable gauges. Needles and equipment light change subtly over time and become steady when reduced motion is requested. The existing shared VFX engine now renders low-frequency, distance-capped, motion-sensitive moisture/pressure microdroplets near the pressure station.
 

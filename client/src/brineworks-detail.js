@@ -84,7 +84,7 @@ export function buildBrineworksDetail(T,loader,height,{enabled=true,reducedMotio
    status.modules[s.id]='loading';
    if(!loader?.loadAsync){status.modules[s.id]='fallback';continue;}
    pending.push(Promise.resolve().then(async()=>{
-     try {return {gltf:await loader.loadAsync('/client/assets/brineworks-refined/'+s.file),source:'remeshed'};}
+     try {return {gltf:await loader.loadAsync('/client/asset-derivatives/brineworks/'+s.file),source:'remeshed'};}
      catch(refinedError){
        console.warn('[brineworks] '+s.id+' refined GLB unavailable; using original:',refinedError.message||refinedError);
        return {gltf:await loader.loadAsync('/client/art-assets/'+s.fallbackFile),source:'original-fallback'};

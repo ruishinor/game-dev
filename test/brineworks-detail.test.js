@@ -15,7 +15,7 @@ test('Brineworks GLB tabletop mounts and detailed gauges remain decorative',asyn
   }};
   const b=buildBrineworksDetail(THREE,loader,()=>0);
   await b.ready;
-  assert.deepEqual(paths.sort(),BRINEWORKS_MODULES.map(s=>'/client/assets/brineworks-refined/'+s.file.sort());
+  assert.deepEqual(paths.sort(),BRINEWORKS_MODULES.map(s=>'/client/asset-derivatives/brineworks/'+s.file).sort());
   assert.deepEqual(b.stats().modules,{research:'ready',engineering:'ready'});
   assert.deepEqual(b.stats().sources,{research:'remeshed',engineering:'remeshed'});
   assert.equal(b.stats().gauges,2);

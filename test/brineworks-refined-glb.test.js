@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 function readGlb(path,refined=false){
-  const dir=refined?'../client/assets/brineworks-refined/':'../client/art-assets/';
+  const dir=refined?'../client/asset-derivatives/brineworks/':'../client/art-assets/';
   const b=readFileSync(new URL(dir+path,import.meta.url));
   assert.equal(b.toString('ascii',0,4),'glTF');
   assert.equal(b.readUInt32LE(4),2);
