@@ -188,7 +188,15 @@ export function startServer(opts = {}) {
   const game = new Game({ rng: opts.rng });
   // Explicit opt-in: no economic observation files are written by default.
   const metricsFile = Object.hasOwn(opts, 'economyMetricsFile') ? opts.economyMetricsFile : process.env.ATTUNEMENT_ECONOMY_METRICS_FILE;
-  if (metricsFile) game.economy = new EconomyMetrics(metricsFile);
+  if (metricsFile) {
+    const target = path.resolve(metricsFile);
+    // JSON files under these static mounts are publicly retrievable by HTTP.
+    for (const exposed of [path.join(ROOT, 'client'), path.join(ROOT, 'shared')]) {
+      if (target === exposed || target.startsWith(exposed + path.sep))
+        throw new Error('Economy telemetry file must be outside HTTP-served client/shared directories.');
+    }
+    game.economy = new EconomyMetrics(target);
+  }
   if (typeof opts.productionRoll === 'function') game.productionRoll = opts.productionRoll;
   const server = http.createServer(handleHttp);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
