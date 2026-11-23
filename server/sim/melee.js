@@ -15,6 +15,14 @@ const INPUT_BUFFER_MS=180;
 const INPUT_GRACE_MS=120;
 const deny=reason=>({ok:false,reason});
 const state=p=>(p.meleeState??={next:0,pending:null,combo:0,lastHit:-Infinity,guardUntil:0,counterUntil:0,buffered:null});
+/** Non-damage melee windup, recovery and guard are still committed actions.
+ * Do not let unrelated loadout/posture changes silently alter their outcome.
+ */
+export function meleeBusy(game,p){
+ const s=p.meleeState;
+ return !!s&&(!!s.pending||(!!s.buffered&&game.time<=s.buffered.expiresAt)||
+  game.time<s.next||game.time<s.guardUntil);
+}
 const eligible=(p,t,reach)=>t?.kind==='enemy'&&t.state!=='dead'&&t.state!=='evade'&&sameTravelRegion(p,t)&&
  dist(p,t)-t.radius<=reach&&hasLineOfSight(p,t);
 const facing=(p,t)=>{
@@ -31,8 +39,8 @@ export function requestMelee(game,p,action){
  // Validate an early input before storing it. Legality is checked again when
  // the server executes the buffered action, never trusted from this snapshot.
  const target=action==='guard'?null:game.ents.get(p.target);
+ const profile=action==='guard'?null:effectiveAuto(p.char);
  if(action!=='guard'){
-  const profile=effectiveAuto(p.char);
   if(!profile||profile.kind!=='melee'||!eligible(p,target,(action==='heavy'?HEAVY:LIGHT).reach))
    return deny('Select a reachable hostile target.');
   if(!facing(p,target))return deny('Face your target.');
@@ -65,7 +73,7 @@ export function requestMelee(game,p,action){
  const windup=spec.windup+(action==='light'?stage*70:0);
  const recovery=spec.recovery+(action==='light'?stage*80:0);
  const style=counter?'counter':action==='heavy'?'heavy':String(stage+1);
- s.pending={targetId:target.id,kind:action,stage,style,counter,hitAt:now+windup};
+ s.pending={targetId:target.id,kind:action,stage,style,counter,weapon:profile.weapon??null,hitAt:now+windup};
  s.next=now+recovery;
  s.guardUntil=0;
  s.counterUntil=0;
@@ -107,7 +115,12 @@ export function tickMelee(game,p,damage,gainCharge){
   return;
  }
  const profile=effectiveAuto(p.char);
- if(!profile||profile.kind!=='melee')return;
+ // A forced loadout mutation between intent and contact cannot upgrade or
+ // redirect the committed strike, even if another system bypasses the gear gate.
+ if(!profile||profile.kind!=='melee'||(profile.weapon??null)!==pending.weapon){
+  s.combo=0;s.lastHit=-Infinity;
+  return;
+ }
  const base=profile.dmg;
  const mult=pending.kind==='heavy'?1.7:[.87,1.0,1.19][pending.stage];
  const hit=damage(game,p,target,base*mult*(pending.counter?1.35:1),
@@ -123,7 +136,7 @@ export function tickMelee(game,p,damage,gainCharge){
 export function mitigateMelee(game,src,dst,damage,opts){
  if(!opts.melee||src?.kind!=='enemy'||dst?.kind!=='player')return damage;
  const s=dst.meleeState;
- if(!s||activeWeaponSlot(dst.char)!=='weapon'||game.time>=s.guardUntil||!facing(dst,src))return damage;
+ if(!s||dst.dead||dst.sitting||activeWeaponSlot(dst.char)!=='weapon'||game.time>=s.guardUntil||!facing(dst,src))return damage;
  s.guardUntil=0;
  s.counterUntil=game.time+GUARD.counterWindow;
  game.emitWorldEvent({e:'melee_deflect',s:dst.id,d:src.id});
