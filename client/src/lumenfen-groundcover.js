@@ -174,9 +174,30 @@ export function buildLumenfenGroundcover(T, parent, {detail=1}={}) {
     metalness:0,side:T.DoubleSide,depthWrite:true
   })]));
   const groups=new Map(), counts=Object.fromEntries(LUMENFEN_COVER_TYPES.map(k=>[k,0]));
+  // Independent smaller satellites break up the lattice's visual rhythm.
+  // Only anchor cells carry the coverage proof, so reducing quality drops
+  // these extras without ever changing the guaranteed six-metre distribution.
+  const placements=[...plan.cells];
+  if(detail>=.5)for(const cell of plan.cells){
+    if(cell.portal)continue;
+    const h=noise(cell.col,cell.row,23);
+    const extras=h<.25?0:h<.73?1:2;
+    for(let i=0;i<extras;i++){
+      const angle=cell.rotation+i*2.399+noise(cell.col,cell.row,27)*TAU;
+      const rad=1.05+noise(cell.col+i,cell.row,29)*1.15;
+      const x=cell.x+Math.cos(angle)*rad,z=cell.z+Math.sin(angle)*rad;
+      if(Math.abs(x-LUMENFEN.x)>LUMENFEN.hw||
+        Math.abs(z-LUMENFEN.z)>LUMENFEN.hd||nearest(PORTALS,x,z)<12)continue;
+      const kind=cell.water?'lily':
+        noise(cell.col+i,cell.row,31)>.80?'moss':cell.kind;
+      placements.push({...cell,x,z,kind,portal:false,
+        y:cell.water?cell.y:fenHeight(x,z)+.025,
+        rotation:angle,scale:.43+noise(cell.col+i,cell.row,37)*.45});
+    }
+  }
   // 48-metre chunks: only a few instanced draw calls are visible near camera.
   const cellsPerChunk=8;
-  for(const cell of plan.cells){
+  for(const cell of placements){
     const key=Math.floor(cell.col/cellsPerChunk)+':'+Math.floor(cell.row/cellsPerChunk)+':'+cell.kind;
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(cell);counts[cell.kind]++;
@@ -202,7 +223,8 @@ export function buildLumenfenGroundcover(T, parent, {detail=1}={}) {
   }
   return {
     group:root,
-    stats:()=>({count:plan.cells.length,counts:{...counts},
+    stats:()=>({count:placements.length,anchors:plan.cells.length,
+      satellites:placements.length-plan.cells.length,counts:{...counts},
       maxCoverageDistance:plan.maxCoverageDistance,gridMetres:plan.gridMetres,
       drawBatches:meshList.length,chunks:groups.size}),
     dispose(){
