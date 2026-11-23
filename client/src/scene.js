@@ -8,6 +8,7 @@ import { Animator } from './animator.js';
 import { buildSiteMarkings } from './site-markings.js';
 import { buildRelayTower } from './relay-tower.js';
 import { createReachRelayFx } from './reach-relay-fx.js';
+import { createLumenfenSiteFx } from './lumenfen-site-fx.js';
 import { intersectsOccluder } from './occlusion.js';
 import { STATIC_ART, fitStaticArt, staticArtStatus } from './prototype-art.js';
 import { buildContainmentVessel } from './containment-vessel.js';
@@ -1587,6 +1588,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
 
   const relayStructure = scene.getObjectByName('relay:structural-mast');
   let relayFx = null;
+  let lumenfenSiteFx = null;
   const points = [];
   const coverRange = 30 + 55 * detail;
   // Static Reach dressing, hidden while the camera is inside the Severance
@@ -1614,6 +1616,10 @@ export function buildWorld(scene, assets = null, opts = {}) {
       relayFx?.dispose();
       relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;
     },
+    attachLumenfenFx(engine) {
+      lumenfenSiteFx?.dispose();
+      lumenfenSiteFx = engine ? createLumenfenSiteFx(engine) : null;
+    },
     /**
      * @param focus the player's feet
      * @param view optional {eye, points}: camera position and the points that
@@ -1630,6 +1636,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
       severance.update(dt, t, view?.eye ?? focus);
       foundry.update(dt, t, view?.eye ?? focus);
       lumenfen.update(dt, t, view?.eye ?? focus);
+      lumenfenSiteFx?.update(dt, focus);
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
