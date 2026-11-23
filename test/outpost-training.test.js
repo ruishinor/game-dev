@@ -7,7 +7,7 @@ import { OUTPOST_TRAINING as R, EXPEDITION_OUTPOST as OP, OUTPOST_COLLIDERS } fr
 import { inSafeZone, hasLineOfSight } from '../shared/world.js';
 import { RANGE_SHOTS, RANGE_COOLDOWN_MS } from '../server/sim/outpost-training.js';
 import { createExpeditionOutpost } from '../client/src/severance-outpost.js';
-import { makeRangeTarget, makeRangeConsole, makeArmoryAnchor, nearestPracticeTarget } from '../client/src/outpost-training.js';
+import { makeRangeTarget, makeRangeConsole, makeArmoryAnchor, buildOutpostTraining, nearestPracticeTarget } from '../client/src/outpost-training.js';
 
 function setup() {
   const g = makeGame(), p = g.addPlayer(makeChar('vanguard', { credits: 12 }));
@@ -106,4 +106,28 @@ test('F-key on the marked firing line prioritizes practice targets over closer s
   assert.equal(nearestPracticeTarget(entities, 1, { ...R.console }), null, 'away from firing line F uses the normal interaction chooser');
   self.dead = true;
   assert.equal(nearestPracticeTarget(entities, 1, centre), null);
+});
+
+test('off-origin weapon donors are fitted centrally into every armory slot', async () => {
+  const loader = { async loadAsync() {
+    const scene = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, .2, .25), new THREE.MeshStandardMaterial());
+    mesh.position.set(5, .7, -1);
+    scene.add(mesh);
+    return { scene };
+  } };
+  const station = buildOutpostTraining(THREE, { ground: () => 0, loader });
+  station.update(.016, 1, { x: OP.x, z: OP.z });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(station.stats().loadedWeapons, 4);
+  const rack = station.group.getObjectByName('outpost-training:armory');
+  for (const name of ['field-pattern', 'tuned-pattern', 'dense-pattern', 'longpoint']) {
+    const donor = rack.getObjectByName('outpost-training:weapon-' + name);
+    assert.ok(donor, 'weapon display exists: ' + name);
+    const world = new THREE.Box3().setFromObject(donor);
+    const centre = world.getCenter(new THREE.Vector3());
+    assert.ok(Math.abs(centre.x - R.armory.x) < .0001, 'donor centred despite off-origin source: ' + name);
+    assert.ok(Math.abs(centre.z - (R.armory.z - .4)) < .0001, 'donor clear of rack backing');
+  }
+  station.dispose();
 });

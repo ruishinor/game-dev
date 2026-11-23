@@ -140,7 +140,12 @@ export function buildOutpostTraining(T, { ground, loader } = {}) {
       if (![dim.x, dim.y, dim.z].every(v => Number.isFinite(v) && v > .0001)) return;
       const max = Math.max(dim.x, dim.y, dim.z);
       const holder = new T.Group(); holder.name = 'outpost-training:weapon-' + name.toLowerCase().replaceAll(' ', '-');
+      // Keep the asset's own scale and transform inside an independent fitted
+      // pivot. Translating the source before subsequently scaling that source
+      // would move any off-origin donor away from the centre of its rack slot.
+      const fitted = new T.Group();
       asset.position.sub(centre);
+      fitted.add(asset);
       // Balanced neutral showroom finish; preserve distinct existing weapon
       // geometry and textures rather than overwriting authored material maps.
       asset.traverse(n => {
@@ -156,8 +161,8 @@ export function buildOutpostTraining(T, { ground, loader } = {}) {
         n.castShadow = true; n.receiveShadow = true;
       });
       const scale = Math.min(1.72 / max, .30 / Math.max(dim.y, .01));
-      asset.scale.setScalar(scale);
-      holder.add(asset);
+      fitted.scale.setScalar(scale);
+      holder.add(fitted);
       holder.position.set(0, 2.14 - i * .49, -.40);
       // Weapon noses face the public aisle, clear of the locker backboard.
       rackRoot.add(holder);
