@@ -232,6 +232,12 @@ const SHX = O.x + 3, SHZ = O.z + 1;
 export const EXPEDITION_OUTPOST = Object.freeze({
   name: 'Expedition Outpost', x: O.x, z: O.z, r: O.r,
   shelter: Object.freeze({ x: SHX, z: SHZ, yaw: -Math.PI / 2, front: -6.4, rear: 6.9, sledFront: -8.6, sledRear: 8.0, hw: 4.6, height: 3.86 }),
+  // Two supplementary open field shelters extend the existing operations
+  // shelter; they use real corner-post colliders but keep the approach open.
+  auxiliaryShelters: Object.freeze([
+    Object.freeze({key:'north',x:O.x-7,z:O.z+11,w:4.8,d:3.8,height:2.9,yaw:-Math.PI/2}),
+    Object.freeze({key:'west',x:O.x-12,z:O.z-6,w:4.6,d:3.7,height:2.7,yaw:-Math.PI/2}),
+  ]),
   quartermaster: Object.freeze({ x: SHX - 1.0, z: SHZ, yaw: -Math.PI / 2 }),
   counter: Object.freeze({ x: SHX - 2.6, z: SHZ, hw: 0.45, hd: 2.0, h: 0.75 }),
   table: Object.freeze({ x: SHX - 4.4, z: SHZ + 2.7, r: 0.75, h: 0.95 }),
@@ -264,6 +270,9 @@ export const EXPEDITION_DEFENDERS=Object.freeze([
 ]);
 const OP = EXPEDITION_OUTPOST, SH = OP.shelter;
 export const OUTPOST_COLLIDERS = Object.freeze([
+  ...OP.auxiliaryShelters.flatMap(sh=>[-1,1].flatMap(sx=>[-1,1].map(sz=>Object.freeze({
+    type:'outpost_shelter_post',x:sh.x+sx*(sh.w/2-.22),z:sh.z+sz*(sh.d/2-.22),r:.17,h:sh.height
+  })))),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_shell', x: SH.x + (SH.front + SH.rear) / 2, z: SH.z + s * (SH.hw + 0.05), hw: (SH.rear - SH.front) / 2, hd: 0.3, h: 3 })),
   Object.freeze({ type: 'outpost_shell', x: SH.x + SH.rear - 0.3, z: SH.z, hw: 0.4, hd: SH.hw * 0.72, h: 2.8 }),
   ...[-1, 1].map((s) => Object.freeze({ type: 'outpost_sled', x: SH.x + (SH.sledFront - 6.2) / 2, z: SH.z + s * SH.hw * 0.92, hw: (6.2 + SH.sledFront) / -2, hd: 0.15, h: 3.6 })),
