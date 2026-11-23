@@ -2,6 +2,46 @@ import { ITEMS, ENEMIES } from '../../shared/content.js';
 // Server-only reward definitions. Equipment is never a guaranteed corpse award.
 // Do not import this module from browser-served code.
 const freezeDrops = drops => Object.freeze(drops.map(d => Object.freeze(d)));
+
+// Native wetland rewards, derived from actual registered archive donor themes:
+// six-limb predator armour/skin, alien cage flora, rootglass oak, tidal weir,
+// and Glasswater mineral specimens. All rolls run server-side, on a dedicated
+// RNG stream. No client-sent loot type, weather, or quantity is trusted.
+const fenRows = rows => Object.freeze(rows.map(row=>Object.freeze(row)));
+export const FEN_BIOME_DROPS = Object.freeze({
+  fen_lantern:fenRows([
+    {id:'fen_lantern_membrane',kind:'material',chance:.63},
+    {id:'rootglass_fibre',kind:'material',chance:.25},
+    {id:'mirrorpool_pearl',kind:'goods',chance:.055},
+    {id:'blueprint_fen_culture_ampoule',kind:'goods',chance:.035},
+    {id:'rootglass_crown_shard',kind:'goods',chance:.0015,monsoon:true},
+    {id:'monsoon_silt',kind:'material',chance:.3,monsoon:true},
+  ]),
+  fen_stalker:fenRows([
+    {id:'bog_chitin',kind:'material',chance:.88},
+    {id:'rootglass_fibre',kind:'material',chance:.48},
+    {id:'fen_molt_skin',kind:'goods',chance:.35},
+    {id:'blueprint_tidal_service_cassette',kind:'goods',chance:.035},
+    {id:'mirrorpool_pearl',kind:'goods',chance:.035},
+    {id:'rootglass_crown_shard',kind:'goods',chance:.004,monsoon:true},
+    {id:'monsoon_silt',kind:'material',chance:.38,monsoon:true},
+  ]),
+});
+export function fenBiomeDrops(type,rng,climate) {
+  const rows=FEN_BIOME_DROPS[type];
+  if(!rows || typeof rng!=='function')return [];
+  const rain=Number.isFinite(climate?.rain)?Math.max(0,Math.min(1,climate.rain)):0;
+  const out=[];
+  for(const row of rows) {
+    if(row.monsoon&&rain<.45)continue;
+    const value=rng();
+    if(Number.isFinite(value)&&value>=0&&value<1
+      &&value<row.chance*(row.monsoon?rain:1))
+      out.push({id:row.id,kind:row.kind,quantity:1});
+  }
+  return out;
+}
+
 export const ENEMY_ITEM_DROPS = Object.freeze({
   sinter_grazer: freezeDrops([]),
   quarantine_custodian: freezeDrops([]),
