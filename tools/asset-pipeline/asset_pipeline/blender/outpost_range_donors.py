@@ -47,6 +47,11 @@ def safely_bevel(obj):
     ))
     if diagonal < 0.001:
         return {"name": obj.name, "before": before, "after": before, "status": "degenerate bounds"}
+    # Imported GLBs may instance one mesh datablock across several objects.
+    # Blender refuses modifier_apply on multi-user data; make this copy local
+    # before topology changes while retaining each object and its transforms.
+    if obj.data.users > 1:
+        obj.data = obj.data.copy()
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
@@ -58,7 +63,9 @@ def safely_bevel(obj):
     modifier.limit_method = "ANGLE"
     modifier.angle_limit = math.radians(45)
     try:
-        bpy.ops.object.modifier_apply(modifier=modifier.name)
+        applied = bpy.ops.object.modifier_apply(modifier=modifier.name)
+        if "FINISHED" not in applied:
+            raise RuntimeError(f"Bevel modifier not applied: {applied}")
     except Exception as exc:
         if modifier.name in obj.modifiers:
             obj.modifiers.remove(modifier)
@@ -72,7 +79,9 @@ def safely_bevel(obj):
     weighted = obj.modifiers.new("Expedition face-weighted shading", "WEIGHTED_NORMAL")
     weighted.keep_sharp = True
     try:
-        bpy.ops.object.modifier_apply(modifier=weighted.name)
+        applied = bpy.ops.object.modifier_apply(modifier=weighted.name)
+        if "FINISHED" not in applied:
+            raise RuntimeError(f"Weighted normal modifier not applied: {applied}")
     except Exception:
         if weighted.name in obj.modifiers:
             obj.modifiers.remove(weighted)
