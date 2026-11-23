@@ -175,23 +175,53 @@ export function makeFenStalker(T) {
           [side*.21+toe*.112,-.50,.64-(Math.abs(toe)*.06)],.026,shell);
         claw.name='lumenfen:stalker:marsh-claw';
       }
-      group.add(hip);legs.push({hip,knee,pair,side});
+      // Paired knee braces are articulated with the limb, not a decoration
+      // fixed to the torso. Thin layered organic membranes add secondary
+      // motion and retain a readable silhouette during gait.
+      const brace=new T.Mesh(fenFoliageGeometry(T,'willow'),shell);
+      brace.name='lumenfen:stalker:knee-membrane';
+      brace.scale.set(.17,.23,.22);
+      brace.position.set(side*.06,-.12,-.04);
+      brace.rotation.z=side*.27;
+      knee.add(brace);
+      group.add(hip);legs.push({hip,knee,foot,pair,side});
     }
   }
   const tail=new T.Group();tail.position.set(0,.94,-1.3);group.add(tail);
   link(T,tail,[0,0,0],[0,-.10,-.65],.16,skin);
-  link(T,tail,[0,-.10,-.65],[0,-.25,-1.12],.08,shell);
+  const tailTip=new T.Group();tailTip.position.set(0,-.10,-.65);tail.add(tailTip);
+  link(T,tailTip,[0,0,0],[0,-.15,-.47],.08,shell);
+  for(let i=0;i<3;i++){
+    const vane=new T.Mesh(fenFoliageGeometry(T,'willow'),shell);
+    vane.name='lumenfen:stalker:tail-vane';
+    vane.scale.set(.13,.2,.14);vane.position.set(0,-.06,-.15-i*.09);
+    vane.rotation.set(-.28,0,i*Math.PI*2/3);
+    tailTip.add(vane);
+  }
   return {group,height:1.75,radius:.88,hover:0,
     update(dt,st={}){
       const speed=Math.max(0,Math.min(1,(st.speed||0)/4.5));
       const active=st.reducedMotion?0:1,gait=(st.t||0)*5.8;
-      legs.forEach(({hip,knee,pair,side})=>{
-        const phase=gait+pair*2*Math.PI/3+(side>0?Math.PI:0);
-        hip.rotation.x=Math.sin(phase)*.42*speed*active;
-        knee.rotation.x=Math.max(0,Math.cos(phase))*.26*speed*active;
-        hip.rotation.z=side*(.04+.04*speed);
+      const attack=!!st.attack;
+      legs.forEach(({hip,knee,foot,pair,side})=>{
+        // Alternating-tripod hexapod walk: opposite middle leg pairs with
+        // front/rear legs. Limb angles are absolute per frame, not incremental,
+        // preventing cumulative wrist/leg rotation and unstable rest poses.
+        const tripod=(pair===1?-1:1)*side;
+        const phase=gait+(tripod>0?0:Math.PI);
+        const stride=Math.sin(phase),lift=Math.max(0,Math.cos(phase));
+        hip.rotation.x=stride*.39*speed*active;
+        knee.rotation.x=(.08+lift*.59*speed)*active;
+        knee.rotation.z=side*.035*(1+lift*speed)*active;
+        hip.rotation.z=side*(.04+.075*speed+ (attack?.035:0));
+        // Counter-pitch the metatarsus so the splayed toes don't claw upward
+        // at every stance phase. All rotational limits are bounded.
+        foot.rotation.x=-(hip.rotation.x+knee.rotation.x)*.78;
       });
-      tail.rotation.y=Math.sin((st.t||0)*1.3)*.2*active;
+      tail.rotation.y=Math.sin((st.t||0)*1.3)*.18*active+(attack?.06:0);
+      tailTip.rotation.y=Math.sin((st.t||0)*1.3-.55)*.29*active;
+      tailTip.rotation.x=Math.sin((st.t||0)*.95)*.11*active;
+      jaw.position.y=.78-(attack?.065:0);
       eyes.emissiveIntensity=1.05+(st.attack ? .4 : .25)+active*.17*Math.sin((st.t||0)*1.7);
       body.rotation.z=Math.sin(gait*.5)*.025*speed*active;
     },
