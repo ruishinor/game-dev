@@ -43,9 +43,23 @@ exportedModels.set('depths-recovery-cache.glb', ensureDepthsCacheGLB());
 exportedModels.set('sanctum-warden-carbine.glb', ensureWardenRifleGLB('carbine'));
 exportedModels.set('sanctum-warden-marksman.glb', ensureWardenRifleGLB('marksman'));
 
-const missing = [...exportedModels].filter(([, from]) => !fs.existsSync(from) || !fs.statSync(from).isFile() || fs.statSync(from).size < 20);
+function isGlbV2(file) {
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
+  const stat = fs.statSync(file);
+  if (stat.size < 28 || stat.size > 200 * 1024 * 1024) return false;
+  const handle = fs.openSync(file, 'r');
+  try {
+    const header = Buffer.alloc(12);
+    if (fs.readSync(handle, header, 0, 12, 0) !== 12) return false;
+    return header.toString('ascii', 0, 4) === 'glTF' &&
+      header.readUInt32LE(4) === 2 && header.readUInt32LE(8) === stat.size;
+  } finally {
+    fs.closeSync(handle);
+  }
+}
+const missing = [...exportedModels].filter(([, from]) => !isGlbV2(from));
 if (missing.length) {
-  throw new Error('Required runtime GLB outputs are missing. Build the existing asset pipeline first:\n' +
+  throw new Error('Missing/invalid runtime GLB outputs (including Git LFS pointers). Build or restore the authored outputs first:\n' +
     missing.map(([name, from]) => name + ' <- ' + path.relative(ROOT, from)).join('\n'));
 }
 fs.rmSync(DEST, { recursive: true, force: true });
