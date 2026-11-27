@@ -19,6 +19,11 @@ on:
       - 'test/e2e/rift.mjs'
       - '.github/workflows/rift.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 jobs:

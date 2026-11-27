@@ -16,12 +16,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   playtest:
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
+    concurrency:
+      group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
