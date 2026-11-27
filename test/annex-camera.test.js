@@ -58,9 +58,9 @@ test('outside the Annex the camera retains its normal free orbit', () => {
   orbit.yaw = Math.PI / 2;
   orbit.pitch = .15;
   orbit.dist = orbit.want = 8;
-  // Use clear air to isolate Annex-only bounds from legitimate outdoor terrain
-  // and static collider occlusion; those have their own camera tests.
-  orbit.update({ x: 0, y: 30, z: 120 }, 1 / 60);
+  // Use clear air inside the Reach, away from the raised world-edge terrain,
+  // to isolate Annex-only bounds from ordinary outdoor occlusion.
+  orbit.update({ x: 0, y: 30, z: 40 }, 1 / 60);
   assert.ok(orbit.dist > 7.5);
 });
 
