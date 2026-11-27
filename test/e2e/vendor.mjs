@@ -310,18 +310,25 @@ try{
  assert.equal(wardrobePlayer.char.equipped.weapon,'electrical_combat_rod');
  assert.equal(wardrobePlayer.char.equipped.ranged,'field_emitter');
  p=wardrobePlayer;
- const previousPlayer=p;
- const previousConn=server.net.sessions.get(p.char.id);
  const previousReconnects=await page.evaluate(()=>window.__attune.state().network.reconnects);
  const previousDraw=await page.evaluate(()=>window.__attune.state().drawn);
+ const beforeRecovery=await page.evaluate(()=>{const s=window.__attune.state();return{network:s.network,diagnostics:s.diagnostics.stats,render:s.renderDiagnostics.stats};});
+ let previousPlayer,previousConn;
+ for(let attempt=0;attempt<3;attempt++){
+  previousPlayer=await liveFixturePlayer(page,server,'Vendor Tester');
+  previousConn=server.net.sessions.get(previousPlayer.char.id);
+  if(previousConn?.ws.readyState===1&&server.net.sessions.get(previousPlayer.char.id)===previousConn){
+   previousConn.alive=false;previousConn.missedPongs=1;server.net.heartbeat();
+   if(previousConn.closeCause==='heartbeat')break;
+  }
+ }
+ assert.equal(previousConn.closeCause,'heartbeat','test forces the authenticated heartbeat close on the current live session');
  console.log('[vendor] heartbeat-recovery start '+JSON.stringify({
   lastPingAtMs:previousConn.lastPingAtMs,lastPongAtMs:previousConn.lastPongAtMs,
-  browser:await page.evaluate(()=>{const s=window.__attune.state();return{network:s.network,diagnostics:s.diagnostics.stats,render:s.renderDiagnostics.stats};})
+  browser:beforeRecovery,
  }));
  // Deterministically exercise the authenticated missed-heartbeat close and
  // ensure the wardrobe flow uses the replacement server entity, not this one.
- previousConn.alive=false;previousConn.missedPongs=1;server.net.heartbeat();
- assert.equal(previousConn.closeCause,'heartbeat');
  if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
  try{
   await page.waitForFunction(({id,reconnects,draw})=>{
