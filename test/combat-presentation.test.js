@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion } from '../client/src/combat-presentation.js';
+import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion, rodChoreography, fullyBlockedContact } from '../client/src/combat-presentation.js';
 
 const vec = (x,y,z) => ({ isVector3: true, x, y, z, clone(){ return vec(this.x, this.y, this.z); } });
 
@@ -50,4 +50,28 @@ test('melee overlay has anticipation, bounded server-aligned release and full re
   }
   assert.deepEqual(strikeMotion(NaN,1),{anticipation:0,release:0,recovery:0});
   assert.deepEqual(strikeMotion(1,0),{anticipation:0,release:0,recovery:0});
+});
+
+test('rod joint choreography varies by stance and joined/split configuration, with exact neutral recovery', () => {
+  const poses=['sweep','backhand','overhead','heavy','left','right','cross','counter'];
+  for(const stance of poses)for(const dual of [false,true]){
+    const before=rodChoreography(stance,0,.7,dual),after=rodChoreography(stance,.7,.7,dual);
+    for(const value of Object.values(before))assert.ok(Math.abs(value)<1e-12,stance+' begins neutral');
+    for(const value of Object.values(after))assert.ok(Math.abs(value)<1e-12,stance+' returns neutral');
+    for(let i=0;i<=100;i++){
+      const p=rodChoreography(stance,i*.007,.7,dual);
+      assert.ok(Object.values(p).every(v=>Number.isFinite(v)&&Math.abs(v)<.85),stance+' bounded rig rotation');
+    }
+  }
+  assert.notDeepEqual(rodChoreography('sweep',.35,.7,false),rodChoreography('backhand',.35,.7,false));
+  assert.notDeepEqual(rodChoreography('sweep',.35,.7,false),rodChoreography('sweep',.35,.7,true));
+  assert.notEqual(rodChoreography('left',.35,.7,true).leftShoulder,rodChoreography('right',.35,.7,true).leftShoulder);
+});
+
+test('rod contact classifies only fully absorbed damage as shield-blocked',()=>{
+ assert.equal(fullyBlockedContact({a:0,sh:12}),true,'a completely absorbed hit has no health contact');
+ assert.equal(fullyBlockedContact({a:7,sh:5}),false,'partial shield absorption still damages the target');
+ assert.equal(fullyBlockedContact({a:7}),false,'unshielded damage is not a block');
+ assert.equal(fullyBlockedContact({a:0,sh:0}),false,'a zero event without absorption is not a block');
+ assert.equal(fullyBlockedContact(null),false,'missing events fail closed');
 });

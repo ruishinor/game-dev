@@ -812,6 +812,11 @@ export class UI {
     const alarmLabel=h('label'),alarmAudio=h('input');alarmAudio.type='checkbox';alarmAudio.checked=this.a.alarmAudio?.()??true;
     alarmAudio.addEventListener('change',()=>this.a.setAlarmAudio?.(alarmAudio.checked));
     alarmLabel.append(alarmAudio,document.createTextNode(' Environmental alarm sound'));this.settingsPanel.append(alarmLabel);
+    const combatLabel=h('label'),combatSound=h('input');combatSound.type='checkbox';
+    combatSound.checked=this.a.combatAudio?.()??true;
+    combatSound.addEventListener('change',()=>this.a.setCombatAudio?.(combatSound.checked));
+    combatLabel.append(combatSound,document.createTextNode(' Weapon combat sound'));
+    this.settingsPanel.append(combatLabel,h('p','muted','Brief local weapon sounds. Starts after a key or pointer action; disable here at any time.'));
     root.append(this.settingsPanel);
     this.buildHotkeySettings(root);
     this.atlas=new WorldAtlas(root,this.settingsPanel,()=>document.getElementById('view')?.focus({preventScroll:true}),this.a.terrainForAtlas);

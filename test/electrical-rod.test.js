@@ -303,3 +303,30 @@ test('active rod animation is not incorrectly forced into reduced-motion mode', 
   assert.match(source,/reducedMotion:\s*!!st\.rodCalm\s*\|\|\s*st\.dead\s*\|\|\s*stowed/,
     'only actual rod comfort preference, death or stow may reduce the rod animation');
 });
+
+
+test('server-started rod windup has restrained tip wake but no phantom contact impact',()=>{
+ const rod=createElectricalRod({independentEmission:true});
+ const calls=[];
+ const vfx={quality:1,reducedMotion:false,calmFlashes:false,intensity:1,
+  trail:o=>{calls.push(['trail',o]);return {age:0,life:o.life};},
+  shock:o=>{calls.push(['shock',o]);return {age:0,life:o.life};},
+  flash:o=>{calls.push(['flash',o]);return {age:0,life:o.life};},
+  burst:o=>{calls.push(['burst',o]);return {age:0,life:o.life??.2};}
+ };
+ const fx=createElectricalRodVfx(rod,vfx);
+ try{
+  assert.equal(fx.swing('1',220),true);
+  assert.equal(fx.swing('2',290),false,'same windup cannot flood the effect pool');
+  assert.equal(calls.filter(c=>c[0]==='trail').length,1);
+  assert.equal(calls.filter(c=>['shock','flash','burst'].includes(c[0])).length,0,'no hit-contact flare before authoritative damage');
+  assert.equal(rod.group.userData.rodContactCount||0,0);
+  // Controller caps each update at 100 ms; two frames must pass to clear
+  // the 160 ms sweep cooldown without weakening the runtime limit.
+  fx.update(.1,{energized:true,combat:true});fx.update(.1,{energized:true,combat:true});
+  assert.equal(fx.swing('2',290),true,'later combo stage may move the other emitter');
+  assert.equal(calls.filter(c=>c[0]==='trail').length,2);
+  vfx.reducedMotion=true;fx.update(.2);
+  assert.equal(fx.swing('3',300),false,'comfort preference suppresses moving tip wake');
+ }finally{fx.dispose();rod.dispose();}
+});

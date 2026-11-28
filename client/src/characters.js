@@ -9,7 +9,7 @@
 import { applyEnemyVariant } from './enemy-variants.js';
 import * as THREE from '/vendor/three/three.module.js';
 import { Animator } from './animator.js';
-import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion } from './combat-presentation.js';
+import { weaponAimFromState, confirmedWeaponAim, heldWeaponOccluded, strikeMotion, rodChoreography } from './combat-presentation.js';
 import {createProductionWork} from './production-work.js';
 import { cloneMaterials, disposeInstance, shared } from './assets.js';
 import { LOOK_DEFS, lookFor } from './looks.js';
@@ -228,7 +228,7 @@ export function makeHumanoid(assets, lookId, opts = {}) {
   const meleeShoulderR=inst.getObjectByName('upperarm_r');
   const meleeShoulderL=inst.getObjectByName('upperarm_l');
   const meleeSpine=inst.getObjectByName('spine_02');
-  const motionAxis=new THREE.Vector3(0,1,0),motionRoll=new THREE.Vector3(0,0,1);
+  const motionAxis=new THREE.Vector3(0,1,0),motionRoll=new THREE.Vector3(0,0,1),motionPitch=new THREE.Vector3(1,0,0),motionQuat=new THREE.Quaternion();
   // Capture the grip direction in bind pose, not an arbitrary live frame.
   const rodHand=inst.getObjectByName('hand_r');
   const rodAxis=rodHand?new THREE.Vector3(0,0,1).applyQuaternion(rodHand.getWorldQuaternion(new THREE.Quaternion()).invert()):null;
@@ -385,6 +385,8 @@ export function makeHumanoid(assets, lookId, opts = {}) {
     setSocialVisual: socialTorso.apply,
     socialWorn: socialTorso.worn,
     rodCharge(){return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.charge());},
+    // Accepted server windup: moving weapon trail only, never a simulated hit.
+    rodWindup(style,ms){return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.swing?.(style,ms));},
     rodContact(at,ground,blocked=false){
       return !!(heldRod?.group.visible&&!rodStowed&&rodEffects?.impact(at,{ground,blocked}));
     },
@@ -433,15 +435,29 @@ export function makeHumanoid(assets, lookId, opts = {}) {
         if(meleePose){
           meleePose.age+=step;
           const t=Math.min(1,meleePose.age/meleePose.duration);
-          const {anticipation,release,recovery}=strikeMotion(meleePose.age,meleePose.duration);
-          const sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
-          const sweep=meleePose.stance==='overhead'||meleePose.stance==='heavy'?.36:.53;
-          const torso=sign*(-.17*anticipation+sweep*release+.07*recovery);
-          const shoulder=sign*(-.13*anticipation+.34*release-.09*recovery);
-          if(meleeSpine)meleeSpine.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionAxis,torso));
-          if(meleeShoulderR)meleeShoulderR.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,shoulder));
-          if(meleeShoulderL&&['left','cross','heavy'].includes(meleePose.stance))
-            meleeShoulderL.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(motionRoll,-shoulder*1.45));
+          if(meleePose.rod){
+            // Rod-specific asymmetric movement. Small post-mixer rotations
+            // carry the actual palm-attached weapon and preserve shared rigs.
+            const p=rodChoreography(meleePose.stance,meleePose.age,meleePose.duration,meleePose.dual);
+            if(meleeSpine){
+              meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionAxis,p.torsoYaw));
+              meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.torsoPitch));
+            }
+            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,p.rightShoulder));
+            if(meleeShoulderL)meleeShoulderL.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,p.leftShoulder));
+            if(rodHand)rodHand.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.rightWrist));
+            if(offHand&&meleePose.dual)offHand.quaternion.multiply(motionQuat.setFromAxisAngle(motionPitch,p.leftWrist));
+          }else{
+            const {anticipation,release,recovery}=strikeMotion(meleePose.age,meleePose.duration);
+            const sign=meleePose.stance==='backhand'||meleePose.stance==='right'?-1:1;
+            const sweep=meleePose.stance==='overhead'||meleePose.stance==='heavy'?.36:.53;
+            const torso=sign*(-.17*anticipation+sweep*release+.07*recovery);
+            const shoulder=sign*(-.13*anticipation+.34*release-.09*recovery);
+            if(meleeSpine)meleeSpine.quaternion.multiply(motionQuat.setFromAxisAngle(motionAxis,torso));
+            if(meleeShoulderR)meleeShoulderR.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,shoulder));
+            if(meleeShoulderL&&['left','cross','heavy'].includes(meleePose.stance))
+              meleeShoulderL.quaternion.multiply(motionQuat.setFromAxisAngle(motionRoll,-shoulder*1.45));
+          }
           if(t>=1)meleePose=null;
         }
         if (working) work.pose(st.work, st.t, st.reducedMotion);
@@ -525,9 +541,15 @@ export function makeHumanoid(assets, lookId, opts = {}) {
       const authoredScale=kind==='melee'&&contactSeconds>.05&&clipSeconds>0
         ?clipSeconds*Math.max(.1,marker-(a.start||0))/contactSeconds:null;
       const scale=authoredScale?Math.max(.7,Math.min(2.8,authoredScale)):(a.timeScale||1)*(rodStrike?1.08:1);
-      if((kind==='melee'||kind==='attack')&&a.stance)
-        meleePose={age:0,duration:kind==='melee'?Math.max(.38,contactSeconds*2):.54,stance:a.stance};
-      anim.play(a.clip,{kind:'ability',upper:moving,start:a.start||0,timeScale:scale,fadeOut:rodStrike?.12:a.fadeOut??.2});
+      // A damage-triggered auto attack is already at contact; never replay
+      // the clip's anticipation after the server has confirmed the hit.
+      const resolvedAuto=kind==='attack'&&id==='auto';
+      const start=resolvedAuto?Math.max(a.start||0,marker-.04):a.start||0;
+      if((kind==='melee'||kind==='attack')&&a.stance){
+        const duration=kind==='melee'?Math.max(.38,contactSeconds*2):.54;
+        meleePose={age:resolvedAuto?duration*.5:0,duration,stance:a.stance,rod:rodStrike,dual:rodStrike&&heldRod.progress<.5};
+      }
+      anim.play(a.clip,{kind:'ability',upper:moving,start,timeScale:scale,fadeOut:rodStrike?.12:a.fadeOut??.2});
     },
     dispose() {
       releaseRod();
