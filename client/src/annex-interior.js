@@ -1,3 +1,5 @@
+import { createAnnexChamberDetail } from './annex-chamber-detail.js';
+
 // Three visually enclosed Phase Annex chambers. All meshes are presentation-only:
 // no new collider, portal, floor height or server-owned navigation changes.
 export const ANNEX_ROOMS = Object.freeze([
@@ -38,9 +40,13 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
     box(group,wall,annex.hw*2+.55,ANNEX_SHELL_HEIGHT-4.5,.55,
       0,(ANNEX_SHELL_HEIGHT+4.5)/2,z,'annex:upper-endwall');
   }
-  // Headers span *over* the existing six-metre offset walk-throughs.
-  // Nothing new occupies their movement or sightline clearance below y=4.5.
+  // The shared authoritative partitions end at 4.5m. Fill the *upper*
+  // half of each inter-room wall to the roof; otherwise all three chambers
+  // remain visually open to each other above the apparently short bulkheads.
+  // The two offset passages remain open for their full 4.5m clearance.
   for(const [z,gap] of [[12,6],[-9,-6]]){
+    box(group,wall,annex.hw*2+.55,ANNEX_SHELL_HEIGHT-4.5,.72,
+      0,(ANNEX_SHELL_HEIGHT+4.5)/2,z,'annex:upper-partition');
     box(group,rib,6.8,.45,.9,gap,4.62,z,'annex:door-header');
     for(const dx of [-3.05,3.05])
       box(group,ceramic,.18,.65,.92,gap+dx,4.94,z,'annex:door-upper-jamb');
@@ -87,12 +93,16 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
           box(place,dark,.22,2.5,2.2,x,2.65,z,'annex:relay-service-bay');
           box(place,lens,.12,.85,.72,x-side*.14,2.8,z,'annex:relay-readout');
         }else{
-          for(const dy of [2.25,3.1,3.9]){
-            const hoop=add(place,new T.TorusGeometry(.96,.065,8,32),dy===3.1?lens:trim,
-              x-side*.21,dy,z,'annex:null-containment-arc');
-            hoop.rotation.y=Math.PI/2;
-          }
+          // A visibly sealed, instrumented containment rack. Earlier glowing
+          // concentric wall rings resembled usable rifts despite having no
+          // travel trigger, creating a false portal cue in the boss chamber.
           box(place,dark,.16,3.25,1.8,x,2.9,z,'annex:null-service-column');
+          for(const dy of [2.25,3.1,3.9])
+            box(place,dy===3.1?lens:trim,.11,.085,1.55,
+              x-side*.22,dy,z,'annex:null-containment-busbar');
+          for(const dz of [-.72,.72])
+            box(place,ceramic,.16,2.4,.12,
+              x-side*.24,3.12,z+dz,'annex:null-containment-mount');
         }
       }
     }
@@ -127,8 +137,12 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
       }
     }
   }
-  const stats={rooms:3,roofs:roofs.length,lights:lights.length,glbParts,colliderChanges:0};
-  return {group,stats,update(eye){
+  const chamberDetail = createAnnexChamberDetail(T, annex, ANNEX_ROOMS);
+  group.add(chamberDetail.group);
+  const stats={rooms:3,roofs:roofs.length,lights:lights.length,glbParts,
+    detail:chamberDetail.stats,colliderChanges:0};
+  return {group,stats,update(eye,t=0,reducedMotion=false){
+    chamberDetail.update(t,reducedMotion);
     const inside=!!eye&&Math.abs(eye.x-annex.x)<annex.hw+32
       &&Math.abs(eye.z-annex.z)<annex.hd+25;
     group.visible=inside;
@@ -143,6 +157,7 @@ export function createAnnexInterior(T, annex, {assets=null}={}) {
       roof.material.depthWrite=roof.material.opacity===1;
     }
   },dispose(){
+    chamberDetail.dispose();
     group.removeFromParent();
     for(const x of new Set(owned))x.dispose();
     for(const m of new Set(materials))m.dispose();

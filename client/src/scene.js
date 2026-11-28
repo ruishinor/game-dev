@@ -1628,7 +1628,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       kestrelVisual.update(dt, t, focus);
-      annexInterior.update(view?.eye??focus);
+      annexInterior.update(view?.eye??focus,t,opts.reducedMotion?.()??false);
       relayFx?.update(dt, focus);
       lumenfenSiteFx?.update(dt, focus);
       for (const e of animators) e.a.update(dt);

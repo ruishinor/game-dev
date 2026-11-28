@@ -36,6 +36,7 @@ import { StatusVfx } from './vfx/status.js';
 import { Input } from './input.js';
 import { cycleHostileTarget } from './target-cycle.js';
 import { ThirdPersonCamera } from './camera.js';
+import { annexPlateUnobstructed } from './annex-label-visibility.js';
 import { Net, saveToken } from './net.js';
 import { createGameDiagnostics } from './connection-diagnostics.js';
 import { createRenderStallProbe } from './render-stall-probe.js';
@@ -1097,7 +1098,15 @@ function onSnapshot(m) {
 
   // Reconcile local prediction with the authoritative position.
   const y = m.y;
+  const previousRegion = S.you?.region;
   S.you = y;
+  // Enter the gallery facing inward instead of filling the screen with the return rift.
+  if (y.region === 'phase_annex' && previousRegion && previousRegion !== y.region) {
+    cam.yaw = Math.PI - .68;
+    cam.pitch = .18;
+    cam.want = 6.7;
+    cam.dist = Math.min(cam.dist, 6.7);
+  }
   if (Number.isFinite(y.wc)) world.severancePocket?.timeOfDay.setLive(y.wc / 10000);
   if(Number.isSafeInteger(y.comp))S.compId=y.comp;
   S.followId=y.follow||0;
@@ -2119,7 +2128,8 @@ function updatePlates(now) {
     const k = ent.meta.k;
     const d = me ? Math.hypot(ent.pos.x - me.pos.x, ent.pos.z - me.pos.z) : 0;
     const max = k === 'c' ? 22 : k === 'e' ? (ent.meta.el ? 60 : 45) : 60;
-    const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max);
+    const hide = !ent.placed || d > (k === 'e' && ent.dead ? 15 : max)
+      || !annexPlateUnobstructed(me?.pos,ent.pos,k);
     let screen = hide ? null : toScreen(ent.head);
     const row = ent.row || {};
     const lootable=k==='e'&&ent.dead&&!!S.you?.lootable?.some(x=>x.id===ent.id);
