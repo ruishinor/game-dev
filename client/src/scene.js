@@ -26,6 +26,7 @@ import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
 import { buildLumenfenGlbAccents } from './lumenfen-glb-accents.js';
 import { buildSilentFoundry } from './silent-foundry.js';
+import { updateRegionPresentations } from './region-presentation.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
 import { inSilentFoundry } from '../../shared/silent-foundry.js';
 import { inLumenfen } from '../../shared/lumenfen.js';
@@ -1634,9 +1635,9 @@ export function buildWorld(scene, assets = null, opts = {}) {
       for (const e of animators) e.a.update(dt);
       if(view&&startStillpoint&&Math.hypot(focus.x-8,focus.z+1.5)<40)startStillpoint();
       if(stillpoint)stillpoint.update(dt,focus,opts.reducedMotion?.()??false,view?.serverSeconds??0);
-      severance.update(dt, t, view?.eye ?? focus);
-      foundry.update(dt, t, view?.eye ?? focus);
-      lumenfen.update(dt, t, view?.eye ?? focus, view?.worldClock);
+      updateRegionPresentations(
+        severance, foundry, lumenfen, dt, t, view?.eye ?? focus, view?.worldClock
+      );
       cullReach(view?.eye ?? focus);
       // Small ground cover is not worth drawing across the valley.
       c.cover.cullByDistance(focus.x, focus.z, coverRange);
