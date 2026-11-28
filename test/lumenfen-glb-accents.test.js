@@ -22,8 +22,8 @@ test('site undergrowth uses bounded instanced GLB meshes and never owns source m
     return root;
   }};
   const result=buildLumenfenGlbAccents(T,source),status=result.stats();
-  assert.ok(status.placed>=30&&status.eligible<=54,
-    'deterministic vegetation uses a limited set of clear site placements');
+  assert.ok(status.placed>=350&&status.eligible<=500,
+    'real nature-GLB details must now extend throughout the watershed');
   assert.ok(status.batches>=5&&status.batches<=12,
     'runtime foliage is batched by actual GLB mesh/material');
   assert.deepEqual(status.missing,[]);

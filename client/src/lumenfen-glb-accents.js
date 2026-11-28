@@ -2,6 +2,7 @@
 // Runtime model pieces remain optional: structural gameplay and safe approaches
 // are entirely independent of the visual asset source.
 import {LUMENFEN,FEN_SITES,fenHeight} from '../../shared/lumenfen.js';
+import {planLumenfenGroundcover} from './lumenfen-groundcover.js';
 
 const ECOLOGICAL_PIECES=Object.freeze({
   'veil-landing':['Fern_1','Plant_7_Big'],
@@ -46,6 +47,23 @@ export function buildLumenfenGlbAccents(T,assets){
       plan.push({x,y:fenHeight(x,z),z,ry:angle*.45,scale});
       placementsByPiece.set(piece,plan);stats.eligible++;
     }
+  }
+  // Beyond landmark islands, distribute actual nature-GLB donors throughout
+  // the connected watershed. The authored six-metre fallback always remains
+  // visible if assets are disabled or missing.
+  const visualDonors={
+    fern:'Fern_1',sedge:'Grass_Wispy_Tall',reed:'Grass_Wispy_Tall',
+    fungi:'Mushroom_Common',driftwood:'Plant_1_Big'
+  };
+  for(const cell of planLumenfenGroundcover().cells){
+    if(cell.portal||cell.water||(cell.col+cell.row*2)%5!==0)continue;
+    if(FEN_SITES.some(s=>Math.hypot(cell.x-s.x,cell.z-s.z)<s.clearance+4))continue;
+    const piece=visualDonors[cell.kind];
+    if(!piece)continue;
+    const plan=placementsByPiece.get(piece)||[];
+    plan.push({x:cell.x,y:fenHeight(cell.x,cell.z),z:cell.z,
+      ry:cell.rotation,scale:cell.scale*(piece==='Plant_1_Big'?.6:.75)});
+    placementsByPiece.set(piece,plan);stats.eligible++;
   }
   const placeMatrix=new T.Matrix4(),resultMatrix=new T.Matrix4();
   const translation=new T.Vector3(),rotation=new T.Quaternion(),size=new T.Vector3();
