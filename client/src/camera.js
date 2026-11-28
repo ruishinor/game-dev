@@ -2,6 +2,8 @@
 
 import { COLLIDERS, groundHeight, DEEP, deepRoofAt, RIFT_ANNEX } from '../../shared/world.js';
 import { ANNEX_SHELL_HEIGHT } from './annex-interior.js';
+import { inSilentFoundry } from '../../shared/silent-foundry.js';
+import { FOUNDRY_CEILING_HEIGHT } from './silent-foundry.js';
 
 const MIN_DIST = 2.5;
 const MAX_DIST = 24;
@@ -27,6 +29,11 @@ function blocked(x, y, z) {
   if (Math.abs(x - RIFT_ANNEX.x) < RIFT_ANNEX.hw + 0.45
     && Math.abs(z - RIFT_ANNEX.z) < RIFT_ANNEX.hd + 0.45
     && y > ANNEX_SHELL_HEIGHT - 0.78 && y < ANNEX_SHELL_HEIGHT + 0.45) return true;
+  // Foundry trusses hang beneath its opaque roof. Keep high-angle orbit
+  // cameras below the lowest overhead kit while leaving the floor and
+  // authoritative movement/collision layout untouched.
+  if (inSilentFoundry(x, z, 0.45)
+    && y > FOUNDRY_CEILING_HEIGHT - 2.4 && y < FOUNDRY_CEILING_HEIGHT + 0.45) return true;
   for (let i = 0; i < BLOCKERS.length; i++) {
     const c = BLOCKERS[i];
     if (y > c.top) continue;

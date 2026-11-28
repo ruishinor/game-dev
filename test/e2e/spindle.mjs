@@ -46,7 +46,10 @@ try {
     await page.getByRole('button',{name:'Companion Sheet',exact:true}).click();
     return page.getByRole('dialog',{name:'Companion Sheet'});
   }
-  owner=await join('Gauge Tester',1280,800,'spindle-owner');
+  // SwiftShader cannot reliably sustain high-detail world shaders alongside
+  // GLB loading and two live Playwright sessions on a shared CI CPU. This
+  // checks real GLB/LOD geometry at q=0; hardware sessions retain q=1.
+  owner=await join('Gauge Tester',1280,800,'spindle-owner',SOFTWARE_GL?0:1);
   if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(true));
   const p=await liveFixturePlayer(owner,server,'Gauge Tester');
   const sheet=await openSheet(owner);
@@ -54,7 +57,32 @@ try {
   await commission.focus();
   await owner.keyboard.press('Enter');
   await sheet.locator('[data-companion-action="summon-spindle"]').click();
-  await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.c==='spindle'&&e.model==='glb');});
+  try {
+    await owner.waitForFunction(()=>{
+      const s=window.__attune?.state();
+      return !!s?.ents?.some(e=>e.id===s.compId&&e.c==='spindle'&&e.model==='glb');
+    },null,{timeout:90000,polling:250});
+  }catch(error){
+    // A 1006 heartbeat loss is not an equipment or GLB-fidelity failure.
+    // Preserve that distinction while keeping all original visual assertions.
+    const client=await owner.evaluate(()=>{
+      const s=window.__attune?.state();
+      return {myId:s?.myId,compId:s?.compId,drawn:s?.drawn,
+        companions:s?.ents?.filter(e=>e.c==='spindle'||e.c==='mender')
+          .map(e=>({id:e.id,kind:e.c,model:e.model}))};
+    }).catch(e=>({diagnosticError:String(e)}));
+    const c=p.companion;
+    const conn=server.net.sessions.get(p.char.id);
+    // No tokens, privileged character data, private message bodies or
+    // undisclosed reward payloads may enter public CI logs.
+    throw new Error('Spindle summon / GLB projection not observed: '+
+      JSON.stringify({client,server:{id:p.id,
+        readyState:conn?.ws.readyState??null,
+        missedPongs:conn?.missedPongs??null,
+        closeCause:conn?.closeCause??null,
+        companion:c&&{id:c.id,owner:c.owner,type:c.type},
+        outboxTypes:p.outbox?.slice(-4).map(m=>m.e)},reason:String(error)}),{cause:error});
+  }
   assert.equal(p.companion.owner,p.id);
   const id=p.companion.id;
   const entry=sheet.locator('.companion-sheet-entry').filter({has:owner.getByRole('heading',{name:'Spindle',exact:true})});
@@ -174,7 +202,7 @@ try {
   // Verify the previously inaccessible dual-companion HUD on a fresh Conductor.
   await observer.context().close();
   await owner.context().close();
-  owner=await join('Dual Companion',1280,800,'spindle-dual-owner',1,'symbiotech');
+  owner=await join('Dual Companion',1280,800,'spindle-dual-owner',SOFTWARE_GL?0:1,'symbiotech');
   if(SOFTWARE_GL)await owner.evaluate(()=>window.__attune.pause(true));
   const dual=await liveFixturePlayer(owner,server,'Dual Companion');
   await owner.waitForFunction(()=>{const s=window.__attune.state();return s.ents.some(e=>e.id===s.compId&&e.c==='mender');});

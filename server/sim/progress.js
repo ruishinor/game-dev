@@ -20,6 +20,7 @@ import { openVendor } from './vendor.js';
 import { interactRift } from './rift.js';
 import {traceTalk,traceRead} from './field-quests.js';
 import { sanitizeCondition } from '../../shared/condition.js';
+import { meleeBusy } from './melee.js';
 import { WEAPON_SWITCH, activeWeaponSlot, equippedWeapon, electricalRodActive } from '../../shared/weapons.js';
 import { equipmentAttributes, attributeChanges } from '../../shared/attributes.js';
 import { GOODS, sanitizeGoods } from '../../shared/goods.js';
@@ -27,14 +28,16 @@ import {recoverField} from './recovery.js';
 import {sanitizeDirectiveReceipts} from '../../shared/directive-receipts.js';
 import {recordFieldReceipt} from './field-receipts.js';
 import {creditDiscipline} from './crafting-disciplines.js';
+import { claimClassArmourArchive } from './class-armour-sources.js';
 import {containmentAlarm} from './kestrel-alarm.js';
 import {startVeinHarvest} from './severance-veins.js';
+import { interactOutpostTraining } from './outpost-training.js';
 
 const INTERACT_RANGE = 5;
 const CREDIT_RANGE = 70;
 const INSCRIPTION_MS = 1800;
 
-export function grantXp(game, p, amount) {
+export function grantXp(game, p, amount, source = 'other') {
   const c = p.char;
   // All rewards originate on the server. Invalid awards or corrupted live
   // records cannot introduce fractional XP, NaN, or an unearned level.
@@ -45,6 +48,7 @@ export function grantXp(game, p, amount) {
   const remaining = XP_TO_NEXT.slice(c.level, MAX_LEVEL).reduce((sum, need) => sum + need, 0) - c.xp;
   const credited = Math.min(amount, remaining);
   if (credited <= 0) return 0;
+  game.economy?.observe('xp_awarded', p, credited, ['enemy','directive','quest'].includes(source) ? source : 'other');
   c.xp += credited;
   p.outbox.push({ e: 'xp', a: credited });
   while (c.level < MAX_LEVEL && c.xp >= XP_TO_NEXT[c.level]) {
@@ -65,6 +69,7 @@ export function grantItem(game, p, itemId) {
   const c = p.char;
   if (!ITEMS[itemId] || c.inventory.includes(itemId)) return false;
   c.inventory.push(itemId);
+  game.economy?.observe('items_granted', p, 1, itemId);
   p.outbox.push({ e: 'loot', item: itemId });
   game.message(p, 'gain', `You receive: ${ITEMS[itemId].name}.`);
   game.markDirty(p);
@@ -105,7 +110,7 @@ export function checkDirective(game, p) {
     p.outbox.push({ e: 'directive', title: d.title });
     const itemId=d.reward.classItem?.[c.cls];
     const item=itemId&&grantItem(game,p,itemId)?itemId:null;
-    const xp=d.reward.xp?grantXp(game,p,d.reward.xp):0;
+    const xp=d.reward.xp?grantXp(game,p,d.reward.xp,'directive'):0;
     // Completion, rewards and receipt are one synchronous server transition.
     // Earlier completions without recorded receipts are not reconstructed.
     c.directiveReceipts=[...sanitizeDirectiveReceipts(c.directiveReceipts,c.cls,c.quest.step-1),{id:d.id,xp,item}];
@@ -128,7 +133,8 @@ export function onEnemyKilled(game, enemy, creditedIds) {
   for (const id of new Set(creditedIds)) {
     const p = game.players.get(id);
     if (!p || !sameTravelRegion(p, enemy) || dist(p, enemy) > CREDIT_RANGE) continue;
-    grantXp(game, p, killXp(enemy, p.char.level));
+    game.economy?.observe('kills', p, 1, enemy.type);
+    grantXp(game, p, killXp(enemy, p.char.level), 'enemy');
     if(recordFoundryKill(game,p,enemy))continue; // Foundry archetypes do not complete Reach directives
     if(enemy.annexEncounter){
       const prior=p.char.annexProgress||0,bit=enemy.type==='warden'?2:1;
@@ -151,6 +157,7 @@ export function grantSalvage(game,p,id,count=1) {
   if((m[id]||0)+count>MATERIAL_CAP)return false;
   m[id]=(m[id]||0)+count;
   p.char.materials=m;
+  game.economy?.observe('materials_granted',p,count,id);
   game.message(p,'gain','Salvaged: '+MATERIALS[id].name+(count>1?' × '+count:'')+'.');
   game.markDirty(p);return true;
 }
@@ -181,12 +188,23 @@ export function craftRecipe(game,p,id,rev,{ quiet = false } = {}) {
     if(out.item&&out.item!=='survey_strider_link')p.outbox.push({e:'loot',item:out.item});
     game.message(p,'gain','Fabricated: '+(out.item?ITEMS[out.item].name:out.goods?GOODS[out.goods].name+' × '+out.count:MATERIALS[out.material].name)+'.');
   }
+  // Count only committed fabrication, never previews, failed cycles, or
+  // free restoration loops as resource creation.
+  game.economy?.observe('craft_cycles', p, 1, id);
+  for (const [material, quantity] of Object.entries(RECIPES[id].inputs)) {
+    game.economy?.observe('materials_spent', p, quantity, material);
+  }
+  const donors=RECIPES[id].targets || (RECIPES[id].target ? [RECIPES[id].target] : []);
+  for (const donor of donors) game.economy?.observe('items_consumed', p, 1, donor);
+  if (out.material) game.economy?.observe('materials_crafted', p, out.count, out.material);
+  if (out.goods) game.economy?.observe('goods_crafted', p, out.count, out.goods);
+  if (out.item && out.item!=='survey_strider_link') game.economy?.observe('items_crafted', p, 1, out.item);
   game.markDirty(p);
   return {ok:true};
 }
 
 function inCombat(game, p) {
-  return game.time < p.combatUntil;
+  return game.time < p.combatUntil || meleeBusy(game,p);
 }
 
 // Explicit configuration intent, not a toggle: replaying the same request is harmless.
@@ -431,6 +449,7 @@ export function interact(game, p, objectId) {
     p.outbox.push({e:'workshop_open'});return {ok:true};
   }
   if (obj.type === 'quartermaster' || obj.type === 'expedition_quartermaster') return openVendor(game,p,obj.id);
+  if (['outpost_range_console', 'outpost_range_target', 'outpost_armory'].includes(obj.type)) return interactOutpostTraining(game, p, obj);
   if (obj.type === 'outpost_crew') {
     const lines = obj.key === 'outpost_surveyor'
       ? ['Three ways to the Gate: the Causeway under the old ring, the Severed Pass, or the Amber Flats. The sentinels keep to the causeway.', 'The crystals out east burn brighter after dark. Lovely to look at, and something always nests near them.', 'Drones hold the ceremonial approach. Come back here to patch up before you try the stairs.']
@@ -443,6 +462,10 @@ export function interact(game, p, objectId) {
     game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
     return {ok:true};
   }
+  // Class-specific knowledge is an optional one-time interaction; normal
+  // service-station, attunement and calibration actions remain available.
+  const archive = claimClassArmourArchive(game,p,obj);
+  if(archive)return archive;
   if(obj.type==='sinter_recovery')return recoverField(game,p,obj);
   if(obj.type==='resonant_vein')return startVeinHarvest(game,p,obj);
   if(['lumenfen_entry','lumenfen_return','lumenfen_spring','lumenfen_crown'].includes(obj.type))return travelLumenfen(game,p,obj);
@@ -460,7 +483,7 @@ export function interact(game, p, objectId) {
       const oldGoods=sanitizeGoods(p.char.goods);
       if(oldGoods.blueprint_relay_arc_carbine===1)return {ok:false,reason:'You have already recovered this expedition cache.'};
       oldGoods.blueprint_relay_arc_carbine=1;
-      p.char.goods=oldGoods;game.markDirty(p);
+      p.char.goods=oldGoods;game.economy?.observe('goods_granted',p,1,'blueprint_relay_arc_carbine');game.markDirty(p);
       game.message(p,'gain','Recovered: Relay Arc Carbine blueprint (previous expedition claim).');
       return {ok:true};
     }
@@ -475,6 +498,8 @@ export function interact(game, p, objectId) {
     materials.resonance_fragment=(materials.resonance_fragment||0)+count;
     if(newKnowledge)goods.blueprint_relay_arc_carbine=1;
     p.char.materials=materials;p.char.goods=goods;p.char.annexClaimed=true;
+    game.economy?.observe('materials_granted',p,count,'resonance_fragment');
+    if(newKnowledge)game.economy?.observe('goods_granted',p,1,'blueprint_relay_arc_carbine');
     game.markDirty(p);
     game.message(p,'gain',`Null Chamber recovery cache claimed: ${count} Resonance fragments${newKnowledge?' and Relay Arc Carbine blueprint':''}.`);
     return {ok:true};

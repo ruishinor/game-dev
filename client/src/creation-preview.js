@@ -85,7 +85,7 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
  canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Home'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(e.key==='ArrowLeft')rotate(-.24);else if(e.key==='ArrowRight')rotate(.24);else if(e.key==='ArrowUp'||e.key==='+')magnify(.18);else if(e.key==='ArrowDown'||e.key==='-')magnify(-.18);else reset();});
  reset();
  const active=()=>visible&&!failed&&!document.hidden&&canvas.getClientRects().length>0;
- function update(now,dt){
+ function update(now,dt,changesOnly=false){
   if(!active())return false;
   const stageReady=!!environment?.ready,stageFailed=!!environment?.unavailable;
   if(environment&&(stageReady!==lastStageReady||stageFailed&&root.dataset.sceneAsset!=='unavailable')){
@@ -102,6 +102,10 @@ export function createCreationPreview({root,assets,useGlb,motionPreference,getMe
   const w=Math.max(1,Math.round(canvas.clientWidth)),h=Math.max(1,Math.round(canvas.clientHeight));
   const resized=canvas.width!==Math.floor(w*(renderer?.getPixelRatio()||1))
    ||canvas.height!==Math.floor(h*(renderer?.getPixelRatio()||1));
+  // When the world is intentionally paused for inspection, update only on
+  // actual preview changes; never run continuous SwiftShader frames that can
+  // starve the authenticated WebSocket while applying appearance.
+  if(changesOnly&&!dirty&&!resized&&next===keyState&&renderer)return true;
   if(!dirty&&!resized&&next===keyState&&renderer&&(motionPreference.matches||now-lastDraw<1000/15))return true;
   try{
    if(!renderer){

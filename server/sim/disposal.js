@@ -45,6 +45,9 @@ export function disposeItem(game, p, { action, item, rev }, roll = () => randomI
   } else if (--goods[item] === 0) delete goods[item];
   char.materials = materials;
   char.goods = goods;
+  if(isEquipment)game.economy?.observe('items_consumed',p,1,item);
+  else game.economy?.observe('goods_spent',p,1,item);
+  if(recovered)game.economy?.observe('materials_granted',p,1,recovered);
   game.markDirty(p);
   const name = isEquipment ? ITEMS[item].name : GOODS[item].name;
   if (action === 'destroy') game.message(p, 'info', `${name} destroyed.`);

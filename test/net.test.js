@@ -899,6 +899,8 @@ test('heartbeat: an authenticated actor can recover from one missed probe, but s
     assert.equal(srv.game.players.get(w.id), player, 'one missed probe preserves the exact actor');
     a.ws.pong(delayed);
     await a.until(() => conn.alive && conn.missedPongs === 0, 2500, 'transport pong');
+    assert.ok(conn.lastPingAtMs > 0);
+    assert.ok(conn.lastPongAtMs >= conn.lastPingAtMs, 'server records the pong after its latest probe');
     assert.equal(srv.net.sessions.get(player.char.id), conn);
     await tick();
     await tick();

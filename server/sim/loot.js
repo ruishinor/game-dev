@@ -80,7 +80,7 @@ function collectCredits(game,p,quantity){
  if(!Number.isSafeInteger(quantity)||quantity<1)return false;
  const balance=walletAfter(sanitizeCredits(p.char.credits),quantity);
  if(balance===null)return false;
- p.char.credits=balance;game.markDirty(p);
+ p.char.credits=balance;game.economy?.observe('credits_looted',p,quantity);game.markDirty(p);
  game.message(p,'gain','Recovered '+quantity+' credit'+(quantity===1?'':'s')+'.');
  return true;
 }

@@ -48,6 +48,10 @@ try {
       if(node.isMesh){meshes++;if(node.isInstancedMesh)instanced++;}
       if(node.name.startsWith('kestrel:glb:')){glb++;names.push(node.name);}
     });
+    const production=root?.getObjectByName('kestrel:production-machinery');
+    const compressors=production?.children.filter(n=>n.name.startsWith('kestrel:compressor-impeller:')).length||0;
+    const compressorConnections=production?.children.filter(n=>n.name==='kestrel:compressor-to-feed').length||0;
+    const compressorBatchMeshes=production?.children.filter(n=>n.isInstancedMesh).length||0;
     const regulator=root?.getObjectByName('kestrel:pressure-regulator-gallery');
     const regulatorInlets=regulator?.children.filter(n=>n.name==='kestrel:regulator-pressure-inlet').length||0;
     const regulatorReturns=regulator?.children.filter(n=>n.name==='kestrel:regulator-roof-relief').length||0;
@@ -55,7 +59,7 @@ try {
     const floor=root?.getObjectByName('kestrel:machined-floor-tiles');
     const light=root?.getObjectByName('kestrel:pressure-glow');
     const opening=scene.getObjectByName('kestrel:architecture');
-    return {meshes,glb,instanced,kitNames:names,regulatorInlets,regulatorReturns,regulatorBatches,
+    return {meshes,glb,instanced,kitNames:names,compressors,compressorConnections,compressorBatchMeshes,regulatorInlets,regulatorReturns,regulatorBatches,
       floorTiles:floor?.count||0,lightIntensity:light?.intensity,
       hasRoof:!!opening?.getObjectByName('kestrel:roof'),active:root?.visible};
   });
@@ -64,6 +68,9 @@ try {
   assert.ok(evidence.instanced>=7,'Architecture must use batched geometry');
   assert.ok(evidence.floorTiles>=45);
   assert.ok(evidence.hasRoof,'Preserve the existing roof');
+  assert.equal(evidence.compressors,2,'Paired compressor rotors must render');
+  assert.equal(evidence.compressorConnections,2,'Both compressors must connect to the pressure feeds');
+  assert.equal(evidence.compressorBatchMeshes,8,'Rebuilt machinery must remain batched');
   assert.equal(evidence.regulatorInlets,2,'Both vessel feed connections must render');
   assert.equal(evidence.regulatorReturns,2,'Both pressure-relief pipes must render');
   assert.equal(evidence.regulatorBatches,10,'Regulator components must remain instanced');
@@ -77,6 +84,73 @@ try {
   if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
   try{await page.screenshot({path:'kestrel-evidence/kestrel-1280x800.png'});}
   finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));}
+  // Real player-camera views: the original east entrance frame cannot show
+  // the west-side process equipment or prove its assembly quality.
+  const cameraEvidence=[];
+  for(const shot of [
+    {name:'central-aisle',x:-56.5,z:-8,dist:4.8},
+    {name:'north-pressure-bay',x:-56.2,z:-4.8,dist:4.5},
+    {name:'south-pressure-bay',x:-56.2,z:-11.2,dist:4.5},
+  ]) {
+    p.x=shot.x;p.z=shot.z;p.jy=0;p.vy=0;
+    await page.waitForFunction(([x,z])=>{
+      const you=window.__attune?.state().you;
+      return !!you&&Math.hypot(you.x-x,you.z-z)<.8;
+    },[shot.x,shot.z]);
+    const startDrawn=await page.evaluate(()=>window.__attune.state().drawn);
+    await page.evaluate(dist=>window.__attune.view({
+      yaw:-Math.PI/2,pitch:.16,dist,face:-Math.PI/2,
+    }),shot.dist);
+    await page.waitForFunction(start=>window.__attune?.state().drawn>=start+2,startDrawn);
+    const draw=await page.evaluate(()=>{
+      const r=window.__attune.gfx.renderer;
+      const s=window.__attune.state();
+      return {calls:s.draw.calls,triangles:s.draw.triangles,
+        geometries:r.info.memory.geometries,textures:r.info.memory.textures,
+        drawn:s.drawn};
+    });
+    cameraEvidence.push({name:shot.name,x:shot.x,z:shot.z,draw});
+    if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));
+    try {
+      await page.screenshot({path:'kestrel-evidence/kestrel-'+shot.name+'-1280x800.png'});
+    } finally {
+      if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+    }
+  }
+  // Isolate the incremental scene cost of the rebuilt equipment. These are
+  // software-WebGL submitted draw/triangle counts, not physical GPU timings.
+  const isolated=await page.evaluate(async()=>{
+    const root=window.__attune.gfx.scene.getObjectByName('kestrel:production-machinery');
+    const sample=async()=>{
+      const start=window.__attune.state().drawn;
+      const t0=performance.now();
+      while(window.__attune.state().drawn<start+3&&performance.now()-t0<8000)
+        await new Promise(resolve=>setTimeout(resolve,80));
+      const s=window.__attune.state();
+      return {wallMs:Math.round(performance.now()-t0),
+        frames:s.drawn-start,calls:s.draw.calls,triangles:s.draw.triangles};
+    };
+    let enabled,disabled;
+    try {
+      enabled=await sample();
+      root.visible=false;
+      disabled=await sample();
+    } finally {
+      root.visible=true;
+    }
+    return {enabled,disabled,
+      deltaCalls:enabled.calls-disabled.calls,
+      deltaTriangles:enabled.triangles-disabled.triangles};
+  });
+  const performanceEvidence={
+    graphics,viewport:{width:1280,height:800},
+    cameraEvidence,isolated,
+    qualification:SOFTWARE_GL
+      ? 'SwiftShader software rendering; wall time includes browser/server scheduling, not real-GPU frame time'
+      : 'GPU execution requested; inspect actual WebGL renderer and host hardware before interpreting wall time',
+  };
+  console.log('KESTREL_PERFORMANCE '+JSON.stringify(performanceEvidence));
+  fs.writeFileSync('kestrel-evidence/performance.json',JSON.stringify(performanceEvidence,null,2));
   // Check layout/readiness at large display sizes without another expensive
   // software-GL encode or inventing a frame-rate measurement.
   for(const [width,height] of [[1920,1080],[2560,1440]]) {

@@ -7,11 +7,11 @@ import {launchBrowser,SOFTWARE_GL} from '../../tools/browser.mjs';
 import {liveFixturePlayer} from './live-fixture.mjs';
 import { revealRecipe } from './recipe-catalogue.mjs';
 const server=await startServer({port:0,dataFile:null});
-let browser;
+let browser,page;
 try{
  fs.mkdirSync('vendor-evidence',{recursive:true});
  browser=await launchBrowser();
- const page=await browser.newPage({viewport:{width:1100,height:750}});
+ page=await browser.newPage({viewport:{width:1100,height:750}});
  page.setDefaultTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  // SwiftShader evidence capture must not leave the main thread rendering
@@ -26,7 +26,7 @@ try{
   });
   await page.screenshot({path:file});
  }
- const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1'+(SOFTWARE_GL?'&rfps=1':'');
+ const url='http://127.0.0.1:'+server.port+'/?q=1&qlock=1&nolock=1&netdiag=1&renderdiag=1'+(SOFTWARE_GL?'&rfps=1':'');
  await page.goto(url);await page.click('#gate-guest-link');await page.fill('#name','Vendor Tester');await page.click('.classcard[data-cls="vanguard"]');await page.click('#enter');
  await page.waitForFunction(()=>{const s=window.__attune?.state();return s?.myId&&s.sheet?.cls==='vanguard'&&s.drawn>=2&&s.ents.some(e=>e.c==='quartermaster'&&e.model==='glb'&&e.halo?.role==='vendor');});
  let p=await liveFixturePlayer(page,server,'Vendor Tester');
@@ -310,6 +310,41 @@ try{
  assert.equal(wardrobePlayer.char.equipped.weapon,'electrical_combat_rod');
  assert.equal(wardrobePlayer.char.equipped.ranged,'field_emitter');
  p=wardrobePlayer;
+ const previousReconnects=await page.evaluate(()=>window.__attune.state().network.reconnects);
+ const previousDraw=await page.evaluate(()=>window.__attune.state().drawn);
+ const beforeRecovery=await page.evaluate(()=>{const s=window.__attune.state();return{network:s.network,diagnostics:s.diagnostics.stats,render:s.renderDiagnostics.stats};});
+ let previousPlayer,previousConn;
+ for(let attempt=0;attempt<3;attempt++){
+  previousPlayer=await liveFixturePlayer(page,server,'Vendor Tester');
+  previousConn=server.net.sessions.get(previousPlayer.char.id);
+  if(previousConn?.ws.readyState===1&&server.net.sessions.get(previousPlayer.char.id)===previousConn){
+   previousConn.alive=false;previousConn.missedPongs=1;server.net.heartbeat();
+   if(previousConn.closeCause==='heartbeat')break;
+  }
+ }
+ assert.equal(previousConn.closeCause,'heartbeat','test forces the authenticated heartbeat close on the current live session');
+ console.log('[vendor] heartbeat-recovery start '+JSON.stringify({
+  lastPingAtMs:previousConn.lastPingAtMs,lastPongAtMs:previousConn.lastPongAtMs,
+  browser:beforeRecovery,
+ }));
+ // Deterministically exercise the authenticated missed-heartbeat close and
+ // ensure the wardrobe flow uses the replacement server entity, not this one.
+ if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(false));
+ try{
+  await page.waitForFunction(({id,reconnects,draw})=>{
+   const s=window.__attune?.state();
+   return s?.myId&&s.myId!==id&&s.network.reconnects>reconnects&&s.drawn>draw&&document.getElementById('world-entry-curtain')?.hidden===true;
+  },{id:previousPlayer.id,reconnects:previousReconnects,draw:previousDraw},{timeout:90000,polling:100});
+ }finally{if(SOFTWARE_GL)await page.evaluate(()=>window.__attune.pause(true));}
+ const resumedPlayer=await liveFixturePlayer(page,server,'Vendor Tester');
+ assert.equal(resumedPlayer.char.id,previousPlayer.char.id,'heartbeat recovery keeps the authenticated character');
+ assert.notEqual(resumedPlayer,previousPlayer,'heartbeat recovery installs a fresh simulation entity');
+ assert.equal(server.game.players.get(previousPlayer.id),undefined,'the detached simulation entity is not reused');
+ p=resumedPlayer;
+ console.log('[vendor] heartbeat-recovery complete '+JSON.stringify({
+  entityReplaced:resumedPlayer.id!==previousPlayer.id,
+  browser:await page.evaluate(()=>{const s=window.__attune.state();return{network:s.network,diagnostics:s.diagnostics.stats,render:s.renderDiagnostics.stats};})
+ }));
  p.x=vendor.x;p.z=vendor.z+2;
  await page.waitForFunction(([x,z])=>Math.hypot(window.__attune.state().you.x-x,window.__attune.state().you.z-z)<.25,[p.x,p.z]);
  await page.locator('#view').focus();await page.keyboard.press('KeyF');await panel.waitFor({state:'visible'});
@@ -339,4 +374,13 @@ try{
  await page.waitForFunction(()=>{const s=window.__attune.state(),me=s.ents.find(e=>e.id===s.myId);return !s.sheet.equipped.social_torso&&!me.socialWorn&&!me.socialVisual;});
  assert.deepEqual(errors,[]);
  console.log('PASS live quartermaster, private balance, sale, purchase, buyback, range dismissal and fitted social wardrobe');
+}catch(error){
+ const browserState=await page?.evaluate(()=>{const s=window.__attune?.state();return s?{network:s.network,diagnostics:s.diagnostics,render:s.renderDiagnostics}:null;}).catch(()=>null);
+ const connections=[...server.net.conns].map(conn=>({
+  player:!!conn.player,readyState:conn.ws.readyState,alive:conn.alive,missedPongs:conn.missedPongs,
+  closeCause:conn.closeCause??null,bufferedBytes:conn.ws.bufferedAmount,
+  lastPingAtMs:conn.lastPingAtMs,lastPongAtMs:conn.lastPongAtMs,
+ }));
+ console.error('[vendor] failure diagnostics '+JSON.stringify({browser:browserState,connections}));
+ throw error;
 }finally{await browser?.close();await server.close();}
