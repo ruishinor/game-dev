@@ -16,12 +16,16 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   playtest:
+    # Revalidate on a changed PR base (edited event), but do not burn an
+    # expensive browser runner merely because the PR title/body was edited.
+    if: ${{ github.event.action != 'edited' || github.event.changes.base != null }}
+    # Job-level concurrency is evaluated only for a job that actually runs.
+    # A metadata-only edited event must never cancel a live gameplay run.
+    concurrency:
+      group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
