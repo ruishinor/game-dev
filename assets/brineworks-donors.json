@@ -1,0 +1,23 @@
+{
+  "sourceArchive": "assets/source-archives/glb-low-poly-models-building-blocks.zip",
+  "status": "Owner-authorized reconstruction inputs selected from existing source-inventory documentation; no new archive-derived runtime asset is claimed",
+  "donors": [
+    {
+      "id": "brine_waterworks_drive",
+      "file": "modelpack - Animated Mechanisms Kit.glb",
+      "node": "000-bucket-elevator",
+      "role": "Power-transfer and water-conveyance details for the Brineworks pump and engineering station",
+      "requiredTreatment": "Isolate and inspect mechanism hierarchy and rotation axes; rebuild teeth, bearings, shafts, couplings and weathered metal PBR maps; author believable repeatable motion with no new collision"
+    },
+    {
+      "id": "brine_access_junction",
+      "file": "modelpack - Flooded and Coastal Survival.glb",
+      "node": "000-boardwalk-junction",
+      "role": "Durable wet-site walkable aesthetic and railing/bracing studies for Brineworks site",
+      "requiredTreatment": "Rebuild support joins, anti-slip material, wear and water response; preserve existing traversable commissioning lanes and collision footprints; fit and texture at actual scene scale"
+    }
+  ],
+  "pipelineAsset": "tools/asset-pipeline/assets/glb_archive/asset.json",
+  "sourceReference": "assets/lumenfen-donors.json",
+  "integrationNote": "Existing shipped tabletop GLBs are mounted independently via client/src/brineworks-detail.js. Neither of these raw source-ZIP donors is yet published as a runtime derivative."
+}

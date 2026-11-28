@@ -16,6 +16,7 @@ import { dealDamage } from '../../server/sim/combat.js';
 import { resetEnemy } from '../../server/sim/ai.js';
 import { CORPSE_MS } from '../../server/sim/game.js';
 import { clearCombatSpot } from '../cover-setup.js';
+import { dist, hasLineOfSight } from '../../shared/world.js';
 import { liveFixturePlayer } from './live-fixture.mjs';
 import { revealRecipe } from './recipe-catalogue.mjs';
 import { SLOTS } from '../../shared/content.js';
@@ -874,16 +875,41 @@ try {
   };
   const killCurrent = async (enemy) => {
     if(enemy.state!=='dead')for(const session of [A,B])await selectSkitter(session,enemy);
-    // Each actual browser must contribute; selecting the enemy alone is not kill credit.
+    // Both clients must earn *real* damage credit. The preceding UI/healing
+    // sequence can leave the healer far from a roaming enemy or behind cover.
+    // Re-stage only the live authenticated position, never damage/threat/XP.
     if(enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id)){
-      for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(serverPlayer('Lumen').id);i++){
-        await B.page.keyboard.press('Digit1');await sleep(400);
+      if(enemy.state==='evade'){
+        const deadline=Date.now()+30000;
+        while(enemy.state==='evade'&&Date.now()<deadline)await sleep(100);
       }
-      if(!enemy.threat.has(serverPlayer('Lumen').id)){
+      if(enemy.state!=='dead'){
+        const approach=clearCombatSpot(enemy,3.5,4.5);
+        await teleport(B,approach.x,approach.z);
+        await settle(B,approach.x,approach.z);
+        await selectSkitter(B,enemy);
+      }
+      let lumen=serverPlayer('Lumen');
+      const ready=Date.now()+5000;
+      while(enemy.state!=='dead'&&lumen?.target!==enemy.id&&Date.now()<ready){
+        await sleep(100);lumen=serverPlayer('Lumen');
+      }
+      for(let i=0;i<12&&enemy.state!=='dead'&&!enemy.threat.has(lumen.id);i++){
+        await B.page.locator('#view').focus();
+        await B.page.keyboard.press('Digit1');
+        await sleep(400);
+      }
+      if(enemy.state!=='dead'&&!enemy.threat.has(lumen.id)){
+        const errorText=await B.page.locator('.errors').innerText().catch(()=>null);
         throw Error('Cannot establish Lumen contribution before kill '+JSON.stringify({
           enemy:enemy.id,state:enemy.state,hp:enemy.hp,
-          target:serverPlayer('Lumen').target,
-          threat:[...enemy.threat.keys()]
+          target:lumen.target,threat:[...enemy.threat.keys()],
+          distance:Math.round(dist(lumen,enemy)*100)/100,
+          lineOfSight:hasLineOfSight(lumen,enemy),
+          playerDead:!!lumen.dead,auto:!!lumen.autoOn,
+          gcdRemaining:Math.max(0,lumen.gcdUntil-game.time),
+          neuralCooldown:Math.max(0,(lumen.cds.neural_lash||0)-game.time),
+          errorText
         }));
       }
     }

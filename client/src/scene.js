@@ -18,9 +18,11 @@ import { buildDeepServicePipes } from './service-pipes.js';
 import { buildKestrelDeepVisuals } from './kestrel-deep-visuals.js';
 import { createAnnexInterior } from './annex-interior.js';
 import { buildSinterHabitat } from './sinter-habitat.js';
+import { buildBrineworksDetail } from './brineworks-detail.js';
 import { SPOREFIELD_COLONIES, planSporeMotes } from './sporefield-colonies.js';
 import { buildSanctumFabricator } from './sanctum-fabricator.js';
 import { loadStillpoint } from './stillpoint-world.js';
+import { rockyPatEligibility } from '../../shared/stillpoint-roam.js';
 import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
@@ -1565,6 +1567,8 @@ export function buildWorld(scene, assets = null, opts = {}) {
   for (let i = 0; i < 12; i++) flat(43, -37.65 + i * 0.33, 0.48, 0.045, deck, 0.048);
   scene.add(serviceDeck);
   scene.add(buildSiteMarkings(THREE,deckY).group);
+  const brineworksDetail=buildBrineworksDetail(THREE,assets?.loader,groundHeight,{enabled:detail>=.8,reducedMotion:opts.reducedMotion,streamModels:true});
+  scene.add(brineworksDetail.group);
 
   scene.add(buildSinterHabitat(THREE));
   if (kits) buildVegetation(c, detail);
@@ -1609,10 +1613,18 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get brineworks() { return brineworksDetail.stats(); }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
+    patRocky(player){
+      const eligible=rockyPatEligibility(player?.row?{...player.row,dead:player.dead}:null,stillpoint?.group.position,stillpointStatus==='ready');
+      if(!eligible.ok)return eligible;
+      if(!stillpoint.pat())return {ok:false,message:'Give Rocky a moment before another pat.'};
+      const p=stillpoint.group.position;
+      return {ok:true,x:p.x,y:p.y,z:p.z};
+    },
+    attachBrineworksFx(engine){brineworksDetail.attachVfx(engine);},
     attachReachFx(engine) {
       relayFx?.dispose();
       relayFx = relayStructure && engine ? createReachRelayFx(THREE, relayStructure, engine) : null;
@@ -1629,6 +1641,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     update(dt, t, focus, view) {
       for (const fn of anim) fn(dt, t);
       kestrelVisual.update(dt, t, focus);
+      brineworksDetail.update(dt,t,focus);
       annexInterior.update(view?.eye??focus);
       relayFx?.update(dt, focus);
       lumenfenSiteFx?.update(dt, focus);
