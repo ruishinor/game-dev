@@ -72,6 +72,10 @@ try {
     assert.ok(Math.hypot(mine.x - def.x, mine.z - def.z) < 0.05, `${def.key} drawn at its shared position`);
     assert.equal(mine.model, 'glb', `${def.key} is the Halo GLB, not a fallback`);
     assert.equal(mine.halo.role, 'guard');
+    assert.equal(mine.halo.sensor?.fitted,true,'the skinned Warden head must carry fitted optics');
+    assert.equal(mine.halo.sensor?.local,true,'optics must be head-local, never global FX');
+    assert.ok(mine.halo.sensor?.halfWidth>.03 && mine.halo.sensor?.halfHeight>.03,
+      'optics must use the actual ring geometry dimensions');
     const expectedPrimary = mine.halo.variant % 2 === 0 ? 'rifle' : 'combat-rod';
     assert.equal(mine.halo.primary, expectedPrimary, `${def.key} alternating primary weapon`);
     assert.equal(mine.halo.presentation, expectedPrimary,

@@ -460,6 +460,8 @@ export function interact(game, p, objectId) {
   // Existing server range/death checks apply; neutral Wardens never offer combat or inventory actions.
   if (obj.type === 'sanctum_guard') {
     game.message(p,'info','The Sanctum Warden watches the approach without speaking.');
+    // Server-authorised, observer-only cosmetic acknowledgement.
+    p.outbox.push({e:'warden_observe',id:obj.id});
     return {ok:true};
   }
   // Class-specific knowledge is an optional one-time interaction; normal

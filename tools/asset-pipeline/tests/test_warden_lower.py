@@ -47,6 +47,11 @@ class WardenLowerArmourTests(unittest.TestCase):
             self.assertEqual({p['name'] for p in pieces}, {
                 'greave_front_'+side, 'greave_rear_'+side,
                 'boot_collar_'+side, 'boot_vamp_'+side})
+            materials = {p['name']: p['mat'] for p in pieces}
+            self.assertEqual(materials['greave_front_'+side], 'ceramic_plate')
+            self.assertEqual(materials['greave_rear_'+side], 'ebony_plate')
+            self.assertEqual(materials['boot_collar_'+side], 'bronze_plate')
+            self.assertEqual(materials['boot_vamp_'+side], 'ceramic_plate')
             for p in pieces:
                 V, F = p['V'], p['F']
                 self.assertEqual(p['skin'], 'transfer')

@@ -1530,6 +1530,10 @@ function onEvent(e) {
     case 'chat':
       ui.chatLine('['+(e.channel==='party'?'Party':'Vicinity')+'] '+e.n,e.m,e.channel==='party'?'party-chat':'chatline');
       break;
+    case 'warden_observe':
+      // A neutral Warden acknowledges only the authorised observer.
+      S.ents.get(e.id)?.model.trigger?.('observe');
+      break;
     case 'msg':
       if (e.k === 'err') ui.error(e.m);
       else {
@@ -2415,7 +2419,7 @@ window.__attune = {
       you: S.you,
       sheet: S.sheet,
       ents: [...S.ents.values()].map((e) => ({ id: e.id, k: e.meta.k, c: e.meta.c, n: e.meta.n, a: e.meta.a, form: e.meta.form, x: e.pos.x, z: e.pos.z, row: e.row, dead: e.dead, model: e.model.kind || 'procedural', weaponVisual: e.meta.wv || null, weaponVisible: !!e.model.weaponEffectOrigin?.(), weaponPose: e.model.weaponPoseInfo?.() ?? null, armourVisual: e.meta.av || null, armourWorn: e.model.armourWorn?.() || null, armourWornAll: e.model.armourWornAll?.() || null, armourFx: e.model.armourFxInfo?.() || null, socialVisual: e.meta.sv || null, socialWorn: e.model.socialWorn?.() || null, inView: e.inView,
-        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw, fit: e.model.weaponFit?.() ?? null, primary: e.model.weaponPrimary?.() ?? null, presentation: e.model.weaponPresentation?.() ?? null } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
+        ...(e.model.haloRole ? { halo: { role: e.model.haloRole, variant: e.model.variant, meshes: e.model.meshes, yaw: e.displayYaw, fit: e.model.weaponFit?.() ?? null, sensor: e.model.headSensor?.() ?? null, primary: e.model.weaponPrimary?.() ?? null, presentation: e.model.weaponPresentation?.() ?? null } } : {}), speed: Math.round(e.speed * 10) / 10, anim: e.model.animator ? e.model.animator.describe() : null })),
       draw: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures },
       assets: assets.report(),
       world: { ...world.stats, faded: world.occluders.faded },

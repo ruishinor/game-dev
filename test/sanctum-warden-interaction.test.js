@@ -12,6 +12,7 @@ test('Sanctum Warden Observe action is informational and server-validated',()=>{
  assert.deepEqual(p.outbox.filter(e=>e.e==='msg').slice(-1),[
   {e:'msg',k:'info',m:'The Sanctum Warden watches the approach without speaking.'}
  ]);
+ assert.deepEqual(p.outbox.filter(e=>e.e==='warden_observe').slice(-1),[{e:'warden_observe',id:w.id}]);
  const count=p.outbox.length;
  place(p,w.x+10,w.z);
  assert.equal(interact(game,p,w.id).ok,false);
