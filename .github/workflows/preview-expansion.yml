@@ -9,10 +9,10 @@ on:
       - '.github/workflows/preview-expansion.yml'
   workflow_dispatch:
 
+# Replace obsolete PR runs, not independently requested manual dispatches.
 concurrency:
   group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 jobs:

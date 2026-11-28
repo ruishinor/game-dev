@@ -13,10 +13,11 @@ on:
       - '.github/workflows/hud-accessibility.yml'
   workflow_dispatch:
 
+# A newer head supersedes only the same PR's old browser run;
+# distinct manual dispatches use their unique run IDs and remain independent.
 concurrency:
   group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 jobs:

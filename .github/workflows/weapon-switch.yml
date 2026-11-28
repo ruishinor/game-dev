@@ -24,10 +24,11 @@ on:
       - '.github/workflows/weapon-switch.yml'
   workflow_dispatch:
 
+# Cancel obsolete PR heads; a manual dispatch retains its own run ID so it
+# cannot suppress another requested verification of the same ref.
 concurrency:
   group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 jobs:
