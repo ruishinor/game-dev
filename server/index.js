@@ -14,6 +14,13 @@ import { NetServer } from './net.js';
 import { ensureDepthsCacheGLB } from '../tools/assets/extract-depths-cache.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// The owner-only Electron build serves staged GLBs rather than source archives.
+const DESKTOP_RUNTIME_MODELS = process.env.ATTUNEMENT_DESKTOP_RUNTIME_DIR || null;
+const DESKTOP_PIPELINE_EXPORTS = new Set([
+  'stillpoint.glb', 'severance_gate.glb', 'severance_kit.glb', 'outpost_shelter.glb',
+  'salvage_camp.glb', 'resonant_vein.glb', 'sanctum_arch.glb', 'phase_scar.glb',
+  'foundry_kit.glb',
+]);
 const TICK_MS = 50;
 const SAVE_INTERVAL_MS = 4000;
 
@@ -79,6 +86,21 @@ const readyGeneratedModels = new Map();
 let generatedModelsPrepared = false;
 function prepareGeneratedModels() {
   if (generatedModelsPrepared) return;
+  if (DESKTOP_RUNTIME_MODELS) {
+    for (const name of DESKTOP_PIPELINE_EXPORTS) {
+      const file = path.join(DESKTOP_RUNTIME_MODELS, name);
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile())
+        throw new Error('Missing packaged runtime model: ' + name);
+    }
+    for (const url of GENERATED_MODELS.keys()) {
+      const file = path.join(DESKTOP_RUNTIME_MODELS, path.posix.basename(url));
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile())
+        throw new Error('Missing packaged runtime model: ' + path.basename(file));
+      readyGeneratedModels.set(url, file);
+    }
+    generatedModelsPrepared = true;
+    return;
+  }
   // A failure is an explicit missing-asset fallback for this process; it must
   // not trigger a synchronous ZIP rebuild on a later HTTP request.
   for (const [url, build] of GENERATED_MODELS) {
@@ -94,6 +116,10 @@ function prepareGeneratedModels() {
 }
 
 function resolveStatic(urlPath) {
+  if (DESKTOP_RUNTIME_MODELS && urlPath.startsWith('/client/assets/') &&
+      DESKTOP_PIPELINE_EXPORTS.has(path.posix.basename(urlPath)) &&
+      urlPath === '/client/assets/' + path.posix.basename(urlPath))
+    return path.join(DESKTOP_RUNTIME_MODELS, path.posix.basename(urlPath));
   if (urlPath === '/' || urlPath === '/index.html') return path.join(ROOT, 'client', 'index.html');
   // Owner-approved runtime export only; never mount pipeline sources or reports.
   if (urlPath === '/client/assets/stillpoint.glb') return path.join(ROOT, 'tools', 'asset-pipeline', 'assets', 'stillpoint', 'outputs', 'stillpoint.glb');
@@ -198,8 +224,19 @@ export function startServer(opts = {}) {
     game.economy = new EconomyMetrics(target);
   }
   if (typeof opts.productionRoll === 'function') game.productionRoll = opts.productionRoll;
-  const server = http.createServer(handleHttp);
-  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
+  const localRequest = (req) => req.headers.host === `127.0.0.1:${server.address()?.port}`;
+  const server = http.createServer((req, res) => {
+    if (opts.desktopLocal === true && !localRequest(req)) {
+      res.writeHead(403, SECURITY_HEADERS).end('Forbidden');
+      return;
+    }
+    handleHttp(req, res);
+  });
+  const wss = new WebSocketServer({
+    server, path: '/ws', maxPayload: 4096,
+    ...(opts.desktopLocal === true ? { verifyClient: (info) =>
+      localRequest(info.req) && info.origin === `http://127.0.0.1:${server.address()?.port}` } : {}),
+  });
   const net = new NetServer(wss, game, store);
 
   let last = performance.now();
