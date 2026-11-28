@@ -30,6 +30,7 @@ import { Fx } from './fx.js';
 import { LiveAegis } from './live-aegis.js';
 import { LiveCasts } from './live-casts.js';
 import { createVfx } from './vfx/engine.js';
+import {preloadFenStalkerSurface} from './lumenfen-creatures.js';
 import { buildTextures } from './vfx/textures.js';
 import { CombatVfx } from './vfx/combat.js';
 import { StatusVfx } from './vfx/status.js';
@@ -119,6 +120,10 @@ await assets.init();
 await assets.preload(glbOnly === 'none' ? [] : [...CHARACTER_BUNDLES, ...(assets.entry('longpoint') ? ['longpoint'] : []), 'sanctum', 'nature'], (done, total) => {
   $('enter').textContent = `Loading the Reach… ${done}/${total}`;
 });
+// Reconstructed predator anatomy is optional. It never replaces the active
+// procedural leg joints; if the source GLB is absent, the rig remains intact.
+if(glbOnly!=='none'&&params.get('q')!=='0'&&assets.entry('lumenfen-six_limb_predator'))
+  await preloadFenStalkerSurface(THREE,assets.loader,assets.url('lumenfen-six_limb_predator'));
 // Three existing licensed compact firearm meshes; Longpoint remains the authored original.
 if(glbOnly!=='none')await Promise.all([loadWeaponModels(assets),loadWardenRifles(assets)]);
 // The Sanctum's carved architecture kit; the generic kit remains the fallback.

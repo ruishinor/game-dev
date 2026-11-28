@@ -1,5 +1,77 @@
 // Lumenfen wildlife silhouettes and six-legged locomotion.
 // Authored runtime geometry is not restricted by asset source or file format.
+import { fenFoliageGeometry, fenSurfaceDetail } from './lumenfen-organics.js';
+
+// Optional genuine archive-derived dorsal surface. The source GLB is remeshed
+// and physically textured by tools/assets/lumenfen-glb-refine.mjs; this adaptor
+// selects only dorsal/torso triangles so static source legs never appear beside
+// the live six-hip articulated creature rig. No hitbox/AI authority changes.
+let stalkerSurface=null;
+export async function preloadFenStalkerSurface(T,loader,assetURL){
+ if(stalkerSurface)return true;
+ // Optional GLBs must be present in the published runtime manifest. Avoid
+ // fetching archive-derived filenames that were never built or shipped (404).
+ if(!assetURL || typeof assetURL !== 'string' || !assetURL.startsWith('/client/assets/') || !T?.Box3 || !loader?.loadAsync)return false;
+ try{
+  const gltf=await loader.loadAsync(assetURL);
+  const root=gltf?.scene;
+  if(!root?.traverse)return false;
+  root.updateMatrixWorld(true);
+  const bound=new T.Box3().setFromObject(root),size=bound.getSize(new T.Vector3());
+  if(![size.x,size.y,size.z].every(n=>Number.isFinite(n)&&n>.00001))return false;
+  let faces=0;
+  root.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry?.attributes?.position)faces++;});
+  if(!faces)return false;
+  stalkerSurface={root,bound,size};
+  return true;
+ }catch{return false;}
+}
+function fitStalkerDorsal(T,group) {
+ if(!stalkerSurface)return {meshCount:0,materials:[],mount:null};
+ const {root,bound,size}=stalkerSurface;
+ const mount=new T.Group();mount.name='lumenfen:stalker:archive-dorsal-rig';
+ // Source meshes are already transformed into the selected donor root.
+ // Limit to the upper central surface; discard static legs/feet.
+ const center=bound.getCenter(new T.Vector3()),materials=[];
+ const forwardX=size.x>size.z;
+ const scaleX=(forwardX?2.9:1.18)/size.x;
+ const scaleY=.57/size.y,scaleZ=(forwardX?1.18:2.9)/size.z;
+ let meshCount=0;
+ root.traverse(o=>{
+  if(meshCount>=8||!o.isMesh||o.isSkinnedMesh||!o.geometry?.attributes?.position)return;
+  const geo=o.geometry.clone();geo.applyMatrix4(o.matrixWorld);
+  const position=geo.attributes.position,index=geo.index;
+  const count=index?index.count:position.count;
+  const ix=[],top=bound.min.y+size.y*.57;
+  for(let i=0;i<count-2;i+=3){
+   const a=index?index.getX(i):i,b=index?index.getX(i+1):i+1,
+     d=index?index.getX(i+2):i+2;
+   const x=(position.getX(a)+position.getX(b)+position.getX(d))/3;
+   const y=(position.getY(a)+position.getY(b)+position.getY(d))/3;
+   const z=(position.getZ(a)+position.getZ(b)+position.getZ(d))/3;
+   if(y<top||Math.abs(x-center.x)>size.x*.36||Math.abs(z-center.z)>size.z*.43)continue;
+   ix.push(a,b,d);
+  }
+  if(ix.length<30){geo.dispose();return;}
+  geo.setIndex(ix);geo.computeBoundingSphere();
+  const donorMaterials=(Array.isArray(o.material)?o.material:[o.material])
+    .map(m=>m?.clone?.()??new T.MeshPhysicalMaterial({color:0x658c70,roughness:.55}));
+  materials.push(...donorMaterials);
+  const shell=new T.Mesh(geo,Array.isArray(o.material)?donorMaterials:donorMaterials[0]);
+  shell.name='lumenfen:stalker:remeshed-source-carapace';
+  shell.castShadow=false;shell.receiveShadow=true;
+  mount.add(shell);meshCount++;
+ });
+ if(!meshCount){return {meshCount:0,materials,mount:null};}
+ // Keep live hip, knee, foot and tail joints independent of the donor surface.
+ mount.scale.set(scaleX,scaleY,scaleZ);
+ mount.position.set(-center.x*scaleX,1.39-(bound.min.y+size.y*.70)*scaleY,
+    -center.z*scaleZ);
+ if(forwardX)mount.rotation.y=Math.PI/2;
+ group.add(mount);
+ return {meshCount,materials,mount};
+}
+
 function disposeModel(group, materials) {
   const geometries = new Set();
   group.traverse(o => { if (o.isMesh && o.geometry) geometries.add(o.geometry); });
@@ -16,17 +88,41 @@ function link(T, parent, start, end, radius, material) {
   return mesh;
 }
 function leafGeometry(T) {
-  // A curved two-sided frond with clear tapered outline, not a spherical VFX orb.
-  const verts = new Float32Array([
-    0,0,0, -.35,.38,-.06, 0,1.1,.12,
-    0,0,0, 0,1.1,.12, .35,.38,.07,
-  ]);
-  const g = new T.BufferGeometry();
-  g.setAttribute('position',new T.BufferAttribute(verts,3));
-  g.computeVertexNormals();
-  return g;
+  // Scalloped, folded fin with a raised central vein and curled membrane tip.
+  const v=[],ix=[],sections=12;
+  for(let i=0;i<=sections;i++){
+    const t=i/sections,width=.36*Math.pow(Math.sin(Math.PI*t),.75);
+    const y=t*1.05,z=.15*Math.sin(t*Math.PI)+.06*t*t;
+    v.push(-width,y,z-.045,0,y,z+.072*Math.sin(Math.PI*t),width,y,z-.045);
+  }
+  for(let i=0;i<sections;i++){
+    const a=i*3,b=a+3;ix.push(a,b,a+1,a+1,b,b+1,a+1,b+1,a+2,a+2,b+1,b+2);
+  }
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute(v,3));
+  g.setIndex(ix);g.computeVertexNormals();return g;
 }
-function loft(T, rings, sides=12) {
+function bellGeometry(T) {
+  // Undulating radial skirt: the animal's shape comes from geometry, not glow.
+  const verts=[],indices=[],rings=8,sides=36;
+  for(let j=0;j<=rings;j++){
+    const t=j/rings;
+    for(let i=0;i<sides;i++){
+      const a=i*2*Math.PI/sides;
+      const ripple=1+.065*Math.sin(a*9+t*2.3);
+      const r=(.20+.82*Math.pow(t,.85))*ripple;
+      const y=.60-.80*t+.09*Math.sin(a*9)*t*t;
+      verts.push(Math.cos(a)*r,y,Math.sin(a)*r*.9);
+    }
+  }
+  for(let j=0;j<rings;j++)for(let i=0;i<sides;i++){
+    const a=j*sides+i,b=j*sides+(i+1)%sides,c=a+sides,d=b+sides;
+    indices.push(a,b,c,b,d,c);
+  }
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(verts,3));
+  g.setIndex(indices);g.computeVertexNormals();return g;
+}
+function loft(T, rings, sides=24) {
   const vertices=[], indices=[];
   for(const [z,width,height,cy] of rings) for(let i=0;i<sides;i++){
     const a=i*Math.PI*2/sides;
@@ -41,18 +137,18 @@ function loft(T, rings, sides=12) {
 }
 export function makeFenLantern(T){
   const group=new T.Group();group.name='lumenfen:lantern-drifter';
-  const skin=new T.MeshStandardMaterial({color:0x2b615b,roughness:.62,metalness:.04});
+  const skin=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x2b615b,roughness:.54,metalness:.02,clearcoat:.22,clearcoatRoughness:.35}), 'hide');
   const glow=new T.MeshStandardMaterial({color:0x69b99c,roughness:.38,transparent:true,opacity:.85,
     emissive:0x329b80,emissiveIntensity:1.8,depthWrite:false});
   const membrane=new T.MeshPhysicalMaterial({color:0x6bc8ae,roughness:.3,metalness:0,
     transparent:true,opacity:.69,depthWrite:false,side:T.DoubleSide});
   const dark=new T.MeshStandardMaterial({color:0x204e48,roughness:.88});
-  const bell=new T.Mesh(new T.SphereGeometry(1,18,12),skin);
-  bell.scale.set(.5,.28,.57);bell.position.y=1.15;group.add(bell);
-  const lantern=new T.Mesh(new T.SphereGeometry(1,16,10),glow);
-  lantern.scale.set(.28,.38,.3);lantern.position.y=.94;group.add(lantern);
-  const crown=new T.Mesh(new T.ConeGeometry(.32,.4,12),dark);
-  crown.position.y=1.45;group.add(crown);
+  const bell=new T.Mesh(bellGeometry(T),skin);
+  bell.scale.set(.56,.47,.61);bell.position.y=1.2;bell.name='lumenfen:lantern:fluted-mantle';group.add(bell);
+  const lantern=new T.Mesh(new T.CapsuleGeometry(.16,.24,10,18),glow);
+  lantern.position.y=.94;lantern.name='lumenfen:lantern:bioluminescent-core';group.add(lantern);
+  const crown=new T.Mesh(fenFoliageGeometry(T,'cage'),dark);
+  crown.scale.set(.38,.29,.38);crown.position.y=1.45;group.add(crown);
   const finGeo=leafGeometry(T), fins=[];
   for(let i=0;i<6;i++){
     const a=i*Math.PI/3;
@@ -62,6 +158,17 @@ export function makeFenLantern(T){
     surface.scale.set(1.1,.82,1);surface.rotation.z=Math.PI/2-.23;
     fin.add(surface);
     group.add(fin);fins.push(fin);
+  }
+  // Fine gill threads reveal a living filter-feeder in silhouette.
+  const gillMat=new T.MeshPhysicalMaterial({color:0x8dd1b7,transparent:true,opacity:.62,
+    depthWrite:false,roughness:.32,side:T.DoubleSide,emissive:0x2e715c,emissiveIntensity:.45});
+  const gillGeo=leafGeometry(T),gills=[];
+  for(let i=0;i<9;i++){
+    const a=i*2*Math.PI/9;
+    const gill=new T.Mesh(gillGeo,gillMat);
+    gill.scale.set(.38,.4,.5);gill.position.set(Math.sin(a)*.17,.76,Math.cos(a)*.17);
+    gill.rotation.set(Math.PI+.22,a,-.15);gill.name='lumenfen:lantern:filter-gill';
+    group.add(gill);gills.push(gill);
   }
   const whiskers=[];
   for(let i=0;i<4;i++){
@@ -78,16 +185,30 @@ export function makeFenLantern(T){
       const t=st.t||0,active=st.reducedMotion?0:1;
       group.position.y=.21+active*.12*Math.sin(t*1.4);
       bell.rotation.y+=Math.max(0,dt||0)*.14*active;
-      fins.forEach((f,i)=>{f.rotation.z=Math.sin(t*1.7+i*1.13)*.17*active;});
-      whiskers.forEach((w,i)=>{w.rotation.z=Math.sin(t*1.25+i*1.4)*.11*active;});
+      glow.emissiveIntensity=1.35+active*.24*Math.sin(t*1.1);
+      fins.forEach((f,i)=>{
+        const phase=t*1.7+i*1.13;
+        // Paired radial fin joints flex in two axes and remain centred at
+        // their original roots; no accumulated rotations.
+        f.rotation.z=Math.sin(phase)*.19*active;
+        f.rotation.x=Math.cos(phase*.73)*.13*active;
+      });
+      gills.forEach((g,i)=>{
+        g.rotation.z=-.15+.085*Math.sin(t*1.4+i*.67)*active;
+        g.scale.y=.4*(1+Math.sin(t*1.27+i*.84)*.085*active);
+      });
+      whiskers.forEach((w,i)=>{
+        w.rotation.z=Math.sin(t*1.25+i*1.4)*.11*active;
+        w.rotation.x=Math.cos(t*.96+i*.81)*.07*active;
+      });
     },
-    dispose(){disposeModel(group,[skin,glow,membrane,dark]);}
+    dispose(){disposeModel(group,[skin,glow,membrane,dark,gillMat]);}
   };
 }
 export function makeFenStalker(T) {
   const group=new T.Group();group.name='lumenfen:bog-stalker';
-  const skin=new T.MeshStandardMaterial({color:0x354e43,roughness:.87,metalness:0,flatShading:false});
-  const shell=new T.MeshStandardMaterial({color:0x607963,roughness:.73,metalness:.03});
+  const skin=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x354e43,roughness:.72,metalness:0,clearcoat:.24,clearcoatRoughness:.48}), 'hide');
+  const shell=fenSurfaceDetail(new T.MeshPhysicalMaterial({color:0x607963,roughness:.67,metalness:.03,clearcoat:.18,clearcoatRoughness:.43,side:T.DoubleSide}), 'hide');
   const underside=new T.MeshStandardMaterial({color:0x243d38,roughness:.95});
   const eyes=new T.MeshStandardMaterial({color:0x8be1b4,emissive:0x4eae84,emissiveIntensity:1.5,roughness:.38});
   const body=new T.Mesh(loft(T,[
@@ -113,10 +234,12 @@ export function makeFenStalker(T) {
     link(T,group,[side*.3,1.12,1.47],[side*.38,1.13,.93],.05,shell);
   }
   for(let i=0;i<7;i++){
-    const ridge=new T.Mesh(new T.ConeGeometry(.16+(i%3)*.025,.39,5),shell);
+    const ridge=new T.Mesh(fenFoliageGeometry(T,'cage'),shell);
+    ridge.scale.set(.28+(i%3)*.03,.25,.20);
     ridge.position.set(0,1.46+(i%2)*.05,1.03-i*.36);
-    ridge.rotation.x=-.26;group.add(ridge);
+    ridge.rotation.x=-.26;ridge.name='lumenfen:stalker:keratin-frill';group.add(ridge);
   }
+  const donorCarapace=fitStalkerDorsal(T,group);
   const legs=[];
   for(let pair=0;pair<3;pair++){
     const z=.94-pair*.88;
@@ -127,27 +250,68 @@ export function makeFenStalker(T) {
       const knee=new T.Group();knee.position.set(side*.43,-.34,.02);hip.add(knee);
       const shin=new T.Group();knee.add(shin);
       link(T,shin,[0,0,0],[side*.18,-.42,-.07],.13,shell);
-      const foot=new T.Mesh(new T.BoxGeometry(.3,.09,.44),underside);
-      foot.position.set(side*.21,-.45,.1);shin.add(foot);
-      group.add(hip);legs.push({hip,knee,pair,side});
+      const foot=new T.Mesh(loft(T,[
+        [-.24,.12,.06,-.03],[.04,.19,.075,-.025],[.24,.18,.055,-.038],
+        [.43,.105,.025,-.055],[.51,.015,.015,-.055]
+      ],16),underside);
+      foot.position.set(side*.21,-.45,.1);foot.name='lumenfen:stalker:splayed-foot';shin.add(foot);
+      for(let toe=-1;toe<=1;toe++){
+        const claw=link(T,shin,[side*.21+toe*.094,-.47,.39],
+          [side*.21+toe*.112,-.50,.64-(Math.abs(toe)*.06)],.026,shell);
+        claw.name='lumenfen:stalker:marsh-claw';
+      }
+      // Paired knee braces are articulated with the limb, not a decoration
+      // fixed to the torso. Thin layered organic membranes add secondary
+      // motion and retain a readable silhouette during gait.
+      const brace=new T.Mesh(fenFoliageGeometry(T,'willow'),shell);
+      brace.name='lumenfen:stalker:knee-membrane';
+      brace.scale.set(.17,.23,.22);
+      brace.position.set(side*.06,-.12,-.04);
+      brace.rotation.z=side*.27;
+      knee.add(brace);
+      group.add(hip);legs.push({hip,knee,foot,pair,side});
     }
   }
   const tail=new T.Group();tail.position.set(0,.94,-1.3);group.add(tail);
   link(T,tail,[0,0,0],[0,-.10,-.65],.16,skin);
-  link(T,tail,[0,-.10,-.65],[0,-.25,-1.12],.08,shell);
+  const tailTip=new T.Group();tailTip.position.set(0,-.10,-.65);tail.add(tailTip);
+  link(T,tailTip,[0,0,0],[0,-.15,-.47],.08,shell);
+  for(let i=0;i<3;i++){
+    const vane=new T.Mesh(fenFoliageGeometry(T,'willow'),shell);
+    vane.name='lumenfen:stalker:tail-vane';
+    vane.scale.set(.13,.2,.14);vane.position.set(0,-.06,-.15-i*.09);
+    vane.rotation.set(-.28,0,i*Math.PI*2/3);
+    tailTip.add(vane);
+  }
   return {group,height:1.75,radius:.88,hover:0,
     update(dt,st={}){
       const speed=Math.max(0,Math.min(1,(st.speed||0)/4.5));
       const active=st.reducedMotion?0:1,gait=(st.t||0)*5.8;
-      legs.forEach(({hip,knee,pair,side})=>{
-        const phase=gait+pair*2*Math.PI/3+(side>0?Math.PI:0);
-        hip.rotation.x=Math.sin(phase)*.42*speed*active;
-        knee.rotation.x=Math.max(0,Math.cos(phase))*.26*speed*active;
-        hip.rotation.z=side*(.04+.04*speed);
+      const attack=!!st.attack;
+      legs.forEach(({hip,knee,foot,pair,side})=>{
+        // Alternating-tripod hexapod walk: opposite middle leg pairs with
+        // front/rear legs. Limb angles are absolute per frame, not incremental,
+        // preventing cumulative wrist/leg rotation and unstable rest poses.
+        const tripod=(pair===1?-1:1)*side;
+        const phase=gait+(tripod>0?0:Math.PI);
+        const stride=Math.sin(phase),lift=Math.max(0,Math.cos(phase));
+        hip.rotation.x=stride*.39*speed*active;
+        knee.rotation.x=(.08+lift*.59*speed)*active;
+        knee.rotation.z=side*.035*(1+lift*speed)*active;
+        hip.rotation.z=side*(.04+.075*speed+ (attack?.035:0));
+        // Counter-pitch the metatarsus so the splayed toes don't claw upward
+        // at every stance phase. All rotational limits are bounded.
+        foot.rotation.x=-(hip.rotation.x+knee.rotation.x)*.78;
       });
-      tail.rotation.y=Math.sin((st.t||0)*1.3)*.2*active;
+      tail.rotation.y=Math.sin((st.t||0)*1.3)*.18*active+(attack?.06:0);
+      tailTip.rotation.y=Math.sin((st.t||0)*1.3-.55)*.29*active;
+      tailTip.rotation.x=Math.sin((st.t||0)*.95)*.11*active;
+      jaw.position.y=.78-(attack?.065:0);
+      eyes.emissiveIntensity=1.05+(st.attack ? .4 : .25)+active*.17*Math.sin((st.t||0)*1.7);
       body.rotation.z=Math.sin(gait*.5)*.025*speed*active;
+      if(donorCarapace.mount){donorCarapace.mount.rotation.z=body.rotation.z;
+        donorCarapace.mount.rotation.x=(st.attack?.035:0);}
     },
-    dispose(){disposeModel(group,[skin,shell,underside,eyes]);}
+    dispose(){disposeModel(group,[skin,shell,underside,eyes,...donorCarapace.materials]);}
   };
 }

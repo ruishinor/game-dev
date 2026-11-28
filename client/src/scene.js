@@ -25,6 +25,7 @@ import { planAnnexRocks } from './annex-rock-fit.js';
 import { buildSeverancePocket } from './severance-pocket.js';
 import { buildLumenfenWorld } from './lumenfen-world.js';
 import { buildLumenfenGlbAccents } from './lumenfen-glb-accents.js';
+import { finishLumenfenSites } from './lumenfen-site-finishing.js';
 import { buildSilentFoundry } from './silent-foundry.js';
 import { updateRegionPresentations } from './region-presentation.js';
 import { inSeverancePocket } from '../../shared/severance-gate.js';
@@ -1532,6 +1533,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     lighting: { sky: skyGroup, ambient, sun, dir } });
   const foundry = buildSilentFoundry(THREE, scene, { lighting: { sky: skyGroup, ambient, sun }, loader: kits ? assets.loader : null });
   const lumenfen = buildLumenfenWorld(THREE, scene, { sky: skyGroup, ambient, sun, detail, reducedMotion: opts.reducedMotion });
+  const lumenfenSiteFinish = finishLumenfenSites(THREE, lumenfen.group.getObjectByName('lumenfen:sites'));
   // Ground-level foliage is instantiated from the already loaded runtime GLB
   // kit; the site structures and authoritative collision do not depend on it.
   const lumenfenGlbAccents = buildLumenfenGlbAccents(THREE, kits ? assets : null);
@@ -1609,7 +1611,7 @@ export function buildWorld(scene, assets = null, opts = {}) {
     severancePocket: severance,
     foundry,
     lumenfen,
-    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats()}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
+    stats: { kits, batches, occluders: occluders.list.length, fallbacks, get prototypeArt() { return staticArtStatus(prototypeStates); }, get prototypeAssets() { return { ...prototypeStates }; }, get stillpoint() { return stillpointStatus; }, get severance() { return severance.landmark.stats(); }, get severanceKit() { return severance.kit.stats(); }, get foundry() { return foundry.stats(); }, get lumenfen() { return {...lumenfen.stats(),glbAccents:lumenfenGlbAccents.stats(),siteFinishing:lumenfenSiteFinish}; }, get kestrel() { return kestrelVisual.stats; }, get annex() { return annexInterior.stats; } },
     occluders,
     // Presentation-only fault effects. The object remains usable without VFX,
     // and the shared engine owns transient particle/ribbon lifetimes.
