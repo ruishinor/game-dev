@@ -1,5 +1,7 @@
 # Armour: from vector inventory art to rendered 3D assets
 
+> **Dated acceptance reconciliation (2026-11-23):** The [canonical delivery register ART-10/EQ-08](../DELIVERY-REGISTER.md) records the owner's narrow visual acceptance of the four rare armour families and revised Halo vendor on 2026-11-21 (PR #214). This does not establish technical mesh fit, LOD, runtime animation, performance or other art acceptance. The original implementation history below and later merged acquisition changes remain in force.
+
 Owner direction (2026-11-19): turn the armour illustrations, which until now
 existed only as vector inventory artwork (`client/src/catalogue-portraits.js`,
 ART-07), into finished, rendered 3D armour assets with the same Blender-based

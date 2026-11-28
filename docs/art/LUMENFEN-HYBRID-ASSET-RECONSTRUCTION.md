@@ -1,6 +1,6 @@
 # Lumenfen — hybrid world reconstruction (implementation contract)
 
-**Status:** Lumenfen's region and first-pass art exist in PR #236. All 138 archive GLBs are eligible for the registered production asset pipeline (`glb_archive`, PR #257); these eight donors are immediate candidates for reconstruction, composing and runtime integration. No additional owner approval or source-only exclusion is required to start development. Visual polish remains iterative.
+**Status as of 2026-11-23:** The Lumenfen region and initial art **merged through PR #236**; later landscape/landmark/fauna/GLB iterations include #275, #277, #280, #291 and #296. Issue #278 tracks remaining visual acceptance. Consult the [canonical register](../DELIVERY-REGISTER.md) for the current classification. All 138 archive GLBs are eligible for the registered production asset pipeline (`glb_archive`, PR #257); these eight donors are immediate candidates for reconstruction, composing and runtime integration. No additional owner approval or source-only exclusion is required to start development. Visual polish remains iterative.
 
 ## Owner-authorized archive and runtime pipeline
 
@@ -54,6 +54,6 @@ Use `assets/lumenfen-donors.json` as the verified shortlist of **individual sour
 3. Validate source and derivative integrity with the Khronos glTF validator; no missing textures, unsupported extensions or broken animation targets.
 4. Check actual in-world renders and traversal for all four rifts, ground contact, orientation, both-way travel, safe landing, camera obstruction, minimap/atlas, daylight and night fog.
 5. Assess 1280×800, 1920×1080, 2560×1440, and TV UI scaling with measured frame times, draw calls and VRAM. Maintain the currently accepted exterior Severance/Phase Scar art.
-6. Confirm exact PR-head CI and integrated browser playtest, server authority, reconnect/persistence and no client disclosure of privileged gameplay logic before making PR #236 mergeable.
+6. Confirm exact PR-head CI and integrated browser playtest, server authority, reconnect/persistence and no client disclosure of privileged gameplay logic for any subsequent art or gameplay PR (the original #236 is already merged).
 
 **Do not block or defer unrelated functional/regional merges solely because some art is unfinished or sourced from the low-poly archive.** Merge independently deliverable changes after applicable CI, gameplay and security checks, then continue asset reconstruction and visual improvements as follow-up work. Do not present a first-pass region as visually finished without evidence.
