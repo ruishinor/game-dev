@@ -90,6 +90,8 @@ export class NetServer {
       alive: true,
       missedPongs: 0,
       connectedAt: performance.now(),
+      lastPingAtMs: null,
+      lastPongAtMs: null,
       authTimer: setTimeout(() => {
         // An authenticated account may remain at character selection without a live player.
         if (!conn.player && !conn.account) ws.close(4000, 'auth timeout');
@@ -102,6 +104,7 @@ export class NetServer {
     ws.on('pong', () => {
       conn.alive = true;
       conn.missedPongs = 0;
+      conn.lastPongAtMs = Date.now();
     });
   }
 
@@ -117,6 +120,8 @@ export class NetServer {
         stallMs: conn.stalledSince === null ? null : Math.round(performance.now() - conn.stalledSince),
         missedPongs: conn.missedPongs, strikes: conn.strikes,
         hadPlayer: !!conn.player,
+        lastPingAtMs: conn.lastPingAtMs,
+        lastPongAtMs: conn.lastPongAtMs,
       }));
     }
     this.conns.delete(conn);
@@ -646,6 +651,7 @@ export class NetServer {
       }
       conn.alive = false;
       try {
+        conn.lastPingAtMs = Date.now();
         conn.ws.ping();
       } catch {
         /* socket already closing */
