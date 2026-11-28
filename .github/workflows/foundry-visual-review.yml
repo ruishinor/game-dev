@@ -1,0 +1,104 @@
+name: Silent Foundry gameplay visual review
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/silent-foundry.js'
+      - 'client/src/camera.js'
+      - 'client/src/vfx/**'
+      - 'shared/silent-foundry.js'
+      - 'tools/severance-expanse-capture.mjs'
+      - 'tools/asset-pipeline/assets/foundry_kit/outputs/foundry_kit.glb'
+      - 'tools/assets/refine-foundry-glb.mjs'
+      - '.github/workflows/foundry-visual-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  foundry-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Actual gameplay camera at desktop 1280x800
+        env:
+          ATTUNEMENT_WIDTH: '1280'
+          ATTUNEMENT_HEIGHT: '800'
+        run: node tools/severance-expanse-capture.mjs foundry-review/1280x800 20,21,22,23,24,25,26,27,28,29
+      - name: Actual gameplay camera at desktop 1920x1080
+        env:
+          ATTUNEMENT_WIDTH: '1920'
+          ATTUNEMENT_HEIGHT: '1080'
+        run: node tools/severance-expanse-capture.mjs foundry-review/1920x1080 20,23,25,26,29
+      - name: Verify screenshots, real Foundry kit and capture diagnostics
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import sharp from 'sharp';
+          for (const [size, prefix, minimum] of [['1280x800',  '20-', 15], ['1920x1080', '20-', 10]]) {
+            const dir = path.join('foundry-review', size);
+            const log = JSON.parse(fs.readFileSync(path.join(dir, 'capture-log.json'), 'utf8'));
+            const files = fs.readdirSync(dir).filter(file => file.endsWith('.png'));
+            if (files.length < minimum) throw Error(size + ': expected ' + minimum + ' captures, got ' + files.length);
+            if (log.errors?.length) throw Error(size + ': browser errors ' + JSON.stringify(log.errors));
+            const views = log.views.filter(view => /^(20|21|22|23|24|26|27|28|29)-/.test(view.name));
+            if (!views.length || !views.every(view => view.foundry?.inside && view.draw?.calls > 0 && view.draw?.triangles > 0)) {
+              throw Error(size + ': missing actual Foundry scene stats');
+            }
+            if (!views.every(view => view.foundry?.kit === 'ready')) {
+              throw Error(size + ': Foundry GLB kit did not reach ready state');
+            }
+            // A screenshot file and healthy draw count do not prove the camera
+            // can see the encounter. Pre-fix captures in all four chambers were
+            // near-black because the orbit camera escaped above the 15m roof.
+            const highOrbits = views.filter(view => /^(26|27|28|29)-/.test(view.name));
+            const expectedHighOrbits = size === '1280x800' ? 4 : 2;
+            if (highOrbits.length !== expectedHighOrbits) {
+              throw Error(size + ': expected ' + expectedHighOrbits + ' high-orbit views');
+            }
+            for (const view of highOrbits) {
+              const eyeY = view.camera?.[1];
+              if (!Number.isFinite(eyeY) || eyeY >= 13.4) {
+                throw Error(view.name + ': camera escaped beneath/through the 15m roof: y=' + eyeY);
+              }
+              const png = path.join(dir, view.name + '.png');
+              const { data, info } = await sharp(png).resize(160, 100).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+              let lit = 0;
+              for (let n = 0; n < data.length; n += info.channels) {
+                const luminance = .2126 * data[n] + .7152 * data[n + 1] + .0722 * data[n + 2];
+                if (luminance > 24) lit++;
+              }
+              const ratio = lit / (info.width * info.height);
+              if (ratio < 0.01) {
+                throw Error(view.name + ': almost entirely black/featureless gameplay frame (' + ratio.toFixed(3) + ' lit)');
+              }
+              console.log(view.name, 'camera Y:', eyeY.toFixed(2), 'lit fraction:', ratio.toFixed(3));
+            }
+            for (const k of ['overseer_press_slam', 'overseer_slag_wave', 'overseer_resonant_overload']) {
+              if (!files.includes('25-' + k + '-telegraph.png') || !files.includes('25-' + k + '.png')) {
+                throw Error(size + ': missing telegraph / impact pair for ' + k);
+              }
+            }
+            console.log(size, 'renderer:', log.graphics?.renderer, 'views:', views.length,
+              'draws:', views.map(v => v.draw.calls), 'triangles:', views.map(v => v.draw.triangles));
+          }
+          NODE
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: silent-foundry-gameplay-camera-evidence
+          path: foundry-review/
+          if-no-files-found: warn

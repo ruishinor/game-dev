@@ -22,12 +22,18 @@ let browser;
 const log = [];
 try {
   browser = await launchBrowser();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  // Software GL at 1080p can starve the real WebSocket heartbeat before we
+  // even enter the dungeon. Initialise gameplay at the normal 1280x800
+  // fixture size; switch to requested resolution only once the GLB is ready.
+  const requestedViewport = { width: Number(process.env.ATTUNEMENT_WIDTH) || 1280, height: Number(process.env.ATTUNEMENT_HEIGHT) || 800 };
+  const softwareHighRes = SOFTWARE_GL && requestedViewport.width > 1280;
+  const initialViewport = softwareHighRes ? { width: 1280, height: 800 } : requestedViewport;
+  const page = await browser.newPage({ viewport: initialViewport });
   page.setDefaultTimeout(240000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1`);
+  await page.goto(`http://127.0.0.1:${server.port}/?q=2&qlock=1&nolock=1${softwareHighRes ? '&rfps=4' : ''}`);
   await page.click('#gate-guest-link');
   await page.fill('#name', 'Expanse Surveyor');
   await page.click('.classcard[data-cls="keeper"]');
@@ -51,7 +57,7 @@ try {
     await page.waitForTimeout(settle);
     const file = path.join(out, name + '.png');
     await page.screenshot({ path: file });
-    const s = await page.evaluate(() => { const s = window.__attune.state(); return { draw: s.draw, kit: s.world.severanceKit, gate: s.world.severance?.band, fps: s.fps, pos: s.pos }; });
+    const s = await page.evaluate(() => { const s = window.__attune.state(); return { draw: s.draw, kit: s.world.severanceKit, foundry: s.world.foundry, gate: s.world.severance?.band, fps: s.fps, pos: s.pos, camera: window.__attune.gfx.camera.position.toArray() }; });
     log.push({ name, file, at, face, cam, tod, ...s });
     console.log(name, tod, 'calls', s.draw.calls, 'tris', s.draw.triangles, JSON.stringify(s.kit));
   }
@@ -99,12 +105,31 @@ try {
     game.aiHold = true;   // the encounter stands still for the review views
     game.transferPlayer(p, { ...SF.arrival });
     await page.waitForFunction(() => window.__attune.state().you?.region === 'silent_foundry', null, { polling: 250 });
+    // Entering a disconnected region does not imply its asynchronous GLB kit
+    // has finished loading. Capture only after the player-camera scene and kit
+    // both resolve, rather than accepting a misleading procedural placeholder.
+    await page.waitForFunction(() => {
+      const f = window.__attune.state().world.foundry;
+      return f?.inside && (f.kit === 'ready' || f.kit === 'fallback');
+    }, null, { polling: 500, timeout: 90000 });
+    const kit = await page.evaluate(() => window.__attune.state().world.foundry);
+    if (kit.kit !== 'ready') throw Error('Foundry kit unavailable during visual inspection: ' + JSON.stringify(kit));
+    // The screenshots still render at the exact requested 1920x1080 pixels;
+    // throttling *software* GL frames changes neither quality nor resolution.
+    // It only avoids spending the entire heartbeat budget on discarded frames.
+    if (softwareHighRes) await page.setViewportSize(requestedViewport);
     const f = (u, v) => ({ x: SF.x + u, z: SF.z + v });
     await shot('20-foundry-fabrication-hall', f(0, 92), S, { yaw: S, pitch: 0.12, dist: 7 }, { tod: 'off' });
     await shot('21-foundry-cultivation-vault', f(0, 50), S, { yaw: S, pitch: 0.14, dist: 7 }, { tod: 'off' });
     await shot('22-foundry-harmonic-chamber', f(0, -4), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('23-foundry-excavation-depths', f(0, -54), S, { yaw: S, pitch: 0.2, dist: 8 }, { tod: 'off' });
     await shot('24-foundry-vats-close', f(5, 20), W + 0.4, { yaw: W + 0.4, pitch: 0.1, dist: 5 }, { tod: 'off' });
+    // Intentionally steep/max-distance third-person views exercise roof and
+    // hanging-truss occlusion in every chamber rather than only normal traversal.
+    await shot('26-foundry-fabrication-high-orbit', f(0, 76), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('27-foundry-cultivation-high-orbit', f(0, 26), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('28-foundry-harmonic-high-orbit', f(8, -26), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
+    await shot('29-foundry-depths-high-orbit', f(0, -78), S, { yaw: S, pitch: 1.25, dist: 24 }, { tod: 'off' });
     // the Overseer's attacks, as real world events in the Depths
     const boss = game.enemies.find((e) => e.overseer);
     const watch = f(0, -66);
@@ -115,6 +140,20 @@ try {
       await page.evaluate(() => window.__attune.view({ face: Math.PI, yaw: Math.PI, pitch: 0.22, dist: 7 }));
       await page.waitForTimeout(1200);
       const at = k === 'overseer_press_slam' ? { x: boss.x + 2, z: boss.z + 6 } : { x: boss.x, z: boss.z };
+      // Reproduce the actual server-owned warning, including windup time and
+      // target/self/all ground-marker semantics. Previous review screenshots
+      // incorrectly forced g=0 for every special, hiding the marked ground.
+      const special = boss.specials?.find((sp) => sp.id === k);
+      if (!special || special.radius !== r) throw Error('Foundry Overseer special mismatch: ' + k);
+      const warning = { e: 'tele', id: boss.id, k, n: special.name,
+        x: at.x, z: at.z, r: special.radius, ms: special.windup,
+        g: special.at === 'all' ? 0 : 1 };
+      game.emitWorldEvent(warning);
+      await page.waitForTimeout(480);
+      const warningFile = path.join(out, `25-${k}-telegraph.png`);
+      await page.screenshot({ path: warningFile });
+      log.push({ name: `25-${k}-telegraph`, file: warningFile,
+        radius: special.radius, windupMs: special.windup, groundMarker: !!warning.g });
       game.emitWorldEvent({ e: 'fx', k, s: boss.id, x: at.x, z: at.z, r });
       await page.waitForTimeout(settle);
       const file = path.join(out, `25-${k}.png`);
